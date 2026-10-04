@@ -21,6 +21,7 @@ import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -355,6 +356,19 @@ configure(publishProjects) {
             sign(extensions.getByType(PublishingExtension::class).publications["mavenBom"])
         } else {
             sign(extensions.getByType(PublishingExtension::class).publications["mavenLibrary"])
+        }
+    }
+}
+
+// The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
+// against it, so a 9.x patch cannot change a public signature unnoticed. `./gradlew updateKotlinAbi` rewrites
+// the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed.
+configure(publishProjects - bomProjects) {
+    configure<KotlinJvmProjectExtension> {
+        @OptIn(ExperimentalAbiValidation::class)
+        abiValidation {
+            // Declarations Wow's own modules share but promise nothing about (see its KDoc).
+            filters.exclude.annotatedWith.add("me.ahoo.wow.api.annotation.InternalWowApi")
         }
     }
 }

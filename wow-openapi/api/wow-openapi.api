@@ -1,0 +1,1161 @@
+public final class me/ahoo/wow/openapi/ApiResponseBuilder {
+	public static final field Companion Lme/ahoo/wow/openapi/ApiResponseBuilder$Companion;
+	public static final field DEFAULT_MEDIA_TYPE_NAME Ljava/lang/String;
+	public fun <init> ()V
+	public final fun build ()Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public final fun header (Ljava/lang/String;Lio/swagger/v3/oas/models/headers/Header;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public final fun listContent (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+}
+
+public final class me/ahoo/wow/openapi/ApiResponseBuilder$Companion {
+}
+
+public final class me/ahoo/wow/openapi/BatchComponent {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/BatchComponent;
+}
+
+public final class me/ahoo/wow/openapi/BatchComponent$Parameter {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/BatchComponent$Parameter;
+	public final fun batchAfterIdPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun batchLimitPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun headVersionPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun tailVersionPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+}
+
+public final class me/ahoo/wow/openapi/BatchComponent$PathVariable {
+	public static final field BATCH_AFTER_ID Ljava/lang/String;
+	public static final field BATCH_LIMIT Ljava/lang/String;
+	public static final field HEAD_VERSION Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/BatchComponent$PathVariable;
+	public static final field TAIL_VERSION Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/BatchComponent$Response {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/BatchComponent$Response;
+	public final fun batchResultResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+}
+
+public final class me/ahoo/wow/openapi/BatchComponent$Schema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/BatchComponent$Schema;
+	public final fun batchResultSchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/BatchResult : me/ahoo/wow/api/exception/ErrorInfo {
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/BatchResult;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/BatchResult;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/BatchResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAfterId ()Ljava/lang/String;
+	public fun getBindingErrors ()Ljava/util/List;
+	public fun getErrorCode ()Ljava/lang/String;
+	public fun getErrorMsg ()Ljava/lang/String;
+	public final fun getSize ()I
+	public fun getSucceeded ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/CommonComponent {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent;
+}
+
+public final class me/ahoo/wow/openapi/CommonComponent$Header {
+	public static final field ERROR_CODE Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Header;
+	public static final field SPACE_ID Ljava/lang/String;
+	public final fun errorCodeHeader (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/headers/Header;
+}
+
+public final class me/ahoo/wow/openapi/CommonComponent$Parameter {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Parameter;
+	public final fun createTimePathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun idPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun ownerIdPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun spaceIdHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun tenantIdPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun versionPathParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+}
+
+public final class me/ahoo/wow/openapi/CommonComponent$Response {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Response;
+	public static final field UNSUPPORTED_MEDIA_TYPE_ERROR_CODE Ljava/lang/String;
+	public final fun badRequestResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun notFoundResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun requestTimeoutResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun tooManyRequestsResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun unsupportedMediaTypeResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun withErrorCodeHeader (Lme/ahoo/wow/openapi/ApiResponseBuilder;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+}
+
+public final class me/ahoo/wow/openapi/CommonComponent$Schema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Schema;
+	public final fun errorInfoSchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/Https {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/Https;
+}
+
+public final class me/ahoo/wow/openapi/Https$Code {
+	public static final field BAD_GATEWAY Ljava/lang/String;
+	public static final field BAD_REQUEST Ljava/lang/String;
+	public static final field CONFLICT Ljava/lang/String;
+	public static final field GATEWAY_TIMEOUT Ljava/lang/String;
+	public static final field GONE Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/Https$Code;
+	public static final field INTERNAL_SERVER_ERROR Ljava/lang/String;
+	public static final field NOT_ACCEPTABLE Ljava/lang/String;
+	public static final field NOT_FOUND Ljava/lang/String;
+	public static final field NOT_MODIFIED Ljava/lang/String;
+	public static final field OK Ljava/lang/String;
+	public static final field REQUEST_TIMEOUT Ljava/lang/String;
+	public static final field SERVICE_UNAVAILABLE Ljava/lang/String;
+	public static final field TOO_MANY_REQUESTS Ljava/lang/String;
+	public static final field UNSUPPORTED_MEDIA_TYPE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/Https$Header {
+	public static final field ACCEPT Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/Https$Header;
+}
+
+public final class me/ahoo/wow/openapi/Https$MediaType {
+	public static final field APPLICATION_JSON Ljava/lang/String;
+	public static final field APPLICATION_SQL Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/Https$MediaType;
+	public static final field TEXT_EVENT_STREAM Ljava/lang/String;
+	public static final field TEXT_PLAIN Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/Https$Method {
+	public static final field DELETE Ljava/lang/String;
+	public static final field GET Ljava/lang/String;
+	public static final field HEAD Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/Https$Method;
+	public static final field OPTIONS Ljava/lang/String;
+	public static final field PATCH Ljava/lang/String;
+	public static final field POST Ljava/lang/String;
+	public static final field PUT Ljava/lang/String;
+	public static final field TRACE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/OpenAPIExtensions {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/OpenAPIExtensions;
+	public static final field WOW_CONTEXT_ALIAS Ljava/lang/String;
+	public static final field WOW_CONTEXT_NAME Ljava/lang/String;
+	public static final field WOW_EXTENSIONS_PREFIX Ljava/lang/String;
+	public static final field WOW_VERSION Ljava/lang/String;
+	public final fun withExtensions (Lio/swagger/v3/oas/models/info/Info;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lio/swagger/v3/oas/models/info/Info;
+}
+
+public final class me/ahoo/wow/openapi/PathBuilder {
+	public fun <init> ()V
+	public final fun append (Ljava/lang/String;)Lme/ahoo/wow/openapi/PathBuilder;
+	public final fun build ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/QueryComponent {
+	public static final field AGGREGATED_FIELDS_SUFFIX Ljava/lang/String;
+	public static final field AGGREGATION_QUERY_KEY Ljava/lang/String;
+	public static final field AGGREGATION_QUERY_SUFFIX Ljava/lang/String;
+	public static final field COUNT_QUERY_KEY Ljava/lang/String;
+	public static final field COUNT_QUERY_SUFFIX Ljava/lang/String;
+	public static final field CURSOR_QUERY_KEY Ljava/lang/String;
+	public static final field CURSOR_QUERY_SUFFIX Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/QueryComponent;
+	public static final field LIST_QUERY_KEY Ljava/lang/String;
+	public static final field LIST_QUERY_SUFFIX Ljava/lang/String;
+	public static final field PAGED_QUERY_KEY Ljava/lang/String;
+	public static final field PAGED_QUERY_SUFFIX Ljava/lang/String;
+	public static final field QUERY_FIELDS_EXTENSION Ljava/lang/String;
+	public static final field SINGLE_QUERY_KEY Ljava/lang/String;
+	public static final field SINGLE_QUERY_SUFFIX Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/QueryComponent$RequestBody {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/QueryComponent$RequestBody;
+	public final fun aggregatedAggregationQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun aggregatedCountQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun aggregatedCursorQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun aggregatedListQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun aggregatedPagedQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun aggregatedSingleQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun aggregationQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun countQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun cursorQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun listQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun pagedQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun singleQueryRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+}
+
+public final class me/ahoo/wow/openapi/QueryComponent$Response {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/QueryComponent$Response;
+	public final fun countQueryResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun loadEventStreamResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun pagedListEventStreamResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+}
+
+public final class me/ahoo/wow/openapi/QueryComponent$Schema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/QueryComponent$Schema;
+	public final fun aggregationQuerySchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+	public final fun cursorQuerySchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+	public final fun filterSchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+	public final fun listQuerySchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+	public final fun pagedQuerySchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+	public final fun singleQuerySchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/RequestBodyBuilder {
+	public fun <init> ()V
+	public final fun build ()Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public static synthetic fun content$default (Lme/ahoo/wow/openapi/RequestBodyBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;ILjava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public static synthetic fun content$default (Lme/ahoo/wow/openapi/RequestBodyBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public final fun extension (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+}
+
+public final class me/ahoo/wow/openapi/RouteIdSpec {
+	public fun <init> ()V
+	public final fun aggregate (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/openapi/RouteIdSpec;
+	public final fun appendOwner (Z)Lme/ahoo/wow/openapi/RouteIdSpec;
+	public final fun appendTenant (Z)Lme/ahoo/wow/openapi/RouteIdSpec;
+	public final fun build ()Ljava/lang/String;
+	public final fun operation (Ljava/lang/String;)Lme/ahoo/wow/openapi/RouteIdSpec;
+	public final fun prefix (Ljava/lang/String;)Lme/ahoo/wow/openapi/RouteIdSpec;
+	public final fun resourceName (Ljava/lang/String;)Lme/ahoo/wow/openapi/RouteIdSpec;
+}
+
+public final class me/ahoo/wow/openapi/RouterSpecs {
+	public static final field Companion Lme/ahoo/wow/openapi/RouterSpecs$Companion;
+	public static final field DEFAULT_OPENAPI_INFO_TITLE Ljava/lang/String;
+	public fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun build ()Lme/ahoo/wow/openapi/RouterSpecs;
+	public final fun getComponentContext ()Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;
+	public final fun getRouteContributors ()Ljava/util/List;
+	public final fun mergeOpenAPI (Lio/swagger/v3/oas/models/OpenAPI;)V
+	public final fun mergeOpenAPIFromCatalog (Lio/swagger/v3/oas/models/OpenAPI;)V
+	public final fun toRouteCatalog ()Lme/ahoo/wow/openapi/catalog/RouteCatalog;
+}
+
+public final class me/ahoo/wow/openapi/RouterSpecs$Companion {
+}
+
+public final class me/ahoo/wow/openapi/Tags {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/Tags;
+	public final fun toTags (Ljava/lang/Class;)Ljava/util/Set;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent$Header {
+	public static final field AGGREGATE_ID Ljava/lang/String;
+	public static final field AGGREGATE_VERSION Ljava/lang/String;
+	public static final field COMMAND_AGGREGATE_CONTEXT Ljava/lang/String;
+	public static final field COMMAND_AGGREGATE_NAME Ljava/lang/String;
+	public static final field COMMAND_HEADERS_PREFIX Ljava/lang/String;
+	public static final field COMMAND_HEADER_X_PREFIX Ljava/lang/String;
+	public static final field COMMAND_TYPE Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent$Header;
+	public static final field LEGACY_WAIT_TIME_OUT Ljava/lang/String;
+	public static final field LOCAL_FIRST Ljava/lang/String;
+	public static final field OWNER_ID Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field TENANT_ID Ljava/lang/String;
+	public static final field WAIT_CONTEXT Ljava/lang/String;
+	public static final field WAIT_FUNCTION Ljava/lang/String;
+	public static final field WAIT_PREFIX Ljava/lang/String;
+	public static final field WAIT_PROCESSOR Ljava/lang/String;
+	public static final field WAIT_STAGE Ljava/lang/String;
+	public static final field WAIT_TAIL_CONTEXT Ljava/lang/String;
+	public static final field WAIT_TAIL_FUNCTION Ljava/lang/String;
+	public static final field WAIT_TAIL_PREFIX Ljava/lang/String;
+	public static final field WAIT_TAIL_PROCESSOR Ljava/lang/String;
+	public static final field WAIT_TAIL_STAGE Ljava/lang/String;
+	public static final field WAIT_TIME_OUT Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent$Parameter {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent$Parameter;
+	public final fun acceptHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun aggregateIdHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun aggregateVersionHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun commandAggregateContextHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun commandAggregateNameHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun commandCommonHeaderParameters (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public final fun commandTypeHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun localFirstHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun ownerIdHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun requestIdHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun tenantIdHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitContextHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitFunctionHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitProcessorHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitStageHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitTailContextHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitTailFunctionHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitTailProcessorHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitTailStageHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public final fun waitTimeOutHeaderParameter (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/Parameter;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent$Response {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent$Response;
+	public final fun badRequestCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun commandResponses (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponses;
+	public final fun illegalAccessDeletedAggregateCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun notFoundCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun okCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun requestTimeoutCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun tooManyRequestsCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun versionConflictCommandResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent$Schema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent$Schema;
+	public final fun commandResultSchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/event/EventComponent {
+	public static final field COMPENSATION_TARGET_KEY Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/event/EventComponent;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/event/EventComponent$Request {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/event/EventComponent$Request;
+	public final fun compensationTargetRequestBody (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/event/EventComponent$Response {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/event/EventComponent$Response;
+	public final fun compensationTargetResponse (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+}
+
+public final class me/ahoo/wow/openapi/aggregate/event/EventComponent$Schema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/event/EventComponent$Schema;
+	public final fun compensationTargetSchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/catalog/RouteCatalog : java/lang/Iterable, kotlin/jvm/internal/markers/KMappedMarker {
+	public fun <init> (Ljava/util/List;)V
+	public final fun getDispatchRoutes ()Ljava/util/List;
+	public final fun getRoutes ()Ljava/util/List;
+	public fun iterator ()Ljava/util/Iterator;
+}
+
+public final class me/ahoo/wow/openapi/catalog/RouteCatalogBuilder {
+	public fun <init> ()V
+	public final fun add (Lme/ahoo/wow/openapi/contract/HttpRouteContract;)Lme/ahoo/wow/openapi/catalog/RouteCatalogBuilder;
+	public final fun addAll (Ljava/lang/Iterable;)Lme/ahoo/wow/openapi/catalog/RouteCatalogBuilder;
+	public final fun build ()Lme/ahoo/wow/openapi/catalog/RouteCatalog;
+}
+
+public final class me/ahoo/wow/openapi/catalog/RouteCategory : java/lang/Enum {
+	public static final field COMMAND Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public static final field EVENT Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public static final field GLOBAL Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public static final field SNAPSHOT Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public static final field STATE Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public static fun values ()[Lme/ahoo/wow/openapi/catalog/RouteCategory;
+}
+
+public abstract interface class me/ahoo/wow/openapi/catalog/RouteContributor {
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public abstract fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/catalog/RouteContributor$DefaultImpls {
+	public static fun contributeAggregate (Lme/ahoo/wow/openapi/catalog/RouteContributor;Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public static fun contributeGlobal (Lme/ahoo/wow/openapi/catalog/RouteContributor;Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+}
+
+public final class me/ahoo/wow/openapi/catalog/RouteContributors {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/catalog/RouteContributors;
+	public final fun getCOMPARATOR ()Ljava/util/Comparator;
+	public final fun sort (Ljava/lang/Iterable;)Ljava/util/List;
+}
+
+public final class me/ahoo/wow/openapi/context/DefaultOpenAPIComponentContext : me/ahoo/wow/openapi/context/OpenAPIComponentContext, me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+	public fun <init> (Lme/ahoo/wow/schema/openapi/OpenAPISchemaBuilder;)V
+	public fun arraySchema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+	public fun componentSchema (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lio/swagger/v3/oas/models/media/Schema;
+	public fun finish ()V
+	public fun getHeaders ()Ljava/util/Map;
+	public fun getInline ()Z
+	public fun getParameters ()Ljava/util/Map;
+	public fun getRequestBodies ()Ljava/util/Map;
+	public fun getResponses ()Ljava/util/Map;
+	public fun getSchemas ()Ljava/util/Map;
+	public fun header (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/headers/Header;
+	public fun parameter (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public fun requestBody (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
+	public fun response (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public fun schema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+	public fun setSchemas (Ljava/util/Map;)V
+}
+
+public abstract interface class me/ahoo/wow/openapi/context/OpenAPIComponentContext : me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+	public static final field COMPONENTS_HEADERS_REF Ljava/lang/String;
+	public static final field COMPONENTS_PARAMETERS_REF Ljava/lang/String;
+	public static final field COMPONENTS_PREFIX Ljava/lang/String;
+	public static final field COMPONENTS_REQUEST_BODIES_REF Ljava/lang/String;
+	public static final field COMPONENTS_RESPONSES_REF Ljava/lang/String;
+	public static final field COMPONENTS_SCHEMAS_REF Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/openapi/context/OpenAPIComponentContext$Companion;
+	public abstract fun arraySchema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+	public fun componentSchema (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lio/swagger/v3/oas/models/media/Schema;
+	public abstract fun finish ()V
+	public abstract fun getHeaders ()Ljava/util/Map;
+	public abstract fun getParameters ()Ljava/util/Map;
+	public abstract fun getRequestBodies ()Ljava/util/Map;
+	public abstract fun getResponses ()Ljava/util/Map;
+	public abstract fun getSchemas ()Ljava/util/Map;
+	public abstract fun header (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/headers/Header;
+	public static synthetic fun header$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/headers/Header;
+	public abstract fun parameter (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public static synthetic fun parameter$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public abstract fun requestBody (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public static synthetic fun requestBody$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public abstract fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
+	public abstract fun response (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public static synthetic fun response$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public abstract fun schema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/context/OpenAPIComponentContext$Companion {
+	public static final field COMPONENTS_HEADERS_REF Ljava/lang/String;
+	public static final field COMPONENTS_PARAMETERS_REF Ljava/lang/String;
+	public static final field COMPONENTS_PREFIX Ljava/lang/String;
+	public static final field COMPONENTS_REQUEST_BODIES_REF Ljava/lang/String;
+	public static final field COMPONENTS_RESPONSES_REF Ljava/lang/String;
+	public static final field COMPONENTS_SCHEMAS_REF Ljava/lang/String;
+	public final fun default (ZLcom/github/victools/jsonschema/generator/SchemaVersion;Ljava/lang/String;)Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;
+	public static synthetic fun default$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext$Companion;ZLcom/github/victools/jsonschema/generator/SchemaVersion;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;
+}
+
+public final class me/ahoo/wow/openapi/context/OpenAPIComponentContext$DefaultImpls {
+	public static fun componentSchema (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lio/swagger/v3/oas/models/media/Schema;
+	public static synthetic fun header$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/headers/Header;
+	public static synthetic fun parameter$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/parameters/Parameter;
+	public static synthetic fun requestBody$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public static synthetic fun response$default (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/swagger/v3/oas/models/responses/ApiResponse;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Command {
+	public static final field COMMAND Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Command;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Event {
+	public static final field AGGREGATION Ljava/lang/String;
+	public static final field COMPENSATE Ljava/lang/String;
+	public static final field COUNT Ljava/lang/String;
+	public static final field CURSOR_QUERY Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Event;
+	public static final field LIST_QUERY Ljava/lang/String;
+	public static final field LOAD Ljava/lang/String;
+	public static final field PAGED_QUERY Ljava/lang/String;
+	public static final field RESEND_STATE Ljava/lang/String;
+	public static final field SCHEMA Ljava/lang/String;
+	public static final field SCHEMA_REFRESH Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Global {
+	public static final field BI_SCRIPT Ljava/lang/String;
+	public static final field COMMAND_FACADE Ljava/lang/String;
+	public static final field COMMAND_WAIT Ljava/lang/String;
+	public static final field GLOBAL_ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Global;
+	public static final field METADATA Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Snapshot {
+	public static final field AGGREGATION Ljava/lang/String;
+	public static final field BATCH_REGENERATE Ljava/lang/String;
+	public static final field COUNT Ljava/lang/String;
+	public static final field CURSOR_QUERY Ljava/lang/String;
+	public static final field CURSOR_QUERY_STATE Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Snapshot;
+	public static final field LIST_QUERY Ljava/lang/String;
+	public static final field LIST_QUERY_STATE Ljava/lang/String;
+	public static final field LOAD Ljava/lang/String;
+	public static final field PAGED_QUERY Ljava/lang/String;
+	public static final field PAGED_QUERY_STATE Ljava/lang/String;
+	public static final field REGENERATE Ljava/lang/String;
+	public static final field SCHEMA Ljava/lang/String;
+	public static final field SCHEMA_REFRESH Ljava/lang/String;
+	public static final field SINGLE Ljava/lang/String;
+	public static final field SINGLE_STATE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$State {
+	public static final field AGGREGATE_TRACING Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$State;
+	public static final field LOAD_AGGREGATE Ljava/lang/String;
+	public static final field LOAD_TIME_BASED_AGGREGATE Ljava/lang/String;
+	public static final field LOAD_VERSIONED_AGGREGATE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRoutePaths {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRoutePaths;
+}
+
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRoutePaths$Global {
+	public static final field BI_SCRIPT Ljava/lang/String;
+	public static final field COMMAND_SEND Ljava/lang/String;
+	public static final field COMMAND_WAIT Ljava/lang/String;
+	public static final field GLOBAL_ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRoutePaths$Global;
+	public static final field METADATA Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpContent {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;)Lme/ahoo/wow/openapi/contract/HttpContent;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpContent;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpContent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMediaType ()Ljava/lang/String;
+	public final fun getSchema ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpHeader {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpHeader;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpHeader;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpHeader;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getComponentRef ()Ljava/lang/String;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getSchema ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpParameter {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpParameterLocation;ZLme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpParameterLocation;ZLme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+	public final fun component3 ()Z
+	public final fun component4 ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/Object;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpParameterLocation;ZLme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpParameter;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpParameter;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/HttpParameterLocation;ZLme/ahoo/wow/openapi/contract/HttpSchema;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpParameter;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getComponentRef ()Ljava/lang/String;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExample ()Ljava/lang/Object;
+	public final fun getLocation ()Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRequired ()Z
+	public final fun getSchema ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpParameterLocation : java/lang/Enum {
+	public static final field HEADER Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+	public static final field PATH Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+	public static final field QUERY Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+	public static fun values ()[Lme/ahoo/wow/openapi/contract/HttpParameterLocation;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpRequestBody {
+	public fun <init> ()V
+	public fun <init> (ZLjava/lang/String;Ljava/util/List;ZLjava/lang/String;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/util/List;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;Ljava/util/List;ZLjava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpRequestBody;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpRequestBody;ZLjava/lang/String;Ljava/util/List;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpRequestBody;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getComponentRef ()Ljava/lang/String;
+	public final fun getContent ()Ljava/util/List;
+	public final fun getContentDeclared ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getRequired ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpResponse {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZLjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Z
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZLjava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpResponse;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getComponentRef ()Ljava/lang/String;
+	public final fun getContent ()Ljava/util/List;
+	public final fun getContentDeclared ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getHeaders ()Ljava/util/List;
+	public final fun getStatusCode ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpRouteContract {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRequestBody;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRequestBody;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/util/List;
+	public final fun component11 ()Lme/ahoo/wow/openapi/contract/HttpRequestBody;
+	public final fun component12 ()Ljava/util/List;
+	public final fun component13 ()Ljava/util/List;
+	public final fun component14 ()Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRequestBody;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;)Lme/ahoo/wow/openapi/contract/HttpRouteContract;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpRouteContract;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRequestBody;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpRouteContract;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccept ()Ljava/util/List;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getHandlerKey ()Ljava/lang/String;
+	public final fun getHandlerMetadata ()Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getParameters ()Ljava/util/List;
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getPathDescription ()Ljava/lang/String;
+	public final fun getPathSummary ()Ljava/lang/String;
+	public final fun getRequestBody ()Lme/ahoo/wow/openapi/contract/HttpRequestBody;
+	public final fun getResponses ()Ljava/util/List;
+	public final fun getRouteId ()Ljava/lang/String;
+	public final fun getRouteKey ()Ljava/lang/String;
+	public final fun getSummary ()Ljava/lang/String;
+	public final fun getTags ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata {
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Aggregate : me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata {
+	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;)V
+	public final fun component1 ()Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+	public final fun copy (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;)Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Aggregate;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Aggregate;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Aggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregateRouteMetadata ()Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Command : me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata {
+	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;)V
+	public final fun component1 ()Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+	public final fun component2 ()Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;
+	public final fun copy (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;)Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Command;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Command;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$Command;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregateRouteMetadata ()Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+	public final fun getCommandRouteMetadata ()Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$None : me/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata$None;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/openapi/contract/HttpSchema {
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Array : me/ahoo/wow/openapi/contract/HttpSchema {
+	public fun <init> (Lme/ahoo/wow/openapi/contract/HttpSchema;)V
+	public final fun component1 ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public final fun copy (Lme/ahoo/wow/openapi/contract/HttpSchema;)Lme/ahoo/wow/openapi/contract/HttpSchema$Array;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpSchema$Array;Lme/ahoo/wow/openapi/contract/HttpSchema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpSchema$Array;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getItem ()Lme/ahoo/wow/openapi/contract/HttpSchema;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Boolean : me/ahoo/wow/openapi/contract/HttpSchema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpSchema$Boolean;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$ComponentRef : me/ahoo/wow/openapi/contract/HttpSchema {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpSchema$ComponentRef;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpSchema$ComponentRef;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpSchema$ComponentRef;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKey ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Formatted : me/ahoo/wow/openapi/contract/HttpSchema {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpSchema$Formatted;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpSchema$Formatted;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpSchema$Formatted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFormat ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Integer : me/ahoo/wow/openapi/contract/HttpSchema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpSchema$Integer;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Long : me/ahoo/wow/openapi/contract/HttpSchema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpSchema$Long;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Object : me/ahoo/wow/openapi/contract/HttpSchema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpSchema$Object;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Raw : me/ahoo/wow/openapi/contract/HttpSchema {
+	public fun <init> (Lio/swagger/v3/oas/models/media/Schema;)V
+	public final fun component1 ()Lio/swagger/v3/oas/models/media/Schema;
+	public final fun copy (Lio/swagger/v3/oas/models/media/Schema;)Lme/ahoo/wow/openapi/contract/HttpSchema$Raw;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpSchema$Raw;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpSchema$Raw;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSchema ()Lio/swagger/v3/oas/models/media/Schema;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$String : me/ahoo/wow/openapi/contract/HttpSchema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpSchema$String;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$TypeRef : me/ahoo/wow/openapi/contract/HttpSchema {
+	public fun <init> (Ljava/lang/reflect/Type;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/reflect/Type;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/reflect/Type;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/reflect/Type;Ljava/util/List;)Lme/ahoo/wow/openapi/contract/HttpSchema$TypeRef;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpSchema$TypeRef;Ljava/lang/reflect/Type;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpSchema$TypeRef;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMainTargetType ()Ljava/lang/reflect/Type;
+	public final fun getTypeParameters ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpSchema$Unspecified : me/ahoo/wow/openapi/contract/HttpSchema {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/HttpSchema$Unspecified;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/HttpTag {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/HttpTag;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/HttpTag;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/HttpTag;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInstallation ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptDiagnosticResponse {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/bi/BiScriptDiagnosticResponse;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/bi/BiScriptDiagnosticResponse;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/bi/BiScriptDiagnosticResponse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregate ()Ljava/lang/String;
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getDecision ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getSourceType ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptHeaders {
+	public static final field DIAGNOSTIC_COUNT Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/bi/BiScriptHeaders;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptOperationMode : java/lang/Enum {
+	public static final field DEPLOY Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;
+	public static final field RESET Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;
+	public static fun values ()[Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptRequest {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;Ljava/lang/Boolean;)V
+	public synthetic fun <init> (Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;
+	public final fun component10 ()Ljava/lang/Boolean;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/Integer;
+	public final fun component9 ()Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;
+	public final fun copy (Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;Ljava/lang/Boolean;)Lme/ahoo/wow/openapi/contract/bi/BiScriptRequest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/bi/BiScriptRequest;Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;Ljava/lang/Boolean;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/bi/BiScriptRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConsumerDatabase ()Ljava/lang/String;
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getKafkaBootstrapServers ()Ljava/lang/String;
+	public final fun getMaxExpansionDepth ()Ljava/lang/Integer;
+	public final fun getOperation ()Lme/ahoo/wow/openapi/contract/bi/BiScriptOperationMode;
+	public final fun getReplayFromEarliestConfirmed ()Ljava/lang/Boolean;
+	public final fun getTimezone ()Ljava/lang/String;
+	public final fun getTopicPrefix ()Ljava/lang/String;
+	public final fun getTopology ()Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;
+	public final fun getUnsupportedTypeStrategy ()Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptResponse {
+	public fun <init> (Ljava/lang/String;ZLjava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;ZLjava/util/List;)Lme/ahoo/wow/openapi/contract/bi/BiScriptResponse;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/bi/BiScriptResponse;Ljava/lang/String;ZLjava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/bi/BiScriptResponse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDestructive ()Z
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getScript ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode : java/lang/Enum {
+	public static final field CLUSTER Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;
+	public static final field STANDALONE Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;
+	public static fun values ()[Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest {
+	public fun <init> (Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;)V
+	public synthetic fun <init> (Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;
+	public final fun component2 ()Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;
+	public final fun copy (Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;)Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;ILjava/lang/Object;)Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCluster ()Lme/ahoo/wow/openapi/contract/bi/BiScriptClusterRequest;
+	public final fun getMode ()Lme/ahoo/wow/openapi/contract/bi/BiScriptTopologyMode;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy : java/lang/Enum {
+	public static final field FAIL Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;
+	public static final field RAW_JSON Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;
+	public static fun values ()[Lme/ahoo/wow/openapi/contract/bi/BiScriptUnsupportedTypeStrategy;
+}
+
+public final class me/ahoo/wow/openapi/contributor/DefaultRouteContributors {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/DefaultRouteContributors;
+	public final fun all ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/openapi/contributor/aggregate/command/CommandRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/aggregate/command/CommandRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/aggregate/event/EventRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/aggregate/event/EventRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/aggregate/state/StateRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/aggregate/state/StateRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/global/CommandFacadeRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/global/CommandFacadeRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/global/CommandWaitRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/global/CommandWaitRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/global/GenerateBIScriptRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/global/GenerateBIScriptRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/global/GenerateGlobalIdRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/global/GenerateGlobalIdRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/contributor/global/GetWowMetadataRouteContributor : me/ahoo/wow/openapi/catalog/RouteContributor {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/global/GetWowMetadataRouteContributor;
+	public fun contributeAggregate (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun contributeGlobal (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)Ljava/util/List;
+	public fun getCategory ()Lme/ahoo/wow/openapi/catalog/RouteCategory;
+	public fun getId ()Ljava/lang/String;
+	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/openapi/converter/BoundedContextSchemaNameConverter : io/swagger/v3/core/converter/ModelConverter {
+	public static final field Companion Lme/ahoo/wow/openapi/converter/BoundedContextSchemaNameConverter$Companion;
+	public fun <init> ()V
+	public fun resolve (Lio/swagger/v3/core/converter/AnnotatedType;Lio/swagger/v3/core/converter/ModelConverterContext;Ljava/util/Iterator;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/openapi/converter/BoundedContextSchemaNameConverter$Companion {
+	public final fun resolveName (Lio/swagger/v3/core/converter/AnnotatedType;)V
+	public final fun resolveName (Lio/swagger/v3/core/converter/AnnotatedType;Lcom/fasterxml/classmate/ResolvedType;)V
+	public final fun resolveName (Lio/swagger/v3/core/converter/AnnotatedType;Lcom/fasterxml/jackson/databind/JavaType;)V
+	public final fun resolveName (Lio/swagger/v3/core/converter/AnnotatedType;Ljava/lang/Class;)V
+}
+
+public final class me/ahoo/wow/openapi/metadata/AggregateRouteMetadata : me/ahoo/wow/api/naming/EnabledCapable, me/ahoo/wow/metadata/Metadata {
+	public fun <init> (ZLme/ahoo/wow/modeling/metadata/AggregateMetadata;Ljava/lang/String;ZLme/ahoo/wow/api/annotation/AggregateRoute$Owner;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun component5 ()Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;
+	public final fun copy (ZLme/ahoo/wow/modeling/metadata/AggregateMetadata;Ljava/lang/String;ZLme/ahoo/wow/api/annotation/AggregateRoute$Owner;)Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;ZLme/ahoo/wow/modeling/metadata/AggregateMetadata;Ljava/lang/String;ZLme/ahoo/wow/api/annotation/AggregateRoute$Owner;ILjava/lang/Object;)Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	public fun getEnabled ()Z
+	public final fun getOwner ()Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;
+	public final fun getResourceName ()Ljava/lang/String;
+	public final fun getSpaced ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/metadata/AggregateRouteMetadataParser : me/ahoo/wow/metadata/CacheableMetadataParser {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadataParser;
+	public fun parseToMetadata (Ljava/lang/Class;)Lme/ahoo/wow/metadata/Metadata;
+}
+
+public final class me/ahoo/wow/openapi/metadata/AggregateRouteMetadataParserKt {
+	public static final fun aggregateRouteMetadata (Ljava/lang/Class;)Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;
+}
+
+public final class me/ahoo/wow/openapi/metadata/CommandRouteMetadata : me/ahoo/wow/api/naming/DescriptionCapable, me/ahoo/wow/api/naming/EnabledCapable, me/ahoo/wow/api/naming/SummaryCapable, me/ahoo/wow/metadata/Metadata {
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/command/metadata/CommandMetadata;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/command/metadata/CommandMetadata;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/util/Set;
+	public final fun component12 ()Ljava/util/Set;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;
+	public final fun component6 ()Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;
+	public final fun component7 ()Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;
+	public final fun component8 ()Lme/ahoo/wow/command/metadata/CommandMetadata;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/command/metadata/CommandMetadata;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;Lme/ahoo/wow/command/metadata/CommandMetadata;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;
+	public final fun decode (Ltools/jackson/databind/node/ObjectNode;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAction ()Ljava/lang/String;
+	public final fun getAppendIdPath ()Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;
+	public final fun getAppendOwnerPath ()Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;
+	public final fun getAppendTenantPath ()Lme/ahoo/wow/api/annotation/CommandRoute$AppendPath;
+	public final fun getCommandMetadata ()Lme/ahoo/wow/command/metadata/CommandMetadata;
+	public fun getDescription ()Ljava/lang/String;
+	public fun getEnabled ()Z
+	public final fun getHeaderVariableMetadata ()Ljava/util/Set;
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getPathVariableMetadata ()Ljava/util/Set;
+	public final fun getPrefix ()Ljava/lang/String;
+	public fun getSummary ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/metadata/CommandRouteMetadataParser : me/ahoo/wow/metadata/CacheableMetadataParser {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/metadata/CommandRouteMetadataParser;
+	public fun parseToMetadata (Ljava/lang/Class;)Lme/ahoo/wow/metadata/Metadata;
+}
+
+public final class me/ahoo/wow/openapi/metadata/CommandRouteMetadataParserKt {
+	public static final fun commandRouteMetadata (Ljava/lang/Class;)Lme/ahoo/wow/openapi/metadata/CommandRouteMetadata;
+}
+
+public final class me/ahoo/wow/openapi/metadata/VariableMetadata {
+	public fun <init> (Ljava/lang/reflect/Field;Ljava/util/List;Ljava/lang/String;ZZ)V
+	public synthetic fun <init> (Ljava/lang/reflect/Field;Ljava/util/List;Ljava/lang/String;ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/reflect/Field;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun copy (Ljava/lang/reflect/Field;Ljava/util/List;Ljava/lang/String;ZZ)Lme/ahoo/wow/openapi/metadata/VariableMetadata;
+	public static synthetic fun copy$default (Lme/ahoo/wow/openapi/metadata/VariableMetadata;Ljava/lang/reflect/Field;Ljava/util/List;Ljava/lang/String;ZZILjava/lang/Object;)Lme/ahoo/wow/openapi/metadata/VariableMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBound ()Z
+	public final fun getField ()Ljava/lang/reflect/Field;
+	public final fun getFieldName ()Ljava/lang/String;
+	public final fun getFieldPath ()Ljava/util/List;
+	public final fun getRequired ()Z
+	public final fun getVariableName ()Ljava/lang/String;
+	public final fun getVariableType ()Ljava/lang/reflect/Type;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/render/OpenApiRenderer {
+	public static final field Companion Lme/ahoo/wow/openapi/render/OpenApiRenderer$Companion;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;)V
+	public synthetic fun <init> (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun render (Lme/ahoo/wow/openapi/catalog/RouteCatalog;Lio/swagger/v3/oas/models/OpenAPI;)Lio/swagger/v3/oas/models/OpenAPI;
+}
+
+public final class me/ahoo/wow/openapi/render/OpenApiRenderer$Companion {
+}
+

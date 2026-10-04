@@ -1,0 +1,103 @@
+public abstract interface class me/ahoo/wow/cache/StateToCacheDataConverter {
+	public abstract fun stateToCacheData (Ljava/lang/Object;)Ljava/lang/Object;
+}
+
+public class me/ahoo/wow/cache/refresh/EvictStateCacheRefresher : me/ahoo/wow/cache/refresh/StateCacheRefresher {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/cache/api/Cache;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/cache/api/Cache;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCache ()Lme/ahoo/cache/api/Cache;
+	public fun getFunctionKind ()Lme/ahoo/wow/api/messaging/function/FunctionKind;
+	public final fun getKeyConvert ()Lkotlin/jvm/functions/Function1;
+	public fun refresh (Lme/ahoo/wow/event/DomainEventExchange;)V
+}
+
+public class me/ahoo/wow/cache/refresh/SetStateCacheRefresher : me/ahoo/wow/cache/refresh/StateCacheRefresher, me/ahoo/cache/TtlConfiguration {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/cache/StateToCacheDataConverter;JJLme/ahoo/cache/api/Cache;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/cache/StateToCacheDataConverter;JJLme/ahoo/cache/api/Cache;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun evict (Lme/ahoo/wow/event/StateDomainEventExchange;)V
+	public final fun getCache ()Lme/ahoo/cache/api/Cache;
+	public fun getFunctionKind ()Lme/ahoo/wow/api/messaging/function/FunctionKind;
+	public final fun getKeyConvert ()Lkotlin/jvm/functions/Function1;
+	public fun getTtl ()J
+	public fun getTtlAmplitude ()J
+	public synthetic fun refresh (Lme/ahoo/wow/event/DomainEventExchange;)V
+	public fun refresh (Lme/ahoo/wow/event/StateDomainEventExchange;)V
+}
+
+public abstract class me/ahoo/wow/cache/refresh/StateCacheRefresher : me/ahoo/wow/api/modeling/NamedAggregateDecorator, me/ahoo/wow/messaging/function/MessageFunction {
+	public static final field Companion Lme/ahoo/wow/cache/refresh/StateCacheRefresher$Companion;
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;)V
+	public fun getAnnotation (Ljava/lang/Class;)Ljava/lang/annotation/Annotation;
+	public fun getName ()Ljava/lang/String;
+	public final fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public synthetic fun getProcessor ()Ljava/lang/Object;
+	public fun getProcessor ()Lme/ahoo/wow/cache/refresh/StateCacheRefresher;
+	public final fun getSupportedTopics ()Ljava/util/Set;
+	public fun getSupportedType ()Ljava/lang/Class;
+	public fun invoke (Lme/ahoo/wow/event/DomainEventExchange;)Lreactor/core/publisher/Mono;
+	public synthetic fun invoke (Lme/ahoo/wow/messaging/handler/MessageExchange;)Ljava/lang/Object;
+	public abstract fun refresh (Lme/ahoo/wow/event/DomainEventExchange;)V
+}
+
+public final class me/ahoo/wow/cache/refresh/StateCacheRefresher$Companion {
+}
+
+public final class me/ahoo/wow/cache/source/LoadCacheSourceConfiguration : me/ahoo/cache/TtlConfiguration {
+	public static final field Companion Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/time/Duration;JJ)V
+	public synthetic fun <init> (Ljava/time/Duration;JJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/time/Duration;
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun copy (Ljava/time/Duration;JJ)Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+	public static synthetic fun copy$default (Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;Ljava/time/Duration;JJILjava/lang/Object;)Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTimeout ()Ljava/time/Duration;
+	public fun getTtl ()J
+	public fun getTtlAmplitude ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/cache/source/LoadCacheSourceConfiguration$Companion {
+	public final fun getDEFAULT ()Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+}
+
+public abstract interface class me/ahoo/wow/cache/source/QueryApiCacheSource : me/ahoo/wow/apiclient/query/ReactiveSnapshotQueryApi, me/ahoo/wow/cache/source/StateCacheSource {
+	public fun getStateToCacheDataConverter ()Lme/ahoo/wow/cache/StateToCacheDataConverter;
+	public synthetic fun loadState (Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun loadState (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/cache/source/QueryApiCacheSource$DefaultImpls {
+	public static fun count (Lme/ahoo/wow/cache/source/QueryApiCacheSource;Lme/ahoo/wow/api/query/Condition;)Lreactor/core/publisher/Mono;
+	public static fun getById (Lme/ahoo/wow/cache/source/QueryApiCacheSource;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public static fun getLoadCacheSourceConfiguration (Lme/ahoo/wow/cache/source/QueryApiCacheSource;)Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+	public static fun getStateById (Lme/ahoo/wow/cache/source/QueryApiCacheSource;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public static fun getStateToCacheDataConverter (Lme/ahoo/wow/cache/source/QueryApiCacheSource;)Lme/ahoo/wow/cache/StateToCacheDataConverter;
+	public static fun loadCacheValue (Lme/ahoo/wow/cache/source/QueryApiCacheSource;Ljava/lang/String;)Lme/ahoo/cache/api/CacheValue;
+	public static fun loadState (Lme/ahoo/wow/cache/source/QueryApiCacheSource;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+}
+
+public class me/ahoo/wow/cache/source/QueryGatewayCacheSource : me/ahoo/wow/cache/source/StateCacheSource {
+	public fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryGateway;Lme/ahoo/wow/cache/StateToCacheDataConverter;Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryGateway;Lme/ahoo/wow/cache/StateToCacheDataConverter;Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getLoadCacheSourceConfiguration ()Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+	public fun getStateToCacheDataConverter ()Lme/ahoo/wow/cache/StateToCacheDataConverter;
+	public synthetic fun loadState (Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun loadState (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+}
+
+public abstract interface class me/ahoo/wow/cache/source/StateCacheSource : me/ahoo/cache/api/source/CacheSource {
+	public fun getLoadCacheSourceConfiguration ()Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+	public abstract fun getStateToCacheDataConverter ()Lme/ahoo/wow/cache/StateToCacheDataConverter;
+	public fun loadCacheValue (Ljava/lang/Object;)Lme/ahoo/cache/api/CacheValue;
+	public abstract fun loadState (Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/cache/source/StateCacheSource$DefaultImpls {
+	public static fun getLoadCacheSourceConfiguration (Lme/ahoo/wow/cache/source/StateCacheSource;)Lme/ahoo/wow/cache/source/LoadCacheSourceConfiguration;
+	public static fun loadCacheValue (Lme/ahoo/wow/cache/source/StateCacheSource;Ljava/lang/Object;)Lme/ahoo/cache/api/CacheValue;
+}
+

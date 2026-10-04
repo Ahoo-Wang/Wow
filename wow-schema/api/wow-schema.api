@@ -1,0 +1,440 @@
+public final class me/ahoo/wow/schema/DescriptionFieldResolver : com/github/victools/jsonschema/generator/ConfigFunction {
+	public static final field INSTANCE Lme/ahoo/wow/schema/DescriptionFieldResolver;
+	public fun apply (Lcom/github/victools/jsonschema/generator/FieldScope;)Ljava/lang/String;
+	public synthetic fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/schema/DescriptionTypeResolver : com/github/victools/jsonschema/generator/ConfigFunction {
+	public static final field INSTANCE Lme/ahoo/wow/schema/DescriptionTypeResolver;
+	public synthetic fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/Object;
+	public fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/IgnoreCommandRouteVariableCheck : java/util/function/Predicate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/IgnoreCommandRouteVariableCheck;
+	public fun test (Lcom/github/victools/jsonschema/generator/FieldScope;)Z
+	public synthetic fun test (Ljava/lang/Object;)Z
+}
+
+public final class me/ahoo/wow/schema/JavaTypeResolver {
+	public static final field INSTANCE Lme/ahoo/wow/schema/JavaTypeResolver;
+	public final fun toResolvedType (Lcom/fasterxml/jackson/databind/JavaType;Lcom/fasterxml/classmate/TypeResolver;)Lcom/fasterxml/classmate/ResolvedType;
+	public static synthetic fun toResolvedType$default (Lme/ahoo/wow/schema/JavaTypeResolver;Lcom/fasterxml/jackson/databind/JavaType;Lcom/fasterxml/classmate/TypeResolver;ILjava/lang/Object;)Lcom/fasterxml/classmate/ResolvedType;
+}
+
+public final class me/ahoo/wow/schema/JsonSchema {
+	public static final field Companion Lme/ahoo/wow/schema/JsonSchema$Companion;
+	public fun <init> (Ltools/jackson/databind/node/ObjectNode;Lcom/github/victools/jsonschema/generator/SchemaVersion;)V
+	public synthetic fun <init> (Ltools/jackson/databind/node/ObjectNode;Lcom/github/victools/jsonschema/generator/SchemaVersion;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun ensureProperties ()Lme/ahoo/wow/schema/JsonSchema;
+	public final fun get (Lcom/github/victools/jsonschema/generator/SchemaKeyword;)Ltools/jackson/databind/JsonNode;
+	public final fun get (Ljava/lang/String;)Ltools/jackson/databind/JsonNode;
+	public final fun getActual ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getProperties ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getSchemaVersion ()Lcom/github/victools/jsonschema/generator/SchemaVersion;
+	public final fun remove (Lcom/github/victools/jsonschema/generator/SchemaKeyword;)Lme/ahoo/wow/schema/JsonSchema;
+	public final fun requiredGet (Lcom/github/victools/jsonschema/generator/SchemaKeyword;)Ltools/jackson/databind/JsonNode;
+	public final fun requiredGet (Ljava/lang/String;)Ltools/jackson/databind/JsonNode;
+	public final fun requiredGetProperties ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun set (Lcom/github/victools/jsonschema/generator/SchemaKeyword;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/schema/JsonSchema;
+	public final fun set (Ljava/lang/String;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/schema/JsonSchema;
+}
+
+public final class me/ahoo/wow/schema/JsonSchema$Companion {
+	public final fun asCustomDefinition (Lme/ahoo/wow/schema/JsonSchema;Lcom/github/victools/jsonschema/generator/CustomDefinition$DefinitionType;Lcom/github/victools/jsonschema/generator/CustomDefinition$AttributeInclusion;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+	public static synthetic fun asCustomDefinition$default (Lme/ahoo/wow/schema/JsonSchema$Companion;Lme/ahoo/wow/schema/JsonSchema;Lcom/github/victools/jsonschema/generator/CustomDefinition$DefinitionType;Lcom/github/victools/jsonschema/generator/CustomDefinition$AttributeInclusion;ILjava/lang/Object;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+	public final fun asJsonSchema (Ltools/jackson/databind/node/ObjectNode;Lcom/github/victools/jsonschema/generator/SchemaVersion;)Lme/ahoo/wow/schema/JsonSchema;
+	public static synthetic fun asJsonSchema$default (Lme/ahoo/wow/schema/JsonSchema$Companion;Ltools/jackson/databind/node/ObjectNode;Lcom/github/victools/jsonschema/generator/SchemaVersion;ILjava/lang/Object;)Lme/ahoo/wow/schema/JsonSchema;
+	public final fun toPropertyName (Lcom/github/victools/jsonschema/generator/SchemaKeyword;Lcom/github/victools/jsonschema/generator/SchemaVersion;)Ljava/lang/String;
+	public static synthetic fun toPropertyName$default (Lme/ahoo/wow/schema/JsonSchema$Companion;Lcom/github/victools/jsonschema/generator/SchemaKeyword;Lcom/github/victools/jsonschema/generator/SchemaVersion;ILjava/lang/Object;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/SchemaGeneratorBuilder {
+	public fun <init> ()V
+	public final fun build ()Lcom/github/victools/jsonschema/generator/SchemaGenerator;
+	public final fun customizer (Ljava/util/function/Consumer;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun getCustomizer ()Ljava/util/function/Consumer;
+	public final fun getJacksonModule ()Lcom/github/victools/jsonschema/module/jackson/JacksonSchemaModule;
+	public final fun getJakartaValidationModule ()Lcom/github/victools/jsonschema/module/jakarta/validation/JakartaValidationModule;
+	public final fun getJodaMoneyModule ()Lme/ahoo/wow/schema/joda/money/JodaMoneyModule;
+	public final fun getKotlinModule ()Lme/ahoo/wow/schema/kotlin/KotlinModule;
+	public final fun getObjectMapper ()Ltools/jackson/databind/ObjectMapper;
+	public final fun getOpenapi31 ()Z
+	public final fun getOptionPreset ()Lcom/github/victools/jsonschema/generator/OptionPreset;
+	public final fun getOptions ()Ljava/util/List;
+	public final fun getRequiredTypeContent ()Lcom/github/victools/jsonschema/generator/TypeContext;
+	public final fun getSchemaNamingModule ()Lme/ahoo/wow/schema/naming/SchemaNamingModule;
+	public final fun getSchemaVersion ()Lcom/github/victools/jsonschema/generator/SchemaVersion;
+	public final fun getSwagger2Module ()Lcom/github/victools/jsonschema/module/swagger2/Swagger2Module;
+	public final fun getTypeContext ()Lcom/github/victools/jsonschema/generator/TypeContext;
+	public final fun getWowModule ()Lme/ahoo/wow/schema/WowModule;
+	public final fun jacksonModule (Lcom/github/victools/jsonschema/module/jackson/JacksonSchemaModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun jakartaValidationModule (Lcom/github/victools/jsonschema/module/jakarta/validation/JakartaValidationModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun jodaMoneyModule (Lme/ahoo/wow/schema/joda/money/JodaMoneyModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun kotlinModule (Lme/ahoo/wow/schema/kotlin/KotlinModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun objectMapper (Ltools/jackson/databind/ObjectMapper;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun openapi31 (Z)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun optionPreset (Lcom/github/victools/jsonschema/generator/OptionPreset;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun options (Ljava/util/List;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun schemaNamingModule (Lme/ahoo/wow/schema/naming/SchemaNamingModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun schemaVersion (Lcom/github/victools/jsonschema/generator/SchemaVersion;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun swagger2Module (Lcom/github/victools/jsonschema/module/swagger2/Swagger2Module;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+	public final fun wowModule (Lme/ahoo/wow/schema/WowModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
+}
+
+public final class me/ahoo/wow/schema/SummaryTitleFieldResolver : com/github/victools/jsonschema/generator/ConfigFunction {
+	public static final field INSTANCE Lme/ahoo/wow/schema/SummaryTitleFieldResolver;
+	public fun apply (Lcom/github/victools/jsonschema/generator/FieldScope;)Ljava/lang/String;
+	public synthetic fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/schema/SummaryTitleTypeResolver : com/github/victools/jsonschema/generator/ConfigFunction {
+	public static final field INSTANCE Lme/ahoo/wow/schema/SummaryTitleTypeResolver;
+	public synthetic fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/Object;
+	public fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/Types {
+	public static final field INSTANCE Lme/ahoo/wow/schema/Types;
+	public final fun isInstanceOf (Ljava/lang/Class;Ljava/lang/Class;)Z
+	public final fun isKotlinElement (Ljava/lang/reflect/AnnotatedElement;)Z
+	public final fun isStdType (Ljava/lang/Class;)Z
+	public final fun isWowType (Ljava/lang/Class;)Z
+}
+
+public final class me/ahoo/wow/schema/WowModule : com/github/victools/jsonschema/generator/Module {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Set;)V
+	public synthetic fun <init> (Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun applyToConfigBuilder (Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfigBuilder;)V
+}
+
+public final class me/ahoo/wow/schema/WowOption : java/lang/Enum {
+	public static final field Companion Lme/ahoo/wow/schema/WowOption$Companion;
+	public static final field IGNORE_COMMAND_ROUTE_VARIABLE Lme/ahoo/wow/schema/WowOption;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/schema/WowOption;
+	public static fun values ()[Lme/ahoo/wow/schema/WowOption;
+}
+
+public final class me/ahoo/wow/schema/WowOption$Companion {
+	public final fun getALL ()Ljava/util/Set;
+}
+
+public final class me/ahoo/wow/schema/WowSchemaLoader {
+	public static final field INSTANCE Lme/ahoo/wow/schema/WowSchemaLoader;
+	public final fun load (Ljava/lang/Class;)Ltools/jackson/databind/node/ObjectNode;
+	public final fun load (Ljava/lang/String;)Ltools/jackson/databind/node/ObjectNode;
+	public final fun loadAsString (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/jackson/WowJacksonModule : com/github/victools/jsonschema/module/jackson/JacksonSchemaModule {
+	public static final field Companion Lme/ahoo/wow/schema/jackson/WowJacksonModule$Companion;
+	public fun <init> ([Lcom/github/victools/jsonschema/module/jackson/JacksonOption;)V
+	public fun applyToConfigBuilder (Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfigBuilder;)V
+}
+
+public final class me/ahoo/wow/schema/jackson/WowJacksonModule$Companion {
+	public final fun getNESTED_ANNOTATION_CHECK ()Lkotlin/jvm/functions/Function1;
+}
+
+public final class me/ahoo/wow/schema/joda/money/CurrencyUnitDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/joda/money/CurrencyUnitDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/schema/joda/money/JodaMoneyModule : com/github/victools/jsonschema/generator/Module {
+	public fun <init> ()V
+	public fun applyToConfigBuilder (Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfigBuilder;)V
+}
+
+public final class me/ahoo/wow/schema/joda/money/MoneyDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/joda/money/MoneyDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinCustomDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinCustomDefinitionProvider;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+	public fun resetAfterSchemaGenerationFinished ()V
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinFieldIgnoreCheck : me/ahoo/wow/schema/kotlin/KotlinIgnoreCheck {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinFieldIgnoreCheck;
+}
+
+public class me/ahoo/wow/schema/kotlin/KotlinIgnoreCheck : java/util/function/Predicate {
+	public fun <init> ()V
+	public fun test (Lcom/github/victools/jsonschema/generator/MemberScope;)Z
+	public synthetic fun test (Ljava/lang/Object;)Z
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinMethodIgnoreCheck : me/ahoo/wow/schema/kotlin/KotlinIgnoreCheck {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinMethodIgnoreCheck;
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinModule : com/github/victools/jsonschema/generator/Module {
+	public fun <init> ()V
+	public fun applyToConfigBuilder (Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfigBuilder;)V
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinNullableCheck : com/github/victools/jsonschema/generator/ConfigFunction {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinNullableCheck;
+	public fun apply (Lcom/github/victools/jsonschema/generator/FieldScope;)Ljava/lang/Boolean;
+	public synthetic fun apply (Lcom/github/victools/jsonschema/generator/TypeScope;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinReadOnlyCheck : java/util/function/Predicate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinReadOnlyCheck;
+	public final fun isConstructorParameter (Lcom/github/victools/jsonschema/generator/FieldScope;)Z
+	public final fun primaryConstructor (Lcom/github/victools/jsonschema/generator/FieldScope;)Lkotlin/reflect/KFunction;
+	public fun test (Lcom/github/victools/jsonschema/generator/FieldScope;)Z
+	public synthetic fun test (Ljava/lang/Object;)Z
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinRequiredCheck : java/util/function/Predicate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinRequiredCheck;
+	public fun test (Lcom/github/victools/jsonschema/generator/FieldScope;)Z
+	public synthetic fun test (Ljava/lang/Object;)Z
+}
+
+public final class me/ahoo/wow/schema/kotlin/KotlinWriteOnlyCheck : java/util/function/Predicate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinWriteOnlyCheck;
+	public fun test (Lcom/github/victools/jsonschema/generator/FieldScope;)Z
+	public synthetic fun test (Ljava/lang/Object;)Z
+}
+
+public final class me/ahoo/wow/schema/kotlin/range/CharRangeDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/range/CharRangeDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/schema/kotlin/range/IntRangeDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/range/IntRangeDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/schema/kotlin/range/LongRangeDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/range/LongRangeDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public abstract interface class me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable {
+	public abstract fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/naming/SchemaNamingModule : com/github/victools/jsonschema/generator/Module, me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun applyToConfigBuilder (Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfigBuilder;)V
+	public fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/naming/WowSchemaNamingStrategy : com/github/victools/jsonschema/generator/naming/SchemaDefinitionNamingStrategy, me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable {
+	public static final field Companion Lme/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion;
+	public fun <init> (Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun adjustDuplicateNames (Ljava/util/Map;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)V
+	public fun adjustNullableName (Lcom/github/victools/jsonschema/generator/impl/DefinitionKey;Ljava/lang/String;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Ljava/lang/String;
+	public fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
+	public fun getDefinitionNameForKey (Lcom/github/victools/jsonschema/generator/impl/DefinitionKey;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion {
+	public final fun flattenType (Lcom/fasterxml/classmate/ResolvedType;Ljava/util/List;)Ljava/util/List;
+	public static synthetic fun flattenType$default (Lme/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion;Lcom/fasterxml/classmate/ResolvedType;Ljava/util/List;ILjava/lang/Object;)Ljava/util/List;
+	public final fun resolveNamePrefix (Ljava/lang/Class;)Ljava/lang/String;
+	public final fun toSchemaName (Lcom/fasterxml/classmate/ResolvedType;Ljava/lang/String;)Ljava/lang/String;
+	public final fun toSchemaName (Ljava/lang/Class;)Ljava/lang/String;
+	public static synthetic fun toSchemaName$default (Lme/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion;Lcom/fasterxml/classmate/ResolvedType;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+	public abstract fun getInline ()Z
+}
+
+public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder : me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable, me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+	public static final field Companion Lme/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion;
+	public static final field DEFAULT_DEFINITION_PATH Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/schema/SchemaGeneratorBuilder;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/schema/SchemaGeneratorBuilder;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun build ()Ljava/util/Map;
+	public final fun generateSchema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+	public fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
+	public fun getInline ()Z
+	public final fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
+	public final fun toSchema (Ltools/jackson/databind/JsonNode;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion {
+}
+
+public final class me/ahoo/wow/schema/openapi/SchemaMerger {
+	public static final field INSTANCE Lme/ahoo/wow/schema/openapi/SchemaMerger;
+	public final fun mergeTo (Lio/swagger/v3/oas/models/media/Schema;Lio/swagger/v3/oas/models/media/Schema;)V
+}
+
+public final class me/ahoo/wow/schema/query/JsonQueryModelSource : me/ahoo/wow/query/schema/QueryModelSource {
+	public fun <init> ()V
+	public fun describe (Ljava/lang/Class;)Lme/ahoo/wow/query/schema/QueryTypeFact;
+}
+
+public abstract class me/ahoo/wow/schema/typed/AbstractStateAggregate : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public fun <init> ()V
+	public fun createCustomDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+	public fun getStateType (Lcom/fasterxml/classmate/ResolvedType;)Lcom/fasterxml/classmate/ResolvedType;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/schema/typed/AggregateIdDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/AggregateIdDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public abstract interface class me/ahoo/wow/schema/typed/AggregatedDomainEventStream : me/ahoo/wow/event/DomainEventStream {
+}
+
+public final class me/ahoo/wow/schema/typed/AggregatedDomainEventStream$DefaultImpls {
+	public static fun getInitialized (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;)Z
+	public static fun isInitialVersion (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;)Z
+	public static fun isReadOnly (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;)Z
+	public static fun isSameAggregateName (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+	public static fun isSameBoundedContext (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public static fun withHeader (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/event/DomainEventStream;
+	public static fun withHeader (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;Ljava/util/Map;)Lme/ahoo/wow/event/DomainEventStream;
+	public static fun withReadOnly (Lme/ahoo/wow/schema/typed/AggregatedDomainEventStream;)Lme/ahoo/wow/event/DomainEventStream;
+}
+
+public final class me/ahoo/wow/schema/typed/AggregatedDomainEventStreamDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/AggregatedDomainEventStreamDefinitionProvider;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/CommandDefinitionProvider : me/ahoo/wow/schema/typed/MessageDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/CommandDefinitionProvider;
+}
+
+public final class me/ahoo/wow/schema/typed/DomainEventDefinitionProvider : me/ahoo/wow/schema/typed/MessageDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/DomainEventDefinitionProvider;
+}
+
+public final class me/ahoo/wow/schema/typed/DomainEventStreamDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/DomainEventStreamDefinitionProvider;
+	public fun getType ()Ljava/lang/Class;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/EnumTextDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field ENUM_TEXT_KEY_NAME Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/EnumTextDefinitionProvider;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/JsonNodeDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/JsonNodeDefinitionProvider;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/MapDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/MapDefinitionProvider;
+	public static final field MAP_KEY_NAME Ljava/lang/String;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public abstract class me/ahoo/wow/schema/typed/MessageDefinitionProvider : me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider {
+	public fun <init> ()V
+	public fun createCustomDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+	public fun getBodyType (Lcom/fasterxml/classmate/ResolvedType;)Lcom/fasterxml/classmate/ResolvedType;
+	public fun getType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/schema/typed/SnapshotDefinitionProvider : me/ahoo/wow/schema/typed/AbstractStateAggregate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/SnapshotDefinitionProvider;
+}
+
+public final class me/ahoo/wow/schema/typed/StateAggregateDefinitionProvider : me/ahoo/wow/schema/typed/AbstractStateAggregate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/StateAggregateDefinitionProvider;
+}
+
+public final class me/ahoo/wow/schema/typed/StateEventDefinitionProvider : me/ahoo/wow/schema/typed/AbstractStateAggregate {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/StateEventDefinitionProvider;
+}
+
+public abstract class me/ahoo/wow/schema/typed/TypedCustomDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public fun <init> ()V
+	public fun createCustomDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+	public abstract fun getType ()Ljava/lang/Class;
+	protected final fun getTypedSchema ()Ltools/jackson/databind/node/ObjectNode;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/query/FilterExpressionDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2, com/github/victools/jsonschema/generator/Module {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/query/FilterExpressionDefinitionProvider;
+	public fun applyToConfigBuilder (Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfigBuilder;)V
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/query/QueryFieldDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/query/QueryFieldDefinitionProvider;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/typed/query/QuerySchemaValueDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/typed/query/QuerySchemaValueDefinitionProvider;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public abstract interface class me/ahoo/wow/schema/web/IServerSentEvent {
+	public abstract fun getData ()Ljava/lang/Object;
+	public abstract fun getEvent ()Ljava/lang/String;
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getRetry ()Ljava/lang/Integer;
+}
+
+public final class me/ahoo/wow/schema/web/ServerSentEvent : me/ahoo/wow/schema/web/IServerSentEvent {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Object;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;)Lme/ahoo/wow/schema/web/ServerSentEvent;
+	public static synthetic fun copy$default (Lme/ahoo/wow/schema/web/ServerSentEvent;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/schema/web/ServerSentEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getData ()Ljava/lang/Object;
+	public fun getEvent ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
+	public fun getRetry ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/schema/web/ServerSentEventCustomDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
+	public static final field INSTANCE Lme/ahoo/wow/schema/web/ServerSentEventCustomDefinitionProvider;
+	public static final field SPRING_WEB_SERVER_SENT_EVENT Ljava/lang/String;
+	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
+}
+
+public final class me/ahoo/wow/schema/web/ServerSentEventNonNullData : me/ahoo/wow/schema/web/IServerSentEvent {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Object;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;)Lme/ahoo/wow/schema/web/ServerSentEventNonNullData;
+	public static synthetic fun copy$default (Lme/ahoo/wow/schema/web/ServerSentEventNonNullData;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/schema/web/ServerSentEventNonNullData;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getData ()Ljava/lang/Object;
+	public fun getEvent ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
+	public fun getRetry ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

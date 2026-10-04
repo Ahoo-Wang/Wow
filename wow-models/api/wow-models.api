@@ -1,0 +1,266 @@
+public abstract interface class me/ahoo/wow/models/common/CompletedCapable : me/ahoo/wow/api/naming/CompletedCapable {
+}
+
+public abstract interface class me/ahoo/wow/models/common/EnumText {
+	public abstract fun getText ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/ItemIdCapable {
+	public abstract fun getItemId ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NotBlankItemIdCapable : me/ahoo/wow/models/common/ItemIdCapable {
+	public abstract fun getItemId ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NotBlankNameCapable : me/ahoo/wow/api/naming/Named {
+	public abstract fun getName ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NotBlankTypeCapable : me/ahoo/wow/models/common/TypeCapable {
+	public abstract fun getType ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NullableQuantityCapable {
+	public abstract fun getQty ()Ljava/lang/Integer;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NullableReasonCapable {
+	public abstract fun getReason ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NullableRemarkCapable {
+	public abstract fun getRemark ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/NullableTitleCapable {
+	public abstract fun getTitle ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/PolymorphicTypeCapable : me/ahoo/wow/models/common/NotBlankTypeCapable {
+	public abstract fun getType ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/QuantityCapable : me/ahoo/wow/models/common/NullableQuantityCapable {
+	public abstract fun getQty ()Ljava/lang/Integer;
+}
+
+public abstract interface class me/ahoo/wow/models/common/ReasonCapable : me/ahoo/wow/models/common/NullableReasonCapable {
+	public abstract fun getReason ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/RemarkCapable : me/ahoo/wow/models/common/NullableRemarkCapable {
+	public abstract fun getRemark ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/StatusCapable {
+	public abstract fun getStatus ()Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/models/common/TenantAwareId : me/ahoo/wow/models/common/TenantAwareIdCapable {
+	public fun <init> (Ljava/lang/Object;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/models/common/TenantAwareId;
+	public static synthetic fun copy$default (Lme/ahoo/wow/models/common/TenantAwareId;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/models/common/TenantAwareId;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getId ()Ljava/lang/Object;
+	public fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/TenantAwareIdCapable : me/ahoo/wow/api/modeling/IdCapable, me/ahoo/wow/api/modeling/TenantId {
+}
+
+public abstract interface class me/ahoo/wow/models/common/TerminatedCapable {
+	public abstract fun getTerminated ()Z
+}
+
+public abstract interface class me/ahoo/wow/models/common/TitleCapable : me/ahoo/wow/models/common/NullableTitleCapable {
+	public abstract fun getTitle ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/common/TypeCapable {
+	public static final field Companion Lme/ahoo/wow/models/common/TypeCapable$Companion;
+	public static final field TYPE Ljava/lang/String;
+	public abstract fun getType ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/models/common/TypeCapable$Companion {
+	public static final field TYPE Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/CopySortIdFlat : me/ahoo/wow/models/tree/Flat {
+	public abstract fun withSortId (I)Lme/ahoo/wow/models/tree/Flat;
+}
+
+public final class me/ahoo/wow/models/tree/CopySortIdFlat$DefaultImpls {
+	public static fun compareTo (Lme/ahoo/wow/models/tree/CopySortIdFlat;Lme/ahoo/wow/models/tree/Info;)I
+	public static fun getLevel (Lme/ahoo/wow/models/tree/CopySortIdFlat;)I
+	public static fun isDirectChild (Lme/ahoo/wow/models/tree/CopySortIdFlat;Lme/ahoo/wow/models/tree/Info;)Z
+	public static fun isRoot (Lme/ahoo/wow/models/tree/CopySortIdFlat;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/Flat : me/ahoo/wow/models/tree/Info {
+}
+
+public final class me/ahoo/wow/models/tree/Flat$DefaultImpls {
+	public static fun compareTo (Lme/ahoo/wow/models/tree/Flat;Lme/ahoo/wow/models/tree/Info;)I
+	public static fun getLevel (Lme/ahoo/wow/models/tree/Flat;)I
+	public static fun isDirectChild (Lme/ahoo/wow/models/tree/Flat;Lme/ahoo/wow/models/tree/Info;)Z
+	public static fun isRoot (Lme/ahoo/wow/models/tree/Flat;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/ITreeState : me/ahoo/wow/api/Identifier {
+	public abstract fun getChildren ()Ljava/util/SortedSet;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/Info : java/lang/Comparable, me/ahoo/wow/api/naming/Named, me/ahoo/wow/models/tree/TreeCoded {
+	public synthetic fun compareTo (Ljava/lang/Object;)I
+	public fun compareTo (Lme/ahoo/wow/models/tree/Info;)I
+	public abstract fun getSortId ()I
+	public fun isDirectChild (Lme/ahoo/wow/models/tree/Info;)Z
+}
+
+public final class me/ahoo/wow/models/tree/Info$DefaultImpls {
+	public static fun compareTo (Lme/ahoo/wow/models/tree/Info;Lme/ahoo/wow/models/tree/Info;)I
+	public static fun getLevel (Lme/ahoo/wow/models/tree/Info;)I
+	public static fun isDirectChild (Lme/ahoo/wow/models/tree/Info;Lme/ahoo/wow/models/tree/Info;)Z
+	public static fun isRoot (Lme/ahoo/wow/models/tree/Info;)Z
+}
+
+public final class me/ahoo/wow/models/tree/InfoKt {
+	public static final field DEPARTMENT_CODE_DELIMITER Ljava/lang/String;
+	public static final field ROOT_CODE Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/Leaf : me/ahoo/wow/models/tree/Info {
+	public abstract fun getChildren ()Ljava/util/List;
+	public abstract fun withChildren (Ljava/util/List;)Lme/ahoo/wow/models/tree/Leaf;
+}
+
+public final class me/ahoo/wow/models/tree/Leaf$DefaultImpls {
+	public static fun compareTo (Lme/ahoo/wow/models/tree/Leaf;Lme/ahoo/wow/models/tree/Info;)I
+	public static fun getLevel (Lme/ahoo/wow/models/tree/Leaf;)I
+	public static fun isDirectChild (Lme/ahoo/wow/models/tree/Leaf;Lme/ahoo/wow/models/tree/Info;)Z
+	public static fun isRoot (Lme/ahoo/wow/models/tree/Leaf;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/TreeCoded {
+	public static final field Companion Lme/ahoo/wow/models/tree/TreeCoded$Companion;
+	public abstract fun getCode ()Ljava/lang/String;
+	public fun getLevel ()I
+	public fun isRoot ()Z
+}
+
+public final class me/ahoo/wow/models/tree/TreeCoded$Companion {
+	public final fun childCodePrefix (Ljava/lang/String;)Ljava/lang/String;
+	public final fun isDirectChild (Ljava/lang/String;Ljava/lang/String;)Z
+	public final fun isRootNode (Ljava/lang/String;)Z
+	public final fun nodeLevel (Ljava/lang/String;)I
+	public final fun parentCode (Ljava/lang/String;)Ljava/lang/String;
+	public final fun treeCode (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/models/tree/TreeCoded$DefaultImpls {
+	public static fun getLevel (Lme/ahoo/wow/models/tree/TreeCoded;)I
+	public static fun isRoot (Lme/ahoo/wow/models/tree/TreeCoded;)Z
+}
+
+public final class me/ahoo/wow/models/tree/Trees {
+	public static final field INSTANCE Lme/ahoo/wow/models/tree/Trees;
+	public final fun toTree (Ljava/lang/Iterable;Lme/ahoo/wow/models/tree/Leaf;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/models/tree/Leaf;
+}
+
+public abstract class me/ahoo/wow/models/tree/aggregate/Tree {
+	public fun <init> (Lme/ahoo/wow/models/tree/aggregate/TreeState;)V
+	protected abstract fun generateCode ()Ljava/lang/String;
+	protected final fun getState ()Lme/ahoo/wow/models/tree/aggregate/TreeState;
+	protected fun hasChildErrorMessage (Lme/ahoo/wow/models/tree/TreeCoded;)Ljava/lang/String;
+	protected abstract fun maxLevel ()I
+	protected fun nodeNotFoundErrorMessage (Lme/ahoo/wow/models/tree/TreeCoded;)Ljava/lang/String;
+	protected fun onCreate (Lme/ahoo/wow/models/tree/command/Create;Lme/ahoo/wow/api/command/CommandResultAccessor;)Lreactor/core/publisher/Mono;
+	protected fun onCreateExceedMaxLevelErrorMessage (Lme/ahoo/wow/models/tree/command/Created;)Ljava/lang/String;
+	protected fun onCreateNotFoundParentErrorMessage (Lme/ahoo/wow/models/tree/command/Create;)Ljava/lang/String;
+	protected fun onDelete (Lme/ahoo/wow/models/tree/command/Delete;)Lreactor/core/publisher/Mono;
+	protected fun onMove (Lme/ahoo/wow/models/tree/command/Move;)Lreactor/core/publisher/Mono;
+	protected fun onUpdate (Lme/ahoo/wow/models/tree/command/Update;)Lreactor/core/publisher/Mono;
+	protected fun verifyCreate (Lme/ahoo/wow/models/tree/command/Create;)Lreactor/core/publisher/Mono;
+	protected fun verifyDelete (Lme/ahoo/wow/models/tree/command/Delete;)Lreactor/core/publisher/Mono;
+	protected fun verifyUpdate (Lme/ahoo/wow/models/tree/command/Update;)Lreactor/core/publisher/Mono;
+}
+
+public abstract class me/ahoo/wow/models/tree/aggregate/TreeState : me/ahoo/wow/models/tree/ITreeState {
+	public fun <init> ()V
+	public fun getChildren ()Ljava/util/SortedSet;
+	protected fun onCreated (Lme/ahoo/wow/models/tree/command/Created;)V
+	protected fun onDeleted (Lme/ahoo/wow/models/tree/command/Deleted;)V
+	protected fun onMoved (Lme/ahoo/wow/models/tree/command/Moved;)V
+	protected fun onUpdated (Lme/ahoo/wow/models/tree/command/Updated;)V
+	protected abstract fun toFlat (Lme/ahoo/wow/models/tree/Flat;)Lme/ahoo/wow/models/tree/CopySortIdFlat;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Create : me/ahoo/wow/models/common/NotBlankNameCapable {
+	public abstract fun getParentCode ()Ljava/lang/String;
+	public abstract fun toEvent (Ljava/lang/String;I)Lme/ahoo/wow/models/tree/command/Created;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Created : me/ahoo/wow/models/tree/Flat {
+}
+
+public final class me/ahoo/wow/models/tree/command/Created$DefaultImpls {
+	public static fun compareTo (Lme/ahoo/wow/models/tree/command/Created;Lme/ahoo/wow/models/tree/Info;)I
+	public static fun getLevel (Lme/ahoo/wow/models/tree/command/Created;)I
+	public static fun isDirectChild (Lme/ahoo/wow/models/tree/command/Created;Lme/ahoo/wow/models/tree/Info;)Z
+	public static fun isRoot (Lme/ahoo/wow/models/tree/command/Created;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Delete : me/ahoo/wow/models/tree/TreeCoded {
+	public fun getLevel ()I
+	public abstract fun toEvent (Lme/ahoo/wow/models/tree/Flat;)Lme/ahoo/wow/models/tree/command/Deleted;
+}
+
+public final class me/ahoo/wow/models/tree/command/Delete$DefaultImpls {
+	public static fun getLevel (Lme/ahoo/wow/models/tree/command/Delete;)I
+	public static fun isRoot (Lme/ahoo/wow/models/tree/command/Delete;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Deleted : me/ahoo/wow/models/tree/TreeCoded {
+}
+
+public final class me/ahoo/wow/models/tree/command/Deleted$DefaultImpls {
+	public static fun getLevel (Lme/ahoo/wow/models/tree/command/Deleted;)I
+	public static fun isRoot (Lme/ahoo/wow/models/tree/command/Deleted;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Move {
+	public abstract fun getCodes ()Ljava/util/List;
+	public abstract fun toEvent ()Lme/ahoo/wow/models/tree/command/Moved;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Moved {
+	public abstract fun getCodes ()Ljava/util/List;
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Update : me/ahoo/wow/models/tree/TreeCoded {
+	public fun getLevel ()I
+	public abstract fun toEvent (Lme/ahoo/wow/models/tree/Flat;)Lme/ahoo/wow/models/tree/command/Updated;
+}
+
+public final class me/ahoo/wow/models/tree/command/Update$DefaultImpls {
+	public static fun getLevel (Lme/ahoo/wow/models/tree/command/Update;)I
+	public static fun isRoot (Lme/ahoo/wow/models/tree/command/Update;)Z
+}
+
+public abstract interface class me/ahoo/wow/models/tree/command/Updated : me/ahoo/wow/models/tree/Flat {
+}
+
+public final class me/ahoo/wow/models/tree/command/Updated$DefaultImpls {
+	public static fun compareTo (Lme/ahoo/wow/models/tree/command/Updated;Lme/ahoo/wow/models/tree/Info;)I
+	public static fun getLevel (Lme/ahoo/wow/models/tree/command/Updated;)I
+	public static fun isDirectChild (Lme/ahoo/wow/models/tree/command/Updated;Lme/ahoo/wow/models/tree/Info;)Z
+	public static fun isRoot (Lme/ahoo/wow/models/tree/command/Updated;)Z
+}
+

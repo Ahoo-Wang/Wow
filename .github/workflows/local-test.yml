@@ -79,6 +79,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      # Every published module's public JVM signatures against its committed api/<module>.api. It compiles
+      # the main classes the tests need anyway, so it costs seconds and fails before the tests run.
+      - name: Check Kotlin ABI
+        run: ./gradlew checkKotlinAbi --stacktrace
+
       - name: Run local tests with coverage
         run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace
 

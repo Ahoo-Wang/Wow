@@ -1,0 +1,222 @@
+public final class me/ahoo/wow/elasticsearch/ElasticsearchEventStreamIndexInitializer : me/ahoo/wow/elasticsearch/ElasticsearchIndexInitializer {
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public abstract class me/ahoo/wow/elasticsearch/ElasticsearchIndexInitializer {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/ElasticsearchIndexInitializer$Companion;
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public final fun ensureAll ()Lreactor/core/publisher/Mono;
+	protected abstract fun getIndexKind ()Ljava/lang/String;
+	protected abstract fun indexName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/elasticsearch/ElasticsearchIndexInitializer$Companion {
+}
+
+public final class me/ahoo/wow/elasticsearch/ElasticsearchIndexNaming {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun eventStreamIndexName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+	public final fun getPrefix ()Ljava/lang/String;
+	public final fun resolve (Ljava/lang/String;)Ljava/lang/String;
+	public final fun snapshotIndexName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/elasticsearch/ElasticsearchIndexNaming$Companion {
+	public final fun validatePrefix (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/elasticsearch/ElasticsearchSnapshotIndexInitializer : me/ahoo/wow/elasticsearch/ElasticsearchIndexInitializer {
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/configuration/WowResourceLocator;Ljava/lang/Iterable;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class me/ahoo/wow/elasticsearch/IndexNameConverter {
+	public static final field EVENT_STREAM_SUFFIX Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/elasticsearch/IndexNameConverter;
+	public static final field SNAPSHOT_SUFFIX Ljava/lang/String;
+	public final fun toEventStreamIndexName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+	public final fun toSnapshotIndexName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/elasticsearch/IndexTemplateInitializer {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer$Companion;
+	public fun <init> (Lorg/springframework/data/elasticsearch/core/ReactiveElasticsearchOperations;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/core/ReactiveElasticsearchOperations;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public final fun ensureAllTemplates ()Lreactor/core/publisher/Mono;
+	public final fun ensureEventStreamTemplate ()Lreactor/core/publisher/Mono;
+	public final fun ensureSnapshotTemplate ()Lreactor/core/publisher/Mono;
+	public final fun initAll ()V
+	public final fun initEventStreamTemplate ()Lreactor/core/publisher/Mono;
+	public final fun initSnapshotTemplate ()Lreactor/core/publisher/Mono;
+	public final fun initTemplate (Ljava/lang/String;Ltools/jackson/databind/JsonNode;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/elasticsearch/IndexTemplateInitializer$Companion {
+}
+
+public final class me/ahoo/wow/elasticsearch/WowJsonpMapperKt {
+	public static final fun getWowJsonpMapper ()Lco/elastic/clients/json/jackson/Jackson3JsonpMapper;
+}
+
+public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchBulkItemException : java/lang/RuntimeException {
+	public fun <init> (Lco/elastic/clients/elasticsearch/core/bulk/OperationType;Ljava/lang/String;Ljava/lang/String;ILco/elastic/clients/elasticsearch/_types/ErrorCause;)V
+	public final fun getError ()Lco/elastic/clients/elasticsearch/_types/ErrorCause;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getIndex ()Ljava/lang/String;
+	public final fun getOperationType ()Lco/elastic/clients/elasticsearch/core/bulk/OperationType;
+	public final fun getStatus ()I
+}
+
+public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchBulkResponseException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventStore : me/ahoo/wow/eventsourcing/AbstractEventStore {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventStore$Companion;
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;ILme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;ILme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;ILme/ahoo/wow/metrics/WowMetrics;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;ILme/ahoo/wow/metrics/WowMetrics;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventStore$Companion {
+}
+
+public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshotStore : me/ahoo/wow/eventsourcing/snapshot/SnapshotStore {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshotStore$Companion;
+	public static final field NAME Ljava/lang/String;
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;Lme/ahoo/wow/metrics/WowMetrics;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;Lme/ahoo/wow/metrics/WowMetrics;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public fun getName ()Ljava/lang/String;
+	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun save (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshotStore$Companion {
+}
+
+public abstract class me/ahoo/wow/elasticsearch/query/AbstractElasticsearchQueryBackend : me/ahoo/wow/query/QueryBackend {
+	public fun <init> ()V
+	public fun aggregate (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/GroupWindow;)Lreactor/core/publisher/Flux;
+	public fun count (Lme/ahoo/wow/query/AdmittedQuery;)Lreactor/core/publisher/Mono;
+	public fun getAggregateName ()Ljava/lang/String;
+	public fun getContextName ()Ljava/lang/String;
+	public fun getCursorPositions ()Lme/ahoo/wow/query/CursorPositionCodec;
+	public abstract fun getElasticsearchClient ()Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;
+	public abstract fun getIndexName ()Ljava/lang/String;
+	protected fun getQueryBatchSize ()I
+	protected fun getQueryKeepAlive ()Ljava/time/Duration;
+	public fun isSameAggregateName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public fun page (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/PageWindow;)Lreactor/core/publisher/Mono;
+	public fun stream (Lme/ahoo/wow/query/AdmittedQuery;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/ElasticsearchFilterCompiler {
+	public static final field INSTANCE Lme/ahoo/wow/elasticsearch/query/ElasticsearchFilterCompiler;
+	public final fun compile (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/AdmittedQuery;)Lco/elastic/clients/elasticsearch/_types/query_dsl/Query;
+	public final fun compile (Lme/ahoo/wow/query/AdmittedQuery;)Lco/elastic/clients/elasticsearch/_types/query_dsl/Query;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping$Companion;
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component6 ()I
+	public final fun component7 ()Z
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFieldCount ()I
+	public final fun getIndexName ()Ljava/lang/String;
+	public final fun getMaxResultWindow ()I
+	public final fun getProvisional ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping$Companion {
+	public final fun from (Ljava/lang/String;Lco/elastic/clients/elasticsearch/_types/mapping/TypeMapping;IZ)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping;
+	public static synthetic fun from$default (Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping$Companion;Ljava/lang/String;Lco/elastic/clients/elasticsearch/_types/mapping/TypeMapping;IZILjava/lang/Object;)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver {
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;)V
+	public final fun currentOrLoad (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public final fun refresh (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/ElasticsearchProjectionCompiler {
+	public static final field INSTANCE Lme/ahoo/wow/elasticsearch/query/ElasticsearchProjectionCompiler;
+	public final fun compile (Lme/ahoo/wow/api/query/Projection;Lme/ahoo/wow/query/AdmittedQuery;)Lco/elastic/clients/elasticsearch/core/search/SourceFilter;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/ElasticsearchSortCompiler {
+	public static final field INSTANCE Lme/ahoo/wow/elasticsearch/query/ElasticsearchSortCompiler;
+	public final fun compile (Ljava/util/List;Lme/ahoo/wow/query/AdmittedQuery;)Ljava/util/List;
+	public final fun toSortOrder (Lme/ahoo/wow/api/query/Sort$Direction;)Lco/elastic/clients/elasticsearch/_types/SortOrder;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackend : me/ahoo/wow/elasticsearch/query/AbstractElasticsearchQueryBackend, me/ahoo/wow/query/event/EventStreamQueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getElasticsearchClient ()Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;
+	public fun getIndexName ()Ljava/lang/String;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackendFactory : me/ahoo/wow/query/event/AbstractEventStreamQueryBackendFactory {
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class me/ahoo/wow/elasticsearch/query/schema/ElasticsearchQuerySchemaAdapter : me/ahoo/wow/query/schema/QueryStorageAdapter {
+	public static final field Companion Lme/ahoo/wow/elasticsearch/query/schema/ElasticsearchQuerySchemaAdapter$Companion;
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;Lme/ahoo/wow/api/query/schema/QueryModel;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;Lme/ahoo/wow/api/query/schema/QueryModel;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun facts (Lme/ahoo/wow/query/schema/LogicalQuerySchema;)Lreactor/core/publisher/Mono;
+	public fun refresh (Lme/ahoo/wow/query/schema/LogicalQuerySchema;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/schema/ElasticsearchQuerySchemaAdapter$Companion {
+}
+
+public final class me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryBackend : me/ahoo/wow/elasticsearch/query/AbstractElasticsearchQueryBackend, me/ahoo/wow/query/snapshot/SnapshotQueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getElasticsearchClient ()Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;
+	public fun getIndexName ()Ljava/lang/String;
+	public fun getName ()Ljava/lang/String;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+}
+
+public final class me/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryBackendFactory : me/ahoo/wow/query/snapshot/AbstractSnapshotQueryBackendFactory {
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
+	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;ILjava/time/Duration;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+

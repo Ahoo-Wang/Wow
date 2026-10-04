@@ -1,0 +1,115 @@
+public final class me/ahoo/wow/compensation/domain/AggregatesMetadata {
+	public static final field INSTANCE Lme/ahoo/wow/compensation/domain/AggregatesMetadata;
+	public final fun getExecutionFailedAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+}
+
+public final class me/ahoo/wow/compensation/domain/CompensationBoundedContext {
+	public static final field INSTANCE Lme/ahoo/wow/compensation/domain/CompensationBoundedContext;
+}
+
+public final class me/ahoo/wow/compensation/domain/DefaultNextRetryAtCalculator : me/ahoo/wow/compensation/domain/NextRetryAtCalculator {
+	public static final field INSTANCE Lme/ahoo/wow/compensation/domain/DefaultNextRetryAtCalculator;
+	public fun nextRetryAt (IIJ)J
+	public fun nextRetryState (Lme/ahoo/wow/compensation/api/IRetrySpec;IJ)Lme/ahoo/wow/compensation/api/RetryState;
+	public fun validate (Lme/ahoo/wow/compensation/api/IRetrySpec;)V
+}
+
+public final class me/ahoo/wow/compensation/domain/ExecutionFailed {
+	public fun <init> (Lme/ahoo/wow/compensation/domain/ExecutionFailedState;)V
+	public final fun onApplyRetrySpec (Lme/ahoo/wow/compensation/api/ApplyRetrySpec;Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;)Lme/ahoo/wow/compensation/api/RetrySpecApplied;
+	public final fun onChangeFunctionKind (Lme/ahoo/wow/compensation/api/ChangeFunction;)Lme/ahoo/wow/compensation/api/FunctionChanged;
+	public final fun onCreate (Lme/ahoo/wow/compensation/api/CreateExecutionFailed;Lme/ahoo/wow/compensation/api/IRetrySpec;Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;)Lme/ahoo/wow/compensation/api/ExecutionFailedCreated;
+	public final fun onFailed (Lme/ahoo/wow/compensation/api/ApplyExecutionFailed;)Lme/ahoo/wow/compensation/api/ExecutionFailedApplied;
+	public final fun onForcePrepare (Lme/ahoo/wow/compensation/api/ForcePrepareCompensation;Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;)Lme/ahoo/wow/compensation/api/CompensationPrepared;
+	public final fun onMarkRecoverable (Lme/ahoo/wow/compensation/api/MarkRecoverable;)Lme/ahoo/wow/compensation/api/RecoverableMarked;
+	public final fun onPrepare (Lme/ahoo/wow/compensation/api/PrepareCompensation;Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;)Lme/ahoo/wow/compensation/api/CompensationPrepared;
+	public final fun onSucceed (Lme/ahoo/wow/compensation/api/ApplyExecutionSuccess;)Lme/ahoo/wow/compensation/api/ExecutionSuccessApplied;
+}
+
+public final class me/ahoo/wow/compensation/domain/ExecutionFailedState : me/ahoo/wow/compensation/api/IExecutionFailedState {
+	public fun <init> (Ljava/lang/String;)V
+	public fun canForceRetry ()Z
+	public fun canNextRetry ()Z
+	public fun canRetry ()Z
+	public fun getError ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public fun getEventId ()Lme/ahoo/wow/compensation/api/EventId;
+	public fun getExecuteAt ()J
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public fun getRetrySpec ()Lme/ahoo/wow/compensation/api/RetrySpec;
+	public fun getRetryState ()Lme/ahoo/wow/compensation/api/RetryState;
+	public fun getStatus ()Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+	public fun isBelowRetryThreshold ()Z
+	public fun isRetryable ()Z
+	public final fun onCreated (Lme/ahoo/wow/compensation/api/ExecutionFailedCreated;)V
+	public final fun onFailed (Lme/ahoo/wow/compensation/api/ExecutionFailedApplied;)V
+	public final fun onFunctionChanged (Lme/ahoo/wow/compensation/api/FunctionChanged;)V
+	public final fun onPrepared (Lme/ahoo/wow/compensation/api/CompensationPrepared;)V
+	public final fun onRecoverableMarked (Lme/ahoo/wow/compensation/api/RecoverableMarked;)V
+	public final fun onRetrySpecApplied (Lme/ahoo/wow/compensation/api/RetrySpecApplied;)V
+	public final fun onSuccess (Lme/ahoo/wow/compensation/api/ExecutionSuccessApplied;)V
+}
+
+public final class me/ahoo/wow/compensation/domain/ExecutionFailedStateProperties {
+	public static final field ERROR Ljava/lang/String;
+	public static final field ERROR__BINDING_ERRORS Ljava/lang/String;
+	public static final field ERROR__ERROR_CODE Ljava/lang/String;
+	public static final field ERROR__ERROR_MSG Ljava/lang/String;
+	public static final field ERROR__STACK_TRACE Ljava/lang/String;
+	public static final field ERROR__SUCCEEDED Ljava/lang/String;
+	public static final field EVENT_ID Ljava/lang/String;
+	public static final field EVENT_ID__AGGREGATE_ID Ljava/lang/String;
+	public static final field EVENT_ID__ID Ljava/lang/String;
+	public static final field EVENT_ID__INITIALIZED Ljava/lang/String;
+	public static final field EVENT_ID__IS_INITIAL_VERSION Ljava/lang/String;
+	public static final field EVENT_ID__VERSION Ljava/lang/String;
+	public static final field EXECUTE_AT Ljava/lang/String;
+	public static final field FUNCTION Ljava/lang/String;
+	public static final field FUNCTION__CONTEXT_NAME Ljava/lang/String;
+	public static final field FUNCTION__FUNCTION_KIND Ljava/lang/String;
+	public static final field FUNCTION__NAME Ljava/lang/String;
+	public static final field FUNCTION__PROCESSOR_NAME Ljava/lang/String;
+	public static final field ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/compensation/domain/ExecutionFailedStateProperties;
+	public static final field IS_BELOW_RETRY_THRESHOLD Ljava/lang/String;
+	public static final field IS_RETRYABLE Ljava/lang/String;
+	public static final field RECOVERABLE Ljava/lang/String;
+	public static final field RETRY_SPEC Ljava/lang/String;
+	public static final field RETRY_SPEC__EXECUTION_TIMEOUT Ljava/lang/String;
+	public static final field RETRY_SPEC__MAX_RETRIES Ljava/lang/String;
+	public static final field RETRY_SPEC__MIN_BACKOFF Ljava/lang/String;
+	public static final field RETRY_STATE Ljava/lang/String;
+	public static final field RETRY_STATE__NEXT_RETRY_AT Ljava/lang/String;
+	public static final field RETRY_STATE__RETRIES Ljava/lang/String;
+	public static final field RETRY_STATE__RETRY_AT Ljava/lang/String;
+	public static final field RETRY_STATE__TIMEOUT_AT Ljava/lang/String;
+	public static final field STATUS Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/compensation/domain/FindNextRetry {
+	public abstract fun findNextRetry (I)Lreactor/core/publisher/Flux;
+	public static synthetic fun findNextRetry$default (Lme/ahoo/wow/compensation/domain/FindNextRetry;IILjava/lang/Object;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/compensation/domain/FindNextRetry$DefaultImpls {
+	public static synthetic fun findNextRetry$default (Lme/ahoo/wow/compensation/domain/FindNextRetry;IILjava/lang/Object;)Lreactor/core/publisher/Flux;
+}
+
+public abstract interface class me/ahoo/wow/compensation/domain/NextRetryAtCalculator {
+	public fun nextRetryAt (IIJ)J
+	public static synthetic fun nextRetryAt$default (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;IIJILjava/lang/Object;)J
+	public fun nextRetryState (Lme/ahoo/wow/compensation/api/IRetrySpec;IJ)Lme/ahoo/wow/compensation/api/RetryState;
+	public static synthetic fun nextRetryState$default (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;Lme/ahoo/wow/compensation/api/IRetrySpec;IJILjava/lang/Object;)Lme/ahoo/wow/compensation/api/RetryState;
+	public fun validate (Lme/ahoo/wow/compensation/api/IRetrySpec;)V
+}
+
+public final class me/ahoo/wow/compensation/domain/NextRetryAtCalculator$DefaultImpls {
+	public static fun nextRetryAt (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;IIJ)J
+	public static synthetic fun nextRetryAt$default (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;IIJILjava/lang/Object;)J
+	public static fun nextRetryState (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;Lme/ahoo/wow/compensation/api/IRetrySpec;IJ)Lme/ahoo/wow/compensation/api/RetryState;
+	public static synthetic fun nextRetryState$default (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;Lme/ahoo/wow/compensation/api/IRetrySpec;IJILjava/lang/Object;)Lme/ahoo/wow/compensation/api/RetryState;
+	public static fun validate (Lme/ahoo/wow/compensation/domain/NextRetryAtCalculator;Lme/ahoo/wow/compensation/api/IRetrySpec;)V
+}
+

@@ -1,0 +1,133 @@
+public final class me/ahoo/wow/viewstore/domain/AggregatesMetadata {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/AggregatesMetadata;
+	public final fun getViewAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	public final fun getViewPreferencesAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+}
+
+public final class me/ahoo/wow/viewstore/domain/ViewApps {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/ViewApps;
+	public final fun requireSameApp (Lme/ahoo/wow/api/command/CommandMessage;Ljava/lang/String;)V
+	public final fun requiredAppId (Lme/ahoo/wow/api/command/CommandMessage;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/domain/ViewStoreBoundedContext {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/ViewStoreBoundedContext;
+}
+
+public final class me/ahoo/wow/viewstore/domain/ViewStoreException : me/ahoo/wow/exception/WowException {
+	public static final field Companion Lme/ahoo/wow/viewstore/domain/ViewStoreException$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class me/ahoo/wow/viewstore/domain/ViewStoreException$Companion {
+	public final fun appRequired ()Lme/ahoo/wow/viewstore/domain/ViewStoreException;
+	public final fun invalid (Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/viewstore/domain/ViewStoreException;
+	public static synthetic fun invalid$default (Lme/ahoo/wow/viewstore/domain/ViewStoreException$Companion;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/domain/ViewStoreException;
+}
+
+public final class me/ahoo/wow/viewstore/domain/preferences/ViewPreferences {
+	public fun <init> (Lme/ahoo/wow/viewstore/domain/preferences/ViewPreferencesState;)V
+	public final fun onSet (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet;
+}
+
+public final class me/ahoo/wow/viewstore/domain/preferences/ViewPreferencesIds {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/preferences/ViewPreferencesIds;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/domain/preferences/ViewPreferencesState {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getAutoRun ()Ljava/lang/Boolean;
+	public final fun getDefaultInstanceId ()Ljava/lang/String;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getLastTabs ()Ljava/util/Map;
+	public final fun getOrder ()Ljava/util/List;
+	public final fun onSet (Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet;)V
+}
+
+public final class me/ahoo/wow/viewstore/domain/preferences/ViewPreferencesStateProperties {
+	public static final field APP_ID Ljava/lang/String;
+	public static final field AUTO_RUN Ljava/lang/String;
+	public static final field DEFAULT_INSTANCE_ID Ljava/lang/String;
+	public static final field DEFINITION_ID Ljava/lang/String;
+	public static final field ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/preferences/ViewPreferencesStateProperties;
+	public static final field LAST_TABS Ljava/lang/String;
+	public static final field ORDER Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/domain/view/BoardReference {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/viewstore/domain/view/BoardReference;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/domain/view/BoardReference;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/domain/view/BoardReference;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/viewstore/domain/view/SharedBoardReferences {
+	public abstract fun referencingBoards (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/viewstore/domain/view/View {
+	public static final field Companion Lme/ahoo/wow/viewstore/domain/view/View$Companion;
+	public static final field REFERENCED_BY_SHARED_DASHBOARD Ljava/lang/String;
+	public fun <init> (Lme/ahoo/wow/viewstore/domain/view/ViewState;)V
+	public final fun onClaim (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/viewstore/domain/view/SharedBoardReferences;)Lreactor/core/publisher/Mono;
+	public final fun onCreate (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/viewstore/api/view/ViewCreated;
+	public final fun onDelete (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/api/event/DefaultAggregateDeleted;
+	public final fun onRename (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/viewstore/api/view/ViewRenamed;
+	public final fun onSave (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/viewstore/api/view/ViewSaved;
+	public final fun onShare (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;
+}
+
+public final class me/ahoo/wow/viewstore/domain/view/View$Companion {
+}
+
+public final class me/ahoo/wow/viewstore/domain/view/ViewConfigs {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/view/ViewConfigs;
+	public static final field KIND Ljava/lang/String;
+	public static final field MAX_CONFIG_BYTES I
+	public static final field MAX_ID_LENGTH I
+	public static final field MAX_PANELS I
+	public static final field MAX_TITLE_LENGTH I
+	public static final field PANELS Ljava/lang/String;
+	public final fun getPANEL_REFERENCES ()Ljava/util/List;
+	public final fun requireDefinitionId (Ljava/lang/String;)Ljava/lang/String;
+	public final fun requireTitle (Ljava/lang/String;)Ljava/lang/String;
+	public final fun requireValid (Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/viewstore/api/ViewKind;
+}
+
+public final class me/ahoo/wow/viewstore/domain/view/ViewState {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getAudience ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun getConfig ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun onAudienceChanged (Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;)V
+	public final fun onCreated (Lme/ahoo/wow/viewstore/api/view/ViewCreated;)V
+	public final fun onRenamed (Lme/ahoo/wow/viewstore/api/view/ViewRenamed;)V
+	public final fun onSaved (Lme/ahoo/wow/viewstore/api/view/ViewSaved;)V
+}
+
+public final class me/ahoo/wow/viewstore/domain/view/ViewStateProperties {
+	public static final field APP_ID Ljava/lang/String;
+	public static final field AUDIENCE Ljava/lang/String;
+	public static final field CONFIG Ljava/lang/String;
+	public static final field CONFIG___CHILDREN Ljava/lang/String;
+	public static final field CONFIG___NODE_FACTORY Ljava/lang/String;
+	public static final field DEFINITION_ID Ljava/lang/String;
+	public static final field ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/view/ViewStateProperties;
+	public static final field TITLE Ljava/lang/String;
+}
+

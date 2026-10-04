@@ -1,0 +1,380 @@
+public abstract class me/ahoo/wow/redis/bus/AbstractRedisMessageBus : me/ahoo/wow/messaging/DistributedMessageBus {
+	public static final field Companion Lme/ahoo/wow/redis/bus/AbstractRedisMessageBus$Companion;
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/AggregateTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/AggregateTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public abstract fun getMessageType ()Ljava/lang/Class;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public abstract fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/redis/bus/AbstractRedisMessageBus$Companion {
+}
+
+public final class me/ahoo/wow/redis/bus/AbstractRedisMessageBusKt {
+	public static final field MESSAGE_FIELD Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/redis/bus/AggregateTopicConverter {
+	public abstract fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/redis/bus/CommandTopicConverter : me/ahoo/wow/redis/bus/AggregateTopicConverter {
+}
+
+public final class me/ahoo/wow/redis/bus/CompositeRedisMessageBusObserver : me/ahoo/wow/redis/bus/RedisMessageBusObserver {
+	public fun <init> (Ljava/lang/Iterable;)V
+	public fun onObservation (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation;)V
+}
+
+public final class me/ahoo/wow/redis/bus/DefaultCommandTopicConverter : me/ahoo/wow/redis/bus/CommandTopicConverter {
+	public static final field COMMAND_TOPIC_SUFFIX Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/redis/bus/DefaultCommandTopicConverter;
+	public fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/DefaultEventStreamTopicConverter : me/ahoo/wow/redis/bus/EventStreamTopicConverter {
+	public static final field EVENT_TOPIC_SUFFIX Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/redis/bus/DefaultEventStreamTopicConverter;
+	public fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/DefaultStateEventTopicConverter : me/ahoo/wow/redis/bus/StateEventTopicConverter {
+	public static final field INSTANCE Lme/ahoo/wow/redis/bus/DefaultStateEventTopicConverter;
+	public static final field STATE_EVENT_TOPIC_SUFFIX Ljava/lang/String;
+	public fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/redis/bus/EventStreamTopicConverter : me/ahoo/wow/redis/bus/AggregateTopicConverter {
+}
+
+public final class me/ahoo/wow/redis/bus/RedisCommandBus : me/ahoo/wow/redis/bus/AbstractRedisMessageBus, me/ahoo/wow/command/DistributedCommandBus {
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/CommandTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/CommandTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun toExchange (Lme/ahoo/wow/api/command/CommandMessage;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisDomainEventBus : me/ahoo/wow/redis/bus/AbstractRedisMessageBus, me/ahoo/wow/event/DistributedDomainEventBus {
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/EventStreamTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/EventStreamTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public synthetic fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun toExchange (Lme/ahoo/wow/event/DomainEventStream;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/event/EventStreamExchange;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisEventStreamExchange : me/ahoo/wow/event/EventStreamExchange {
+	public fun <init> (Lme/ahoo/wow/event/DomainEventStream;Lreactor/core/publisher/Mono;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/event/DomainEventStream;Lreactor/core/publisher/Mono;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public final fun component1 ()Lme/ahoo/wow/event/DomainEventStream;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/event/DomainEventStream;Lreactor/core/publisher/Mono;Ljava/util/Map;)Lme/ahoo/wow/redis/bus/RedisEventStreamExchange;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisEventStreamExchange;Lme/ahoo/wow/event/DomainEventStream;Lreactor/core/publisher/Mono;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisEventStreamExchange;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getMessage ()Lme/ahoo/wow/event/DomainEventStream;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun hashCode ()I
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/redis/bus/RedisMessageBusObservation {
+	public abstract fun getConsumerGroup ()Ljava/lang/String;
+	public abstract fun getTopic ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimCompleted : me/ahoo/wow/redis/bus/RedisMessageBusObservation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JJ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JJ)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimCompleted;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimCompleted;Ljava/lang/String;Ljava/lang/String;JJILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimCompleted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClaimedMessages ()J
+	public fun getConsumerGroup ()Ljava/lang/String;
+	public final fun getRequestedMessages ()J
+	public fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimFailed : me/ahoo/wow/redis/bus/RedisMessageBusObservation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JJLjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JJLjava/lang/String;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimFailed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimFailed;Ljava/lang/String;Ljava/lang/String;JJLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingClaimFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClaimedMessages ()J
+	public fun getConsumerGroup ()Ljava/lang/String;
+	public final fun getFailureType ()Ljava/lang/String;
+	public final fun getRequestedMessages ()J
+	public fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingScanFailed : me/ahoo/wow/redis/bus/RedisMessageBusObservation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingScanFailed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingScanFailed;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingScanFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getConsumerGroup ()Ljava/lang/String;
+	public final fun getFailureType ()Ljava/lang/String;
+	public fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingSweepStarted : me/ahoo/wow/redis/bus/RedisMessageBusObservation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingSweepStarted;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingSweepStarted;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$PendingSweepStarted;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getConsumerGroup ()Ljava/lang/String;
+	public final fun getMaxMessageId ()Ljava/lang/String;
+	public final fun getMinMessageId ()Ljava/lang/String;
+	public fun getTopic ()Ljava/lang/String;
+	public final fun getTotalPendingMessages ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisMessageBusObservation$RecordDecodeFailed : me/ahoo/wow/redis/bus/RedisMessageBusObservation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;Ljava/lang/String;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$RecordDecodeFailed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$RecordDecodeFailed;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisMessageBusObservation$RecordDecodeFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getConsumerGroup ()Ljava/lang/String;
+	public final fun getFailureType ()Ljava/lang/String;
+	public final fun getMessageType ()Ljava/lang/String;
+	public final fun getReason ()Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+	public final fun getRecordId ()Ljava/lang/String;
+	public fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/redis/bus/RedisMessageBusObserver {
+	public static final field Companion Lme/ahoo/wow/redis/bus/RedisMessageBusObserver$Companion;
+	public static final field NOOP Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;
+	public abstract fun onObservation (Lme/ahoo/wow/redis/bus/RedisMessageBusObservation;)V
+}
+
+public final class me/ahoo/wow/redis/bus/RedisMessageBusObserver$Companion {
+}
+
+public final class me/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason : java/lang/Enum {
+	public static final field DESERIALIZATION_FAILED Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+	public static final field MISSING_MESSAGE_FIELD Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+	public static fun values ()[Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisServerCommandExchange : me/ahoo/wow/command/ServerCommandExchange {
+	public fun <init> (Lme/ahoo/wow/api/command/CommandMessage;Lreactor/core/publisher/Mono;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/command/CommandMessage;Lreactor/core/publisher/Mono;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	public fun getAggregateProcessor ()Lme/ahoo/wow/modeling/command/AggregateProcessor;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandInvokeResult ()Ljava/lang/Object;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getEventStream ()Lme/ahoo/wow/event/DomainEventStream;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAggregateMetadata (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setAggregateProcessor (Lme/ahoo/wow/modeling/command/AggregateProcessor;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setAggregateVersion (I)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandInvokeResult (Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setEventStream (Lme/ahoo/wow/event/DomainEventStream;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisStateEventBus : me/ahoo/wow/redis/bus/AbstractRedisMessageBus, me/ahoo/wow/eventsourcing/state/DistributedStateEventBus {
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/StateEventTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/StateEventTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public synthetic fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun toExchange (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lreactor/core/publisher/Mono;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisStateEventExchange : me/ahoo/wow/eventsourcing/state/StateEventExchange {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lreactor/core/publisher/Mono;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lreactor/core/publisher/Mono;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getMessage ()Lme/ahoo/wow/eventsourcing/state/StateEvent;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisStreamRecoveryOptions {
+	public static final field Companion Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;
+	public static final field DISABLED Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;
+	public fun <init> ()V
+	public fun <init> (ZLjava/time/Duration;Ljava/time/Duration;J)V
+	public synthetic fun <init> (ZLjava/time/Duration;Ljava/time/Duration;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/time/Duration;
+	public final fun component3 ()Ljava/time/Duration;
+	public final fun component4 ()J
+	public final fun copy (ZLjava/time/Duration;Ljava/time/Duration;J)Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;
+	public static synthetic fun copy$default (Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;ZLjava/time/Duration;Ljava/time/Duration;JILjava/lang/Object;)Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBatchSize ()J
+	public final fun getEnabled ()Z
+	public final fun getInterval ()Ljava/time/Duration;
+	public final fun getMinIdleTime ()Ljava/time/Duration;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/redis/bus/RedisStreamRecoveryOptions$Companion {
+}
+
+public abstract interface class me/ahoo/wow/redis/bus/StateEventTopicConverter : me/ahoo/wow/redis/bus/AggregateTopicConverter {
+}
+
+public final class me/ahoo/wow/redis/eventsourcing/RedisEventStore : me/ahoo/wow/eventsourcing/AbstractEventStore {
+	public static final field Companion Lme/ahoo/wow/redis/eventsourcing/RedisEventStore$Companion;
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)V
+	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/redis/eventsourcing/RedisEventStore$Companion {
+}
+
+public final class me/ahoo/wow/redis/eventsourcing/RedisSnapshotStore : me/ahoo/wow/eventsourcing/snapshot/SnapshotStore {
+	public static final field Companion Lme/ahoo/wow/redis/eventsourcing/RedisSnapshotStore$Companion;
+	public static final field NAME Ljava/lang/String;
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)V
+	public fun close ()V
+	public fun getName ()Ljava/lang/String;
+	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun save (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/redis/eventsourcing/RedisSnapshotStore$Companion {
+}
+
+public final class me/ahoo/wow/redis/prepare/RedisPrepareKey : me/ahoo/wow/infra/prepare/PrepareKey {
+	public static final field Companion Lme/ahoo/wow/redis/prepare/RedisPrepareKey$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/Class;Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)V
+	public fun get (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun getName ()Ljava/lang/String;
+	public fun getValue (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun prepare (Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun prepare (Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun rollback (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun rollback (Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun usingPrepare (Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Lreactor/core/publisher/Mono;
+	public fun usingPrepare (Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;Lkotlin/jvm/functions/Function1;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/redis/prepare/RedisPrepareKey$Companion {
+}
+
+public final class me/ahoo/wow/redis/prepare/RedisPrepareKeyFactory : me/ahoo/wow/infra/prepare/PrepareKeyFactory {
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)V
+	public fun create (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/infra/prepare/PrepareKey;
+}
+

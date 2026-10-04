@@ -1,0 +1,1673 @@
+public final class me/ahoo/wow/spring/boot/starter/BusProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/BusProperties$Companion;
+	public static final field LOCAL_FIRST_ENABLED_SUFFIX_KEY Ljava/lang/String;
+	public static final field TYPE_SUFFIX_KEY Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/BusType;Lme/ahoo/wow/spring/boot/starter/LocalFirstProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/BusType;Lme/ahoo/wow/spring/boot/starter/LocalFirstProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getLocalFirst ()Lme/ahoo/wow/spring/boot/starter/LocalFirstProperties;
+	public final fun getType ()Lme/ahoo/wow/spring/boot/starter/BusType;
+	public final fun setLocalFirst (Lme/ahoo/wow/spring/boot/starter/LocalFirstProperties;)V
+	public final fun setType (Lme/ahoo/wow/spring/boot/starter/BusType;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/BusProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/BusType : java/lang/Enum {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/BusType$Companion;
+	public static final field IN_MEMORY Lme/ahoo/wow/spring/boot/starter/BusType;
+	public static final field IN_MEMORY_NAME Ljava/lang/String;
+	public static final field KAFKA Lme/ahoo/wow/spring/boot/starter/BusType;
+	public static final field KAFKA_NAME Ljava/lang/String;
+	public static final field NO_OP Lme/ahoo/wow/spring/boot/starter/BusType;
+	public static final field NO_OP_NAME Ljava/lang/String;
+	public static final field REDIS Lme/ahoo/wow/spring/boot/starter/BusType;
+	public static final field REDIS_NAME Ljava/lang/String;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/BusType;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/BusType;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/BusType$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/ConditionalOnWowEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/ConditionalOnWowEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/ConditionalOnWowEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/LocalFirstProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getEnabled ()Z
+	public fun setEnabled (Z)V
+}
+
+public class me/ahoo/wow/spring/boot/starter/WowAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/WowAutoConfiguration$Companion;
+	public static final field SPRING_APPLICATION_NAME Ljava/lang/String;
+	public static final field WOW_CURRENT_BOUNDED_CONTEXT Ljava/lang/String;
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/WowProperties;)V
+	public fun errorInfoConverterRegistrar (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/exception/ErrorInfoConverterRegistrar;
+	public fun serviceProvider (Lorg/springframework/beans/factory/config/ConfigurableBeanFactory;)Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun wowCurrentBoundedContext (Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/api/naming/NamedBoundedContext;
+	public fun wowLifecycleProcessor (Lorg/springframework/boot/autoconfigure/context/LifecycleProperties;)Lorg/springframework/context/support/DefaultLifecycleProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/WowAutoConfiguration$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/WowProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public fun <init> ()V
+	public fun <init> (ZLjava/lang/String;Ljava/time/Duration;Ljava/time/Duration;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getContextName ()Ljava/lang/String;
+	public fun getEnabled ()Z
+	public final fun getShutdownQuietPeriod ()Ljava/time/Duration;
+	public final fun getShutdownTimeout ()Ljava/time/Duration;
+	public final fun setContextName (Ljava/lang/String;)V
+	public fun setEnabled (Z)V
+	public final fun setShutdownQuietPeriod (Ljava/time/Duration;)V
+	public final fun setShutdownTimeout (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/WowPropertiesKt {
+	public static final field ENABLED_SUFFIX_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/WowRuntimeComponentOrder {
+	public static final field COMMAND I
+	public static final field EVENT I
+	public static final field INSTANCE Lme/ahoo/wow/spring/boot/starter/WowRuntimeComponentOrder;
+	public static final field PROJECTION I
+	public static final field SNAPSHOT I
+	public static final field STATELESS_SAGA I
+}
+
+public final class me/ahoo/wow/spring/boot/starter/WowRuntimeSpringLifecycleKt {
+	public static final field WOW_RUNTIME_BEAN_NAME Ljava/lang/String;
+	public static final field WOW_RUNTIME_LIFECYCLE_BEAN_NAME Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ZLjava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;II)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ZLjava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component10 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/time/Duration;
+	public final fun component6 ()Ljava/time/Duration;
+	public final fun component7 ()Ljava/time/Duration;
+	public final fun component8 ()Ljava/time/Duration;
+	public final fun component9 ()I
+	public final fun copy (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ZLjava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;II)Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ZLjava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;IIILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConnectionPoolEnabled ()Z
+	public final fun getConnectionRequestTimeout ()Ljava/time/Duration;
+	public final fun getConnectionTimeout ()Ljava/time/Duration;
+	public final fun getEndpoints ()Ljava/util/List;
+	public final fun getExecutionTimeout ()Ljava/time/Duration;
+	public final fun getMaxConnections ()I
+	public final fun getMaxRetries ()I
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getSocketTimeout ()Ljava/time/Duration;
+	public final fun getUsername ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setConnectionPoolEnabled (Z)V
+	public final fun setConnectionRequestTimeout (Ljava/time/Duration;)V
+	public final fun setConnectionTimeout (Ljava/time/Duration;)V
+	public final fun setEndpoints (Ljava/util/List;)V
+	public final fun setExecutionTimeout (Ljava/time/Duration;)V
+	public final fun setMaxConnections (I)V
+	public final fun setMaxRetries (I)V
+	public final fun setPassword (Ljava/lang/String;)V
+	public final fun setSocketTimeout (Ljava/time/Duration;)V
+	public final fun setUsername (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;Ljava/time/Duration;Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;Ljava/time/Duration;Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;
+	public final fun component2 ()Ljava/time/Duration;
+	public final fun component3 ()Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;
+	public final fun copy (Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;Ljava/time/Duration;Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;)Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;Ljava/time/Duration;Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClickhouse ()Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;
+	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun getType ()Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;
+	public fun hashCode ()I
+	public final fun setClickhouse (Lme/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties;)V
+	public final fun setTimeout (Ljava/time/Duration;)V
+	public final fun setType (Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType : java/lang/Enum {
+	public static final field CLICKHOUSE Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;
+	public static final field NO_OP Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorType;
+}
+
+public abstract interface class me/ahoo/wow/spring/boot/starter/bi/BiScriptAggregateExclusion {
+	public abstract fun excludes (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInstallation ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setInstallation (Ljava/lang/String;)V
+	public final fun setName (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/lang/Integer;
+	public final fun component12 ()Lme/ahoo/wow/bi/UnsupportedTypeStrategy;
+	public final fun component13 ()Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Lme/ahoo/wow/bi/KafkaOffsetStorage;
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConsumerDatabase ()Ljava/lang/String;
+	public final fun getConsumerGroupNamespace ()Ljava/lang/String;
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getInspector ()Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;
+	public final fun getKafkaBootstrapServers ()Ljava/lang/String;
+	public final fun getKafkaKeeperPathPrefix ()Ljava/lang/String;
+	public final fun getKafkaOffsetStorage ()Lme/ahoo/wow/bi/KafkaOffsetStorage;
+	public final fun getMaxExpansionDepth ()Ljava/lang/Integer;
+	public final fun getTimezone ()Ljava/lang/String;
+	public final fun getTopicPrefix ()Ljava/lang/String;
+	public final fun getTopology ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;
+	public final fun getUnsupportedTypeStrategy ()Lme/ahoo/wow/bi/UnsupportedTypeStrategy;
+	public fun hashCode ()I
+	public final fun setConsumerDatabase (Ljava/lang/String;)V
+	public final fun setConsumerGroupNamespace (Ljava/lang/String;)V
+	public final fun setDatabase (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setInspector (Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)V
+	public final fun setKafkaBootstrapServers (Ljava/lang/String;)V
+	public final fun setKafkaKeeperPathPrefix (Ljava/lang/String;)V
+	public final fun setKafkaOffsetStorage (Lme/ahoo/wow/bi/KafkaOffsetStorage;)V
+	public final fun setMaxExpansionDepth (Ljava/lang/Integer;)V
+	public final fun setTimezone (Ljava/lang/String;)V
+	public final fun setTopicPrefix (Ljava/lang/String;)V
+	public final fun setTopology (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;)V
+	public final fun setUnsupportedTypeStrategy (Lme/ahoo/wow/bi/UnsupportedTypeStrategy;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode : java/lang/Enum {
+	public static final field CLUSTER Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;
+	public static final field STANDALONE Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;
+	public final fun component2 ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;
+	public final fun copy (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCluster ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;
+	public final fun getMode ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;
+	public fun hashCode ()I
+	public final fun setCluster (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptClusterProperties;)V
+	public final fun setMode (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyMode;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration {
+	public fun <init> ()V
+	public fun commandMessageFactory (Ljakarta/validation/Validator;Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;)Lme/ahoo/wow/command/factory/CommandMessageFactory;
+	public fun commandOptionsExtractorRegistry (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;
+	public fun inMemoryCommandBus ()Lme/ahoo/wow/command/LocalCommandBus;
+	public fun localCommandBus ()Lme/ahoo/wow/command/LocalCommandBus;
+	public fun localFirstCommandBus (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/command/LocalFirstCommandBus;
+	public fun noOpValidator ()Ljakarta/validation/Validator;
+}
+
+public class me/ahoo/wow/spring/boot/starter/command/CommandGatewayAutoConfiguration {
+	public fun <init> ()V
+	public fun commandGateway (Lme/ahoo/wow/command/wait/CommandWaitEndpoint;Lme/ahoo/wow/command/CommandBus;Ljakarta/validation/Validator;Lme/ahoo/wow/command/RequestIdChecker;Lme/ahoo/wow/command/wait/WaitCoordinator;Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/CommandGateway;
+	public fun commandGatewayBean (Lme/ahoo/wow/command/wait/CommandWaitEndpoint;Lorg/springframework/beans/factory/ObjectProvider;Ljakarta/validation/Validator;Lme/ahoo/wow/command/RequestIdChecker;Lme/ahoo/wow/command/wait/WaitCoordinator;Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/CommandGateway;
+	public fun commandWaitEndpoint (Lme/ahoo/cosid/machine/HostAddressSupplier;)Lme/ahoo/wow/command/wait/CommandWaitEndpoint;
+	public fun commandWaitNotifier (Lme/ahoo/wow/command/wait/WaitCoordinator;)Lme/ahoo/wow/command/wait/CommandWaitNotifier;
+	public fun eventHandledNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/EventHandledNotifierFilter;
+	public fun idempotencyChecker (Lme/ahoo/wow/spring/boot/starter/command/CommandProperties;)Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;
+	public fun noOpIdempotencyCheckerProvider ()Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;
+	public fun processedNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/ProcessedNotifierFilter;
+	public fun projectedNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/ProjectedNotifierFilter;
+	public fun requestIdChecker (Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/RequestIdChecker;
+	public fun sagaHandledNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/SagaHandledNotifierFilter;
+	public fun snapshotNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/SnapshotNotifierFilter;
+	public fun waitCoordinator ()Lme/ahoo/wow/command/wait/WaitCoordinator;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/CommandProperties {
+	public static final field BUS_LOCAL_FIRST_ENABLED Ljava/lang/String;
+	public static final field BUS_TYPE Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/command/CommandProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBus ()Lme/ahoo/wow/spring/boot/starter/BusProperties;
+	public final fun getIdempotency ()Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties;
+	public final fun setBus (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
+	public final fun setIdempotency (Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/CommandProperties$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/command/ConditionalOnCommandLocalFirstEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/IdempotencyProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;)V
+	public synthetic fun <init> (ZLme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBloomFilter ()Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;
+	public fun getEnabled ()Z
+	public final fun setBloomFilter (Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;)V
+	public fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter {
+	public fun <init> ()V
+	public fun <init> (Ljava/time/Duration;JD)V
+	public synthetic fun <init> (Ljava/time/Duration;JDILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/time/Duration;
+	public final fun component2 ()J
+	public final fun component3 ()D
+	public final fun copy (Ljava/time/Duration;JD)Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;Ljava/time/Duration;JDILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$BloomFilter;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpectedInsertions ()J
+	public final fun getFpp ()D
+	public final fun getTtl ()Ljava/time/Duration;
+	public fun hashCode ()I
+	public final fun setExpectedInsertions (J)V
+	public final fun setFpp (D)V
+	public final fun setTtl (Ljava/time/Duration;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/IdempotencyProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/ServerCommandWaitEndpoint : me/ahoo/wow/command/wait/CommandWaitEndpoint, org/springframework/context/ApplicationListener {
+	public fun <init> (Lme/ahoo/cosid/machine/HostAddressSupplier;)V
+	public fun getEndpoint ()Ljava/lang/String;
+	public fun onApplicationEvent (Lorg/springframework/boot/web/server/context/WebServerInitializedEvent;)V
+	public synthetic fun onApplicationEvent (Lorg/springframework/context/ApplicationEvent;)V
+}
+
+public class me/ahoo/wow/spring/boot/starter/compensation/CompensationAutoConfiguration {
+	public fun <init> ()V
+	public fun compensationEventProcessor (Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;)Lme/ahoo/wow/compensation/core/CompensationEventProcessor;
+	public fun domainEventCompensationFilter (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/compensation/core/DomainEventCompensationFilter;
+	public fun eventCompensateSupporter (Lme/ahoo/wow/event/compensation/DomainEventCompensator;Lme/ahoo/wow/event/compensation/StateEventCompensator;)Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;
+	public fun stateEventCompensationFilter (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/compensation/core/StateEventCompensationFilter;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/compensation/CompensationProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/compensation/CompensationProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getEnabled ()Z
+	public fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/compensation/CompensationProperties$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/compensation/ConditionalOnCompensationEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/compensation/ConditionalOnCompensationEnabledKt {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/cosec/CoSecAutoConfiguration {
+	public fun <init> ()V
+	public fun coSecCommandBuilderExtractor ()Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;
+	public fun coSecCommandRequestHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestHeaderAppender;
+	public fun coSecQueryRequestScope ()Lme/ahoo/wow/webflux/route/query/QueryRequestScope;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/elasticsearch/ConditionalOnElasticsearchEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ConditionalOnElasticsearchEnabledKt {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/elasticsearch/ConditionalOnElasticsearchStorage : java/lang/annotation/Annotation {
+}
+
+public class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventSourcingAutoConfiguration {
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties;Lorg/springframework/beans/factory/ObjectProvider;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties;Lorg/springframework/beans/factory/ObjectProvider;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun elasticsearchEventStore (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer;Lme/ahoo/wow/elasticsearch/ElasticsearchEventStreamIndexInitializer;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventStore;
+	public fun elasticsearchEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public fun elasticsearchEventStreamIndexInitializer (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;)Lme/ahoo/wow/elasticsearch/ElasticsearchEventStreamIndexInitializer;
+	public fun elasticsearchEventStreamQueryBackendFactory (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;)Lme/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackendFactory;
+	public static synthetic fun elasticsearchEventStreamQueryBackendFactory$default (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventSourcingAutoConfiguration;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;ILjava/lang/Object;)Lme/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackendFactory;
+	public fun elasticsearchEventStreamQueryBackendProvider (Lme/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
+	public fun elasticsearchIndexMappingResolver (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;
+	public fun elasticsearchIndexNaming ()Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;
+	public fun elasticsearchSnapshotIndexInitializer (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;)Lme/ahoo/wow/elasticsearch/ElasticsearchSnapshotIndexInitializer;
+	public fun elasticsearchSnapshotQueryBackendFactory (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;)Lme/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryBackendFactory;
+	public fun elasticsearchSnapshotQueryBackendProvider (Lme/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
+	public fun elasticsearchSnapshotStore (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer;Lme/ahoo/wow/elasticsearch/ElasticsearchSnapshotIndexInitializer;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshotStore;
+	public fun elasticsearchSnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+	public fun indexTemplateInitializer (Lorg/springframework/data/elasticsearch/core/ReactiveElasticsearchOperations;)Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer;
+	public fun jackson3JsonpMapper ()Lco/elastic/clients/json/jackson/Jackson3JsonpMapper;
+	public fun rest5ClientOptions ()Lco/elastic/clients/transport/rest5_client/Rest5ClientOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZILjava/time/Duration;II)V
+	public synthetic fun <init> (ZILjava/time/Duration;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getEnabled ()Z
+	public final fun getLaneCount ()I
+	public final fun getMaxDelay ()Ljava/time/Duration;
+	public final fun getMaxPendingItems ()I
+	public final fun getMaxSize ()I
+	public final fun setEnabled (Z)V
+	public final fun setLaneCount (I)V
+	public final fun setMaxDelay (Ljava/time/Duration;)V
+	public final fun setMaxPendingItems (I)V
+	public final fun setMaxSize (I)V
+	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field COMPATIBILITY_VERSION_KEY Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZZLjava/lang/Integer;)V
+	public synthetic fun <init> (ZZLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZZLjava/lang/Integer;Ljava/lang/String;)V
+	public synthetic fun <init> (ZZLjava/lang/Integer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAutoInitTemplate ()Z
+	public final fun getCompatibilityVersion ()Ljava/lang/Integer;
+	public fun getEnabled ()Z
+	public final fun getIndexPrefix ()Ljava/lang/String;
+	public final fun setAutoInitTemplate (Z)V
+	public final fun setCompatibilityVersion (Ljava/lang/Integer;)V
+	public fun setEnabled (Z)V
+	public final fun setIndexPrefix (Ljava/lang/String;)V
+	public final fun toIndexNaming ()Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ILjava/time/Duration;)V
+	public synthetic fun <init> (ILjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBatchSize ()I
+	public final fun getKeepAlive ()Ljava/time/Duration;
+	public final fun setBatchSize (I)V
+	public final fun setKeepAlive (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZILjava/time/Duration;II)V
+	public synthetic fun <init> (ZILjava/time/Duration;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getEnabled ()Z
+	public final fun getLaneCount ()I
+	public final fun getMaxDelay ()Ljava/time/Duration;
+	public final fun getMaxPendingItems ()I
+	public final fun getMaxSize ()I
+	public final fun setEnabled (Z)V
+	public final fun setLaneCount (I)V
+	public final fun setMaxDelay (Ljava/time/Duration;)V
+	public final fun setMaxPendingItems (I)V
+	public final fun setMaxSize (I)V
+	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/elasticsearch/OnElasticsearchStorageCondition : org/springframework/boot/autoconfigure/condition/AnyNestedCondition {
+	public fun <init> ()V
+}
+
+public abstract interface class me/ahoo/wow/spring/boot/starter/elasticsearch/OnElasticsearchStorageCondition$EventStoreUsesElasticsearch {
+}
+
+public abstract interface class me/ahoo/wow/spring/boot/starter/elasticsearch/OnElasticsearchStorageCondition$SnapshotStoreUsesElasticsearch {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/event/ConditionalOnEventLocalFirstEnabled : java/lang/annotation/Annotation {
+}
+
+public class me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration {
+	public fun <init> ()V
+	public fun domainEventCompensator (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/DomainEventBus;)Lme/ahoo/wow/event/compensation/DomainEventCompensator;
+	public fun inMemoryDomainEventBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
+	public fun localDomainEventBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
+	public fun localFirstDomainEventBus (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/event/LocalFirstDomainEventBus;
+	public fun ooOpDomainEventBus ()Lme/ahoo/wow/event/DomainEventBus;
+}
+
+public class me/ahoo/wow/spring/boot/starter/event/EventDispatcherAutoConfiguration {
+	public fun <init> ()V
+	public fun domainEventDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventDispatcher;
+	public fun domainEventHandlerRegistrar ()Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;
+	public fun eventDispatcherFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
+	public fun eventDispatcherFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventFunctionFilter;
+	public fun eventDispatcherHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
+	public fun eventDispatcherRetryableFilter ()Lme/ahoo/wow/messaging/handler/RetryableFilter;
+	public fun eventProcessorAutoRegistrar (Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/event/EventProcessorAutoRegistrar;
+	public fun eventProcessorErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/event/EventProperties {
+	public static final field BUS_LOCAL_FIRST_ENABLED Ljava/lang/String;
+	public static final field BUS_TYPE Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/event/EventProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBus ()Lme/ahoo/wow/spring/boot/starter/BusProperties;
+	public final fun setBus (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/event/EventProperties$Companion {
+}
+
+public class me/ahoo/wow/spring/boot/starter/eventsourcing/EventSourcingAutoConfiguration {
+	public fun <init> ()V
+	public fun noOpSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/EventSourcingProperties {
+	public static final field INSTANCE Lme/ahoo/wow/spring/boot/starter/eventsourcing/EventSourcingProperties;
+	public static final field PREFIX Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/StorageType : java/lang/Enum {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType$Companion;
+	public static final field DELAY Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public static final field DELAY_NAME Ljava/lang/String;
+	public static final field ELASTICSEARCH Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public static final field ELASTICSEARCH_NAME Ljava/lang/String;
+	public static final field IN_MEMORY Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public static final field IN_MEMORY_NAME Ljava/lang/String;
+	public static final field MONGO Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public static final field MONGO_NAME Ljava/lang/String;
+	public static final field REDIS Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public static final field REDIS_NAME Ljava/lang/String;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/StorageType$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/AggregateStorageRouteProperties {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;
+	public final fun component2 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;
+	public final fun copy (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/AggregateStorageRouteProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/AggregateStorageRouteProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/AggregateStorageRouteProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEvent ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;
+	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;
+	public fun hashCode ()I
+	public final fun setEvent (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;)V
+	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/ConditionalOnEventStoreStorage : java/lang/annotation/Annotation {
+	public abstract fun value ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/ConditionalOnSnapshotStoreStorage : java/lang/annotation/Annotation {
+	public abstract fun value ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding$Companion;
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/EventStore;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun component3 ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/EventStore;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding$Companion {
+	public final fun storage (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/OnStorageRoutingStorageCondition : org/springframework/boot/autoconfigure/condition/SpringBootCondition {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/OnStorageRoutingStorageCondition$Companion;
+	public fun <init> ()V
+	public fun getMatchOutcome (Lorg/springframework/context/annotation/ConditionContext;Lorg/springframework/core/type/AnnotatedTypeMetadata;)Lorg/springframework/boot/autoconfigure/condition/ConditionOutcome;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/OnStorageRoutingStorageCondition$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventRoutes {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;Ljava/util/Map;)V
+	public final fun component1 ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/eventsourcing/EventStore;Ljava/util/Map;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventRoutes;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventRoutes;Lme/ahoo/wow/eventsourcing/EventStore;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventRoutes;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun getEventRoutes ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventStreamQueryBackendFactoryRoutes {
+	public fun <init> (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Ljava/util/Map;)V
+	public final fun component1 ()Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Ljava/util/Map;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventStreamQueryBackendFactoryRoutes;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventStreamQueryBackendFactoryRoutes;Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventStreamQueryBackendFactoryRoutes;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultEventStreamQueryBackendFactory ()Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public final fun getEventStreamQueryBackendFactoryRoutes ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotQueryBackendFactoryRoutes {
+	public fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Ljava/util/Map;)V
+	public final fun component1 ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Ljava/util/Map;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotQueryBackendFactoryRoutes;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotQueryBackendFactoryRoutes;Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotQueryBackendFactoryRoutes;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+	public final fun getSnapshotQueryBackendFactoryRoutes ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotRoutes {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Ljava/util/Map;)V
+	public final fun component1 ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Ljava/util/Map;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotRoutes;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotRoutes;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotRoutes;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public final fun getSnapshotRoutes ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding$Companion;
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun component3 ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public final fun getStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding$Companion {
+	public final fun storage (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageChannelRouteProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBinding ()Ljava/lang/String;
+	public final fun getStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public fun hashCode ()I
+	public final fun setBinding (Ljava/lang/String;)V
+	public final fun setStorage (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteBindingsKt {
+	public static final fun getQueryBackendProviderName (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteResolver {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteResolver$Companion;
+	public fun <init> (Ljava/lang/String;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun resolveEventRoutes (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventRoutes;
+	public final fun resolveEventStreamQueryBackendFactoryRoutes (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedEventStreamQueryBackendFactoryRoutes;
+	public final fun resolveSnapshotQueryBackendFactoryRoutes (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotQueryBackendFactoryRoutes;
+	public final fun resolveSnapshotRoutes (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/ResolvedSnapshotRoutes;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRouteResolver$Companion {
+}
+
+public class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingAutoConfiguration {
+	public fun <init> ()V
+	public fun routingEventStore (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/eventsourcing/EventStore;
+	public fun routingEventStreamQueryBackendFactory (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public fun routingSnapshotQueryBackendFactory (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+	public fun routingSnapshotStore (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public fun storageDefaultsValidation (Lorg/springframework/core/env/Environment;)Lorg/springframework/beans/factory/InitializingBean;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties {
+	public static final field AGGREGATES Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun copy (Ljava/util/Map;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregates ()Ljava/util/Map;
+	public fun hashCode ()I
+	public final fun setAggregates (Ljava/util/Map;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/routing/StorageRoutingProperties$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/ConditionalOnSnapshotEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/ConditionalOnSnapshotEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/ConditionalOnSnapshotEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotAutoConfiguration {
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;)V
+	public fun inMemorySnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/InMemorySnapshotStore;
+	public fun inMemorySnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+	public fun simpleSnapshotStrategy (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
+	public fun snapshotDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatcher;
+	public fun snapshotFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
+	public fun snapshotFunctionFilter (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter;
+	public fun snapshotHandler (Lme/ahoo/wow/filter/FilterChain;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
+	public fun versionOffsetSnapshotStrategy (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field BINDING Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public static final field STORAGE Ljava/lang/String;
+	public static final field STRATEGY Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;ILme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;)V
+	public synthetic fun <init> (ZLme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;ILme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;
+	public final fun component3 ()I
+	public final fun component4 ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (ZLme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;ILme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;ZLme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;ILme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBinding ()Ljava/lang/String;
+	public final fun getDefaultStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public fun getEnabled ()Z
+	public final fun getStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun getStrategy ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;
+	public final fun getVersionOffset ()I
+	public fun hashCode ()I
+	public final fun setBinding (Ljava/lang/String;)V
+	public fun setEnabled (Z)V
+	public final fun setStorage (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;)V
+	public final fun setStrategy (Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;)V
+	public final fun setVersionOffset (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy : java/lang/Enum {
+	public static final field ALL Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;
+	public static final field ALL_NAME Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy$Companion;
+	public static final field VERSION_OFFSET Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;
+	public static final field VERSION_OFFSET_NAME Ljava/lang/String;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/Strategy$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/eventsourcing/state/ConditionalOnStateEventLocalFirstEnabled : java/lang/annotation/Annotation {
+}
+
+public class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateAutoConfiguration {
+	public fun <init> ()V
+	public fun inMemoryStateEventBus ()Lme/ahoo/wow/eventsourcing/state/StateEventBus;
+	public fun localFirstStateEventBus (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;
+	public fun localStateEventBus ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
+	public fun sendStateEventFilter (Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/eventsourcing/state/SendStateEventFilter;
+	public fun stateEventCompensator (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/event/compensation/StateEventCompensator;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties {
+	public static final field BUS_LOCAL_FIRST_ENABLED Ljava/lang/String;
+	public static final field BUS_TYPE Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spring/boot/starter/BusProperties;
+	public final fun copy (Lme/ahoo/wow/spring/boot/starter/BusProperties;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties;Lme/ahoo/wow/spring/boot/starter/BusProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBus ()Lme/ahoo/wow/spring/boot/starter/BusProperties;
+	public fun hashCode ()I
+	public final fun setBus (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties$Companion {
+}
+
+public class me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreAutoConfiguration {
+	public fun <init> ()V
+	public fun inMemoryEventStore ()Lme/ahoo/wow/eventsourcing/InMemoryEventStore;
+	public fun inMemoryEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties {
+	public static final field BINDING Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public static final field STORAGE Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBinding ()Ljava/lang/String;
+	public final fun getDefaultStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun getStorage ()Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;
+	public final fun setBinding (Ljava/lang/String;)V
+	public final fun setStorage (Lme/ahoo/wow/spring/boot/starter/eventsourcing/StorageType;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/kafka/ConditionalOnKafkaEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/kafka/ConditionalOnKafkaEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/kafka/ConditionalOnKafkaEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration {
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties;)V
+	public fun defaultCommandTopicConverter ()Lme/ahoo/wow/kafka/CommandTopicConverter;
+	public fun defaultEventStreamTopicConverter ()Lme/ahoo/wow/kafka/EventStreamTopicConverter;
+	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun kafkaDomainEventBus (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun kafkaReceiverPolicy ()Lme/ahoo/wow/kafka/KafkaReceiverPolicy;
+	public fun kafkaRecordDecodeFailureHandler ()Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;
+	public fun kafkaStateEventBus (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun receiverOptionsCustomizer ()Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;
+	public fun stateEventTopicConverter ()Lme/ahoo/wow/kafka/StateEventTopicConverter;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;)V
+	public synthetic fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun bootstrapServersToString ()Ljava/lang/String;
+	public final fun buildReceiverOptions ()Lreactor/kafka/receiver/ReceiverOptions;
+	public final fun buildSenderOptions ()Lreactor/kafka/sender/SenderOptions;
+	public final fun getBootstrapServers ()Ljava/util/List;
+	public final fun getConsumer ()Ljava/util/Map;
+	public fun getEnabled ()Z
+	public final fun getProducer ()Ljava/util/Map;
+	public final fun getProperties ()Ljava/util/Map;
+	public final fun getReceiver ()Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;
+	public final fun getTopicPrefix ()Ljava/lang/String;
+	public final fun setBootstrapServers (Ljava/util/List;)V
+	public final fun setConsumer (Ljava/util/Map;)V
+	public fun setEnabled (Z)V
+	public final fun setProducer (Ljava/util/Map;)V
+	public final fun setProperties (Ljava/util/Map;)V
+	public final fun setReceiver (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;)V
+	public final fun setTopicPrefix (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties {
+	public fun <init> ()V
+	public fun <init> (IIJLjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;)V
+	public synthetic fun <init> (IIJLjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getDecodeFailureStrategy ()Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;
+	public final fun getMaxDeferredCommits ()I
+	public final fun getPrefetchBatches ()I
+	public final fun getRetryAttempts ()J
+	public final fun getRetryBackoff ()Ljava/time/Duration;
+	public final fun setDecodeFailureStrategy (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;)V
+	public final fun setMaxDeferredCommits (I)V
+	public final fun setPrefetchBatches (I)V
+	public final fun setRetryAttempts (J)V
+	public final fun setRetryBackoff (Ljava/time/Duration;)V
+	public final fun toPolicy ()Lme/ahoo/wow/kafka/KafkaReceiverPolicy;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy : java/lang/Enum {
+	public static final field ACKNOWLEDGE Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;
+	public static final field FAIL Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/kafka/KafkaRecordDecodeFailureStrategy;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/metrics/ConditionalOnMetricsEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/metrics/ConditionalOnMetricsEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/metrics/ConditionalOnMetricsEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/metrics/MetricsAutoConfiguration {
+	public fun <init> ()V
+	public fun metricsBeanPostProcessor (Lme/ahoo/wow/metrics/WowMetrics;)Lme/ahoo/wow/spring/boot/starter/metrics/MetricsBeanPostProcessor;
+	public fun wowMetrics (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/metrics/WowMetrics;
+	public fun wowMetricsEnablementBeanPostProcessor (Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/spring/boot/starter/metrics/WowMetricsEnablementBeanPostProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/metrics/MetricsBeanPostProcessor : org/springframework/beans/factory/config/BeanPostProcessor, org/springframework/core/Ordered {
+	public fun <init> (Lme/ahoo/wow/metrics/WowMetrics;)V
+	public fun getOrder ()I
+	public fun postProcessAfterInitialization (Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/metrics/WowMetricsEnablementBeanPostProcessor : org/springframework/beans/factory/config/BeanPostProcessor, org/springframework/core/PriorityOrdered {
+	public fun <init> (Z)V
+	public fun getOrder ()I
+	public fun postProcessAfterInitialization (Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+}
+
+public class me/ahoo/wow/spring/boot/starter/mock/MockEventStoreAutoConfiguration {
+	public fun <init> ()V
+	public fun delayEventStore ()Lme/ahoo/wow/eventsourcing/mock/DelayEventStore;
+	public fun delayEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+}
+
+public class me/ahoo/wow/spring/boot/starter/mock/MockSnapshotAutoConfiguration {
+	public fun <init> ()V
+	public fun delaySnapshotStore ()Lme/ahoo/wow/eventsourcing/mock/DelaySnapshotStore;
+	public fun delaySnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+}
+
+public class me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration {
+	public fun <init> ()V
+	public fun aggregateDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/modeling/command/dispatcher/CommandDispatcher;
+	public fun aggregateProcessorFactory (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/modeling/command/CommandAggregateFactory;)Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;
+	public fun aggregateProcessorFilter (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;)Lme/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter;
+	public fun commandAggregateFactory (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/command/CommandAggregateFactory;
+	public fun commandErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
+	public fun commandFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
+	public fun commandHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
+	public fun sendDomainEventStreamFilter (Lme/ahoo/wow/event/DomainEventBus;)Lme/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter;
+	public fun stateAggregateFactory ()Lme/ahoo/wow/modeling/state/StateAggregateFactory;
+	public fun stateAggregateRepository (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/state/StateAggregateRepository;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/mongo/ConditionalOnMongoEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/ConditionalOnMongoEnabledKt {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration {
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/mongo/MongoProperties;Lme/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatchProperties;)V
+	public fun mongoEventStore (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/mongo/MongoEventStore;
+	public fun mongoEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public fun mongoEventStreamQueryBackendFactory (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackendFactory;
+	public fun mongoEventStreamQueryBackendProvider (Lme/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
+	public fun mongoPrepareKeyFactory (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/infra/prepare/PrepareKeyFactory;
+	public fun mongoSnapshotQueryBackendFactory (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackendFactory;
+	public fun mongoSnapshotQueryBackendProvider (Lme/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
+	public fun mongoSnapshotStore (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/mongo/MongoSnapshotStore;
+	public fun mongoSnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZILjava/time/Duration;II)V
+	public synthetic fun <init> (ZILjava/time/Duration;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getEnabled ()Z
+	public final fun getLaneCount ()I
+	public final fun getMaxDelay ()Ljava/time/Duration;
+	public final fun getMaxPendingItems ()I
+	public final fun getMaxSize ()I
+	public final fun setEnabled (Z)V
+	public final fun setLaneCount (I)V
+	public final fun setMaxDelay (Ljava/time/Duration;)V
+	public final fun setMaxPendingItems (I)V
+	public final fun setMaxSize (I)V
+	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/MongoProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/mongo/MongoProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAutoInitSchema ()Z
+	public fun getEnabled ()Z
+	public final fun getEventStreamDatabase ()Ljava/lang/String;
+	public final fun getPrepareDatabase ()Ljava/lang/String;
+	public final fun getSnapshotDatabase ()Ljava/lang/String;
+	public final fun setAutoInitSchema (Z)V
+	public fun setEnabled (Z)V
+	public final fun setEventStreamDatabase (Ljava/lang/String;)V
+	public final fun setPrepareDatabase (Ljava/lang/String;)V
+	public final fun setSnapshotDatabase (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/MongoProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatchProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatchProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZILjava/time/Duration;II)V
+	public synthetic fun <init> (ZILjava/time/Duration;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getEnabled ()Z
+	public final fun getLaneCount ()I
+	public final fun getMaxDelay ()Ljava/time/Duration;
+	public final fun getMaxPendingItems ()I
+	public final fun getMaxSize ()I
+	public final fun setEnabled (Z)V
+	public final fun setLaneCount (I)V
+	public final fun setMaxDelay (Ljava/time/Duration;)V
+	public final fun setMaxPendingItems (I)V
+	public final fun setMaxSize (I)V
+	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatchProperties$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/openapi/ConditionalOnOpenAPIEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/openapi/ConditionalOnOpenAPIEnabledKt {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIAutoConfiguration {
+	public fun <init> ()V
+	public fun openAPIComponentContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;
+	public fun routerSpecs (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;)Lme/ahoo/wow/openapi/RouterSpecs;
+}
+
+public class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIAutoConfiguration$SpringdocConfiguration {
+	public fun <init> ()V
+	public fun wowOpenApiCustomizer (Lme/ahoo/wow/openapi/RouterSpecs;)Lme/ahoo/wow/spring/boot/starter/openapi/WowOpenApiCustomizer;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/openapi/OpenAPIProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getEnabled ()Z
+	public fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/openapi/WowOpenApiCustomizer : org/springdoc/core/customizers/OpenApiCustomizer {
+	public fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;)V
+	public fun customise (Lio/swagger/v3/oas/models/OpenAPI;)V
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/opentelemetry/ConditionalOnOpenTelemetryEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/opentelemetry/ConditionalOnOpenTelemetryEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/opentelemetry/ConditionalOnOpenTelemetryEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/opentelemetry/TracingBeanPostProcessor : org/springframework/beans/factory/config/BeanPostProcessor, org/springframework/core/Ordered {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/opentelemetry/TracingBeanPostProcessor$Companion;
+	public fun <init> ()V
+	public fun getOrder ()I
+	public fun postProcessAfterInitialization (Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/opentelemetry/TracingBeanPostProcessor$Companion {
+}
+
+public class me/ahoo/wow/spring/boot/starter/opentelemetry/WowOpenTelemetryAutoConfiguration {
+	public fun <init> ()V
+	public fun traceAggregateFilter ()Lme/ahoo/wow/opentelemetry/aggregate/TraceAggregateFilter;
+	public fun traceEventProcessorFilter ()Lme/ahoo/wow/opentelemetry/eventprocessor/TraceEventProcessorFilter;
+	public fun traceProjectionFilter ()Lme/ahoo/wow/opentelemetry/projection/TraceProjectionFilter;
+	public fun traceSnapshotFilter ()Lme/ahoo/wow/opentelemetry/snapshot/TraceSnapshotFilter;
+	public fun traceStatelessSagaFilter ()Lme/ahoo/wow/opentelemetry/saga/TraceStatelessSagaFilter;
+	public fun tracingBeanPostProcessor ()Lme/ahoo/wow/spring/boot/starter/opentelemetry/TracingBeanPostProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/ApplicationBasePackageScanner : org/springframework/beans/factory/BeanFactoryAware, org/springframework/context/EnvironmentAware {
+	public fun <init> ()V
+	public final fun getApplicationBasePackages ()Ljava/util/Set;
+	public final fun getStringSet (Ljava/lang/String;)Ljava/util/Set;
+	public fun setBeanFactory (Lorg/springframework/beans/factory/BeanFactory;)V
+	public fun setEnvironment (Lorg/springframework/core/env/Environment;)V
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/prepare/ConditionalOnPrepareEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/ConditionalOnPrepareEnabledKt {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/prepare/PrepareAutoConfiguration {
+	public fun <init> ()V
+	public fun applicationBasePackageScanner ()Lme/ahoo/wow/spring/boot/starter/prepare/ApplicationBasePackageScanner;
+	public fun prepareKeyInitializer ()Lme/ahoo/wow/spring/boot/starter/prepare/PrepareKeyInitializer;
+	public fun prepareKeyProxyFactory (Lme/ahoo/wow/infra/prepare/PrepareKeyFactory;)Lme/ahoo/wow/infra/prepare/proxy/PrepareKeyProxyFactory;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar : org/springframework/beans/factory/BeanFactoryAware, org/springframework/context/EnvironmentAware, org/springframework/context/annotation/ImportBeanDefinitionRegistrar {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar$Companion;
+	public fun <init> ()V
+	public fun registerBeanDefinitions (Lorg/springframework/core/type/AnnotationMetadata;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
+	public fun setBeanFactory (Lorg/springframework/beans/factory/BeanFactory;)V
+	public fun setEnvironment (Lorg/springframework/core/env/Environment;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyAutoRegistrar$PreparableKeyScanner : org/springframework/context/annotation/ClassPathScanningCandidateComponentProvider {
+	public fun <init> (ZLorg/springframework/core/env/Environment;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyInitializer : org/springframework/beans/factory/SmartInitializingSingleton, org/springframework/context/ApplicationContextAware {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/prepare/PrepareKeyInitializer$Companion;
+	public fun <init> ()V
+	public fun afterSingletonsInstantiated ()V
+	public fun setApplicationContext (Lorg/springframework/context/ApplicationContext;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareKeyInitializer$Companion {
+	public final fun getLog ()Lio/github/oshai/kotlinlogging/KLogger;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field BASE_PACKAGES Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/prepare/PrepareProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public static final field STORAGE Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;Ljava/util/List;)V
+	public synthetic fun <init> (ZLme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBasePackages ()Ljava/util/List;
+	public fun getEnabled ()Z
+	public final fun getStorage ()Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;
+	public final fun setBasePackages (Ljava/util/List;)V
+	public fun setEnabled (Z)V
+	public final fun setStorage (Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareStorage : java/lang/Enum {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage$Companion;
+	public static final field MONGO Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;
+	public static final field MONGO_NAME Ljava/lang/String;
+	public static final field REDIS Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;
+	public static final field REDIS_NAME Ljava/lang/String;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/starter/prepare/PrepareStorage;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/prepare/PrepareStorage$Companion {
+}
+
+public class me/ahoo/wow/spring/boot/starter/projection/ProjectionDispatcherAutoConfiguration {
+	public fun <init> ()V
+	public fun projectionDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/projection/ProjectionHandler;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/projection/ProjectionDispatcher;
+	public fun projectionErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
+	public fun projectionFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
+	public fun projectionFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/projection/ProjectionFunctionFilter;
+	public fun projectionHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/projection/ProjectionHandler;
+	public fun projectionHandlerRegistrar ()Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;
+	public fun projectionProcessorAutoRegistrar (Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/projection/ProjectionProcessorAutoRegistrar;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/LegacyHttpQueryKeysKt {
+	public static final field LEGACY_HTTP_QUERY_PREFIX Ljava/lang/String;
+	public static final fun withLegacyKeys (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;
+}
+
+public class me/ahoo/wow/spring/boot/starter/query/QueryAutoConfiguration {
+	public fun <init> ()V
+	public fun abacQueryOptions (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/snapshot/filter/AbacQueryOptions;
+	public fun eventStreamQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryObserver;
+	public fun queryEntryPolicy (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryEntryPolicy;
+	public fun querySchemaCatalog (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/schema/QuerySchemaCatalog;
+	public fun snapshotQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryObserver;
+	public fun unavailableEventStreamQueryBackendFactory ()Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public fun unavailableSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZZLme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;)V
+	public synthetic fun <init> (ZZLme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAbac ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;
+	public final fun getHttp ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;
+	public final fun getRequireAuthenticatedScope ()Z
+	public final fun getRequireExplicitEntry ()Z
+	public final fun getSchema ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;
+	public final fun getSensitivity ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;
+	public final fun setAbac (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;)V
+	public final fun setHttp (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;)V
+	public final fun setRequireAuthenticatedScope (Z)V
+	public final fun setRequireExplicitEntry (Z)V
+	public final fun setSchema (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;)V
+	public final fun setSensitivity (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac {
+	public fun <init> ()V
+	public fun <init> (ZZ)V
+	public synthetic fun <init> (ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun copy (ZZ)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;ZZILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMatchMissingTagKey ()Z
+	public final fun getRequirePrincipalTags ()Z
+	public fun hashCode ()I
+	public final fun setMatchMissingTagKey (Z)V
+	public final fun setRequirePrincipalTags (Z)V
+	public final fun toOptions ()Lme/ahoo/wow/query/snapshot/filter/AbacQueryOptions;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties$Http {
+	public fun <init> ()V
+	public fun <init> (IIJIIZI)V
+	public synthetic fun <init> (IIJIIZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()J
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()Z
+	public final fun component7 ()I
+	public final fun copy (IIJIIZI)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;IIJIIZIILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllowExpensiveOperators ()Z
+	public final fun getMaxFilterNodes ()I
+	public final fun getMaxFilterValues ()I
+	public final fun getMaxListSize ()I
+	public final fun getMaxPageSize ()I
+	public final fun getMaxPageWindow ()J
+	public final fun getMaxResidualGroups ()I
+	public fun hashCode ()I
+	public final fun setAllowExpensiveOperators (Z)V
+	public final fun setMaxFilterNodes (I)V
+	public final fun setMaxFilterValues (I)V
+	public final fun setMaxListSize (I)V
+	public final fun setMaxPageSize (I)V
+	public final fun setMaxPageWindow (J)V
+	public final fun setMaxResidualGroups (I)V
+	public final fun toBudget ()Lme/ahoo/wow/query/QueryBudget;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema {
+	public fun <init> ()V
+	public fun <init> (Ljava/time/Duration;Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;)V
+	public synthetic fun <init> (Ljava/time/Duration;Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/time/Duration;
+	public final fun component2 ()Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;
+	public final fun copy (Ljava/time/Duration;Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Ljava/time/Duration;Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLegacyDeclarations ()Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;
+	public final fun getRevalidateInterval ()Ljava/time/Duration;
+	public fun hashCode ()I
+	public final fun setLegacyDeclarations (Lme/ahoo/wow/query/schema/LegacyQuerySchemaDeclarationPolicy;)V
+	public final fun setRevalidateInterval (Ljava/time/Duration;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity {
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun copy (Z)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;ZILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDisplayComparable ()Z
+	public fun hashCode ()I
+	public final fun setDisplayComparable (Z)V
+	public final fun toPolicy ()Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;
+	public fun toString ()Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/query/QuerySchemaAutoConfiguration {
+	public fun <init> ()V
+	public fun beanQuerySchemaSource (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/schema/BeanQuerySchemaSource;
+	public fun classpathQuerySchemaSource ()Lme/ahoo/wow/query/schema/ClasspathQuerySchemaSource;
+	public fun inferredQuerySchemaSource (Lme/ahoo/wow/query/schema/QueryModelSource;)Lme/ahoo/wow/query/schema/InferredQuerySchemaSource;
+	public fun queryModelSource ()Lme/ahoo/wow/query/schema/QueryModelSource;
+	public fun querySensitivityPolicy (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;
+	public fun workingDirectoryQuerySchemaSource ()Lme/ahoo/wow/query/schema/WorkingDirectoryQuerySchemaSource;
+}
+
+public class me/ahoo/wow/spring/boot/starter/query/QuerySchemaCatalogAutoConfiguration {
+	public fun <init> ()V
+	public fun querySchemaRevalidation (Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/spring/boot/starter/query/QuerySchemaRevalidation;
+}
+
+public class me/ahoo/wow/spring/boot/starter/query/QuerySchemaCatalogAutoConfiguration$EndpointConfiguration {
+	public fun <init> ()V
+	public fun querySchemaEndpoint (Lme/ahoo/wow/query/schema/QuerySchemaCatalog;)Lme/ahoo/wow/spring/boot/starter/query/QuerySchemaEndpoint;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QuerySchemaEndpoint {
+	public fun <init> (Lme/ahoo/wow/query/schema/QuerySchemaCatalog;)V
+	public final fun revalidate (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public final fun versions ()Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QuerySchemaRevalidation : org/springframework/context/SmartLifecycle {
+	public fun <init> (Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Ljava/time/Duration;)V
+	public fun isRunning ()Z
+	public fun start ()V
+	public fun stop ()V
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/redis/ConditionalOnRedisEnabled : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/ConditionalOnRedisEnabledKt {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfiguration {
+	public fun <init> ()V
+	public fun redisEventStore (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)Lme/ahoo/wow/redis/eventsourcing/RedisEventStore;
+	public fun redisEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public fun redisPrepareKeyFactory (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)Lme/ahoo/wow/infra/prepare/PrepareKeyFactory;
+	public fun redisSnapshotStore (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;)Lme/ahoo/wow/redis/eventsourcing/RedisSnapshotStore;
+	public fun redisSnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+}
+
+public class me/ahoo/wow/spring/boot/starter/redis/RedisMessageBusAutoConfiguration {
+	public fun <init> ()V
+	public fun redisCommandBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun redisDomainEventBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun redisStateEventBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/redis/RedisProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getEnabled ()Z
+	public fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLjava/time/Duration;Ljava/time/Duration;J)V
+	public synthetic fun <init> (ZLjava/time/Duration;Ljava/time/Duration;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBatchSize ()J
+	public final fun getEnabled ()Z
+	public final fun getInterval ()Ljava/time/Duration;
+	public final fun getMinIdleTime ()Ljava/time/Duration;
+	public final fun setBatchSize (J)V
+	public final fun setEnabled (Z)V
+	public final fun setInterval (Ljava/time/Duration;)V
+	public final fun setMinIdleTime (Ljava/time/Duration;)V
+	public final fun toOptions ()Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties$Companion {
+}
+
+public class me/ahoo/wow/spring/boot/starter/saga/StatelessSagaAutoConfiguration {
+	public fun <init> ()V
+	public fun statelessSagaDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaDispatcher;
+	public fun statelessSagaErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
+	public fun statelessSagaFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
+	public fun statelessSagaFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionFilter;
+	public fun statelessSagaHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
+	public fun statelessSagaHandlerRegistrar (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;)Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;
+	public fun statelessSagaProcessorAutoRegistrar (Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/saga/StatelessSagaProcessorAutoRegistrar;
+}
+
+public class me/ahoo/wow/spring/boot/starter/serialization/SerializationAutoConfiguration {
+	public fun <init> ()V
+	public fun wowJsonModule ()Lme/ahoo/wow/serialization/WowModule;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/webflux/ConditionalOnWebfluxEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/webflux/ConditionalOnWebfluxEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/ConditionalOnWebfluxEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public abstract interface annotation class me/ahoo/wow/spring/boot/starter/webflux/ConditionalOnWebfluxGlobalErrorEnabled : java/lang/annotation/Annotation {
+}
+
+public class me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration {
+	public fun <init> ()V
+	public fun batchExecutionPolicy (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;)Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;
+	public fun commandBuilderExtractor ()Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;
+	public fun commandMessageExtractor (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor;
+	public fun commandRequestExtendHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestExtendHeaderAppender;
+	public fun commandRequestRemoteIpHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestRemoteIpHeaderAppender;
+	public fun commandRequestUserAgentHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestUserAgentHeaderAppender;
+	public fun commandRouteModule (Lme/ahoo/wow/command/wait/WaitCoordinator;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/CommandWaitPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/CommandRouteModule;
+	public fun commandRouterFunction (Lme/ahoo/wow/openapi/RouterSpecs;Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;)Lorg/springframework/web/reactive/function/server/RouterFunction;
+	public fun commandWaitPolicy ()Lme/ahoo/wow/webflux/route/policy/CommandWaitPolicy;
+	public fun eventRouteModule (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/EventRouteModule;
+	public fun exceptionHandler (Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;)Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;
+	public fun globalExceptionHandler (Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;)Lorg/springframework/web/server/WebExceptionHandler;
+	public fun httpQueryGuard (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;)Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;
+	public fun pointReadAdmission (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/state/PointReadAdmission;
+	public fun queryRequestScope ()Lme/ahoo/wow/webflux/route/query/QueryRequestScope;
+	public fun queryRouteModule (Lorg/springframework/beans/factory/BeanFactory;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)Lme/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule;
+	public fun routeHandlerFunctionRegistrar (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;
+	public fun snapshotRouteModule (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/SnapshotRouteModule;
+	public fun stateRouteModule (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/TracingPolicy;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)Lme/ahoo/wow/spring/boot/starter/webflux/route/StateRouteModule;
+	public fun tracingPolicy ()Lme/ahoo/wow/webflux/route/policy/TracingPolicy;
+	public fun webFluxErrorStrategy ()Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field COMMAND_REQUEST_APPENDER_PREFIX Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Companion;
+	public static final field GLOBAL_ERROR_ENABLED Ljava/lang/String;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;)V
+	public synthetic fun <init> (ZLme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBatch ()Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;
+	public fun getEnabled ()Z
+	public final fun getGlobalError ()Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;
+	public final fun getQuery ()Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Query;
+	public final fun getState ()Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$State;
+	public final fun setBatch (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;)V
+	public fun setEnabled (Z)V
+	public final fun setGlobalError (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;)V
+	public final fun setQuery (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Query;)V
+	public final fun setState (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$State;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch {
+	public fun <init> ()V
+	public fun <init> (II)V
+	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;IIILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Batch;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConcurrency ()I
+	public final fun getPrefetch ()I
+	public fun hashCode ()I
+	public final fun setConcurrency (I)V
+	public final fun setPrefetch (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError : me/ahoo/wow/api/naming/EnabledCapable {
+	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun copy (Z)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;ZILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$GlobalError;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getEnabled ()Z
+	public fun hashCode ()I
+	public fun setEnabled (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Query {
+	public fun <init> ()V
+	public fun <init> (ILjava/time/Duration;Z)V
+	public synthetic fun <init> (ILjava/time/Duration;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/time/Duration;
+	public final fun component3 ()Z
+	public final fun copy (ILjava/time/Duration;Z)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Query;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Query;ILjava/time/Duration;ZILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$Query;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultListSize ()I
+	public final fun getIdleTimeout ()Ljava/time/Duration;
+	public final fun getStrictCountFilter ()Z
+	public fun hashCode ()I
+	public final fun setDefaultListSize (I)V
+	public final fun setIdleTimeout (Ljava/time/Duration;)V
+	public final fun setStrictCountFilter (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$State {
+	public fun <init> ()V
+	public fun <init> (ZI)V
+	public synthetic fun <init> (ZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()I
+	public final fun copy (ZI)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$State;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$State;ZIILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties$State;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPointReadAdmission ()Z
+	public final fun getTracingMaxVersions ()I
+	public fun hashCode ()I
+	public final fun setPointReadAdmission (Z)V
+	public final fun setTracingMaxVersions (I)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public class me/ahoo/wow/spring/boot/starter/webflux/WowWebClientAutoConfiguration {
+	public fun <init> ()V
+	public fun commandWaitNotifier (Lme/ahoo/wow/command/wait/WaitCoordinator;Lorg/springframework/web/reactive/function/client/WebClient$Builder;Lme/ahoo/wow/webflux/wait/RemoteWaitNotifyPolicy;)Lme/ahoo/wow/command/wait/CommandWaitNotifier;
+	public fun remoteWaitNotifyPolicy ()Lme/ahoo/wow/webflux/wait/RemoteWaitNotifyPolicy;
+}
+
+public class me/ahoo/wow/spring/boot/starter/webflux/bi/BiDeploymentInspectorAutoConfiguration {
+	public fun <init> ()V
+	public fun noOpBiDeploymentInspector ()Lme/ahoo/wow/bi/BiDeploymentInspector;
+}
+
+public class me/ahoo/wow/spring/boot/starter/webflux/bi/BiDeploymentInspectorAutoConfiguration$ClickHouseConfiguration {
+	public fun <init> ()V
+	public fun clickHouseBiDeploymentInspector (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;)Lme/ahoo/wow/bi/ClickHouseBiDeploymentInspector;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/route/CommandRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
+	public fun <init> (Lme/ahoo/wow/command/wait/WaitCoordinator;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/CommandWaitPolicy;)V
+	public fun getHttpFactories ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/route/EventRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)V
+	public fun getHttpFactories ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
+	public fun <init> (Lorg/springframework/beans/factory/BeanFactory;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
+	public synthetic fun <init> (Lorg/springframework/beans/factory/BeanFactory;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getHttpFactories ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/route/SnapshotRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
+	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)V
+	public fun getHttpFactories ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/webflux/route/StateRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
+	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/TracingPolicy;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
+	public synthetic fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/TracingPolicy;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getHttpFactories ()Ljava/util/List;
+}
+
+public abstract interface class me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
+	public abstract fun getHttpFactories ()Ljava/util/List;
+}
+

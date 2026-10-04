@@ -1,0 +1,822 @@
+public abstract class me/ahoo/wow/tck/command/CommandBusSpec : me/ahoo/wow/tck/messaging/MessageBusSpec {
+	public fun <init> ()V
+	protected fun createMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun createMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+}
+
+public abstract class me/ahoo/wow/tck/command/CommandGatewaySpec : me/ahoo/wow/tck/messaging/MessageBusSpec {
+	public fun <init> ()V
+	protected abstract fun createCommandBus ()Lme/ahoo/wow/command/CommandBus;
+	protected fun createMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun createMessage ()Lme/ahoo/wow/api/messaging/Message;
+	protected fun createMessageBus ()Lme/ahoo/wow/command/CommandGateway;
+	public synthetic fun createMessageBus ()Lme/ahoo/wow/messaging/MessageBus;
+	protected final fun getIdempotencyChecker ()Lme/ahoo/wow/infra/idempotency/IdempotencyChecker;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	protected final fun getWaitCoordinator ()Lme/ahoo/wow/command/wait/WaitCoordinator;
+	public final fun sendAndWaitForProcessed ()V
+	public final fun sendAndWaitForProcessedDefault ()V
+	public final fun sendAndWaitForSent ()V
+	public final fun sendAndWaitForSentDefault ()V
+	public final fun sendAndWaitForSnapshot ()V
+	public final fun sendAndWaitForSnapshotDefault ()V
+	public final fun sendGivenDuplicate ()V
+	public final fun sendThenNotify ()V
+	public final fun sendThenNotifyError ()V
+	public final fun sendThenWaitProcessedWhenError ()V
+	public final fun sendThenWaitProcessedWhenValidateError ()V
+	protected final fun verifyWaitRegistrationDestroyed (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/tck/container/ContainerDiagnostics {
+	public static final field INSTANCE Lme/ahoo/wow/tck/container/ContainerDiagnostics;
+	public final fun describe (Ljava/lang/String;Lorg/testcontainers/containers/GenericContainer;)Ljava/lang/String;
+	public final fun printFailure (Ljava/lang/String;Lorg/testcontainers/containers/GenericContainer;Ljava/lang/Throwable;)V
+}
+
+public final class me/ahoo/wow/tck/container/ContainerImages {
+	public static final field ELASTICSEARCH_REPOSITORY Ljava/lang/String;
+	public static final field ELASTICSEARCH_TAG Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/tck/container/ContainerImages;
+	public static final field KAFKA Ljava/lang/String;
+	public static final field MONGO Ljava/lang/String;
+	public static final field REDIS Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/container/ContainerTestIds {
+	public static final field INSTANCE Lme/ahoo/wow/tck/container/ContainerTestIds;
+	public final fun nextName (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/container/ElasticsearchTestFixture : org/junit/jupiter/api/extension/AfterEachCallback, org/junit/jupiter/api/extension/AfterTestExecutionCallback, org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/TestWatcher {
+	public static final field Companion Lme/ahoo/wow/tck/container/ElasticsearchTestFixture$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun afterEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public fun afterTestExecution (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public fun beforeEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun getHostAddress ()Ljava/lang/String;
+	public final fun getOrCreateResource (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)Ljava/lang/AutoCloseable;
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getSslContext ()Ljavax/net/ssl/SSLContext;
+	public final fun getUsername ()Ljava/lang/String;
+	public final fun index (Ljava/lang/String;)Ljava/lang/String;
+	public fun testFailed (Lorg/junit/jupiter/api/extension/ExtensionContext;Ljava/lang/Throwable;)V
+	public final fun waitUntilAuthenticated ()V
+}
+
+public final class me/ahoo/wow/tck/container/ElasticsearchTestFixture$Companion {
+}
+
+public final class me/ahoo/wow/tck/container/KafkaTestFixture : org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/TestWatcher {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun beforeEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun clientId (Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun clientId$default (Lme/ahoo/wow/tck/container/KafkaTestFixture;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+	public final fun kafkaProperties (Ljava/lang/String;)Ljava/util/Map;
+	public static synthetic fun kafkaProperties$default (Lme/ahoo/wow/tck/container/KafkaTestFixture;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/Map;
+	public final fun receiverOptions (Ljava/lang/String;Ljava/lang/String;)Lreactor/kafka/receiver/ReceiverOptions;
+	public static synthetic fun receiverOptions$default (Lme/ahoo/wow/tck/container/KafkaTestFixture;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lreactor/kafka/receiver/ReceiverOptions;
+	public final fun senderOptions (Ljava/lang/String;)Lreactor/kafka/sender/SenderOptions;
+	public static synthetic fun senderOptions$default (Lme/ahoo/wow/tck/container/KafkaTestFixture;Ljava/lang/String;ILjava/lang/Object;)Lreactor/kafka/sender/SenderOptions;
+	public fun testFailed (Lorg/junit/jupiter/api/extension/ExtensionContext;Ljava/lang/Throwable;)V
+	public final fun topic (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/container/MongoTestFixture : org/junit/jupiter/api/extension/AfterEachCallback, org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/TestWatcher {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun afterEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public fun beforeEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun client ()Lcom/mongodb/reactivestreams/client/MongoClient;
+	public final fun database ()Lcom/mongodb/reactivestreams/client/MongoDatabase;
+	public final fun database (Ljava/lang/String;)Lcom/mongodb/reactivestreams/client/MongoDatabase;
+	public final fun getConnectionString ()Ljava/lang/String;
+	public final fun getDatabaseName ()Ljava/lang/String;
+	public final fun newClient ()Lcom/mongodb/reactivestreams/client/MongoClient;
+	public fun testFailed (Lorg/junit/jupiter/api/extension/ExtensionContext;Ljava/lang/Throwable;)V
+}
+
+public final class me/ahoo/wow/tck/container/RedisTestFixture : org/junit/jupiter/api/extension/AfterEachCallback, org/junit/jupiter/api/extension/BeforeEachCallback, org/junit/jupiter/api/extension/TestWatcher {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun afterEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public fun beforeEach (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun getConnectionFactory ()Lorg/springframework/data/redis/connection/lettuce/LettuceConnectionFactory;
+	public final fun getPrefix ()Ljava/lang/String;
+	public final fun getRedisTemplate ()Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;
+	public final fun key (Ljava/lang/String;)Ljava/lang/String;
+	public fun testFailed (Lorg/junit/jupiter/api/extension/ExtensionContext;Ljava/lang/Throwable;)V
+}
+
+public final class me/ahoo/wow/tck/container/WowTestContainers {
+	public static final field ELASTIC_USER Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/tck/container/WowTestContainers;
+	public final fun getElasticPassword ()Ljava/lang/String;
+	public final fun getElasticsearch ()Lorg/testcontainers/elasticsearch/ElasticsearchContainer;
+	public final fun getKafka ()Lorg/testcontainers/containers/KafkaContainer;
+	public final fun getMongo ()Lorg/testcontainers/containers/MongoDBContainer;
+	public final fun getRedis ()Lorg/testcontainers/containers/GenericContainer;
+}
+
+public abstract class me/ahoo/wow/tck/event/DomainEventBusSpec : me/ahoo/wow/tck/messaging/MessageBusSpec {
+	public fun <init> ()V
+	public synthetic fun createMessage ()Lme/ahoo/wow/api/messaging/Message;
+	protected fun createMessage ()Lme/ahoo/wow/event/DomainEventStream;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+}
+
+public abstract class me/ahoo/wow/tck/event/DomainEventStreamSpec {
+	public fun <init> ()V
+	public final fun aggregateId ()V
+	protected abstract fun createDomainEventStream (Ljava/util/List;Lme/ahoo/wow/api/modeling/AggregateId;I)Lme/ahoo/wow/event/DomainEventStream;
+	protected final fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	protected final fun getTestEvents ()Ljava/util/List;
+	public final fun size ()V
+	public final fun version ()V
+	public final fun whenEquals ()V
+	public final fun whenHashCode ()V
+}
+
+public final class me/ahoo/wow/tck/event/MockDomainEventStreams {
+	public static final field INSTANCE Lme/ahoo/wow/tck/event/MockDomainEventStreams;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;)Lme/ahoo/wow/event/DomainEventStream;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;I)Lme/ahoo/wow/event/DomainEventStream;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;II)Lme/ahoo/wow/event/DomainEventStream;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;IILjava/lang/String;)Lme/ahoo/wow/event/DomainEventStream;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;IILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/event/DomainEventStream;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;IILjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/event/DomainEventStream;
+	public final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;IILjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/event/DomainEventStream;
+	public static synthetic fun generateEventStream$default (Lme/ahoo/wow/tck/event/MockDomainEventStreams;Lme/ahoo/wow/api/modeling/AggregateId;IILjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/event/DomainEventStream;
+}
+
+public final class me/ahoo/wow/tck/event/MockDomainEventStreamsKt {
+	public static final field DEFAULT_AGGREGATE_VERSION I
+	public static final field DEFAULT_EVENT_COUNT I
+}
+
+public abstract class me/ahoo/wow/tck/eventsourcing/EventStoreSpec {
+	public static final field Companion Lme/ahoo/wow/tck/eventsourcing/EventStoreSpec$Companion;
+	public static final field DEFAULT_CONCURRENCY_TEST_ITERATIONS I
+	public static final field DEFAULT_CONCURRENCY_TEST_MAX_CONCURRENCY I
+	public field eventStore Lme/ahoo/wow/eventsourcing/EventStore;
+	public fun <init> ()V
+	public final fun appendEventStream ()V
+	public final fun appendEventStreamWhenDuplicateAggregateId ()V
+	public fun appendEventStreamWhenDuplicateRequestIdException ()V
+	public final fun appendEventStreamWhenEventVersionConflict ()V
+	public final fun appendEventStreamWhenParallel ()V
+	public final fun appendEventStreamWhenSameRequestIdAcrossDifferentAggregates ()V
+	protected abstract fun createEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun existsRequestId ()V
+	protected final fun generateEventStream ()Lme/ahoo/wow/event/DomainEventStream;
+	protected final fun generateEventStream (Lme/ahoo/wow/api/modeling/AggregateId;)Lme/ahoo/wow/event/DomainEventStream;
+	protected fun getConcurrencyTestIterations ()I
+	protected fun getConcurrencyTestMaxConcurrency ()I
+	public final fun getEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public fun lastEventStream ()V
+	public fun loadEventStreamByEventTime ()V
+	public final fun loadEventStreamGivenHeadVersion ()V
+	public fun loadEventStreamGivenWrongVersion ()V
+	public final fun loadEventStreamWhenNotFound ()V
+	public final fun loadEventStreamWhenParallel ()V
+	public fun scanAggregateId ()V
+	public fun scanAggregateIdShouldFilterBoundedContext ()V
+	public fun scanAggregateIdShouldFilterNamedAggregate ()V
+	public fun scanAggregateIdShouldLimitResult ()V
+	public fun scanAggregateIdShouldPreserveTenantId ()V
+	public fun scanAggregateIdShouldReturnEachAggregateOnce ()V
+	public fun scanAggregateIdShouldReturnLexicographicalOrder ()V
+	public final fun setEventStore (Lme/ahoo/wow/eventsourcing/EventStore;)V
+	public fun setup ()V
+	public final fun singleEventStream ()V
+}
+
+public final class me/ahoo/wow/tck/eventsourcing/EventStoreSpec$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/eventsourcing/StateAggregateRepositorySpec {
+	public static final field Companion Lme/ahoo/wow/tck/eventsourcing/StateAggregateRepositorySpec$Companion;
+	public fun <init> ()V
+	protected abstract fun createStateAggregateRepository (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/state/StateAggregateRepository;
+	public final fun load ()V
+	public final fun loadByEventTime ()V
+	public final fun loadWhenAggregateTypeNull ()V
+	public final fun loadWhenInitializedAndNoneEvent ()V
+	public final fun loadWhenNotFound ()V
+}
+
+public final class me/ahoo/wow/tck/eventsourcing/StateAggregateRepositorySpec$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/eventsourcing/snapshot/SnapshotStoreSpec {
+	public fun <init> ()V
+	protected abstract fun createSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	protected final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	public final fun getVersion ()V
+	public final fun load ()V
+	public final fun loadWhenNotFound ()V
+	public final fun name ()V
+	public final fun save ()V
+	public final fun saveShouldNotReplaceANewerStoredSnapshot ()V
+	public final fun saveShouldReplaceTheStoredSnapshotForTheSameVersion ()V
+	public final fun saveShouldRetainTheHighestVersionUnderConcurrentWrites ()V
+	public fun saveTwice ()V
+}
+
+public abstract class me/ahoo/wow/tck/eventsourcing/snapshot/SnapshotStrategySpec {
+	public fun <init> ()V
+	public abstract fun createSnapshotStrategy ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
+	protected final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	protected final fun getSnapshotStrategy ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
+	public final fun onEvent ()V
+}
+
+public abstract class me/ahoo/wow/tck/eventsourcing/state/StateEventBusSpec : me/ahoo/wow/tck/messaging/MessageBusSpec {
+	public fun <init> ()V
+	public synthetic fun createMessage ()Lme/ahoo/wow/api/messaging/Message;
+	protected fun createMessage ()Lme/ahoo/wow/eventsourcing/state/StateEvent;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+}
+
+public abstract class me/ahoo/wow/tck/messaging/MessageBusSpec : me/ahoo/wow/api/messaging/TopicKindCapable {
+	public static final field Companion Lme/ahoo/wow/tck/messaging/MessageBusSpec$Companion;
+	public fun <init> ()V
+	protected abstract fun createMessage ()Lme/ahoo/wow/api/messaging/Message;
+	protected abstract fun createMessageBus ()Lme/ahoo/wow/messaging/MessageBus;
+	public abstract fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public final fun localSubscriberCount ()V
+	protected fun onReceive (Lreactor/core/publisher/Flux;Lreactor/core/publisher/Sinks$Empty;)Lreactor/core/publisher/Flux;
+	public final fun receive ()V
+	public final fun receivePerformance ()V
+	public final fun send ()V
+	public final fun sendPerformance ()V
+	public fun verify (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/tck/messaging/MessageBusSpec$Companion {
+}
+
+public final class me/ahoo/wow/tck/metrics/LoggingMeterRegistryInitializer : org/junit/jupiter/api/extension/BeforeAllCallback {
+	public static final field INSTANCE Lme/ahoo/wow/tck/metrics/LoggingMeterRegistryInitializer;
+	public fun beforeAll (Lorg/junit/jupiter/api/extension/ExtensionContext;)V
+	public final fun getLoggingMeterRegistry ()Lio/micrometer/core/instrument/logging/LoggingMeterRegistry;
+	public final fun publishMeters ()V
+}
+
+public final class me/ahoo/wow/tck/metrics/LoggingMeterRegistryInitializerKt {
+	public static final fun meteredForTck (Lme/ahoo/wow/command/CommandBus;)Lme/ahoo/wow/command/CommandBus;
+	public static final fun meteredForTck (Lme/ahoo/wow/event/DomainEventBus;)Lme/ahoo/wow/event/DomainEventBus;
+	public static final fun meteredForTck (Lme/ahoo/wow/event/dispatcher/DomainEventHandler;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
+	public static final fun meteredForTck (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/eventsourcing/EventStore;
+	public static final fun meteredForTck (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public static final fun meteredForTck (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
+	public static final fun meteredForTck (Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
+	public static final fun meteredForTck (Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/eventsourcing/state/StateEventBus;
+	public static final fun meteredForTck (Lme/ahoo/wow/messaging/MessageBus;)Lme/ahoo/wow/messaging/MessageBus;
+	public static final fun meteredForTck (Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
+	public static final fun meteredForTck (Lme/ahoo/wow/projection/ProjectionHandler;)Lme/ahoo/wow/projection/ProjectionHandler;
+	public static final fun meteredForTck (Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
+}
+
+public final class me/ahoo/wow/tck/mock/MockAggregateChanged {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/tck/mock/MockAggregateChanged;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockAggregateChanged;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockAggregateChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockAggregateCreated {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/tck/mock/MockAggregateCreated;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockAggregateCreated;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockAggregateCreated;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockAggregateKt {
+	public static final fun getMOCK_AGGREGATE_METADATA ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+}
+
+public final class me/ahoo/wow/tck/mock/MockChangeAggregate {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/tck/mock/MockChangeAggregate;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockChangeAggregate;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockChangeAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockCommandAggregate {
+	public fun <init> (Lme/ahoo/wow/tck/mock/MockStateAggregate;)V
+	public final fun getState ()Lme/ahoo/wow/tck/mock/MockStateAggregate;
+}
+
+public final class me/ahoo/wow/tck/mock/MockCreateAggregate {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/tck/mock/MockCreateAggregate;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockCreateAggregate;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockCreateAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockDiscount {
+	public fun <init> (Ljava/lang/String;D)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()D
+	public final fun copy (Ljava/lang/String;D)Lme/ahoo/wow/tck/mock/MockDiscount;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockDiscount;Ljava/lang/String;DILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockDiscount;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAmount ()D
+	public final fun getType ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockLine {
+	public fun <init> (Ljava/lang/String;ILjava/lang/Double;Ljava/time/Instant;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/Double;Ljava/time/Instant;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/Double;
+	public final fun component4 ()Ljava/time/Instant;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;ILjava/lang/Double;Ljava/time/Instant;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/tck/mock/MockLine;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockLine;Ljava/lang/String;ILjava/lang/Double;Ljava/time/Instant;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockLine;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAmount ()Ljava/lang/Double;
+	public final fun getCreatedAt ()Ljava/time/Instant;
+	public final fun getDiscounts ()Ljava/util/List;
+	public final fun getProductId ()Ljava/lang/String;
+	public final fun getProductName ()Ljava/lang/String;
+	public final fun getQuantity ()I
+	public final fun getSamples ()Ljava/util/List;
+	public final fun getShippedAt ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockOrder {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/tck/mock/MockOrder;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockOrder;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockOrder;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLines ()Ljava/util/List;
+	public final fun getStatus ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockStateAggregate : me/ahoo/wow/modeling/state/ReadOnlyStateAggregateAware {
+	public fun <init> (Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/math/BigDecimal;J)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/math/BigDecimal;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/math/BigDecimal;
+	public final fun component4 ()J
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/math/BigDecimal;J)Lme/ahoo/wow/tck/mock/MockStateAggregate;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockStateAggregate;Ljava/lang/String;Ljava/util/List;Ljava/math/BigDecimal;JILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockStateAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCreatedAt ()J
+	public final fun getData ()Ljava/lang/String;
+	public final fun getDecimalValue ()Ljava/math/BigDecimal;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getOrders ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun setReadOnlyStateAggregate (Lme/ahoo/wow/modeling/state/ReadOnlyStateAggregate;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/MockVoidCommand {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/tck/mock/MockVoidCommand;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/mock/MockVoidCommand;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/tck/mock/MockVoidCommand;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/mock/WrongCommandMessage : me/ahoo/wow/api/command/validation/CommandValidator {
+	public static final field INSTANCE Lme/ahoo/wow/tck/mock/WrongCommandMessage;
+	public fun validate ()V
+}
+
+public abstract class me/ahoo/wow/tck/modeling/command/CommandDispatcherSpec {
+	protected field aggregateProcessorFactory Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;
+	protected field commandAggregateFactory Lme/ahoo/wow/modeling/command/CommandAggregateFactory;
+	protected field commandBus Lme/ahoo/wow/command/CommandBus;
+	protected field commandGateway Lme/ahoo/wow/command/CommandGateway;
+	protected field domainEventBus Lme/ahoo/wow/event/DomainEventBus;
+	protected field eventStore Lme/ahoo/wow/eventsourcing/EventStore;
+	protected field snapshotStore Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	protected field stateAggregateRepository Lme/ahoo/wow/modeling/state/StateAggregateRepository;
+	public fun <init> ()V
+	protected final fun createCommandAggregateFactory (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/command/CommandAggregateFactory;
+	protected fun createCommandBus ()Lme/ahoo/wow/command/CommandBus;
+	protected fun createEventBus ()Lme/ahoo/wow/event/DomainEventBus;
+	protected fun createEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	protected fun createSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	protected final fun createStateAggregateRepository (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/state/StateAggregateRepository;
+	public final fun getAggregateCount ()I
+	protected final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	protected final fun getAggregateProcessorFactory ()Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;
+	protected final fun getCommandAggregateFactory ()Lme/ahoo/wow/modeling/command/CommandAggregateFactory;
+	protected final fun getCommandBus ()Lme/ahoo/wow/command/CommandBus;
+	protected final fun getCommandGateway ()Lme/ahoo/wow/command/CommandGateway;
+	public final fun getConcurrency ()I
+	protected final fun getDomainEventBus ()Lme/ahoo/wow/event/DomainEventBus;
+	protected final fun getEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	protected final fun getIdempotencyChecker ()Lme/ahoo/wow/infra/idempotency/IdempotencyChecker;
+	protected final fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	protected final fun getSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	protected final fun getStateAggregateFactory ()Lme/ahoo/wow/modeling/state/StateAggregateFactory;
+	protected final fun getStateAggregateRepository ()Lme/ahoo/wow/modeling/state/StateAggregateRepository;
+	protected final fun getWaitCoordinator ()Lme/ahoo/wow/command/wait/WaitCoordinator;
+	protected fun onCommandSeek ()Lreactor/core/publisher/Mono;
+	protected final fun setAggregateProcessorFactory (Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;)V
+	protected final fun setCommandAggregateFactory (Lme/ahoo/wow/modeling/command/CommandAggregateFactory;)V
+	protected final fun setCommandBus (Lme/ahoo/wow/command/CommandBus;)V
+	protected final fun setCommandGateway (Lme/ahoo/wow/command/CommandGateway;)V
+	protected final fun setDomainEventBus (Lme/ahoo/wow/event/DomainEventBus;)V
+	protected final fun setEventStore (Lme/ahoo/wow/eventsourcing/EventStore;)V
+	protected final fun setSnapshotStore (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)V
+	protected final fun setStateAggregateRepository (Lme/ahoo/wow/modeling/state/StateAggregateRepository;)V
+	public fun setup ()V
+	public final fun start ()V
+}
+
+public final class me/ahoo/wow/tck/modeling/state/MockCommandAggregateWithTenantId {
+	public fun <init> (Lme/ahoo/wow/tck/modeling/state/MockStateAggregateWithTenantId;)V
+	public final fun getState ()Lme/ahoo/wow/tck/modeling/state/MockStateAggregateWithTenantId;
+}
+
+public final class me/ahoo/wow/tck/modeling/state/MockCommandAggregateWithoutCtorParameters {
+	public fun <init> (Lme/ahoo/wow/tck/modeling/state/MockStateAggregateWithoutCtorParameters;)V
+}
+
+public final class me/ahoo/wow/tck/modeling/state/MockStateAggregateWithTenantId : me/ahoo/wow/api/Identifier, me/ahoo/wow/api/modeling/TenantId {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/tck/modeling/state/MockStateAggregateWithTenantId;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/modeling/state/MockStateAggregateWithTenantId;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/tck/modeling/state/MockStateAggregateWithTenantId;
+	public fun equals (Ljava/lang/Object;)Z
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/modeling/state/MockStateAggregateWithoutCtorParameters {
+	public fun <init> ()V
+}
+
+public abstract class me/ahoo/wow/tck/modeling/state/StateAggregateFactorySpec {
+	public fun <init> ()V
+	public final fun create ()V
+	protected abstract fun createStateAggregateFactory ()Lme/ahoo/wow/modeling/state/StateAggregateFactory;
+	public final fun createWithTenantId ()V
+	public final fun createWithoutCtorParameters ()V
+}
+
+public abstract class me/ahoo/wow/tck/prepare/PrepareKeySpec {
+	public fun <init> ()V
+	public abstract fun createPrepareKey (Ljava/lang/String;)Lme/ahoo/wow/infra/prepare/PrepareKey;
+	public abstract fun generateValue ()Ljava/lang/Object;
+	public abstract fun getName ()Ljava/lang/String;
+	public final fun getName ()V
+	public abstract fun getValueType ()Ljava/lang/Class;
+	public final fun prepare ()V
+	public final fun prepareWithTtlAt ()V
+	public final fun reprepare ()V
+	public final fun reprepareNewKey ()V
+	public final fun reprepareNewKeyEqKey ()V
+	public final fun reprepareNewKeyNotFoundKey ()V
+	public final fun rollback ()V
+	public fun setup ()V
+	public final fun usingPrepare ()V
+}
+
+public final class me/ahoo/wow/tck/projection/MockProjector {
+	public static final field Companion Lme/ahoo/wow/tck/projection/MockProjector$Companion;
+	public fun <init> ()V
+	public final fun onEvent (Lme/ahoo/wow/tck/mock/MockAggregateCreated;)V
+	public final fun onStateEvent (Lme/ahoo/wow/tck/mock/MockAggregateChanged;Lme/ahoo/wow/modeling/state/ReadOnlyStateAggregate;)V
+}
+
+public final class me/ahoo/wow/tck/projection/MockProjector$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/projection/ProjectionDispatcherSpec {
+	public fun <init> ()V
+	protected final fun createEventBus ()Lme/ahoo/wow/event/DomainEventBus;
+	protected final fun createStateEventBus ()Lme/ahoo/wow/eventsourcing/state/StateEventBus;
+	protected final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	protected final fun getDomainEventBus ()Lme/ahoo/wow/event/DomainEventBus;
+	protected final fun getStateEventBus ()Lme/ahoo/wow/eventsourcing/state/StateEventBus;
+	public final fun run ()V
+}
+
+public abstract class me/ahoo/wow/tck/query/EventStreamQueryBackendSpec {
+	public field eventStore Lme/ahoo/wow/eventsourcing/EventStore;
+	public field eventStreamQueryBackendFactory Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public field queryBackendBinding Lme/ahoo/wow/tck/query/QueryTarget;
+	public fun <init> ()V
+	public final fun aggregateDerivedEventRatios ()V
+	public final fun aggregateDistinctEventNames ()V
+	public final fun aggregateEmptySummary ()V
+	public final fun aggregateEventsByName ()V
+	public final fun aggregateFilteredEventCounts ()V
+	public final fun aggregateHavingEventCounts ()V
+	public final fun count ()V
+	protected abstract fun createEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	protected abstract fun createEventStreamQueryBackendFactory ()Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public final fun createFromCache ()V
+	public final fun cursor should not expose projection-only cursor fields ()V
+	public final fun cursor should reject a malformed token ()V
+	public final fun cursor should return an empty terminal page ()V
+	public final fun cursor should support descending multi field sort ()V
+	public final fun cursor should traverse tied versions without duplicates ()V
+	public final fun dynamicList ()V
+	public final fun dynamicPaged ()V
+	public final fun dynamicSingle ()V
+	public final fun excluding payload and body type should retain event metadata ()V
+	public final fun getEventStore ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun getEventStreamQueryBackendFactory ()Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
+	public final fun getNamedAggregate ()Lme/ahoo/wow/modeling/MaterializedNamedAggregate;
+	public final fun getQueryBackendBinding ()Lme/ahoo/wow/tck/query/QueryTarget;
+	public final fun list ()V
+	public final fun metadata-only projection should omit payload and body type ()V
+	public final fun paged ()V
+	public final fun paged and cursor should preserve null and missing sort order in both directions ()V
+	public final fun payload projection should retain body type ()V
+	public final fun payload projection without body type should be rejected ()V
+	protected abstract fun prepareNullAndMissingCursorEventStreams (Lme/ahoo/wow/event/DomainEventStream;Lme/ahoo/wow/event/DomainEventStream;)V
+	public final fun query helpers defer schema lookup until subscription ()V
+	public final fun setEventStore (Lme/ahoo/wow/eventsourcing/EventStore;)V
+	public final fun setEventStreamQueryBackendFactory (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;)V
+	public final fun setQueryBackendBinding (Lme/ahoo/wow/tck/query/QueryTarget;)V
+	public fun setup ()V
+	public final fun single should expose canonical event stream json ()V
+}
+
+public final class me/ahoo/wow/tck/query/FilterSemantics {
+	public static final field INSTANCE Lme/ahoo/wow/tck/query/FilterSemantics;
+	public final fun getCASES ()Ljava/util/List;
+	public final fun getUNCOVERED ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/tck/query/NoOpEventStreamQueryBackend : me/ahoo/wow/tck/query/NoOpQueryBackend, me/ahoo/wow/query/event/EventStreamQueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;)V
+}
+
+public final class me/ahoo/wow/tck/query/NoOpEventStreamQueryBackendFactory : me/ahoo/wow/query/event/AbstractEventStreamQueryBackendFactory {
+	public static final field INSTANCE Lme/ahoo/wow/tck/query/NoOpEventStreamQueryBackendFactory;
+}
+
+public abstract class me/ahoo/wow/tck/query/NoOpQueryBackend : me/ahoo/wow/query/QueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;)V
+	public fun aggregate (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/GroupWindow;)Lreactor/core/publisher/Flux;
+	public fun count (Lme/ahoo/wow/query/AdmittedQuery;)Lreactor/core/publisher/Mono;
+	public fun getAggregateName ()Ljava/lang/String;
+	public fun getContextName ()Ljava/lang/String;
+	public fun getCursorPositions ()Lme/ahoo/wow/query/CursorPositionCodec;
+	public final fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public fun isSameAggregateName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public fun page (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/PageWindow;)Lreactor/core/publisher/Mono;
+	public fun stream (Lme/ahoo/wow/query/AdmittedQuery;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/tck/query/NoOpSnapshotQueryBackend : me/ahoo/wow/tck/query/NoOpQueryBackend, me/ahoo/wow/query/snapshot/SnapshotQueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;)V
+	public fun getName ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/query/NoOpSnapshotQueryBackendFactory : me/ahoo/wow/query/snapshot/AbstractSnapshotQueryBackendFactory {
+	public static final field INSTANCE Lme/ahoo/wow/tck/query/NoOpSnapshotQueryBackendFactory;
+}
+
+public final class me/ahoo/wow/tck/query/QueryTarget {
+	public fun <init> (Lme/ahoo/wow/query/QueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;)V
+	public final fun getBackend ()Lme/ahoo/wow/query/QueryBackend;
+	public final fun getSchemaProvider ()Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;
+}
+
+public final class me/ahoo/wow/tck/query/QueryTargetKt {
+	public static final fun target (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;)Lme/ahoo/wow/tck/query/QueryTarget;
+	public static final fun target (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;)Lme/ahoo/wow/tck/query/QueryTarget;
+	public static synthetic fun target$default (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/tck/query/QueryTarget;
+	public static synthetic fun target$default (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/tck/query/QueryTarget;
+}
+
+public final class me/ahoo/wow/tck/query/SemanticCase {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/tck/query/SemanticShape;Ljava/util/Set;Lkotlin/jvm/functions/Function1;)V
+	public final fun filter (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/FilterExpression;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getMatches ()Ljava/util/Set;
+	public final fun getOperator ()Lme/ahoo/wow/api/query/FilterOperator;
+	public final fun getShape ()Lme/ahoo/wow/tck/query/SemanticShape;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/query/SemanticProbe {
+	public static final field CASE_VARIANT Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/tck/query/SemanticProbe$Companion;
+	public static final field EMPTY Ljava/lang/String;
+	public static final field MISSING Ljava/lang/String;
+	public static final field NULL Ljava/lang/String;
+	public static final field ONE Ljava/lang/String;
+	public static final field OTHER Ljava/lang/String;
+	public static final field THREE Ljava/lang/String;
+	public static final field TWO Ljava/lang/String;
+	public static final field VALUE Ljava/lang/String;
+	public static final field VALUE_AND_OTHER Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getShape ()Lme/ahoo/wow/tck/query/SemanticShape;
+	public final fun getValue ()Ltools/jackson/databind/JsonNode;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/query/SemanticProbe$Companion {
+	public final fun getALL ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/tck/query/SemanticShape : java/lang/Enum {
+	public static final field NUMBER Lme/ahoo/wow/tck/query/SemanticShape;
+	public static final field STRING Lme/ahoo/wow/tck/query/SemanticShape;
+	public static final field STRING_ARRAY Lme/ahoo/wow/tck/query/SemanticShape;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/tck/query/SemanticShape;
+	public static fun values ()[Lme/ahoo/wow/tck/query/SemanticShape;
+}
+
+public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
+	public field queryBackendBinding Lme/ahoo/wow/tck/query/QueryTarget;
+	public field queryModelSchemaProvider Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;
+	public field snapshot Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;
+	public field snapshotQueryBackend Lme/ahoo/wow/query/snapshot/SnapshotQueryBackend;
+	public field snapshotQueryBackendFactory Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+	public field snapshotStore Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public fun <init> ()V
+	public final fun EXPRESSION filter should compare the computed value and skip records without one ()V
+	public final fun aggregation DATE_DIFF should measure signed elapsed time in metrics and groups ()V
+	public final fun aggregation DATE_DIFF should read epoch seconds and nanos as whole floored milliseconds ()V
+	public final fun aggregation DATE_DIFF should subtract an epoch millis field and a date field in either order ()V
+	public final fun aggregation FIRST and LAST should honor their metric filter ()V
+	public final fun aggregation FIRST and LAST should read the earliest and latest line by orderBy ()V
+	public final fun aggregation any should return null when every value is absent ()V
+	public final fun aggregation date histograms should read epoch seconds and nanos as whole floored milliseconds ()V
+	public final fun aggregation date part should group ISO weekdays in the time zone ()V
+	public final fun aggregation date part should group wall hours, days of month and months ()V
+	public final fun aggregation date parts should combine as weekday by hour ()V
+	public final fun aggregation dense date part should fill its whole fixed domain ()V
+	public final fun aggregation dense day histogram should fill interior gaps with empty metric semantics ()V
+	public final fun aggregation dense day histogram should skip a local date the zone never had ()V
+	public final fun aggregation dense fill rows should carry ANY metrics as explicit JSON null ()V
+	public final fun aggregation dense hour histogram should fill local wall clock hours in a half hour offset zone ()V
+	public final fun aggregation dense should count filled rows toward the limit ()V
+	public final fun aggregation dense should let having drop filled rows ()V
+	public final fun aggregation dense should let having match exactly the filled rows ()V
+	public final fun aggregation dense should not fill a single bucket ()V
+	public final fun aggregation dense should place filled rows in descending order ()V
+	public final fun aggregation dense week histogram should align local week starts in a non utc zone ()V
+	public final fun aggregation having matching nothing should return an empty flux ()V
+	public final fun aggregation having should apply limit after filtering ()V
+	public final fun aggregation having should apply limit after filtering with group alias sort ()V
+	public final fun aggregation having should compose with and and or ()V
+	public final fun aggregation having should filter groups by count thresholds ()V
+	public final fun aggregation having should filter groups by derived thresholds ()V
+	public final fun aggregation having should support between and in ()V
+	public final fun aggregation having should treat null as failing comparisons ()V
+	public final fun aggregation metric filters should preserve null versus missing semantics ()V
+	public final fun aggregation should accept singleton and ignore multi-valued numeric arrays ()V
+	public final fun aggregation should append group aliases for stable sorting ()V
+	public final fun aggregation should apply arithmetic expressions to new metrics ()V
+	public final fun aggregation should apply two element filters and every group type ()V
+	public final fun aggregation should calculate arithmetic metrics in the innermost element scope ()V
+	public final fun aggregation should calculate exact population stddev and variance ()V
+	public final fun aggregation should calculate percentile metrics within rank bounds ()V
+	public final fun aggregation should combine metric filters with element filters ()V
+	public final fun aggregation should count a funnel of metric filtered counts ()V
+	public final fun aggregation should count distinct array elements ()V
+	public final fun aggregation should count distinct values excluding null ()V
+	public final fun aggregation should count records matched by literal match metric filters ()V
+	public final fun aggregation should derive from previously derived metrics ()V
+	public final fun aggregation should derive null on division by zero ()V
+	public final fun aggregation should derive ratios between sums and constants ()V
+	public final fun aggregation should derive ratios from filtered metrics ()V
+	public final fun aggregation should evaluate derived metrics over an empty ungrouped summary ()V
+	public final fun aggregation should filter numeric and distinct metrics by record filters ()V
+	public final fun aggregation should ignore invalid arithmetic values ()V
+	public final fun aggregation should propagate null from empty metrics into derived ()V
+	public final fun aggregation should return backend neutral decimal Terms keys ()V
+	public final fun aggregation should return null or zero when no value contributes ()V
+	public final fun aggregation should return null when no numeric value contributes ()V
+	public final fun aggregation should return one empty summary row ()V
+	public final fun aggregation should return zero distinct count in an empty summary ()V
+	public final fun aggregation should return zero or null when a metric filter matches nothing ()V
+	public final fun aggregation should scope metric filters to the innermost element ()V
+	public final fun aggregation should select any non-null value without splitting the group ()V
+	public final fun aggregation should select metric Top-N across nested discounts ()V
+	public final fun aggregation should sort groups by a derived metric ()V
+	public final fun aggregation should sort groups by a filtered metric ()V
+	public final fun aggregation should sort groups by distinct count ()V
+	public final fun aggregation should start UTC weeks on Monday ()V
+	public final fun aggregation should summarize standard root fields with every metric ()V
+	public final fun aggregation should support cancellation after a real result ()V
+	public final fun aggregation should support second date histograms ()V
+	public final fun aggregation terms missingKey should bucket missing values into the sentinel key ()V
+	public final fun count ()V
+	public final fun createFromCache ()V
+	protected abstract fun createSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+	protected abstract fun createSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public final fun cursor should not expose projection-only cursor fields ()V
+	public final fun cursor should return an empty terminal page ()V
+	public final fun cursor should support descending multi field sort ()V
+	public final fun cursor should traverse tied versions without duplicates ()V
+	public final fun cursor token issued for another sort is the invalid cursor ()V
+	public final fun date fields compare date operands in equality, ranges and relative time ()V
+	public final fun dynamicList ()V
+	public final fun dynamicPaged ()V
+	public final fun dynamicSingle ()V
+	public final fun element full text search runs inside element match only where storage grants it ()V
+	public final fun filter semantics matrix ()Ljava/util/List;
+	protected fun getElementFullTextSearch ()Z
+	public final fun getQueryBackendBinding ()Lme/ahoo/wow/tck/query/QueryTarget;
+	public final fun getQueryModelSchemaProvider ()Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;
+	protected final fun getQuerySchemaSources ()Ljava/util/List;
+	protected fun getSemanticDivergences ()Ljava/util/Set;
+	public final fun getSnapshot ()Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;
+	public final fun getSnapshotQueryBackend ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackend;
+	public final fun getSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+	public final fun getSnapshotStore ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	protected fun getTruncatesFractionalEpochs ()Z
+	public final fun list ()V
+	public final fun list should execute QueryField sort ()V
+	public final fun name ()V
+	public final fun paged ()V
+	public final fun paged and cursor should preserve null and missing sort order in both directions ()V
+	protected abstract fun prepareNullAndMissingCursorSnapshots (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun projection should preserve scalar and object subtree semantics ()V
+	public final fun query helpers defer schema lookup until subscription ()V
+	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
+	public final fun schema refresh should replace and publish one new object ()V
+	public final fun schema should aggregate annotated epoch fields as time ()V
+	public final fun schema should execute exact range and sort bindings ()V
+	public final fun schema should expose system state and backend-neutral capabilities ()V
+	protected fun schemaSources ()Ljava/util/List;
+	public final fun setQueryBackendBinding (Lme/ahoo/wow/tck/query/QueryTarget;)V
+	public final fun setQueryModelSchemaProvider (Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;)V
+	public final fun setSnapshot (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)V
+	public final fun setSnapshotQueryBackend (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackend;)V
+	public final fun setSnapshotQueryBackendFactory (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;)V
+	public final fun setSnapshotStore (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)V
+	public fun setup ()V
+	public final fun single should expose canonical snapshot json ()V
+	protected abstract fun writeStateValue (Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;)V
+}
+
+public final class me/ahoo/wow/tck/query/UnnecessaryAbstractClassGuardrail {
+	public fun <init> (Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/util/Set;)V
+	public synthetic fun <init> (Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun assertNone ()V
+	public final fun violations ()Ljava/util/Set;
+}
+

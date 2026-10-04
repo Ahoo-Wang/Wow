@@ -1,0 +1,28 @@
+public final class me/ahoo/wow/compensation/core/CompensationEventProcessor {
+	public static final field Companion Lme/ahoo/wow/compensation/core/CompensationEventProcessor$Companion;
+	public fun <init> (Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;)V
+	public final fun onCompensationPrepared (Lme/ahoo/wow/compensation/api/CompensationPrepared;Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/compensation/core/CompensationEventProcessor$Companion {
+}
+
+public final class me/ahoo/wow/compensation/core/CompensationFilterKt {
+	public static final fun getRetry (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/api/annotation/Retry;
+}
+
+public final class me/ahoo/wow/compensation/core/DomainEventCompensationFilter : me/ahoo/wow/compensation/core/EventCompensationFilter {
+	public fun <init> (Lme/ahoo/wow/command/CommandBus;)V
+}
+
+public abstract class me/ahoo/wow/compensation/core/EventCompensationFilter : me/ahoo/wow/messaging/handler/ExchangeFilter {
+	public fun <init> (Lme/ahoo/wow/command/CommandBus;)V
+	public synthetic fun filter (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
+	public fun filter (Lme/ahoo/wow/event/EventExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
+	public synthetic fun filter (Lme/ahoo/wow/messaging/handler/MessageExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/compensation/core/StateEventCompensationFilter : me/ahoo/wow/compensation/core/EventCompensationFilter {
+	public fun <init> (Lme/ahoo/wow/command/CommandBus;)V
+}
+
