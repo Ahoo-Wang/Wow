@@ -102,6 +102,8 @@ wow-compiler       只依赖元数据模型，生成结果可复现
 | S5 | **静默失败的小修**：`TracingEventStore`（及 ES 事件存储）覆盖 `existsRequestId`；补偿过滤器保留原始错误、记录失败时不确认；`RedisEventStore.loadStream(time)` 返回 `Flux.error` | 内部 | 装饰器契约测试（G3）；补偿测试 | S |
 | S6 | **装配缺陷**：`wow.compensation.enabled=false` 与 webflux 同开时启动失败；CoSec 与 webflux 默认 bean 的先后只靠字母序；BI 巡检自动配置缺 `@ConditionalOnClass` | 内部 | `ApplicationContextRunner` 先复现再修 | S |
 
+**实际进入 9.2.3 的内容（2026-10-04）：** S1、S2（含 CoSec 的 `app_id`、`device_id`）、S3、S4、S5、S6 全部完成。另外两项提前：E2（远程 IP 不做反向 DNS，G2 测得新连接上命令解析慢 65 倍）与 Kafka 提交卡顿（G2 测得默认配置下每次确认等一个 5 秒提交周期，根因是 #2776 的 `maxDeferredCommits = 1` 且无提交触发，修复后单次往返 5,002 ms → 7.8 ms）。一项推迟：B7 的“无事件存储时存在性检查回答不存在”移到 9.3.0，改为在处理节点执行处理函数之前查请求 ID（补丁里改它会让网关型服务对原样重发的命令再执行一次处理函数）。Saga 创建命令每次重试生成新的随机聚合 ID、Saga 直接返回的命令带随机请求 ID，这两项补丁修不了，在 K3 里处理。
+
 ### 第 2 阶段：声明与身份
 
 | WP | 内容 | 兼容类别 | 证明 | 规模 |
