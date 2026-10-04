@@ -81,7 +81,13 @@ python3 -S scripts/validate_wow_skills.py
 python3 -S -m unittest scripts.test_validate_wow_skills
 ```
 
-These commands validate metadata, agent manifests, plugin includes, local resource paths, and eval JSONL structure. They do not execute behavior cases or prove natural-language activation, target APIs, or production migration. Evaluate behavior in fresh tasks against real diffs and command results.
+These commands validate metadata, agent manifests, plugin includes, local resource paths, and the shape of each Skill's `claude plugin eval` suite (`evals/<case>/prompt.md` plus `graders/*.md`). They do not run the cases. To measure activation and answers, run the suites locally; each run is a real agent session billed to your Claude login, so CI never runs them:
+
+```bash
+node scripts/eval-skills.mjs [skill…]
+```
+
+`SKILLS_EVAL_RUNS`, `SKILLS_EVAL_MAX_COST` (USD per Skill), `SKILLS_EVAL_CONCURRENCY` and `CLAUDE_BIN` tune the run; reports land in `skills/<name>/evals/results/`, which is not committed.
 
 ## Prioritized next path
 

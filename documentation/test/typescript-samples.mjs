@@ -56,7 +56,8 @@ const markdown = (dir) =>
     existsSync(dir)
         ? readdirSync(dir, {recursive: true})
               .map((file) => file.split('\\').join('/'))
-              .filter((file) => file.endsWith('.md'))
+              // A Skill's eval cases are prompts and graders, not samples.
+              .filter((file) => file.endsWith('.md') && !/(?:^|\/)evals\//.test(file))
               .map((file) => join(dir, file))
         : []
 
@@ -408,6 +409,50 @@ export async function check() {
         failures.push(`${sample.page}:${at < 0 ? `${sample.line} (context)` : sample.line + 1 + at}: TS${diagnostic.code} ${message}`)
     }
     return {samples, projects, failures}
+}
+
+/**
+ * Skills whose samples are fragments (a call without its setup, a signature
+ * with a body) and are not compiled: every name they import from a package
+ * entry must still be exported by it.
+ */
+export const IMPORT_SOURCES = ['wow-client', 'wow-generator'].flatMap((skill) => markdown(join(repository, 'skills', skill))).sort()
+
+/** The `import { … } from '<entry>'` names of IMPORT_SOURCES that their entry does not export. */
+export function importProblems() {
+    mkdirSync(work, {recursive: true})
+    writeFileSync(join(work, 'assets.d.ts'), "declare module '*.css'\n")
+    const exported = exportedNames()
+    const problems = []
+    let imports = 0
+    for (const source of IMPORT_SOURCES) {
+        const page = relative(repository, source)
+        for (const block of blocks(readFileSync(source, 'utf8'))) {
+            if (!TYPESCRIPT.has(block.language)) continue
+            const file = ts.createSourceFile(`block.${block.language === 'tsx' ? 'tsx' : 'ts'}`, block.code, ts.ScriptTarget.Latest, true)
+            for (const statement of file.statements) {
+                if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue
+                if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+                const specifier = statement.moduleSpecifier.text
+                // Relative imports name generated code; other packages (fetcher-wow in a before/after) are not ours.
+                if (!/^@ahoo-wang\/wow-/.test(specifier) && !ENTRIES.fetcher.includes(specifier)) continue
+                const line = block.line + 1 + file.getLineAndCharacterOfPosition(statement.getStart()).line
+                const entry = exported.find((candidate) => candidate.specifier === specifier)
+                if (!entry) {
+                    problems.push(`${page}:${line}: ${specifier} is not a package entry`)
+                    continue
+                }
+                const clause = ts.isImportDeclaration(statement) ? statement.importClause?.namedBindings : statement.exportClause
+                if (!clause || (!ts.isNamedImports(clause) && !ts.isNamedExports(clause))) continue
+                for (const element of clause.elements) {
+                    imports++
+                    const name = (element.propertyName ?? element.name).text
+                    if (!entry.names.has(name)) problems.push(`${page}:${line}: ${specifier} does not export ${name}`)
+                }
+            }
+        }
+    }
+    return {imports, problems}
 }
 
 /** The skipped samples, with the reason each gives. */

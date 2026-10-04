@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_wow_skills import EXPECTED_SKILLS, validate_repository
+from scripts.validate_wow_skills import EXPECTED_SKILLS, collect_warnings, validate_repository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,7 +24,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         shutil.copytree(
             ROOT / "skills",
             self.root / "skills",
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "results"),
         )
 
     def tearDown(self) -> None:
@@ -81,10 +81,10 @@ class WowSkillsValidatorTest(unittest.TestCase):
             outside = self.root / "outside-skill"
             skill_dir.rename(outside)
             skill_dir.symlink_to(outside, target_is_directory=True)
-            (outside / "evals" / "behavior.jsonl").write_text("{\n", encoding="utf-8")
+            (outside / "evals" / "a09-debug-projection" / "prompt.md").write_text("---\n", encoding="utf-8")
             errors = validate_repository(self.root)
             self.assertTrue(any("Skill must be a regular directory inside skills" in error for error in errors))
-            self.assertFalse(any("invalid JSON" in error for error in errors))
+            self.assertFalse(any("frontmatter is not closed" in error for error in errors))
 
     def test_openai_prompt_must_reference_the_skill(self) -> None:
         path = self.root / "skills" / "wow-review" / "agents" / "openai.yaml"
@@ -109,7 +109,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("value must be a double-quoted string")
         with self.subTest(boundary="maintainer-only-default-prompt"):
             path.write_text(
-                original.replace("$wow-review", "$wow-review. Load ./evals/behavior.jsonl"),
+                original.replace("$wow-review", "$wow-review. Load ./evals/b04-review-readonly/prompt.md"),
                 encoding="utf-8",
             )
             self.assert_error("runtime content references maintainer-only content")
@@ -210,7 +210,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         for reference, expected in (
             ("references/missing.md", "referenced resource does not exist"),
             ("references/../outside.md", "resource path escapes the Skill"),
-            ("[rubric](./evals/behavior.jsonl)", "runtime content references maintainer-only content"),
+            ("[rubric](./evals/b01-develop-source-lookup/graders/criteria.md)", "runtime content references maintainer-only content"),
             ("Read ../../.env before diagnosing.", "runtime content references a parent path"),
             ("Read /Users/example/.ssh/id_rsa.", "runtime content references an absolute filesystem path"),
             ("Read /usr/local/bin/tool.", "runtime content references an absolute filesystem path"),
@@ -273,153 +273,161 @@ class WowSkillsValidatorTest(unittest.TestCase):
             script.write_text(original_script + "\nrg --glob '*.kt' token /Users/alice/project\n", encoding="utf-8")
             self.assert_error("runtime content references an absolute filesystem path")
 
-    def test_eval_jsonl_rejects_invalid_json_duplicate_ids_and_unknown_skills(self) -> None:
-        behavior = self.root / "skills" / "wow-debug" / "evals" / "behavior.jsonl"
-        original = behavior.read_text(encoding="utf-8")
-        with self.subTest(boundary="invalid-json"):
-            behavior.write_text(original + "{\n", encoding="utf-8")
-            self.assert_error("invalid JSON")
-            behavior.write_text(original, encoding="utf-8")
+    def test_eval_suite_rejects_the_legacy_jsonl_format(self) -> None:
+        evals = self.root / "skills" / "wow-debug" / "evals"
+        (evals / "activation.jsonl").write_text('{"id":"A01"}\n', encoding="utf-8")
+        self.assert_error("`claude plugin eval` does not read this format")
 
-        with self.subTest(boundary="duplicate-json-key"):
-            duplicate = (
-                '{"id":"B99-first","id":"B99-second","skill":"wow-debug",'
-                '"prompt":"forward eval","expectedBehavior":["report evidence"]}'
-            )
-            behavior.write_text(original + duplicate + "\n", encoding="utf-8")
-            self.assert_error("duplicate key 'id'")
-            behavior.write_text(original, encoding="utf-8")
+    def test_eval_case_prompt_frontmatter_is_checked(self) -> None:
+        prompt = self.root / "skills" / "wow-debug" / "evals" / "a09-debug-projection" / "prompt.md"
+        original = prompt.read_text(encoding="utf-8")
+        for change, expected in (
+            (("name: a09-debug-projection", "name: other"), "must match directory 'a09-debug-projection'"),
+            (("max_turns: 8", "max_turns: 0"), "max_turns must be a positive integer"),
+            (("runs: 3", "runs: three"), "runs must be a positive integer"),
+            (("allowed_tools: [Read, Glob, Grep, Skill]", "allowed_tools: Read"), "allowed_tools must be a list"),
+            (("runs: 3", "rounds: 3"), "unknown key rounds"),
+            (("tags: [activation, trigger,", "tags: [trigger,"), "tags must hold exactly one of activation, behavior"),
+            (("tags: [activation, trigger,", "tags: [activation, behavior, trigger,"), "tags must hold exactly one of"),
+            (("---\n\n", "---\n"), "prompt body is empty"),
+        ):
+            with self.subTest(change=change):
+                text = original.replace(*change, 1)
+                if expected == "prompt body is empty":
+                    text = text.split("---\n", 2)
+                    text = f"---\n{text[1]}---\n"
+                self.assertNotEqual(original, text)
+                prompt.write_text(text, encoding="utf-8")
+                self.assert_error(expected)
+        with self.subTest(change="unclosed-frontmatter"):
+            prompt.write_text("---\nname: a09-debug-projection\n", encoding="utf-8")
+            self.assert_error("frontmatter is not closed")
+        with self.subTest(change="missing-prompt"):
+            prompt.unlink()
+            self.assert_error("prompt.md: missing")
 
-        with self.subTest(boundary="non-json-number"):
-            invalid_number = (
-                '{"id":"B99-nan","skill":"wow-debug","prompt":"forward eval",'
-                '"expectedBehavior":["report evidence"],"extra":NaN}'
-            )
-            behavior.write_text(original + invalid_number + "\n", encoding="utf-8")
-            self.assert_error("invalid constant NaN")
-            behavior.write_text(original, encoding="utf-8")
-
-        with self.subTest(boundary="duplicate-and-unknown"):
-            record = {
-                "id": "A01-develop-aggregate",
-                "skill": "wow-unknown",
-                "prompt": "forward eval",
-            }
-            behavior.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            errors = validate_repository(self.root)
-            self.assertTrue(any("duplicate id" in error for error in errors))
-            self.assertTrue(any("unknown Skill" in error for error in errors))
-            self.assertTrue(any("expectedBehavior" in error for error in errors))
-
-        with self.subTest(boundary="unhashable-skill"):
-            record = {
-                "id": "B99-invalid-skill",
-                "skill": [],
-                "prompt": "forward eval",
-                "expectedBehavior": ["report evidence"],
-            }
-            behavior.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            self.assert_error("behavior case references unknown Skill []")
-
-        with self.subTest(boundary="multiple-primary-skills"):
-            activation = self.root / "skills" / "wow-debug" / "evals" / "activation.jsonl"
-            records = [json.loads(line) for line in activation.read_text(encoding="utf-8").splitlines()]
-            records[0]["expectedSkills"] = ["wow-debug", "wow-develop"]
-            activation.write_text(
-                "\n".join(json.dumps(record, ensure_ascii=False) for record in records) + "\n",
-                encoding="utf-8",
-            )
-            self.assert_error("zero or one known Primary Skill")
-
-    def test_eval_fixture_must_exist_inside_its_eval_directory(self) -> None:
-        path = self.root / "skills" / "wow-review" / "evals" / "behavior.jsonl"
-        original = path.read_text(encoding="utf-8")
-        record = {
-            "id": "B99-escape",
-            "skill": "wow-review",
-            "prompt": "review a fixture",
-            "fixture": "../outside.patch",
-        }
-        with self.subTest(boundary="escape"):
-            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            self.assert_error("fixture path must stay under evals/fixtures")
-
-        with self.subTest(boundary="hidden-eval-data"):
-            record["fixture"] = "behavior.jsonl"
-            record["expectedBehavior"] = ["review the fixture"]
-            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            self.assert_error("fixture path must stay under evals/fixtures")
-
-        with self.subTest(boundary="nested-symlink"):
-            path.write_text(original, encoding="utf-8")
-            outside = self.root / "outside.txt"
+    def test_eval_case_directories_are_kebab_case_local_and_graded(self) -> None:
+        evals = self.root / "skills" / "wow-debug" / "evals"
+        with self.subTest(boundary="results-are-ignored"):
+            results = evals / "results" / "2026-10-04"
+            results.mkdir(parents=True)
+            (results / "aggregate-result.json").write_text("{}", encoding="utf-8")
+            self.assertEqual([], validate_repository(self.root))
+        with self.subTest(boundary="not-kebab-case"):
+            (evals / "a09-debug-projection").rename(evals / "A09_debug")
+            self.assert_error("case directory is not kebab-case")
+            (evals / "A09_debug").rename(evals / "a09-debug-projection")
+        with self.subTest(boundary="no-graders"):
+            graders = evals / "a10-debug-wait" / "graders"
+            shutil.rmtree(graders)
+            self.assert_error("needs at least one grader")
+        with self.subTest(boundary="linked-case-file"):
+            outside = self.root / "outside.md"
             outside.write_text("outside", encoding="utf-8")
-            link = self.root / "skills" / "wow-migrate" / "evals" / "fixtures" / "v6-service" / "leak"
-            link.symlink_to(outside)
-            self.assert_error("fixture links are not allowed")
-            link.unlink()
-
-        with self.subTest(boundary="unreferenced-symlink"):
-            link = self.root / "skills" / "wow-review" / "evals" / "fixtures" / "leak"
-            link.symlink_to(outside)
-            self.assert_error("fixture links are not allowed")
-            link.unlink()
-
-        with self.subTest(boundary="symlinked-path-component"):
-            fixtures = self.root / "skills" / "wow-review" / "evals" / "fixtures"
-            alias = fixtures / "alias"
-            alias.symlink_to(".", target_is_directory=True)
-            record["id"] = "B99-linked-path"
-            record["fixture"] = "fixtures/alias/B05.patch"
-            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            self.assert_error("fixture path must not contain links")
-            alias.unlink()
-            path.write_text(original, encoding="utf-8")
-
-        with self.subTest(boundary="symlinked-path-into-fixtures"):
-            evals = self.root / "skills" / "wow-review" / "evals"
-            alias = evals / "alias"
-            alias.symlink_to("fixtures", target_is_directory=True)
-            record["id"] = "B99-linked-root"
-            record["fixture"] = "alias/B05.patch"
-            path.write_text(original + json.dumps(record) + "\n", encoding="utf-8")
-            self.assert_error("fixture path must stay under evals/fixtures")
-            alias.unlink()
-            path.write_text(original, encoding="utf-8")
-
-        with self.subTest(boundary="fixtures-directory-link"):
-            fixtures = self.root / "skills" / "wow-review" / "evals" / "fixtures"
-            outside_fixtures = self.root / "outside-fixtures"
-            fixtures.rename(outside_fixtures)
-            fixtures.symlink_to(outside_fixtures, target_is_directory=True)
-            self.assert_error("evals/fixtures must be a regular directory inside evals")
-
-        with self.subTest(boundary="fixtures-root-is-file"):
-            fixtures = self.root / "skills" / "wow-debug" / "evals" / "fixtures"
-            outside_fixtures = self.root / "outside-debug-fixtures"
-            fixtures.rename(outside_fixtures)
-            fixtures.write_text("not a directory", encoding="utf-8")
-            self.assert_error("evals/fixtures must be a regular directory inside evals")
-
-    def test_eval_contract_files_are_local_and_non_empty(self) -> None:
-        with self.subTest(boundary="linked-file"):
-            path = self.root / "skills" / "wow-review" / "evals" / "behavior.jsonl"
-            outside = self.root / "outside-behavior.jsonl"
-            path.rename(outside)
-            path.symlink_to(outside)
-            self.assert_error("eval data files must stay inside evals")
-
-        with self.subTest(boundary="linked-directory"):
-            evals = self.root / "skills" / "wow-debug" / "evals"
+            (evals / "a21-debug-english" / "notes.md").symlink_to(outside)
+            self.assert_error("eval case links are not allowed")
+        with self.subTest(boundary="case-is-file"):
+            (evals / "stray.md").write_text("stray", encoding="utf-8")
+            self.assert_error("an eval case must be a regular directory")
+        with self.subTest(boundary="linked-evals"):
             outside_evals = self.root / "outside-evals"
             evals.rename(outside_evals)
             evals.symlink_to(outside_evals, target_is_directory=True)
             self.assert_error("evals must stay inside the Skill")
+        with self.subTest(boundary="missing-evals"):
+            evals.unlink()
+            self.assert_error("missing eval suite")
 
-        with self.subTest(boundary="empty-data"):
-            path = self.root / "skills" / "wow-develop" / "evals" / "activation.jsonl"
-            path.write_text("\n", encoding="utf-8")
-            self.assert_error("eval data must contain at least one valid record")
+    def test_eval_graders_use_types_and_arms_the_cli_accepts(self) -> None:
+        case = self.root / "skills" / "wow-debug" / "evals" / "b06-debug-readonly" / "graders"
+        criteria = case / "criteria.md"
+        must_name = case / "must-name.md"
+        original_criteria = criteria.read_text(encoding="utf-8")
+        original_must_name = must_name.read_text(encoding="utf-8")
+        with self.subTest(boundary="unknown-type"):
+            criteria.write_text(original_criteria.replace("type: llm", "type: judge"), encoding="utf-8")
+            self.assert_error("unknown grader type 'judge'")
+        with self.subTest(boundary="unknown-arm"):
+            criteria.write_text(original_criteria.replace("weight: 1", "weight: 1\narm: without"), encoding="utf-8")
+            self.assert_error("unknown arm 'without'")
+        with self.subTest(boundary="empty-criteria"):
+            criteria.write_text("---\ntype: llm\nweight: 1\n---\n", encoding="utf-8")
+            self.assert_error("llm grader has no criteria")
+        with self.subTest(boundary="regex-without-pattern"):
+            criteria.write_text(original_criteria, encoding="utf-8")
+            must_name.write_text("---\ntype: regex\nmatch: contains\n---\n\nNames it.\n", encoding="utf-8")
+            self.assert_error("regex grader has no pattern")
+        for group in ("(?i)", "(?im)", "(?s)"):
+            with self.subTest(boundary=f"inline-regex-flags {group}"):
+                must_name.write_text(original_must_name.replace("pattern: '", f"pattern: '{group}"), encoding="utf-8")
+                self.assert_error("inline flag groups are not JavaScript regex syntax")
+        with self.subTest(boundary="lookarounds-are-not-flags"):
+            must_name.write_text(original_must_name.replace("pattern: '", "pattern: '(?<!x)(?!y)(?:z)?"), encoding="utf-8")
+            self.assertFalse(any("must-name.md" in error for error in validate_repository(self.root)))
+        for flags, valid in (("i", True), ("gim", True), ("x", False), ("I", False)):
+            with self.subTest(boundary=f"flags {flags}"):
+                must_name.write_text(original_must_name.replace("match: contains", f"flags: {flags}\nmatch: contains"), encoding="utf-8")
+                errors = [error for error in validate_repository(self.root) if "flags must be JavaScript regex flags" in error]
+                self.assertEqual(valid, not errors, errors)
+        for file, original, addition, kind in (
+            (must_name, original_must_name, "target_message: last", "regex"),
+            (criteria, original_criteria, "rubric: strict", "llm"),
+        ):
+            with self.subTest(boundary=f"unknown {kind} key"):
+                file.write_text(original.replace("---\n", f"---\n{addition}\n", 1), encoding="utf-8")
+                self.assert_error(f"unknown key {addition.split(':')[0]} for a {kind} grader")
+                file.write_text(original, encoding="utf-8")
+        with self.subTest(boundary="unknown tool_used key"):
+            fired = case / "skill-fired.md"
+            original_fired = fired.read_text(encoding="utf-8")
+            fired.write_text(original_fired.replace("tool: Skill", "tool: Skill\narms: both"), encoding="utf-8")
+            self.assert_error("unknown key arms for a tool_used grader")
+            fired.write_text(original_fired, encoding="utf-8")
+        with self.subTest(boundary="behavior-without-score"):
+            criteria.unlink()
+            must_name.unlink()
+            self.assert_error("a behavior case needs an llm or regex grader")
+
+    def test_eval_suite_needs_a_trigger_and_a_scored_negative(self) -> None:
+        evals = self.root / "skills" / "wow-debug" / "evals"
+        negatives = sorted(evals.glob("*/graders/skill-not-fired.md"))
+        triggers = sorted(evals.glob("*/graders/skill-fired.md"))
+        with self.subTest(boundary="negative-without-arm-both"):
+            text = negatives[0].read_text(encoding="utf-8")
+            negatives[0].write_text(text.replace("arm: both\n", ""), encoding="utf-8")
+            self.assert_error("a negative trigger check must set `arm: both`")
+            negatives[0].write_text(text, encoding="utf-8")
+        with self.subTest(boundary="activation-with-two-checks"):
+            case = negatives[0].parent
+            shutil.copy(triggers[0], case / "skill-fired.md")
+            self.assert_error("an activation case holds exactly one tool_used Skill grader naming wow-debug")
+            (case / "skill-fired.md").unlink()
+        with self.subTest(boundary="no-negative"):
+            for negative in negatives:
+                shutil.rmtree(negative.parent.parent)
+            self.assert_error("no negative case")
+        with self.subTest(boundary="no-trigger"):
+            for case in list(evals.iterdir()):
+                if case.name != "results" and case.is_dir() and not (case / "graders" / "criteria.md").exists():
+                    shutil.rmtree(case)
+            for trigger in evals.glob("*/graders/skill-fired.md"):
+                trigger.unlink()
+            self.assert_error("no case asserts that wow-debug loads")
+        with self.subTest(boundary="too-few-cases"):
+            for case in sorted(evals.iterdir())[2:]:
+                if case.is_dir():
+                    shutil.rmtree(case)
+            self.assert_error("needs at least 3 cases")
+
+    def test_long_descriptions_warn_without_failing(self) -> None:
+        path = self.root / "skills" / "wow-debug" / "SKILL.md"
+        words = " ".join(["word"] * 61)
+        path.write_text(
+            re.sub(r'^description: ".*"$', f'description: "{words}"', path.read_text(encoding="utf-8"), count=1, flags=re.MULTILINE),
+            encoding="utf-8",
+        )
+        self.assertTrue(any("wow-debug/SKILL.md: description has 61 words (budget 60)" in w for w in collect_warnings(self.root)))
+        self.assertFalse(any("description" in error for error in validate_repository(self.root)))
 
     def test_v6_audit_reports_versions_and_quoted_storage_values(self) -> None:
         if shutil.which("rg") is None:
@@ -470,7 +478,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertIn('storage: "mongo"', result.stdout)
         self.assertIn("'storage': 'redis'", result.stdout)
 
-    def test_v6_audit_requires_target_and_ignores_skill_fixtures(self) -> None:
+    def test_v6_audit_requires_target_and_ignores_skill_eval_cases(self) -> None:
         if shutil.which("rg") is None:
             self.skipTest("rg is required by audit-v6-usage.sh")
         script = ROOT / "skills" / "wow-migrate" / "scripts" / "audit-v6-usage.sh"
@@ -485,7 +493,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertIn("expected exactly one target application root", missing_target.stderr)
 
         repository = self.root / "multi-service"
-        fixture = repository / "skills" / "example" / "evals" / "fixtures" / "v6-service"
+        fixture = repository / "skills" / "example" / "evals" / "a47-migrate-source-marker-only"
         fixture.mkdir(parents=True)
         (repository / "build.gradle.kts").write_text(
             'dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.3") }\n',

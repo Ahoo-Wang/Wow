@@ -52,7 +52,7 @@ common_globs=(
   --glob '!**/.gradle/**'
   --glob '!**/node_modules/**'
   --glob '!**/target/**'
-  --glob '!skills/**/evals/fixtures/**'
+  --glob '!skills/**/evals/**'
   --glob '!**/package-lock.json'
   --glob '!**/npm-shrinkwrap.json'
   --glob '!**/pnpm-lock.yaml'

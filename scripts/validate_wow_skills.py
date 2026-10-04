@@ -57,6 +57,32 @@ FILESYSTEM_ROOTS = {
 FILESYSTEM_SUFFIXES = {
     ".env", ".key", ".pem",
 }
+# A description is read on every turn to pick a skill; past this it warns.
+DESCRIPTION_MAX_WORDS = 60
+# `claude plugin eval` suites: evals/<case>/prompt.md + graders/*.md.
+MIN_EVAL_CASES = 3
+IGNORED_EVAL_ENTRIES = {"results"}
+SUITE_TAGS = {"activation", "behavior"}
+PROMPT_KEYS = {
+    "schema_version", "name", "description", "tags", "plugins", "runs", "expected_outcome",
+    "model", "max_turns", "timeout_seconds", "allowed_tools", "append_system_prompt", "env",
+}
+POSITIVE_INTEGER_KEYS = ("runs", "max_turns", "timeout_seconds")
+GRADER_TYPES = {"regex", "tool_order", "tool_used", "file_exists", "llm", "baseline"}
+GRADER_ARMS = {"with-only", "both"}
+# Grader keys by type, as the `claude plugin eval` grader schema lists them.
+GRADER_COMMON_KEYS = {"type", "name", "weight", "arm"}
+GRADER_KEYS = {
+    "regex": {"pattern", "flags", "match", "target"},
+    "tool_used": {"tool", "input_match", "min", "max"},
+    "tool_order": {"before", "after"},
+    "file_exists": {"path", "exists"},
+    "llm": {"criteria", "focus"},
+    "baseline": {"baseline_file", "criteria"},
+}
+# `(?i)`-style groups are Python/PCRE; the CLI compiles JavaScript regexes.
+INLINE_REGEX_FLAGS = re.compile(r"\(\?[a-z]+\)")
+REGEX_FLAGS = re.compile(r"[dgimsuvy]+")
 
 
 def _is_glob_argument(line: str, start: int, end: int) -> bool:
@@ -264,21 +290,6 @@ def _contained(candidate: Path, parent: Path) -> bool:
         return False
 
 
-def _has_link_component(candidate: Path, parent: Path) -> bool:
-    try:
-        relative = candidate.relative_to(parent)
-    except ValueError:
-        return False
-    current = parent
-    if current.is_symlink():
-        return True
-    for part in relative.parts:
-        current /= part
-        if current.is_symlink():
-            return True
-    return False
-
-
 def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
     referenced = set(RESOURCE_PATTERN.findall(body))
     for raw in sorted(referenced):
@@ -347,123 +358,169 @@ def _validate_resources(skill_dir: Path, body: str, errors: list[str]) -> None:
         _validate_runtime_text(source, text, errors)
 
 
-def _load_jsonl(path: Path, errors: list[str]) -> list[tuple[int, dict[str, Any]]]:
-    records: list[tuple[int, dict[str, Any]]] = []
+def _eval_value(raw: str) -> str | list[str]:
+    """A flat YAML scalar or flow list, as `claude plugin eval` frontmatter writes them."""
+    value = raw.strip()
+    if value.startswith("[") and value.endswith("]"):
+        inner = value[1:-1].strip()
+        return [item.strip().strip("'\"") for item in inner.split(",")] if inner else []
+    if len(value) >= 2 and value[0] == value[-1] == "'":
+        return value[1:-1].replace("''", "'")
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        parsed = json.loads(value)
+        if not isinstance(parsed, str):
+            raise ValueError("quoted value must be a string")
+        return parsed
+    return value
+
+
+def _eval_frontmatter(path: Path) -> tuple[dict[str, str | list[str]], str]:
+    """The frontmatter and body of an eval prompt.md or grader; raises ValueError when malformed."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0] != "---":
+        raise ValueError("frontmatter must start with ---")
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeError) as exc:
-        errors.append(f"{path}: cannot read UTF-8 text: {exc}")
-        return records
-    for number, line in enumerate(lines, start=1):
+        closing = lines.index("---", 1)
+    except ValueError:
+        raise ValueError("frontmatter is not closed") from None
+    values: dict[str, str | list[str]] = {}
+    for number, line in enumerate(lines[1:closing], start=2):
         if not line.strip():
             continue
-        try:
-            record = json.loads(
-                line,
-                object_pairs_hook=_unique_json_object,
-                parse_constant=_reject_json_constant,
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)", line)
+        if match is None:
+            raise ValueError(f"line {number}: frontmatter must use flat key: value entries")
+        key, raw = match.groups()
+        if key in values:
+            raise ValueError(f"line {number}: duplicate key {key!r}")
+        values[key] = _eval_value(raw)
+    return values, "\n".join(lines[closing + 1 :]).strip()
+
+
+def _validate_suite(skill_dir: Path, errors: list[str]) -> None:
+    """A `claude plugin eval` suite: evals/<case>/prompt.md plus evals/<case>/graders/*.md."""
+    skill = skill_dir.name
+    eval_dir = skill_dir / "evals"
+    if eval_dir.is_symlink() or not _contained(eval_dir, skill_dir):
+        errors.append(f"{eval_dir}: evals must stay inside the Skill and must not be a link")
+        return
+    if not eval_dir.is_dir():
+        errors.append(f"{eval_dir}: missing eval suite (evals/<case>/prompt.md + graders/*.md)")
+        return
+    for legacy in ("activation.jsonl", "behavior.jsonl", "evals.json"):
+        if (eval_dir / legacy).exists():
+            errors.append(
+                f"{eval_dir / legacy}: `claude plugin eval` does not read this format; "
+                "write evals/<case>/prompt.md + graders/*.md"
             )
-        except (ValueError, RecursionError) as exc:
-            message = exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc)
-            errors.append(f"{path}:{number}: invalid JSON: {message}")
+    cases = sorted(
+        entry for entry in eval_dir.iterdir() if entry.name not in IGNORED_EVAL_ENTRIES and not entry.name.startswith(".")
+    )
+    own_skill = re.compile(rf"(?<![\w-]){re.escape(skill)}(?![\w-])")
+    counts = {"activation": 0, "behavior": 0}
+    fires = 0
+    negatives = 0
+    for case_dir in cases:
+        location = f"{case_dir}"
+        if case_dir.is_symlink() or not case_dir.is_dir():
+            errors.append(f"{location}: an eval case must be a regular directory")
             continue
-        if not isinstance(record, dict):
-            errors.append(f"{path}:{number}: each JSONL record must be an object")
-            continue
-        records.append((number, record))
-    return records
+        if not NAME_PATTERN.fullmatch(case_dir.name):
+            errors.append(f"{location}: case directory is not kebab-case")
+        for entry in sorted(case_dir.rglob("*")):
+            if entry.is_symlink():
+                errors.append(f"{entry}: eval case links are not allowed")
+        prompt = case_dir / "prompt.md"
+        tags: list[str] = []
+        if not prompt.is_file():
+            errors.append(f"{prompt}: missing")
+        else:
+            try:
+                data, body = _eval_frontmatter(prompt)
+            except (OSError, UnicodeError, ValueError) as exc:
+                errors.append(f"{prompt}: {exc}")
+            else:
+                for key in sorted(set(data) - PROMPT_KEYS):
+                    errors.append(f"{prompt}: unknown key {key}")
+                if "name" in data and data["name"] != case_dir.name:
+                    errors.append(f"{prompt}: name {data['name']!r} must match directory {case_dir.name!r}")
+                for key in POSITIVE_INTEGER_KEYS:
+                    if key in data and not (isinstance(data[key], str) and re.fullmatch(r"[1-9]\d*", data[key])):
+                        errors.append(f"{prompt}: {key} must be a positive integer")
+                for key in ("tags", "allowed_tools"):
+                    if key in data and not isinstance(data[key], list):
+                        errors.append(f"{prompt}: {key} must be a list")
+                raw_tags = data.get("tags", [])
+                tags = raw_tags if isinstance(raw_tags, list) else []
+                if not body:
+                    errors.append(f"{prompt}: prompt body is empty")
+        suites = [tag for tag in tags if tag in SUITE_TAGS]
+        if len(suites) != 1:
+            errors.append(f"{prompt}: tags must hold exactly one of {', '.join(sorted(SUITE_TAGS))}")
+        else:
+            counts[suites[0]] += 1
 
-
-def _validate_evals(skills_root: Path, skill_names: set[str], errors: list[str]) -> None:
-    seen_ids: dict[str, str] = {}
-    for skill_name in sorted(skill_names):
-        skill_dir = skills_root / skill_name
-        if skill_dir.is_symlink() or not skill_dir.is_dir() or not _contained(skill_dir, skills_root):
-            continue
-        eval_dir = skill_dir / "evals"
-        if eval_dir.is_symlink() or not _contained(eval_dir, skill_dir):
-            errors.append(f"{eval_dir}: evals must stay inside the Skill and must not be a link")
-            continue
-        fixtures_root = eval_dir / "fixtures"
-        fixtures_valid = False
-        if fixtures_root.is_symlink() or (
-            fixtures_root.exists()
-            and (not fixtures_root.is_dir() or not _contained(fixtures_root, eval_dir))
-        ):
-            errors.append(f"{fixtures_root}: evals/fixtures must be a regular directory inside evals")
-        elif fixtures_root.is_dir():
-            fixtures_valid = True
-            for entry in sorted(fixtures_root.rglob("*")):
-                if entry.is_symlink():
-                    errors.append(f"{entry}: fixture links are not allowed")
-                elif not entry.is_dir() and not entry.is_file():
-                    errors.append(f"{entry}: fixture entries must be regular files or directories")
-        for kind in ("activation", "behavior"):
-            path = eval_dir / f"{kind}.jsonl"
-            if path.is_symlink() or not _contained(path, eval_dir):
-                errors.append(f"{path}: eval data files must stay inside evals and must not be links")
+        graders_dir = case_dir / "graders"
+        graders = sorted(graders_dir.glob("*.md")) if graders_dir.is_dir() and not graders_dir.is_symlink() else []
+        if not graders:
+            errors.append(f"{graders_dir}: needs at least one grader")
+        case_fires = case_negatives = 0
+        scored = False
+        for grader in graders:
+            try:
+                data, body = _eval_frontmatter(grader)
+            except (OSError, UnicodeError, ValueError) as exc:
+                errors.append(f"{grader}: {exc}")
                 continue
-            if not path.is_file():
-                errors.append(f"{path}: missing eval data")
+            kind = data.get("type")
+            if kind not in GRADER_TYPES:
+                errors.append(f"{grader}: unknown grader type {kind!r}")
                 continue
-            records = _load_jsonl(path, errors)
-            if not records:
-                errors.append(f"{path}: eval data must contain at least one valid record")
-                continue
-            for number, record in records:
-                location = f"{path}:{number}"
-                case_id = record.get("id")
-                prompt = record.get("prompt")
-                if not isinstance(case_id, str) or not case_id.strip():
-                    errors.append(f"{location}: id must be a non-empty string")
-                elif case_id in seen_ids:
-                    errors.append(f"{location}: duplicate id {case_id!r}; first seen at {seen_ids[case_id]}")
+            for key in sorted(set(data) - GRADER_COMMON_KEYS - GRADER_KEYS[kind]):
+                errors.append(f"{grader}: unknown key {key} for a {kind} grader")
+            arm = data.get("arm")
+            if arm is not None and arm not in GRADER_ARMS:
+                errors.append(f"{grader}: unknown arm {arm!r} (use {' or '.join(sorted(GRADER_ARMS))})")
+            if kind == "llm" and not body and not data.get("criteria"):
+                errors.append(f"{grader}: llm grader has no criteria")
+            if kind == "regex":
+                pattern = data.get("pattern")
+                if not isinstance(pattern, str) or not pattern:
+                    errors.append(f"{grader}: regex grader has no pattern")
+                elif INLINE_REGEX_FLAGS.search(pattern):
+                    errors.append(f"{grader}: inline flag groups are not JavaScript regex syntax; use `flags:`")
+                flags = data.get("flags")
+                if flags is not None and (not isinstance(flags, str) or not REGEX_FLAGS.fullmatch(flags)):
+                    errors.append(f"{grader}: flags must be JavaScript regex flags (dgimsuvy), got {flags!r}")
+            if kind in {"llm", "regex"}:
+                scored = True
+            if kind == "tool_used" and data.get("tool") == "Skill" and own_skill.search(str(data.get("input_match", ""))):
+                if data.get("max") == "0":
+                    case_negatives += 1
+                    # Only the skill under test is loaded, so "it did not load" is the
+                    # whole verdict of a negative case; without `arm: both` the
+                    # default with/without ablation leaves it unscored.
+                    if arm != "both":
+                        errors.append(
+                            f"{grader}: a negative trigger check must set `arm: both`, "
+                            "or `--ablation with-without` leaves it unscored"
+                        )
                 else:
-                    seen_ids[case_id] = location
-                if not isinstance(prompt, str) or not prompt.strip():
-                    errors.append(f"{location}: prompt must be a non-empty string")
-
-                if kind == "activation":
-                    expected = record.get("expectedSkills")
-                    if not isinstance(expected, list) or any(not isinstance(item, str) for item in expected):
-                        errors.append(f"{location}: expectedSkills must be a list of Skill names")
-                    elif len(expected) > 1 or len(expected) != len(set(expected)) or not set(expected) <= skill_names:
-                        errors.append(f"{location}: expectedSkills must contain zero or one known Primary Skill")
-                else:
-                    referenced_skill = record.get("skill")
-                    if not isinstance(referenced_skill, str) or referenced_skill not in skill_names:
-                        errors.append(f"{location}: behavior case references unknown Skill {referenced_skill!r}")
-                    rubric = record.get("expectedBehavior")
-                    if (
-                        not isinstance(rubric, list)
-                        or not rubric
-                        or any(not isinstance(item, str) or not item.strip() for item in rubric)
-                    ):
-                        errors.append(f"{location}: expectedBehavior must be a non-empty list of criteria")
-
-                fixture = record.get("fixture")
-                if fixture is not None:
-                    if not isinstance(fixture, str) or not fixture:
-                        errors.append(f"{location}: fixture must be a non-empty relative path")
-                        continue
-                    if not fixtures_valid:
-                        errors.append(f"{location}: fixture requires a regular evals/fixtures directory")
-                        continue
-                    relative = PurePosixPath(fixture)
-                    target = eval_dir.joinpath(*relative.parts)
-                    if (
-                        relative.is_absolute()
-                        or ".." in relative.parts
-                        or not target.is_relative_to(fixtures_root)
-                        or not _contained(target, fixtures_root)
-                    ):
-                        errors.append(f"{location}: fixture path must stay under evals/fixtures")
-                    elif _has_link_component(target, fixtures_root):
-                        errors.append(f"{location}: fixture path must not contain links")
-                    elif not target.exists():
-                        errors.append(f"{location}: fixture does not exist: {fixture}")
-                    elif not target.is_dir() and not target.is_file():
-                        errors.append(f"{location}: fixture must be a regular file or directory")
+                    case_fires += 1
+        fires += case_fires
+        negatives += case_negatives
+        if "behavior" in suites and not scored:
+            errors.append(f"{case_dir}: a behavior case needs an llm or regex grader to score the answer")
+        if "activation" in suites and case_fires + case_negatives != 1:
+            errors.append(f"{case_dir}: an activation case holds exactly one tool_used Skill grader naming {skill}")
+    if len(cases) < MIN_EVAL_CASES:
+        errors.append(f"{eval_dir}: needs at least {MIN_EVAL_CASES} cases (evals/<case>/prompt.md), found {len(cases)}")
+    if cases and fires == 0:
+        errors.append(f"{eval_dir}: no case asserts that {skill} loads (a tool_used Skill grader naming it)")
+    if cases and negatives == 0:
+        errors.append(f"{eval_dir}: no negative case (a tool_used Skill grader naming {skill} with max: 0)")
+    if cases and counts["behavior"] == 0:
+        errors.append(f"{eval_dir}: no behavior case")
 
 
 def validate_repository(root: Path) -> list[str]:
@@ -539,8 +596,22 @@ def validate_repository(root: Path) -> list[str]:
         body = _validate_skill_file(skill_dir, errors)
         _validate_openai_yaml(skill_dir, errors)
         _validate_resources(skill_dir, body, errors)
-    _validate_evals(skills_root, EXPECTED_SKILLS, errors)
+        _validate_suite(skill_dir, errors)
     return sorted(errors)
+
+
+def collect_warnings(root: Path) -> list[str]:
+    """Problems that do not fail validation yet."""
+    warnings: list[str] = []
+    for skill_name in sorted(EXPECTED_SKILLS):
+        skill_file = root / "skills" / skill_name / "SKILL.md"
+        if skill_file.is_symlink() or not skill_file.is_file():
+            continue
+        metadata, _ = _frontmatter(skill_file, [])
+        words = len(metadata.get("description", "").split())
+        if words > DESCRIPTION_MAX_WORDS:
+            warnings.append(f"{skill_file}: description has {words} words (budget {DESCRIPTION_MAX_WORDS})")
+    return warnings
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -549,6 +620,8 @@ def main(argv: list[str] | None = None) -> int:
         print("usage: validate_wow_skills.py [repository-root]", file=sys.stderr)
         return 2
     root = Path(args[0]).resolve() if args else Path(__file__).resolve().parents[1]
+    for warning in collect_warnings(root):
+        print(f"WARNING: {warning}", file=sys.stderr)
     errors = validate_repository(root)
     if errors:
         for error in errors:
@@ -556,7 +629,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         f"Wow Skills validation passed: {len(EXPECTED_SKILLS)} Skills; "
-        "activation and behavior eval data are valid."
+        "eval suites are well-formed."
     )
     return 0
 
