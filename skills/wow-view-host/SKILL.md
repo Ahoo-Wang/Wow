@@ -1,6 +1,6 @@
 ---
 name: "wow-view-host"
-description: "Wire the Wow View Engine into a host application: register its resources and saved-view store, put ViewHost around the pages, bind routes, and turn the Wow commands on records into declared actions. Use for @ahoo-wang/wow-view-engine hosts in downstream apps and for the compensation console's and Storybook's host wiring in the Wow repository. Exclude deciding what a view definition declares (wow-view-definition), Wow client code outside the engine (wow-client), OpenAPI generation (wow-generator), and changing the view engine itself."
+description: "Wire the Wow View Engine into a host app: one engine with its resources and saved-view store (MemoryViewStore, WowViewStore behind CoSec), ViewHost, bind and routes, and Wow commands on records as declared actions. Use for @ahoo-wang/wow-view-engine hosts, including the compensation console and Storybook in the Wow repository. Exclude what definitions declare (wow-view-definition), other client code, and changing the engine."
 ---
 
 # wow-view-host
@@ -49,5 +49,4 @@ Links in the references point at `main` on GitHub; in a Wow checkout the same fi
 ## Related Skills
 
 - $wow-view-definition: what each definition declares, its words, system views and boards.
-- $wow-client: the command and query clients themselves, errors and wait stages.
-- $wow-generator: generating the typed command clients the actions call.
+- $wow-client: the command and query clients themselves, errors and wait stages, and generating the typed command clients the actions call.

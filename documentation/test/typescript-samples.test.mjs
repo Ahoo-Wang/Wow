@@ -22,8 +22,8 @@ test('TypeScript samples compile against the built packages', {timeout: 300_000}
     assert.deepEqual(failures, [], `${failures.length} diagnostics:\n${failures.join('\n')}`)
 })
 
-test("the wow-client and wow-generator Skills import only names their entries export", {timeout: 300_000}, () => {
-    assert.ok(IMPORT_SOURCES.length >= 4, `Only ${IMPORT_SOURCES.length} Skill pages found`)
+test("the wow-client Skill imports only names its entries export", {timeout: 300_000}, () => {
+    assert.ok(IMPORT_SOURCES.length >= 3, `Only ${IMPORT_SOURCES.length} Skill pages found`)
     const {imports, problems} = importProblems()
     assert.ok(imports > 100, `Only ${imports} imported names found; the sources or the import parsing changed`)
     assert.deepEqual(problems, [], `${problems.length} problems:\n${problems.join('\n')}`)

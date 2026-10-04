@@ -259,7 +259,7 @@ test('the TypeScript Skills run the site, which checks their samples', () => {
     'skills/wow-view-definition/references/choices.md',
     'skills/wow-view-host/references/actions.md',
     'skills/wow-client/SKILL.md',
-    'skills/wow-generator/references/api.md',
+    'skills/wow-client/references/generator.md',
   ])
     assert.deepEqual(on([path]), ['docs'], path);
   for (const path of [

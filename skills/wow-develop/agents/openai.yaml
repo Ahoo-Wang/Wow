@@ -1,4 +1,4 @@
 interface:
   display_name: "Wow Develop"
-  short_description: "Build downstream applications with verified Wow behavior"
-  default_prompt: "Use $wow-develop to verify and implement this downstream application's Wow behavior against the target version."
+  short_description: "Build, review and debug downstream Wow services"
+  default_prompt: "Use $wow-develop to build, review or debug this downstream application's Wow behavior against the target version, changing files only where I authorize it."

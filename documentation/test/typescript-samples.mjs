@@ -412,11 +412,11 @@ export async function check() {
 }
 
 /**
- * Skills whose samples are fragments (a call without its setup, a signature
+ * The Skill whose samples are fragments (a call without its setup, a signature
  * with a body) and are not compiled: every name they import from a package
  * entry must still be exported by it.
  */
-export const IMPORT_SOURCES = ['wow-client', 'wow-generator'].flatMap((skill) => markdown(join(repository, 'skills', skill))).sort()
+export const IMPORT_SOURCES = markdown(join(repository, 'skills', 'wow-client')).sort()
 
 /** The `import { … } from '<entry>'` names of IMPORT_SOURCES that their entry does not export. */
 export function importProblems() {

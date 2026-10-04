@@ -1,6 +1,6 @@
 ---
 name: a11-debug-vs-develop
-tags: [activation, trigger, routed, develop, conflict]
+tags: [activation, trigger, develop]
 runs: 3
 max_turns: 8
 allowed_tools: [Read, Glob, Grep, Skill]
