@@ -1,6 +1,8 @@
 # System views, analyses and boards
 
-A system view is a starting point the definition ships: visible to everyone, read-only, saved as a reader's own. Write the few the audience opens every day, not every view they could build. The config shapes are in [model.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/model.md) and [model-shapes.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/model-shapes.md); `admit` checks every config against its definition, so this page is about which views to write and how they read.
+A system view is a starting point the definition ships: visible to everyone, read-only, saved as a reader's own. Write the few the audience opens every day, not every view they could build. In depth: [System views and boards](https://wow.ahoo.me/guide/typescript/view-engine-definitions.html#_6-system-views-and-boards); the config shapes are in [model-shapes.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/model-shapes.md). `admit` checks every config against its definition, so this page is about which views to write and how they read.
+
+A system view declared here (its instance id `system:<definition>:<view>`, `systemInstanceId(definitionId, viewId)`) is code: read-only for everyone, whatever the host grants, and changed only by a release. Since 9.2.0 a host may also let an administrator publish **stored** system views from the screen (a copy of a saved view, editable without a release; `wow-view-host` grants `editSystem`). Those are the store's, not the definition's: write here the views every deployment must have, and leave tuning to stored ones.
 
 ## Record views: the queues people work
 
@@ -66,7 +68,7 @@ export const ORDER_QUEUES: SystemView[] = [
 ];
 ```
 
-A system view's `timeField` (on the `SystemView`, beside `id` and `title`, never inside `config`) overrides the definition's for that view: another moment, or `null` for a view read whole. Pass them as the definition's `views` (`views: [...ORDER_QUEUES, CHANNEL_SALES]`). A category offers `IN` and `NOT_IN`, not `EQ`. A period is a `BETWEEN` whose value moves with the calendar, and `BEFORE_NOW` / `AFTER_NOW` compare with the service's clock: each keeps a saved view current, so never write today's date into a config.
+A system view's `timeField` (on the `SystemView`, beside `id` and `title`, never inside `config`) overrides the definition's for that view: another moment, or `null` for a view read whole. Pass them as the definition's `views` (`views: [...ORDER_QUEUES, CHANNEL_SALES]`). A category (enum) offers `IN` and `NOT_IN`, not `EQ`; since 9.2.2 a saved `EQ` on a field that has since become an enum is read as a one-value `IN` (and saved as `IN` next time) instead of being refused, but write `IN` in new configs. A period is a `BETWEEN` whose value moves with the calendar, and `BEFORE_NOW` / `AFTER_NOW` compare with the service's clock: each keeps a saved view current, so never write today's date into a config.
 
 ```ts
 import type { FilterNode } from '@ahoo-wang/wow-view-engine';
@@ -113,12 +115,7 @@ const byChannel: AnalysisViewConfig = {
   filterMode: 'simple',
   refresh: { interval: null },
   groups: [
-    {
-      type: 'TERMS',
-      field: 'state.channel',
-      alias: 'channel',
-      label: text('orders.channel'),
-    },
+    { type: 'TERMS', field: 'state.channel', alias: 'channel', label: text('orders.channel') },
   ],
   metrics: [
     { type: 'COUNT', alias: 'orders', label: text('orders.count') },
@@ -200,22 +197,18 @@ function card(
   };
 }
 
+const paid: AnalysisViewConfig['metrics'][number] = {
+  type: 'NUMERIC',
+  alias: 'paid',
+  function: 'SUM',
+  expression: { type: 'FIELD', field: 'state.paidAmount' },
+  label: text('orders.paidAmount'),
+};
+
 const dailyPaid: AnalysisViewConfig = {
-  ...card({
-    type: 'NUMERIC',
-    alias: 'paid',
-    function: 'SUM',
-    expression: { type: 'FIELD', field: 'state.paidAmount' },
-    label: text('orders.paidAmount'),
-  }),
+  ...card(paid),
   groups: [
-    {
-      type: 'DATE_HISTOGRAM',
-      field: 'state.paidAt',
-      alias: 'day',
-      unit: 'DAY',
-      label: text('orders.day'),
-    },
+    { type: 'DATE_HISTOGRAM', field: 'state.paidAt', alias: 'day', unit: 'DAY', label: text('orders.day') },
   ],
   sort: [{ alias: 'day', direction: 'ASC' }],
   // One row a day: room for the longest window a reader picks.
@@ -258,16 +251,7 @@ export const overview: DashboardDefinition = {
             title: text('orders.paidAmount'),
             bindings: [],
             layout: { x: 0, y: 1, w: 6, h: 2 },
-            owned: {
-              definitionId: 'orders',
-              config: card({
-                type: 'NUMERIC',
-                alias: 'paid',
-                function: 'SUM',
-                expression: { type: 'FIELD', field: 'state.paidAmount' },
-                label: text('orders.paidAmount'),
-              }),
-            },
+            owned: { definitionId: 'orders', config: card(paid) },
           },
           {
             id: 'to-ship-count',
@@ -317,6 +301,8 @@ export const overview: DashboardDefinition = {
 - `opens` names the view 「在工作台中打开」 opens instead of the panel's own, a view of the same definition; use it where a card counts what a queue lists.
 - Board filters other than the date are declared on the board and wired to panel fields of the same kind; give a required one a `default`. See [ui/dashboard.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/ui/dashboard.md).
 - `admit` resolves every panel's view against the other definitions you pass it, so register and admit the board together with the data definitions it reads.
+- A system board shows and opens system views or analyses it owns, never a personal or shared view: system views are global, shared ones belong to one tenant (saving such a board is refused, `dashboard.system.non-system-panels`).
+- Words a reader sees on a board (titles, a heading's `content`, field labels) are keys too; `admit` checks them.
 
 ## Where definitions live
 
@@ -328,4 +314,4 @@ export const overview: DashboardDefinition = {
 1. Fetch the new descriptor (development or staging) and commit it over the old one with its new `version`.
 2. Run `admit`: a removed path, value or capability, a new protection or deprecation, a changed time encoding each come back as a finding at the field or view that used it.
 3. Fix each at its choice: move to the replacement path, drop the analysis use of a newly protected field, remove a condition from a system view. Never widen a definition merely because the new descriptor grants more; add a field or a view only when the scenario asks for it.
-4. Saved views are the readers'; the engine reports a removed capability in one when it is opened. Name the affected system views in the report.
+4. Saved views (the readers', and stored system views) are not in the code: the engine reports a removed capability in one when it is opened, and reads a saved `EQ` on a newly enum field as `IN`. Name the affected system views in the report.
