@@ -14,6 +14,8 @@
 package me.ahoo.wow.webflux.route.command.extractor
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandOperator.operator
+import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
@@ -39,8 +41,14 @@ class DefaultCommandMessageExtractor(
         request: ServerRequest
     ): Mono<CommandMessage<Any>> {
         return commandBuilderExtractor.extract(aggregateRouteMetadata, commandBody, request).flatMap { commandBuilder ->
+            val operator = commandBuilder.header.operator
             commandRequestHeaderAppends.forEach {
                 it.append(request, commandBuilder.header)
+            }
+            // The operator the builder extractor took from the authenticated principal is final: it is set again
+            // after every appender, so no appender decides who sent the command.
+            operator?.let {
+                commandBuilder.header.withOperator(it)
             }
             commandMessageFactory.create(commandBuilder)
         }

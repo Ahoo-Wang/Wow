@@ -17,13 +17,26 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import org.springframework.web.reactive.function.server.ServerRequest
 
+/**
+ * Copies each `Command-Header-<key>` request header into the command message header as `<key>`.
+ *
+ * The prefix matches case-insensitively, since HTTP/2 sends header names in lower case. A key the framework reserves
+ * ([ReservedCommandHeaderKeys]: the operator, wait, local-first, trace and compensation keys …) is rejected with an
+ * [IllegalArgumentException] (`IllegalArgument`, 400) instead of being copied.
+ */
 object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {
+    private const val PREFIX = CommandComponent.Header.COMMAND_HEADER_X_PREFIX
+
     override fun append(request: ServerRequest, header: Header) {
         val extendedHeaders = request.headers().asHttpHeaders().headerSet()
-            .filter { (key, _) -> key.startsWith(CommandComponent.Header.COMMAND_HEADER_X_PREFIX) }
-            .map { (key, value) ->
-                key.substring(CommandComponent.Header.COMMAND_HEADER_X_PREFIX.length) to value.firstOrNull<String>().orEmpty()
-            }.toMap()
+            .filter { (key, _) -> key.startsWith(PREFIX, ignoreCase = true) }
+            .associate { (key, value) ->
+                val headerKey = key.substring(PREFIX.length)
+                require(!ReservedCommandHeaderKeys.isReserved(headerKey)) {
+                    "Command header [$headerKey] is reserved by the framework and cannot be set through [$key]."
+                }
+                headerKey to value.firstOrNull<String>().orEmpty()
+            }
         if (extendedHeaders.isEmpty()) {
             return
         }
