@@ -172,8 +172,8 @@ catalogs:
       specifier: ^6.1.0
       version: 6.1.0
     eslint:
-      specifier: ^10.11.0
-      version: 10.11.0
+      specifier: ^10.12.0
+      version: 10.12.0
     eslint-plugin-import-x:
       specifier: ^4.17.1
       version: 4.17.1
@@ -315,10 +315,10 @@ importers:
     devDependencies:
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -406,7 +406,7 @@ importers:
         version: 7.29.7(@babel/core@7.29.7)
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.63.0
@@ -448,16 +448,16 @@ importers:
         version: 1.0.0
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       eslint-plugin-react-compiler:
         specifier: 'catalog:'
-        version: 19.1.0-rc.2(eslint@10.11.0(jiti@2.7.0))
+        version: 19.1.0-rc.2(eslint@10.12.0(jiti@2.7.0))
       eslint-plugin-react-hooks:
         specifier: 'catalog:'
-        version: 7.1.1(eslint@10.11.0(jiti@2.7.0))
+        version: 7.1.1(eslint@10.12.0(jiti@2.7.0))
       eslint-plugin-react-refresh:
         specifier: 'catalog:'
-        version: 0.5.7(eslint@10.11.0(jiti@2.7.0))
+        version: 0.5.7(eslint@10.12.0(jiti@2.7.0))
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -481,7 +481,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -612,7 +612,7 @@ importers:
         version: link:../wow-view-store
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@testing-library/react':
         specifier: 'catalog:'
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -633,7 +633,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -654,7 +654,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
         version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -693,7 +693,7 @@ importers:
         version: 5.4.0(storybook@10.6.1(@types/react@19.3.0)(prettier@3.9.9)(react@19.3.0))
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@faker-js/faker':
         specifier: 'catalog:'
         version: 10.6.0
@@ -753,10 +753,10 @@ importers:
         version: 1.11.23
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       eslint-plugin-storybook:
         specifier: 'catalog:'
-        version: 10.6.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 10.6.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -789,7 +789,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -813,7 +813,7 @@ importers:
         version: 6.0.0(@ahoo-wang/fetcher@6.0.0)
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@microsoft/api-extractor':
         specifier: 'catalog:'
         version: 7.59.3(@types/node@26.6.4)
@@ -828,7 +828,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -840,7 +840,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
         version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -883,7 +883,7 @@ importers:
         version: link:../wow-client
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.4
@@ -895,10 +895,10 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       eslint-plugin-import-x:
         specifier: 'catalog:'
-        version: 4.17.1(@typescript-eslint/utils@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.11.0(jiti@2.7.0))
+        version: 4.17.1(@typescript-eslint/utils@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.12.0(jiti@2.7.0))
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -910,7 +910,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
         version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -938,7 +938,7 @@ importers:
         version: link:../wow-client
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@rolldown/plugin-babel':
         specifier: 'catalog:'
         version: 0.2.4(@babel/core@7.29.7)(@babel/runtime@8.0.5)(rolldown@1.2.11)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -962,13 +962,13 @@ importers:
         version: 1.0.0
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       eslint-plugin-react-compiler:
         specifier: 'catalog:'
-        version: 19.1.0-rc.2(eslint@10.11.0(jiti@2.7.0))
+        version: 19.1.0-rc.2(eslint@10.12.0(jiti@2.7.0))
       eslint-plugin-react-hooks:
         specifier: 'catalog:'
-        version: 7.1.1(eslint@10.11.0(jiti@2.7.0))
+        version: 7.1.1(eslint@10.12.0(jiti@2.7.0))
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -986,7 +986,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
         version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -1059,7 +1059,7 @@ importers:
         version: link:../wow-client
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@microsoft/api-extractor':
         specifier: 'catalog:'
         version: 7.59.3(@types/node@26.6.4)
@@ -1104,10 +1104,10 @@ importers:
         version: 1.0.0
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       eslint-plugin-react-hooks:
         specifier: 'catalog:'
-        version: 7.1.1(eslint@10.11.0(jiti@2.7.0))
+        version: 7.1.1(eslint@10.12.0(jiti@2.7.0))
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -1149,7 +1149,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
         version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -1179,7 +1179,7 @@ importers:
         version: link:../wow-view-engine
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+        version: 10.0.1(eslint@10.12.0(jiti@2.7.0))
       '@microsoft/api-extractor':
         specifier: 'catalog:'
         version: 7.59.3(@types/node@26.6.4)
@@ -1191,7 +1191,7 @@ importers:
         version: 4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)
       eslint:
         specifier: 'catalog:'
-        version: 10.11.0(jiti@2.7.0)
+        version: 10.12.0(jiti@2.7.0)
       globals:
         specifier: 'catalog:'
         version: 17.13.0
@@ -1200,7 +1200,7 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+        version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
         version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
@@ -4542,8 +4542,8 @@ packages:
     resolution: {integrity: sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  eslint@10.11.0:
-    resolution: {integrity: sha512-P7a6UEEqb9G95MYAtqkmsTbVXIYyzIfl6NGOIJk162PaahFxFyeGcrlXYFSiagECg4sEm8IseJdZBKR3rx6MsQ==}
+  eslint@10.12.0:
+    resolution: {integrity: sha512-npHjrHb2o4ehH3mE+YuxABR+0gyb0aVWCIolgJDArwCiHEIsonBm3ZKjel5b0U5+a+MbEvIyRCGCzD3eKKK2NA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
     hasBin: true
     peerDependencies:
@@ -7646,9 +7646,9 @@ snapshots:
   '@esbuild/win32-x64@0.21.5':
     optional: true
 
-  '@eslint-community/eslint-utils@4.10.1(eslint@10.11.0(jiti@2.7.0))':
+  '@eslint-community/eslint-utils@4.10.1(eslint@10.12.0(jiti@2.7.0))':
     dependencies:
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
@@ -7669,9 +7669,9 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@eslint/js@10.0.1(eslint@10.11.0(jiti@2.7.0))':
+  '@eslint/js@10.0.1(eslint@10.12.0(jiti@2.7.0))':
     optionalDependencies:
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
 
   '@eslint/object-schema@3.0.5': {}
 
@@ -9090,15 +9090,15 @@ snapshots:
 
   '@types/web-bluetooth@0.0.21': {}
 
-  '@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)':
+  '@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/scope-manager': 8.70.1
-      '@typescript-eslint/type-utils': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/type-utils': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.70.1
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       ignore: 7.0.6
       natural-compare: 1.4.0
       ts-api-utils: 2.5.0(typescript@6.0.3)
@@ -9106,14 +9106,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)':
+  '@typescript-eslint/parser@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.70.1
       '@typescript-eslint/types': 8.70.1
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.70.1
       debug: 4.4.3
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -9136,13 +9136,13 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  '@typescript-eslint/type-utils@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)':
+  '@typescript-eslint/type-utils@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/types': 8.70.1
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       debug: 4.4.3
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       ts-api-utils: 2.5.0(typescript@6.0.3)
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -9165,13 +9165,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)':
+  '@typescript-eslint/utils@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.10.1(eslint@10.11.0(jiti@2.7.0))
+      '@eslint-community/eslint-utils': 4.10.1(eslint@10.12.0(jiti@2.7.0))
       '@typescript-eslint/scope-manager': 8.70.1
       '@typescript-eslint/types': 8.70.1
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -10250,12 +10250,12 @@ snapshots:
     optionalDependencies:
       unrs-resolver: 1.12.2
 
-  eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.11.0(jiti@2.7.0)):
+  eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.12.0(jiti@2.7.0)):
     dependencies:
       '@typescript-eslint/types': 8.70.1
       comment-parser: 1.4.9
       debug: 4.4.3
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       eslint-import-context: 0.1.9(unrs-resolver@1.12.2)
       is-glob: 4.0.3
       minimatch: 10.2.6
@@ -10263,42 +10263,42 @@ snapshots:
       stable-hash-x: 0.2.0
       unrs-resolver: 1.12.2
     optionalDependencies:
-      '@typescript-eslint/utils': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-compiler@19.1.0-rc.2(eslint@10.11.0(jiti@2.7.0)):
+  eslint-plugin-react-compiler@19.1.0-rc.2(eslint@10.12.0(jiti@2.7.0)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/parser': 7.29.8
       '@babel/plugin-proposal-private-methods': 7.18.6(@babel/core@7.29.7)
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       hermes-parser: 0.25.1
       zod: 3.25.76
       zod-validation-error: 3.5.4(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-hooks@7.1.1(eslint@10.11.0(jiti@2.7.0)):
+  eslint-plugin-react-hooks@7.1.1(eslint@10.12.0(jiti@2.7.0)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/parser': 7.29.8
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
       hermes-parser: 0.25.1
       zod: 4.4.3
       zod-validation-error: 4.0.2(zod@4.4.3)
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-refresh@0.5.7(eslint@10.11.0(jiti@2.7.0)):
+  eslint-plugin-react-refresh@0.5.7(eslint@10.12.0(jiti@2.7.0)):
     dependencies:
-      eslint: 10.11.0(jiti@2.7.0)
+      eslint: 10.12.0(jiti@2.7.0)
 
-  eslint-plugin-storybook@10.6.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3):
+  eslint-plugin-storybook@10.6.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3):
     dependencies:
       '@typescript-eslint/types': 8.70.1
-      '@typescript-eslint/utils': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
-      eslint: 10.11.0(jiti@2.7.0)
+      '@typescript-eslint/utils': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
+      eslint: 10.12.0(jiti@2.7.0)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -10314,9 +10314,9 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.11.0(jiti@2.7.0):
+  eslint@10.12.0(jiti@2.7.0):
     dependencies:
-      '@eslint-community/eslint-utils': 4.10.1(eslint@10.11.0(jiti@2.7.0))
+      '@eslint-community/eslint-utils': 4.10.1(eslint@10.12.0(jiti@2.7.0))
       '@eslint-community/regexpp': 4.12.2
       '@eslint/config-array': 0.23.5
       '@eslint/config-helpers': 0.7.0
@@ -12510,13 +12510,13 @@ snapshots:
       media-typer: 1.1.1
       mime-types: 3.0.2
 
-  typescript-eslint@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3):
+  typescript-eslint@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.70.1(@typescript-eslint/parser@8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
-      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/eslint-plugin': 8.70.1(@typescript-eslint/parser@8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/typescript-estree': 8.70.1(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
-      eslint: 10.11.0(jiti@2.7.0)
+      '@typescript-eslint/utils': 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
+      eslint: 10.12.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
