@@ -20,8 +20,10 @@ patchedDependencies:
 # unnoticed. Development and tests use the default catalog below.
 catalogs:
   peers:
-    # fetcher 6 changes no API Wow uses; fetcher's downstream-wow.yml runs
-    # Wow's tests against it. Development and tests stay on 5.x.
+    # Development and tests run on fetcher 6 (the default catalog below);
+    # typescript.yml's fetcher-floor job pins the floor of this range
+    # (.github/scripts/fetcher-floor.mjs) and runs the tests and the package
+    # check on it.
     '@ahoo-wang/fetcher': '^5.1.5 || ^6.0.0'
     '@ahoo-wang/fetcher-decorator': '^5.1.5 || ^6.0.0'
     '@ahoo-wang/fetcher-eventstream': '^5.1.5 || ^6.0.0'
@@ -35,12 +37,12 @@ catalogs:
 # One version per external dependency across the workspace. Packages reference
 # these with `catalog:`; internal packages use the `workspace:` protocol.
 catalog:
-  '@ahoo-wang/fetcher': '^5.1.5'
-  '@ahoo-wang/fetcher-cosec': '^5.1.5'
-  '@ahoo-wang/fetcher-decorator': '^5.1.5'
-  '@ahoo-wang/fetcher-eventstream': '^5.1.5'
-  '@ahoo-wang/fetcher-openapi': '^5.1.5'
-  '@ahoo-wang/fetcher-react': '^5.1.5'
+  '@ahoo-wang/fetcher': '^6.0.0'
+  '@ahoo-wang/fetcher-cosec': '^6.0.0'
+  '@ahoo-wang/fetcher-decorator': '^6.0.0'
+  '@ahoo-wang/fetcher-eventstream': '^6.0.0'
+  '@ahoo-wang/fetcher-openapi': '^6.0.0'
+  '@ahoo-wang/fetcher-react': '^6.0.0'
   antd: ^6.6.5
   axe-core: ^4.13.0
   babel-plugin-react-compiler: 1.0.0

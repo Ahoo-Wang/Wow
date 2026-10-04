@@ -55,7 +55,7 @@ flowchart LR
 
 | Peer | Range |
 |---|---|
-| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` |
+| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5 \|\| ^6.0.0` |
 | `react` (for `wow-react`) | `^19.0.0`; React 18 is not supported |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | Same minor version, `~x.y.z` |
 | `@ahoo-wang/wow-view-engine` (for `wow-view-store`) | Same minor version, `~x.y.z` |

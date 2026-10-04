@@ -209,6 +209,48 @@ jobs:
       - name: Check the packages
         run: node .github/scripts/package-check.mjs
 
+  # fetcher's floor. The workspace develops on the newest fetcher (the default
+  # catalog), while the published packages accept the whole `peers` range, so
+  # this job overrides every fetcher to that range's floor
+  # (.github/scripts/fetcher-floor.mjs), reruns the tests of the packages with
+  # a fetcher peer, and checks the tarballs as a consumer on the floor. One
+  # job, not a matrix: unit and package cover the newest fetcher.
+  fetcher-floor:
+    name: Fetcher floor
+    needs: scope
+    if: needs.scope.outputs.package == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+      - name: Pin fetcher to the floor of the peers range
+        run: node .github/scripts/fetcher-floor.mjs pin
+      # The overrides change resolution, so the lockfile cannot be frozen.
+      - run: pnpm install --no-frozen-lockfile
+      - name: Check that every package resolves the floor
+        run: node .github/scripts/fetcher-floor.mjs verify
+      - name: Build the published packages
+        run: |
+          filters=()
+          for pkg in $(node .github/scripts/publish-npm.mjs --list); do
+            filters+=(--filter "$pkg...")
+          done
+          pnpm "${filters[@]}" build
+      - name: Test the packages with a fetcher peer
+        run: >-
+          pnpm --filter @ahoo-wang/wow-client --filter @ahoo-wang/wow-react
+          --filter @ahoo-wang/wow-generator --filter @ahoo-wang/wow-view-store
+          test
+      - name: Check the packages on the floor
+        run: node .github/scripts/package-check.mjs --fetcher-floor
+
   # View-engine's suite (`vitest run --coverage && pnpm test:type`) split in
   # four: each shard collects its quarter of the coverage as a blob report, and
   # `view-engine` merges them, holding the thresholds once. Four, not three:
@@ -416,6 +458,7 @@ jobs:
         quality,
         unit,
         package,
+        fetcher-floor,
         view-engine-shard,
         view-engine,
         view-engine-node22,
