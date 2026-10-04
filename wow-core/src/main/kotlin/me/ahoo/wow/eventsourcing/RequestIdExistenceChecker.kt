@@ -36,16 +36,18 @@ fun interface RequestIdExistenceChecker {
 }
 
 /**
- * No-op implementation used when no authoritative request ID existence checker is available.
+ * No-op implementation used when no authoritative request ID existence checker is available (no `EventStore` in
+ * this process, for example a gateway-only service).
  *
- * It fails closed by reporting the request ID as existing, preserving duplicate protection when
- * a probabilistic precheck rejects a request ID but no event store can confirm it.
+ * It reports the request ID as absent: a probabilistic precheck can collide on a request ID that was never used, and
+ * without a store to confirm it the request must not be rejected. Duplicate protection stays where it is
+ * authoritative, at `EventStore.append` (request ID unique within the aggregate).
  */
 object NoopRequestIdExistenceChecker : RequestIdExistenceChecker {
-    private val EXISTS = Mono.just(true)
+    private val ABSENT = Mono.just(false)
 
     override fun existsRequestId(
         aggregateId: AggregateId,
         requestId: String
-    ): Mono<Boolean> = EXISTS
+    ): Mono<Boolean> = ABSENT
 }

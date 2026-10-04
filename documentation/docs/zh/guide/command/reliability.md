@@ -48,7 +48,9 @@ flowchart TB
 
 ## 快速预检与权威确认
 
-`DefaultRequestIdChecker` 先查询按聚合选择的 `IdempotencyChecker`。快速检查判定可以继续时直接放行；当它报告“可能重复”时，再通过 `RequestIdExistenceChecker` 查询持久历史。没有权威查询器时默认拒绝该请求，而不是冒险放行。
+`DefaultRequestIdChecker` 先查询按聚合选择的 `IdempotencyChecker`。快速检查判定可以继续时直接放行；当它报告“可能重复”时，再通过 `RequestIdExistenceChecker` 查询持久历史。没有权威查询器时（进程内没有 `EventStore`，例如只做网关的服务）回答“不存在”并放行：重复由提交点 `EventStore.append` 的 request-ID 唯一约束拒绝，而不是让布隆过滤器的碰撞拒绝一个从未用过的请求（自 9.2.3 起；更早的版本在这种情况下拒绝）。
+
+网关先校验命令，再做 request-ID 预检，所以校验失败的命令不占用它的 request ID；预检通过后发送失败，网关释放这次预留，用同一 request ID 重试不会被当成重复（自 9.2.3 起）。
 
 这个预检用于尽早拒绝明显重复并消解概率型检查的假阳性，但不是并发提交的最终裁决。预检与持久追加之间存在竞争窗口；两个并发请求都可能通过读取检查。
 

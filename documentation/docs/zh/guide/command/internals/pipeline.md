@@ -31,9 +31,9 @@ flowchart TB
 
 `DefaultCommandGateway` 的发送入口先执行相同的 `check`：
 
-1. `RequestIdChecker.check(aggregateId, requestId)` 做 request-ID 预检；返回 `false` 时以 `DuplicateRequestIdException` 终止。
-2. 命令体实现 `CommandValidator` 时先执行自校验，再交给 Jakarta `Validator`。
-3. 只有检查完成后才调用 `CommandBus.send`。
+1. 命令体实现 `CommandValidator` 时先执行自校验，再交给 Jakarta `Validator`。
+2. `RequestIdChecker.check(aggregateId, requestId)` 做 request-ID 预检；返回 `false` 时以 `DuplicateRequestIdException` 终止。校验在前，校验失败的命令不占用 request ID（自 9.2.3 起）。
+3. 只有检查完成后才调用 `CommandBus.send`；发送失败时调用 `RequestIdChecker.release` 释放这次预留。
 
 `sendAndWait` 与 `sendAndWaitStream` 还会先验证等待计划是否支持 `Void` 命令，然后注册等待句柄、把等待计划写入 Header，再发送命令。`sendAndWaitForSent` 是独立快路径：它不注册句柄、不传播等待 Header，而是在 `CommandBus.send` 成功后直接合成 `SENT` 结果。
 

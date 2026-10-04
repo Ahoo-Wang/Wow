@@ -71,19 +71,19 @@ class DefaultRequestIdCheckerTest {
     }
 
     @Test
-    fun `check returns false when precheck rejects with noop existence checker`() {
+    fun `check returns true when precheck rejects with noop existence checker`() {
         val checker = defaultRequestIdChecker(
             idempotencyChecker = IdempotencyChecker { false },
             requestIdExistenceChecker = NoopRequestIdExistenceChecker,
         )
 
         StepVerifier.create(checker.check(testAggregateId(), "request-1"))
-            .expectNext(false)
+            .expectNext(true)
             .verifyComplete()
     }
 
     @Test
-    fun `check returns false with default noop existence checker when precheck rejects`() {
+    fun `check returns true with default noop existence checker when precheck rejects`() {
         val checker = DefaultRequestIdChecker(
             idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider {
                 IdempotencyChecker { false }
@@ -91,8 +91,29 @@ class DefaultRequestIdCheckerTest {
         )
 
         StepVerifier.create(checker.check(testAggregateId(), "request-1"))
-            .expectNext(false)
+            .expectNext(true)
             .verifyComplete()
+    }
+
+    @Test
+    fun `release gives the request id back to the materialized aggregate idempotency checker`() {
+        val released = mutableListOf<String>()
+        val checker = DefaultRequestIdChecker(
+            idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { namedAggregate ->
+                namedAggregate.assert().isEqualTo(TestNamedAggregate.materialize())
+                object : IdempotencyChecker {
+                    override fun check(element: String): Boolean = true
+
+                    override fun release(element: String) {
+                        released += element
+                    }
+                }
+            },
+        )
+
+        checker.release(testAggregateId(), "request-1")
+
+        released.assert().containsExactly("request-1")
     }
 
     @Test

@@ -32,8 +32,6 @@ import me.ahoo.wow.command.wait.timeout
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.reactor.thenDefer
-import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -104,8 +102,7 @@ class DefaultCommandGateway(
      * @throws DuplicateRequestIdException if the command request ID is not unique.
      */
     private fun idempotencyCheck(command: CommandMessage<*>): Mono<Void> =
-        requestIdChecker
-            .check(command.aggregateId, command.requestId)
+        Mono.defer { requestIdChecker.check(command.aggregateId, command.requestId) }
             .flatMap {
                 // Continue only when the command passes the idempotency check.
                 if (it) {
@@ -115,7 +112,8 @@ class DefaultCommandGateway(
             }
 
     /**
-     * Performs comprehensive pre-send checks including idempotency and validation.
+     * Performs the pre-send checks: validation first, then the request-ID check, so that an invalid command does not
+     * reserve its request ID.
      *
      * @param C The type of the command body.
      * @param command The command message to check.
@@ -124,10 +122,20 @@ class DefaultCommandGateway(
      * @throws jakarta.validation.ConstraintViolationException if validation fails.
      */
     private fun <C : Any> check(command: CommandMessage<C>): Mono<Void> =
-        idempotencyCheck(command)
-            .thenRunnable {
-                validate(command.body)
-            }
+        Mono.fromRunnable<Void> { validate(command.body) }
+            .then(idempotencyCheck(command))
+
+    /**
+     * Sends a command that passed [check]; when the send fails its request-ID reservation is released, so that
+     * retrying the same request is not rejected as a duplicate.
+     */
+    private fun sendChecked(command: CommandMessage<*>, beforeSend: () -> Unit = {}): Mono<Void> =
+        Mono.defer {
+            beforeSend()
+            commandBus.send(command)
+        }.doOnError {
+            requestIdChecker.release(command.aggregateId, command.requestId)
+        }
 
     /**
      * Sends a command message through the command bus after performing validation and idempotency checks.
@@ -140,9 +148,7 @@ class DefaultCommandGateway(
      */
     override fun send(message: CommandMessage<*>): Mono<Void> {
         return check(message)
-            .thenDefer {
-                commandBus.send(message)
-            }
+            .then(sendChecked(message))
             .doOnSuccess {
                 val waitPlan = message.header.extractWaitPlan() ?: return@doOnSuccess
                 val waitSignal = message.commandSentSignal(waitPlan.waitCommandId)
@@ -174,9 +180,8 @@ class DefaultCommandGateway(
      */
     override fun <C : Any> sendAndWaitForSent(command: CommandMessage<C>): Mono<CommandResult> =
         check(command)
-            .thenDefer {
-                commandBus.send(command)
-            }.then(
+            .then(sendChecked(command))
+            .then(
                 Mono.fromCallable {
                     CommandResult(
                         id = generateGlobalId(),
@@ -300,9 +305,8 @@ class DefaultCommandGateway(
         waitPlan: WaitPlan,
         waitHandle: WaitHandle
     ): Mono<Void> {
-        return Mono.defer {
+        return sendChecked(command) {
             waitPlan.propagate(commandWaitEndpoint, command.header)
-            commandBus.send(command)
         }.doOnSuccess {
             if (waitHandle !is SkipsSuccessfulSentSignal ||
                 waitPlan.target.stage == CommandStage.SENT

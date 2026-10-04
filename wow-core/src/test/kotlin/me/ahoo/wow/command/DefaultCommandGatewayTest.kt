@@ -101,6 +101,7 @@ class DefaultCommandGatewayTest {
             idempotencyChecker = IdempotencyChecker {
                 idempotencyChecks.incrementAndGet() == 1
             },
+            requestIdExistenceChecker = confirmsRequestIdExists,
         )
         val result = gateway.send(command)
 
@@ -555,6 +556,7 @@ class DefaultCommandGatewayTest {
             idempotencyChecker = IdempotencyChecker {
                 idempotencyChecks.getAndIncrement() == 0
             },
+            requestIdExistenceChecker = confirmsRequestIdExists,
         )
         val command = TestCommandMessage(id = "command-id")
         val waitPlan = CommandWait.processed(command.commandId)
@@ -782,6 +784,9 @@ private data class SelfValidatingCommand(
         validated.incrementAndGet()
     }
 }
+
+/** An authoritative store that has the request ID: a precheck rejection is confirmed as a duplicate. */
+private val confirmsRequestIdExists = RequestIdExistenceChecker { _, _ -> Mono.just(true) }
 
 private class SelfValidatingCommandMessage(
     override val body: SelfValidatingCommand,
