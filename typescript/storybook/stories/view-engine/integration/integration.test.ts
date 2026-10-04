@@ -53,8 +53,8 @@ describe('the integration walkthrough', () => {
         order => (order.state as { status: string }).status === 'PAID',
       ).length,
     );
-    // One order ships at a press; cancelling is always asked.
-    expect(harness.asks('ship', 'row').asks).toBe(false);
+    // Shipping cannot be taken back: asked for one order too, as cancelling is.
+    expect(harness.asks('ship', 'row').asks).toBe(true);
     expect(harness.asks('cancel', 'row').asks).toBe(true);
   });
 });

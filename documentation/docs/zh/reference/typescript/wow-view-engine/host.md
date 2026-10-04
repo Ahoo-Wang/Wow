@@ -151,8 +151,8 @@ export const orderActions = actions([
     primary: true,
     // true，或者为什么不能：原因显示在禁用的按钮上，选择按它分成能与不能两组。
     available: row => (paid(row) ? true : text('orders.notPaid')),
-    // 单条直接发；选了多条先数清楚再问。
-    confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+    // 例行、但发出去收不回：一张也先问，不用危险色。
+    confirm: { title: text('orders.shipTitle') },
     run: row => commands.ship(String(row.key)),
   },
 ]);

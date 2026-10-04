@@ -404,8 +404,8 @@ export const orderActions = actions([
       holdOf(row) > now ? text('orders.onHold') : true,
     // 什么时候自己翻转；到点引擎再问一次。
     changesAt: (row, { now }) => (holdOf(row) > now ? holdOf(row) + 1 : null),
-    // 一张单按了就发；多选时先数清楚。
-    confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+    // 例行、但发出去收不回：一张也先问，不用危险色。
+    confirm: { title: text('orders.shipTitle') },
     run: row => commands.ship(String(row.key)),
   },
   {

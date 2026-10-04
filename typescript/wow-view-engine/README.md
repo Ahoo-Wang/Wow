@@ -407,8 +407,8 @@ export const orderActions = actions([
       holdOf(row) > now ? text('orders.onHold') : true,
     // When that flips by itself; the engine asks again then.
     changesAt: (row, { now }) => (holdOf(row) > now ? holdOf(row) + 1 : null),
-    // One order ships at a press; a selection is counted first.
-    confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+    // Routine, but not taken back once sent: asked for one order too, with no danger tone.
+    confirm: { title: text('orders.shipTitle') },
     run: row => commands.ship(String(row.key)),
   },
   {
