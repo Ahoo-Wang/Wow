@@ -357,9 +357,32 @@ class WowSkillsValidatorTest(unittest.TestCase):
             criteria.write_text(original_criteria, encoding="utf-8")
             must_name.write_text("---\ntype: regex\nmatch: contains\n---\n\nNames it.\n", encoding="utf-8")
             self.assert_error("regex grader has no pattern")
-        with self.subTest(boundary="inline-regex-flags"):
-            must_name.write_text(original_must_name.replace("pattern: '", "pattern: '(?i)"), encoding="utf-8")
-            self.assert_error("use `flags: i`")
+        for group in ("(?i)", "(?im)", "(?s)"):
+            with self.subTest(boundary=f"inline-regex-flags {group}"):
+                must_name.write_text(original_must_name.replace("pattern: '", f"pattern: '{group}"), encoding="utf-8")
+                self.assert_error("inline flag groups are not JavaScript regex syntax")
+        with self.subTest(boundary="lookarounds-are-not-flags"):
+            must_name.write_text(original_must_name.replace("pattern: '", "pattern: '(?<!x)(?!y)(?:z)?"), encoding="utf-8")
+            self.assertFalse(any("must-name.md" in error for error in validate_repository(self.root)))
+        for flags, valid in (("i", True), ("gim", True), ("x", False), ("I", False)):
+            with self.subTest(boundary=f"flags {flags}"):
+                must_name.write_text(original_must_name.replace("match: contains", f"flags: {flags}\nmatch: contains"), encoding="utf-8")
+                errors = [error for error in validate_repository(self.root) if "flags must be JavaScript regex flags" in error]
+                self.assertEqual(valid, not errors, errors)
+        for file, original, addition, kind in (
+            (must_name, original_must_name, "target_message: last", "regex"),
+            (criteria, original_criteria, "rubric: strict", "llm"),
+        ):
+            with self.subTest(boundary=f"unknown {kind} key"):
+                file.write_text(original.replace("---\n", f"---\n{addition}\n", 1), encoding="utf-8")
+                self.assert_error(f"unknown key {addition.split(':')[0]} for a {kind} grader")
+                file.write_text(original, encoding="utf-8")
+        with self.subTest(boundary="unknown tool_used key"):
+            fired = case / "skill-fired.md"
+            original_fired = fired.read_text(encoding="utf-8")
+            fired.write_text(original_fired.replace("tool: Skill", "tool: Skill\narms: both"), encoding="utf-8")
+            self.assert_error("unknown key arms for a tool_used grader")
+            fired.write_text(original_fired, encoding="utf-8")
         with self.subTest(boundary="behavior-without-score"):
             criteria.unlink()
             must_name.unlink()
@@ -455,7 +478,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertIn('storage: "mongo"', result.stdout)
         self.assertIn("'storage': 'redis'", result.stdout)
 
-    def test_v6_audit_requires_target_and_ignores_skill_fixtures(self) -> None:
+    def test_v6_audit_requires_target_and_ignores_skill_eval_cases(self) -> None:
         if shutil.which("rg") is None:
             self.skipTest("rg is required by audit-v6-usage.sh")
         script = ROOT / "skills" / "wow-migrate" / "scripts" / "audit-v6-usage.sh"
@@ -470,7 +493,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertIn("expected exactly one target application root", missing_target.stderr)
 
         repository = self.root / "multi-service"
-        fixture = repository / "skills" / "example" / "evals" / "fixtures" / "v6-service"
+        fixture = repository / "skills" / "example" / "evals" / "a47-migrate-source-marker-only"
         fixture.mkdir(parents=True)
         (repository / "build.gradle.kts").write_text(
             'dependencies { implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.3") }\n',

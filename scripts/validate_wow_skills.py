@@ -70,6 +70,19 @@ PROMPT_KEYS = {
 POSITIVE_INTEGER_KEYS = ("runs", "max_turns", "timeout_seconds")
 GRADER_TYPES = {"regex", "tool_order", "tool_used", "file_exists", "llm", "baseline"}
 GRADER_ARMS = {"with-only", "both"}
+# Grader keys by type, as the `claude plugin eval` grader schema lists them.
+GRADER_COMMON_KEYS = {"type", "name", "weight", "arm"}
+GRADER_KEYS = {
+    "regex": {"pattern", "flags", "match", "target"},
+    "tool_used": {"tool", "input_match", "min", "max"},
+    "tool_order": {"before", "after"},
+    "file_exists": {"path", "exists"},
+    "llm": {"criteria", "focus"},
+    "baseline": {"baseline_file", "criteria"},
+}
+# `(?i)`-style groups are Python/PCRE; the CLI compiles JavaScript regexes.
+INLINE_REGEX_FLAGS = re.compile(r"\(\?[a-z]+\)")
+REGEX_FLAGS = re.compile(r"[dgimsuvy]+")
 
 
 def _is_glob_argument(line: str, start: int, end: int) -> bool:
@@ -463,17 +476,22 @@ def _validate_suite(skill_dir: Path, errors: list[str]) -> None:
             if kind not in GRADER_TYPES:
                 errors.append(f"{grader}: unknown grader type {kind!r}")
                 continue
+            for key in sorted(set(data) - GRADER_COMMON_KEYS - GRADER_KEYS[kind]):
+                errors.append(f"{grader}: unknown key {key} for a {kind} grader")
             arm = data.get("arm")
             if arm is not None and arm not in GRADER_ARMS:
                 errors.append(f"{grader}: unknown arm {arm!r} (use {' or '.join(sorted(GRADER_ARMS))})")
-            if kind == "llm" and not body:
+            if kind == "llm" and not body and not data.get("criteria"):
                 errors.append(f"{grader}: llm grader has no criteria")
             if kind == "regex":
                 pattern = data.get("pattern")
                 if not isinstance(pattern, str) or not pattern:
                     errors.append(f"{grader}: regex grader has no pattern")
-                elif "(?i)" in pattern:
-                    errors.append(f"{grader}: inline flags are not JavaScript regex syntax; use `flags: i`")
+                elif INLINE_REGEX_FLAGS.search(pattern):
+                    errors.append(f"{grader}: inline flag groups are not JavaScript regex syntax; use `flags:`")
+                flags = data.get("flags")
+                if flags is not None and (not isinstance(flags, str) or not REGEX_FLAGS.fullmatch(flags)):
+                    errors.append(f"{grader}: flags must be JavaScript regex flags (dgimsuvy), got {flags!r}")
             if kind in {"llm", "regex"}:
                 scored = True
             if kind == "tool_used" and data.get("tool") == "Skill" and own_skill.search(str(data.get("input_match", ""))):

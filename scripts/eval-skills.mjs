@@ -34,11 +34,16 @@
  *   two passes (default 2).
  * - `SKILLS_EVAL_RUNS`: `--runs` per case, overriding each case's `runs`
  *   (default 1).
- * - `SKILLS_EVAL_CONCURRENCY`: `--concurrency` (default 1; each run is a full
- *   `claude` child on one rate limit).
+ * - `SKILLS_EVAL_CONCURRENCY`: `--concurrency`, 1 to 8 (default 1; each run is
+ *   a full `claude` child on one rate limit).
  * - `SKILLS_EVAL_PASSES`: `activation`, `behavior` or both (default
  *   `activation,behavior`).
  * - `SKILLS_EVAL_MODEL`: `--model` for every case (default: the CLI's).
+ *
+ * Scores are measured, not gated: each pass runs with `--threshold 0`, so a
+ * case scoring below 1 does not fail it. The script exits 1 only when a pass
+ * did not finish (the cost ceiling, a lost login, an error), and 127 when the
+ * `claude` executable cannot be started.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -80,6 +85,12 @@ const claude = process.env.CLAUDE_BIN || 'claude';
 const maxCost = positiveNumber('SKILLS_EVAL_MAX_COST', 2);
 const runs = positiveNumber('SKILLS_EVAL_RUNS', 1, true);
 const concurrency = positiveNumber('SKILLS_EVAL_CONCURRENCY', 1, true);
+if (concurrency > 8) {
+  console.error(
+    `SKILLS_EVAL_CONCURRENCY must be 1 to 8 (claude plugin eval's range), got ${concurrency}`,
+  );
+  process.exit(2);
+}
 const model = process.env.SKILLS_EVAL_MODEL || undefined;
 const passes = (process.env.SKILLS_EVAL_PASSES || 'activation,behavior')
   .split(',')
@@ -209,10 +220,18 @@ function behaviorMetrics(result) {
 const meaning = code =>
   ({
     0: 'pass',
-    1: 'below threshold',
+    1: 'error',
     2: 'cost ceiling hit',
     127: 'claude not found',
   })[code] ?? 'error';
+
+const probe = spawnSync(claude, ['--version'], { encoding: 'utf8' });
+if (probe.error || probe.status !== 0) {
+  console.error(
+    `Cannot run ${claude} --version: ${probe.error?.message ?? probe.stderr?.trim() ?? `exit ${probe.status}`}. Set CLAUDE_BIN to the claude executable.`,
+  );
+  process.exit(127);
+}
 
 const results = [];
 for (const skill of skills) {
@@ -246,14 +265,18 @@ for (const skill of skills) {
         String(concurrency),
         '--max-cost-usd',
         String(budget),
+        '--threshold',
+        '0',
         '--json',
         json,
         ...(model ? ['--model', model] : []),
       ],
       { cwd, stdio: 'inherit' },
     );
-    if (run.error)
+    if (run.error) {
       console.error(`  could not start ${claude}: ${run.error.message}`);
+      process.exit(127);
+    }
     const result = readResult(json);
     const cost = spend(result);
     entry.cost += cost;
@@ -283,7 +306,7 @@ for (const { skill, cost, passes: done } of results) {
   const a = done.activation?.metrics;
   const b = done.behavior?.metrics;
   rows.push(
-    `| ${skill} | ${a ? `${percent(a.recall)} (${a.truePositive}/${a.truePositive + a.falseNegative})` : '—'} | ${a ? percent(a.precision) : '—'} | ${a ? `${percent(a.negativesSilent)} (${a.trueNegative}/${a.trueNegative + a.falsePositive})` : '—'} | ${b ? `${percent(b.passRate)} / ${percent(b.withoutPassRate)}` : '—'} | ${b?.score === undefined ? '—' : `${b.score.toFixed(2)} / ${(b.withoutScore ?? 0).toFixed(2)}`} | ${b ? percent(b.loaded) : '—'} | $${cost.toFixed(2)} |`,
+    `| ${skill} | ${a ? `${percent(a.recall)} (${a.truePositive}/${a.truePositive + a.falseNegative})` : '—'} | ${a ? percent(a.precision) : '—'} | ${a ? `${percent(a.negativesSilent)} (${a.trueNegative}/${a.trueNegative + a.falsePositive})` : '—'} | ${b ? `${percent(b.passRate)} / ${percent(b.withoutPassRate)}` : '—'} | ${b?.score === undefined ? '—' : `${b.score.toFixed(2)} / ${b.withoutScore === undefined ? '—' : b.withoutScore.toFixed(2)}`} | ${b ? percent(b.loaded) : '—'} | $${cost.toFixed(2)} |`,
   );
 }
 const total = results.reduce((sum, { cost }) => sum + cost, 0);

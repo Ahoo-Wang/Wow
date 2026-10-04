@@ -56,7 +56,8 @@ const markdown = (dir) =>
     existsSync(dir)
         ? readdirSync(dir, {recursive: true})
               .map((file) => file.split('\\').join('/'))
-              .filter((file) => file.endsWith('.md'))
+              // A Skill's eval cases are prompts and graders, not samples.
+              .filter((file) => file.endsWith('.md') && !/(?:^|\/)evals\//.test(file))
               .map((file) => join(dir, file))
         : []
 

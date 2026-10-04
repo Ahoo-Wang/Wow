@@ -82,7 +82,7 @@ node scripts/eval-skills.mjs wow-client         # 指定 Skill
 SKILLS_EVAL_RUNS=3 SKILLS_EVAL_MAX_COST=5 SKILLS_EVAL_CONCURRENCY=2 node scripts/eval-skills.mjs
 ```
 
-脚本在每个 Skill 目录内分两轮调用 `claude plugin eval`：`activation` 用例以 `--ablation none` 运行（不加载 Skill 的对照臂对触发判断没有意义），`behavior` 用例以默认的 with/without 对照运行；随后汇总每个 Skill 的触发召回率与精确率、行为通过率（含不加载 Skill 的基线）和费用。只有被测 Skill 会加载，所以相邻 Skill 的竞争不在评估范围内。环境变量：`CLAUDE_BIN`（默认 `claude`）、`SKILLS_EVAL_RUNS`（默认 1）、`SKILLS_EVAL_MAX_COST`（每个 Skill 两轮共享的美元上限，默认 2）、`SKILLS_EVAL_CONCURRENCY`（默认 1）、`SKILLS_EVAL_PASSES`（`activation`、`behavior`，默认两者）与 `SKILLS_EVAL_MODEL`。报告写入不纳入版本控制的 `skills/<name>/evals/results/`。
+脚本在每个 Skill 目录内分两轮调用 `claude plugin eval`：`activation` 用例以 `--ablation none` 运行（不加载 Skill 的对照臂对触发判断没有意义），`behavior` 用例以默认的 with/without 对照运行；随后汇总每个 Skill 的触发召回率与精确率、行为通过率（含不加载 Skill 的基线）和费用。只有被测 Skill 会加载，所以相邻 Skill 的竞争不在评估范围内。环境变量：`CLAUDE_BIN`（默认 `claude`）、`SKILLS_EVAL_RUNS`（默认 1）、`SKILLS_EVAL_MAX_COST`（每个 Skill 两轮共享的美元上限，默认 2）、`SKILLS_EVAL_CONCURRENCY`（1–8，默认 1）、`SKILLS_EVAL_PASSES`（`activation`、`behavior`，默认两者）与 `SKILLS_EVAL_MODEL`。报告写入不纳入版本控制的 `skills/<name>/evals/results/`。分数只记录、不设门槛（`--threshold 0`）：脚本仅在某一轮未完成（费用上限、登录失效、错误）时退出 1，找不到 `claude` 时退出 127。
 
 ## Distribution
 
