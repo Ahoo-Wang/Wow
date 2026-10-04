@@ -564,6 +564,19 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ]),
     ['wow-react', 'wow-generator'],
   );
+  // The Kotlin contract snapshots wow-client's tests read rerun wow-client.
+  assert.deepEqual(
+    unitPackages([
+      'wow-openapi/src/test/resources/openapi/example-domain-contract.snapshot.json',
+    ]),
+    ['wow-client'],
+  );
+  assert.deepEqual(
+    on([
+      'wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json',
+    ]),
+    ['sdk', 'contract'],
+  );
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
     '.github/workflows/typescript.yml',

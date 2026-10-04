@@ -14,11 +14,12 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.openapi.RouteSuffixes
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 
-const val SNAPSHOT_PAGED_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/paged"
-const val SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME = "$SNAPSHOT_PAGED_QUERY_RESOURCE_NAME/state"
+const val SNAPSHOT_PAGED_QUERY_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_PAGED
+const val SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_PAGED_STATE
 
 interface SnapshotPagedQueryApi<R, RD, RS> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)

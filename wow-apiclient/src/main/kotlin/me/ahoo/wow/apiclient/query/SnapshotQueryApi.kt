@@ -13,6 +13,12 @@
 
 package me.ahoo.wow.apiclient.query
 
-const val SNAPSHOT_RESOURCE_NAME = "snapshot"
+import me.ahoo.wow.openapi.RouteSuffixes
+
+/**
+ * [RouteSuffixes.SNAPSHOT]. This and the other `SNAPSHOT_*_RESOURCE_NAME` constants are names for the
+ * [RouteSuffixes] the server's routes use, so the client's paths are the server's.
+ */
+const val SNAPSHOT_RESOURCE_NAME = RouteSuffixes.SNAPSHOT
 
 interface SnapshotQueryApi

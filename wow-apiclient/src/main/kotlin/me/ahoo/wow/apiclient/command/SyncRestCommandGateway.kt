@@ -65,6 +65,19 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
         aggregate: String?
     ): ResponseEntity<CommandResult>
 
+    /**
+     * Sends [command] with [headers], built by [CommandRequest.toRequestHeaders]: the same request as the [send] that
+     * takes one parameter per header.
+     */
+    @PostExchange
+    fun send(
+        sendUri: URI,
+        @RequestHeader
+        headers: Map<String, String>,
+        @RequestBody
+        command: Any
+    ): ResponseEntity<CommandResult>
+
     override fun send(commandRequest: CommandRequest): CommandResult {
         try {
             return super.send(commandRequest)

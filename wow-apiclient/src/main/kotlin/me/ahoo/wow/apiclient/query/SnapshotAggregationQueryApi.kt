@@ -14,10 +14,11 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.openapi.RouteSuffixes
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 
-const val SNAPSHOT_AGGREGATION_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/aggregation"
+const val SNAPSHOT_AGGREGATION_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_AGGREGATION
 
 interface SnapshotAggregationQueryApi<R> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_AGGREGATION_RESOURCE_NAME)

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
+import me.ahoo.wow.openapi.RouteSuffixes
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -44,6 +45,10 @@ import me.ahoo.wow.openapi.contributor.notFoundResponseRef
 import me.ahoo.wow.openapi.contributor.schemaRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
+/**
+ * The state routes of an aggregate. Their paths come from [me.ahoo.wow.openapi.RouteSuffixes]; their resource and
+ * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
+ */
 object StateRouteContributor : RouteContributor {
     override val id: String = "aggregate.state"
     override val category: RouteCategory = RouteCategory.STATE
@@ -77,7 +82,7 @@ object StateRouteContributor : RouteContributor {
             summary = "Get Aggregate Tracing",
             appendOwnerPath = false,
             appendIdPath = true,
-            appendPathSuffix = "state/tracing",
+            appendPathSuffix = RouteSuffixes.STATE_TRACING,
             extraParameters = tracingQueryParameters(componentContext),
             responses = tracingResponses(
                 aggregateRouteMetadata,
@@ -101,7 +106,7 @@ object StateRouteContributor : RouteContributor {
             summary = "Load State Aggregate",
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
-            appendPathSuffix = "state",
+            appendPathSuffix = RouteSuffixes.STATE,
             responses = loadAggregateResponses(
                 "Load State Aggregate",
                 aggregateRouteMetadata,
@@ -125,7 +130,7 @@ object StateRouteContributor : RouteContributor {
             summary = "Load Versioned State Aggregate",
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
-            appendPathSuffix = "state/{version}",
+            appendPathSuffix = RouteSuffixes.STATE_VERSIONED,
             extraParameters = listOf(componentContext.versionPathParameterRef()),
             responses = loadAggregateResponses(
                 "Load Versioned State Aggregate",
@@ -150,7 +155,7 @@ object StateRouteContributor : RouteContributor {
             summary = "Load Time Based State Aggregate",
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
-            appendPathSuffix = "state/time/{createTime}",
+            appendPathSuffix = RouteSuffixes.STATE_TIME_BASED,
             extraParameters = listOf(componentContext.createTimePathParameterRef()),
             responses = loadAggregateResponses(
                 "Load Time Based State Aggregate",

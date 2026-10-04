@@ -17,6 +17,17 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.NAMED_AGGREGATE_DELIMITER
 import me.ahoo.wow.modeling.toStringWithAlias
 
+/**
+ * Builds a route id, the OpenAPI `operationId` of a route: `{context}.{aggregate}[.tenant][.owner][.{resource}][.{operation}]`,
+ * for example `example.cart.snapshot_state.single`.
+ *
+ * Route ids are a contract, not just labels. `@ahoo-wang/wow-generator` reads a service's `/v3/api-docs` and finds
+ * operations by them (`typescript/wow-generator/src/wow/conventions.ts`): `wow.command.send`, and the suffixes
+ * `.snapshot_state.single`, `.event.list_query` and `.snapshot.count`; a command's id is
+ * `{context}.{aggregate}.{command}`. So the resource names and operation names the route contributors pass here
+ * (`snapshot`, `snapshot_state`, `event`, `list_query`, `single`, `count`, …) change only with the generator, in a
+ * major version. The committed contract snapshot (`example-domain-contract.snapshot.json`) pins every id.
+ */
 class RouteIdSpec {
 
     private var prefix: String = ""

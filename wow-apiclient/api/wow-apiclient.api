@@ -56,6 +56,10 @@ public final class me/ahoo/wow/apiclient/command/CommandRequest$WaitPlan {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/apiclient/command/CommandRequestHeadersKt {
+	public static final fun toRequestHeaders (Lme/ahoo/wow/apiclient/command/CommandRequest;)Ljava/util/Map;
+}
+
 public final class me/ahoo/wow/apiclient/command/CommandRequestKt {
 	public static final field COMMAND_SEND_ENDPOINT Ljava/lang/String;
 }
@@ -63,6 +67,7 @@ public final class me/ahoo/wow/apiclient/command/CommandRequestKt {
 public abstract interface class me/ahoo/wow/apiclient/command/ReactiveRestCommandGateway : me/ahoo/wow/apiclient/command/RestCommandGateway {
 	public synthetic fun send (Ljava/net/URI;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/command/wait/CommandStage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
 	public abstract fun send (Ljava/net/URI;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/command/wait/CommandStage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public abstract fun send (Ljava/net/URI;Ljava/util/Map;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
 	public synthetic fun unwrapResponse (Lme/ahoo/wow/apiclient/command/CommandRequest;Ljava/lang/Object;)Ljava/lang/Object;
 	public fun unwrapResponse (Lme/ahoo/wow/apiclient/command/CommandRequest;Lreactor/core/publisher/Mono;)Lreactor/core/publisher/Mono;
 }
@@ -100,6 +105,7 @@ public final class me/ahoo/wow/apiclient/command/RestCommandGatewayException : m
 public abstract interface class me/ahoo/wow/apiclient/command/SyncRestCommandGateway : me/ahoo/wow/apiclient/command/RestCommandGateway {
 	public synthetic fun send (Ljava/net/URI;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/command/wait/CommandStage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
 	public abstract fun send (Ljava/net/URI;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/command/wait/CommandStage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;
+	public abstract fun send (Ljava/net/URI;Ljava/util/Map;Ljava/lang/Object;)Lorg/springframework/http/ResponseEntity;
 	public synthetic fun send (Lme/ahoo/wow/apiclient/command/CommandRequest;)Ljava/lang/Object;
 	public fun send (Lme/ahoo/wow/apiclient/command/CommandRequest;)Lme/ahoo/wow/command/CommandResult;
 	public synthetic fun unwrapResponse (Lme/ahoo/wow/apiclient/command/CommandRequest;Ljava/lang/Object;)Ljava/lang/Object;
