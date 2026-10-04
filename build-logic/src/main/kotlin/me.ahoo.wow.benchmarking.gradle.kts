@@ -1127,6 +1127,82 @@ val quickComponentProfile = quickProfile.copy(
     )
 )
 
+/**
+ * The hot paths the 9.3.0 refactor changes (design WP G2): new consume-path, local-first, HTTP edge and query
+ * delivery benchmarks, plus the existing command-path rows the refactor's work packages compare against. Run it on the
+ * code before a change and again after it; label each report with `-PbenchmarkRefactorReportLabel`.
+ */
+val refactorHotPathsSuite = BenchmarkSuite(
+    id = "refactor-hot-paths",
+    displayName = "Refactor Hot Paths",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateOnly",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateWithoutRetry",
+        "me.ahoo.wow.benchmark.component.CommandPipelineComponentBenchmark.handleAggregateAndNotifyProcessedWithLocalWait",
+        "me.ahoo.wow.benchmark.component.AggregateHandleComponentBenchmark.processCommandAggregate",
+        "me.ahoo.wow.benchmark.component.AggregateLoadComponentBenchmark.recoverConstantSizeStateFromEvents",
+        "me.ahoo.wow.benchmark.component.CommandDispatcherChainComponentBenchmark.dispatchSingleHotAggregateThroughChain",
+        "me.ahoo.wow.benchmark.component.EventPublishComponentBenchmark.publishDomainEventStream",
+        "me.ahoo.wow.benchmark.component.EventDispatchComponentBenchmark",
+        "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark.sendAndWaitProcessed",
+        "me.ahoo.wow.benchmark.e2e.CommandSendE2EBenchmark.sendAndWaitSent",
+        "me.ahoo.wow.benchmark.e2e.LocalFirstCommandSendE2EBenchmark",
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark.extractPreparedCommandMessage",
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent",
+        "me.ahoo.wow.benchmark.webflux.CommandRequestAppenderBenchmark",
+        "me.ahoo.wow.benchmark.webflux.RouterDispatchBenchmark",
+        "me.ahoo.wow.benchmark.query.SchemaMaskGatewayBenchmark",
+        "me.ahoo.wow.benchmark.query.EventStreamQueryDeliveryBenchmark",
+    ),
+    resultFileName = "refactor-hot-paths.json",
+    humanFileName = "refactor-hot-paths-human.txt",
+)
+
+/**
+ * Transport receive → acknowledge for the refactor's consumer changes (design WP G2). Kafka is not listed: the
+ * benchmarks have no Kafka service, so `KafkaEventReceiveAckBenchmark` runs from the JMH jar (see README).
+ */
+val refactorTransportSuite = BenchmarkSuite(
+    id = "refactor-transport",
+    displayName = "Refactor Transport",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.infrastructure.transport.RedisEventReceiveAckBenchmark",
+    ),
+    resultFileName = "refactor-transport.json",
+    humanFileName = "refactor-transport-human.txt",
+    requiredServices = listOf(
+        BenchmarkRequiredService(
+            service = "Redis",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_REDIS_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_REDIS_HOST_PORT", 6379),
+        ),
+    ),
+)
+
+val quickRefactorProfile = quickProfile.copy(
+    threads = benchmarkThreadsProperty("benchmarkQuickRefactorThreads", listOf(1, 4)),
+    parameters = mapOf(
+        "eventCount" to "10,500",
+        "handlerCost" to "NOOP",
+        "schedulerStrategy" to "PARALLEL",
+        "scenario" to "ceiling,in-memory-new-aggregate",
+    ),
+)
+
+val quickRefactorHotPathsTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickRefactorHotPaths",
+    suite = refactorHotPathsSuite,
+    profile = quickRefactorProfile,
+    description = "Runs the 9.3.0 refactor hot-path catalog (no external services).",
+)
+
+val quickRefactorTransportTaskSpec = BenchmarkTaskSpec(
+    taskName = "benchmarkQuickRefactorTransport",
+    suite = refactorTransportSuite,
+    profile = quickRefactorProfile,
+    description = "Runs the 9.3.0 refactor transport receive/ack catalog (needs Redis).",
+)
+
 val diagnosticComponentSuite = quickComponentSuite.copy(
     includeClasses = benchmarkIncludesProperty(
         "benchmarkDiagnosticComponentIncludes",
@@ -1400,6 +1476,8 @@ val benchmarkTaskSpecs = listOf(
     asyncE2ETaskSpec,
     asyncComponentTaskSpec,
     asyncWebFluxTaskSpec,
+    quickRefactorHotPathsTaskSpec,
+    quickRefactorTransportTaskSpec,
 )
 
 val baselineReportTaskSpecs = listOf(
@@ -10826,6 +10904,69 @@ tasks.register("generateQuickWebFluxBenchmarkReport") {
         logger.lifecycle("Quick WebFlux benchmark report generated: ${outputFile.absolutePath}")
     }
 }
+
+/**
+ * Label in the refactor report file name, for example `9.2.2-baseline` before a work package and
+ * `<wp>-candidate` after it, so both reports sit side by side.
+ */
+val refactorReportLabel: String = providers.gradleProperty("benchmarkRefactorReportLabel")
+    .getOrElse("current")
+    .also { label ->
+        require(Regex("[A-Za-z0-9._-]+").matches(label)) {
+            "benchmarkRefactorReportLabel must use only letters, digits, '.', '_' or '-': $label"
+        }
+    }
+
+fun registerRefactorReportTask(
+    taskName: String,
+    taskSpec: BenchmarkTaskSpec,
+    reportPrefix: String,
+    title: String,
+    description: String,
+) {
+    val reportFile = reportsDir.file("$reportPrefix-$refactorReportLabel.md")
+    tasks.register(taskName) {
+        this.description = "Generate the $title from JMH JSON results."
+        group = "benchmark"
+        mustRunAfter(taskSpec.taskName)
+        outputs.file(reportFile)
+        outputs.upToDateWhen { false }
+        doLast {
+            val report = renderBottleneckBenchmarkReport(
+                group = benchmarkResultGroup(taskSpec),
+                title = "$title ($refactorReportLabel)",
+                command = "./gradlew :wow-benchmarks:${taskSpec.taskName} :wow-benchmarks:$taskName " +
+                    "-PbenchmarkRefactorReportLabel=$refactorReportLabel",
+                description = description,
+            )
+            val outputFile = reportFile.asFile
+            outputFile.parentFile.mkdirs()
+            outputFile.writeText(report)
+            logger.lifecycle("$title generated: ${outputFile.absolutePath}")
+        }
+    }
+}
+
+registerRefactorReportTask(
+    taskName = "generateQuickRefactorHotPathsBenchmarkReport",
+    taskSpec = quickRefactorHotPathsTaskSpec,
+    reportPrefix = "quick-refactor-hot-paths",
+    title = "Quick Refactor Hot Paths Benchmark Report",
+    description = "Directional quick-profile numbers for the paths the 9.3.0 refactor changes: event dispatch, " +
+        "local-first send, the command HTTP edge (appenders, router), per-command aggregate processing and query " +
+        "delivery. Compare two labelled reports from the same machine and JVM; treat single-run differences under " +
+        "the JMH error as noise.",
+)
+
+registerRefactorReportTask(
+    taskName = "generateQuickRefactorTransportBenchmarkReport",
+    taskSpec = quickRefactorTransportTaskSpec,
+    reportPrefix = "quick-refactor-transport",
+    title = "Quick Refactor Transport Benchmark Report",
+    description = "Directional quick-profile numbers for broker receive and acknowledge through the Redis Streams " +
+        "event bus on a local Docker Redis. Docker Desktop networking dominates absolute latency; use it to " +
+        "compare framework changes on the same machine.",
+)
 
 tasks.register("generateBaselineBenchmarkReport") {
     description = "Generate the formal grouped benchmark report from baseline and exhaustive JMH results."

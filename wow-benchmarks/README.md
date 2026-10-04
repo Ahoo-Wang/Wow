@@ -40,6 +40,25 @@ Smoke 使用单线程、单 fork、一次 1 秒测量且无预热，不生成性
   -PbenchmarkQuickWebFluxThreads=1
 ```
 
+重构前后对比用重构目录：改动前后各跑一次，用 `-PbenchmarkRefactorReportLabel` 给报告加标签（报告写入 `results/reports/quick-refactor-hot-paths-<标签>.md`）。`benchmarkQuickRefactorTransport` 需要本地 Redis。
+
+```shell
+./gradlew :wow-benchmarks:benchmarkQuickRefactorHotPaths \
+  :wow-benchmarks:generateQuickRefactorHotPathsBenchmarkReport \
+  -PbenchmarkRefactorReportLabel=9.2.2-baseline
+./gradlew :wow-benchmarks:benchmarkQuickRefactorTransport \
+  :wow-benchmarks:generateQuickRefactorTransportBenchmarkReport \
+  -PbenchmarkRefactorReportLabel=9.2.2-baseline
+```
+
+Kafka 的接收与确认不在 Gradle suite 中（基准没有 Kafka 服务），先 `./gradlew :wow-benchmarks:jmhJar`，再对一个 broker 运行：
+
+```shell
+java -jar wow-benchmarks/build/libs/wow-benchmarks-*-jmh.jar KafkaEventReceiveAckBenchmark \
+  -f 1 -wi 1 -w 2s -i 2 -r 3s -t 1 -prof gc \
+  -jvmArgs "-Xmx1g -Xms1g -Dwow.benchmark.kafka.bootstrap-servers=localhost:9092"
+```
+
 `benchmarkQuickInfrastructureE2E` 同时需要本地 Redis 和 MongoDB；存储批处理的 Quick/Confirmation task 则按 suite 声明需要 MongoDB 或 Elasticsearch。
 
 ### 3. 可重现基线

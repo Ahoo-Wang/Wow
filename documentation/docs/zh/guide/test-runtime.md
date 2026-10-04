@@ -142,6 +142,14 @@ Smoke 不是性能报告，Quick 不是生产容量模型，隔离组件结果�
 
 WebFlux suite 不启动真实 Netty server。当前 `benchmarkQuickInfrastructureE2E` 同时包含 Redis 与 Mongo workload，因此本地 Redis 和 MongoDB 都是 required services，缺少任一服务都不满足该 suite 的运行条件。报告必须保留工作负载、线程、JVM、服务和源码 provenance，不能把层间数字直接横向解释。
 
+改动框架热路径的工作，在同一台机器上对重构目录跑两次并分别加标签：改动前一次，改动后一次。`benchmarkQuickRefactorHotPaths` 不需要外部服务，覆盖事件分发（1 个与 8 个处理器、指标开与关、内存总线与本地优先总线）、本地优先的命令发送、命令 HTTP 入口（请求头 appender、整路由分发）、每条命令的聚合处理，以及事件流查询的结果交付。`benchmarkQuickRefactorTransport` 测 Redis Streams 的接收与确认，需要基准用的 Redis。Kafka 的接收与确认（`KafkaEventReceiveAckBenchmark`）不在 Gradle suite 中，因为基准还没有 Kafka 服务；用 JMH jar 对一个 broker 运行。
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickRefactorHotPaths \
+  :wow-benchmarks:generateQuickRefactorHotPathsBenchmarkReport \
+  -PbenchmarkRefactorReportLabel=9.2.2-baseline
+```
+
 ### 正式回归证据
 
 对精确的框架 E2E 工作负载建立可比较证据：
