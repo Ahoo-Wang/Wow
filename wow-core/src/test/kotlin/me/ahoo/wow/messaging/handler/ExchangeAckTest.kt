@@ -64,6 +64,22 @@ class ExchangeAckTest {
     }
 
     @Test
+    fun `finallyAck leaves an exchange whose acknowledgement is withheld unacknowledged`() {
+        val succeeded = AckExchange().also { it.withholdAcknowledgement() }
+        val failed = AckExchange().also { it.withholdAcknowledgement() }
+        val error = IllegalStateException("failed")
+
+        StepVerifier.create(Mono.just("value").finallyAck(succeeded))
+            .verifyComplete()
+        StepVerifier.create(Flux.error<String>(error).finallyAck(failed))
+            .expectErrorMatches { it === error }
+            .verify()
+
+        succeeded.ackCount.get().assert().isZero()
+        failed.ackCount.get().assert().isZero()
+    }
+
+    @Test
     fun `filterThenAck passes matching exchanges and acknowledges discarded exchanges`() {
         val kept = AckExchange(message = TestNamedMessage(id = "keep"))
         val discarded = AckExchange(message = TestNamedMessage(id = "discard"))

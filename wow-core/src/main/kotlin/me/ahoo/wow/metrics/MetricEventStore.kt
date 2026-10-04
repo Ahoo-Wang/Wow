@@ -61,6 +61,15 @@ internal class MetricEventStore(
             descriptor("exists_request_id", aggregateId.contextName, aggregateId.aggregateName),
         )
 
+    override fun single(
+        aggregateId: AggregateId,
+        version: Int,
+    ): Mono<DomainEventStream> =
+        metrics.operation(
+            delegate.single(aggregateId, version),
+            descriptor("single", aggregateId.contextName, aggregateId.aggregateName),
+        )
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> =
         metrics.operation(
             delegate.last(aggregateId),

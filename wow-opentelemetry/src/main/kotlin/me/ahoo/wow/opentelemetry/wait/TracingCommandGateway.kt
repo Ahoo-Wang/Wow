@@ -68,6 +68,29 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
         }
     }
 
+    override fun <C : Any> sendAndWaitForSent(command: CommandMessage<C>): Mono<CommandResult> =
+        traceWait(command) { delegate.sendAndWaitForSent(command) }
+
+    override fun <C : Any> sendAndWaitForProcessed(command: CommandMessage<C>): Mono<CommandResult> =
+        traceWait(command) { delegate.sendAndWaitForProcessed(command) }
+
+    override fun <C : Any> sendAndWaitForSnapshot(command: CommandMessage<C>): Mono<CommandResult> =
+        traceWait(command) { delegate.sendAndWaitForSnapshot(command) }
+
+    private fun traceWait(
+        command: CommandMessage<*>,
+        source: () -> Mono<CommandResult>,
+    ): Mono<CommandResult> {
+        return Mono.deferContextual {
+            TraceMono(
+                parentContext = ReactorTraceContext.get(it),
+                instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
+                request = command,
+                source = Mono.defer(source),
+            )
+        }
+    }
+
     override fun send(message: CommandMessage<*>): Mono<Void> {
         return delegate.send(message)
     }

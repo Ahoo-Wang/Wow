@@ -16,6 +16,7 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.command.CommandBus
@@ -43,10 +44,14 @@ import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.messaging.handler.withholdAcknowledgement
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+import java.time.Duration
+import reactor.util.retry.Retry as ReactorRetry
 
 fun FunctionInfo.getRetry(): Retry? {
     if (this !is MessageFunction<*, *, *>) {
@@ -105,7 +110,7 @@ abstract class EventCompensationFilter<EXCHANGE : EventExchange<*, *>>(private v
                     )
                 }
                 val commandMessage = command.toCommandMessage()
-                commandBus.send(commandMessage).then(it.toMono())
+                recordFailure(exchange, commandMessage, it)
             }
             .then(
                 Mono.defer {
@@ -117,6 +122,55 @@ abstract class EventCompensationFilter<EXCHANGE : EventExchange<*, *>>(private v
                     commandBus.send(commandMessage)
                 }
             )
+    }
+
+    /**
+     * Retry of the failure-record send. The whole send is retried, the handler is not run again.
+     */
+    internal var recordFailureRetry: ReactorRetry = DEFAULT_RECORD_FAILURE_RETRY
+
+    /**
+     * Sends the failure record, retrying the send with [recordFailureRetry], then re-emits [handlerError]. When the
+     * record still cannot be sent, the exchange is left unacknowledged so the bus can deliver it again (a failure
+     * neither handled nor recorded is not acknowledged), and the handler error stays the error of this exchange,
+     * with the last send failure suppressed in it.
+     */
+    private fun recordFailure(
+        exchange: EXCHANGE,
+        commandMessage: CommandMessage<*>,
+        handlerError: Throwable,
+    ): Mono<Void> {
+        return Mono.defer { commandBus.send(commandMessage) }
+            .retryWhen(recordFailureRetry)
+            .onErrorResume { error ->
+                exchange.withholdAcknowledgement()
+                val recordError = if (Exceptions.isRetryExhausted(error)) error.cause ?: error else error
+                handlerError.addSuppressedOnce(recordError)
+                Mono.empty()
+            }
+            .then(Mono.error(handlerError))
+    }
+
+    private companion object {
+        private val DEFAULT_RECORD_FAILURE_RETRY: ReactorRetry =
+            ReactorRetry.backoff(3, Duration.ofSeconds(1)).maxBackoff(Duration.ofSeconds(10))
+    }
+}
+
+/**
+ * Adds [error] as suppressed unless it is this throwable itself or an equal failure (same type and message) is
+ * already suppressed: a shared or singleton handler exception is thrown again on every redelivery and must not
+ * grow a suppressed entry each time.
+ */
+internal fun Throwable.addSuppressedOnce(error: Throwable) {
+    if (error === this) {
+        return
+    }
+    val alreadySuppressed = suppressed.any {
+        it === error || (it.javaClass == error.javaClass && it.message == error.message)
+    }
+    if (!alreadySuppressed) {
+        addSuppressed(error)
     }
 }
 

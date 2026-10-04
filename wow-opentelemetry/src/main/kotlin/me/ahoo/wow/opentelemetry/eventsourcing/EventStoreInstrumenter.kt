@@ -42,6 +42,15 @@ object EventStoreInstrumenter {
         ).addAttributesExtractor(AggregateIdAttributesExtractor)
             .setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
+
+    val EXISTS_REQUEST_ID_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
+        Instrumenter.builder<AggregateId, Unit>(
+            GlobalOpenTelemetry.get(),
+            INSTRUMENTATION_NAME,
+            EventStoreExistsRequestIdSpanNameExtractor,
+        ).addAttributesExtractor(AggregateIdAttributesExtractor)
+            .setInstrumentationVersion(Wow.VERSION)
+            .buildInstrumenter()
 }
 
 object EventStoreAppendSpanNameExtractor : SpanNameExtractor<DomainEventStream> {
@@ -54,5 +63,11 @@ object EventStoreAppendSpanNameExtractor : SpanNameExtractor<DomainEventStream> 
 object EventStoreLoadSpanNameExtractor : SpanNameExtractor<AggregateId> {
     override fun extract(request: AggregateId): String {
         return "${request.aggregateName}.event.load"
+    }
+}
+
+object EventStoreExistsRequestIdSpanNameExtractor : SpanNameExtractor<AggregateId> {
+    override fun extract(request: AggregateId): String {
+        return "${request.aggregateName}.event.existsRequestId"
     }
 }

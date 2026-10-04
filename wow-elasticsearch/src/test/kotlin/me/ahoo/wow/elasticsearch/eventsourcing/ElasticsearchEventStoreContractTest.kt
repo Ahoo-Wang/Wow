@@ -34,10 +34,8 @@ class ElasticsearchEventStoreContractTest {
 
     companion object {
         /**
-         * Gaps that exist today, removed by 9.3.0 WP S5. The list may only shrink.
+         * Allowed gaps, emptied by 9.3.0 WP S5. A new entry must name the work item that removes it.
          */
-        val KNOWN_GAPS: List<String> = listOf(
-            "ElasticsearchEventStore.existsRequestId(AggregateId,String)",
-        )
+        val KNOWN_GAPS: List<String> = emptyList()
     }
 }

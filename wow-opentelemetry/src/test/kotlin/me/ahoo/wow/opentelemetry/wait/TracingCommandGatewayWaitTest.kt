@@ -24,8 +24,10 @@ import io.opentelemetry.sdk.trace.data.SpanData
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import io.opentelemetry.sdk.trace.export.SpanExporter
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
@@ -45,11 +47,16 @@ import me.ahoo.wow.opentelemetry.Tracing.tracing
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.concurrent.CopyOnWriteArrayList
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class TracingCommandGatewayWaitTest {
     @AfterEach
     fun resetOpenTelemetry() {
@@ -102,6 +109,7 @@ class TracingCommandGatewayWaitTest {
     }
 
     @Test
+    @Order(1)
     fun `send and wait traces waiting stream`() {
         GlobalOpenTelemetry.resetForTest()
         val spanExporter = RecordingSpanExporter()
@@ -143,6 +151,31 @@ class TracingCommandGatewayWaitTest {
                 .assert()
                 .isTrue()
         }
+    }
+
+    /**
+     * Runs after `send and wait traces waiting stream`: subscribing initialises `WaitPlanInstrumenter`, which keeps
+     * the global OpenTelemetry instance of its first use.
+     */
+    @Test
+    @Order(2)
+    fun `convenience waits forward to the delegate's own implementation`() {
+        val command = MockCreateAggregate(generateGlobalId(), generateGlobalId()).toCommandMessage()
+        val sent = mockk<CommandResult>()
+        val processed = mockk<CommandResult>()
+        val snapshot = mockk<CommandResult>()
+        val delegate = mockk<CommandGateway> {
+            every { sendAndWaitForSent(command) } returns Mono.just(sent)
+            every { sendAndWaitForProcessed(command) } returns Mono.just(processed)
+            every { sendAndWaitForSnapshot(command) } returns Mono.just(snapshot)
+        }
+        val gateway = TracingCommandGateway(delegate)
+
+        gateway.sendAndWaitForSent(command).test().expectNext(sent).verifyComplete()
+        gateway.sendAndWaitForProcessed(command).test().expectNext(processed).verifyComplete()
+        gateway.sendAndWaitForSnapshot(command).test().expectNext(snapshot).verifyComplete()
+
+        verify(exactly = 0) { delegate.sendAndWait(any<CommandMessage<*>>(), any()) }
     }
 }
 

@@ -99,7 +99,7 @@ This prevents a wait notification from announcing success before compensation wr
 
 ## Acknowledgement and Failure Boundaries
 
-A function error is handled by that component's `Handler` error boundary. Event Processor, Saga, and Projection use `LogResumeErrorHandler` by default, which logs and resumes. After function handling for a domain event stream or state event terminates, `AbstractAggregateEventDispatcher` uses `finallyAck` to acknowledge the source exchange. The Snapshot function filter also applies `finallyAck` to its state-event exchange. These acknowledgements run on both successful and erroneous termination, and the concrete Bus Adapter maps each call to its own acknowledgement action.
+A function error is handled by that component's `Handler` error boundary. Event Processor, Saga, and Projection use `LogResumeErrorHandler` by default, which logs and resumes. After function handling for a domain event stream or state event terminates, `AbstractAggregateEventDispatcher` uses `finallyAck` to acknowledge the source exchange. The Snapshot function filter also applies `finallyAck` to its state-event exchange. These acknowledgements run on both successful and erroneous termination, and the concrete Bus Adapter maps each call to its own acknowledgement action. The one exception is a function failure that the compensation filter could not record even after retrying: that function exchange withholds acknowledgement, the other functions of the stream still run, and the dispatcher then leaves the whole source exchange unacknowledged. On Kafka this eventually pauses the whole receiver until a restart or rebalance (see [Event Compensation](./compensation.md)).
 
 Keep three boundaries distinct:
 
