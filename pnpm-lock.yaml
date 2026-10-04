@@ -196,7 +196,7 @@ catalogs:
       specifier: ^29.1.1
       version: 29.1.1
     lucide-react:
-      specifier: ^1.50.0
+      specifier: ^1.51.0
       version: 1.51.0
     medium-zoom:
       specifier: ^1.1.0
