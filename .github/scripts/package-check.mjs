@@ -15,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { fetcherFloor, peerFetchers } from './fetcher-floor.mjs';
 import { ROOT, readProjectVersion } from './project-version.mjs';
 import {
   HELD_BACK,
@@ -31,6 +32,7 @@ import {
 //
 //   node .github/scripts/package-check.mjs [--tarballs <dir>]
 //   node .github/scripts/package-check.mjs --registry
+//   node .github/scripts/package-check.mjs --fetcher-floor
 //
 // Without --tarballs it packs the PUBLISHED packages itself.
 //
@@ -46,7 +48,8 @@ import {
 //    workspace, and `engines.node` matches the workspace root.
 // 2. publint (strict) on each tarball.
 // 3. A fresh npm project installs the tarballs, or with --registry the
-//    published versions (npm adds the peers), then:
+//    published versions (npm adds the peers: the newest fetcher in range, or
+//    with --fetcher-floor the floor of the `peers` catalog), then:
 //    - ES module import of every entry point, and CommonJS require of those
 //      CommonJS users are promised; wow-react is ESM only and is required
 //      through Node's require(esm); the view engine and the view store are
@@ -141,6 +144,18 @@ export const TYPESCRIPT_VERSIONS = {
 
 /** The alias a TypeScript version is installed under, e.g. `typescript-6.0`. */
 const typescriptAlias = label => `typescript-${label}`;
+
+/**
+ * The fetcher peers at the floor of their `peers` range, for --fetcher-floor:
+ * npm would otherwise install the newest fetcher the range allows. The
+ * `fetcher-floor` job runs the check this way, the `package` job without.
+ */
+export function floorPeers(workspaceYaml) {
+  const floor = fetcherFloor(workspaceYaml);
+  return Object.keys(peerFetchers(workspaceYaml)).map(
+    name => `${name}@${floor}`,
+  );
+}
 
 /** Consumers compiled under each resolution mode. */
 const CLIENT_AND_GENERATOR = `import { filter } from '@ahoo-wang/wow-client';
@@ -443,10 +458,10 @@ function checkDistTags(plan, version) {
 
 /**
  * Installs `packages` (tarball paths, or name@version specs) into a fresh npm
- * project and checks it as a consumer, compiling it under each of
- * TYPESCRIPT_VERSIONS.
+ * project, with the `peers` specs where given, and checks it as a consumer,
+ * compiling it under each of TYPESCRIPT_VERSIONS.
  */
-function checkConsumer(plan, packages, version) {
+function checkConsumer(plan, packages, version, peers = []) {
   const project = mkdtempSync(join(tmpdir(), 'wow-package-check-'));
   try {
     writeFileSync(
@@ -463,6 +478,7 @@ function checkConsumer(plan, packages, version) {
         // Versions published minutes ago: ask the registry, not a cache.
         '--prefer-online',
         ...packages,
+        ...peers,
         `@types/node@${catalogVersion('@types/node')}`,
         `@types/react@${catalogVersion('@types/react')}`,
         ...OPTIONAL_PEERS.map(name => `${name}@${catalogVersion(name)}`),
@@ -597,8 +613,14 @@ function checkConsumer(plan, packages, version) {
       }
     }
     fail(problems);
+    const fetcher = JSON.parse(
+      readFileSync(
+        join(project, 'node_modules', '@ahoo-wang', 'fetcher', 'package.json'),
+        'utf8',
+      ),
+    ).version;
     console.log(
-      `consumer: installed, imported, required and ran the bins of ${version}`,
+      `consumer: installed, imported, required and ran the bins of ${version}, on fetcher ${fetcher}`,
     );
   } finally {
     rmSync(project, { recursive: true, force: true });
@@ -614,6 +636,10 @@ if (
   const given = index === -1 ? undefined : resolve(args[index + 1]);
   const version = readProjectVersion();
   const plan = publishPlan(ROOT, version);
+  const peers = args.includes('--fetcher-floor')
+    ? floorPeers(readFileSync(join(ROOT, 'pnpm-workspace.yaml'), 'utf8'))
+    : [];
+  if (peers.length > 0) console.log(`peers: ${peers.join(', ')}`);
 
   try {
     if (args.includes('--registry')) {
@@ -626,6 +652,7 @@ if (
         plan,
         plan.map(({ name }) => `${name}@${version}`),
         version,
+        peers,
       );
     } else {
       checkManifests();
@@ -643,7 +670,7 @@ if (
           if (!existsSync(tarball))
             throw new Error(`${tarball} does not exist`);
         await checkPublint(tarballs);
-        checkConsumer(plan, tarballs, version);
+        checkConsumer(plan, tarballs, version, peers);
       } finally {
         if (scratch) rmSync(scratch, { recursive: true, force: true });
       }
