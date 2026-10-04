@@ -48,7 +48,8 @@
  * - `SKILLS_EVAL_ABLATION`: `--ablation` for the behavior pass, `with-without`
  *   or `none` (default `with-without`); the activation pass is always `none`.
  * - `SKILLS_EVAL_CASE`: `--case` name glob for both passes, to re-run only
- *   some cases (e.g. `{a07-*,b41-*}`; default: every case).
+ *   some cases: one glob with only `*` and `?`, e.g. `a07-*` (default: every
+ *   case).
  *
  * Scores are measured, not gated: each pass runs with `--threshold 0`, so a
  * case scoring below 1 does not fail it. The script exits 1 only when a pass
