@@ -102,6 +102,10 @@ The facade accepts only the commands that have an aggregate command route here: 
 
 Each `Command-Header-<key>` request header is copied into the command message header as `<key>`, on aggregate command routes and on the facade. The prefix matches in any case (HTTP/2 sends header names in lower case). A key the framework reserves answers `400` with error code `IllegalArgument`, and nothing is copied: `command_operator`, `local_first`, `trace_id`, `upstream_id`, `upstream_name`, `user_agent`, `remote_ip`, `traceparent`, `tracestate`, `baggage`, CoSec's `app_id` and `device_id`, and every key starting with `command_wait_` or `compensate.` (compared ignoring case). Use the documented headers instead (`Command-Wait-*`, `Command-Local-First`). The operator is always the authenticated principal, set after every header appender.
 
+### Client Address
+
+The command routes also stamp `user_agent` and `remote_ip` into the command message header. `remote_ip` is the first non-blank entry of the first `X-Forwarded-For` request header, as sent; without one it is the remote address of the connection, written as its IP literal. The address is never resolved by a reverse DNS lookup, which would block the event loop (since 9.2.3; earlier versions wrote the reverse-resolved host name, so stored commands and events can hold either form). `X-Forwarded-For` is client-controlled: rely on it only behind a proxy that sets it.
+
 ## JSON and SSE Responses
 
 Aggregate command routes support two response modes:
