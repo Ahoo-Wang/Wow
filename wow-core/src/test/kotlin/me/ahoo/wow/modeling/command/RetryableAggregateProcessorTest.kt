@@ -14,6 +14,7 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
@@ -23,6 +24,7 @@ import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
@@ -118,6 +120,23 @@ class RetryableAggregateProcessorTest {
         )
             .expectError(DuplicateAggregateIdException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `expected version zero does not let a non create command create the aggregate`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
+        val processor = processor(aggregateId, eventStore)
+        val command = MockChangeAggregate("aggregate-1", "changed")
+            .toCommandMessage(aggregateVersion = Version.UNINITIALIZED_VERSION)
+
+        StepVerifier.create(
+            processor.process(SimpleServerCommandExchange(command).setServiceProvider(SimpleServiceProvider()))
+        )
+            .expectError(NotFoundResourceException::class.java)
+            .verify()
+
+        eventStore.load(aggregateId).count().block().assert().isZero()
     }
 
     @Test

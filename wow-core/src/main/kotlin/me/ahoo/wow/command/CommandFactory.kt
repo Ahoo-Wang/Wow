@@ -105,11 +105,6 @@ fun <C : Any> C.toCommandMessage(
         } else {
             metadata.aggregateVersionGetter?.get(this) ?: aggregateVersion
         }
-    val isCreate = isCreateCommand(
-        metadataIsCreate = metadata.isCreate,
-        expectedAggregateVersion = expectedAggregateVersion
-    )
-
     return SimpleCommandMessage(
         id = id,
         requestId = requestId ?: id,
@@ -121,7 +116,9 @@ fun <C : Any> C.toCommandMessage(
         spaceId = commandNamedAggregate.commandSpaceId(spaceId),
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
-        isCreate = isCreate,
+        // Only `@CreateAggregate` makes a create command: an expected version of 0 from the caller must not bypass
+        // `@CreateAggregate`/`@AllowCreate`; a non-create command at version 0 is checked against the stored aggregate.
+        isCreate = metadata.isCreate,
         allowCreate = metadata.allowCreate,
         isVoid = metadata.isVoid,
     ).ensureTraceId()
@@ -130,9 +127,6 @@ fun <C : Any> C.toCommandMessage(
 /** The space of a command to this aggregate: the default space unless the aggregate may take one. */
 private fun NamedAggregate.commandSpaceId(spaceId: SpaceId?): SpaceId =
     if (acceptsCommandSpace()) spaceId.orDefaultSpaceId() else DEFAULT_SPACE_ID
-
-private fun isCreateCommand(metadataIsCreate: Boolean, expectedAggregateVersion: Int?): Boolean =
-    metadataIsCreate || expectedAggregateVersion == Version.UNINITIALIZED_VERSION
 
 /**
  * Converts a CommandBuilder to a CommandMessage.

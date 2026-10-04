@@ -64,6 +64,8 @@ The conventional name `onCommand` is discovered automatically; use `@OnCommand(r
 
 `@AllowCreate` permits on-demand creation when the target aggregate does not exist; without it, an ordinary command whose target is absent fails. `AddCartItem` is an existing allow-create example.
 
+Only these two annotations decide creation. An expected version of `0` (`aggregateVersion` on the message or the `Command-Aggregate-Version` header) on any other command is an ordinary optimistic-concurrency check: it does not turn the command into a create command, so a command without `@CreateAggregate` or `@AllowCreate` whose target is absent still fails with `NotFound`. Since 9.2.3; earlier versions treated an expected version of `0` as a create command.
+
 `@VoidCommand` does not mean “a handler with no return value.” It is still sent to the command bus and becomes an `isVoid` command, but `CommandDispatcher` acknowledges and filters it before aggregate dispatch. It therefore does not invoke an aggregate root, emit events, or update state. Mount it on an aggregate through `@AggregateRoot(commands = [...])`, as `ViewCart` does.
 
 ## AfterCommand and OnError

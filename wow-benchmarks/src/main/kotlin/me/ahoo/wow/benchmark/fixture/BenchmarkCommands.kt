@@ -15,6 +15,7 @@ package me.ahoo.wow.benchmark.fixture
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -66,12 +67,18 @@ object BenchmarkCommands {
         namedAggregate: MaterializedNamedAggregate?,
         aggregateVersion: Int? = Version.UNINITIALIZED_VERSION,
     ): CommandMessage<AddCartItem> {
-        return AddCartItem(productId = "productId").toCommandMessage(
+        val commandMessage = AddCartItem(productId = "productId").toCommandMessage(
             id = id,
             requestId = requestId,
             aggregateId = aggregateId,
             namedAggregate = namedAggregate,
             aggregateVersion = aggregateVersion,
         )
+        if (aggregateVersion != Version.UNINITIALIZED_VERSION) {
+            return commandMessage
+        }
+        // Since 9.2.3 an expected version of 0 no longer marks a command as create; keep the create path these
+        // scenarios have always measured (fresh state, no repository load) so results stay comparable to the baseline.
+        return (commandMessage as SimpleCommandMessage<AddCartItem>).copy(isCreate = true)
     }
 }

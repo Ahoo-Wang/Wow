@@ -64,6 +64,8 @@ class Cart(private val state: CartState) {
 
 `@AllowCreate` 允许目标聚合不存在时按需创建；未标注时，找不到目标聚合的普通命令会失败。`AddCartItem` 是现有的允许创建示例。
 
+是否创建只由这两个注解决定。其他命令携带期望版本 `0`（消息的 `aggregateVersion` 或 `Command-Aggregate-Version` 请求头）只是普通的乐观并发检查，不会让它变成创建命令：既没有 `@CreateAggregate` 也没有 `@AllowCreate` 的命令，目标聚合不存在时仍以 `NotFound` 失败。自 9.2.3 起；更早的版本把期望版本 `0` 当作创建命令。
+
 `@VoidCommand` 不是“处理函数没有返回值”。它仍会发送到命令总线并成为 `isVoid` 命令，但 `CommandDispatcher` 会在聚合分发前确认并过滤它；因此不会调用聚合根、不会产生事件，也不会更新状态。此类命令仍应通过 `@AggregateRoot(commands = [...])` 挂载到聚合，例如 `ViewCart`。
 
 ## AfterCommand 与 OnError
