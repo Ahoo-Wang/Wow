@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -23,6 +24,7 @@ import reactor.core.publisher.Mono
  * validators) prove about a logical model, and nothing else. The Catalog merges the model's sources and compiles the
  * reported facts into a [QueryModelSchema], applying every rule that does not depend on the storage.
  */
+@WowSpi
 fun interface QueryStorageAdapter {
     /** The storage's facts about [logicalSchema], from its current native structures. */
     fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts>
@@ -35,6 +37,7 @@ fun interface QueryStorageAdapter {
  * The storage adapter of an aggregate model that has no query backend: every load fails with [message].
  * [QuerySchemaCatalog] skips it, since there is nothing to load or revalidate.
  */
+@WowSpi
 class UnavailableQueryStorageAdapter(val message: String) : QueryStorageAdapter {
     override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> =
         Mono.error(QuerySchemaUnavailableException(message))
@@ -47,6 +50,7 @@ class UnavailableQueryStorageAdapter(val message: String) : QueryStorageAdapter 
  * mapping options prove a capability is the storage's knowledge; what a logical value must be for a capability to
  * apply at all is the Catalog's ([compile]).
  */
+@WowSpi
 class QueryStorageFacts(
     val bindings: Map<QueryPathTemplate, QueryValueBindings>,
     /** The model-wide capabilities the storage proves, such as a full-text search over the whole record. */
@@ -102,6 +106,7 @@ class QueryStorageFacts(
  * Whether this value can be an element scope: every non-null alternative is an array whose non-null items are all
  * objects, so a predicate can match one element as a whole.
  */
+@WowSpi
 fun QueryValueSchema.isElementScope(): Boolean = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
     .let { branches ->
         branches.isNotEmpty() && branches.all { branch ->

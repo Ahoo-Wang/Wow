@@ -188,7 +188,7 @@ Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A chang
 
 ### Binary Compatibility
 
-Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, including synthetic overloads such as a `DeprecationLevel.HIDDEN` constructor kept for old callers. Declarations marked `@InternalWowApi` are left out. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `check` depends on `checkKotlinAbi`, and the `local-test.yml` workflow runs `./gradlew checkKotlinAbi` before the tests, so a pull request that changes a public signature without its dump fails.
+Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, including synthetic overloads such as a `DeprecationLevel.HIDDEN` constructor kept for old callers. Declarations marked `@InternalWowApi` are left out; `@WowSpi` declarations (the backend SPI, an opt-in with a compiler warning) stay in the dump. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `check` depends on `checkKotlinAbi`, and the `local-test.yml` workflow runs `./gradlew checkKotlinAbi` before the tests, so a pull request that changes a public signature without its dump fails.
 
 When the check fails, run `./gradlew updateKotlinAbi` (or `./gradlew :<module>:updateKotlinAbi`) and commit the rewritten dumps with the change. Read the dump diff before committing it:
 

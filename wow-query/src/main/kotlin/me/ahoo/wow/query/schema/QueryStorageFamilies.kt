@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.query.schema.Temporal
  * its own native types (BSON types, Elasticsearch field kinds); which families a logical value needs for a capability
  * is the Catalog's decision ([storageFamilies]).
  */
+@WowSpi
 enum class QueryStorageFamily {
     /** Any string representation, analyzed text included. */
     STRING,
@@ -48,6 +50,7 @@ enum class QueryStorageFamily {
  * Where a storage still departs from the strict table of [storageFamilies]. Each rule is a known divergence between
  * storages, kept so that every adapter reproduces today's capabilities exactly; the defaults are the strict table.
  */
+@WowSpi
 data class QueryStorageFamilyRules(
     /**
      * Whether a [Temporal.Date] value supports the capabilities that compare operands to it (exact match, literal
@@ -77,6 +80,7 @@ data class QueryStorageFamilyRules(
  * read. Capabilities that do not compare values ([QueryCapability.PRESENCE], [QueryCapability.ELEMENT_SCOPE]) have no
  * families: they are storage structure, not value types.
  */
+@WowSpi
 @Suppress("CyclomaticComplexMethod") // One exhaustive table: capability by logical value.
 fun QueryValueSchema.storageFamilies(
     capability: QueryCapability,

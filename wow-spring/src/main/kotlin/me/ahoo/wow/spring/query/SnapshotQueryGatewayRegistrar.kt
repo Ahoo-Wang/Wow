@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -31,6 +32,7 @@ import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 import org.springframework.core.ResolvableType
 
+@OptIn(WowSpi::class) // Binds each aggregate's gateway to its routed query backend.
 class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
     companion object {
         /** Bean name for the snapshot observer shared by aggregate gateways; also used for custom overrides. */

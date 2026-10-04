@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -52,17 +53,20 @@ internal fun storageFault(error: Throwable): Throwable =
     if (error is ErrorInfo) error else QueryExecutionException("Query storage failed.", error)
 
 /** The first record of [query]: `page(Offset(0, 1, withTotal = false))`. */
+@WowSpi
 fun QueryBackend.single(query: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> =
     page(query, PageWindow.Offset(0, 1, withTotal = false)).onErrorMap(::storageFault).flatMap { page ->
         Mono.justOrEmpty(page.rows.firstOrNull()?.requireStandardRecord())
     }
 
 /** The records of [query], streamed: at most its limit, or all of them when the limit is `0`. */
+@WowSpi
 fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
     stream(query).onErrorMap(::storageFault).map(ObjectNode::requireStandardRecord)
 }
 
 /** One page of [query] with the total: `page(Offset(offset, size, withTotal = true))`. */
+@WowSpi
 fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
     val pagination = query.query.pagination
     val window = PageWindow.Offset(pagination.offset(), pagination.size, withTotal = true)
@@ -78,6 +82,7 @@ fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>): Mono<PagedList<Object
  * rows, so masking cannot leak into it. A token that does not decode for this model and effective sort is rejected
  * as `Invalid cursor.` before any I/O.
  */
+@WowSpi
 fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = Mono.defer {
     val cursor = query.query
     val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
@@ -105,6 +110,7 @@ fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): Mono<CursorPage<Obj
  * rows included: HAVING can discard every fill row, so without counting them a sparse fine-grained dense histogram
  * would generate rows until the idle timeout.
  */
+@WowSpi
 @JvmOverloads
 fun QueryBackend.aggregate(
     query: AdmittedQuery<AggregationQuery>,

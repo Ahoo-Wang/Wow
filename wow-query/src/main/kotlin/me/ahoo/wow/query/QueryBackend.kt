@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -28,6 +29,7 @@ import tools.jackson.databind.node.ObjectNode
  * [storage] adapter that reports its native facts. The [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
  * compiles those facts with the model's sources and sensitivity; the storage never builds the schema itself.
  */
+@WowSpi
 data class QueryBackendBinding<out B : QueryBackend>(
     val backend: B,
     val storage: QueryStorageAdapter,
@@ -55,6 +57,7 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * BSON values, decimals) to them. The core checks every returned row, so no Backend repeats the check: a row with a
  * `NaN`, an infinity, a `POJONode`, a binary or missing node fails the query in the core.
  */
+@WowSpi
 interface QueryBackend : NamedAggregateDecorator {
     /** Encodes and decodes the native [CursorPosition]s [page] returns for a [PageWindow.Keyset]. */
     val cursorPositions: CursorPositionCodec
@@ -83,6 +86,7 @@ interface QueryBackend : NamedAggregateDecorator {
 }
 
 /** Which records [QueryBackend.page] returns. */
+@WowSpi
 sealed interface PageWindow {
     /** Records `offset until offset + limit` in sort order; [withTotal] also asks for the number of matches. */
     data class Offset(val offset: Int, val limit: Int, val withTotal: Boolean) : PageWindow {
@@ -101,6 +105,7 @@ sealed interface PageWindow {
 }
 
 /** Which groups [QueryBackend.aggregate] returns. */
+@WowSpi
 sealed interface GroupWindow {
     /** The first [limit] groups in the query's effective sort order. */
     data class First(val limit: Int) : GroupWindow {
@@ -117,6 +122,7 @@ sealed interface GroupWindow {
  * One window of records. [total] is present when the window asked for it; [positions] holds each row's native
  * cursor position, in row order, for a [PageWindow.Keyset].
  */
+@WowSpi
 class BackendPage(
     val rows: List<ObjectNode>,
     val total: Long? = null,

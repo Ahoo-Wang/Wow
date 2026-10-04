@@ -62,6 +62,16 @@ val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchma
 // What wow-bom constrains: the published libraries only, never an example, the benchmarks or an incubating module,
 // whose coordinates are not on Maven Central.
 val bomConstrainedProjects = publishProjects - bomProjects
+// Modules whose main code implements or wires a `@WowSpi` (the query backend SPI and its registration). Every other
+// module's main code opts in where it uses one (`@OptIn(WowSpi::class)`) and otherwise gets the compiler's warning,
+// as an application would.
+val wowSpiProjects = setOf(
+    project(":wow-query"),
+    project(":wow-mongo"),
+    project(":wow-elasticsearch"),
+    project(":wow-tck"),
+    project(":wow-spring-boot-starter"),
+)
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 ext.set("bomConstrainedProjects", bomConstrainedProjects)
@@ -206,6 +216,10 @@ configure(libraryProjects) {
         compilerOptions {
             freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
             optIn.add("me.ahoo.wow.api.annotation.InternalWowApi")
+            // Test, contract and benchmark code exercises the SPI directly; main code opts in per module.
+            if (project in wowSpiProjects || name != "compileKotlin") {
+                optIn.add("me.ahoo.wow.api.annotation.WowSpi")
+            }
             javaParameters = true
         }
     }

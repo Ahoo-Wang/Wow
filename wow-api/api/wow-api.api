@@ -379,6 +379,9 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/ValueObjec
 public abstract interface annotation class me/ahoo/wow/api/annotation/VoidCommand : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/WowSpi : java/lang/annotation/Annotation {
+}
+
 public abstract interface class me/ahoo/wow/api/command/CommandId {
 	public abstract fun getCommandId ()Ljava/lang/String;
 }

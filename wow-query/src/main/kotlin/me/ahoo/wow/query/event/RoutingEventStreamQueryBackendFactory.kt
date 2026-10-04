@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.query.event
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.RoutingQueryBackendFactory
 
+@WowSpi
 class RoutingEventStreamQueryBackendFactory(
     defaultFactory: EventStreamQueryBackendFactory,
     routes: Map<NamedAggregate, EventStreamQueryBackendFactory>,

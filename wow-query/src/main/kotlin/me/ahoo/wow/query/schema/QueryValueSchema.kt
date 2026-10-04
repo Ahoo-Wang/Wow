@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -27,6 +28,7 @@ import tools.jackson.databind.JsonNode
  * One immutable logical value shape, shared by backend schema snapshots.
  * Collection inputs are snapshotted; mutable enum JSON is detached on read.
  */
+@WowSpi
 class QueryValueSchema(
     val kind: QueryValueKind,
     val title: String? = null,
@@ -101,6 +103,7 @@ class QueryValueSchema(
 }
 
 /** A native binding as a storage adapter reports it; [physicalScope] is [QueryFieldBinding.physicalScope]. */
+@WowSpi
 class QueryFieldBindingTemplate(
     val physicalPath: QueryPathTemplate,
     storageTypes: Set<QueryStorageType>?,
@@ -122,6 +125,7 @@ class QueryFieldBindingTemplate(
         31 * (31 * physicalPath.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)
 }
 
+@WowSpi
 class QueryValueBindings(
     bindings: Map<QueryCapability, QueryFieldBindingTemplate> = emptyMap(),
     val projectionPath: QueryPathTemplate? = null,

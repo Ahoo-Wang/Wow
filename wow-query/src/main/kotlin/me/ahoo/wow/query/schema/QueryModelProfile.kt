@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit
  * validators, maskers and backends ask the profile instead of branching on [QueryModel] themselves.
  * Custom models have no profile; operations that need one of these facts reject them.
  */
+@WowSpi
 sealed class QueryModelProfile(val model: QueryModel) {
     /** Unique record identity: the target of id filters and the tie-breaker of every cursor. */
     abstract val identityField: QueryField
@@ -123,6 +125,7 @@ sealed class QueryModelProfile(val model: QueryModel) {
 }
 
 /** Materialized aggregate snapshots: one record per aggregate, payload under `state`. */
+@WowSpi
 data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
     override val identityField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
     override val payloadField: QueryField = QueryField(StateAggregateRecords.STATE)
@@ -174,6 +177,7 @@ data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
 }
 
 /** Aggregated domain event streams: one record per command, typed event payloads under `body[].body`. */
+@WowSpi
 data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_STREAM) {
     override val identityField: QueryField = QueryField(MessageRecords.ID)
     override val payloadField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY}")
@@ -243,6 +247,7 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
 }
 
 /** The profile of this schema's model, or `null` for a custom model. */
+@WowSpi
 val QueryModelSchema.profile: QueryModelProfile?
     get() = QueryModelProfile.of(model)
 

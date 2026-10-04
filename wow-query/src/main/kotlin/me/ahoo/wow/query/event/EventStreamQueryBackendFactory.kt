@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.query.event
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendFactory
 
+@WowSpi
 fun interface EventStreamQueryBackendFactory : QueryBackendFactory<EventStreamQueryBackend>
 
+@WowSpi
 abstract class AbstractEventStreamQueryBackendFactory :
     AbstractQueryBackendFactory<EventStreamQueryBackend>(),
     EventStreamQueryBackendFactory

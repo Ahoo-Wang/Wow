@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.serialization.JsonSerializer
@@ -30,6 +31,7 @@ import tools.jackson.databind.node.POJONode
  */
 
 /** How a backend hands a runtime POJO operand to its driver. */
+@WowSpi
 enum class PojoOperands {
     /** As the JSON it serializes to, the form a record stores it in. */
     NORMALIZE,
@@ -42,6 +44,7 @@ enum class PojoOperands {
 }
 
 /** Whether this comparison ignores case. */
+@WowSpi
 val StringComparison.ignoreCase: Boolean
     get() = this == StringComparison.CASE_INSENSITIVE
 
@@ -49,6 +52,7 @@ val StringComparison.ignoreCase: Boolean
  * This operand as a driver value: `null`, a [String], a [Number], a [Boolean], or a [List] of those for an array
  * operand (exact array equality, `IN` values). A runtime POJO is handled as [pojos] says.
  */
+@WowSpi
 fun JsonNode.operandValue(pojos: PojoOperands = PojoOperands.NORMALIZE): Any? = when {
     isPojo -> if (pojos == PojoOperands.NATIVE) (this as POJONode).pojo else normalizedPojo().operandValue(pojos)
     isNull -> null
@@ -63,6 +67,7 @@ fun JsonNode.operandValue(pojos: PojoOperands = PojoOperands.NORMALIZE): Any? = 
  * This operand as a non-null scalar driver value, as a range bound or a term needs: a [String], [Number] or [Boolean],
  * or a native POJO under [PojoOperands.NATIVE].
  */
+@WowSpi
 fun JsonNode.requiredOperandValue(pojos: PojoOperands = PojoOperands.NORMALIZE): Any {
     val value = operandValue(pojos)
     return when {

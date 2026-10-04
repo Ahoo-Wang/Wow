@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendFactory
 
+@WowSpi
 interface SnapshotQueryBackendFactory : QueryBackendFactory<SnapshotQueryBackend>
 
+@WowSpi
 abstract class AbstractSnapshotQueryBackendFactory :
     AbstractQueryBackendFactory<SnapshotQueryBackend>(),
     SnapshotQueryBackendFactory
