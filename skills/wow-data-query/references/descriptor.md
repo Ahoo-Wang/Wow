@@ -4,7 +4,7 @@ In depth: [Query](https://wow.ahoo.me/guide/query.html), [Filter Expressions](ht
 
 ## Where things are
 
-`{base}` is the service root (or the gateway path to it). `{aggregate}` is the aggregate route prefix, for example `cart`, or `example/cart` behind a gateway that routes by bounded context. Tenant and owner variants put their segments **before** the aggregate: `{base}/tenant/{tenantId}/{aggregate}/…`, `{base}/owner/{ownerId}/{aggregate}/…`, and `{base}/tenant/{tenantId}/owner/{ownerId}/{aggregate}/…` (when the aggregate has both). The descriptor routes have no such variants.
+`{base}` is the service root (or the gateway path to it). A route is `{base}/[{alias}/][tenant/{tenantId}/][owner/{ownerId}/]{resource}/…`: `{alias}` is the bounded-context alias, present when the service serves an aggregate of another context (or a gateway routes by context); `{resource}` is the aggregate's route name. Below, `{aggregate}` stands for `[{alias}/]{resource}`, for example `cart` or `example/cart`. The tenant and owner variants put their segments **after the alias and before the resource**: `{base}/example/tenant/{tenantId}/cart/snapshot/count`, `{base}/example/owner/{ownerId}/cart/…`, and `{base}/example/tenant/{tenantId}/owner/{ownerId}/cart/…` (when the aggregate has a dynamic tenant and an owner). The descriptor routes have no such variants.
 
 | Purpose | Snapshot route | Event-stream route |
 |---|---|---|
@@ -17,11 +17,11 @@ In depth: [Query](https://wow.ahoo.me/guide/query.html), [Filter Expressions](ht
 | First match (404 when none) | `POST …/snapshot/single` | — |
 
 - Snapshot `single`, `list`, `paged` and `cursor` also have a `/state` form that returns the state alone (the request still names `state.*` paths).
-- One aggregate's event history by version: `GET {base}/{aggregate}/{id}/event/{headVersion}/{tailVersion}`, only when the user asked about that aggregate.
+- One aggregate's event history by version: `GET {base}/[{alias}/]tenant/{tenantId}/{resource}/{id}/event/{headVersion}/{tailVersion}` (without the tenant segment only when the aggregate has a `@StaticTenantId`), only when the user asked about that aggregate.
 - Out of bounds for this Skill: command routes; the snapshot `PUT` routes (`{aggregate}/snapshot/{afterId}/{limit}` regeneration, `{aggregate}/{id}/snapshot`); the deprecated `POST …/schema/refresh` (it reloads the schema on that instance); state-replay and tracing routes unless the user asked for one aggregate's history.
 - Ask for JSON (`Accept: application/json`); `list` and `aggregation` can also stream SSE.
 
-The descriptor answers an `ETag` equal to its `version`. Send `If-None-Match` with the held version to get `304` while it is unchanged.
+The descriptor answers an `ETag` that is its `version` in double quotes (`"sha256:…"`). Send it back exactly as received in `If-None-Match` (quotes included) to get `304` while it is unchanged.
 
 ## Reading the descriptor
 
@@ -49,8 +49,8 @@ The descriptor answers an `ETag` equal to its `version`. Send `If-None-Match` wi
 A filter is a `FilterExpression`: `{"op": "<OPERATOR>", "field": "<path>", …}`, combined with `{"op": "AND", "operands": [...]}` (`OR`, `NOR` alike). Operator keys: `value` (`EQ`, `NE`, `GT`…, `CONTAINS`), `values` (`IN`, `NOT_IN`, `CONTAINS_ALL`), `lowerBound`/`upperBound` (`BETWEEN`), `days` and `zoneId` (`RECENT_DAYS`, `EARLIER_DAYS`), `zoneId` on the calendar operators (`TODAY`, `LAST_WEEK`, `THIS_MONTH`, …), `state` (`DELETION`: `ACTIVE`, `DELETED`, `ALL`). The published schema is `schema/query/v2/filter-expression.schema.json` in the Wow repository. The REST entry still accepts the 8.x `condition`/`operator` shape until 10.0; write `FilterExpression`.
 
 - **Count** sends the filter itself as the body, with no `filter` wrapper.
-- **Rows** (`list`, `paged`, `cursor`, `single`): `{"filter", "projection": {"include": [...]}, "sort": [{"field", "direction"}], "pagination": {"index", "size"}}` (`limit` for a list, a 1-based `index` for a page). Project only what the answer needs. On an event stream, a projection that selects `body.body` (the payload) must also select `body.bodyType` (`EVENT_PROJECTION_TYPE_REQUIRED`); `include: ["body"]` covers both.
-- **Aggregation**: `{"filter", "elements", "groupBy", "metrics", "sort", "limit", "having"}`. `metrics` is required; `sort` needs at least one `groupBy`; `limit` is 1 to the descriptor's `aggregation.maxLimit` (default 100). Group types: `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` (`unit`, `timeZone`), `DATE_PART`; metric types: `COUNT`, `NUMERIC` (`function`, `expression`), `DISTINCT_COUNT`, `PERCENTILE`, `ANY`, `FIRST`, `LAST`, `DERIVED` (over other metrics' aliases) — only as the descriptor grants them. `sort` names group or metric aliases; `having` is its own tree (`{"type": "AND", "operands": [...]}`), not a filter.
+- **Rows** share `{"filter", "projection": {"include": [...]}, "sort": [{"field", "direction"}]}` and differ in paging; unknown properties are rejected (`UNKNOWN_PROPERTY`), so send only the ones a shape has: `single` has no paging; `list` takes `limit`; `paged` takes `"pagination": {"index", "size"}` (`index` 1-based); `cursor` takes `size` (default 10) and the `cursor` token from the previous page (left out on the first), no `pagination`. Project only what the answer needs. On an event stream, a projection that selects `body.body` (the payload) must also select `body.bodyType` (`EVENT_PROJECTION_TYPE_REQUIRED`); `include: ["body"]` covers both.
+- **Aggregation**: `{"filter", "elements", "groupBy", "metrics", "sort", "limit", "having"}`. `metrics` is required; `sort` needs at least one `groupBy`; `limit` defaults to 100 and may go up to the descriptor's `limits.aggregation.maxLimit`, which is `min(maxListSize, 10000)`. Group types: `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` (`unit`, `timeZone`), `DATE_PART`; metric types: `COUNT`, `NUMERIC` (`function`, `expression`), `DISTINCT_COUNT`, `PERCENTILE`, `ANY`, `FIRST`, `LAST`, `DERIVED` (over other metrics' aliases) — only as the descriptor grants them. `sort` names group or metric aliases; `having` is its own tree (`{"type": "AND", "operands": [...]}`), not a filter.
 
 ```json
 {"filter": {"op": "AND", "operands": [

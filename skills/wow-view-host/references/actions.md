@@ -300,7 +300,7 @@ Test the commands themselves against a stubbed `fetch` (`vi.stubGlobal('fetch', 
 
 The harness, these checks and `admit` need no browser. Where the package's Vitest config is a browser project (Storybook's, a jsdom app's with setup files), give them a Node config of their own, `src/views/vitest.config.ts` with `defineConfig({ test: { name: 'views', environment: 'node', include: ['**/*.test.ts'] } })`, and run `vitest run --root src/views` (Vitest takes the config of the root it is pointed at, and `include` is relative to it; with the config elsewhere, `vitest run --config vitest.views.config.ts`).
 
-Type-check them with the host's own `tsconfig.json` where it covers `src/views`; otherwise a small one beside them (`tsc -p src/views`) with `strict`, `"moduleResolution": "Bundler"` (it reads the package's subpath exports such as `/testing`), `"jsx": "react-jsx"`, `resolveJsonModule` (a definition imports its committed descriptor), `skipLibCheck` and `noEmit`.
+Type-check them with the host's own `tsconfig.json` where it covers `src/views`; otherwise a small one beside them (`tsc -p src/views`) with `strict`, `"module": "ESNext"` and `"moduleResolution": "Bundler"` (it reads the package's subpath exports such as `/testing`; TypeScript 5 refuses Bundler without an ES module setting, TS5095), `"jsx": "react-jsx"`, `resolveJsonModule` (a definition imports its committed descriptor), `skipLibCheck` and `noEmit`.
 
 ## Report
 

@@ -239,6 +239,13 @@ export const overview: DashboardDefinition = {
         ],
         panels: [
           {
+            id: 'today',
+            kind: 'heading',
+            // Words a reader sees are keys here too; admit checks them.
+            content: text('overview.today'),
+            layout: { x: 0, y: 0, w: 24, h: 1 },
+          },
+          {
             id: 'paid',
             kind: 'view',
             title: text('orders.paidAmount'),
@@ -295,7 +302,7 @@ export const overview: DashboardDefinition = {
 - Board filters other than the date are declared on the board and wired to panel fields of the same kind; give a required one a `default`. See [ui/dashboard.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/ui/dashboard.md).
 - `admit` resolves every panel's view against the other definitions you pass it, so register and admit the board together with the data definitions it reads.
 - A system board shows and opens system views or analyses it owns, never a personal or shared view: system views are global, shared ones belong to one tenant (saving such a board is refused, `dashboard.system.non-system-panels`).
-- Words a reader sees on a board (titles, headings' `content`, field labels) are keys too; `admit` checks them.
+- Words a reader sees on a board (titles, a heading's `content`, field labels) are keys too; `admit` checks them.
 
 ## Where definitions live
 

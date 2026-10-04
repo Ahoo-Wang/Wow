@@ -84,7 +84,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 ```
 
 - **`permissions` only enables buttons; the gateway decides.** Give each member by the same role the gateway checks, or a button is enabled whose write the gateway refuses (or the other way round). `createShared` and `changeAudience` need the shared-write role, `editSystem` the system-view administrator's.
-- **Silence:** every member left out is allowed, except **`editSystem`, whose absence is `false`** (no `permissions` at all: everything but `editSystem`). A system view reaches every tenant and every reader, so only a host that says so lets anyone change one.
+- **Silence:** `createPersonal`, `createShared`, `reorder`, `setDefault` and `instance(id)`'s `save`, `rename`, `delete` are required. Only `changeAudience` (absent: allowed), **`editSystem` (absent: `false`)** and `permissions` itself (absent: everything but `editSystem`) may be left out. A system view reaches every tenant and every reader, so only a host that says so lets anyone change one.
 - The engine already handles what the store reports: `CONFLICT` (reload, overwrite or save as), `UNAVAILABLE` (retry with the same request id), a refused claim while a shared board shows the view, `FORBIDDEN` on a read-only view. Do not wrap them.
 
 ## System views: three sources, one of them editable

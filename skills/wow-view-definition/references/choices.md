@@ -53,6 +53,10 @@ export const ORDER_WORDS = {
     'orders.paidAt': '付款时间',
     'orders.placedAt': '下单时间',
     'orders.remark': '买家备注',
+    'orders.level': '会员等级',
+    'orders.regular': '普通会员',
+    'orders.silver': '银卡会员',
+    'orders.gold': '金卡会员',
     'orders.items': '商品',
     'orders.sku': '商品编码',
     'orders.itemTitle': '商品名称',
@@ -67,6 +71,7 @@ export const ORDER_WORDS = {
     // The board.
     'overview.title': '订单概览',
     'overview.daily': '每日',
+    'overview.today': '今天的订单',
     'overview.dailyPaid': '每日实付',
   },
   en: {
@@ -89,6 +94,10 @@ export const ORDER_WORDS = {
     'orders.paidAt': 'Paid at',
     'orders.placedAt': 'Placed at',
     'orders.remark': 'Buyer note',
+    'orders.level': 'Member level',
+    'orders.regular': 'Regular',
+    'orders.silver': 'Silver',
+    'orders.gold': 'Gold',
     'orders.items': 'Items',
     'orders.sku': 'SKU',
     'orders.itemTitle': 'Product',
@@ -101,6 +110,7 @@ export const ORDER_WORDS = {
     'orders.day': 'Day',
     'overview.title': 'Order overview',
     'overview.daily': 'Daily',
+    'overview.today': 'Today\'s orders',
     'overview.dailyPaid': 'Amount paid per day',
   },
 } as const;
@@ -158,6 +168,15 @@ export const orders = defineView(orderDescriptor, {
       operators: [],
       sortable: false,
       analysis: false,
+    },
+    // A category inside a nested object: its path, and every value worded.
+    'state.buyer.level': {
+      label: text('orders.level'),
+      options: {
+        REGULAR: text('orders.regular'),
+        SILVER: text('orders.silver'),
+        GOLD: text('orders.gold'),
+      },
     },
     // The lines of an order, named by product.
     'state.items': {
