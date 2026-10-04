@@ -96,6 +96,8 @@ curl -X POST http://order-service:8080/wow/command/send \
 
 The current generated OpenAPI declares only `application/json` for this global route. It serves generic clients and callers that cannot bind an aggregate-specific schema. The security layer must still authenticate the caller and authorize the target aggregate.
 
+The facade accepts only the commands that have an aggregate command route here: a command registered on an aggregate in this service's metadata (or the default delete, recover and apply-resource-tags commands the aggregate does not override), whose `@AggregateRoute` and `@CommandRoute` are enabled. Any other `Command-Type` answers `404` with error code `NotFound`, as a disabled route does; the type name is matched against the registered classes and never loaded by name.
+
 ## JSON and SSE Responses
 
 Aggregate command routes support two response modes:

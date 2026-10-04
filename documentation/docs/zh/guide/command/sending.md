@@ -96,6 +96,8 @@ curl -X POST http://order-service:8080/wow/command/send \
 
 当前生成 OpenAPI 对该全局路由只声明 `application/json`。它适合通用客户端和无法绑定聚合专用 Schema 的调用方；安全层仍必须认证调用方并授权目标聚合。
 
+门面只接受在本服务有聚合命令路由的命令：注册在本服务元数据中某个聚合上的命令（或该聚合未覆盖的默认删除、恢复、设置资源标签命令），且其 `@AggregateRoute` 与 `@CommandRoute` 均启用。其他 `Command-Type` 返回 `404`，错误码 `NotFound`，与禁用的路由一致；类型名只与已注册的类比对，不会按名字加载类。
+
 ## JSON 与 SSE 响应
 
 聚合命令路由同时支持两种响应：
