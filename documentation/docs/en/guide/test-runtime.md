@@ -43,6 +43,13 @@ Expand only when the entire local-safe layer is needed:
 
 Domain specifications still use `AggregateSpec` and `SagaSpec` from the [Domain Test Suite](./test-suite.md). They live in the owning module's `src/test` and belong to the Local layer; they are not a separate application-release proof.
 
+## Architecture Guardrails
+
+Two kinds of test guard the module boundaries and the decorators. Both run in the Local layer:
+
+- `DependencyRulesTest` (`:wow-core:test`) scans production sources. `wow-core` and `wow-query` reference no HTTP, Spring or storage-driver types. No backend module (`wow-mongo`, `wow-redis`, `wow-kafka`, `wow-elasticsearch`) references another backend or its driver. Outside their `query` packages, `wow-mongo` and `wow-elasticsearch` reference no query packages. `me.ahoo.wow.api.query` protocol types are allowed. The `test` task declares the scanned source trees as inputs, so a change in any of those modules re-runs it.
+- `MetricDecoratorContractTest` (`:wow-core:test`) and `TracingDecoratorContractTest` (`:wow-opentelemetry:test`) require every `Metric*` and `Tracing*` decorator to override each SPI member that has a default body. Otherwise a call falls back to the interface default and skips the delegate, for example `EventStore.existsRequestId`, which loads the whole stream. `ElasticsearchEventStoreContractTest` applies the same rule to `existsRequestId` on the Elasticsearch event store. Each test keeps a `KNOWN_GAPS` list of today's gaps. A new gap fails the test, and so does a fixed gap that is still listed, so the list can only shrink.
+
 ## Container-Backed Integration Tests
 
 Run all registered integration tasks with:

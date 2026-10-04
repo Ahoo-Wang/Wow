@@ -43,6 +43,13 @@ outline: deep
 
 领域规格仍使用[领域测试套件](./test-suite.md)中的 `AggregateSpec` 和 `SagaSpec`。它们位于所属模块的 `src/test`，属于 Local 层，不是单独的应用发布证明。
 
+## 架构护栏
+
+两类测试守护模块边界与装饰器，都属于 Local 层：
+
+- `DependencyRulesTest`（`:wow-core:test`）扫描生产源码。`wow-core` 与 `wow-query` 不引用 HTTP、Spring 或存储驱动类型。后端模块（`wow-mongo`、`wow-redis`、`wow-kafka`、`wow-elasticsearch`）互不引用，也不引用其他后端的驱动。`wow-mongo` 与 `wow-elasticsearch` 在 `query` 包之外不引用查询包；`me.ahoo.wow.api.query` 中的协议类型允许使用。`test` 任务把被扫描的源码目录声明为输入，任一模块变化都会重新运行它。
+- `MetricDecoratorContractTest`（`:wow-core:test`）与 `TracingDecoratorContractTest`（`:wow-opentelemetry:test`）要求每个 `Metric*`、`Tracing*` 装饰器覆盖 SPI 中所有带默认实现的成员。否则调用会落到接口默认实现，绕过被装饰对象，例如会加载整个事件流的 `EventStore.existsRequestId`。`ElasticsearchEventStoreContractTest` 对 Elasticsearch 事件存储的 `existsRequestId` 做同样检查。每个测试都有一份 `KNOWN_GAPS` 清单，记录当前已知缺口。新增缺口会失败，已修复但仍留在清单里的缺口也会失败，所以清单只能缩短。
+
 ## 容器型集成测试
 
 运行全部已注册集成任务：
