@@ -62,7 +62,7 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 | 现象 | 原因 | 修复 |
 |---|---|---|
 | 对查询流的 `for await` 抛出 `WowError` | 服务端中途失败，以错误事件结束了流 | 像处理失败请求一样处理；见[错误处理](./error-handling.md#流) |
-| 生成的 `…StreamCommandClient` 产出一个名为 `RequestTimeout`（或其他错误码）而不是阶段名的事件 | 生成的流客户端使用 Fetcher 普通的事件提取器 | 对照 `CommandStage` 检查 `event.event`，或者使用会抛出 `WowError` 的 `CommandClient.sendAndWaitStream` |
+| 对生成的 `…StreamCommandClient` 做 `for await` 时抛出 `WowError`（例如 `RequestTimeout`） | 生成的流客户端使用 `COMMAND_STREAM_ENDPOINT`：服务端出错时以 `WowError` 结束流，与 `CommandClient.sendAndWaitStream` 相同 | 按失败的请求处理，见[错误处理](./error-handling.md#流) |
 | 流式命令在 `PROCESSED` 结束，`errorCode` 不是 `Ok` | 命令处理函数失败 | 逐个检查结果的 `errorCode` |
 | 组件已经卸载，连接仍然开着 | 流既没读完也没被中止 | 传入 `AbortSignal` 并在清理时中止，或 `break` 出循环 |
 

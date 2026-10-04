@@ -1,5 +1,5 @@
 ---
-name: n01-generator-openapi-generator-java
+name: n02-generator-openapi-generator-java
 tags: [activation, negative, neighbour]
 runs: 3
 max_turns: 8

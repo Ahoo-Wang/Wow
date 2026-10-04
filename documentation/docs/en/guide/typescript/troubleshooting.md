@@ -62,7 +62,7 @@ Most request failures reach your code as the fetcher's `ExchangeError`; its `mes
 | Symptom | Cause | Fix |
 |---|---|---|
 | A `for await` over a query stream throws `WowError` | The server failed midway and ended the stream with an error event | Handle it like a failed request; see [Error Handling](./error-handling.md#streams) |
-| A generated `…StreamCommandClient` yields an event named `RequestTimeout` (or another error code) instead of a stage | Generated stream clients use Fetcher's plain event extractor | Check `event.event` against `CommandStage`, or use `CommandClient.sendAndWaitStream`, which throws a `WowError` |
+| A `for await` over a generated `…StreamCommandClient` throws `WowError` (for example `RequestTimeout`) | Generated stream clients take `COMMAND_STREAM_ENDPOINT`: a server error ends the stream with a `WowError`, as `CommandClient.sendAndWaitStream` does | Handle it like a failed request; see [Error Handling](./error-handling.md#streams) |
 | A streamed command ends at `PROCESSED` with an `errorCode` other than `Ok` | The command handler failed | Check `errorCode` on every result |
 | The connection stays open after the component is gone | The stream was never read to its end or aborted | Pass an `AbortSignal` and abort it on cleanup, or `break` out of the loop |
 

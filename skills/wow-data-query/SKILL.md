@@ -1,6 +1,6 @@
 ---
 name: "wow-data-query"
-description: "Answer business data questions from a running Wow service: read its query capability descriptor, run read-only snapshot or event-stream queries, and explain counts, lists, breakdowns or trends with the exact query and its caveats. Use when the deliverable is numbers from live data, not code or a view. Exclude query code (wow-client), diagnosing a failing query (wow-develop), and non-Wow databases."
+description: "Answer business data questions from a running Wow service: read its query capability descriptor, run read-only snapshot or event-stream queries, and explain counts, lists, breakdowns or trends with the exact query and caveats. Use when the deliverable is numbers from live data, not code or a view. Exclude query code (wow-client), failing-query diagnosis (wow-develop), and non-Wow databases."
 ---
 
 # wow-data-query

@@ -9,7 +9,7 @@ This page answers: **which Skill covers a downstream Wow task, and how is comple
 
 The Wow repository owns Skill source and validation fixtures; the distribution repository and client own installation and discovery. Skills provide workflows, architectural invariants, authorization boundaries, and evidence gates. They do not replace target-version APIs, configuration, or generated contracts.
 
-V9 is the current maintenance baseline and default terminology. `wow-develop` still supports V8 downstream tasks, but they must first resolve the actual Wow version from the target build and dependency graph. Only `wow-migrate` keeps V8-to-V9 type, configuration, and behavior mappings; version-specific conclusions remain unverified when the version cannot be confirmed.
+V9 is the current maintenance baseline and default terminology. `wow-develop` still supports V8 downstream tasks, but it must first resolve the actual Wow version from the target build and dependency graph. Only `wow-migrate` keeps V8-to-V9 type, configuration, and behavior mappings; version-specific conclusions remain unverified when the version cannot be confirmed.
 
 ## The six Skills
 

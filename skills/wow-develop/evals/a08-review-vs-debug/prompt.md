@@ -1,6 +1,6 @@
 ---
 name: a08-review-vs-debug
-tags: [activation, trigger, routed, debug, conflict]
+tags: [activation, trigger, debug]
 runs: 3
 max_turns: 8
 allowed_tools: [Read, Glob, Grep, Skill]

@@ -20,7 +20,7 @@ Calling a Wow service from TypeScript, with generated or hand-written clients. F
 
 - `@ahoo-wang/wow-client` with peers `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator` and `@ahoo-wang/fetcher-eventstream`; the fetcher packages keep their names. From Wow 9.2.1 the Wow packages accept them as `^5.1.5 || ^6.0.0`; 9.2.0 accepts `^5.1.5` only, so an application moving to fetcher 6 takes Wow 9.2.1 or later.
 - React: `@ahoo-wang/wow-react` (React 19.0 or later). It runs its own request state machine and does not need `@ahoo-wang/fetcher-react`.
-- Generation: `@ahoo-wang/wow-generator` and `typescript` as dev dependencies; generated code imports `@ahoo-wang/wow-client`, `@ahoo-wang/fetcher` and `@ahoo-wang/fetcher-decorator` at run time, so the application depends on them directly.
+- Generation: `@ahoo-wang/wow-generator` and `typescript` as dev dependencies; generated code imports `@ahoo-wang/wow-client`, `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator` and `@ahoo-wang/fetcher-eventstream` at run time, so the application depends on them directly.
 - Entries: `@ahoo-wang/wow-client` exports everything except the deprecated `Condition` API; `/dsl` exports only the query DSL with no HTTP code; `/legacy` exports the `Condition` API for Wow 8.10 servers until v10.
 - Supported servers: Wow 8.11 and later with `filter.*`; Wow 8.10 only through `/legacy`. Node `>=22.12.0`.
 
