@@ -40,6 +40,7 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
+@Suppress("DEPRECATION")
 class ResponsesKtTest {
 
     @Test

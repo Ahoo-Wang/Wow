@@ -90,6 +90,8 @@ WebFlux 物化命令路由并把请求交给命令运行时。命令路由、媒
 
 默认 `RequestExceptionHandler` 把框架错误转换为 `ErrorInfo` 响应，并写 `Wow-Error-Code`；全局 `WebExceptionHandler` 默认启用。已验证映射包括参数/状态错误 400、not found 404、wait timeout 408、未知错误 500。自定义 error strategy 时必须保留原异常失败路径，避免空响应吞掉错误。
 
+路由报告的所有错误都由同一个 `WebFluxErrorStrategy` 映射，包括状态码已是 200、只能写进响应体的错误：中途失败的 SSE 流的最后一个事件，以及批量结果（快照重建、StateEvent 重发）的 `errorCode`/`errorMsg`。自 9.3.0 起，策略未归类的异常在这里也和 JSON 路由一样是 `InternalServerError`，消息为 "Unexpected server error"；9.3.0 之前 SSE 事件和批量结果是 `BadRequest` 加异常的原始消息。改了错误码或消息的自定义策略，除 `toServerResponse` 外还要覆盖 `toErrorInfo(throwable)`，SSE 事件和批量结果才会随之改变。自定义 `RequestExceptionHandler` 通过 `handleInBody(request, throwable)` 报告这类错误；默认实现用 `DefaultWebFluxErrorStrategy` 映射，不再调用 `handle`。
+
 ## OpenAPI 集成
 
 OpenAPI 由运行时 metadata 和 route contracts 组装。每个实例按 `wow.query.schema.revalidate-interval` 定期重新校验自己的 schema，`wowQuerySchema` actuator 端点列出本实例的 schema 版本并可按需立即重新校验。9.1 的 `POST /{aggregate}/snapshot/schema/refresh` 与 `POST /{aggregate}/event/schema/refresh` 作为弃用别名保留到 10.0.0：在作答的实例上只重新加载该聚合对应的模型（Snapshot 或 EventStream），并发请求共用同一次进行中的加载，再像 `GET …/schema` 那样返回能力描述。重新校验只影响执行它的实例，失败时保留上一个 schema；它不广播、不修改后端 mapping。actuator 端点只在管理面暴露。

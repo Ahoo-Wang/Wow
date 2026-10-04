@@ -17,7 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -194,6 +196,9 @@ class WebFluxResponseStrategyTest {
         val exceptionHandler = object : RequestExceptionHandler {
             override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> =
                 Mono.error(handlerFailure)
+
+            override fun handleInBody(request: ServerRequest, throwable: Throwable): ErrorInfo =
+                throw handlerFailure
         }
         val response = DefaultWebFluxResponseStrategy.sse(
             Flux.error(original),
@@ -204,6 +209,46 @@ class WebFluxResponseStrategyTest {
         response.writeToExchangeExpectingError(original)
         original.suppressed.assert().contains(handlerFailure)
         original.suppressed.none { it === original }.assert().isTrue()
+    }
+
+    @Test
+    fun `sse error event of an unexpected failure is an internal server error without its message`() {
+        val request = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val original = NullPointerException("secret implementation detail")
+        val row = ServerSentEvent.builder<String>().event("row").data("one").build()
+        val response = DefaultWebFluxResponseStrategy.sse(
+            Flux.just(row).concatWith(Flux.error(original)),
+            request,
+            WebFluxRequestExceptionHandler(),
+        ).block()!!
+
+        val exchange = response.writeToExchangeExpectingError(original)
+        exchange.bodyIgnoringError().assert()
+            .contains("event:row", "event:${ErrorCodes.INTERNAL_SERVER_ERROR}", "Unexpected server error")
+            .doesNotContain("secret implementation detail", ErrorCodes.BAD_REQUEST)
+    }
+
+    @Test
+    fun `a custom error strategy reaches the sse error event`() {
+        val request = MockServerRequest.builder()
+            .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
+            .build()
+        val original = NullPointerException("secret")
+        val strategy = object : WebFluxErrorStrategy by DefaultWebFluxErrorStrategy {
+            override fun toErrorInfo(throwable: Throwable): ErrorInfo = ErrorInfo.of("Custom", "custom message")
+        }
+
+        val response = DefaultWebFluxResponseStrategy.sse(
+            Flux.error(original),
+            request,
+            WebFluxRequestExceptionHandler(strategy),
+        ).block()!!
+
+        response.writeToExchangeExpectingError(original).bodyIgnoringError().assert()
+            .contains("event:Custom", "custom message")
+            .doesNotContain("secret")
     }
 
     private data class BodyValue(val name: String)

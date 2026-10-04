@@ -14,12 +14,18 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
+import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import org.junit.jupiter.api.Test
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -36,7 +42,7 @@ class BatchResultsKtTest {
         val afterId = "id0"
 
         // Act
-        flux.toBatchResult(afterId)
+        flux.toBatchResult(afterId, request, WebFluxRequestExceptionHandler())
             .test()
             .expectNext(BatchResult("id2", 2))
             .verifyComplete()
@@ -57,7 +63,7 @@ class BatchResultsKtTest {
         val afterId = "id0"
 
         // Act
-        flux.toBatchResult(afterId)
+        flux.toBatchResult(afterId, request, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.afterId.assert().isEqualTo("id1")
@@ -65,4 +71,45 @@ class BatchResultsKtTest {
             }
             .verifyComplete()
     }
+
+    @Test
+    fun `an unexpected failure of the batch is an internal server error without its message`() {
+        Flux.error<AggregateId>(NullPointerException("secret"))
+            .toBatchResult("id0", request, WebFluxRequestExceptionHandler())
+            .test()
+            .consumeNextWith {
+                it.errorCode.assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
+                it.errorMsg.assert().isEqualTo("Unexpected server error")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `a custom error strategy reaches the batch result`() {
+        val strategy = object : WebFluxErrorStrategy by DefaultWebFluxErrorStrategy {
+            override fun toErrorInfo(throwable: Throwable): ErrorInfo = ErrorInfo.of("Custom", "custom message")
+        }
+        Flux.error<AggregateId>(NullPointerException("secret"))
+            .toBatchResult("id0", request, WebFluxRequestExceptionHandler(strategy))
+            .test()
+            .consumeNextWith {
+                it.errorCode.assert().isEqualTo("Custom")
+                it.errorMsg.assert().isEqualTo("custom message")
+            }
+            .verifyComplete()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `the deprecated overload maps with the default strategy`() {
+        Flux.error<AggregateId>(NullPointerException("secret"))
+            .toBatchResult("id0")
+            .test()
+            .consumeNextWith {
+                it.errorCode.assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
+            }
+            .verifyComplete()
+    }
+
+    private val request = MockServerRequest.builder().build()
 }

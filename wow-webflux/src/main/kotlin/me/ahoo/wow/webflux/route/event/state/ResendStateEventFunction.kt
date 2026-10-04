@@ -23,6 +23,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
+import me.ahoo.wow.webflux.route.toBatchResult
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -42,7 +43,8 @@ class ResendStateEventFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
         val limit = request.pathVariable(BatchComponent.PathVariable.BATCH_LIMIT).toInt()
-        return handler.handle(afterId, limit)
+        return handler.resend(afterId, limit)
+            .toBatchResult(afterId, request, exceptionHandler)
             .toServerResponse(request, exceptionHandler)
     }
 }

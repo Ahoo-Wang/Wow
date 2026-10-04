@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.event.state
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_HEAD_VERSION
@@ -25,6 +26,7 @@ import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.toBatchResult
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class ResendStateEventHandler(
@@ -43,7 +45,16 @@ class ResendStateEventHandler(
             )
     }
 
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use resend(afterId, limit).toBatchResult(afterId, request, exceptionHandler)."
+    )
     fun handle(afterId: String, limit: Int): Mono<BatchResult> {
+        @Suppress("DEPRECATION")
+        return resend(afterId, limit).toBatchResult(afterId)
+    }
+
+    /** Resends the state events of up to [limit] aggregates after [afterId]; emits each aggregate it resent. */
+    fun resend(afterId: String, limit: Int): Flux<AggregateId> {
         val target = CompensationTarget(function = RESEND_FUNCTION)
         return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)
             .let { scanFlux ->
@@ -55,6 +66,6 @@ class ResendStateEventHandler(
                         tailVersion = Int.MAX_VALUE
                     ).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
                 }
-            }.toBatchResult(afterId)
+            }
     }
 }
