@@ -36,6 +36,7 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -833,8 +834,9 @@ private class RecordingDistributedBus(
     private val processingQuiescence: () -> Unit = {},
     private val onSend: (LocalFirstTestMessage) -> Unit = {},
 ) : DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
-    val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
-    val received: MutableList<MessageSubscription> = mutableListOf()
+    // Thread-safe: a handler's chained send records on the dispatcher thread while the test thread records its own.
+    val sent: MutableList<LocalFirstTestMessage> = CopyOnWriteArrayList()
+    val received: MutableList<MessageSubscription> = CopyOnWriteArrayList()
 
     override fun send(message: LocalFirstTestMessage): Mono<Void> =
         Mono.fromRunnable {
