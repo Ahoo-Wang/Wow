@@ -1,6 +1,6 @@
 ---
 name: "wow-data-query"
-description: "Answer business data questions about a running Wow service by reading its query capability descriptor and running read-only snapshot or event-stream queries: counts, lists, breakdowns and trends, explained in business terms with the exact query and its caveats. Use when the deliverable is an answer from live data, not code. Exclude writing query code (wow-client), diagnosing a failing query or wrong result (wow-debug), view definitions, and developing the Wow repository itself."
+description: "Answer business data questions from a running Wow service: read its query capability descriptor, run read-only snapshot or event-stream queries, and explain counts, lists, breakdowns or trends with the exact query and its caveats. Use when the deliverable is numbers from live data, not code or a view. Exclude query code (wow-client), diagnosing a failing query (wow-develop), and non-Wow databases."
 ---
 
 # wow-data-query
@@ -22,7 +22,7 @@ The deliverable is an answer: numbers, rows or a breakdown, what they mean for t
 5. On event streams, a condition on one event's payload goes inside an `ELEMENT_MATCH` on `body`, together with its `bodyType` (see `variants`), so that both apply to the same event.
 6. Avoid `deprecated` fields; use the field its message points to. Mention it if the user named the deprecated one.
 7. Build the smallest query that answers the question: `count` for "how many", `aggregation` for breakdowns and trends, `paged` or `cursor` with a projection for examples. Use the read-only query routes only (see the reference). Never call command routes or the snapshot `PUT` regeneration routes.
-8. Run it. If it is rejected, read `bindingErrors[0].code` and `name`, fix the query within the descriptor, and retry once. If it still fails, or a result looks wrong, stop: that is a diagnosis for `wow-debug`.
+8. Run it. If it is rejected, read `bindingErrors[0].code` and `name`, fix the query within the descriptor, and retry once. If it still fails, or a result looks wrong, stop: that is a diagnosis for `wow-develop`.
 9. Answer in business terms first, then the evidence.
 
 ## Answer checklist
@@ -43,4 +43,4 @@ The deliverable is an answer: numbers, rows or a breakdown, what they mean for t
 ## Related Skills
 
 - $wow-client: write TypeScript code that queries a Wow service.
-- $wow-debug: diagnose a rejected query that should be valid, a wrong result, or a failing query route.
+- $wow-develop: diagnose a rejected query that should be valid, a wrong result, or a failing query route.

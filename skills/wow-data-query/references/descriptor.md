@@ -70,4 +70,4 @@ A rejected query answers `400` (or `403` for scope) with `errorCode` and `bindin
 - `INVALID_CURSOR`: the cursor token does not fit this model and sort. Restart from the first page.
 - `IllegalAccessQueryScope` (403): the server requires an authenticated tenant scope; the credentials lack it.
 
-A `500` (`InternalServerError`, for example `Query storage failed.`) is a server fault, not a query error: retry, and do not change the query. A second rejection after one fix, a repeated `5xx`, or a result that contradicts the data is a `wow-debug` task.
+A `500` (`InternalServerError`, for example `Query storage failed.`) is a server fault, not a query error: retry, and do not change the query. A second rejection after one fix, a repeated `5xx`, or a result that contradicts the data is a `wow-develop` diagnosis.

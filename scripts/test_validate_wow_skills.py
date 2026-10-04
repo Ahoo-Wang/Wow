@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_wow_skills import EXPECTED_SKILLS, collect_warnings, validate_repository
+from scripts.validate_wow_skills import EXPECTED_SKILLS, validate_repository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,14 +49,14 @@ class WowSkillsValidatorTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
 
     def test_skill_frontmatter_and_directory_are_valid(self) -> None:
-        path = self.root / "skills" / "wow-debug" / "SKILL.md"
+        path = self.root / "skills" / "wow-develop" / "SKILL.md"
         original = path.read_text(encoding="utf-8")
         with self.subTest(boundary="wrong-name"):
             path.write_text(
-                original.replace('name: "wow-debug"', 'name: "wrong-name"', 1),
+                original.replace('name: "wow-develop"', 'name: "wrong-name"', 1),
                 encoding="utf-8",
             )
-            self.assert_error("must match directory 'wow-debug'")
+            self.assert_error("must match directory 'wow-develop'")
         with self.subTest(boundary="blank-description"):
             path.write_text(
                 re.sub(r'^description: ".*"$', 'description: "   "', original, count=1, flags=re.MULTILINE),
@@ -87,18 +87,18 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assertFalse(any("frontmatter is not closed" in error for error in errors))
 
     def test_openai_prompt_must_reference_the_skill(self) -> None:
-        path = self.root / "skills" / "wow-review" / "agents" / "openai.yaml"
+        path = self.root / "skills" / "wow-develop" / "agents" / "openai.yaml"
         original = path.read_text(encoding="utf-8")
         with self.subTest(boundary="missing-skill-reference"):
-            path.write_text(original.replace("$wow-review", "$other"), encoding="utf-8")
-            self.assert_error("default_prompt must reference $wow-review")
+            path.write_text(original.replace("$wow-develop", "$other"), encoding="utf-8")
+            self.assert_error("default_prompt must reference $wow-develop")
         with self.subTest(boundary="longer-skill-name"):
-            path.write_text(original.replace("$wow-review", "$wow-reviewer"), encoding="utf-8")
-            self.assert_error("default_prompt must reference $wow-review")
+            path.write_text(original.replace("$wow-develop", "$wow-developer"), encoding="utf-8")
+            self.assert_error("default_prompt must reference $wow-develop")
         with self.subTest(boundary="plain-scalar-comment"):
             path.write_text(
                 "\n".join(
-                    "  default_prompt: Review this change. # invoke $wow-review"
+                    "  default_prompt: Review this change. # invoke $wow-develop"
                     if line.strip().startswith("default_prompt:")
                     else line
                     for line in original.splitlines()
@@ -109,13 +109,13 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("value must be a double-quoted string")
         with self.subTest(boundary="maintainer-only-default-prompt"):
             path.write_text(
-                original.replace("$wow-review", "$wow-review. Load ./evals/b04-review-readonly/prompt.md"),
+                original.replace("$wow-develop", "$wow-develop. Load ./evals/b04-review-readonly/prompt.md"),
                 encoding="utf-8",
             )
             self.assert_error("runtime content references maintainer-only content")
         with self.subTest(boundary="blank-display-name"):
             path.write_text(
-                original.replace('display_name: "Wow Review"', 'display_name: "   "'),
+                original.replace('display_name: "Wow Develop"', 'display_name: "   "'),
                 encoding="utf-8",
             )
             self.assert_error("display_name must be 1-64 characters")
@@ -152,16 +152,13 @@ class WowSkillsValidatorTest(unittest.TestCase):
             agents.symlink_to(outside, target_is_directory=True)
             self.assert_error("agents and openai.yaml must stay inside the Skill")
 
-    def test_the_package_ships_exactly_the_nine_primary_skills(self) -> None:
+    def test_the_package_ships_exactly_the_six_skills(self) -> None:
         self.assertEqual(
             {
                 "wow-client",
                 "wow-data-query",
-                "wow-debug",
                 "wow-develop",
-                "wow-generator",
                 "wow-migrate",
-                "wow-review",
                 "wow-view-definition",
                 "wow-view-host",
             },
@@ -179,7 +176,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         original = path.read_text(encoding="utf-8")
         with self.subTest(boundary="include-mismatch"):
             manifest = json.loads(original)
-            manifest["plugins"][0]["skills"]["include"].remove("wow-debug")
+            manifest["plugins"][0]["skills"]["include"].remove("wow-develop")
             path.write_text(json.dumps(manifest), encoding="utf-8")
             self.assert_error("included, installed, and expected Skills must match")
         with self.subTest(boundary="boolean-schema-version"):
@@ -259,7 +256,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("referenced resource must be a regular file")
 
         with self.subTest(reference="resource-root-is-file"):
-            resource_root = self.root / "skills" / "wow-debug" / "assets"
+            resource_root = self.root / "skills" / "wow-develop" / "assets"
             resource_root.write_text("not a directory", encoding="utf-8")
             self.assert_error("resource root must be a regular directory")
 
@@ -274,12 +271,12 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("runtime content references an absolute filesystem path")
 
     def test_eval_suite_rejects_the_legacy_jsonl_format(self) -> None:
-        evals = self.root / "skills" / "wow-debug" / "evals"
+        evals = self.root / "skills" / "wow-develop" / "evals"
         (evals / "activation.jsonl").write_text('{"id":"A01"}\n', encoding="utf-8")
         self.assert_error("`claude plugin eval` does not read this format")
 
     def test_eval_case_prompt_frontmatter_is_checked(self) -> None:
-        prompt = self.root / "skills" / "wow-debug" / "evals" / "a09-debug-projection" / "prompt.md"
+        prompt = self.root / "skills" / "wow-develop" / "evals" / "a09-debug-projection" / "prompt.md"
         original = prompt.read_text(encoding="utf-8")
         for change, expected in (
             (("name: a09-debug-projection", "name: other"), "must match directory 'a09-debug-projection'"),
@@ -307,7 +304,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("prompt.md: missing")
 
     def test_eval_case_directories_are_kebab_case_local_and_graded(self) -> None:
-        evals = self.root / "skills" / "wow-debug" / "evals"
+        evals = self.root / "skills" / "wow-develop" / "evals"
         with self.subTest(boundary="results-are-ignored"):
             results = evals / "results" / "2026-10-04"
             results.mkdir(parents=True)
@@ -339,7 +336,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("missing eval suite")
 
     def test_eval_graders_use_types_and_arms_the_cli_accepts(self) -> None:
-        case = self.root / "skills" / "wow-debug" / "evals" / "b06-debug-readonly" / "graders"
+        case = self.root / "skills" / "wow-develop" / "evals" / "b06-debug-readonly" / "graders"
         criteria = case / "criteria.md"
         must_name = case / "must-name.md"
         original_criteria = criteria.read_text(encoding="utf-8")
@@ -389,7 +386,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             self.assert_error("a behavior case needs an llm or regex grader")
 
     def test_eval_suite_needs_a_trigger_and_a_scored_negative(self) -> None:
-        evals = self.root / "skills" / "wow-debug" / "evals"
+        evals = self.root / "skills" / "wow-develop" / "evals"
         negatives = sorted(evals.glob("*/graders/skill-not-fired.md"))
         triggers = sorted(evals.glob("*/graders/skill-fired.md"))
         with self.subTest(boundary="negative-without-arm-both"):
@@ -400,7 +397,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         with self.subTest(boundary="activation-with-two-checks"):
             case = negatives[0].parent
             shutil.copy(triggers[0], case / "skill-fired.md")
-            self.assert_error("an activation case holds exactly one tool_used Skill grader naming wow-debug")
+            self.assert_error("an activation case holds exactly one tool_used Skill grader naming wow-develop")
             (case / "skill-fired.md").unlink()
         with self.subTest(boundary="no-negative"):
             for negative in negatives:
@@ -412,22 +409,27 @@ class WowSkillsValidatorTest(unittest.TestCase):
                     shutil.rmtree(case)
             for trigger in evals.glob("*/graders/skill-fired.md"):
                 trigger.unlink()
-            self.assert_error("no case asserts that wow-debug loads")
+            self.assert_error("no case asserts that wow-develop loads")
         with self.subTest(boundary="too-few-cases"):
             for case in sorted(evals.iterdir())[2:]:
                 if case.is_dir():
                     shutil.rmtree(case)
             self.assert_error("needs at least 3 cases")
 
-    def test_long_descriptions_warn_without_failing(self) -> None:
-        path = self.root / "skills" / "wow-debug" / "SKILL.md"
-        words = " ".join(["word"] * 61)
-        path.write_text(
-            re.sub(r'^description: ".*"$', f'description: "{words}"', path.read_text(encoding="utf-8"), count=1, flags=re.MULTILINE),
-            encoding="utf-8",
-        )
-        self.assertTrue(any("wow-debug/SKILL.md: description has 61 words (budget 60)" in w for w in collect_warnings(self.root)))
-        self.assertFalse(any("description" in error for error in validate_repository(self.root)))
+    def test_descriptions_over_the_word_budget_fail(self) -> None:
+        path = self.root / "skills" / "wow-develop" / "SKILL.md"
+        original = path.read_text(encoding="utf-8")
+        for count, fails in ((60, False), (61, True)):
+            with self.subTest(words=count):
+                words = " ".join(["word"] * count)
+                path.write_text(
+                    re.sub(r'^description: ".*"$', f'description: "{words}"', original, count=1, flags=re.MULTILINE),
+                    encoding="utf-8",
+                )
+                errors = [error for error in validate_repository(self.root) if "description has" in error]
+                self.assertEqual(fails, bool(errors), errors)
+                if fails:
+                    self.assertTrue(any("wow-develop/SKILL.md: description has 61 words (limit 60)" in error for error in errors))
 
     def test_v6_audit_reports_versions_and_quoted_storage_values(self) -> None:
         if shutil.which("rg") is None:

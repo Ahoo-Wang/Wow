@@ -20,7 +20,7 @@ rg -n "@StatelessSaga|@ProjectionProcessor|@EventProcessor|@OnEvent|@OnStateEven
 rg -n "SagaSpec<|sagaVerifier|Projection.*Test|EventProcessor.*Test" . -g '*.kt' -g '*.java'
 ```
 
-For Spring-managed Saga, Projection, and EventProcessor components, trace the component annotation, `AutoRegistrar` bean discovery, the type-specific runtime metadata parser, and the function registrar. Their processor functions are built at runtime rather than loaded from generated processor metadata; also verify the generated bounded-context scopes used by `requiredNamedBoundedContext()`. For explicit registration, trace the registrar call and resulting `MessageFunction` set. Resolve exact return shapes, parameter injection, delivery filters, retry defaults, compensation, and blocking behavior from the target version.
+Spring-managed Saga, Projection, and EventProcessor functions are built at runtime by `AutoRegistrar`, the type-specific metadata parser and the function registrar, not loaded from generated processor metadata; `handler-discovery.md` traces that chain, the generated bounded-context scopes `requiredNamedBoundedContext()` needs, and explicit `MessageFunction` registration. Resolve exact return shapes, parameter injection, delivery filters, retry defaults, compensation, and blocking behavior from the target version.
 
 ## Design decisions
 

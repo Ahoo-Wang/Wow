@@ -13,11 +13,8 @@ from typing import Any
 EXPECTED_SKILLS = {
     "wow-client",
     "wow-data-query",
-    "wow-debug",
     "wow-develop",
-    "wow-generator",
     "wow-migrate",
-    "wow-review",
     "wow-view-definition",
     "wow-view-host",
 }
@@ -57,7 +54,7 @@ FILESYSTEM_ROOTS = {
 FILESYSTEM_SUFFIXES = {
     ".env", ".key", ".pem",
 }
-# A description is read on every turn to pick a skill; past this it warns.
+# A description is read on every turn to pick a skill; past this it fails.
 DESCRIPTION_MAX_WORDS = 60
 # `claude plugin eval` suites: evals/<case>/prompt.md + graders/*.md.
 MIN_EVAL_CASES = 3
@@ -229,6 +226,9 @@ def _validate_skill_file(skill_dir: Path, errors: list[str]) -> str:
         errors.append(f"{skill_file}: invalid skill name {name!r}")
     if not description.strip() or len(description) > 1024 or "<" in description or ">" in description:
         errors.append(f"{skill_file}: description must be 1-1024 characters without angle brackets")
+    words = len(description.split())
+    if words > DESCRIPTION_MAX_WORDS:
+        errors.append(f"{skill_file}: description has {words} words (limit {DESCRIPTION_MAX_WORDS})")
     _validate_runtime_text(skill_file, description, errors)
     if not body:
         errors.append(f"{skill_file}: body must not be empty")
@@ -600,28 +600,12 @@ def validate_repository(root: Path) -> list[str]:
     return sorted(errors)
 
 
-def collect_warnings(root: Path) -> list[str]:
-    """Problems that do not fail validation yet."""
-    warnings: list[str] = []
-    for skill_name in sorted(EXPECTED_SKILLS):
-        skill_file = root / "skills" / skill_name / "SKILL.md"
-        if skill_file.is_symlink() or not skill_file.is_file():
-            continue
-        metadata, _ = _frontmatter(skill_file, [])
-        words = len(metadata.get("description", "").split())
-        if words > DESCRIPTION_MAX_WORDS:
-            warnings.append(f"{skill_file}: description has {words} words (budget {DESCRIPTION_MAX_WORDS})")
-    return warnings
-
-
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) > 1:
         print("usage: validate_wow_skills.py [repository-root]", file=sys.stderr)
         return 2
     root = Path(args[0]).resolve() if args else Path(__file__).resolve().parents[1]
-    for warning in collect_warnings(root):
-        print(f"WARNING: {warning}", file=sys.stderr)
     errors = validate_repository(root)
     if errors:
         for error in errors:

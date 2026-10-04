@@ -1,6 +1,6 @@
 ---
 name: "wow-view-definition"
-description: "Decide what a Wow View Engine view definition declares for its audience, and write it with defineView over the service's committed query capability descriptor: which fields appear and in what words, what is narrowed, the time a board reads, system record and analysis views, dashboards, event streams, and the words behind every text(key). Self-checked by the engine's admit. Use for @ahoo-wang/wow-view-engine definitions, system views and boards in downstream apps, and for the view definitions and stories inside the Wow repository. Exclude registering resources, ViewHost, routes, stores and declared actions (wow-view-host), runtime client code (wow-client), answering data questions (wow-data-query), and changing the view engine itself."
+description: "Write Wow View Engine view definitions with defineView over the service's committed query capability descriptor: fields and their words, narrowing, system record and analysis views, boards, event streams, self-checked with admit. Use for @ahoo-wang/wow-view-engine definitions and stories, including the Wow repository's Storybook and compensation console. Exclude host wiring and actions (wow-view-host), client code, data answers, and changing the engine."
 ---
 
 # wow-view-definition
@@ -48,4 +48,4 @@ Links in the references point at `main` on GitHub; in a Wow checkout the same fi
 - $wow-view-host: register the definition with its source and store, `ViewHost`, routes, and the commands on its records.
 - $wow-client: TypeScript code that sends commands or queries outside the engine.
 - $wow-data-query: answer a business question from a running service's data instead of writing a view.
-- $wow-debug: a query the descriptor admits but the service rejects, or a result that contradicts the data.
+- $wow-develop: a query the descriptor admits but the service rejects, or a result that contradicts the data.
