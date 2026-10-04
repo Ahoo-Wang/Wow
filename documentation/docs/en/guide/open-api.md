@@ -81,6 +81,8 @@ The general aggregate route shape is:
 
 The default route starts at the resource name. Wow does not prepend a bounded-context alias to local paths. Do not construct paths from naming conventions in client code; inspect generated OpenAPI.
 
+On a route that declares `{tenantId}`, `{ownerId}` or `{id}`, the path segment is the value: the `Command-Tenant-Id`, `Command-Owner-Id` and `Command-Aggregate-Id` headers are not read on that route, and a segment that decodes to a blank value (such as `%20`) answers `400` with error code `IllegalArgument` instead of falling back to the header or to the default tenant. Routes that do not declare the variable keep reading the header (and a static tenant always applies).
+
 ### Tenant Resources
 
 A dynamic tenant aggregate's default command/state routes receive the `tenant/{tenantId}` prefix. Snapshot query contributors also retain a base route and add the tenant-scoped variant. Tenant path data is passed to runtime handlers and query rewriting, but the application must bind it to the authenticated principal and protect the unscoped query route explicitly.
