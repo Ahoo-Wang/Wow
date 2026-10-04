@@ -70,6 +70,26 @@ outline: deep
 
 这些任务依赖 Docker/Testcontainers，并有意不挂到 `check`。`:wow-it` 验证 Wow 仓库内的集成组合，不能替代某个业务应用的配置、协议、恢复与安全门禁。
 
+### 新旧版本混部测试
+
+`:wow-it` 中的 `MixedVersionClusterTest` 检查滚动升级：已发布的示例服务镜像和由当前源码构建的示例服务共用一个 Kafka 和一个 MongoDB，加入同样的消费组，双方都必须能处理对方发出的内容。测试关闭本地优先路由，并按分区归属挑选聚合 ID，因此两个方向都会覆盖：
+
+- 发给一个版本的命令由另一个版本处理，`PROCESSED` 等待结果回到发送方；
+- 一个版本追加的状态事件由另一个版本生成快照，`SNAPSHOT` 等待跨版本返回；
+- 一个版本上的 Saga（`CartSaga`）处理另一个版本追加的领域事件；
+- 两个版本读到相同的聚合状态和事件流。
+
+只有环境变量同时指明两个节点时测试才运行，所以 `allIntegrationTest` 会跳过它。`Mixed-Version` 工作流在拉取请求改动线上格式相关模块（`wow-api`、`wow-core`、`wow-kafka`、`wow-redis`、`wow-mongo`、`wow-webflux`、`wow-spring`、`wow-spring-boot-starter`）、示例服务、依赖版本或测试本身时运行它，并拉取已发布镜像（工作流中的 `PREVIOUS_IMAGE`）。如果只想在本地检查测试框架而不拉取该镜像，可以用当前构建的两份副本运行：
+
+```bash
+./gradlew :example-server:installDist
+home=$PWD/example/example-server/build/install/example-server
+WOW_MIXED_CURRENT_HOME=$home WOW_MIXED_PREVIOUS_HOME=$home \
+  ./gradlew :wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'
+```
+
+把 `WOW_MIXED_PREVIOUS_HOME` 换成 `WOW_MIXED_PREVIOUS_IMAGE` 即可像 CI 一样运行已发布镜像。示例服务没有 Redis 总线，所以 Redis 由线上格式测试覆盖，不在这个集群里。
+
 ## 覆盖率是分层证据
 
 当前聚合与分层报告任务为：
@@ -172,6 +192,7 @@ WebFlux suite 不启动真实 Netty server。当前 `benchmarkQuickInfrastructur
 | `Local Test` | `allLocalTest` + `localCoverageReport` |
 | `Contract Test` | `allContractTest` + `contractCoverageReport` |
 | `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
+| `Mixed-Version` | `:example-server:installDist` + 使用已发布镜像运行 `:wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'` |
 | `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
 | `Codecov` | `codeCoverageReport` |
 

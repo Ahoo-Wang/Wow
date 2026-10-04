@@ -70,6 +70,26 @@ Or run only an affected adapter:
 
 These tasks require Docker/Testcontainers and intentionally are not attached to `check`. `:wow-it` validates integration combinations inside the Wow repository; it cannot replace a business application's configuration, protocol, recovery, and security gates.
 
+### Mixed-Version Cluster Test
+
+`MixedVersionClusterTest` in `:wow-it` checks a rolling upgrade: the released example server image and the example server built from the current source share one Kafka and one MongoDB, join the same consumer groups, and each must process what the other sends. Local-first routing is off, and the test chooses aggregate ids by partition owner, so in both directions:
+
+- a command sent to one version is processed by the other, and its `PROCESSED` wait returns to the sender;
+- a state event appended by one version is snapshotted by the other, and the `SNAPSHOT` wait returns across versions;
+- a saga on one version (`CartSaga`) handles the domain events the other version appends;
+- both versions read the same aggregate state and event stream.
+
+The test runs only when its environment names both nodes, so `allIntegrationTest` skips it. The `Mixed-Version` workflow runs it on pull requests that touch the wire modules (`wow-api`, `wow-core`, `wow-kafka`, `wow-redis`, `wow-mongo`, `wow-webflux`, `wow-spring`, `wow-spring-boot-starter`), the example server, dependency versions or the harness, pulling the released image (`PREVIOUS_IMAGE` in the workflow). To check the harness locally without pulling that image, run it against two copies of the current build:
+
+```bash
+./gradlew :example-server:installDist
+home=$PWD/example/example-server/build/install/example-server
+WOW_MIXED_CURRENT_HOME=$home WOW_MIXED_PREVIOUS_HOME=$home \
+  ./gradlew :wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'
+```
+
+Set `WOW_MIXED_PREVIOUS_IMAGE` instead of `WOW_MIXED_PREVIOUS_HOME` to run the released image, as CI does. The example server has no Redis bus, so Redis is covered by wire-format tests, not by this cluster.
+
 ## Coverage Is Layered Evidence
 
 The current aggregate and layer report tasks are:
@@ -172,6 +192,7 @@ Follow three rules:
 | `Local Test` | `allLocalTest` + `localCoverageReport` |
 | `Contract Test` | `allContractTest` + `contractCoverageReport` |
 | `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
+| `Mixed-Version` | `:example-server:installDist` + `:wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'` with the released image |
 | `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
 | `Codecov` | `codeCoverageReport` |
 
