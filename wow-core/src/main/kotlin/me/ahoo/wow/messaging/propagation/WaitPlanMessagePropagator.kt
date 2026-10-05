@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.propagation
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.command.wait.extractWaitPlan
 
 /**
@@ -27,5 +28,14 @@ class WaitPlanMessagePropagator : MessagePropagator {
     ) {
         val waitPlan = upstream.header.extractWaitPlan() ?: return
         waitPlan.propagate(header, upstream)
+    }
+
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>,
+        producer: FunctionInfo
+    ) {
+        val waitPlan = upstream.header.extractWaitPlan() ?: return
+        waitPlan.propagate(header, upstream, producer)
     }
 }

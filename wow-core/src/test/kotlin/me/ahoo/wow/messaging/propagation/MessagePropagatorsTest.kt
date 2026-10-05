@@ -26,7 +26,6 @@ import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companio
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withRemoteIp
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withUserAgent
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.traceId
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.upstreamId
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.withTraceId
@@ -34,10 +33,10 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 
-class MessagePropagatorProviderTest {
+class MessagePropagatorsTest {
 
     @Test
-    fun `provider composes service-loaded propagators`() {
+    fun `the default registry composes the service-loaded propagators`() {
         val upstream = SimpleCommandMessage(
             id = "command-id",
             header = DefaultHeader.empty()

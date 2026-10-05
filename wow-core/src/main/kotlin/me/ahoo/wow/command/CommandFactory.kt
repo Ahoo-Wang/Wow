@@ -32,7 +32,7 @@ import me.ahoo.wow.identity.IdentityHint
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.ensureTraceId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.acceptsCommandSpace
@@ -58,6 +58,7 @@ import me.ahoo.wow.modeling.annotation.acceptsCommandSpace
  * @param createTime creation timestamp (default current time)
  * @param upstream upstream domain event (optional)
  * @param ownerIdSameAsAggregateId whether owner ID should match aggregate ID
+ * @param messagePropagator propagates [upstream]'s context into [header] (default: [MessagePropagators.DEFAULT])
  * @return a properly configured CommandMessage
  * @throws IllegalArgumentException if no named aggregate can be determined
  * @see CommandMessage
@@ -76,10 +77,11 @@ fun <C : Any> C.toCommandMessage(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis(),
     upstream: DomainEvent<*>? = null,
-    ownerIdSameAsAggregateId: Boolean = false
+    ownerIdSameAsAggregateId: Boolean = false,
+    messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ): CommandMessage<C> {
     upstream?.let {
-        header.propagate(it)
+        messagePropagator.propagate(header, it)
     }
     val metadata = javaClass.commandMetadata()
     val commandNamedAggregate = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(this)
@@ -146,11 +148,14 @@ private fun NamedAggregate.commandSpaceId(spaceId: SpaceId?): SpaceId =
  * object's toCommandMessage method.
  *
  * @param C the type of the command body
+ * @param messagePropagator propagates the builder's upstream context into its header
  * @return a CommandMessage with all builder properties applied
  * @see CommandBuilder
  * @see CommandMessage
  */
-fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> =
+fun <C : Any> CommandBuilder.toCommandMessage(
+    messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
+): CommandMessage<C> =
     this.bodyAs<C>().toCommandMessage(
         id = id,
         requestId = requestId,
@@ -164,4 +169,5 @@ fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> =
         createTime = createTime,
         upstream = upstream,
         ownerIdSameAsAggregateId = ownerIdSameAsAggregateId,
+        messagePropagator = messagePropagator,
     )

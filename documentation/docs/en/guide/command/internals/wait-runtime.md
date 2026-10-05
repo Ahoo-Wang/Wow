@@ -36,7 +36,7 @@ A `WaitPlan` contains a `waitCommandId`, a `WaitTarget`, and `supportVoidCommand
 - callback address: `command_wait_endpoint`;
 - target: a stage and optional function identity, or a chain and its tail description.
 
-Registering before send prevents fast local processing from returning a signal before the handle is visible. `WaitPlanMessagePropagator` carries the Header across related messages. An ordinary stage target propagates only after a command; a chain target also crosses events and Saga commands, retaining tail information on non-command messages.
+Registering before send prevents fast local processing from returning a signal before the handle is visible. `WaitPlanMessagePropagator` carries the Header across related messages. Every target propagates from a command to the event stream it commits, and the event store keeps those keys. Only a chain target crosses an event, and only into the commands of the Saga function the chain waits for, which carry the tail information (since 9.3.0; before it, every command derived from the event carried the tail, including those of unrelated Sagas). A chain wait must wait on the command it is sent with: the gateway rejects a chain plan whose `waitCommandId` is another command's ID.
 
 Processors reconstruct an `ExtractedWaitPlan` with `Header.extractWaitPlan`. Notification remains a no-op when correlation ID, endpoint, or a parseable target is absent. The Header is transport metadata, not a remote reference to the caller's local object.
 

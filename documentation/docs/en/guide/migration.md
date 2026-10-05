@@ -184,6 +184,13 @@ The starter fails startup when the context still holds such a bean (an `Exchange
 - `DefaultCommandGateway.close()` no longer closes the `CommandBus` it was given. After `close()` the gateway cannot schedule deadlines: `sendAndWait*` fails with `RejectedExecutionException`. Code that builds a gateway by hand closes its bus itself; Spring closes the bus bean.
 - `sendAndWait` / `sendAndWaitStream` send a copy of the message with the wait keys in its Header; the caller's message is not modified. Code that read wait keys back from the message it passed must read them from the received message instead.
 
+### Header Propagation and Recoverable Exceptions Are Beans (9.3.0)
+
+- `MessagePropagatorProvider` is removed. Use an injected `MessagePropagators` (the Spring bean, or `MessagePropagators.DEFAULT` outside Spring); `import ...MessagePropagatorProvider.propagate` becomes `import me.ahoo.wow.messaging.propagation.propagate`. A `MessagePropagator` can now also be a bean; a bean wins over a ServiceLoader propagator of the same class, and Wow's `@Order` (not Spring's) orders them.
+- `RecoverableExceptionRegistrar` is now the interface `RecoverableExceptionProvider`s register into; the static object is removed. Use `RecoverableExceptionRegistry.DEFAULT` or the `recoverableExceptionRegistry` bean (`register`, `unregister`, `getRecoverableType`). A `RecoverableExceptionProvider` can now also be a bean.
+- `wow.messaging.propagation.request` is read from the Spring environment and applies to the runtime's injected `MessagePropagators` only; `MessagePropagators.DEFAULT` ignores it, and outside Spring the `-D` system property is no longer read.
+- A chain wait's tail reaches only the commands of the Saga function the chain waits for, and a chain plan must wait on the command it is sent with (`waitCommandId` = command ID), otherwise `sendAndWait` fails with `IllegalArgumentException`. See [Command Wait Runtime](./command/internals/wait-runtime.md).
+
 ### BI Script Route Needs `wow-bi` (9.3.0)
 
 `wow-webflux` and the Starter's `webflux-support` / `openapi-support` capabilities no longer bring `wow-bi` (and the ClickHouse client). An application that serves `POST /wow/bi/script` adds `wow-bi`, or requests the Starter's `bi-support` capability; with it on the classpath the route, its OpenAPI operation and schemas, its error codes and the `wow.bi.script.*` properties are unchanged. Without it the route is absent. The BI route classes moved to the Starter:

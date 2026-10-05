@@ -17,6 +17,7 @@ import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.validateCommand
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -30,13 +31,15 @@ import reactor.kotlin.core.publisher.toMono
  *
  * @param validator the validator for command validation
  * @param commandBuilderRewriterRegistry registry of command builder rewriters
+ * @param messagePropagator propagates the upstream event's context into a command built from one
  * @see CommandMessageFactory
  * @see Validator
  * @see CommandBuilderRewriterRegistry
  */
 class SimpleCommandMessageFactory(
     private val validator: Validator,
-    private val commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
+    private val commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry,
+    private val messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ) : CommandMessageFactory {
     /**
      * Creates a CommandMessage from a CommandBuilder, applying validation and rewriters.
@@ -57,7 +60,7 @@ class SimpleCommandMessageFactory(
     override fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>> {
         val body = commandBuilder.body
         val rewriter = commandBuilderRewriterRegistry.getRewriter(body.javaClass)
-            ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
+            ?: return commandBuilder.toCommandMessage<TARGET>(messagePropagator).toMono()
         validator.validateCommand(body)
         return rewriter.rewrite(commandBuilder)
             .checkpoint { "Rewrite $rewriter [SimpleCommandMessageFactory]" }
@@ -67,7 +70,7 @@ class SimpleCommandMessageFactory(
                 },
             )
             .map {
-                it.toCommandMessage()
+                it.toCommandMessage(messagePropagator)
             }
     }
 }

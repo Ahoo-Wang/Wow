@@ -21,7 +21,7 @@ import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 
 /**
  * Flattens an object into an iterable of events.
@@ -67,6 +67,7 @@ fun Any.flatEvent(): Iterable<Any> =
  * @param stateSpaceId The space ID from the current state (default: DEFAULT_SPACE_ID)
  * @param header The header to propagate to the event stream (default: empty header)
  * @param createTime The timestamp for event creation (default: current time)
+ * @param messagePropagator propagates [upstream]'s context into [header] (default: [MessagePropagators.DEFAULT])
  * @return A new DomainEventStream containing the converted events
  *
  * @see DomainEventStream
@@ -80,7 +81,8 @@ fun Any.toDomainEventStream(
     stateOwnerId: String = OwnerId.DEFAULT_OWNER_ID,
     stateSpaceId: String = SpaceIdCapable.DEFAULT_SPACE_ID,
     header: Header = DefaultHeader.empty(),
-    createTime: Long = System.currentTimeMillis()
+    createTime: Long = System.currentTimeMillis(),
+    messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ): DomainEventStream = toDomainEventStream(
     upstream = upstream,
     aggregateVersion = aggregateVersion,
@@ -89,6 +91,7 @@ fun Any.toDomainEventStream(
     commandSpaced = true,
     header = header,
     createTime = createTime,
+    messagePropagator = messagePropagator,
 )
 
 /**
@@ -103,9 +106,10 @@ internal fun Any.toDomainEventStream(
     stateSpaceId: String,
     commandSpaced: Boolean,
     header: Header = DefaultHeader.empty(),
-    createTime: Long = System.currentTimeMillis()
+    createTime: Long = System.currentTimeMillis(),
+    messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ): DomainEventStream {
-    header.propagate(upstream)
+    messagePropagator.propagate(header, upstream)
     val eventStreamId = generateGlobalId()
     val aggregateId = upstream.aggregateId
     val streamVersion = aggregateVersion + 1

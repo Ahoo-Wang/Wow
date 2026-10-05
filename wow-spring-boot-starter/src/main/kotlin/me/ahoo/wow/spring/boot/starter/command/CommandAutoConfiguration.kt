@@ -24,6 +24,7 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.beans.factory.ObjectProvider
@@ -90,11 +91,13 @@ class CommandAutoConfiguration {
     @ConditionalOnMissingBean
     fun commandMessageFactory(
         validator: Validator,
-        commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry
+        commandBuilderRewriterRegistry: CommandBuilderRewriterRegistry,
+        messagePropagators: ObjectProvider<MessagePropagators>,
     ): CommandMessageFactory {
         return SimpleCommandMessageFactory(
             validator = validator,
-            commandBuilderRewriterRegistry = commandBuilderRewriterRegistry
+            commandBuilderRewriterRegistry = commandBuilderRewriterRegistry,
+            messagePropagator = messagePropagators.getIfAvailable { MessagePropagators.DEFAULT },
         )
     }
 }

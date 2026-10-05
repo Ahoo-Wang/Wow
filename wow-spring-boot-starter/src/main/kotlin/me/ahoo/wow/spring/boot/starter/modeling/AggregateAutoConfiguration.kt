@@ -26,6 +26,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -73,8 +74,14 @@ class AggregateAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun commandAggregateFactory(eventStore: EventStore): CommandAggregateFactory {
-        return SimpleCommandAggregateFactory(eventStore)
+    fun commandAggregateFactory(
+        eventStore: EventStore,
+        messagePropagators: ObjectProvider<MessagePropagators>,
+    ): CommandAggregateFactory {
+        return SimpleCommandAggregateFactory(
+            eventStore,
+            messagePropagators.getIfAvailable { MessagePropagators.DEFAULT }
+        )
     }
 
     @Bean

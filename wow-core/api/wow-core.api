@@ -49,9 +49,10 @@ public final class me/ahoo/wow/command/CommandExchange$DefaultImpls {
 }
 
 public final class me/ahoo/wow/command/CommandFactoryKt {
-	public static final fun toCommandMessage (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/messaging/Header;JLme/ahoo/wow/api/event/DomainEvent;Z)Lme/ahoo/wow/api/command/CommandMessage;
-	public static final fun toCommandMessage (Lme/ahoo/wow/command/factory/CommandBuilder;)Lme/ahoo/wow/api/command/CommandMessage;
-	public static synthetic fun toCommandMessage$default (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/messaging/Header;JLme/ahoo/wow/api/event/DomainEvent;ZILjava/lang/Object;)Lme/ahoo/wow/api/command/CommandMessage;
+	public static final fun toCommandMessage (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/messaging/Header;JLme/ahoo/wow/api/event/DomainEvent;ZLme/ahoo/wow/messaging/propagation/MessagePropagators;)Lme/ahoo/wow/api/command/CommandMessage;
+	public static final fun toCommandMessage (Lme/ahoo/wow/command/factory/CommandBuilder;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)Lme/ahoo/wow/api/command/CommandMessage;
+	public static synthetic fun toCommandMessage$default (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/messaging/Header;JLme/ahoo/wow/api/event/DomainEvent;ZLme/ahoo/wow/messaging/propagation/MessagePropagators;ILjava/lang/Object;)Lme/ahoo/wow/api/command/CommandMessage;
+	public static synthetic fun toCommandMessage$default (Lme/ahoo/wow/command/factory/CommandBuilder;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILjava/lang/Object;)Lme/ahoo/wow/api/command/CommandMessage;
 }
 
 public abstract interface class me/ahoo/wow/command/CommandGateway : me/ahoo/wow/command/CommandBus {
@@ -486,7 +487,8 @@ public final class me/ahoo/wow/command/factory/SimpleCommandBuilderRewriterRegis
 }
 
 public final class me/ahoo/wow/command/factory/SimpleCommandMessageFactory : me/ahoo/wow/command/factory/CommandMessageFactory {
-	public fun <init> (Ljakarta/validation/Validator;Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;)V
+	public fun <init> (Ljakarta/validation/Validator;Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)V
+	public synthetic fun <init> (Ljakarta/validation/Validator;Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun create (Ljava/lang/Object;)Lreactor/core/publisher/Mono;
 	public fun create (Lme/ahoo/wow/command/factory/CommandBuilder;)Lreactor/core/publisher/Mono;
 }
@@ -648,6 +650,7 @@ public final class me/ahoo/wow/command/wait/ExtractedWaitPlan : me/ahoo/wow/comm
 	public fun getWaitCommandId ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -1217,8 +1220,8 @@ public final class me/ahoo/wow/event/DomainEventStream$DefaultImpls {
 
 public final class me/ahoo/wow/event/DomainEventStreamFactoryKt {
 	public static final fun flatEvent (Ljava/lang/Object;)Ljava/lang/Iterable;
-	public static final fun toDomainEventStream (Ljava/lang/Object;Lme/ahoo/wow/api/command/CommandMessage;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/Header;J)Lme/ahoo/wow/event/DomainEventStream;
-	public static synthetic fun toDomainEventStream$default (Ljava/lang/Object;Lme/ahoo/wow/api/command/CommandMessage;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/Header;JILjava/lang/Object;)Lme/ahoo/wow/event/DomainEventStream;
+	public static final fun toDomainEventStream (Ljava/lang/Object;Lme/ahoo/wow/api/command/CommandMessage;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/Header;JLme/ahoo/wow/messaging/propagation/MessagePropagators;)Lme/ahoo/wow/event/DomainEventStream;
+	public static synthetic fun toDomainEventStream$default (Ljava/lang/Object;Lme/ahoo/wow/api/command/CommandMessage;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/Header;JLme/ahoo/wow/messaging/propagation/MessagePropagators;ILjava/lang/Object;)Lme/ahoo/wow/event/DomainEventStream;
 }
 
 public final class me/ahoo/wow/event/DomainEventStreamKt {
@@ -2265,11 +2268,22 @@ public abstract interface class me/ahoo/wow/exception/RecoverableExceptionProvid
 	public abstract fun register (Lme/ahoo/wow/exception/RecoverableExceptionRegistrar;)V
 }
 
-public final class me/ahoo/wow/exception/RecoverableExceptionRegistrar {
-	public static final field INSTANCE Lme/ahoo/wow/exception/RecoverableExceptionRegistrar;
+public abstract interface class me/ahoo/wow/exception/RecoverableExceptionRegistrar {
+	public abstract fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public abstract fun unregister (Ljava/lang/Class;)V
+}
+
+public final class me/ahoo/wow/exception/RecoverableExceptionRegistry : me/ahoo/wow/exception/RecoverableExceptionRegistrar {
+	public static final field Companion Lme/ahoo/wow/exception/RecoverableExceptionRegistry$Companion;
+	public fun <init> ()V
 	public final fun getRecoverableType (Ljava/lang/Class;)Lme/ahoo/wow/api/exception/RecoverableType;
-	public final fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
-	public final fun unregister (Ljava/lang/Class;)V
+	public fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public final fun register (Lme/ahoo/wow/exception/RecoverableExceptionProvider;)V
+	public fun unregister (Ljava/lang/Class;)V
+}
+
+public final class me/ahoo/wow/exception/RecoverableExceptionRegistry$Companion {
+	public final fun getDEFAULT ()Lme/ahoo/wow/exception/RecoverableExceptionRegistry;
 }
 
 public class me/ahoo/wow/exception/WowException : java/lang/RuntimeException, me/ahoo/wow/api/exception/ErrorInfo {
@@ -3534,13 +3548,17 @@ public final class me/ahoo/wow/messaging/processor/ReactiveMessageProcessor$Defa
 public final class me/ahoo/wow/messaging/propagation/CommandOperatorMessagePropagator : me/ahoo/wow/messaging/propagation/MessagePropagator {
 	public fun <init> ()V
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
 public final class me/ahoo/wow/messaging/propagation/CommandRequestHeaderPropagator : me/ahoo/wow/messaging/propagation/MessagePropagator {
 	public static final field Companion Lme/ahoo/wow/messaging/propagation/CommandRequestHeaderPropagator$Companion;
 	public static final field ENABLED_KEY Ljava/lang/String;
 	public fun <init> ()V
+	public fun <init> (Z)V
+	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
 public final class me/ahoo/wow/messaging/propagation/CommandRequestHeaderPropagator$Companion {
@@ -3552,18 +3570,36 @@ public final class me/ahoo/wow/messaging/propagation/CommandRequestHeaderPropaga
 
 public abstract interface class me/ahoo/wow/messaging/propagation/MessagePropagator {
 	public abstract fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
-public final class me/ahoo/wow/messaging/propagation/MessagePropagatorProvider : me/ahoo/wow/messaging/propagation/MessagePropagator {
-	public static final field INSTANCE Lme/ahoo/wow/messaging/propagation/MessagePropagatorProvider;
-	public final fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)Lme/ahoo/wow/api/messaging/Header;
-	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+public final class me/ahoo/wow/messaging/propagation/MessagePropagator$DefaultImpls {
+	public static fun propagate (Lme/ahoo/wow/messaging/propagation/MessagePropagator;Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
+}
+
+public final class me/ahoo/wow/messaging/propagation/MessagePropagators {
+	public static final field Companion Lme/ahoo/wow/messaging/propagation/MessagePropagators$Companion;
+	public fun <init> (Ljava/util/List;)V
+	public final fun getPropagators ()Ljava/util/List;
+	public final fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public final fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
+}
+
+public final class me/ahoo/wow/messaging/propagation/MessagePropagators$Companion {
+	public final fun getDEFAULT ()Lme/ahoo/wow/messaging/propagation/MessagePropagators;
+	public final fun loadServices ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/messaging/propagation/MessagePropagatorsKt {
+	public static final fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)Lme/ahoo/wow/api/messaging/Header;
+	public static synthetic fun propagate$default (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILjava/lang/Object;)Lme/ahoo/wow/api/messaging/Header;
 }
 
 public final class me/ahoo/wow/messaging/propagation/TraceMessagePropagator : me/ahoo/wow/messaging/propagation/MessagePropagator {
 	public static final field Companion Lme/ahoo/wow/messaging/propagation/TraceMessagePropagator$Companion;
 	public fun <init> ()V
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
 public final class me/ahoo/wow/messaging/propagation/TraceMessagePropagator$Companion {
@@ -3579,6 +3615,7 @@ public final class me/ahoo/wow/messaging/propagation/TraceMessagePropagator$Comp
 public final class me/ahoo/wow/messaging/propagation/WaitPlanMessagePropagator : me/ahoo/wow/messaging/propagation/MessagePropagator {
 	public fun <init> ()V
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
 public final class me/ahoo/wow/messaging/transport/InMemoryTransport : me/ahoo/wow/messaging/transport/Transport {
@@ -4041,7 +4078,8 @@ public final class me/ahoo/wow/modeling/command/IllegalAccessSpaceAggregateExcep
 }
 
 public final class me/ahoo/wow/modeling/command/SimpleCommandAggregateFactory : me/ahoo/wow/modeling/command/CommandAggregateFactory {
-	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;)V
+	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)V
+	public synthetic fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun create (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/modeling/state/StateAggregate;)Lme/ahoo/wow/modeling/command/CommandAggregate;
 }
 
@@ -4531,7 +4569,8 @@ public final class me/ahoo/wow/saga/stateless/StatelessSagaDispatcher : me/ahoo/
 }
 
 public final class me/ahoo/wow/saga/stateless/StatelessSagaFunction : me/ahoo/wow/infra/Decorator, me/ahoo/wow/messaging/function/MessageFunction {
-	public fun <init> (Lme/ahoo/wow/messaging/function/MessageFunction;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;)V
+	public fun <init> (Lme/ahoo/wow/messaging/function/MessageFunction;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)V
+	public synthetic fun <init> (Lme/ahoo/wow/messaging/function/MessageFunction;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getAnnotation (Ljava/lang/Class;)Ljava/lang/annotation/Annotation;
 	public fun getContextName ()Ljava/lang/String;
 	public synthetic fun getDelegate ()Ljava/lang/Object;
@@ -4559,8 +4598,8 @@ public final class me/ahoo/wow/saga/stateless/StatelessSagaFunctionFilter : me/a
 }
 
 public final class me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar : me/ahoo/wow/event/dispatcher/AbstractEventFunctionRegistrar {
-	public fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;)V
-	public synthetic fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun resolveProcessor (Ljava/lang/Object;)Ljava/util/Set;
 }
 

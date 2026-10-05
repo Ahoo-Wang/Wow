@@ -21,11 +21,16 @@ import me.ahoo.wow.api.messaging.Message
  *
  * This propagator helps maintain client request context across message boundaries,
  * useful for auditing and security purposes.
+ *
+ * @param enabled Whether it propagates. The Spring starter sets it from [ENABLED_KEY] for the propagators it injects
+ * into the runtime; [MessagePropagators.DEFAULT] (the ServiceLoader instance) always propagates. Since 9.3.0 nothing
+ * reads [ENABLED_KEY] as a JVM system property outside Spring.
  */
-class CommandRequestHeaderPropagator : MessagePropagator {
+class CommandRequestHeaderPropagator(private val enabled: Boolean = true) : MessagePropagator {
     companion object {
         /**
-         * System property key to enable/disable this propagator.
+         * The Spring configuration key (default `true`) that switches this propagator in the runtime's injected
+         * [MessagePropagators]; a JVM system property of the same name reaches it through the Spring environment.
          */
         const val ENABLED_KEY = "wow.messaging.propagation.request"
 
@@ -52,11 +57,6 @@ class CommandRequestHeaderPropagator : MessagePropagator {
 
         fun Header.withRemoteIp(remoteIp: String): Header = this.with(REMOTE_IP, remoteIp)
     }
-
-    /**
-     * Whether this propagator is enabled, controlled by system property.
-     */
-    private val enabled: Boolean = System.getProperty(ENABLED_KEY)?.toBoolean() != false
 
     /**
      * Propagates user agent and remote IP information if enabled.
