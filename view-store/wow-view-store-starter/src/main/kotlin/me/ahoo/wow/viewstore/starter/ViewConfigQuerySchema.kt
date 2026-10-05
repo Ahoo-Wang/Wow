@@ -16,7 +16,6 @@ package me.ahoo.wow.viewstore.starter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.querySchemaRegistration
@@ -28,37 +27,22 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
  * rest of the config, and the shared-board check filters on it) and the panel references of a dashboard
  * ([ViewConfigs.PANEL_REFERENCES] within `config.panels[]`, matched per element).
  *
- * `config` is an `ObjectNode`, which Wow's schema inference records as an opaque value: kind `UNKNOWN` with an
- * empty set of value types, both *set*. A declaration only adds properties, so the merged field is an unknown value
- * with properties, which does not compile; and the DSL does not let a declaration say `types(OBJECT)`. So this
- * builds the declaration with the DSL and then sets the value types of `state.config` to `OBJECT` on the result.
- *
- * Delete this and declare the fields with the plain DSL once Wow lets a declaration open an opaque object field
- * (inference leaving an unknown kind unset would do it).
+ * `config` is an `ObjectNode`, which Wow's schema inference records as an opaque value (kind `UNKNOWN`); declaring
+ * it `OBJECT` opens it, so its properties can be declared.
  */
 internal object ViewConfigQuerySchema {
     const val CONFIG_FIELD = "state.config"
 
-    fun registration(): QuerySchemaRegistration {
-        val registration = querySchemaRegistration(View::class, QueryModel.SNAPSHOT) {
-            field(CONFIG_FIELD) {
-                kind(QueryValueKind.OBJECT)
-                property(ViewConfigs.KIND) { types(QueryValueType.STRING) }
-                property(ViewConfigs.PANELS) {
-                    items {
-                        ViewConfigs.PANEL_REFERENCES.forEach { declareString(it) }
-                    }
+    fun registration(): QuerySchemaRegistration = querySchemaRegistration(View::class, QueryModel.SNAPSHOT) {
+        field(CONFIG_FIELD) {
+            kind(QueryValueKind.OBJECT)
+            property(ViewConfigs.KIND) { types(QueryValueType.STRING) }
+            property(ViewConfigs.PANELS) {
+                items {
+                    ViewConfigs.PANEL_REFERENCES.forEach { declareString(it) }
                 }
             }
         }
-        val fields = registration.declaration.fields.mapValues { (field, declaration) ->
-            if (field.path == CONFIG_FIELD) {
-                declaration.copy(valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-            } else {
-                declaration
-            }
-        }
-        return registration.copy(declaration = registration.declaration.copy(fields = fields))
     }
 
     /** Declares the string at [path] (dotted for a nested object) within the current declaration. */

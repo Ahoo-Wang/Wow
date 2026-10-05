@@ -71,9 +71,9 @@ internal class ViewStorePaths(currentContext: NamedBoundedContext) {
 
     /**
      * Whether the decoded tenant and owner of [path] (one of the view store's paths) name one ([ScopeIds]): not
-     * empty, and nothing invisible in them. Wow reads a blank tenant or owner path variable as missing and falls
-     * back to the `Command-Tenant-Id` / `Command-Owner-Id` headers (or to no owner at all, which skips its owner
-     * check), so `/tenant/t1/owner/%20/…` would otherwise escape the path's scope.
+     * empty, and nothing invisible in them. Since 9.3.0 Wow refuses a blank identity path segment on its own routes
+     * (before, it read one as missing and fell back to the headers); this rule also covers the starter's routes, the
+     * invisible characters Wow accepts, and answers with the view store's error code.
      */
     fun hasValidScope(path: PathContainer): Boolean {
         val variables = scopePattern.matchAndExtract(path)?.uriVariables ?: return false

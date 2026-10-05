@@ -37,6 +37,7 @@ import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.filter.QueryContext
@@ -57,6 +58,7 @@ import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.ScopeContributor
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.HttpStatus
@@ -113,7 +115,35 @@ class QueryPolicyWebFluxTest {
         }
     }
 
-    private fun withClient(policy: QueryPolicy, verify: (WebTestClient, RecordingBackend) -> Unit) {
+    @Test
+    fun `a scope contributor bean adds its dimension to the host's scope on every query route`() {
+        val policy = QueryPolicy { _, _ -> Mono.just(MatchAllFilter) }
+        val contributor = ScopeContributor { _, request ->
+            QueryScope(declared = OwnerIdFilter(requireNotNull(request.headers().firstHeader(PRINCIPAL))))
+        }
+        withClient(policy, contributor) { client, backend ->
+            ROUTES.forEach { route ->
+                backend.received.clear()
+                client.post().uri(route.path)
+                    .header(PRINCIPAL, "alice")
+                    .header(CommandComponent.Header.TENANT_ID, "trusted-tenant")
+                    .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                    .bodyValue(route.body).exchange()
+                    .expectStatus().isOk
+
+                val (model, filter) = backend.received.single()
+                val expected = setOf(TenantIdFilter("trusted-tenant"), OwnerIdFilter("alice")) +
+                    if (model == QueryModel.SNAPSHOT) setOf(DeletionFilter(DeletionState.ACTIVE)) else emptySet()
+                filter.leaves().assert().isEqualTo(expected)
+            }
+        }
+    }
+
+    private fun withClient(
+        policy: QueryPolicy,
+        vararg contributors: ScopeContributor,
+        verify: (WebTestClient, RecordingBackend) -> Unit,
+    ) {
         val metadata = Order::class.java.aggregateRouteMetadata()
         val backend = RecordingBackend(metadata.aggregateMetadata.namedAggregate)
         val snapshotFactory = object : SnapshotQueryBackendFactory {
@@ -136,13 +166,8 @@ class QueryPolicyWebFluxTest {
                 )
             })
             .withBean(QueryPolicy::class.java, { policy })
-            .withBean(QueryFilter::class.java, {
-                object : QueryFilter {
-                    override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
-                        Mono.just(context.query.withFilter(MatchAllFilter))
-                            .contextWrite { it.put(PRINCIPAL, "intruder") }
-                }
-            })
+            .withScopeContributors(contributors)
+            .withBean(QueryFilter::class.java, { IntruderFilter })
             .run { context ->
                 context.assert().hasNotFailed()
                 val module = WebFluxAutoConfiguration().queryRouteModule(
@@ -177,6 +202,19 @@ class QueryPolicyWebFluxTest {
                     .build()
                 verify(client, backend)
             }
+    }
+
+    /** Clears the submitted filter and writes another principal into the context, which the policy must not see. */
+    private object IntruderFilter : QueryFilter {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
+            Mono.just(context.query.withFilter(MatchAllFilter))
+                .contextWrite { it.put(PRINCIPAL, "intruder") }
+    }
+
+    private fun ApplicationContextRunner.withScopeContributors(
+        contributors: Array<out ScopeContributor>,
+    ): ApplicationContextRunner = contributors.foldIndexed(this) { index, runner, contributor ->
+        runner.withBean("scopeContributor$index", ScopeContributor::class.java, { contributor })
     }
 
     private fun schemaProvider(model: QueryModel) = object : QueryModelSchemaProvider {

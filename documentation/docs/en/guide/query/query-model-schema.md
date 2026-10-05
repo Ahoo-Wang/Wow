@@ -91,7 +91,7 @@ A declaration only supplements what inference cannot know — mostly values behi
 
 | Key | Meaning |
 |---|---|
-| `kind` | `SCALAR`, `OBJECT` or `ARRAY`; implied by `types`, `properties`/`values` or `items` when omitted. Unions, `null` and unknown values are inferred, never declared |
+| `kind` | `SCALAR`, `OBJECT` or `ARRAY`; implied by `types`, `properties`/`values` or `items` when omitted. Unions, `null` and unknown values are inferred, never declared. Since 9.3.0 `OBJECT` opens a value inference records as unknown (an `ObjectNode` or `Any` field), so its `properties` can be declared; it never turns a scalar or array into an object |
 | `types` | Scalar types: `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN` |
 | `nullable` | Whether JSON `null` occurs |
 | `enum` | The declared values, each `{ "value": …, "description"?: … }`; descriptions reach the descriptor's `enum` |

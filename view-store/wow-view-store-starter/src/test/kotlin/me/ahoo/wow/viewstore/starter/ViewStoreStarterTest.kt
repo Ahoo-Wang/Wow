@@ -28,6 +28,7 @@ import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.viewstore.starter.system.SystemViews
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -107,6 +108,9 @@ class ViewStoreStarterTest {
     @Test
     fun `adds its beans beside the host's and keeps the host's single ones`() {
         applicationContext.getBean(ViewStoreQueryPolicy::class.java).assert().isNotNull()
+        applicationContext.getBean(ViewStoreScopeContributor::class.java).assert().isNotNull()
+        // The view store adds its scope as a contributor, so the host's scope provider stays the host's.
+        applicationContext.getBeansOfType(QueryRequestScope::class.java).assert().hasSize(1)
         applicationContext.getBean(ViewStoreAppIdHeaderAppender::class.java).assert().isNotNull()
         applicationContext.getBean(ViewStoreWebFilter::class.java).assert().isNotNull()
         applicationContext.getBean(
@@ -219,6 +223,7 @@ class ViewStoreStarterTest {
             .withPropertyValues("wow.view-store.enabled=false")
             .run { context ->
                 context.containsBean("viewStoreQueryPolicy").assert().isFalse()
+                context.containsBean("viewStoreScopeContributor").assert().isFalse()
                 context.containsBean(ViewStoreAutoConfiguration.ROUTER_FUNCTION_BEAN_NAME).assert().isFalse()
             }
     }

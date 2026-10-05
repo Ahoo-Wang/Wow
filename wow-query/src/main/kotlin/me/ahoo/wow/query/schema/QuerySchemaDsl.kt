@@ -57,7 +57,11 @@ class QueryFieldDeclarationBuilder {
     private var items: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset
     private var values: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset
 
-    /** `SCALAR`, `OBJECT` or `ARRAY`; implied by [types], [property]/[values] or [items] when not stated. */
+    /**
+     * `SCALAR`, `OBJECT` or `ARRAY`; implied by [types], [property]/[values] or [items] when not stated. Since 9.3.0
+     * `OBJECT` also opens a value inference records as opaque (kind `UNKNOWN`, such as an `ObjectNode` field), so its
+     * properties can be declared.
+     */
     fun kind(value: QueryValueKind) {
         require(value in DECLARABLE_KINDS) { "Declared kind must be one of $DECLARABLE_KINDS." }
         kind = kind.set(value, "kind")

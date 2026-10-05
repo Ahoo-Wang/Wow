@@ -476,6 +476,18 @@ public final class me/ahoo/wow/webflux/route/query/AggregationQueryHandlerFuncti
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
+public final class me/ahoo/wow/webflux/route/query/CompositeQueryRequestScope : me/ahoo/wow/webflux/route/query/QueryRequestScope {
+	public static final field Companion Lme/ahoo/wow/webflux/route/query/CompositeQueryRequestScope$Companion;
+	public fun <init> (Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Ljava/util/List;)V
+	public final fun getContributors ()Ljava/util/List;
+	public final fun getIdentity ()Lme/ahoo/wow/webflux/route/query/QueryRequestScope;
+	public fun resolve (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lme/ahoo/wow/query/QueryScope;
+}
+
+public final class me/ahoo/wow/webflux/route/query/CompositeQueryRequestScope$Companion {
+	public final fun of (Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Ljava/util/List;)Lme/ahoo/wow/webflux/route/query/QueryRequestScope;
+}
+
 public final class me/ahoo/wow/webflux/route/query/CountQueryHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
 	public fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/query/QueryGateway;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/query/QueryGateway;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -580,6 +592,10 @@ public abstract interface class me/ahoo/wow/webflux/route/query/QueryRequestScop
 public final class me/ahoo/wow/webflux/route/query/QuerySchemaRefreshHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public abstract interface class me/ahoo/wow/webflux/route/query/ScopeContributor {
+	public abstract fun contribute (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lme/ahoo/wow/query/QueryScope;
 }
 
 public final class me/ahoo/wow/webflux/route/query/SingleQueryHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {

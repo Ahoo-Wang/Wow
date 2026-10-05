@@ -91,7 +91,7 @@ flowchart LR
 
 | 键 | 含义 |
 |---|---|
-| `kind` | `SCALAR`、`OBJECT` 或 `ARRAY`；省略时由 `types`、`properties`/`values` 或 `items` 推出。联合、`null` 与未知值只能推断，不能声明 |
+| `kind` | `SCALAR`、`OBJECT` 或 `ARRAY`；省略时由 `types`、`properties`/`values` 或 `items` 推出。联合、`null` 与未知值只能推断，不能声明。自 9.3.0 起，`OBJECT` 可以打开推断为未知的值（`ObjectNode` 或 `Any` 字段），以便声明它的 `properties`；它不会把标量或数组变成对象 |
 | `types` | 标量类型：`STRING`、`INTEGER`、`DECIMAL`、`BOOLEAN` |
 | `nullable` | 是否会出现 JSON `null` |
 | `enum` | 声明的取值，每项为 `{ "value": …, "description"?: … }`；说明会进入能力描述的 `enum` |

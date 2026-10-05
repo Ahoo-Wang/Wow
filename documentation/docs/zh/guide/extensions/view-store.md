@@ -244,7 +244,8 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 
 服务端不认证，**身份就是路径**：路径的 `{ownerId}` 就是用户（或 `(shared)`），租户与应用是路径的 `{tenantId}` 与 `CoSec-App-Id` 请求头。服务端没有任何「谁能写」的设置，所有的放行都是 CoSec 网关的路径规则（[CoSec](./cosec.md)）。服务端这一侧只保证路径就是它读到的那个：
 
-- 应用只从 `CoSec-App-Id` 取；调用者发到视图存储路径的每个 `Command-Header-*` 都被丢掉（Wow 会拒绝它保留的键，`command_operator` 与 `app_id` 都在其中，其余的键会原样抄进命令头）；`Command-Tenant-Id` 与 `Command-Owner-Id` 也被丢掉。
+- 应用只从 `CoSec-App-Id` 取；调用者发到视图存储路径的每个 `Command-Header-*` 都被丢掉（Wow 会拒绝它保留的键，`command_operator` 与 `app_id` 都在其中，其余的键会原样抄进命令头）；`Command-Tenant-Id` 与 `Command-Owner-Id` 也被丢掉（Wow 会拒绝与路径矛盾的这两个请求头，而收为个人是以 `(shared)` 发出的，调用者带上自己的所有者请求头就会与之矛盾）。
+- 快照查询限定在自己的租户、所有者与应用内：starter 以作用域贡献者（见[查询网关](../query/query-gateway.md)）把 `state.appId = <CoSec-App-Id>` 加进查询的作用域，与宿主作用域从路径读到的租户、所有者并列。没有 `CoSec-App-Id` 的查询答 400 `ViewAppRequired`；对视图存储事件流的 HTTP 查询答 `ViewEventStreamClosed`。
 - 解码后租户或所有者为空，或含有显示为空白或什么都不显示的字符（空白、控制与格式字符如 U+200B、代理项、私用区与未分配码位，以及别的不可见字符），在到达 Wow 之前答 400 `ViewScopeRequired`：Wow 自身会拒绝空白的已声明路径值（400 `IllegalArgument`），但不拒绝不可见字符，而不可见字符会造出一个看起来像别人的所有者。被收为个人时的新所有者守同样的规则。
 
 ### 网关规则

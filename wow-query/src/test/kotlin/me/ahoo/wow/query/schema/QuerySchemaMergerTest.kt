@@ -539,6 +539,81 @@ class QuerySchemaMergerTest {
         }
     }
 
+    /** What inference records for an opaque value (a Jackson `ObjectNode`, say): an unknown kind and no value type. */
+    private val opaque = QueryFieldDeclaration(
+        kind = DeclarationValue.Set(QueryValueKind.UNKNOWN),
+        valueTypes = DeclarationValue.Set(emptySet()),
+    )
+
+    private fun inferredAndDeclared(inferred: QueryFieldDeclaration, declared: QuerySchemaDeclaration) = merger.merge(
+        system(),
+        listOf(
+            PrioritizedQuerySchemaDeclaration(
+                QuerySchemaSourcePriority.INFERRED,
+                QuerySchemaDeclaration(mapOf(QueryField("state.config") to inferred)),
+            ),
+            PrioritizedQuerySchemaDeclaration(QuerySchemaSourcePriority.BEAN, declared),
+        ),
+    )
+
+    @Test
+    fun `a declaration of kind OBJECT opens an opaque value as an object`() {
+        val declared = QuerySchemaDeclarationBuilder().apply {
+            field("state.config") {
+                kind(QueryValueKind.OBJECT)
+                property("kind") { types(QueryValueType.STRING) }
+            }
+        }.build()
+        val config = inferredAndDeclared(
+            opaque,
+            declared
+        ).root.properties.getValue("state").properties.getValue("config")
+        config.kind.assert().isEqualTo(QueryValueKind.OBJECT)
+        config.valueTypes.assert().isEqualTo(setOf(QueryValueType.OBJECT))
+        config.properties.getValue("kind").valueTypes.assert().isEqualTo(setOf(QueryValueType.STRING))
+    }
+
+    @Test
+    fun `opening an opaque value compiles as stating its object value type did`() {
+        val declared = QuerySchemaDeclarationBuilder().apply {
+            field("state.config") {
+                kind(QueryValueKind.OBJECT)
+                property("kind") { types(QueryValueType.STRING) }
+            }
+        }.build()
+        // How a declaration had to open one before 9.3.0: edit the value types of the built declaration by hand.
+        val handEdited = QuerySchemaDeclaration(
+            declared.fields.mapValues { (_, field) ->
+                field.copy(valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+            }
+        )
+        val opened = inferredAndDeclared(opaque, declared)
+        val edited = inferredAndDeclared(opaque, handEdited)
+        opened.values.keys.assert().isEqualTo(edited.values.keys)
+        opened.values.forEach { (path, value) ->
+            val reference = edited.values.getValue(path)
+            value.kind.assert().isEqualTo(reference.kind)
+            value.valueTypes.assert().isEqualTo(reference.valueTypes)
+            value.nullable.assert().isEqualTo(reference.nullable)
+            value.properties.keys.assert().isEqualTo(reference.properties.keys)
+        }
+    }
+
+    @Test
+    fun `a declaration of kind OBJECT still cannot turn a scalar into an object`() {
+        val declared = QuerySchemaDeclarationBuilder().apply {
+            field("state.config") {
+                kind(QueryValueKind.OBJECT)
+                property("kind") { types(QueryValueType.STRING) }
+            }
+        }.build()
+        val scalar = QueryFieldDeclaration(
+            kind = DeclarationValue.Set(QueryValueKind.SCALAR),
+            valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+        )
+        assertThrows<QuerySchemaConflictException> { inferredAndDeclared(scalar, declared) }
+    }
+
     private fun stringMask() = QueryFieldDeclaration(
         valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
         maskRule = DeclarationValue.Set(fullMaskRule()),

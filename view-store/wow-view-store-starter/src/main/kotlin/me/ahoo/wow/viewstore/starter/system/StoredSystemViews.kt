@@ -24,7 +24,7 @@ import me.ahoo.wow.viewstore.ViewStoreService.SYSTEM_TENANT_ID
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.domain.view.ViewState
-import me.ahoo.wow.viewstore.starter.ViewStoreQueryPolicy
+import me.ahoo.wow.viewstore.starter.ViewStoreScopeContributor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -106,7 +106,7 @@ internal class SnapshotStoredSystemViewSource(
                 ownerId(SYSTEM_OWNER_ID)
                 id?.let { id(it) }
                 pathState {
-                    ViewStoreQueryPolicy.APP_ID_FIELD eq appId
+                    ViewStoreScopeContributor.APP_ID_FIELD eq appId
                     definitionId?.let { DEFINITION_ID eq it }
                 }
             }
