@@ -168,6 +168,7 @@ class CommandAggregateOnErrorTest {
             eventStore: EventStore,
             aggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
             commandAggregateFactory: CommandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
+            maxRetries: Long = RetryableAggregateProcessor.DEFAULT_MAX_RETRIES,
         ) = RetryableAggregateProcessor(
             aggregateId = aggregateId,
             aggregateMetadata = metadata,
@@ -178,6 +179,7 @@ class CommandAggregateOnErrorTest {
                 eventStore,
             ),
             commandAggregateFactory = commandAggregateFactory,
+            maxRetries = maxRetries,
         )
 
         /** Creates the state for the first [loads] attempts, then fails with [failure]. */
@@ -205,6 +207,20 @@ class CommandAggregateOnErrorTest {
                 .expectErrorMatches { it === failure }
                 .verify()
 
+            OnErrorProbe.calls.single().error.assert().isSameAs(failure)
+        }
+
+        @Test
+        fun `without retries a recoverable failure is final at once and keeps its type`() {
+            val failure = TimeoutException("timeout")
+            val eventStore = FailingEventStore(appendFailures = List(16) { failure })
+
+            StepVerifier.create(processor(eventStore, maxRetries = 0).process(exchange(ProbeCreate(AGGREGATE_ID))))
+                .expectErrorMatches { it === failure }
+                .verify()
+
+            // One attempt: the append itself is resolved and rewritten once on an unknown outcome (B3).
+            eventStore.appends.get().assert().isEqualTo(2)
             OnErrorProbe.calls.single().error.assert().isSameAs(failure)
         }
 

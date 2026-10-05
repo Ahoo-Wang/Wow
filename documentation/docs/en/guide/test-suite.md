@@ -57,6 +57,27 @@ import me.ahoo.test.asserts.assert
 
 Prefer historical events for Given. `givenState` is useful when a test explicitly needs to start at a state version, but it bypasses event replay and cannot replace sourcing-behavior verification.
 
+### The same pipeline as production
+
+Since 9.3.0 an aggregate specification runs each command through the production command pipeline and kernel: the aggregate processor loads the state from an event store and an in-memory snapshot store, the kernel checks creation, existence, owner, space and deletion, decides, appends, and applies the committed events. The command body is validated first, as the command gateway does. Only one thing differs: a recoverable failure is reported at once instead of being retried.
+
+- Given events are appended to the event store (the one passed to `aggregateVerifier`, by default in memory) as one stream at the next version; `givenState` is saved as the snapshot the command starts from.
+- A command addresses the aggregate its message names: a command whose `@AggregateId` names another aggregate does not see the given history.
+- After each step the state is loaded again from the stores; the next step, `then()`, continues that history, and `fork` copies it into new in-memory stores.
+
+What a specification sees therefore matches production; before 9.3.0 the DSL differed in these places:
+
+| Situation | Before 9.3.0 | Since 9.3.0 |
+| --- | --- | --- |
+| Non-create command on an aggregate without history | `IllegalArgumentException` ("given at least one sourcing event") | `NotFoundResourceException`, as in production |
+| Create command after given events | `IllegalArgumentException` thrown by `whenCommand` | `DuplicateAggregateIdException` from the append |
+| Command function returns nothing (`null`, `Unit`, empty `Mono`) | the verification failed ("A command generates at least one event.") | no error and no event stream |
+| Command for another aggregate ID after a verified step | ran on the verified state | runs on that aggregate: `NotFoundResourceException` when it has no history |
+| Given events | sourced into the state, not stored | stored at their real version, then loaded |
+| The next step's state | the previous step's instance | loaded from the stores (a new instance) |
+| A sourcing function that cannot apply committed events | the command failed | the events are stored and the step reports the sourcing error |
+| `givenState` | the given object ran the command | a copy loaded from its snapshot; the given object is not changed |
+
 ## Aggregate Specifications: Assert Event and State Together
 
 This minimal scenario comes from the current `CartSpec`. It starts with an uninitialized aggregate, sets the owner, executes an add-item command, and verifies the event, business state, and aggregate metadata together:

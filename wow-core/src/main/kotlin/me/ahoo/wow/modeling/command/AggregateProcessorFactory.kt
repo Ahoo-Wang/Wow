@@ -51,13 +51,20 @@ interface AggregateProcessorFactory {
  * @param stateAggregateFactory Factory for creating state aggregates.
  * @param stateAggregateRepository Repository for accessing state aggregates.
  * @param commandAggregateFactory Factory for creating command aggregates.
+ * @param maxRetries How many times a recoverable failure is retried, with backoff. `0` runs each command once, as
+ *   the test DSL does.
  */
 @InternalWowApi
 class RetryableAggregateProcessorFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val commandAggregateFactory: CommandAggregateFactory
+    private val commandAggregateFactory: CommandAggregateFactory,
+    private val maxRetries: Long = RetryableAggregateProcessor.DEFAULT_MAX_RETRIES
 ) : AggregateProcessorFactory {
+    init {
+        require(maxRetries >= 0) { "maxRetries must not be negative: $maxRetries." }
+    }
+
     /**
      * Creates a retryable aggregate processor.
      *
@@ -77,5 +84,6 @@ class RetryableAggregateProcessorFactory(
             aggregateFactory = stateAggregateFactory,
             stateAggregateRepository = stateAggregateRepository,
             commandAggregateFactory = commandAggregateFactory,
+            maxRetries = maxRetries,
         )
 }

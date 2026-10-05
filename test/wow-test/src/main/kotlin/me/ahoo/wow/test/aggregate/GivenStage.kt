@@ -14,18 +14,13 @@
 package me.ahoo.wow.test.aggregate
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.dsl.InjectServiceCapable
 
 /**
@@ -101,43 +96,20 @@ fun <S : Any> GivenStage<S>.whenCommand(
  * @param S the type of the aggregate state
  */
 internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
-    /** The aggregate identifier for this test context. */
-    abstract val aggregateId: AggregateId
+    /** Where this stage's aggregate history lives and its commands run. */
+    abstract val runtime: AggregateTestRuntime<C, S>
 
-    /** Metadata describing the aggregate structure and behavior. */
-    abstract val metadata: AggregateMetadata<C, S>
-
-    /** Factory for creating state aggregates. */
-    abstract val stateAggregateFactory: StateAggregateFactory
-
-    /** Factory for creating command aggregates. */
-    abstract val commandAggregateFactory: CommandAggregateFactory
-    abstract val serviceProvider: ServiceProvider
-
-    /** The owner ID for this test context, defaults to system owner. */
     protected var ownerId: String = OwnerId.DEFAULT_OWNER_ID
         private set
 
     protected var spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
         private set
 
-    /**
-     * Injects services into the test context using a configuration block.
-     *
-     * @param inject a lambda that configures the service provider
-     * @return this GivenStage for method chaining
-     */
     override fun inject(inject: ServiceProvider.() -> Unit): GivenStage<S> {
-        inject(serviceProvider)
+        inject(runtime.serviceProvider)
         return this
     }
 
-    /**
-     * Sets the owner ID for this test context.
-     *
-     * @param ownerId the new owner ID to set
-     * @return this GivenStage for method chaining
-     */
     override fun givenOwnerId(ownerId: String): GivenStage<S> {
         this.ownerId = ownerId
         return this
@@ -148,83 +120,44 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
         return this
     }
 
-    /**
-     * Sets up the aggregate by replaying the given domain events.
-     *
-     * This method initializes the aggregate state by applying the provided events
-     * in order, simulating previous command executions.
-     *
-     * @param events the domain events to replay on the aggregate
-     * @return a WhenStage for specifying the command to execute
-     */
-    override fun givenEvent(vararg events: Any): WhenStage<S> =
-        DefaultWhenStage(
-            aggregateId = aggregateId,
-            ownerId = ownerId,
-            spaceId = spaceId,
-            events = events,
-            metadata = metadata,
-            stateAggregateFactory = stateAggregateFactory,
-            commandAggregateFactory = commandAggregateFactory,
-            serviceProvider = serviceProvider,
-        )
+    /** Appends [events] to the history as one stream at its next version (none: the history as it is). */
+    override fun givenEvent(vararg events: Any): WhenStage<S> {
+        val runtime = runtime
+        val ownerId = ownerId
+        val spaceId = spaceId
+        return DefaultWhenStage(runtime = runtime, ownerId = ownerId, spaceId = spaceId) {
+            it.appendGiven(events, ownerId, spaceId)
+        }
+    }
 
-    /**
-     * Sets up the aggregate with the specified state and version.
-     *
-     * @param state the state object to initialize the aggregate with
-     * @param version the version number for the aggregate
-     * @return a WhenStage for command execution
-     */
     override fun givenState(
         state: S,
         version: Int
     ): WhenStage<S> {
         val stateAggregate =
-            metadata.toStateAggregate(
+            runtime.metadata.toStateAggregate(
                 state = state,
                 version = version,
                 ownerId = ownerId,
                 spaceId = spaceId,
-                aggregateId = aggregateId.id,
-                tenantId = aggregateId.tenantId,
+                aggregateId = runtime.aggregateId.id,
+                tenantId = runtime.aggregateId.tenantId,
             )
         return givenState(stateAggregate)
     }
 
-    /**
-     * Sets up the aggregate with a complete StateAggregate instance.
-     *
-     * @param state the StateAggregate to use for initialization
-     * @return a WhenStage for command execution
-     */
-    override fun givenState(state: StateAggregate<S>): WhenStage<S> =
-        GivenStateWhenStage(
-            metadata = metadata,
-            stateAggregate = state,
-            commandAggregateFactory = commandAggregateFactory,
-            serviceProvider = serviceProvider,
-        )
+    /** Starts the history from [state], saved as its snapshot, in a runtime of its own. */
+    override fun givenState(state: StateAggregate<S>): WhenStage<S> {
+        val runtime = runtimeForGivenState()
+        return DefaultWhenStage(runtime = runtime, ownerId = ownerId, spaceId = spaceId) {
+            it.seedState(state)
+        }
+    }
+
+    /** The runtime a given state starts from: one without history for the aggregate. */
+    protected open fun runtimeForGivenState(): AggregateTestRuntime<C, S> = runtime
 }
 
-/**
- * Default implementation of GivenStage for aggregate testing.
- *
- * This class provides the standard implementation for setting up aggregate test preconditions,
- * using the constructor state aggregate factory by default.
- *
- * @param C the type of the command aggregate
- * @param S the type of the aggregate state
- * @property aggregateId the aggregate identifier for this test
- * @property metadata metadata about the aggregate
- * @property stateAggregateFactory factory for creating state aggregates (defaults to constructor factory)
- * @property commandAggregateFactory factory for creating command aggregates
- * @property serviceProvider provider for service dependencies
- */
 internal class DefaultGivenStage<C : Any, S : Any>(
-    override val aggregateId: AggregateId,
-    override val metadata: AggregateMetadata<C, S>,
-    override val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
-    override val commandAggregateFactory: CommandAggregateFactory,
-    override val serviceProvider: ServiceProvider
+    override val runtime: AggregateTestRuntime<C, S>
 ) : AbstractGivenStage<C, S>()
