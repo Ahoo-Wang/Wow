@@ -18,7 +18,6 @@ import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
-import me.ahoo.wow.messaging.function.toMessageFunction
 import reactor.core.publisher.Mono
 
 /**
@@ -83,17 +82,5 @@ data class AfterCommandFunctionMetadata<C : Any>(
          */
         fun <C : Any> FunctionAccessorMetadata<C, Mono<*>>.toAfterCommandFunctionMetadata(): AfterCommandFunctionMetadata<C> =
             AfterCommandFunctionMetadata(this)
-
-        /**
-         * Converts after-command function metadata into an executable after-command function.
-         *
-         * @param C The type of the command aggregate.
-         * @param commandRoot The command aggregate instance to bind the function to.
-         * @return The executable after-command function.
-         */
-        internal fun <C : Any> AfterCommandFunctionMetadata<C>.toAfterCommandFunction(
-            commandRoot: C
-        ): AfterCommandFunction<C> =
-            AfterCommandFunction(this, function.toMessageFunction(commandRoot))
     }
 }

@@ -263,10 +263,23 @@ class CommandKernelCharacterizationTest {
             characterize(Duplicated("id")).assertCommittedOne(OtherKernelEvent("duplicated"))
         }
 
+        /** Changed on purpose by K1 (B11): before it, both commands were undefined. */
         @Test
-        fun `a command whose handler takes its supertype is undefined`() {
-            characterize(SubCommand("id")).error.assert().isInstanceOf(IllegalArgumentException::class.java)
-            characterize(MarkedCommand("id")).error.assert().isInstanceOf(IllegalArgumentException::class.java)
+        fun `a command matches a handler that takes its superclass or interface`() {
+            characterize(SubCommand("id")).assertCommittedOne(KernelEvent("base"))
+            characterize(MarkedCommand("id")).assertCommittedOne(KernelEvent("marker"))
+        }
+
+        @Test
+        fun `the superclass handler wins over the interface handler and Any never matches`() {
+            characterize(BaseAndMarkedCommand("id")).assertCommittedOne(KernelEvent("base"))
+            characterize(UnhandledCommand("id")).error.assert().isInstanceOf(IllegalArgumentException::class.java)
+        }
+
+        @Test
+        fun `after-command functions apply by the command's own type when its handler matched a supertype`() {
+            run(KernelAfterCommandAggregate::class.java, SubCommand("id"))
+                .assertCommittedOne(KernelEvent("base"), OtherKernelEvent("after"))
         }
     }
 

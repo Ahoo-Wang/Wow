@@ -100,14 +100,14 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 function.isOnCommandFunction()
             ) {
                 val functionMetadata = function.toMonoFunctionMetadata<C, Any>()
-                commandFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
+                commandFunctionRegistry.registerFirst(functionMetadata, "command")
             }
 
             if (function.hasAnnotation<OnError>() ||
                 function.isOnErrorFunction()
             ) {
                 val functionMetadata = function.toMonoFunctionMetadata<C, Void>()
-                errorFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
+                errorFunctionRegistry.registerFirst(functionMetadata, "error")
             }
 
             if (function.hasAnnotation<AfterCommand>() ||
@@ -157,6 +157,10 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 MetadataSearcher.getAggregate(namedAggregate)?.tenantId
             )
             return AggregateMetadata(namedAggregate, staticTenantId, stateAggregateMetadata, commandAggregateMetadata)
+                .also {
+                    // Compile the aggregate once, when its metadata is parsed, not on its first command.
+                    it.model
+                }
         }
     }
 }

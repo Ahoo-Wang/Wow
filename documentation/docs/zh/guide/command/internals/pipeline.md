@@ -67,7 +67,7 @@ ProcessedNotifierFilter
 - 每次尝试都从第一次尝试之前的 exchange 开始：失败尝试留下的错误、事件流、聚合版本、命令调用结果、命令结果和命令聚合都不带到下一次，等待信号不会报告一个没有持久化的版本（自 9.2.3 起）；
 - `@OnError` 函数只在最终失败后（重试耗尽时取其原因）在最近一次加载的聚合上执行一次：通常是最后一次尝试的聚合，最后一次尝试在加载前失败时用更早一次尝试的聚合；没有任何尝试加载到聚合时不执行，自定义的非 `SimpleCommandAggregate` 的 `CommandAggregate` 由它自己的 `process` 处理错误（自 9.2.3 起）。
 
-`SimpleCommandAggregate.process` 随后检查期望版本、创建许可、owner、space、删除/恢复状态和命令函数是否存在。检查通过后，`CommandFunctionResolver` 调用匹配函数及有序的 after-command 函数，把返回值展平为一条 `DomainEventStream` 并放入 exchange。
+`SimpleCommandAggregate.process` 随后检查期望版本、创建许可、owner、space、删除/恢复状态和命令函数是否存在。检查通过后，它在聚合的 `AggregateModel` 中查找命令。该模型在解析聚合元数据时编译一次：命令条目（含匹配的 after-command 函数以及内置的删除、恢复、资源标签处理）、错误函数，以及该类型所有状态聚合共享的溯源表。处理函数把命令根或状态根作为参数接收，不再按聚合实例或按命令绑定（自 9.3.0 起）。命令条目调用匹配函数及有序的 after-command 函数，把返回值展平为一条 `DomainEventStream` 并放入 exchange。
 
 ## 内存溯源与 append
 
@@ -118,7 +118,7 @@ EventStore.append
 
 - `CommandAggregate`、它的父接口 `AggregateProcessor`、`CommandAggregateFactory` 与 `SimpleCommandAggregateFactory` 标注 `@WowSpi`。自行提供命令聚合的代码用 `@OptIn(WowSpi::class)` 选择加入，不加入时编译器给出警告。它们在同一个次版本线内保持二进制签名不变，次版本可以修改它们，并写进发布说明。
 - `AggregateProcessorFactory`、`RetryableAggregateProcessorFactory`、`AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SimpleStateAggregate`，函数元数据类型（`FunctionAccessorMetadata`、`InjectParameter`、`FirstParameterKind`、`AfterCommandFunctionMetadata`、`MessageFunctionRegistrar`、`SimpleMessageFunctionRegistrar`），事件分发器基类（`CompositeEventDispatcher`、`AbstractEventFunctionRegistrar`、`EventHandler`），`COMMAND_GATEWAY_FUNCTION`，以及 exchange 上处理器、元数据、调用结果的存取方法和事件流、版本的设置方法标注 `@InternalWowApi`：由 Wow 自己的模块装配，任何版本都可能修改。
-- `RetryableAggregateProcessor`、`SimpleCommandAggregate`、`CommandState`、命令函数（`CommandFunction`、`AfterCommandFunction` 以及内置的删除、恢复、资源标签函数）、exchange 属性键、函数访问器以及聚合与状态事件分发器是 `internal`。
+- `RetryableAggregateProcessor`、`SimpleCommandAggregate`、`CommandState`、编译后的聚合模型（`AggregateModel` 及其命令条目和编译后的函数）、exchange 属性键、函数访问器以及聚合与状态事件分发器是 `internal`。
 
 应用通过 `CommandGateway` 发送命令，用 `@OnCommand` 函数处理命令，读取 `ServerCommandExchange.getEventStream()`，这些都不需要选择加入。命令函数需要当前状态时，声明 `ReadOnlyStateAggregate<S>` 参数（例如读取 `initialized`），而不是 `CommandAggregate`。
 

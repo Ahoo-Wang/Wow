@@ -151,6 +151,19 @@ data class SubCommand(override val id: String) : BaseCommand(id)
 interface MarkerCommand
 
 @CreateAggregate
+data class BaseAndMarkedCommand(override val id: String) : BaseCommand(id), MarkerCommand
+
+@CreateAggregate
+data class UnhandledCommand(val id: String)
+
+interface FirstMarker
+
+interface SecondMarker
+
+@CreateAggregate
+data class DoublyMarkedCommand(val id: String) : FirstMarker, SecondMarker
+
+@CreateAggregate
 data class MarkedCommand(val id: String) : MarkerCommand
 
 data class KernelEvent(val value: String)
@@ -300,6 +313,13 @@ class KernelCharacterizationAggregate(private val id: String) : VersionAware {
 
     private fun onCommand(command: MarkerCommand): KernelEvent = KernelEvent("marker")
 
+    private fun onCommand(command: FirstMarker): KernelEvent = KernelEvent("first-marker")
+
+    private fun onCommand(command: SecondMarker): KernelEvent = KernelEvent("second-marker")
+
+    /** Never matches polymorphically: only a command whose type is exactly `Any` would reach it. */
+    private fun onCommand(command: Any): KernelEvent = KernelEvent("any")
+
     private fun onSourcing(event: KernelEvent) {
         sourced += event
     }
@@ -339,6 +359,8 @@ class KernelAfterCommandAggregate(private val id: String) : VersionAware {
     private fun onCommand(command: ReturnSingle): KernelEvent = KernelEvent("single")
 
     private fun onCommand(command: ThrowSync): KernelEvent = throw IllegalStateException("sync")
+
+    private fun onCommand(command: BaseCommand): KernelEvent = KernelEvent("base")
 
     @AfterCommand(exclude = [ReturnSingle::class, ThrowSync::class])
     private fun afterCommand(command: Any): OtherKernelEvent = OtherKernelEvent("after")

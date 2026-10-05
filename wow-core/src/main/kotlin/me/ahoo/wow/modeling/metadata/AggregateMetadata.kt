@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.modeling.TenantId
+import me.ahoo.wow.command.kernel.AggregateModel
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.aggregateId
@@ -75,6 +76,11 @@ data class AggregateMetadata<C : Any, S : Any>(
      * Declaring both forms with different policies on one class fails here, when the aggregate's metadata is parsed.
      */
     val owner: OwnerPolicy = command.aggregateType.kotlin.resolveOwnerPolicy()
+
+    /** The aggregate compiled once: command entries, error functions and the shared sourcing table. */
+    internal val model: AggregateModel<C, S> by lazy {
+        AggregateModel(this)
+    }
 
     private fun extractAggregateId(
         state: S,

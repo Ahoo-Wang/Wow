@@ -15,6 +15,13 @@ package me.ahoo.wow.architecture
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.command.kernel.AggregateModel
+import me.ahoo.wow.command.kernel.BuiltInCommandEntry
+import me.ahoo.wow.command.kernel.CommandEntry
+import me.ahoo.wow.command.kernel.CompiledFunction
+import me.ahoo.wow.command.kernel.FunctionCommandEntry
+import me.ahoo.wow.command.kernel.InjectedParameter
+import me.ahoo.wow.command.kernel.SourcingFunction
 import me.ahoo.wow.event.dispatcher.AbstractAggregateEventDispatcher
 import me.ahoo.wow.event.dispatcher.AbstractEventDispatcher
 import me.ahoo.wow.event.dispatcher.AggregateEventDispatcher
@@ -26,20 +33,13 @@ import me.ahoo.wow.messaging.function.InjectableMessageFunctionAccessor
 import me.ahoo.wow.messaging.function.LogResumeErrorMessageHandler
 import me.ahoo.wow.messaging.function.MessageFunctionAccessor
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionAccessor
-import me.ahoo.wow.modeling.command.AbstractCommandFunction
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.CommandState
-import me.ahoo.wow.modeling.command.DefaultApplyResourceTagsFunction
-import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
-import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
-import me.ahoo.wow.modeling.command.InternalCommandFunction
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessor
 import me.ahoo.wow.modeling.command.SimpleCommandAggregate
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import org.junit.jupiter.api.Test
 import kotlin.reflect.KVisibility
 
@@ -67,13 +67,13 @@ class CoreWriteApiTiersTest {
     @Test
     fun `the processing interior is internal`() {
         val interior = listOf(
-            AbstractCommandFunction::class,
-            CommandFunction::class,
-            InternalCommandFunction::class,
-            DefaultApplyResourceTagsFunction::class,
-            DefaultDeleteAggregateFunction::class,
-            DefaultRecoverAggregateFunction::class,
-            AfterCommandFunction::class,
+            AggregateModel::class,
+            CommandEntry::class,
+            FunctionCommandEntry::class,
+            BuiltInCommandEntry::class,
+            CompiledFunction::class,
+            InjectedParameter::class,
+            SourcingFunction::class,
             CommandState::class,
             SimpleCommandAggregate::class,
             RetryableAggregateProcessor::class,

@@ -4094,7 +4094,6 @@ public final class me/ahoo/wow/modeling/metadata/StateAggregateMetadata : me/aho
 	public final fun getConstructorAccessor ()Lme/ahoo/wow/infra/accessor/constructor/ConstructorAccessor;
 	public final fun getSourcingFunctionRegistry ()Ljava/util/Map;
 	public fun hashCode ()I
-	public final fun toMessageFunctionRegistry (Ljava/lang/Object;)Ljava/util/Map;
 	public fun toString ()Ljava/lang/String;
 }
 

@@ -31,13 +31,10 @@ class StateAggregateMetadataTest {
     }
 
     @Test
-    fun `state aggregate metadata converts sourcing registry to message functions`() {
-        val state = MockStateAggregate("aggregate-1")
-        val registry = MOCK_AGGREGATE_METADATA.state.toMessageFunctionRegistry(state)
+    fun `state aggregate metadata compiles one shared sourcing table`() {
+        val metadata = MOCK_AGGREGATE_METADATA.state
 
-        registry.keys.assert().isNotEmpty()
-        registry.values.forEach {
-            it.processor.assert().isSameAs(state)
-        }
+        metadata.sourcingTable.keys.assert().isEqualTo(metadata.sourcingFunctionRegistry.keys)
+        metadata.sourcingTable.assert().isSameAs(metadata.sourcingTable)
     }
 }

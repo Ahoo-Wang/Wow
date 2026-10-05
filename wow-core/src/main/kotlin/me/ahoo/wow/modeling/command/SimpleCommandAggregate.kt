@@ -19,10 +19,10 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.kernel.AggregateModel
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.exception.NotFoundResourceException
-import me.ahoo.wow.modeling.metadata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -38,28 +38,33 @@ import reactor.kotlin.core.publisher.toMono
  * @property state The associated state aggregate containing the current state.
  * @property commandRoot The command aggregate root instance.
  * @param eventStore The event store for persisting domain events.
- * @param metadata The metadata describing this command aggregate's configuration.
+ * @param model The aggregate type compiled once: its command entries, error functions and sourcing table.
  */
 internal class SimpleCommandAggregate<C : Any, S : Any>(
     override val state: StateAggregate<S>,
     override val commandRoot: C,
     private val eventStore: EventStore,
-    private val metadata: CommandAggregateMetadata<C>
+    private val model: AggregateModel<C, S>
 ) : CommandAggregate<C, S>,
-    NamedTypedAggregate<C> by metadata {
+    NamedTypedAggregate<C> by model.metadata.command {
     private companion object {
         private val log = KotlinLogging.logger {}
+        private const val PROCESSOR_NAME = "SimpleCommandAggregate"
+
+        /** What the exchange reports until a command function runs. */
+        private val PROCESS_FUNCTION =
+            FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = Wow.WOW,
+                processorName = PROCESSOR_NAME,
+                name = "process",
+            )
     }
 
-    override val processorName: String = SimpleCommandAggregate::class.simpleName!!
-    private val processorFunction =
-        FunctionInfoData(
-            functionKind = FunctionKind.COMMAND,
-            contextName = Wow.WOW,
-            processorName = processorName,
-            name = SimpleCommandAggregate<*, *>::process.name,
-        )
-    private val commandFunctionResolver = CommandFunctionResolver(metadata, this)
+    private val metadata = model.metadata.command
+
+    override val processorName: String
+        get() = PROCESSOR_NAME
 
     @Volatile
     var commandState = CommandState.STORED
@@ -99,7 +104,7 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
      * runs [handleError] once, after its final failure.
      */
     internal fun processAttempt(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
-        exchange.setFunction(processorFunction)
+        exchange.setFunction(PROCESS_FUNCTION)
         exchange.setAggregateVersion(version)
         val message = exchange.message
         val commandType = message.body.javaClass
@@ -136,11 +141,11 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
                     state.aggregateId,
                 ).toMono()
             }
-            val commandFunction = commandFunctionResolver.commandFunction(commandType)
-            requireNotNull(commandFunction) {
+            val commandEntry = model.commandEntry(commandType)
+            requireNotNull(commandEntry) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
-            commandFunction.invoke(exchange).doOnNext {
+            commandEntry.invoke(this, exchange).doOnNext {
                 // Apply emitted events before persistence so the in-memory state stays current.
                 commandState = commandState.onSourcing(state, it)
             }.flatMap { eventStream ->
@@ -165,9 +170,8 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
      */
     internal fun handleError(exchange: ServerCommandExchange<*>, error: Throwable): Mono<DomainEventStream> {
         exchange.setError(error)
-        val errorFunction =
-            commandFunctionResolver.errorFunction(exchange.message.body.javaClass) ?: return error.toMono()
-        return errorFunction.invoke(exchange).then(
+        val errorFunction = model.errorFunction(exchange.message.body.javaClass) ?: return error.toMono()
+        return errorFunction.invoke(commandRoot, exchange).then(
             Mono.defer {
                 exchange.getError()?.toMono() ?: error.toMono<DomainEventStream>()
             }

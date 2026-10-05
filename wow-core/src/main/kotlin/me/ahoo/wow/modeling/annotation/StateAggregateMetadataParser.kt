@@ -94,7 +94,7 @@ internal class StateAggregateMetadataVisitor<S : Any>(private val stateAggregate
             (DEFAULT_ON_SOURCING_NAME == function.name && function.valueParameters.count() == 1)
         ) {
             val functionMetadata = function.toFunctionMetadata<S, Void>()
-            sourcingFunctionRegistry.putIfAbsent(functionMetadata.supportedType, functionMetadata)
+            sourcingFunctionRegistry.registerFirst(functionMetadata, "sourcing")
         }
     }
 

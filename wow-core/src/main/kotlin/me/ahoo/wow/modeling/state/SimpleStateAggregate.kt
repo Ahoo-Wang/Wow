@@ -31,7 +31,6 @@ import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.api.modeling.aware.VersionAware
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 
@@ -73,7 +72,7 @@ class SimpleStateAggregate<S : Any>(
     override var deleted: Boolean = false
 ) : StateAggregate<S>,
     TypedAggregate<S> by metadata {
-    private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)
+    private val sourcingTable = metadata.sourcingTable
 
     companion object {
         private val log = KotlinLogging.logger {}
@@ -175,9 +174,9 @@ class SimpleStateAggregate<S : Any>(
         if (domainEventBody is ResourceTagsApplied) {
             tags = domainEventBody.tags
         }
-        val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
+        val sourcingFunction = sourcingTable[domainEventBody.javaClass]
         if (sourcingFunction != null) {
-            sourcingFunction.invoke(SimpleDomainEventExchange(domainEvent))
+            sourcingFunction.invoke(state, domainEvent)
         } else {
             log.debug {
                 "Sourcing $domainEvent Ignore this domain event because onSourcing does not exist."

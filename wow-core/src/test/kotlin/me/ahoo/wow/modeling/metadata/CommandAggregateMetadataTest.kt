@@ -17,15 +17,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.DefaultApplyResourceTags
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.modeling.annotation.CreateCmd
 import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.MockAggregate
 import me.ahoo.wow.modeling.annotation.UpdateCmd
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.CustomInternalCommandAggregate
-import me.ahoo.wow.modeling.command.SimpleCommandAggregate
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import org.junit.jupiter.api.Test
 
 class CommandAggregateMetadataTest {
@@ -55,51 +52,27 @@ class CommandAggregateMetadataTest {
     }
 
     @Test
-    fun `command function resolves explicit and default internal command functions by command type`() {
-        val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
-        val commandRoot = MockAfterCommandAggregate("aggregate-1")
-        val stateAggregate = aggregateMetadata.toStateAggregate(commandRoot, version = 0)
-        val commandAggregate = SimpleCommandAggregate(
-            state = stateAggregate,
-            commandRoot = commandRoot,
-            eventStore = InMemoryEventStore(),
-            metadata = aggregateMetadata.command,
-        )
+    fun `the model resolves explicit and default internal command functions by command type`() {
+        val model = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>().model
 
-        aggregateMetadata.command.toCommandFunction(commandAggregate, CreateCmd::class.java)
-            .assert().isNotNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, UpdateCmd::class.java)
-            .assert().isNotNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultRecoverAggregate::class.java)
-            .assert().isNotNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultDeleteAggregate::class.java)
-            .assert().isNotNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultApplyResourceTags::class.java)
-            .assert().isNotNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, String::class.java)
-            .assert().isNull()
+        model.commandEntry(CreateCmd::class.java).assert().isNotNull()
+        model.commandEntry(UpdateCmd::class.java).assert().isNotNull()
+        model.commandEntry(DefaultRecoverAggregate::class.java).assert().isNotNull()
+        model.commandEntry(DefaultDeleteAggregate::class.java).assert().isNotNull()
+        model.commandEntry(DefaultApplyResourceTags::class.java).assert().isNotNull()
+        model.commandEntry(String::class.java).assert().isNull()
     }
 
     @Test
     fun `default internal command functions are disabled when aggregate registers compatible commands`() {
         val aggregateMetadata = aggregateMetadata<CustomInternalCommandAggregate, CustomInternalCommandAggregate>()
-        val commandRoot = CustomInternalCommandAggregate("aggregate-1")
-        val stateAggregate = aggregateMetadata.toStateAggregate(commandRoot, version = 0)
-        val commandAggregate = SimpleCommandAggregate(
-            state = stateAggregate,
-            commandRoot = commandRoot,
-            eventStore = InMemoryEventStore(),
-            metadata = aggregateMetadata.command,
-        )
+        val model = aggregateMetadata.model
 
         aggregateMetadata.command.registeredRecoverAggregate.assert().isTrue()
         aggregateMetadata.command.registeredDeleteAggregate.assert().isTrue()
         aggregateMetadata.command.registeredApplyResourceTags.assert().isTrue()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultRecoverAggregate::class.java)
-            .assert().isNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultDeleteAggregate::class.java)
-            .assert().isNull()
-        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultApplyResourceTags::class.java)
-            .assert().isNull()
+        model.commandEntry(DefaultRecoverAggregate::class.java).assert().isNull()
+        model.commandEntry(DefaultDeleteAggregate::class.java).assert().isNull()
+        model.commandEntry(DefaultApplyResourceTags::class.java).assert().isNull()
     }
 }

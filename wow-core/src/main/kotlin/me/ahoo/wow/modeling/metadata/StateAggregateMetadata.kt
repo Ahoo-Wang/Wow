@@ -13,12 +13,11 @@
 package me.ahoo.wow.modeling.metadata
 
 import me.ahoo.wow.api.modeling.TypedAggregate
-import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.command.kernel.SourcingFunction
+import me.ahoo.wow.command.kernel.toSourcingTable
 import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
-import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 
 /**
@@ -45,19 +44,10 @@ data class StateAggregateMetadata<S : Any>(
     val sourcingFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<S, Void>>
 ) : TypedAggregate<S>,
     Metadata {
-    /**
-     * Converts the sourcing function registry into executable message functions.
-     *
-     * This method creates a map of event types to their corresponding message functions for event sourcing.
-     *
-     * @param stateRoot The state aggregate instance to bind functions to.
-     * @return A map of event classes to their message functions.
-     */
-    fun toMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> =
-        sourcingFunctionRegistry
-            .map {
-                it.key to it.value.toMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot)
-            }.toMap()
+    /** The sourcing functions compiled once and shared by every state aggregate of this type. */
+    internal val sourcingTable: Map<Class<*>, SourcingFunction<S>> by lazy {
+        sourcingFunctionRegistry.toSourcingTable()
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
