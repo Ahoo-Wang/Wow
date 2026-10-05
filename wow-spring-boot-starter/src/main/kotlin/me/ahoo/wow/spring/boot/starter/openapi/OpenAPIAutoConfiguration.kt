@@ -32,6 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.util.ClassUtils
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -64,6 +65,7 @@ class OpenAPIAutoConfiguration {
         openAPIComponentContext: OpenAPIComponentContext,
         routeContributors: ObjectProvider<RouteContributor>,
         eventCompensateSupporter: ObjectProvider<EventCompensateSupporter>,
+        openAPIProperties: OpenAPIProperties,
     ): RouterSpecs {
         val eventCompensation = eventCompensateSupporter.ifAvailable != null
         val contributors = (DefaultRouteContributors.all() + routeContributors.orderedStream().toList())
@@ -74,11 +76,16 @@ class OpenAPIAutoConfiguration {
                     contributor
                 }
             }
-        return RouterSpecs(
+        val routerSpecs = RouterSpecs(
             boundedContext,
             componentContext = openAPIComponentContext,
             routeContributors = contributors,
-        ).build()
+        )
+        // Schemas are generated only when the document is served; then the router reuses the documented contracts.
+        if (openAPIProperties.enabled && ClassUtils.isPresent(SPRINGDOC_CUSTOMIZER, null)) {
+            routerSpecs.buildDocumentation()
+        }
+        return routerSpecs.build()
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -87,7 +94,10 @@ class OpenAPIAutoConfiguration {
     class SpringdocConfiguration {
         @Bean
         fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
-            return WowOpenApiCustomizer(routerSpecs)
+            // The document is served: its schemas are generated at startup, not on the first (event loop) request.
+            return WowOpenApiCustomizer(routerSpecs.buildDocumentation())
         }
     }
 }
+
+private const val SPRINGDOC_CUSTOMIZER = "org.springdoc.core.customizers.OpenApiCustomizer"

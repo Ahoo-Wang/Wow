@@ -19,10 +19,16 @@ import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
+import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.info.Info
+import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.parameters.RequestBody
+import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
 import me.ahoo.wow.openapi.catalog.RouteCategory
@@ -30,6 +36,7 @@ import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Type
 
 internal class RouterSpecsTest {
 
@@ -39,6 +46,26 @@ internal class RouterSpecsTest {
     fun `should build and return non-empty routes`() {
         val routerSpecs = RouterSpecs(namedContext).build()
         routerSpecs.assert().isNotNull()
+    }
+
+    @Test
+    fun `building the route catalog generates no schema and registers no component`() {
+        val componentContext = CountingComponentContext(
+            OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = namedContext.getContextAliasPrefix())
+        )
+        val routerSpecs = RouterSpecs(namedContext, componentContext).build()
+
+        routerSpecs.toRouteCatalog().routes.assert().isNotEmpty()
+        componentContext.calls.assert().isZero()
+        componentContext.schemas.assert().isEmpty()
+
+        val openAPI = OpenAPI()
+        routerSpecs.mergeOpenAPIFromCatalog(openAPI)
+        componentContext.calls.assert().isPositive()
+        openAPI.components.schemas.assert().isNotEmpty()
+        openAPI.paths.keys.assert().containsExactlyInAnyOrderElementsOf(
+            routerSpecs.toRouteCatalog().routes.map { it.path }.toSet()
+        )
     }
 
     @Test
@@ -246,4 +273,31 @@ internal class RouterSpecsTest {
             )
         }
     }
+}
+
+/** Counts every call that generates a schema or registers a component. */
+private class CountingComponentContext(private val delegate: OpenAPIComponentContext) :
+    OpenAPIComponentContext by delegate {
+    var calls = 0
+
+    override fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> =
+        delegate.schema(mainTargetType, *typeParameters).also { calls++ }
+
+    override fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> =
+        delegate.arraySchema(mainTargetType, *typeParameters).also { calls++ }
+
+    override fun componentSchema(key: String, schema: Schema<*>): Schema<*> =
+        delegate.componentSchema(key, schema).also { calls++ }
+
+    override fun parameter(key: String, builder: Parameter.() -> Unit): Parameter =
+        delegate.parameter(key, builder).also { calls++ }
+
+    override fun header(key: String, builder: Header.() -> Unit): Header =
+        delegate.header(key, builder).also { calls++ }
+
+    override fun requestBody(key: String, builder: RequestBodyBuilder.() -> Unit): RequestBody =
+        delegate.requestBody(key, builder).also { calls++ }
+
+    override fun response(key: String, builder: ApiResponseBuilder.() -> Unit): ApiResponse =
+        delegate.response(key, builder).also { calls++ }
 }

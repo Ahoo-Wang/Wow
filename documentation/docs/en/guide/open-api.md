@@ -53,7 +53,7 @@ implementation("me.ahoo.wow:wow-webflux")
 implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 ```
 
-`OpenAPIAutoConfiguration` creates `RouterSpecs`; `WebFluxAutoConfiguration` materializes the catalog into `RouterFunction`; `WowOpenApiCustomizer` merges the same catalog into Springdoc. `wow.openapi.enabled=false` disables Springdoc customization, not the WebFlux route catalog itself.
+`OpenAPIAutoConfiguration` creates `RouterSpecs`; `WebFluxAutoConfiguration` materializes the catalog into `RouterFunction`; `WowOpenApiCustomizer` merges the same catalog into Springdoc. `wow.openapi.enabled=false` disables Springdoc customization, not the WebFlux route catalog itself. The route catalog is built without generating any JSON Schema; schemas and components are generated only when the document is served (at startup, when Springdoc is present and `wow.openapi.enabled` is not `false`), so a service without the document pays no schema generation.
 
 Modules containing Wow annotations still need KSP plus `wow-compiler`, and their generated `META-INF/wow-metadata.json` resources must be present on the service runtime classpath. Do not hand-write or commit generated resources.
 
