@@ -37,7 +37,7 @@ env:
   CI: GITHUB_ACTIONS
   # The released version the build under test must interoperate with. Move it
   # to the newest release of the line once that release's image is published.
-  PREVIOUS_IMAGE: ahoowang/wow-example-server:9.2.2
+  PREVIOUS_IMAGE: ahoowang/wow-example-server:9.2.3
 
 jobs:
   scope:
