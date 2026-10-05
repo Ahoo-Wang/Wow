@@ -14,6 +14,7 @@
 package me.ahoo.wow.annotation
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.Ordered
 import me.ahoo.wow.api.annotation.Order
 import org.junit.jupiter.api.Test
@@ -42,6 +43,39 @@ class SortedByOrderTest {
         val sorted = listOf(AfterDependencySourceItem(), AfterDependencyTargetItem()).sortedByOrder()
 
         sorted.map { it.label }.assert().isEqualTo(listOf("target", "source-after-target"))
+    }
+
+    /** B13: a chain of `after` constraints is satisfied as a whole, not one move at a time. */
+    @Test
+    fun `should satisfy a chain of after dependencies`() {
+        val sorted = listOf(ChainHead(), ChainMiddle(), ChainTail()).sortedByOrder()
+
+        sorted.map { it.label }.assert().isEqualTo(listOf("tail", "middle", "head"))
+    }
+
+    @Test
+    fun `should keep value order and input order among unconstrained items`() {
+        val sorted = listOf(
+            OrderedFoundationItem("b", Order(value = 1)),
+            OrderedFoundationItem("a", Order(value = 1)),
+            OrderedFoundationItem("first", Order(value = 0)),
+        ).sortedByOrder()
+
+        sorted.map { it.label }.assert().isEqualTo(listOf("first", "b", "a"))
+    }
+
+    @Test
+    fun `should ignore dependencies on items that are not present`() {
+        listOf(AfterDependencySourceItem()).sortedByOrder().map { it.label }.assert()
+            .isEqualTo(listOf("source-after-target"))
+    }
+
+    @Test
+    fun `should fail fast on a dependency cycle and name it`() {
+        assertThrownBy<IllegalStateException> {
+            listOf(CycleFirst(), CycleSecond(), UnorderedFoundationItem()).sortedByOrder()
+        }.hasMessageContaining(CycleFirst::class.java.name)
+            .hasMessageContaining(CycleSecond::class.java.name)
     }
 
     @Test
@@ -114,4 +148,29 @@ private class OrderedMethods {
 
     @Order(1)
     fun first() = Unit
+}
+
+@Order(value = 0, after = [ChainMiddle::class])
+private class ChainHead : FoundationOrderLabel {
+    override val label: String = "head"
+}
+
+@Order(value = 1, after = [ChainTail::class])
+private class ChainMiddle : FoundationOrderLabel {
+    override val label: String = "middle"
+}
+
+@Order(value = 2)
+private class ChainTail : FoundationOrderLabel {
+    override val label: String = "tail"
+}
+
+@Order(before = [CycleSecond::class])
+private class CycleFirst : FoundationOrderLabel {
+    override val label: String = "cycle-first"
+}
+
+@Order(before = [CycleFirst::class])
+private class CycleSecond : FoundationOrderLabel {
+    override val label: String = "cycle-second"
 }

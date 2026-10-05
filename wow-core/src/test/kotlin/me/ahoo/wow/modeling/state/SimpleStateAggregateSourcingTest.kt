@@ -15,10 +15,12 @@ package me.ahoo.wow.modeling.state
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
@@ -97,5 +99,63 @@ class SimpleStateAggregateSourcingTest {
         assertThrownBy<SourcingVersionConflictException> {
             aggregate.onSourcing(versionConflictStream)
         }
+    }
+
+    @Test
+    fun `a failing sourcing function leaves the aggregate metadata at the previous version`() {
+        val metadata = stateAggregateMetadata<FailingSourcingState>()
+        val state = FailingSourcingState("aggregate-1")
+        val aggregate = metadata.toStateAggregate(
+            aggregateId = MOCK_AGGREGATE_METADATA.namedAggregate.aggregateId("aggregate-1"),
+            state = state,
+            version = 0,
+        )
+        val stream = listOf(
+            SourcedValue("applied"),
+            TestOwnerTransferred("owner-2"),
+            SourcingRejected("rejected"),
+        ).toDomainEventStream(
+            upstream = GivenInitializationCommand(
+                aggregate.aggregateId,
+                header = DefaultHeader.empty().withOperator("operator-1"),
+            ),
+            aggregateVersion = aggregate.version,
+            createTime = 1000,
+        )
+
+        assertThrownBy<IllegalStateException> {
+            aggregate.onSourcing(stream)
+        }
+
+        aggregate.version.assert().isEqualTo(0)
+        aggregate.initialized.assert().isFalse()
+        aggregate.eventId.assert().isEmpty()
+        aggregate.operator.assert().isEmpty()
+        aggregate.firstOperator.assert().isEmpty()
+        aggregate.eventTime.assert().isEqualTo(0)
+        aggregate.ownerId.assert().isEqualTo(OwnerId.DEFAULT_OWNER_ID)
+        state.version.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `the state version advances after its sourcing functions ran`() {
+        val metadata = stateAggregateMetadata<FailingSourcingState>()
+        val state = FailingSourcingState("aggregate-1")
+        val aggregate = metadata.toStateAggregate(
+            aggregateId = MOCK_AGGREGATE_METADATA.namedAggregate.aggregateId("aggregate-1"),
+            state = state,
+            version = 0,
+        )
+
+        aggregate.onSourcing(
+            SourcedValue("applied").toDomainEventStream(
+                upstream = GivenInitializationCommand(aggregate.aggregateId),
+                aggregateVersion = aggregate.version,
+            ),
+        )
+
+        state.versionsSeen.assert().isEqualTo(listOf(0))
+        state.version.assert().isEqualTo(1)
+        aggregate.version.assert().isEqualTo(1)
     }
 }
