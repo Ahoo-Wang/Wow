@@ -37,6 +37,49 @@ internal class QueryMaskDefinition private constructor(
             ?.takeIf { properties.isEmpty() && keys.isEmpty() && item == null }
             ?.takeIf { it.masked.isStringShape() && it.allowed.isStringShape() && shapes.all { shape -> shape.isStringShape() } }
             ?.masked?.maskRule
+
+        /** This node visited alone, as an array or a map: its merged lists are compiled once, on first use. */
+        val group: MaskGroup by lazy { MaskGroup(listOf(this), emptyList()) }
+    }
+
+    /**
+     * Mask nodes that apply to one response value together ([nodes], plus the [inherited] values of an enclosing
+     * masked array), with the merged lists the masker reads compiled once per group instead of once per visited value.
+     * Every group is reached from the root through [items] and [property], so a definition has a fixed set of them.
+     */
+    internal class MaskGroup(val nodes: List<MaskNode>, inherited: List<QueryMaskValue>) {
+        /** The node to visit on its own: one node and nothing inherited. */
+        val single: MaskNode? = nodes.singleOrNull()?.takeIf { inherited.isEmpty() }
+        val values: List<QueryMaskValue> = nodes.flatMap { it.values } + inherited
+        val shapes: List<QueryValueSchema> = nodes.flatMap { it.shapes }
+
+        /** The group of this value's array items. */
+        val items: MaskGroup by lazy {
+            MaskGroup(nodes.mapNotNull { it.item }, values.flatMap { it.arrayMembers })
+        }
+
+        /** The one node whose named properties are all an object visit needs: one node and no dynamic keys. */
+        val namedOnly: MaskNode? = nodes.singleOrNull()?.takeIf { it.keys.isEmpty() }
+        private val dynamic: List<Pair<Set<String>, MaskNode>> = nodes.flatMap { it.keys }
+        val names: Set<String> = nodes.flatMapTo(linkedSetOf()) { it.properties.keys }
+
+        /** Whether an object visit walks the object's own properties rather than [names]. */
+        fun walksObject(size: Int): Boolean = dynamic.isNotEmpty() || names.size > size
+
+        private val unnamed: MaskGroup? by lazy {
+            dynamic.map { it.second }.takeIf { it.isNotEmpty() }?.let { MaskGroup(it, emptyList()) }
+        }
+        private val named: Map<String, MaskGroup?> by lazy {
+            val excluded = dynamic.flatMapTo(linkedSetOf()) { it.first }
+            (names + excluded).associateWith { name ->
+                val children = nodes.mapNotNull { it.properties[name] } +
+                    dynamic.filter { name !in it.first }.map { it.second }
+                children.takeIf { it.isNotEmpty() }?.let { MaskGroup(it, emptyList()) }
+            }
+        }
+
+        /** The group of property [name], or `null` when no mask applies to it. */
+        fun property(name: String): MaskGroup? = if (name in named) named[name] else unnamed
     }
 
     companion object {

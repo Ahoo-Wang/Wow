@@ -21,7 +21,7 @@
 明确不兼容的 REST 可见变化：
 
 - `GET …/snapshot/schema`、`GET …/event/schema` 的响应改为能力描述（§7）；
-- 删除 `POST …/snapshot/schema/refresh` 与 `POST …/event/schema/refresh`，刷新改由 Catalog 定期校验与管理端点完成（§5.2）；
+- 刷新改由 Catalog 定期校验与管理端点完成（§5.2）；`POST …/snapshot/schema/refresh` 与 `POST …/event/schema/refresh` 按 v9 兼容边界保留为弃用别名，10.0.0 删除（更正：本文原写“删除”，实际保留，见 `docs/compat-debt.md`）；
 - 游标令牌改为新格式；旧令牌按现有的无效游标错误（错误码与文案 `Invalid cursor.` 不变）拒绝，客户端从第一页重新开始。
 
 其余一律不做兼容：SPI、内部类型、装配方式、配置属性名、声明文件格式、字段注解，都按本文直接设计，不保留过渡层、别名或双格式。刚发布、还没有真实消费者的面不做兼容。
@@ -186,7 +186,8 @@ flowchart LR
 **刷新**：
 - 存储事实（索引、mapping、validator）会在部署之外变化，Catalog **必须定期重新校验**，发现变化就重新编译；
 - 部署了 actuator 时，管理端点 `wowQuerySchema` 提供按实例的版本查看与手动刷新；
-- 数据面不提供刷新接口。
+- 数据面不提供新的刷新接口；9.1 的两个 refresh 路由保留为弃用别名，直到 10.0.0；
+- 重新编译的结果与已发布版本相同（版本与存储绑定都不变）时保留已发布的实例，它缓存的描述随之保留；9.1 声明文件的扫描只在首次加载时做。
 
 ### 5.3 入口与入口策略
 
@@ -813,7 +814,7 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
    - 删除 wow-schema 中重复的声明合并逻辑（`QuerySchemaDeclarationMerge`），只保留 Catalog 的一处合并；
    - 字段名只有一个来源，即 Jackson 的序列化名：KSP 生成的 `*Properties` 常量改按同一规则处理 `@JsonProperty` 重命名与 `@JsonIgnore`（常量名保持源码兼容，只有取值会随之改正）；OpenAPI 请求体 schema 与查询推断共用同一套生成配置，或者由测试断言两者的字段一致；
    - 公开的 `schema/query/v2/*.schema.json` 改为由 `OperatorSpec` 生成，或者由测试断言它与运算符规格一致，新增运算符时不会再漏掉。
-5. **能力描述**：wow-client 获取方法、视图引擎的校验与交集、Skills；Catalog 定期校验与 `wowQuerySchema` 管理端点；删除两个 refresh 路由，同步更新 OpenAPI 快照与路由清单；同时交付 N5。视图引擎在首次发布前采用。
+5. **能力描述**：wow-client 获取方法、视图引擎的校验与交集、Skills；Catalog 定期校验与 `wowQuerySchema` 管理端点；两个 refresh 路由保留为弃用别名（v9 兼容边界，10.0.0 删除）；同时交付 N5。视图引擎在首次发布前采用。
 6. **后端 SPI 的四个原语**：
    - 后端注册 SPI；
    - 游标位置编解码、共享的聚合逻辑形状与残余算子；

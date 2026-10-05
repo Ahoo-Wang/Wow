@@ -145,6 +145,17 @@ class QuerySchemaSourcesTest {
     }
 
     @Test
+    fun `the 9_1 declaration scan runs on the first load only, not on every refresh`() {
+        val provider = provider(listOf(WorkingDirectoryQuerySchemaSource(basePath = tempDir)), FAIL)
+        val first = provider.schema().block()!!
+        // A 9.1 file that appears after the first load is not scanned for again: the strict policy does not fail
+        // the periodic refresh.
+        writeLegacyFile(tempDir, conventionJson("Legacy"))
+
+        provider.refresh().block()!!.assert().isSameAs(first)
+    }
+
+    @Test
     fun `a 9_2 declaration in any source covers a 9_1 file in another`() {
         val root = tempDir.resolve("root")
         writeLegacyFile(root, conventionJson("Legacy"))

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.queryEntry
@@ -87,16 +88,67 @@ class DefaultQueryModelSchemaProviderTest {
     @Test
     fun `successful refresh should publish the new immutable schema`() {
         val source = CountingSource()
-        val adapter = CountingAdapter()
+        val adapter = CountingAdapter(
+            refreshedFacts = { QueryStorageFacts(emptyMap(), fullProjectionAvailable = false) }
+        )
         val provider = provider(source, adapter)
         val initial = provider.schema().block()!!
 
         val refreshed = provider.refresh().block()!!
 
         refreshed.assert().isNotSameAs(initial)
+        refreshed.fullProjectionAvailable.assert().isFalse()
         provider.schema().block()!!.assert().isSameAs(refreshed)
         source.refreshes.get().assert().isEqualTo(1)
         adapter.refreshes.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `refresh with unchanged facts keeps the instance`() {
+        val source = CountingSource()
+        val adapter = CountingAdapter()
+        val provider = provider(source, adapter)
+        val initial = provider.schema().block()!!
+        val descriptor = initial.describe(budget = null, defaultListSize = null)
+
+        val refreshed = provider.refresh().block()!!
+
+        refreshed.assert().isSameAs(initial)
+        provider.schema().block()!!.assert().isSameAs(initial)
+        // The kept instance keeps its compiled caches: the descriptor is not described again.
+        refreshed.describe(budget = null, defaultListSize = null).assert().isSameAs(descriptor)
+        source.refreshes.get().assert().isEqualTo(1)
+        adapter.refreshes.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `refresh with changed bindings publishes a new instance even when the version is unchanged`() {
+        val path = QueryField("aggregateId").toPathTemplate()
+        fun facts(physical: String) = QueryStorageFacts(
+            mapOf(
+                path to QueryValueBindings(
+                    mapOf(
+                        me.ahoo.wow.api.query.schema.QueryCapability.EXACT_MATCH to
+                            QueryFieldBindingTemplate(QueryField(physical).toPathTemplate(), null)
+                    )
+                )
+            )
+        )
+        val adapter = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.just(
+                facts("aggregateId")
+            )
+            override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.just(facts("_id"))
+        }
+        val provider = provider(CountingSource(), adapter)
+        val initial = provider.schema().block()!!
+
+        val refreshed = provider.refresh().block()!!
+
+        refreshed.version.assert().isEqualTo(initial.version)
+        refreshed.assert().isNotSameAs(initial)
+        refreshed.field(QueryField("aggregateId"))!!.bindings.values.single().physicalField.assert()
+            .isEqualTo(QueryField("_id"))
     }
 
     @Test
@@ -124,7 +176,8 @@ class DefaultQueryModelSchemaProviderTest {
         val first = provider.refresh().block()!!
         val second = provider.refresh().block()!!
 
-        second.assert().isNotSameAs(first)
+        // Each refresh reloads the sources and the storage; the facts are unchanged, so the instance is kept.
+        second.assert().isSameAs(first)
         source.refreshes.get().assert().isEqualTo(2)
         adapter.refreshes.get().assert().isEqualTo(2)
     }
@@ -160,7 +213,7 @@ class DefaultQueryModelSchemaProviderTest {
         source.refreshes.get().assert().isEqualTo(2)
         adapter.refreshes.get().assert().isEqualTo(1)
 
-        provider.refresh().block()!!.assert().isNotSameAs(shared)
+        provider.refresh().block()!!.assert().isSameAs(shared)
         source.refreshes.get().assert().isEqualTo(3)
         adapter.refreshes.get().assert().isEqualTo(2)
     }
@@ -336,7 +389,9 @@ class DefaultQueryModelSchemaProviderTest {
         }
     }
 
-    private class CountingAdapter : QueryStorageAdapter {
+    private class CountingAdapter(
+        private val refreshedFacts: () -> QueryStorageFacts = ::newFacts,
+    ) : QueryStorageAdapter {
         val resolves = AtomicInteger()
         val refreshes = AtomicInteger()
         val failRefresh = AtomicBoolean()
@@ -352,7 +407,7 @@ class DefaultQueryModelSchemaProviderTest {
             if (failRefresh.get()) {
                 Mono.error(refreshFailure)
             } else {
-                Mono.just(newFacts())
+                Mono.just(refreshedFacts())
             }
         }
     }

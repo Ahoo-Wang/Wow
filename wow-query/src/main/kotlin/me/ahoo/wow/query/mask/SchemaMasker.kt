@@ -34,15 +34,8 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
         return node
     }
 
-    private fun visit(node: JsonNode, nodes: List<QueryMaskDefinition.MaskNode>, inherited: List<QueryMaskValue>): JsonNode =
-        if (nodes.size == 1 && inherited.isEmpty()) {
-            visitSingle(
-                node,
-                nodes.single()
-            )
-        } else {
-            visitMany(node, nodes, inherited)
-        }
+    private fun visit(node: JsonNode, group: QueryMaskDefinition.MaskGroup): JsonNode =
+        group.single?.let { visitSingle(node, it) } ?: visitMany(node, group)
 
     private fun visitSingle(node: JsonNode, mask: QueryMaskDefinition.MaskNode): JsonNode {
         if (node.isNull) return node
@@ -55,7 +48,7 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
             if (!node.isString) fail("Masked value must contain strings.")
             return JsonNodeFactory.instance.stringNode(rule.apply(node.stringValue()))
         }
-        if (node.isArray || mask.keys.isNotEmpty()) return visitMany(node, listOf(mask), emptyList())
+        if (node.isArray || mask.keys.isNotEmpty()) return visitMany(node, mask.group)
         val rule = selectMask(node, mask.shapes, mask.values, true)
         if (node.isObject) {
             if (rule != null) fail("Masked value must contain strings.")
@@ -67,10 +60,9 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
         return node
     }
 
-    private fun visitMany(node: JsonNode, nodes: List<QueryMaskDefinition.MaskNode>, inherited: List<QueryMaskValue>): JsonNode {
+    private fun visitMany(node: JsonNode, group: QueryMaskDefinition.MaskGroup): JsonNode {
         if (node.isNull) return node
-        val domains = nodes.flatMap { it.values } + inherited
-        val rule = selectMask(node, nodes.flatMap { it.shapes }, domains, nodes.isNotEmpty())
+        val rule = selectMask(node, group.shapes, group.values, group.nodes.isNotEmpty())
         when {
             node.isString -> return if (rule == null) {
                 node
@@ -80,15 +72,14 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
                 )
             }
             node.isArray -> {
-                val children = nodes.mapNotNull { it.item }
-                val members = domains.flatMap { it.arrayMembers }
+                val items = group.items
                 node.forEachIndexed { index, child ->
-                    (node as ArrayNode).set(index, visit(child, children, members))
+                    (node as ArrayNode).set(index, visit(child, items))
                 }
             }
             node.isObject -> {
                 if (rule != null) fail("Masked value must contain strings.")
-                maskObject(node as ObjectNode, nodes)
+                maskObject(node as ObjectNode, group)
             }
             rule != null -> fail("Masked value must contain strings.")
         }
@@ -135,24 +126,20 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
         }
     }
 
-    private fun maskObject(objectNode: ObjectNode, nodes: List<QueryMaskDefinition.MaskNode>) {
-        val single = nodes.singleOrNull()
-        if (single != null && single.keys.isEmpty()) {
-            maskNamedProperties(objectNode, single.properties)
+    private fun maskObject(objectNode: ObjectNode, group: QueryMaskDefinition.MaskGroup) {
+        group.namedOnly?.let {
+            maskNamedProperties(objectNode, it.properties)
             return
         }
-        val dynamic = nodes.flatMap { it.keys }
-        val names = nodes.flatMapTo(linkedSetOf()) { it.properties.keys }
-        if (dynamic.isNotEmpty() || names.size > objectNode.size()) {
+        if (group.walksObject(objectNode.size())) {
             objectNode.forEachEntry { name, child ->
-                val children = nodes.mapNotNull { it.properties[name] } + dynamic.filter { name !in it.first }.map { it.second }
-                if (children.isNotEmpty()) objectNode.set(name, visit(child, children, emptyList()))
+                group.property(name)?.let { objectNode.set(name, visit(child, it)) }
             }
         } else {
-            names.forEach { name ->
-                objectNode.get(name)?.let { child ->
-                    objectNode.set(name, visit(child, nodes.mapNotNull { it.properties[name] }, emptyList()))
-                }
+            group.names.forEach { name ->
+                objectNode.get(
+                    name
+                )?.let { child -> objectNode.set(name, visit(child, checkNotNull(group.property(name)))) }
             }
         }
     }

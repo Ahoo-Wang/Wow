@@ -72,7 +72,7 @@ flowchart LR
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
 - `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间；`@QueryDecimal` 与 `@QueryMoney` 声明[小数与金额精度](#decimal-money)，`@QueryDuration` 与 `@QueryReference` 声明[时长与引用](#duration-reference)（都在 `me.ahoo.wow.api.query.annotation`）；类型为 `AggregateId` 的属性无需注解即是引用。`@Sensitive` 见[字段脱敏](./masking.md)。
-- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。9.1 的备用位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。若没有任何来源（classpath、工作目录或注册 Bean）以 9.2 格式声明该模型，那里的文件会产生一条警告日志，写明 9.2 文件应放在哪里，该模型使用推断的 schema；设置 `wow.query.schema.legacy-declarations=fail` 则改为让该模型的 schema 不可用。见下文[迁移 9.1 的声明文件](#declaration-91)。
+- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。9.1 的备用位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。若没有任何来源（classpath、工作目录或注册 Bean）以 9.2 格式声明该模型，那里的文件会产生一条警告日志，写明 9.2 文件应放在哪里，该模型使用推断的 schema；设置 `wow.query.schema.legacy-declarations=fail` 则改为让该模型的 schema 不可用。9.1 位置在每个模型首次加载时扫描一次，定期重新校验不再扫描。见下文[迁移 9.1 的声明文件](#declaration-91)。
 - `BeanQuerySchemaSource (300)` 合并当前上下文注册的 `QuerySchemaRegistration`。
 
 ### 声明文件与代码注册
@@ -126,7 +126,7 @@ flowchart LR
 | `title` | 删除：显示名属于视图定义 |
 | `required`、`alternatives` | 删除：由推断得出，不再声明 |
 
-`QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实并替换缓存；它不会修改索引、mapping、validator 或历史数据。
+`QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实，schema 有变化时才替换缓存：版本与存储绑定都不变时，保留已发布的 schema 及其缓存的描述。它不会修改索引、mapping、validator 或历史数据。
 
 
 ### 小数与金额精度 {#decimal-money}
