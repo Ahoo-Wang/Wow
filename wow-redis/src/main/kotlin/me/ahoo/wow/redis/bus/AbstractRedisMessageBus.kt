@@ -58,15 +58,41 @@ abstract class AbstractRedisMessageBus<M, E>(
     private val pollTimeout: Duration = Duration.ofSeconds(2),
     private val recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     private val messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+    private val retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use the constructor with retentionOptions.",
+        level = DeprecationLevel.HIDDEN
+    )
+    constructor(
+        redisTemplate: ReactiveStringRedisTemplate,
+        topicConverter: AggregateTopicConverter,
+        pollTimeout: Duration = Duration.ofSeconds(2),
+        recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+        messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+    ) : this(
+        redisTemplate,
+        topicConverter,
+        pollTimeout,
+        recoveryOptions,
+        messageBusObserver,
+        RedisStreamRetentionOptions.DEFAULT,
+    )
+
     private val streamOps = redisTemplate.opsForStream<String, String>()
+    private val consumerReaper = RedisStreamConsumerReaper(redisTemplate)
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {
         return Mono.defer {
             message.withReadOnly()
             val topic = topicConverter.convert(message)
-            streamOps.add(topic, mapOf(MESSAGE_FIELD to message.toJsonString())).then()
+            val entry = mapOf(MESSAGE_FIELD to message.toJsonString())
+            if (retentionOptions.trims) {
+                streamOps.add(topic, entry, retentionOptions.addOptions(System.currentTimeMillis())).then()
+            } else {
+                streamOps.add(topic, entry).then()
+            }
         }
     }
 
@@ -112,7 +138,7 @@ abstract class AbstractRedisMessageBus<M, E>(
             val group = subscription.receiverGroup
             val topics = subscription.namedAggregates.map(topicConverter::convert)
             val createGroupPublisher = topics.map { topic ->
-                createGroup(topic, group)
+                createGroup(topic, group).then(reapIdleConsumers(topic, group))
             }.let { publishers ->
                 Flux.concat(publishers).then()
             }
@@ -140,6 +166,11 @@ abstract class AbstractRedisMessageBus<M, E>(
                 Mono.error(it)
             }
         }
+
+    private fun reapIdleConsumers(topic: String, group: String): Mono<Void> {
+        val idleTimeout = retentionOptions.consumerIdleTimeout ?: return Mono.empty()
+        return consumerReaper.reap(topic, group, idleTimeout).then()
+    }
 
     private fun receive(
         topic: String,

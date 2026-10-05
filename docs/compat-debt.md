@@ -186,6 +186,13 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: the `pointReadAdmission` bean method that also takes `ObjectProvider<ScopeContributor>`; code building a `PointReadAdmission` by hand passes `CompositeQueryRequestScope.of(scope, contributors)`.
 - **Removal in v10**: delete the contributor-less `pointReadAdmission` of `WebFluxAutoConfiguration`. Code still calling it stops compiling.
 
+### Wow 9.2 Redis Message Bus Constructors
+
+- **Kept compatible**: the 9.2 JVM constructors of `AbstractRedisMessageBus`, `RedisCommandBus`, `RedisDomainEventBus` and `RedisStateEventBus` (with their `$default` forms), which a library compiled against 9.2 calls. 9.3 adds a trailing `retentionOptions` parameter (stream trimming and idle-consumer reaping); the 9.2 signatures are `DeprecationLevel.HIDDEN` overloads that pass `RedisStreamRetentionOptions.DEFAULT`.
+- **Markers**: `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt`, `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/RedisCommandBus.kt`, `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/RedisDomainEventBus.kt`, `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/RedisStateEventBus.kt`
+- **Replacement**: the primary constructors (`retentionOptions` defaults to `RedisStreamRetentionOptions.DEFAULT`).
+- **Removal in v10**: delete the four hidden constructors. Source never sees them; binaries compiled against 9.2 fail with `NoSuchMethodError`, which the release notes say.
+
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.

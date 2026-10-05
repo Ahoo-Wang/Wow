@@ -26,6 +26,7 @@ class RedisCommandBus(
     pollTimeout: Duration = Duration.ofSeconds(2),
     recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+    retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
 ) : DistributedCommandBus,
     AbstractRedisMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(
         redisTemplate,
@@ -33,7 +34,27 @@ class RedisCommandBus(
         pollTimeout,
         recoveryOptions,
         messageBusObserver,
+        retentionOptions,
     ) {
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use the constructor with retentionOptions.",
+        level = DeprecationLevel.HIDDEN
+    )
+    constructor(
+        redisTemplate: ReactiveStringRedisTemplate,
+        topicConverter: CommandTopicConverter = DefaultCommandTopicConverter,
+        pollTimeout: Duration = Duration.ofSeconds(2),
+        recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+        messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+    ) : this(
+        redisTemplate,
+        topicConverter,
+        pollTimeout,
+        recoveryOptions,
+        messageBusObserver,
+        RedisStreamRetentionOptions.DEFAULT,
+    )
+
     override val messageType: Class<CommandMessage<*>>
         get() = CommandMessage::class.java
 

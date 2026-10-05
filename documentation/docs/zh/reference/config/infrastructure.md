@@ -83,7 +83,7 @@ MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.infra.b
 
 ## Redis
 
-配置类：`RedisProperties`、`RedisStreamRecoveryProperties`；所需 capability：`redis-support`。
+配置类：`RedisProperties`、`RedisStreamRecoveryProperties`、`RedisStreamRetentionProperties`；所需 capability：`redis-support`。
 
 | 属性 | 类型 | 默认值 | 含义 |
 | --- | --- | --- | --- |
@@ -92,8 +92,13 @@ MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.infra.b
 | `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | pending 消息可被 claim 前的最小 idle 时间 |
 | `wow.redis.message-bus.recovery.interval` | Duration | `30s` | recovery sweep 间隔 |
 | `wow.redis.message-bus.recovery.batch-size` | Long | `100` | 每页 pending 记录数 |
+| `wow.redis.message-bus.retention.max-length` | Long | 未设置 | 每次发送时把 Stream 裁剪到约这么多条（`MAXLEN ~`）；默认不裁剪 |
+| `wow.redis.message-bus.retention.max-age` | Duration | 未设置 | 每次发送时裁剪早于这个时长的条目（`MINID ~`，按发送方时钟计算）；至少 `1m`，且应远大于时钟偏差；默认不裁剪 |
+| `wow.redis.message-bus.retention.approximate` | Boolean | `true` | 按宏节点整块裁剪（`~`），而不是精确裁剪 |
+| `wow.redis.message-bus.retention.reap-idle-consumers` | Boolean | `true` | 接收器启动时删除没有待处理条目的空闲 consumer |
+| `wow.redis.message-bus.retention.consumer-idle-timeout` | Duration | `30m` | consumer 空闲多久后可被删除 |
 
-`min-idle-time`、`interval` 至少为 `1ms`，`batch-size` 必须大于零。连接由 Spring Boot 的 `spring.data.redis.*` 属性拥有。
+`min-idle-time`、`interval` 至少为 `1ms`，`batch-size` 必须大于零。`retention.max-length`（大于零）与 `retention.max-age`（至少 `1m`）最多设置一个；裁剪需要 Redis 7.0 及以上。连接由 Spring Boot 的 `spring.data.redis.*` 属性拥有。
 
 ```yaml
 spring:
