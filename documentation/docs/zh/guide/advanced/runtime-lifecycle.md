@@ -102,7 +102,7 @@ flowchart LR
 - `stopGracefully`、`forceStop`：逆注册顺序；
 - force 已胜出时，不再让脱离的 graceful 链进入下一个组件。
 
-组合组件可以向子组件提供借用视图，例如 `BorrowedAggregateSchedulerSupplier`。子组件可完成自身生命周期，但不能关闭由父组件拥有的共享 Scheduler。
+分发器不拥有线程：它们在运行时的 [`KeyedExecutor`](./keyed-executor.md) 上执行，运行时在全部组件停止后关闭它。
 
 ## 存储与传输资源
 
@@ -167,4 +167,4 @@ Starter 提供唯一的 `WowRuntimeLifecycle` 把 Runtime 适配到 Spring `Smar
 - [`RuntimeContext`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt)
 - [`RuntimeComponentGroup`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt)
 - [运行时编排迁移](../migration/runtime-orchestration.md)：破坏性生命周期变化的迁移边界
-- [聚合调度器](./aggregate-scheduler.md)：Scheduler 的拥有与释放
+- [按键执行器](./keyed-executor.md)：运行时拥有的分发工作线程

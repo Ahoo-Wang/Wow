@@ -102,7 +102,7 @@ Each new runtime activity restarts the quiet period. After a continuous idle int
 - `stopGracefully` and `forceStop`: reverse registration order;
 - once force wins, a detached graceful chain cannot advance into another component.
 
-A composite can give children a borrowed resource view such as `BorrowedAggregateSchedulerSupplier`. Children complete their lifecycle without closing a Scheduler owned by the parent.
+Dispatchers own no threads: they run on the runtime's [`KeyedExecutor`](./keyed-executor.md), which the runtime closes after every component has stopped.
 
 ## Storage and transport resources
 
@@ -167,4 +167,4 @@ Module tests verify the implementation contract only. Production quiet-period an
 - [`RuntimeContext`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/RuntimeContext.kt)
 - [`RuntimeComponentGroup`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/runtime/internal/RuntimeComponentGroup.kt)
 - [Runtime Orchestration Migration](../migration/runtime-orchestration.md): breaking lifecycle migration boundary
-- [Aggregate Scheduler](./aggregate-scheduler.md): Scheduler ownership and disposal
+- [Keyed Executor](./keyed-executor.md): the runtime-owned dispatch workers

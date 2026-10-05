@@ -151,7 +151,8 @@ Transport 检查：
 ## 4. 更新相邻扩展
 
 - 自定义 `AggregateSchedulerSupplier` 必须同时支持 graceful 与 force shutdown；force cleanup 同步释放 graceful
-  path 可能拥有的全部 scheduler。
+  path 可能拥有的全部 scheduler。（9.3.0 移除了 `AggregateSchedulerSupplier`：分发器在运行时的
+  [`KeyedExecutor`](../advanced/keyed-executor.md) 上执行。）
 - `AutoRegistrar` 是初始化工作（`SmartInitializingSingleton`），不是 runtime lifecycle owner。删除对旧
   launcher phase 的调用或排序依赖。
 - 自定义 store/message-bus decorator 必须保留原 delegate close ownership，避免重复 close。

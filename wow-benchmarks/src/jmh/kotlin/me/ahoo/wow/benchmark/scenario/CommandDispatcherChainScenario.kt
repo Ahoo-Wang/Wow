@@ -20,12 +20,11 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.runtime.WowRuntime
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -42,7 +41,7 @@ const val DISPATCH_CHAIN_COMPLETION_KEY: String = "__DISPATCH_CHAIN_COMPLETION__
  * Simulated per-command work cost injected into the noop handler.
  *
  * - [NOOP]: handler returns immediately. The benchmark measures the pure dispatch-chain
- *   overhead (groupBy + publishOn + concatMap + attribute write).
+ *   overhead (mailbox enqueue + worker handoff + attribute write).
  * - [SIMULATED]: handler consumes a small fixed CPU budget, exposing how much of the
  *   end-to-end latency is dispatch overhead versus handler work.
  */
@@ -52,14 +51,14 @@ enum class HandlerCost {
 }
 
 /**
- * Isolated scenario that measures the [AggregateCommandDispatcher] dispatch chain
- * (`groupBy` → `publishOn` → `concatMap`) in isolation, stripped of the command gateway,
- * command bus, aggregate processor, and event-store paths.
+ * Isolated scenario that measures the [AggregateCommandDispatcher] dispatch chain (one
+ * mailbox per aggregate ID on the runtime's [KeyedExecutor] workers) in isolation, stripped
+ * of the command gateway, command bus, aggregate processor, and event-store paths.
  *
  * A controllable [Sinks.Many] feeds pre-built [ServerCommandExchange] instances straight
  * into the dispatcher's `messageFlux`. A completion [Sinks.Empty] per command lets the
  * benchmark block until the dispatch chain has fully processed that exchange, so each
- * measured operation covers the ingress-to-handled round trip through the scheduler.
+ * measured operation covers the ingress-to-handled round trip through the executor's workers.
  *
  * The scenario can cycle through multiple aggregate IDs, but concurrency claims require
  * the caller to keep multiple messages outstanding. A caller that emits and immediately
@@ -73,7 +72,6 @@ class CommandDispatcherChainScenario private constructor(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val aggregateIdCardinality: Int,
     private val handlerCost: HandlerCost,
-    private val schedulerSupplier: AggregateSchedulerSupplier,
     private val commandMessages: List<CommandMessage<*>>,
     private val runtime: WowRuntime,
 ) : AutoCloseable {
@@ -97,7 +95,6 @@ class CommandDispatcherChainScenario private constructor(
 
     override fun close() {
         runtime.stopGracefully().block()
-        schedulerSupplier.stopGracefully().block()
     }
 
     companion object {
@@ -105,12 +102,10 @@ class CommandDispatcherChainScenario private constructor(
             aggregateMetadata: AggregateMetadata<*, *> = BenchmarkAggregates.cartMetadata,
             aggregateIdCardinality: Int = 1,
             handlerCost: HandlerCost = HandlerCost.NOOP,
-            schedulerStrategy: SchedulerStrategy = SchedulerStrategy.PARALLEL,
-            parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
+            keyedExecutor: KeyedExecutor = KeyedExecutor(),
         ): CommandDispatcherChainScenario {
             val messageSink = Sinks.many().unicast().onBackpressureBuffer<ServerCommandExchange<*>>()
             val handler = DispatchChainHandler(handlerCost)
-            val schedulerSupplier = schedulerStrategy.toSchedulerSupplier()
             // Pre-build the command messages once (the expensive part: metadata reflection,
             // aggregate-id construction) so per-invocation timing covers only the dispatch
             // chain and the lightweight exchange/sink allocation, not message construction.
@@ -129,18 +124,18 @@ class CommandDispatcherChainScenario private constructor(
                     namedAggregate = BenchmarkAggregates.namedAggregate,
                 )
             }
+
             @Suppress("UNCHECKED_CAST")
             val dispatcher = AggregateCommandDispatcher<Any, Any>(
                 aggregateMetadata = aggregateMetadata as AggregateMetadata<Any, Any>,
                 messageFlux = messageSink.asFlux(),
-                parallelism = parallelism,
                 commandHandler = handler,
-                scheduler = schedulerSupplier.getOrInitialize(BenchmarkAggregates.namedAggregate),
             )
             val runtime = WowRuntime(
                 components = listOf(dispatcher),
                 shutdownTimeout = Duration.ofSeconds(30),
                 shutdownQuietPeriod = Duration.ZERO,
+                keyedExecutor = keyedExecutor,
             )
             runtime.start().block()
             return CommandDispatcherChainScenario(
@@ -149,7 +144,6 @@ class CommandDispatcherChainScenario private constructor(
                 aggregateMetadata = aggregateMetadata,
                 aggregateIdCardinality = cardinality,
                 handlerCost = handlerCost,
-                schedulerSupplier = schedulerSupplier,
                 commandMessages = commandMessages,
                 runtime = runtime,
             )

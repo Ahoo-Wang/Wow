@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.benchmark.e2e
 
-import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
@@ -26,6 +25,7 @@ import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.infra.sink.concurrent
@@ -39,7 +39,6 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Schedulers
 import java.util.concurrent.atomic.AtomicInteger
 
 @State(Scope.Benchmark)
@@ -50,6 +49,7 @@ open class CommandIngressE2EDiagnosticBenchmark {
     )
     lateinit var ingressStrategy: String
 
+    /** Worker count of the runtime's [KeyedExecutor]: `cpu` (available processors) or a positive number. */
     @Param("cpu")
     lateinit var schedulerPoolSize: String
 
@@ -65,7 +65,7 @@ open class CommandIngressE2EDiagnosticBenchmark {
             snapshotStore = InMemorySnapshotStore(),
             domainEventBus = InMemoryDomainEventBus(),
             stateEventBus = InMemoryStateEventBus(),
-            schedulerSupplier = BenchmarkAggregateSchedulerSupplier(resolveSchedulerPoolSize()),
+            keyedExecutor = KeyedExecutor(workers = resolveSchedulerPoolSize()),
             validator = NoOpValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                 NoOpIdempotencyChecker
@@ -111,7 +111,7 @@ open class CommandIngressE2EDiagnosticBenchmark {
 
     private fun resolveSchedulerPoolSize(): Int =
         when (schedulerPoolSize) {
-            "cpu" -> Schedulers.DEFAULT_POOL_SIZE
+            "cpu" -> KeyedExecutor.DEFAULT_WORKERS
             else -> schedulerPoolSize.toInt().also {
                 require(it > 0) {
                     "schedulerPoolSize must be greater than 0."

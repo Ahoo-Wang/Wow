@@ -14,7 +14,6 @@
 package me.ahoo.wow.benchmark.e2e
 
 import me.ahoo.wow.benchmark.scenario.CommandWriteE2EFixture
-import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.benchmark.workload.ConcurrentBatchWorkload
 import org.openjdk.jmh.annotations.Benchmark
@@ -56,10 +55,7 @@ open class BatchCommandWriteE2EBenchmark {
     @Setup(Level.Iteration)
     fun setup() {
         failures.set(0)
-        fixture = CommandWriteE2EFixture.create(
-            scenarioId = scenario,
-            schedulerStrategy = SchedulerStrategy.PARALLEL,
-        )
+        fixture = CommandWriteE2EFixture.create(scenarioId = scenario)
         sequentialBatch = ConcurrentBatchWorkload(
             size = COMMANDS_PER_INVOCATION,
             concurrency = SEQUENTIAL_CONCURRENCY,

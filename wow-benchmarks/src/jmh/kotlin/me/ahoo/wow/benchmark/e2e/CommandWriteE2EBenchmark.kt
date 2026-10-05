@@ -14,7 +14,6 @@
 package me.ahoo.wow.benchmark.e2e
 
 import me.ahoo.wow.benchmark.scenario.CommandWriteE2EFixture
-import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -36,19 +35,13 @@ open class CommandWriteE2EBenchmark {
     )
     lateinit var scenario: String
 
-    @Param("PARALLEL", "IMMEDIATE")
-    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
-
     private lateinit var fixture: CommandWriteE2EFixture
     private val failures = AtomicInteger()
 
     @Setup(Level.Iteration)
     fun setup() {
         failures.set(0)
-        fixture = CommandWriteE2EFixture.create(
-            scenarioId = scenario,
-            schedulerStrategy = SchedulerStrategy.valueOf(schedulerStrategy),
-        )
+        fixture = CommandWriteE2EFixture.create(scenarioId = scenario)
     }
 
     @TearDown(Level.Iteration)

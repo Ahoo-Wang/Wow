@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.internal
 
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.runtime.RuntimeActivity
 import me.ahoo.wow.runtime.RuntimeContext
 import reactor.core.Disposable
@@ -43,6 +44,7 @@ internal class DefaultRuntimeContext(
     private val failureHandler: (Throwable) -> Unit = {},
     /** The owning runtime's shutdown lane; runtime-owned components run their stop work on it. */
     val shutdownScheduler: Scheduler = DefaultRuntimeExecutionResources.shutdownScheduler,
+    override val keyedExecutor: KeyedExecutor = KeyedExecutor.shared,
 ) : RuntimeContext {
     companion object {
         private const val QUIESCING_MASK = Long.MIN_VALUE

@@ -48,11 +48,11 @@ Completing a write does not automatically mean an arbitrary read model is curren
 
 ## Ordering and concurrency boundary
 
-Default dispatchers map messages by aggregate ID into a finite set of groups. A group is processed serially while different groups may run concurrently. An `AggregateSchedulerSupplier` caches a Reactor Scheduler per named aggregate. The supported scope is therefore that the same aggregate ID maps to the same group within the same dispatcher instance. It does not establish global order across processes, buses, handler functions, or external systems.
+Dispatchers run messages on the runtime's shared `KeyedExecutor`: one mailbox per aggregate ID, so messages of one aggregate ID are handled one at a time in receive order, while different aggregate IDs run in parallel on CPU-sized workers. The supported scope is therefore per aggregate ID within one dispatcher instance. It does not establish global order across processes, buses, handler functions, or external systems.
 
 Concurrent writes still pass through EventStore version constraints. Scheduling reduces contention inside one instance; append rejects conflicting persistent writes. These are different controls. Backend redelivery also does not make an external side effect idempotent.
 
-See [Aggregate Scheduler](./aggregate-scheduler.md), [Event Dispatch Pipeline](../event/dispatch.md), and [Event Sourcing](../domain/event-sourcing.md).
+See [Keyed Executor](./keyed-executor.md), [Event Dispatch Pipeline](../event/dispatch.md), and [Event Sourcing](../domain/event-sourcing.md).
 
 ## Lifecycle boundary
 

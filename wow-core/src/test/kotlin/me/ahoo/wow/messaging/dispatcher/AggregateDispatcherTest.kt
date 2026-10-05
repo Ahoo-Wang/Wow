@@ -32,8 +32,6 @@ import reactor.core.CoreSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
@@ -715,7 +713,7 @@ class AggregateDispatcherTest {
         val source = Sinks.many().unicast().onBackpressureBuffer<TestExchange>()
         val groupKeyFailure = IllegalStateException("group-key")
         val dispatcher = object : RecordingAggregateDispatcher(source.asFlux()) {
-            override fun TestExchange.toGroupKey(): Int {
+            override fun TestExchange.mailboxKey(): Any {
                 throw groupKeyFailure
             }
         }
@@ -748,6 +746,8 @@ class AggregateDispatcherTest {
             )
 
             prepareAndStart(dispatcher)
+            // Handling runs on the keyed executor: wait until the finite source has drained.
+            dispatcher.terminatedSignal.block(Duration.ofSeconds(5))
 
             val dispatcherMeterIds = meterRegistry.meters
                 .map { it.id }
@@ -790,7 +790,6 @@ class AggregateDispatcherTest {
     private open class RecordingAggregateDispatcher(
         override val messageFlux: Flux<TestExchange>,
         private val handle: ((TestExchange) -> Mono<Void>)? = null,
-        override val scheduler: Scheduler = Schedulers.immediate(),
         override val name: String = "recording-dispatcher",
         cleanupDispatcher: (Runnable) -> Boolean = { action ->
             DefaultRuntimeExecutionResources.dispatchCleanup(action)
@@ -804,12 +803,11 @@ class AggregateDispatcherTest {
         processingAdmission = processingAdmission,
         metrics = metrics,
     ) {
-        override val parallelism: Int = 2
         override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()
         val handled: Sinks.Many<TestExchange> = Sinks.many().replay().all()
         val groups = mutableListOf<Int>()
 
-        override fun TestExchange.toGroupKey(): Int {
+        override fun TestExchange.mailboxKey(): Any {
             groups.add(group)
             return group
         }
@@ -818,7 +816,10 @@ class AggregateDispatcherTest {
             handle?.let {
                 return it(exchange)
             }
-            handled.tryEmitNext(exchange).orThrow()
+            // Different mailboxes run on different workers: serialize the emission.
+            synchronized(handled) {
+                handled.tryEmitNext(exchange).orThrow()
+            }
             return Mono.empty()
         }
     }

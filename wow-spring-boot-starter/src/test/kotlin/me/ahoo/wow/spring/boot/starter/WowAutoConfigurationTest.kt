@@ -114,6 +114,21 @@ internal class WowAutoConfigurationTest {
     }
 
     @Test
+    fun `binds the runtime's keyed executor settings`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "wow.dispatch.workers=3",
+                "wow.dispatch.max-in-flight=32",
+            )
+            .run { context ->
+                val keyedExecutor = context.getBean(WowRuntime::class.java).keyedExecutor
+                keyedExecutor.workers.assert().isEqualTo(3)
+                keyedExecutor.maxInFlight.assert().isEqualTo(32)
+            }
+    }
+
+    @Test
     fun `runtime phase precedes web ingress and honors its deadline`() {
         WOW_RUNTIME_PHASE.assert().isLessThan(WebServerApplicationContext.START_STOP_LIFECYCLE_PHASE)
         WebServerApplicationContext.START_STOP_LIFECYCLE_PHASE.assert()

@@ -18,13 +18,11 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -37,10 +35,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @property name The name of this dispatcher (default: derived from aggregate name)
  * @property namedAggregate The named aggregate this dispatcher handles
  * @property messageFlux The flux of event stream exchanges to process
- * @property parallelism The level of parallelism for processing (default: DEFAULT_PARALLELISM)
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
- * @property scheduler The scheduler for managing event processing concurrency
  * @param messageReadiness Completion of asynchronous message-source setup when
  * this dispatcher is registered directly with a runtime
  * @param processingAdmission Explicit transport-processing gate opened by
@@ -55,17 +51,14 @@ import java.util.concurrent.ConcurrentHashMap
  * @see me.ahoo.wow.event.EventStreamExchange
  * @see MessageFunctionRegistrar
  * @see EventHandler
- * @see Scheduler
  */
 internal class AggregateEventDispatcher(
     override val name: String =
         "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}",
     override val namedAggregate: NamedAggregate,
     override val messageFlux: Flux<EventStreamExchange>,
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
-    override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},

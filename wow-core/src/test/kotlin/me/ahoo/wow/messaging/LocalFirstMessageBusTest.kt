@@ -33,8 +33,6 @@ import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import reactor.util.context.Context
@@ -621,7 +619,7 @@ class LocalFirstMessageBusShutdownTest {
         val firstDispatcher = LocalReceiptDispatcher(localBus.receiver(subscription.copy(runtimeOwned = true)))
         val secondDispatcher = LocalReceiptDispatcher(
             receiver = localBus.receiver(subscription.copy(receiverGroup = "second", runtimeOwned = true)),
-            beforeGroupKey = {
+            beforeMailboxKey = {
                 secondAdmissionEntered.countDown()
                 check(releaseSecondAdmission.await(5, TimeUnit.SECONDS)) {
                     "Timed out waiting to release the second local admission."
@@ -1194,8 +1192,7 @@ private class ZeroDemandSubscriber<T : Any> : BaseSubscriber<T>() {
 
 private class LocalReceiptDispatcher(
     receiver: MessageReceiver<LocalFirstTestExchange>,
-    private val beforeGroupKey: () -> Unit = {},
-    override val scheduler: Scheduler = Schedulers.immediate(),
+    private val beforeMailboxKey: () -> Unit = {},
 ) : AggregateDispatcher<LocalFirstTestExchange>(
     messageReadiness = receiver.readiness,
     processingAdmission = receiver::openProcessing,
@@ -1203,12 +1200,11 @@ private class LocalReceiptDispatcher(
 ) {
     override val name: String = "local-receipt-dispatcher"
     override val namedAggregate: NamedAggregate = LocalFirstTestMessage().materialize()
-    override val parallelism: Int = 1
     override val messageFlux: Flux<LocalFirstTestExchange> = receiver.messages
     val handled = AtomicInteger()
 
-    override fun LocalFirstTestExchange.toGroupKey(): Int {
-        beforeGroupKey()
+    override fun LocalFirstTestExchange.mailboxKey(): Any {
+        beforeMailboxKey()
         return 0
     }
 
@@ -1229,11 +1225,9 @@ private class ChainedLocalReceiptDispatcher(
 ) {
     override val name: String = "chained-local-receipt-dispatcher"
     override val namedAggregate: NamedAggregate = LocalFirstTestMessage().materialize()
-    override val parallelism: Int = 1
-    override val scheduler: Scheduler = Schedulers.immediate()
     override val messageFlux: Flux<LocalFirstTestExchange> = receiver.messages
 
-    override fun LocalFirstTestExchange.toGroupKey(): Int = 0
+    override fun LocalFirstTestExchange.mailboxKey(): Any = 0
 
     override fun handleExchange(exchange: LocalFirstTestExchange): Mono<Void> {
         handled.countDown()

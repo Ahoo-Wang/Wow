@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime
 
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
@@ -48,6 +49,11 @@ class WowRuntime private constructor(
     components: List<RuntimeComponent>,
     val shutdownTimeout: Duration,
     val shutdownQuietPeriod: Duration,
+    /**
+     * The execution resource this runtime's dispatchers share (one mailbox per aggregate ID on CPU-sized workers).
+     * The runtime owns it: it is closed once every component has stopped.
+     */
+    val keyedExecutor: KeyedExecutor,
     private val executionResources: RuntimeExecutionResources,
     @Suppress("UNUSED_PARAMETER")
     constructorMarker: Unit,
@@ -56,10 +62,12 @@ class WowRuntime private constructor(
         components: List<RuntimeComponent>,
         shutdownTimeout: Duration,
         shutdownQuietPeriod: Duration,
+        keyedExecutor: KeyedExecutor = KeyedExecutor(),
     ) : this(
         components = components,
         shutdownTimeout = shutdownTimeout,
         shutdownQuietPeriod = shutdownQuietPeriod,
+        keyedExecutor = keyedExecutor,
         executionResources = DefaultRuntimeExecutionResources,
         constructorMarker = Unit,
     )
@@ -69,10 +77,12 @@ class WowRuntime private constructor(
         shutdownTimeout: Duration,
         shutdownQuietPeriod: Duration,
         executionResources: RuntimeExecutionResources,
+        keyedExecutor: KeyedExecutor = KeyedExecutor(),
     ) : this(
         components = components,
         shutdownTimeout = shutdownTimeout,
         shutdownQuietPeriod = shutdownQuietPeriod,
+        keyedExecutor = keyedExecutor,
         executionResources = executionResources,
         constructorMarker = Unit,
     )
@@ -113,6 +123,7 @@ class WowRuntime private constructor(
         scheduler = executionResources.quiescenceScheduler,
         failureHandler = ::handleRuntimeFailure,
         shutdownScheduler = executionResources.shutdownScheduler,
+        keyedExecutor = keyedExecutor,
     )
     private val componentGroup = RuntimeComponentGroup(this.components) { error ->
         firstFailure.record(error)
@@ -590,6 +601,7 @@ class WowRuntime private constructor(
             terminalError
         }
         owner.complete()
+        keyedExecutor.close()
         if (completionError == null) {
             terminationSink.tryEmitEmpty()
         } else {

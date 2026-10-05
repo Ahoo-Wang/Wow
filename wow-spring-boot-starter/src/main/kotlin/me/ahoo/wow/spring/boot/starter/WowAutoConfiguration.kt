@@ -18,6 +18,7 @@ import me.ahoo.wow.exception.ErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.exception.RecoverableExceptionProvider
 import me.ahoo.wow.exception.RecoverableExceptionRegistry
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator
 import me.ahoo.wow.messaging.propagation.MessagePropagator
@@ -179,6 +180,10 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             components = listOf(resources) + beanFactory.localRuntimeComponents(),
             shutdownTimeout = wowProperties.shutdownTimeout,
             shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
+            keyedExecutor = KeyedExecutor(
+                workers = wowProperties.dispatch.workers,
+                maxInFlight = wowProperties.dispatch.maxInFlight,
+            ),
         )
     }
 

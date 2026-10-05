@@ -32,11 +32,11 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.test.validation.TestValidator
 
 class CommandWriteE2EFixture private constructor(
@@ -65,9 +65,8 @@ class CommandWriteE2EFixture private constructor(
 
         fun create(
             scenarioId: String,
-            schedulerStrategy: SchedulerStrategy,
+            keyedExecutor: KeyedExecutor = KeyedExecutor(),
         ): CommandWriteE2EFixture {
-            val schedulerSupplier = schedulerStrategy.toSchedulerSupplier()
             val dispatcherScenario = when (scenarioId) {
                 CEILING_SCENARIO -> createDispatcherScenario(
                     eventStore = NoopEventStore,
@@ -75,17 +74,17 @@ class CommandWriteE2EFixture private constructor(
                         NoOpIdempotencyChecker
                     },
                     validator = NoOpValidator,
-                    schedulerSupplier = schedulerSupplier,
+                    keyedExecutor = keyedExecutor,
                 )
 
                 NOOP_STORE_SCENARIO -> createDispatcherScenario(
                     eventStore = NoopEventStore,
-                    schedulerSupplier = schedulerSupplier,
+                    keyedExecutor = keyedExecutor,
                 )
 
                 IN_MEMORY_NEW_AGGREGATE_SCENARIO -> createDispatcherScenario(
                     eventStore = InMemoryEventStore(),
-                    schedulerSupplier = schedulerSupplier,
+                    keyedExecutor = keyedExecutor,
                 )
 
                 else -> error("Unsupported command write E2E scenario: $scenarioId")
@@ -99,7 +98,7 @@ class CommandWriteE2EFixture private constructor(
             snapshotStore: SnapshotStore = InMemorySnapshotStore(),
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
-            schedulerSupplier: AggregateSchedulerSupplier,
+            keyedExecutor: KeyedExecutor,
             idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider =
                 DefaultAggregateIdempotencyCheckerProvider {
                     BenchmarkIdempotency.bloomFilterChecker()
@@ -112,7 +111,7 @@ class CommandWriteE2EFixture private constructor(
                 snapshotStore = snapshotStore,
                 domainEventBus = domainEventBus,
                 stateEventBus = stateEventBus,
-                schedulerSupplier = schedulerSupplier,
+                keyedExecutor = keyedExecutor,
                 validator = validator,
                 idempotencyCheckerProvider = idempotencyCheckerProvider,
                 namedAggregate = BenchmarkAggregates.cartMetadata.namedAggregate.materialize(),

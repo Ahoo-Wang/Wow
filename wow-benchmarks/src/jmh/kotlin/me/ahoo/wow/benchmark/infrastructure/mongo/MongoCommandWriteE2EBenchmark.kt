@@ -16,9 +16,7 @@ package me.ahoo.wow.benchmark.infrastructure.mongo
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
-import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
-import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
 import me.ahoo.wow.benchmark.workload.ConcurrentBatchWorkload
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
@@ -40,9 +38,6 @@ import java.util.concurrent.atomic.AtomicLong
 @State(Scope.Benchmark)
 @Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class MongoCommandWriteE2EBenchmark {
-    @Param("PARALLEL", "IMMEDIATE")
-    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
-
     @Param("4")
     private var concurrency: Int = 4
 
@@ -59,10 +54,7 @@ open class MongoCommandWriteE2EBenchmark {
         expectedWrites.set(0)
         fixture = MongoBenchmarkFixture()
         val eventStore = MongoEventStore(fixture.database)
-        commandDispatcherScenario = CommandDispatcherScenario.create(
-            eventStore = eventStore,
-            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy).toSchedulerSupplier(),
-        )
+        commandDispatcherScenario = CommandDispatcherScenario.create(eventStore = eventStore)
         concurrentBatch = ConcurrentBatchWorkload(COMMANDS_PER_BATCH, concurrency)
         largeConcurrentBatch = ConcurrentBatchWorkload(LARGE_BATCH_COMMANDS, concurrency)
         println("Mongo E2E database=${fixture.database.name} writeConcern=${fixture.database.writeConcern} batchEnabled=${eventStore.batchOptions != null}")

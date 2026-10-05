@@ -21,7 +21,7 @@ There is no ordering guarantee between the two buses, or between topics. Each bu
 
 ## Composite Dispatcher
 
-`DomainEventDispatcher`, `ProjectionDispatcher`, and `StatelessSagaDispatcher` are all based on `CompositeEventDispatcher`. One Composite Dispatcher creates two child dispatchers and shares an aggregate scheduler:
+`DomainEventDispatcher`, `ProjectionDispatcher`, and `StatelessSagaDispatcher` are all based on `CompositeEventDispatcher`. One Composite Dispatcher creates two child dispatchers; like every dispatcher, they run on the runtime's [`KeyedExecutor`](../advanced/keyed-executor.md):
 
 ```mermaid
 flowchart TB
@@ -41,7 +41,7 @@ flowchart TB
 
 `EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each creates subscriptions from the aggregate topics supported by its registered functions. An aggregate without a corresponding function does not get a consumption path for that dispatcher.
 
-One received event stream handles its events with `concatMap`. Multiple functions matching one event run through `flatMap`, so no function order may be assumed. The aggregate scheduler supplies only serial processing within one group key; it does not establish global order across dispatchers, processes, or external systems.
+One received event stream handles its events with `concatMap`. Multiple functions matching one event run through `flatMap`, so no function order may be assumed. The keyed executor supplies only serial processing per aggregate ID within one dispatcher; it does not establish global order across dispatchers, processes, or external systems.
 
 ## Function Registration and Selection
 

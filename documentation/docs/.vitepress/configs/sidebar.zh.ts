@@ -363,7 +363,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'JSON Schema', link: 'schema'},
                 {text: '指标', link: 'metrics'},
                 {text: '可观测性', link: 'observability'},
-                {text: '聚合调度器', link: 'aggregate-scheduler'},
+                {text: '按键执行器', link: 'keyed-executor'},
             ],
         },
     ],

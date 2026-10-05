@@ -41,6 +41,16 @@ public final class me/ahoo/wow/spring/boot/starter/ConditionalOnWowEnabled$Compa
 	public static final field ENABLED_KEY Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spring/boot/starter/DispatchProperties {
+	public fun <init> ()V
+	public fun <init> (II)V
+	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getMaxInFlight ()I
+	public final fun getWorkers ()I
+	public final fun setMaxInFlight (I)V
+	public final fun setWorkers (I)V
+}
+
 public final class me/ahoo/wow/spring/boot/starter/LocalFirstProperties : me/ahoo/wow/api/naming/EnabledCapable {
 	public fun <init> ()V
 	public fun <init> (ZI)V
@@ -69,13 +79,15 @@ public final class me/ahoo/wow/spring/boot/starter/WowAutoConfiguration$Companio
 
 public final class me/ahoo/wow/spring/boot/starter/WowProperties : me/ahoo/wow/api/naming/EnabledCapable {
 	public fun <init> ()V
-	public fun <init> (ZLjava/lang/String;Ljava/time/Duration;Ljava/time/Duration;)V
-	public synthetic fun <init> (ZLjava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZLjava/lang/String;Ljava/time/Duration;Ljava/time/Duration;Lme/ahoo/wow/spring/boot/starter/DispatchProperties;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/time/Duration;Ljava/time/Duration;Lme/ahoo/wow/spring/boot/starter/DispatchProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getContextName ()Ljava/lang/String;
+	public final fun getDispatch ()Lme/ahoo/wow/spring/boot/starter/DispatchProperties;
 	public fun getEnabled ()Z
 	public final fun getShutdownQuietPeriod ()Ljava/time/Duration;
 	public final fun getShutdownTimeout ()Ljava/time/Duration;
 	public final fun setContextName (Ljava/lang/String;)V
+	public final fun setDispatch (Lme/ahoo/wow/spring/boot/starter/DispatchProperties;)V
 	public fun setEnabled (Z)V
 	public final fun setShutdownQuietPeriod (Ljava/time/Duration;)V
 	public final fun setShutdownTimeout (Ljava/time/Duration;)V

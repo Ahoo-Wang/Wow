@@ -16,10 +16,7 @@ package me.ahoo.wow.saga.stateless
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
 /**
  * Dispatcher for stateless sagas that handles domain events and coordinates command execution.
@@ -27,12 +24,10 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * that don't maintain state between events.
  *
  * @param name The name of the dispatcher, typically formatted as `applicationName.StatelessSagaDispatcher`.
- * @param parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
  * @param domainEventBus The bus for publishing domain events.
  * @param stateEventBus The bus for publishing state events.
  * @param functionRegistrar The registrar for stateless saga functions.
  * @param eventHandler The handler for processing domain events.
- * @param schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "SagaDispatcher" prefix).
  * @param metrics Instance-scoped metrics recorder propagated to child dispatchers.
  */
 class StatelessSagaDispatcher(
@@ -40,21 +35,16 @@ class StatelessSagaDispatcher(
      * named like `applicationName.StatelessSagaDispatcher`
      */
     name: String,
-    parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     domainEventBus: DomainEventBus,
     stateEventBus: StateEventBus,
     functionRegistrar: StatelessSagaFunctionRegistrar,
     eventHandler: StatelessSagaHandler,
-    schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("SagaDispatcher"),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : CompositeEventDispatcher(
     name = name,
-    parallelism = parallelism,
     domainEventBus = domainEventBus,
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
-    schedulerSupplier = schedulerSupplier,
     metrics = metrics,
 )

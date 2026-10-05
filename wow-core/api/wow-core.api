@@ -1583,8 +1583,8 @@ public final class me/ahoo/wow/event/dispatcher/DefaultDomainEventHandler : me/a
 }
 
 public final class me/ahoo/wow/event/dispatcher/DomainEventDispatcher : me/ahoo/wow/event/dispatcher/CompositeEventDispatcher {
-	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public class me/ahoo/wow/event/dispatcher/DomainEventFunctionFilter : me/ahoo/wow/messaging/handler/ExchangeFilter {
@@ -1964,19 +1964,17 @@ public final class me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrat
 }
 
 public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/AggregateSnapshotDispatcher : me/ahoo/wow/messaging/dispatcher/AggregateDispatcher, me/ahoo/wow/api/messaging/processor/ProcessorInfo {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;ILme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lreactor/core/scheduler/Scheduler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;ILme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lreactor/core/scheduler/Scheduler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getContextName ()Ljava/lang/String;
 	public fun getMessageFlux ()Lreactor/core/publisher/Flux;
 	public fun getName ()Ljava/lang/String;
 	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
-	public fun getParallelism ()I
 	public fun getProcessorName ()Ljava/lang/String;
-	public fun getScheduler ()Lreactor/core/scheduler/Scheduler;
 	public fun handleExchange (Lme/ahoo/wow/eventsourcing/state/StateEventExchange;)Lreactor/core/publisher/Mono;
 	public synthetic fun handleExchange (Lme/ahoo/wow/messaging/handler/MessageExchange;)Lreactor/core/publisher/Mono;
-	public fun toGroupKey (Lme/ahoo/wow/eventsourcing/state/StateEventExchange;)I
-	public synthetic fun toGroupKey (Lme/ahoo/wow/messaging/handler/MessageExchange;)I
+	public fun mailboxKey (Lme/ahoo/wow/eventsourcing/state/StateEventExchange;)Ljava/lang/Object;
+	public synthetic fun mailboxKey (Lme/ahoo/wow/messaging/handler/MessageExchange;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/DefaultSnapshotHandler : me/ahoo/wow/processing/failure/FailureRecordingHandler, me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler {
@@ -1986,8 +1984,8 @@ public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/DefaultSnapshot
 }
 
 public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatcher : me/ahoo/wow/messaging/dispatcher/MainDispatcher {
-	public fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;ILme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;ILme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getName ()Ljava/lang/String;
 	public fun getNamedAggregates ()Ljava/util/Set;
 	public fun newAggregateDispatcher (Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;)Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;
@@ -2327,6 +2325,28 @@ public final class me/ahoo/wow/exception/WowExceptionKt {
 	public static final fun getRecoverable (Ljava/lang/Class;)Lme/ahoo/wow/api/exception/RecoverableType;
 	public static final fun getRecoverable (Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/RecoverableType;
 	public static final fun recoverable (Lme/ahoo/wow/api/annotation/Retry;Ljava/lang/Class;)Lme/ahoo/wow/api/exception/RecoverableType;
+}
+
+public final class me/ahoo/wow/execution/KeyedExecutor : java/lang/AutoCloseable {
+	public static final field Companion Lme/ahoo/wow/execution/KeyedExecutor$Companion;
+	public static final field DEFAULT_MAX_IN_FLIGHT I
+	public static final field DEFAULT_NAME Ljava/lang/String;
+	public static final field DEFAULT_WORKERS I
+	public fun <init> ()V
+	public fun <init> (IILjava/lang/String;)V
+	public synthetic fun <init> (IILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public final fun getCoroutineDispatcher ()Lkotlinx/coroutines/CoroutineDispatcher;
+	public final fun getMaxInFlight ()I
+	public final fun getName ()Ljava/lang/String;
+	public static final fun getShared ()Lme/ahoo/wow/execution/KeyedExecutor;
+	public final fun getWorkers ()I
+	public final fun isDisposed ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/execution/KeyedExecutor$Companion {
+	public final fun getShared ()Lme/ahoo/wow/execution/KeyedExecutor;
 }
 
 public abstract class me/ahoo/wow/filter/AbstractFilterChain : me/ahoo/wow/filter/FilterChain {
@@ -3394,7 +3414,7 @@ public final class me/ahoo/wow/messaging/compensation/EventCompensator$DefaultIm
 	public static fun compensate (Lme/ahoo/wow/messaging/compensation/EventCompensator;Lme/ahoo/wow/api/modeling/AggregateId;ILme/ahoo/wow/messaging/compensation/CompensationTarget;)Lreactor/core/publisher/Mono;
 }
 
-public abstract class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher : me/ahoo/wow/messaging/dispatcher/SafeSubscriber, me/ahoo/wow/api/modeling/NamedAggregateDecorator, me/ahoo/wow/infra/lifecycle/TerminatedSignalCapable, me/ahoo/wow/messaging/dispatcher/MessageDispatcher, me/ahoo/wow/messaging/dispatcher/ParallelismCapable {
+public abstract class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher : me/ahoo/wow/messaging/dispatcher/SafeSubscriber, me/ahoo/wow/api/modeling/NamedAggregateDecorator, me/ahoo/wow/infra/lifecycle/TerminatedSignalCapable, me/ahoo/wow/messaging/dispatcher/MessageDispatcher {
 	public static final field Companion Lme/ahoo/wow/messaging/dispatcher/AggregateDispatcher$Companion;
 	protected fun <init> ()V
 	protected fun <init> (Lkotlin/jvm/functions/Function1;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;)V
@@ -3403,17 +3423,15 @@ public abstract class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher : me/
 	public fun getAggregateName ()Ljava/lang/String;
 	public fun getContextName ()Ljava/lang/String;
 	public abstract fun getMessageFlux ()Lreactor/core/publisher/Flux;
-	public abstract fun getParallelism ()I
-	public abstract fun getScheduler ()Lreactor/core/scheduler/Scheduler;
 	public fun getTerminatedSignal ()Lreactor/core/publisher/Mono;
 	public abstract fun handleExchange (Lme/ahoo/wow/messaging/handler/MessageExchange;)Lreactor/core/publisher/Mono;
 	public fun isSameAggregateName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
 	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public abstract fun mailboxKey (Lme/ahoo/wow/messaging/handler/MessageExchange;)Ljava/lang/Object;
 	public final fun prepare (Lme/ahoo/wow/runtime/RuntimeContext;)Lreactor/core/publisher/Mono;
 	public final fun quiesce ()V
 	public final fun start ()V
 	public final fun stopGracefully ()Lreactor/core/publisher/Mono;
-	public abstract fun toGroupKey (Lme/ahoo/wow/messaging/handler/MessageExchange;)I
 }
 
 public final class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher$Companion {
@@ -3448,17 +3466,6 @@ public abstract interface class me/ahoo/wow/messaging/dispatcher/MessageDispatch
 
 public final class me/ahoo/wow/messaging/dispatcher/MessageDispatcher$DefaultImpls {
 	public static fun quiesce (Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;)V
-}
-
-public final class me/ahoo/wow/messaging/dispatcher/MessageParallelism {
-	public static final field INSTANCE Lme/ahoo/wow/messaging/dispatcher/MessageParallelism;
-	public final fun getDEFAULT_PARALLELISM ()I
-	public final fun toGroupKey (Lme/ahoo/wow/api/modeling/AggregateIdCapable;I)I
-	public static synthetic fun toGroupKey$default (Lme/ahoo/wow/messaging/dispatcher/MessageParallelism;Lme/ahoo/wow/api/modeling/AggregateIdCapable;IILjava/lang/Object;)I
-}
-
-public abstract interface class me/ahoo/wow/messaging/dispatcher/ParallelismCapable {
-	public abstract fun getParallelism ()I
 }
 
 public abstract class me/ahoo/wow/messaging/dispatcher/SafeSubscriber : reactor/core/publisher/BaseSubscriber, me/ahoo/wow/api/naming/Named {
@@ -4183,26 +4190,23 @@ public final class me/ahoo/wow/modeling/command/after/AfterCommandFunctionMetada
 }
 
 public final class me/ahoo/wow/modeling/command/dispatcher/AggregateCommandDispatcher : me/ahoo/wow/messaging/dispatcher/AggregateDispatcher {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lreactor/core/publisher/Flux;ILme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lreactor/core/scheduler/Scheduler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lreactor/core/publisher/Flux;ILme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lreactor/core/scheduler/Scheduler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lreactor/core/publisher/Flux;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lreactor/core/publisher/Flux;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
 	public fun getMessageFlux ()Lreactor/core/publisher/Flux;
 	public fun getName ()Ljava/lang/String;
 	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
-	public fun getParallelism ()I
-	public fun getScheduler ()Lreactor/core/scheduler/Scheduler;
 	public fun handleExchange (Lme/ahoo/wow/command/ServerCommandExchange;)Lreactor/core/publisher/Mono;
 	public synthetic fun handleExchange (Lme/ahoo/wow/messaging/handler/MessageExchange;)Lreactor/core/publisher/Mono;
-	public fun toGroupKey (Lme/ahoo/wow/command/ServerCommandExchange;)I
-	public synthetic fun toGroupKey (Lme/ahoo/wow/messaging/handler/MessageExchange;)I
+	public fun mailboxKey (Lme/ahoo/wow/command/ServerCommandExchange;)Ljava/lang/Object;
+	public synthetic fun mailboxKey (Lme/ahoo/wow/messaging/handler/MessageExchange;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher : me/ahoo/wow/messaging/dispatcher/MainDispatcher {
-	public fun <init> (Ljava/lang/String;ILjava/util/Set;Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;ILjava/util/Set;Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getName ()Ljava/lang/String;
 	public fun getNamedAggregates ()Ljava/util/Set;
-	public final fun getParallelism ()I
 	public fun newAggregateDispatcher (Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;)Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;
 }
 
@@ -4571,8 +4575,8 @@ public final class me/ahoo/wow/projection/DefaultProjectionHandler : me/ahoo/wow
 }
 
 public final class me/ahoo/wow/projection/ProjectionDispatcher : me/ahoo/wow/event/dispatcher/CompositeEventDispatcher {
-	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lme/ahoo/wow/projection/ProjectionHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lme/ahoo/wow/projection/ProjectionHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lme/ahoo/wow/projection/ProjectionHandler;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lme/ahoo/wow/projection/ProjectionHandler;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/projection/ProjectionFunctionFilter : me/ahoo/wow/event/dispatcher/DomainEventFunctionFilter {
@@ -4619,8 +4623,13 @@ public final class me/ahoo/wow/runtime/RuntimeComponent$DefaultImpls {
 }
 
 public abstract interface class me/ahoo/wow/runtime/RuntimeContext {
+	public fun getKeyedExecutor ()Lme/ahoo/wow/execution/KeyedExecutor;
 	public abstract fun reportFailure (Ljava/lang/Throwable;)V
 	public abstract fun tryAcquire ()Lme/ahoo/wow/runtime/RuntimeActivity;
+}
+
+public final class me/ahoo/wow/runtime/RuntimeContext$DefaultImpls {
+	public static fun getKeyedExecutor (Lme/ahoo/wow/runtime/RuntimeContext;)Lme/ahoo/wow/execution/KeyedExecutor;
 }
 
 public abstract interface class me/ahoo/wow/runtime/RuntimeResource {
@@ -4645,11 +4654,13 @@ public final class me/ahoo/wow/runtime/RuntimeResources : me/ahoo/wow/runtime/Ru
 }
 
 public final class me/ahoo/wow/runtime/WowRuntime : me/ahoo/wow/infra/lifecycle/GracefullyStoppable {
-	public fun <init> (Ljava/util/List;Ljava/time/Duration;Ljava/time/Duration;)V
+	public fun <init> (Ljava/util/List;Ljava/time/Duration;Ljava/time/Duration;Lme/ahoo/wow/execution/KeyedExecutor;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/time/Duration;Ljava/time/Duration;Lme/ahoo/wow/execution/KeyedExecutor;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun claimTerminationControl (Lkotlin/jvm/functions/Function1;)Lreactor/core/Disposable;
 	public fun close ()V
 	public final fun forceStop ()V
 	public final fun getComponents ()Ljava/util/List;
+	public final fun getKeyedExecutor ()Lme/ahoo/wow/execution/KeyedExecutor;
 	public final fun getShutdownQuietPeriod ()Ljava/time/Duration;
 	public final fun getShutdownTimeout ()Ljava/time/Duration;
 	public final fun getTerminationSignal ()Lreactor/core/publisher/Mono;
@@ -4699,8 +4710,8 @@ public final class me/ahoo/wow/saga/stateless/ExchangeCommandStreamKt {
 }
 
 public final class me/ahoo/wow/saga/stateless/StatelessSagaDispatcher : me/ahoo/wow/event/dispatcher/CompositeEventDispatcher {
-	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/saga/stateless/StatelessSagaFunction : me/ahoo/wow/infra/Decorator, me/ahoo/wow/messaging/function/MessageFunction {
@@ -4739,30 +4750,6 @@ public final class me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar : m
 }
 
 public abstract interface class me/ahoo/wow/saga/stateless/StatelessSagaHandler : me/ahoo/wow/event/dispatcher/EventHandler {
-}
-
-public abstract interface class me/ahoo/wow/scheduler/AggregateSchedulerSupplier : me/ahoo/wow/infra/lifecycle/GracefullyStoppable {
-	public abstract fun forceStop ()V
-	public abstract fun getOrInitialize (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lreactor/core/scheduler/Scheduler;
-}
-
-public final class me/ahoo/wow/scheduler/AggregateSchedulerSupplier$DefaultImpls {
-	public static fun close (Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;)V
-	public static fun stop (Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;)V
-	public static fun stop (Lme/ahoo/wow/scheduler/AggregateSchedulerSupplier;Ljava/time/Duration;)V
-}
-
-public final class me/ahoo/wow/scheduler/DefaultAggregateSchedulerSupplier : me/ahoo/wow/api/naming/Named, me/ahoo/wow/messaging/dispatcher/ParallelismCapable, me/ahoo/wow/scheduler/AggregateSchedulerSupplier {
-	public fun <init> (Ljava/lang/String;I)V
-	public synthetic fun <init> (Ljava/lang/String;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun close ()V
-	public fun forceStop ()V
-	public fun getName ()Ljava/lang/String;
-	public fun getOrInitialize (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lreactor/core/scheduler/Scheduler;
-	public fun getParallelism ()I
-	public fun stop ()V
-	public fun stop (Ljava/time/Duration;)V
-	public fun stopGracefully ()Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/serialization/AggregateIdJsonDeserializer : tools/jackson/databind/deser/std/StdDeserializer {

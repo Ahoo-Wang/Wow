@@ -17,7 +17,6 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherChainScenario
 import me.ahoo.wow.benchmark.scenario.HandlerCost
-import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
@@ -28,7 +27,8 @@ import org.openjdk.jmh.infra.Blackhole
 
 /**
  * Isolates the [me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher] dispatch
- * chain (`groupBy` → `publishOn` → `concatMap`) from the surrounding command gateway, bus,
+ * chain (one mailbox per aggregate ID, run on the runtime's
+ * [me.ahoo.wow.execution.KeyedExecutor] workers) from the surrounding command gateway, bus,
  * aggregate processor, and event-store paths.
  *
  * Each measured operation feeds one [me.ahoo.wow.command.ServerCommandExchange] into the
@@ -45,15 +45,15 @@ import org.openjdk.jmh.infra.Blackhole
  * - [handlerCost]: [HandlerCost.NOOP] measures pure dispatch overhead;
  *   [HandlerCost.SIMULATED] adds a small fixed CPU budget to reveal the dispatch share of
  *   end-to-end latency.
- * - [schedulerStrategy]: [SchedulerStrategy.PARALLEL] is the production default (dedicated
- *   `newParallel` pool, each dispatch crosses threads); [SchedulerStrategy.IMMEDIATE] uses
- *   `Schedulers.immediate()` so `publishOn` does not switch threads. Comparing the two
- *   isolates the cross-thread handoff cost from the groupBy/concatMap structure cost.
+ *
+ * Every dispatch crosses from the emitting thread to an executor worker and back, so the
+ * measured cost includes the mailbox enqueue and the cross-thread handoff.
  *
  * Threading semantics: this benchmark uses [Scope.Thread], matching the other component
  * benchmarks. Each JMH worker thread gets its own `CommandDispatcherChainScenario` (its own
- * `AggregateCommandDispatcher` and scheduler pool). The single-thread (`-t 1`) rows are the
- * primary signal — they measure one dispatch chain's round-trip cost in isolation. Multi-
+ * `AggregateCommandDispatcher`, and a `WowRuntime` with its own `KeyedExecutor`). The
+ * single-thread (`-t 1`) rows are the primary signal — they measure one dispatch chain's
+ * round-trip cost in isolation. Multi-
  * thread rows measure aggregate throughput of N independent dispatch chains, NOT contention
  * on a single shared chain; for shared-chain contention under realistic I/O, use the E2E
  * benchmarks (`CommandWriteE2EBenchmark` etc., which use [Scope.Benchmark]).
@@ -66,9 +66,6 @@ open class CommandDispatcherChainComponentBenchmark {
     @Param("NOOP", "SIMULATED")
     private var handlerCost: String = HandlerCost.NOOP.name
 
-    @Param("PARALLEL", "IMMEDIATE")
-    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
-
     private lateinit var scenario: CommandDispatcherChainScenario
 
     @Setup
@@ -78,7 +75,6 @@ open class CommandDispatcherChainComponentBenchmark {
             aggregateMetadata = BenchmarkAggregates.cartMetadata,
             aggregateIdCardinality = 1,
             handlerCost = HandlerCost.valueOf(handlerCost),
-            schedulerStrategy = SchedulerStrategy.valueOf(schedulerStrategy),
         )
     }
 

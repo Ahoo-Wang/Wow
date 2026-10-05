@@ -48,11 +48,11 @@ Wow 把一次业务写入表达为**命令 → 聚合决策 → 领域事件 →
 
 ## 顺序与并发边界
 
-Wow 的默认分发器把消息按聚合 ID 映射到有限数量的 group，同一 group 通过串行链处理，不同 group 可以并发；一个 `AggregateSchedulerSupplier` 按命名聚合缓存 Reactor Scheduler。由此可得到的范围是：同一聚合 ID 在同一分发器实例中会映射到同一个 group。不能由此推断跨进程、跨 Bus、跨处理器函数或跨外部系统的全局顺序。
+分发器在运行时共享的 `KeyedExecutor` 上执行消息：每个聚合 ID 一个邮箱，同一聚合 ID 的消息按收到的顺序逐条处理，不同聚合 ID 在按 CPU 核数配置的工作线程上并行。由此可得到的范围是：同一分发器实例内按聚合 ID 有序。不能由此推断跨进程、跨 Bus、跨处理器函数或跨外部系统的全局顺序。
 
 并发写入最终还要经过 EventStore 的版本约束。调度减少本实例内的竞争，版本追加负责拒绝冲突写入；两者不是同一个保证。后端投递与重试也不会自动让外部副作用幂等。
 
-详见[聚合调度器](./aggregate-scheduler.md)、[事件分发管线](../event/dispatch.md)与[事件溯源](../domain/event-sourcing.md)。
+详见[按键执行器](./keyed-executor.md)、[事件分发管线](../event/dispatch.md)与[事件溯源](../domain/event-sourcing.md)。
 
 ## 生命周期边界
 
