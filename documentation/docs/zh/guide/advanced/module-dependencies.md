@@ -14,6 +14,7 @@ outline: deep
 | --- | --- | --- |
 | `wow-api` | 命令、事件、命名、Header、AggregateId 等公共契约 | API/领域契约模块 |
 | `wow-core` | CommandGateway、Dispatcher、EventStore 接口、事件溯源、投影、Saga、等待链 | 非 Spring 运行时或领域实现 |
+| `wow-metadata` | `wow-metadata.json` 的模型（`WowMetadata`、`BoundedContext`、`Aggregate`、作用域匹配）与命名策略，运行时与 KSP 编译器共用 | 随 `wow-core` 引入；只有不依赖运行时读取元数据的工具才直接依赖它 |
 | `wow-query` | 查询模型、Schema 解析、Snapshot/Event 查询接口 | 编写查询扩展时 |
 | `wow-models` | 仓库共享的模型与 KSP 生成示例 | 使用这些共享模型时 |
 | `wow-spring` | Spring 容器桥接与查询网关注册 | 自定义 Spring 集成时 |
@@ -25,7 +26,7 @@ outline: deep
 | `wow-webflux` | 内置命令、事件、状态、查询与运维 route 处理器 | 非 Starter 的 WebFlux 集成 |
 | `wow-opentelemetry` | Wow 链路的 OpenTelemetry instrumenter | 非 Starter 的追踪集成 |
 | `wow-cosec` | CoSec 请求上下文传播与查询 space 改写 | 应用已使用 CoSec 时 |
-| `wow-compiler` | KSP 元数据与 API 合同生成 | 使用 `ksp(...)`，不放进运行时 |
+| `wow-compiler` | KSP 元数据与 API 合同生成；依赖 `wow-metadata`，不依赖运行时 | 使用 `ksp(...)`，不放进运行时 |
 | `wow-schema` | JSON Schema 生成 | 扩展 Schema/OpenAPI 工具时 |
 | `wow-openapi` | 内置 route/OpenAPI 合同生成 | 扩展 OpenAPI 时 |
 | `wow-bi` | BI/ClickHouse 同步脚本生成 | 生成或部署 BI 脚本时 |
@@ -44,7 +45,9 @@ outline: deep
 
 ```mermaid
 graph LR
-    API[wow-api] --> CORE[wow-core]
+    API[wow-api] --> META[wow-metadata]
+    META --> CORE[wow-core]
+    META --> COMPILER[wow-compiler]
     CORE --> QUERY[wow-query]
     CORE --> SPRING[wow-spring]
     QUERY --> SPRING

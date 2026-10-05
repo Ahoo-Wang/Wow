@@ -108,6 +108,7 @@ CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 
 
 ```text
 wow-api/                    Pure API contracts: commands, events, naming, queries, modeling
+wow-metadata/               wow-metadata.json model and naming strategies, shared by wow-core and wow-compiler
 wow-core/                   Core CQRS, event sourcing, messaging, projection, saga runtime
 wow-compiler/               KSP processors for metadata and query helper code
 wow-spring/                 Spring integration primitives
@@ -140,9 +141,10 @@ skills/                     Project-local Codex skills and agent definitions
 Core dependency flow:
 
 ```text
-wow-api -> wow-core -> wow-spring -> wow-spring-boot-starter
-                    -> infrastructure modules: kafka, mongo, redis, elasticsearch
-                    -> integration modules: webflux, opentelemetry, cosec, cocache, apiclient
+wow-api -> wow-metadata -> wow-core -> wow-spring -> wow-spring-boot-starter
+                                    -> infrastructure modules: kafka, mongo, redis, elasticsearch
+                                    -> integration modules: webflux, opentelemetry, cosec, cocache, apiclient
+                        -> wow-compiler (KSP; no wow-core dependency)
 ```
 
 `wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, and `cosec-support`.

@@ -23,6 +23,7 @@ rootProject.name = "Wow"
 include(":wow-bom")
 include(":wow-dependencies")
 include(":wow-api")
+include(":wow-metadata")
 include(":wow-core")
 include(":wow-openapi")
 include(":wow-cocache")

@@ -2,6 +2,7 @@ description = "Wow Shared Kernel"
 
 dependencies {
     api(project(":wow-api"))
+    api(project(":wow-metadata"))
     api("me.ahoo.cosid:cosid-core")
     api("io.projectreactor:reactor-core")
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")

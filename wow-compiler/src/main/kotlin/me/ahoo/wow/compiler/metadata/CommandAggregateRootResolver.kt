@@ -29,10 +29,10 @@ import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRootMetadata
+import me.ahoo.wow.compiler.MESSAGE_EXCHANGE_NAME
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.getAnnotation
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.getArgumentValue
 import me.ahoo.wow.configuration.Aggregate
-import me.ahoo.wow.messaging.handler.MessageExchange
 
 object CommandAggregateRootResolver {
 
@@ -113,7 +113,7 @@ object CommandAggregateRootResolver {
     @OptIn(KspExperimental::class)
     private fun KSType.toMessageType(resolver: Resolver): String {
         val messageDeclaration = resolver.getKotlinClassByName(Message::class.qualifiedName!!)!!
-        val messageExchangeDeclaration = resolver.getKotlinClassByName(MessageExchange::class.qualifiedName!!)!!
+        val messageExchangeDeclaration = resolver.getKotlinClassByName(MESSAGE_EXCHANGE_NAME)!!
         if (messageDeclaration.asStarProjectedType().isAssignableFrom(this) ||
             messageExchangeDeclaration.asStarProjectedType().isAssignableFrom(this)
         ) {

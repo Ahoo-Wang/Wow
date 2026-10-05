@@ -14,6 +14,7 @@ This page answers two questions: which module owns code, and which capability an
 | --- | --- | --- |
 | `wow-api` | Public command, event, naming, header, and AggregateId contracts | API/domain contract modules |
 | `wow-core` | CommandGateway, dispatchers, EventStore interfaces, event sourcing, projections, sagas, wait chains | Non-Spring runtime or domain implementation |
+| `wow-metadata` | The `wow-metadata.json` model (`WowMetadata`, `BoundedContext`, `Aggregate`, scope matching) and the naming strategies, shared by the runtime and the KSP compiler | Comes with `wow-core`; depend on it directly only for tooling that reads the metadata without the runtime |
 | `wow-query` | Query models, schema resolution, snapshot/event query interfaces | Query extensions |
 | `wow-models` | Repository shared models and KSP-generated examples | Consumers of those shared models |
 | `wow-spring` | Spring container bridge and Query Gateway registration | Custom Spring integration |
@@ -25,7 +26,7 @@ This page answers two questions: which module owns code, and which capability an
 | `wow-webflux` | Built-in command, event, state, query, and operation route handlers | WebFlux without the Starter |
 | `wow-opentelemetry` | OpenTelemetry instrumenters for Wow flows | Tracing without the Starter |
 | `wow-cosec` | CoSec request-context propagation and query-space rewriting | Applications already using CoSec |
-| `wow-compiler` | KSP metadata and API-contract generation | Use with `ksp(...)`, never as a runtime dependency |
+| `wow-compiler` | KSP metadata and API-contract generation; depends on `wow-metadata`, not on the runtime | Use with `ksp(...)`, never as a runtime dependency |
 | `wow-schema` | JSON Schema generation | Schema/OpenAPI tooling extensions |
 | `wow-openapi` | Built-in route and OpenAPI contract generation | OpenAPI extensions |
 | `wow-bi` | BI/ClickHouse synchronization script generation | BI script generation or deployment |
@@ -44,7 +45,9 @@ Arrows point from a dependency to its consumer. Dashed edges are Starter feature
 
 ```mermaid
 graph LR
-    API[wow-api] --> CORE[wow-core]
+    API[wow-api] --> META[wow-metadata]
+    META --> CORE[wow-core]
+    META --> COMPILER[wow-compiler]
     CORE --> QUERY[wow-query]
     CORE --> SPRING[wow-spring]
     QUERY --> SPRING

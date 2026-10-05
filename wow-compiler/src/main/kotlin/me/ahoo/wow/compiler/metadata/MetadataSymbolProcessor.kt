@@ -29,7 +29,6 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
 import me.ahoo.wow.compiler.metadata.AggregatePolicyResolver.resolveAggregatePolicy
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.resolveBoundedContext
 import me.ahoo.wow.compiler.metadata.CommandAggregateRootResolver.resolveAggregateRoot
-import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.configuration.WowMetadata
 import tools.jackson.core.StreamReadFeature
 import tools.jackson.databind.DeserializationFeature
@@ -44,7 +43,9 @@ class MetadataSymbolProcessor(
 ) : SymbolProcessor {
     companion object {
         val BOUNDED_CONTEXT_NAME = BoundedContext::class.qualifiedName!!
-        const val WOW_METADATA_RESOURCE_PATH = WOW_METADATA_RESOURCE_NAME
+
+        /** wow-core's `WOW_METADATA_RESOURCE_NAME`, which the runtime reads; a compiler test checks they agree. */
+        const val WOW_METADATA_RESOURCE_PATH = "META-INF/wow-metadata.json"
 
         private val KSP_SAFE_OBJECT_MAPPER = jsonMapper {
             changeDefaultVisibility {
