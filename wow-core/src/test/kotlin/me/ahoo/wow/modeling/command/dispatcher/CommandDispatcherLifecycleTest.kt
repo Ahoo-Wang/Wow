@@ -17,17 +17,22 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -112,6 +117,60 @@ class CommandDispatcherLifecycleTest {
 
         processingAdmissions.get().assert().isZero()
         cancelled.await(1, TimeUnit.SECONDS).assert().isTrue()
+    }
+
+    @Test
+    fun `commands of one aggregate are handled in order on the runtime's keyed executor`() {
+        val aggregateId = "ordered-aggregate"
+        val commands = (0 until 50).map {
+            SimpleServerCommandExchange(
+                MockCreateAggregate(id = aggregateId, data = "$it").toCommandMessage(aggregateId = aggregateId),
+            )
+        }
+        commands.forEach { it.message.aggregateId.id.assert().isEqualTo(aggregateId) }
+        val commandBus = object : CommandBus {
+            override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
+
+            override fun receiver(
+                subscription: MessageSubscription,
+            ): MessageReceiver<ServerCommandExchange<*>> = MessageReceiver(Flux.fromIterable(commands))
+        }
+        val handled = CopyOnWriteArrayList<String>()
+        val threads = CopyOnWriteArrayList<String>()
+        val commandDispatcher = CommandDispatcher(
+            namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
+            commandBus = commandBus,
+            commandHandler = object : CommandHandler {
+                override fun handle(
+                    exchange: ServerCommandExchange<*>,
+                    aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>
+                ): Mono<Void> = Mono.defer {
+                    // The handler is subscribed on a dispatch worker; it may complete on another thread.
+                    threads += Thread.currentThread().name
+                    Mono.delay(Duration.ofNanos(1)).then(
+                        Mono.fromRunnable { handled += (exchange.message.body as MockCreateAggregate).data },
+                    )
+                }
+            },
+        )
+        val keyedExecutor = KeyedExecutor(workers = 2, name = "command-dispatch")
+        val runtime = WowRuntime(
+            components = listOf(commandDispatcher),
+            shutdownTimeout = Duration.ofSeconds(5),
+            shutdownQuietPeriod = Duration.ZERO,
+            keyedExecutor = keyedExecutor,
+        )
+        runtime.start().block()
+        try {
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (handled.size < commands.size && System.nanoTime() < deadline) {
+                Thread.sleep(5)
+            }
+            handled.assert().isEqualTo((0 until 50).map { "$it" })
+            threads.forEach { it.assert().startsWith("command-dispatch-") }
+        } finally {
+            StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+        }
     }
 
     private object NoOpCommandBus : CommandBus {

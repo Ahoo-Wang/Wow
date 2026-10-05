@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Operators
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import reactor.util.retry.Retry
@@ -332,6 +333,60 @@ class KeyedDispatchTest {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { KeyedExecutor(maxInFlight = 0) }
         KeyedExecutor.shared.assert().isSameAs(KeyedExecutor.shared)
         executor.toString().assert().contains("keyed-dispatch-test")
+    }
+
+    @Test
+    fun `signals after the source terminated are discarded or dropped`() {
+        val discarded = CopyOnWriteArrayList<Any>()
+        val misbehaving = Flux.from<Int> { subscriber ->
+            subscriber.onSubscribe(Operators.emptySubscription())
+            subscriber.onNext(1)
+            subscriber.onComplete()
+            subscriber.onNext(2)
+            subscriber.onError(IllegalStateException("late"))
+            subscriber.onComplete()
+        }
+        val dispatched = misbehaving.dispatchKeyed(executor, { it }) { Mono.empty() }
+            .doOnDiscard(Int::class.javaObjectType) { discarded += it }
+
+        StepVerifier.create(dispatched).expectComplete().verify(Duration.ofSeconds(5))
+        discarded.assert().containsExactly(2)
+    }
+
+    @Test
+    fun `an element scheduled but not yet running when the dispatch is cancelled is discarded`() {
+        val singleWorker = KeyedExecutor(workers = 1, name = "keyed-dispatch-cancel-pending")
+        try {
+            val workerBusy = CountDownLatch(1)
+            val releaseWorker = CountDownLatch(1)
+            val discarded = CopyOnWriteArrayList<Any>()
+            val handled = CopyOnWriteArrayList<Int>()
+            val source = Sinks.many().unicast().onBackpressureBuffer<Int>()
+            val subscription = source.asFlux()
+                .dispatchKeyed(singleWorker, { it }) { value ->
+                    Mono.fromRunnable {
+                        handled += value
+                        if (value == 1) {
+                            workerBusy.countDown()
+                            // Hold the only worker so the next element stays scheduled.
+                            releaseWorker.await(5, TimeUnit.SECONDS)
+                        }
+                    }
+                }
+                .doOnDiscard(Int::class.javaObjectType) { discarded += it }
+                .subscribe()
+
+            source.tryEmitNext(1).orThrow()
+            workerBusy.await(5, TimeUnit.SECONDS).assert().isTrue()
+            source.tryEmitNext(2).orThrow()
+            subscription.dispose()
+            releaseWorker.countDown()
+
+            awaitTrue { discarded.contains(2) }
+            handled.assert().containsExactly(1)
+        } finally {
+            singleWorker.close()
+        }
     }
 
     private fun awaitTrue(condition: () -> Boolean) {
