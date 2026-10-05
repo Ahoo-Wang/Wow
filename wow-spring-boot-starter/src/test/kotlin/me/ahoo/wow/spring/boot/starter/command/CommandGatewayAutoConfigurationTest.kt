@@ -19,6 +19,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -192,8 +193,9 @@ class CommandGatewayAutoConfigurationTest {
                 CommandGatewayAutoConfiguration::class.java,
             ).run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
-                context.getBean("commandGateway", CommandGateway::class.java).close()
-                verify(exactly = 1) { backingGateway.close() }
+                val subscription = MessageSubscription(emptySet())
+                context.getBean("commandGateway", CommandGateway::class.java).receiver(subscription)
+                verify(exactly = 1) { backingGateway.receiver(subscription) }
             }
     }
 
@@ -242,9 +244,10 @@ class CommandGatewayAutoConfigurationTest {
                 context.assert()
                     .hasNotFailed()
                     .hasSingleBean(CommandGateway::class.java)
-                context.getBean(CommandGateway::class.java).close()
-                verify(exactly = 1) { commandBus.close() }
-                verify(exactly = 0) { otherCommandBus.close() }
+                val subscription = MessageSubscription(emptySet())
+                context.getBean(CommandGateway::class.java).receiver(subscription)
+                verify(exactly = 1) { commandBus.receiver(subscription) }
+                verify(exactly = 0) { otherCommandBus.receiver(any()) }
             }
     }
 

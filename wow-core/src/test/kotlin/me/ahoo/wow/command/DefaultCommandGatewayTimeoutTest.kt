@@ -55,22 +55,25 @@ class DefaultCommandGatewayTimeoutTest {
     }
 
     @Test
-    fun `gateway close disposes its timer even when command bus close fails`() {
+    fun `gateway close disposes its timer and leaves the command bus it did not create open`() {
         val timer = Schedulers.newSingle("test-command-timer")
         val snapshot = Schedulers.setFactoryWithSnapshot(object : Schedulers.Factory {
             override fun newSingle(threadFactory: ThreadFactory): Scheduler = timer
         })
-        val failure = IllegalStateException("close failed")
+        val busCloses = AtomicInteger()
         val commandBus = object : CommandBus by TimeoutTestCommandBus() {
-            override fun close() = throw failure
+            override fun close() {
+                busCloses.incrementAndGet()
+            }
         }
         val gateway = commandGateway(commandBus, DefaultWaitCoordinator())
         try {
             StepVerifier.create(gateway.sendAndWaitForSent(TestCommandMessage(id = "sent")))
                 .expectNextCount(1)
                 .verifyComplete()
-            runCatching { gateway.close() }.exceptionOrNull().assert().isSameAs(failure)
+            gateway.close()
             timer.isDisposed.assert().isTrue()
+            busCloses.get().assert().isEqualTo(0)
         } finally {
             gateways.remove(gateway)
             Schedulers.resetFrom(snapshot)

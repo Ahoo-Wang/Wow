@@ -1044,7 +1044,8 @@ public class me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration
 	public fun aggregateProcessorFactory (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/modeling/command/CommandAggregateFactory;)Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;
 	public fun commandAggregateFactory (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/command/CommandAggregateFactory;
 	public fun commandErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
-	public fun commandHandler (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;Lme/ahoo/wow/event/DomainEventBus;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
+	public fun commandHandler (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;Lme/ahoo/wow/event/DomainEventBus;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
+	public fun retiredCommandFilterCheck (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lorg/springframework/beans/factory/SmartInitializingSingleton;
 	public fun stateAggregateFactory ()Lme/ahoo/wow/modeling/state/StateAggregateFactory;
 	public fun stateAggregateRepository (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/state/StateAggregateRepository;
 }

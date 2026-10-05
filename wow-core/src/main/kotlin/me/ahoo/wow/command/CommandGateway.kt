@@ -62,6 +62,22 @@ internal fun CommandMessage<*>.commandSentSignal(
     )
 }
 
+/** The SENT result of [sendAndWaitForSent][CommandGateway.sendAndWaitForSent]: nobody else waits, so no signal. */
+internal fun CommandMessage<*>.sentResult(): CommandResult =
+    CommandResult(
+        id = generateGlobalId(),
+        waitCommandId = commandId,
+        stage = CommandStage.SENT,
+        contextName = aggregateId.contextName,
+        aggregateName = aggregateId.aggregateName,
+        tenantId = aggregateId.tenantId,
+        aggregateId = aggregateId.id,
+        aggregateVersion = aggregateVersion,
+        requestId = requestId,
+        commandId = commandId,
+        function = COMMAND_GATEWAY_FUNCTION,
+    )
+
 /**
  * Command Gateway interface for sending commands and waiting for their results.
  *

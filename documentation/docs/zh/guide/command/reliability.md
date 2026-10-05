@@ -48,7 +48,14 @@ flowchart TB
 
 ## 快速预检与权威确认
 
-`DefaultRequestIdChecker` 先查询按聚合选择的 `IdempotencyChecker`。快速检查判定可以继续时直接放行；当它报告“可能重复”时，再通过 `RequestIdExistenceChecker` 查询持久历史。没有权威查询器时默认拒绝该请求，而不是冒险放行。
+`DefaultRequestIdChecker` 先查询按聚合选择的 `IdempotencyChecker`。快速检查判定可以继续时直接放行；当它报告“可能重复”时，再通过 `RequestIdExistenceChecker` 查询持久历史。
+
+检查进行两次：在网关，以及在处理命令的节点上、聚合的处理函数执行之前，查询该节点的 `EventStore`（自 9.3.0 起）。没有 `EventStore` 的节点（例如只做网关的服务）使用 `NoopRequestIdExistenceChecker`，它回答“不存在”：网关放行，由处理节点裁决，于是原样重发的命令在处理节点被拒绝，处理函数不会再执行一次。9.3.0 之前它回答“已存在”，只做网关的服务会因布隆过滤器误判而拒绝合法命令。
+
+有两类命令在事件存储里留不下可查的记录：
+
+- `@VoidCommand` 不经聚合处理，只有网关的布隆过滤器在其 TTL 内见过它的 request ID；没有 `EventStore` 的网关不再拒绝它的重发（自 9.3.0 起）。请把 void 命令当作至少一次投递，让它的消费者自己幂等。
+- 处理函数不返回事件的命令什么也不提交，用同一 request ID 重发会再次执行处理函数。请让这样的处理函数自己幂等，或让它记录一个事件。
 
 网关先校验命令，再做 request-ID 预检，所以校验失败的命令不占用它的 request ID；预检通过后发送失败，网关释放这次预留，用同一 request ID 重试不会被当成重复（自 9.2.3 起）。
 

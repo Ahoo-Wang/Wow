@@ -48,7 +48,14 @@ Derive the stable value from a business-operation identity or create and persist
 
 ## Fast Precheck and Authoritative Confirmation
 
-`DefaultRequestIdChecker` first asks the aggregate-specific `IdempotencyChecker`. It proceeds directly when the fast check allows the request. When that check reports a possible duplicate, it asks `RequestIdExistenceChecker` to inspect persisted history. Without an authoritative checker, the default rejects the request instead of risking a duplicate.
+`DefaultRequestIdChecker` first asks the aggregate-specific `IdempotencyChecker`. It proceeds directly when the fast check allows the request. When that check reports a possible duplicate, it asks `RequestIdExistenceChecker` to inspect persisted history.
+
+The check runs twice: at the gateway, and on the node that processes the command, before the aggregate's handler runs, against that node's `EventStore` (since 9.3.0). A node without an `EventStore`, such as a gateway-only service, uses `NoopRequestIdExistenceChecker`, which answers "absent": the gateway lets the command through and the processing node makes the decision, so a resent command is rejected there without its handler running again. Before 9.3.0 the no-op checker answered "exists", so a Bloom-filter false positive on a gateway-only service rejected a legitimate command.
+
+Two kinds of command leave nothing in the event store to find:
+
+- A `@VoidCommand` is not processed by an aggregate, so only the gateway's Bloom filter sees its request ID, and only within its TTL; a gateway without an `EventStore` no longer rejects its resends (since 9.3.0). Treat void commands as at-least-once and make their consumers idempotent.
+- A command whose handler returns no events commits nothing, so a resend with the same request ID runs its handler again. Give such a handler its own idempotency, or have it record an event.
 
 The gateway validates the command before the request-ID precheck, so a command that fails validation does not consume its request ID. When the precheck passes but the send fails, the gateway releases that reservation, so a retry with the same request ID is not taken for a duplicate (since 9.2.3).
 

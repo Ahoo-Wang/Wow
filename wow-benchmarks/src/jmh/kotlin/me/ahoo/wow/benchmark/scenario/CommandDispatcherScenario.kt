@@ -20,7 +20,9 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
+import me.ahoo.wow.command.RequestIdChecker
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -76,6 +78,12 @@ class CommandDispatcherScenario private constructor(
                 DefaultAggregateIdempotencyCheckerProvider {
                     BenchmarkIdempotency.bloomFilterChecker()
             },
+            // The processing node's request-ID check, with its own Bloom filter, as the Spring wiring builds it when
+            // command idempotency is enabled; null when it is disabled (K3).
+            processingRequestIdChecker: RequestIdChecker? = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider { BenchmarkIdempotency.bloomFilterChecker() },
+                eventStore,
+            ),
             validator: Validator = TestValidator,
             waitCoordinator: WaitCoordinator = DefaultWaitCoordinator(),
             commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
@@ -108,6 +116,7 @@ class CommandDispatcherScenario private constructor(
                 domainEventBus = domainEventBus,
                 stateEventBus = stateEventBus,
                 commandWaitNotifier = commandWaitNotifier,
+                requestIdChecker = processingRequestIdChecker,
             )
             val commandDispatcher = CommandDispatcher(
                 namedAggregates = setOf(namedAggregate),

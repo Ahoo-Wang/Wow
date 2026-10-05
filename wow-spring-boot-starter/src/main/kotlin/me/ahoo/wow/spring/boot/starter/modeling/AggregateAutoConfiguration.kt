@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.modeling
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.event.DomainEventBus
@@ -40,8 +41,12 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import me.ahoo.wow.spring.boot.starter.command.CommandProperties
+import me.ahoo.wow.spring.boot.starter.command.bloomFilterCheckerProvider
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
@@ -86,6 +91,10 @@ class AggregateAutoConfiguration {
         )
     }
 
+    @Bean
+    fun retiredCommandFilterCheck(beanFactory: ConfigurableListableBeanFactory): SmartInitializingSingleton =
+        RetiredCommandFilterCheck(beanFactory)
+
     @Bean("commandErrorHandler")
     @ConditionalOnMissingBean(name = ["commandErrorHandler"])
     fun commandErrorHandler(): ErrorHandler<ServerCommandExchange<*>> {
@@ -101,8 +110,15 @@ class AggregateAutoConfiguration {
         stateEventBus: ObjectProvider<StateEventBus>,
         commandWaitNotifier: ObjectProvider<CommandWaitNotifier>,
         instrumentations: ObjectProvider<CommandInstrumentation>,
+        commandProperties: ObjectProvider<CommandProperties>,
+        eventStore: ObjectProvider<EventStore>,
         @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<*>>
     ): CommandHandler {
+        // The authoritative request-ID check runs here, on the node that owns the event store, before the handler.
+        val idempotency = commandProperties.getIfAvailable { CommandProperties() }.idempotency
+        val requestIdChecker = eventStore.ifAvailable?.takeIf { idempotency.enabled }?.let {
+            DefaultRequestIdChecker(idempotency.bloomFilterCheckerProvider(), it)
+        }
         return DefaultCommandHandler(
             serviceProvider = serviceProvider,
             aggregateProcessorFactory = aggregateProcessorFactory,
@@ -110,6 +126,7 @@ class AggregateAutoConfiguration {
             stateEventBus = stateEventBus.ifAvailable,
             commandWaitNotifier = commandWaitNotifier.ifAvailable,
             instrumentations = instrumentations.toList(),
+            requestIdChecker = requestIdChecker,
             errorHandler = commandErrorHandler,
         )
     }

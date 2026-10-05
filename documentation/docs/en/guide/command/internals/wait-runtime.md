@@ -88,7 +88,7 @@ A main-chain failure or a completed failing tail can finish early. A successful 
 
 `DefaultWaitCoordinator` routes signals through a `ConcurrentHashMap<waitCommandId, WaitHandle>`. Only one handle may be registered for a `waitCommandId`; an unknown ID or a signal ignored by the state machine returns `false`.
 
-`DefaultWaitLastHandle` uses `Sinks.one` and retains only the final signal. `DefaultWaitStreamHandle` uses a single-subscriber unicast sink and buffers concurrently arriving accepted signals. Both reduce state under a lock and unregister idempotently on completion, error, or cancellation.
+`DefaultWaitLastHandle` uses `Sinks.one` and retains only the final signal. `DefaultWaitStreamHandle` uses a single-subscriber unicast sink and buffers concurrently arriving accepted signals. Both reduce state under a lock and unregister idempotently on completion, error, or cancellation. Signals are emitted after the lock is released (since 9.3.0): a subscriber reacting to a signal never runs under the lock, and the stream handle delivers its signals in the order the state accepted them, a signal caused re-entrantly by the subscriber after the one being delivered.
 
 Handles do not apply timeout themselves. `DefaultCommandGateway` applies `WaitPlan.timeout` as an end-to-end deadline spanning precheck, send, and wait. `Mono.using` / `Flux.using` release the handle after timeout, cancellation, or normal termination. Releasing the observation resource does not cancel an already sent command.
 

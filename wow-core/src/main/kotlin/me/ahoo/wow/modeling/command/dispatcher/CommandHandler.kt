@@ -16,6 +16,8 @@ package me.ahoo.wow.modeling.command.dispatcher
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.command.DuplicateRequestIdException
+import me.ahoo.wow.command.RequestIdChecker
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -52,10 +54,14 @@ interface CommandHandler {
  * 1. Each [CommandInstrumentation] wraps everything below; the first one is the outermost.
  * 2. When there is a [commandWaitNotifier], the `PROCESSED` wait signal is reported once everything below completed
  *    or failed; a failed signal carries the error.
- * 3. The aggregate processes the command through an [AggregateProcessorFactory] processor. The transport message is
+ * 3. When there is a [requestIdChecker], the command's request ID is checked on this node, the one that processes it,
+ *    before the aggregate runs: a request ID this aggregate already committed fails the command with
+ *    [DuplicateRequestIdException] without running its handler. The event store's unique request ID still guards
+ *    the append.
+ * 4. The aggregate processes the command through an [AggregateProcessorFactory] processor. The transport message is
  *    acknowledged whatever the outcome; a failure skips the publication.
- * 4. The domain event stream the command committed is sent on [domainEventBus]; a failure propagates.
- * 5. When the state applied that stream (its version is the stream's), the state event is sent on [stateEventBus]; a
+ * 5. The domain event stream the command committed is sent on [domainEventBus]; a failure propagates.
+ * 6. When the state applied that stream (its version is the stream's), the state event is sent on [stateEventBus]; a
  *    failure is logged and resumed.
  *
  * A failure that reaches the end is recorded on the exchange and given to [errorHandler]. A `null` bus or notifier
@@ -69,6 +75,7 @@ class DefaultCommandHandler(
     private val stateEventBus: StateEventBus?,
     private val commandWaitNotifier: CommandWaitNotifier?,
     instrumentations: List<CommandInstrumentation> = emptyList(),
+    private val requestIdChecker: RequestIdChecker? = null,
     private val errorHandler: ErrorHandler<ServerCommandExchange<*>> = LogResumeErrorHandler(),
 ) : CommandHandler {
     private companion object {
@@ -103,13 +110,26 @@ class DefaultCommandHandler(
             aggregateMetadata = aggregateMetadata,
         )
         var committed: DomainEventStream? = null
-        return aggregateProcessor.process(exchange)
+        return checkRequestId(exchange)
+            .then(Mono.defer { aggregateProcessor.process(exchange) })
             .checkpoint {
                 "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [DefaultCommandHandler]"
             }
             .doOnNext { committed = it }
             .finallyAck(exchange)
             .then(Mono.defer { committed?.let { publish(exchange, it) } ?: Mono.empty() })
+    }
+
+    private fun checkRequestId(exchange: ServerCommandExchange<*>): Mono<Void> {
+        val checker = requestIdChecker ?: return Mono.empty()
+        val command = exchange.message
+        return checker.check(command.aggregateId, command.requestId).flatMap { passed ->
+            if (passed) {
+                Mono.empty()
+            } else {
+                Mono.error(DuplicateRequestIdException(command.aggregateId, command.requestId))
+            }
+        }
     }
 
     private fun publish(exchange: ServerCommandExchange<*>, eventStream: DomainEventStream): Mono<Void> {

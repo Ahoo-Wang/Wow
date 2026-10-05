@@ -33,6 +33,8 @@ fun interface RequestIdChecker {
     fun release(aggregateId: AggregateId, requestId: String) = Unit
 }
 
+private val PASSED: Mono<Boolean> = Mono.just(true)
+
 class DefaultRequestIdChecker(
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
     private val requestIdExistenceChecker: RequestIdExistenceChecker = NoopRequestIdExistenceChecker,
@@ -41,7 +43,7 @@ class DefaultRequestIdChecker(
         val idempotencyChecker = idempotencyCheckerProvider
             .getChecker(aggregateId.namedAggregate.materialize())
         if (idempotencyChecker.check(requestId)) {
-            return@defer Mono.just(true)
+            return@defer PASSED
         }
         requestIdExistenceChecker.existsRequestId(aggregateId, requestId)
             .map { exists -> !exists }

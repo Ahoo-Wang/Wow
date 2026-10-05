@@ -29,15 +29,16 @@ flowchart TB
 
 ## 发送前管道
 
-`DefaultCommandGateway` 的发送入口先执行相同的 `check`：
+`DefaultCommandGateway` 是门面：在一个不归它所有的 `CommandBus` 前面加上一条准入链。所有发送入口都按以下顺序执行同一条链：
 
 1. 命令体实现 `CommandValidator` 时先执行自校验，再交给 Jakarta `Validator`。
 2. `RequestIdChecker.check(aggregateId, requestId)` 做 request-ID 预检；返回 `false` 时以 `DuplicateRequestIdException` 终止。校验在前，校验失败的命令不占用 request ID（自 9.2.3 起）。
-3. 只有检查完成后才调用 `CommandBus.send`；发送失败时调用 `RequestIdChecker.release` 释放这次预留。
+3. 只对 `sendAndWait` 与 `sendAndWaitStream`：等待计划必须支持 `Void` 命令，注册等待句柄，并把要发送的消息构建为调用方消息的副本，副本的 Header 带上等待键。调用方的消息不被修改（自 9.3.0 起；此前网关在发送前把等待键写进调用方的 Header）。
+4. `CommandBus.send`；发送失败时调用 `RequestIdChecker.release` 释放这次预留。
 
-`sendAndWait` 与 `sendAndWaitStream` 还会先验证等待计划是否支持 `Void` 命令，然后注册等待句柄、把等待计划写入 Header，再发送命令。`sendAndWaitForSent` 是独立快路径：它不注册句柄、不传播等待 Header，而是在 `CommandBus.send` 成功后直接合成 `SENT` 结果。
+`SENT` 信号只在一处产生：`CommandBus.send` 成功或失败之后，交给等待它的一方——已登记的句柄、Saga 为等待链发出的命令的上游等待，或 `sendAndWaitForSent` 的结果。`sendAndWaitForSent` 不登记句柄、不写等待 Header。每个等待都只有一个端到端截止时间，在调用被订阅时设定一次，由网关自己的定时器调度（自 9.3.0 起；此前流式等待每收到一个元素就在共享调度器上重新设定超时）。关闭网关只释放这个定时器，不关闭 `CommandBus`，总线归它的创建者所有（自 9.3.0 起）。
 
-预检不是持久并发裁决。最终的 request-ID 和版本冲突仍由 `EventStore.append` 的原子边界负责，详见[失败与幂等](../reliability.md)。
+预检不是持久并发裁决。处理节点在聚合执行之前还会再查一次 request ID（见下文），最终的 request-ID 和版本冲突仍由 `EventStore.append` 的原子边界负责，详见[失败与幂等](../reliability.md)。
 
 ## Bus 到 Dispatcher
 
@@ -50,10 +51,12 @@ flowchart TB
 ```text
 CommandInstrumentation (each, the first outermost)
   -> PROCESSED report
-    -> aggregate processing, then acknowledgement
+    -> request-ID check, aggregate processing, then acknowledgement
       -> DomainEventBus.send
         -> StateEventBus.send attempt
 ```
+
+request-ID 检查在处理命令的节点上、聚合的处理函数执行之前进行（自 9.3.0 起）。它使用自己的布隆过滤器，不与网关共用，只有过滤器见过这个 request ID 时才查询 `EventStore`；聚合已经提交过的 request ID 会让命令以 `DuplicateRequestIdException` 失败，处理函数不会执行。`wow.command.idempotency.enabled=false` 会同时关闭它和网关的检查。
 
 外层步骤包住内层步骤，因此观察的是内部整条管线的完成或错误，而不是只观察聚合函数返回。原来需要命令过滤器的场景，对应到类型化的扩展点：
 

@@ -64,7 +64,7 @@ class TracingCommandGatewayWaitTest {
     }
 
     @Test
-    fun `closing traced gateway releases its command bus`() {
+    fun `closing traced gateway leaves the command bus it did not create open`() {
         val bus = InMemoryCommandBus()
         val subscription = MessageSubscription(MOCK_AGGREGATE_METADATA.namedAggregate)
         val receiver = bus.receiver(subscription).openedMessages().subscribe()
@@ -82,7 +82,7 @@ class TracingCommandGatewayWaitTest {
         try {
             bus.subscriberCount(subscription.namedAggregates.single()).assert().isOne()
             gateway.close()
-            bus.subscriberCount(subscription.namedAggregates.single()).assert().isZero()
+            bus.subscriberCount(subscription.namedAggregates.single()).assert().isOne()
         } finally {
             receiver.dispose()
             bus.close()
