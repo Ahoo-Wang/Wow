@@ -76,8 +76,12 @@ class AggregateSnapshotDispatcher(
         return snapshotHandler.handle(exchange)
     }
 
-    /** State events of one aggregate are snapshotted in order: the mailbox key is the aggregate ID. */
-    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId.id
+    /**
+     * State events of one aggregate are snapshotted in order: the mailbox key is the whole `AggregateId`
+     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * an ID (for example one derived by a saga) can be shared across aggregate types.
+     */
+    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId
 
     /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
     override fun metricProcessorName(namedAggregate: NamedAggregate): String =

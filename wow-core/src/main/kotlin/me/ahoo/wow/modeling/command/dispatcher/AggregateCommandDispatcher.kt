@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.command.dispatcher
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
@@ -54,6 +55,10 @@ class AggregateCommandDispatcher(
     processingQuiescence = processingQuiescence,
     metrics = metrics,
 ) {
+    private companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
     init {
         require(aggregateMetadata.isNotEmpty()) {
             "aggregateMetadata must not be empty."
@@ -72,23 +77,32 @@ class AggregateCommandDispatcher(
     /**
      * Handles a single command exchange with the metadata of its aggregate.
      *
+     * A command of an aggregate this dispatcher does not serve cannot arrive through its receiver, which subscribes
+     * only their topics; should one arrive anyway (a misrouted record), it is logged and acknowledged instead of
+     * failing the runtime.
+     *
      * @param exchange The command exchange to handle.
-     * @return A Mono that completes when the exchange has been processed; an error when the command's aggregate is
-     * not one of [aggregateMetadata] (its receiver subscribes only their topics).
+     * @return A Mono that completes when the exchange has been processed.
      */
     override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
         val metadata = metadataByAggregateName[exchange.message.aggregateName]
-            ?: return Mono.error(
-                IllegalStateException(
-                    "[$name] Received a command of aggregate[${exchange.message.aggregateName}], " +
-                        "which is not one of $namedAggregates.",
-                ),
-            )
+        if (metadata == null) {
+            log.warn {
+                "[$name] Acknowledge and skip command[${exchange.message.id}] of aggregate" +
+                    "[${exchange.message.contextName}.${exchange.message.aggregateName}], " +
+                    "which is not one of $namedAggregates."
+            }
+            return exchange.acknowledge()
+        }
         return commandHandler.handle(exchange, metadata)
     }
 
-    /** Commands of one aggregate run in order: the mailbox key is the aggregate ID. */
-    override fun ServerCommandExchange<*>.mailboxKey(): Any = message.aggregateId.id
+    /**
+     * Commands of one aggregate run in order: the mailbox key is the whole `AggregateId`
+     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * an ID (for example one derived by a saga) can be shared across aggregate types.
+     */
+    override fun ServerCommandExchange<*>.mailboxKey(): Any = message.aggregateId
 
     /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
     override fun metricProcessorName(namedAggregate: NamedAggregate): String =

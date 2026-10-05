@@ -33,9 +33,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** One command dispatcher for the aggregates of one bounded context (design X7). */
 class AggregateCommandDispatcherTest {
@@ -84,25 +88,63 @@ class AggregateCommandDispatcherTest {
     }
 
     @Test
-    fun `a command of another aggregate fails the dispatcher`() {
+    fun `a command of another aggregate is acknowledged and skipped without failing the dispatcher`() {
         val stranger = MaterializedNamedAggregate(MOCK_AGGREGATE_METADATA.contextName, "stranger")
+        val acknowledged = AtomicBoolean()
+        val strangerCommand = MockCreateAggregate(id = "stranger-id", data = "stranger")
+            .toCommandMessage(aggregateId = "stranger-id", namedAggregate = stranger)
+        val misrouted = object : ServerCommandExchange<MockCreateAggregate> by SimpleServerCommandExchange(
+            strangerCommand,
+        ) {
+            override fun acknowledge(): Mono<Void> = Mono.fromRunnable { acknowledged.set(true) }
+        }
+        val handledWith = CopyOnWriteArrayList<String>()
         val dispatcher = AggregateCommandDispatcher(
             aggregateMetadata = listOf(MOCK_AGGREGATE_METADATA),
-            messageFlux = Flux.just(
-                SimpleServerCommandExchange(
-                    MockCreateAggregate(id = "stranger-id", data = "stranger")
-                        .toCommandMessage(aggregateId = "stranger-id", namedAggregate = stranger),
-                ),
-            ),
-            commandHandler = recordingHandler(CopyOnWriteArrayList()),
+            messageFlux = Flux.just(misrouted, command(MOCK_AGGREGATE_METADATA, "mock")),
+            commandHandler = recordingHandler(handledWith),
         )
 
         dispatcher.prepare(DefaultRuntimeContext()).block()
         dispatcher.start()
 
-        StepVerifier.create(dispatcher.terminatedSignal)
-            .expectErrorMatches { it is IllegalStateException && it.message!!.contains("stranger") }
-            .verify(Duration.ofSeconds(5))
+        StepVerifier.create(dispatcher.terminatedSignal).expectComplete().verify(Duration.ofSeconds(5))
+        acknowledged.get().assert().isTrue()
+        handledWith.assert().containsExactly(MOCK_AGGREGATE_METADATA.aggregateName)
+    }
+
+    @Test
+    fun `aggregates of different types sharing an ID get separate mailboxes`() {
+        val release = Sinks.empty<Void>()
+        val otherHandled = CountDownLatch(1)
+        val sharedId = "shared-id"
+        val dispatcher = AggregateCommandDispatcher(
+            aggregateMetadata = listOf(MOCK_AGGREGATE_METADATA, tenantAggregateMetadata),
+            messageFlux = Flux.just(
+                command(MOCK_AGGREGATE_METADATA, "blocked", aggregateId = sharedId),
+                command(tenantAggregateMetadata, "other", aggregateId = sharedId),
+            ),
+            commandHandler = object : CommandHandler {
+                override fun handle(
+                    exchange: ServerCommandExchange<*>,
+                    aggregateMetadata: AggregateMetadata<*, *>,
+                ): Mono<Void> =
+                    if (aggregateMetadata === MOCK_AGGREGATE_METADATA) {
+                        release.asMono()
+                    } else {
+                        Mono.fromRunnable { otherHandled.countDown() }
+                    }
+            },
+        )
+
+        dispatcher.prepare(DefaultRuntimeContext()).block()
+        dispatcher.start()
+        try {
+            otherHandled.await(5, TimeUnit.SECONDS).assert().isTrue()
+        } finally {
+            release.tryEmitEmpty()
+            dispatcher.terminatedSignal.block(Duration.ofSeconds(5))
+        }
     }
 
     @Test
@@ -127,10 +169,14 @@ class AggregateCommandDispatcherTest {
         }
     }
 
-    private fun command(metadata: AggregateMetadata<*, *>, data: String): ServerCommandExchange<*> =
+    private fun command(
+        metadata: AggregateMetadata<*, *>,
+        data: String,
+        aggregateId: String = "$data-id",
+    ): ServerCommandExchange<*> =
         SimpleServerCommandExchange(
-            MockCreateAggregate(id = "$data-id", data = data)
-                .toCommandMessage(aggregateId = "$data-id", namedAggregate = metadata.namedAggregate),
+            MockCreateAggregate(id = aggregateId, data = data)
+                .toCommandMessage(aggregateId = aggregateId, namedAggregate = metadata.namedAggregate),
         )
 
     private fun recordingHandler(handledWith: MutableList<String>): CommandHandler =

@@ -67,7 +67,7 @@ import java.util.concurrent.atomic.AtomicReference
  *     override val namedAggregates: Set<NamedAggregate> = setOf(cartAggregate, orderAggregate)
  *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
- *     override fun CommandExchange.mailboxKey(): Any = message.aggregateId.id
+ *     override fun CommandExchange.mailboxKey(): Any = message.aggregateId
  *
  *     override fun handleExchange(exchange: CommandExchange): Mono<Void> {
  *         return commandHandler.handle(exchange)
