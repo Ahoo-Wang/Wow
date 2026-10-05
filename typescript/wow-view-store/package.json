@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-view-store",
-  "version": "9.2.3",
+  "version": "9.2.4",
   "description": "The Wow view store as the view engine's ViewStore: saved views and preferences of @ahoo-wang/wow-view-engine on a Wow server (https://github.com/Ahoo-Wang/Wow).",
   "keywords": [
     "wow",

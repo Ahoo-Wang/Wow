@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-view-engine",
-  "version": "9.2.3",
+  "version": "9.2.4",
   "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards.",
   "type": "module",
   "keywords": [
