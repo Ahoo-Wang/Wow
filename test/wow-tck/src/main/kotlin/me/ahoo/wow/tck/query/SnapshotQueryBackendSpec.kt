@@ -601,7 +601,7 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
-    fun `schema refresh should replace and publish one new object`() {
+    fun `schema refresh with unchanged storage keeps the published object`() {
         queryModelSchemaProvider.schema()
             .flatMap { initial ->
                 queryModelSchemaProvider.refresh().flatMap { refreshed ->
@@ -609,7 +609,8 @@ abstract class SnapshotQueryBackendSpec {
                 }
             }.test()
             .assertNext { (initial, refreshed, cached) ->
-                refreshed.assert().isNotSameAs(initial)
+                // The storage did not change, so the refresh compiles the same schema and keeps its instance.
+                refreshed.assert().isSameAs(initial)
                 cached.assert().isSameAs(refreshed)
             }.verifyComplete()
     }
