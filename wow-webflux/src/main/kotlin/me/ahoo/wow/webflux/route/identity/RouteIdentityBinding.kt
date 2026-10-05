@@ -142,6 +142,15 @@ data class RouteIdentityBinding(
     fun requestId(request: ServerRequest): String? = request.firstHeader(requestId.headers)
 
     private fun resolve(fact: IdentityFact, binding: FactBinding, request: ServerRequest, body: String?): String? {
+        // Fast path, the common case: one source and no body to check, so nothing can conflict.
+        if (body == null) {
+            when (binding.source) {
+                RouteIdentitySource.HEADER -> return request.firstHeader(binding.headers)
+                RouteIdentitySource.STATIC -> if (binding.headers.isEmpty()) return binding.value
+                RouteIdentitySource.OWNER, RouteIdentitySource.NONE -> return null
+                RouteIdentitySource.PATH -> Unit
+            }
+        }
         val hints = when (binding.source) {
             RouteIdentitySource.STATIC -> listOf(
                 IdentityHint(IdentitySource.ROUTE, requireNotNull(binding.value)),
@@ -323,8 +332,15 @@ class RouteIdentity(
          * materialized router) one read from the path variables the request matched.
          */
         fun of(request: ServerRequest): RouteIdentity =
-            request.attribute(ATTRIBUTE).orElse(null) as? RouteIdentity
-                ?: RouteIdentity(request.pathVariables().keys.intersect(RouteIdentityBinding.IDENTITY_PATH_VARIABLES))
+            request.attribute(ATTRIBUTE).orElse(null) as? RouteIdentity ?: unrouted(request, IdentityHeaderAliases.NONE)
+
+        /** Route identities for handlers invoked outside the router, by path variables and aliases: a handful. */
+        private val UNROUTED = ConcurrentHashMap<Pair<Set<String>, IdentityHeaderAliases>, RouteIdentity>()
+
+        private fun unrouted(request: ServerRequest, aliases: IdentityHeaderAliases): RouteIdentity {
+            val pathVariables = request.pathVariables().keys.intersect(RouteIdentityBinding.IDENTITY_PATH_VARIABLES)
+            return UNROUTED.computeIfAbsent(pathVariables to aliases) { RouteIdentity(it.first, it.second) }
+        }
 
         /**
          * Gives [request] a route identity with [aliases] when its handler was invoked outside a materialized router
@@ -335,10 +351,7 @@ class RouteIdentity(
             if (aliases.isEmpty() || request.attribute(ATTRIBUTE).isPresent) {
                 return
             }
-            request.attributes()[ATTRIBUTE] = RouteIdentity(
-                request.pathVariables().keys.intersect(RouteIdentityBinding.IDENTITY_PATH_VARIABLES),
-                aliases
-            )
+            request.attributes()[ATTRIBUTE] = unrouted(request, aliases)
         }
     }
 }

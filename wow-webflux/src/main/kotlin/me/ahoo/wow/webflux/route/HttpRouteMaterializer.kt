@@ -13,12 +13,15 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.identity.RouteIdentity
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RequestPredicate
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Mono
 
 internal data class HttpRouteBinding(
     val predicate: RequestPredicate,
@@ -37,10 +40,19 @@ internal class HttpRouteMaterializer(
         val routeIdentity = RouteIdentity.of(contract, identityHeaderAliases)
         return HttpRouteBinding(
             predicate = predicateFactory.create(contract),
-            handlerFunction = HandlerFunction { request ->
-                request.attributes()[RouteIdentity.ATTRIBUTE] = routeIdentity
-                handlerFunction.handle(request)
-            }
+            handlerFunction = RouteIdentityHandlerFunction(handlerFunction, routeIdentity)
         )
+    }
+}
+
+/** [delegate], given the identity binding of its route on every request. */
+@InternalWowApi
+class RouteIdentityHandlerFunction(
+    val delegate: HandlerFunction<ServerResponse>,
+    private val routeIdentity: RouteIdentity,
+) : HandlerFunction<ServerResponse> {
+    override fun handle(request: ServerRequest): Mono<ServerResponse> {
+        request.attributes()[RouteIdentity.ATTRIBUTE] = routeIdentity
+        return delegate.handle(request)
     }
 }
