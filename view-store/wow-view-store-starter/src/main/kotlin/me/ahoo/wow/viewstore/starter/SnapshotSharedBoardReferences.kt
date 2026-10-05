@@ -46,7 +46,7 @@ internal class SnapshotSharedBoardReferences(
                 tenantId(tenantId)
                 ownerId(SHARED_OWNER_ID)
                 pathState {
-                    ViewStoreQueryPolicy.APP_ID_FIELD eq appId
+                    ViewStoreScopeContributor.APP_ID_FIELD eq appId
                     "$CONFIG.${ViewConfigs.KIND}" eq ViewKind.DASHBOARD.value
                     or {
                         ViewConfigs.PANEL_REFERENCES.forEach { reference ->

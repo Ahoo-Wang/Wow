@@ -20,11 +20,12 @@ import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
  * Carries a view store command's `CoSec-App-Id` into its header, where the aggregates read it, and only that: an
- * `app_id` another appender took from the caller (Wow's `Command-Header-app_id`) is removed first, so a command
- * without `CoSec-App-Id` carries no application. It is the header key CoSec's own appender writes, so a host with
- * CoSec gets the same value twice; other commands of the host are left alone.
+ * `app_id` another appender wrote is removed first, so a command without `CoSec-App-Id` carries no application. It is
+ * the header key CoSec's own appender writes, so a host with CoSec gets the same value twice; other commands of the
+ * host are left alone.
  *
- * Appenders run in no fixed order, so [ViewStoreWebFilter] also drops every `Command-Header-*` from the request.
+ * A caller cannot set it through `Command-Header-app_id`: Wow reserves the key (`400`), and [ViewStoreWebFilter]
+ * drops every `Command-Header-*` on the view store's paths before that.
  */
 internal class ViewStoreAppIdHeaderAppender(private val paths: ViewStorePaths) : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {

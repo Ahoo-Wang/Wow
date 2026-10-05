@@ -67,10 +67,12 @@ import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.query.CompositeQueryRequestScope
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.IdentityHeaderAliasesQueryRequestScope
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.webflux.route.query.ScopeContributor
 import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -271,6 +273,34 @@ class WebFluxAutoConfiguration {
         )
     }
 
+    // compat(wow<9.3): the factory method before scope contributors; no longer a bean.
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it drops every ScopeContributor's restriction " +
+            "from point reads. Use the bean method that takes the ScopeContributor provider."
+    )
+    fun pointReadAdmission(
+        webFluxProperties: WebFluxProperties,
+        queryRequestScope: QueryRequestScope,
+        queryPolicies: ObjectProvider<QueryPolicy>,
+        snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
+        eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
+        querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
+        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
+    ): PointReadAdmission = createPointReadAdmission(
+        webFluxProperties = webFluxProperties,
+        queryRequestScope = queryRequestScope,
+        queryPolicies = queryPolicies,
+        snapshotQueryBackendFactory = snapshotQueryBackendFactory,
+        eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
+        querySchemaCatalog = querySchemaCatalog,
+        queryEntryPolicy = queryEntryPolicy,
+        scopeContributors = emptyList(),
+    )
+
+    /**
+     * Point-read admission, when `wow.webflux.state.point-read-admission` is on, under the same caller scope as the
+     * query routes: the [QueryRequestScope] and every [ScopeContributor].
+     */
     @Bean
     @ConditionalOnMissingBean
     fun pointReadAdmission(
@@ -281,6 +311,28 @@ class WebFluxAutoConfiguration {
         eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
         querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
         queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
+        scopeContributors: ObjectProvider<ScopeContributor>,
+    ): PointReadAdmission = createPointReadAdmission(
+        webFluxProperties = webFluxProperties,
+        queryRequestScope = queryRequestScope,
+        queryPolicies = queryPolicies,
+        snapshotQueryBackendFactory = snapshotQueryBackendFactory,
+        eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
+        querySchemaCatalog = querySchemaCatalog,
+        queryEntryPolicy = queryEntryPolicy,
+        scopeContributors = scopeContributors.orderedStream().toList(),
+    )
+
+    @Suppress("LongParameterList")
+    private fun createPointReadAdmission(
+        webFluxProperties: WebFluxProperties,
+        queryRequestScope: QueryRequestScope,
+        queryPolicies: ObjectProvider<QueryPolicy>,
+        snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
+        eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
+        querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
+        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
+        scopeContributors: List<ScopeContributor>,
     ): PointReadAdmission {
         val state = webFluxProperties.state
         val entryPolicy = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT }
@@ -296,7 +348,7 @@ class WebFluxAutoConfiguration {
         val catalog = querySchemaCatalog.ifAvailable
         return PointReadAdmission(
             enabled = true,
-            queryRequestScope = queryRequestScope,
+            queryRequestScope = CompositeQueryRequestScope.of(queryRequestScope, scopeContributors),
             tracingMaxVersions = state.tracingMaxVersions,
             // The same policies, in the same order, as the query gateways.
             policies = queryPolicies.toList(),
@@ -329,7 +381,11 @@ class WebFluxAutoConfiguration {
     ): QueryRouteModule {
         return QueryRouteModule(
             beanFactory = beanFactory,
-            queryRequestScope = queryRequestScope,
+            // The host's scope, then every scope contributor's (an embedded library's dimension, say).
+            queryRequestScope = CompositeQueryRequestScope.of(
+                queryRequestScope,
+                beanFactory.getBeanProvider(ScopeContributor::class.java).orderedStream().toList()
+            ),
             exceptionHandler = exceptionHandler,
             guard = httpQueryGuard,
         )

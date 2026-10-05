@@ -19,6 +19,7 @@ import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.viewstore.api.ScopeIds
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.domain.ViewStoreException
 import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
@@ -35,12 +36,19 @@ import reactor.core.publisher.Mono
  * The rules of the view store's routes that sit before Wow's routes:
  * - only the view store's own routes are open: the rest of what Wow generates for its aggregates, and the command
  *   facade for its commands, answer not found ([ViewStoreRouteGuard]);
- * - the server generates every aggregate id, so a `Command-Aggregate-Id` a caller sends is dropped;
+ * - the server generates every aggregate id, so a `Command-Aggregate-Id` a caller sends is dropped (a create route
+ *   has no `{id}`, so Wow would take it from that header);
  * - the command header is the server's: every `Command-Header-*` a caller sends is dropped (the application comes
- *   from `CoSec-App-Id` only, through [ViewStoreAppIdHeaderAppender]);
- * - the tenant and owner come from the path only: a path whose tenant or owner is empty or holds whitespace or
- *   control characters is refused with [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED] (Wow would read a blank one as
- *   missing and fall back to the headers), and a `Command-Tenant-Id` or `Command-Owner-Id` a caller sends is dropped;
+ *   from `CoSec-App-Id` only, through [ViewStoreAppIdHeaderAppender]). Wow rejects the keys it reserves
+ *   (`command_operator`, `app_id` and the other keys it or CoSec reads) with `400`, but copies any other key into the
+ *   command's header;
+ * - the tenant and owner come from the path only: a path whose tenant or owner is not a [ScopeIds] id (empty, or
+ *   holding whitespace, control, format or other invisible characters) is refused with
+ *   [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED], on the starter's own routes too. Wow refuses only a blank identity
+ *   segment, only on its own routes and with its own error code, and reads `owner/alice%E2%80%8B` as an owner that
+ *   displays as `alice`. A `Command-Tenant-Id` or `Command-Owner-Id` a caller sends is dropped: Wow rejects one that
+ *   contradicts the path, and a claim is dispatched under the owner `(shared)`, which the caller's own owner header
+ *   would contradict;
  * - a configured system view is read-only, so a write addressed to one is refused with
  *   [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY] instead of reading as a view that does not exist; under the owner
  *   `(system)` a stored view wins over a configured one with the same id, so its writes pass;
@@ -125,8 +133,8 @@ internal class ViewStoreWebFilter(
 
     /**
      * Drops the headers a caller may not set: the aggregate id, the tenant and owner (the path's are the only ones),
-     * and every `Command-Header-*`, which Wow's extend appender copies into the command's header as it is (the
-     * application `app_id`, but also `command_operator` and any other key the domain or Wow reads).
+     * and every `Command-Header-*`, which Wow's extend appender copies into the command's header unless Wow reserves
+     * the key.
      */
     private fun ServerWebExchange.withoutClientHeaders(): ServerWebExchange {
         val names = request.headers.headerNames().filter(::isClientHeader)

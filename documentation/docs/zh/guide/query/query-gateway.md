@@ -85,6 +85,7 @@ queryGateway.dynamicList(query)
 
 - `QueryRequestScope` 返回 `QueryScope(authenticated, declared)`。`DefaultQueryRequestScope` 把聚合的静态租户记为已认证，从请求读取的一切记为自报。它按路由的身份绑定读取每个值（见[请求身份](../open-api.md#请求身份)），包括 CoSec 的 `CoSec-Space-Id` 这类请求头别名；自 9.3.0 起，与路由的 `{tenantId}` 或 `{ownerId}` 矛盾的请求头返回 `400`（带静态租户的聚合仍忽略租户请求头）。
 - 当某个值由受信组件掌控（例如会剥离客户端自带租户请求头的认证网关），继承 `AbstractQueryRequestScope` 并覆盖 `tenantIdProvenance`、`ownerIdProvenance` 或 `spaceIdProvenance`，返回 `AUTHENTICATED`。
+- 要加入自己的维度（应用、区域等）又不替换宿主的 `QueryRequestScope`，注册一个 `ScopeContributor` Bean（自 9.3.0 起）。它返回 `QueryScope`，用 `authenticated` 与 `declared` 两半标明所加部分的来源；与它无关的聚合返回 `QueryScope.NONE`；抛出异常即拒绝请求。查询路由（以及开启点读准入时的点读）先用宿主的作用域，再按 Bean 顺序追加每个贡献者的，因此空白路径段仍然最先报告。视图存储就以这种方式加入应用维度。
 - 进程内调用方用 `withQueryScope(QueryScope(authenticated = TenantIdFilter(tenantId)))` 写入已认证范围；`withQueryScope(filter)` 记为自报。
 - `wow.query.require-authenticated-scope=true` 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询：返回 `403`，错误码 `IllegalAccessQueryScope`，发生在任何后端 I/O 之前。自报的租户仍会过滤查询，但不满足这项检查。开关默认关闭，保持旧行为，即信任自报范围。
 

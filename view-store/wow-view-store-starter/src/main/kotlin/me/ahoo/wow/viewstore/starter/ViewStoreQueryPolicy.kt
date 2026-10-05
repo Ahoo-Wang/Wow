@@ -14,38 +14,37 @@
 package me.ahoo.wow.viewstore.starter
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.snapshot.pathState
-import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.query.queryScope
+import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.domain.ViewStoreException
-import me.ahoo.wow.webflux.route.getRawRequest
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
 
 /**
- * Keeps HTTP queries of the view store's aggregates within one tenant, one owner and one application:
- * - only the routes with `tenant/{tenantId}/owner/{ownerId}` in their path are open (the path is what the gateway
- *   checks, and Wow turns it into the query scope);
- * - the query is restricted to the request's `CoSec-App-Id`, and the caller cannot take the restriction off;
- * - their event streams hold other users' personal configs, so HTTP queries of them are refused.
+ * The HTTP rules of the view store's aggregates that need no request:
+ * - an HTTP query of their event streams is refused with [ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED]: they hold
+ *   other users' personal configs;
+ * - an HTTP snapshot query must carry the application restriction ([ViewStoreScopeContributor]) in its caller scope,
+ *   else it is refused with [ViewStoreErrorCodes.VIEW_APP_REQUIRED]. The contributor adds it on Wow's query routes;
+ *   a host that builds the query routes or handlers with its own `QueryRequestScope` skips contributors, and its
+ *   queries fail closed here instead of reading every application's views.
  *
- * Other aggregates, and in-process queries, pass untouched. A point read admitted without the raw request fails
- * closed.
+ * Other aggregates and in-process queries pass untouched.
  */
 internal class ViewStoreQueryPolicy(private val namedAggregates: Set<NamedAggregate>) : QueryPolicy {
-    companion object {
-        const val APP_ID_FIELD = "appId"
-    }
-
     override fun evaluate(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression> {
-        if (context.entry != QueryEntry.HTTP || namedAggregates.none { it.isSameAggregateName(context.namedAggregate) }) {
+        if (context.entry != QueryEntry.HTTP ||
+            namedAggregates.none { it.isSameAggregateName(context.namedAggregate) }
+        ) {
             return Mono.just(MatchAllFilter)
         }
         if (context.schema.model != QueryModel.SNAPSHOT) {
@@ -56,26 +55,20 @@ internal class ViewStoreQueryPolicy(private val namedAggregates: Set<NamedAggreg
                 )
             )
         }
-        val request = contextView.getRawRequest()
-        val pathVariables = request?.pathVariables().orEmpty()
-        if (pathVariables[ViewStorePaths.TENANT_ID].isNullOrBlank() || pathVariables[ViewStorePaths.OWNER_ID].isNullOrBlank()) {
-            return Mono.error(
-                ViewStoreException(
-                    ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED,
-                    "Query the view store under tenant/{tenantId}/owner/{ownerId}."
-                )
-            )
-        }
-        val appId = request?.headers()?.firstHeader(ViewStoreService.APP_ID_HEADER)
-        if (appId.isNullOrBlank()) {
+        if (!contextView.queryScope().restrictsApplication()) {
             return Mono.error(ViewStoreException.appRequired())
         }
-        return Mono.just(
-            filter {
-                pathState {
-                    APP_ID_FIELD eq appId
-                }
-            }
-        )
+        return Mono.just(MatchAllFilter)
+    }
+
+    /** Whether this scope, a conjunction, pins `state.appId` to one value. */
+    private fun FilterExpression.restrictsApplication(): Boolean = when (this) {
+        is AndFilter -> operands.any { it.restrictsApplication() }
+        is EqualFilter -> field.path == APP_ID_PATH
+        else -> false
+    }
+
+    private companion object {
+        const val APP_ID_PATH = "${StateAggregateRecords.STATE}.${ViewStoreScopeContributor.APP_ID_FIELD}"
     }
 }

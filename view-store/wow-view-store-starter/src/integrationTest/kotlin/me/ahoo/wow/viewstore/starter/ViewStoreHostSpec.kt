@@ -513,6 +513,17 @@ abstract class ViewStoreHostSpec {
             version = 1,
         ).expectStatus().isOk
         single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.title").isEqualTo("Renamed")
+        // A claim is dispatched under the owner `(shared)`, so the caller's own owner header would contradict it (Wow
+        // rejects a header contradicting the owner a route fixes): the starter drops it, and the claim passes.
+        val shared = create(SHARED)
+        scoped(
+            "PUT",
+            "$SCOPE/alice/view/$shared/claim",
+            null,
+            mapOf(CommandComponent.Header.OWNER_ID to "alice", CommandComponent.Header.TENANT_ID to "t1"),
+            version = 1,
+        ).expectStatus().isOk
+        single("alice", shared).expectStatus().isOk.expectBody().jsonPath("$.ownerId").isEqualTo("alice")
     }
 
     private fun listed(owner: String): Int =

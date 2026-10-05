@@ -135,6 +135,7 @@ import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.IdentityHeaderAliasesQueryRequestScope
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.webflux.route.query.ScopeContributor
 import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -200,6 +201,7 @@ internal class WebFluxAutoConfigurationTest {
             beans.getBeanProvider(EventStreamQueryBackendFactory::class.java),
             beans.getBeanProvider(QuerySchemaCatalog::class.java),
             beans.getBeanProvider(QueryEntryPolicy::class.java),
+            beans.getBeanProvider(ScopeContributor::class.java),
         )
         assertThrows<IllegalStateException> { admission(pointReadAdmission = false) }.message.assert()
             .contains("wow.query.require-authenticated-scope", "wow.webflux.state.point-read-admission")
@@ -214,6 +216,7 @@ internal class WebFluxAutoConfigurationTest {
                 off.getBeanProvider(EventStreamQueryBackendFactory::class.java),
                 off.getBeanProvider(QuerySchemaCatalog::class.java),
                 off.getBeanProvider(QueryEntryPolicy::class.java),
+                off.getBeanProvider(ScopeContributor::class.java),
             ).assert().isSameAs(PointReadAdmission.DISABLED)
         }
     }

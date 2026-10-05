@@ -130,7 +130,7 @@ internal fun QueryFieldDeclaration.merge(
     description = description.merge(higher.description, field, "description", rejectDifferent),
     enumValues = enumValues.merge(higher.enumValues, field, "enumValues", rejectDifferent),
     enumDescriptions = enumDescriptions.merge(higher.enumDescriptions, field, "enumDescriptions", rejectDifferent),
-    valueTypes = valueTypes.merge(higher.valueTypes, field, "valueTypes", rejectDifferent),
+    valueTypes = valueTypes.merge(higher.openedValueTypes(this), field, "valueTypes", rejectDifferent),
     nullable = nullable.merge(higher.nullable, field, "nullable", rejectDifferent),
     required = required.merge(higher.required, field, "required", rejectDifferent),
     kind = kind.merge(higher.kind, field, "kind", rejectDifferent),
@@ -155,6 +155,22 @@ internal fun QueryFieldDeclaration.merge(
     aliases = aliases.merge(higher.aliases, field, "aliases", rejectDifferent),
     deprecated = deprecated.merge(higher.deprecated, field, "deprecated", rejectDifferent),
 )
+
+/**
+ * The value types of this declaration merged over [lower]. A declaration of kind `OBJECT` over an opaque value
+ * (inference records an `ObjectNode` or `Any` as kind `UNKNOWN` with no value type) opens it as an object: the value
+ * types become `OBJECT`, which a declaration cannot state itself ([QueryFieldDeclarationBuilder.types] is scalar
+ * only). Over any other kind the declared kind alone is merged, so a scalar or array is never turned into an object.
+ * Since 9.3.0.
+ */
+private fun QueryFieldDeclaration.openedValueTypes(
+    lower: QueryFieldDeclaration
+): DeclarationValue<Set<QueryValueType>> {
+    val opensOpaqueValue = valueTypes === DeclarationValue.Unset &&
+        kind == DeclarationValue.Set(QueryValueKind.OBJECT) &&
+        lower.kind == DeclarationValue.Set(QueryValueKind.UNKNOWN)
+    return if (opensOpaqueValue) DeclarationValue.Set(setOf(QueryValueType.OBJECT)) else valueTypes
+}
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(
     higher: DeclarationValue<MaskRule>,

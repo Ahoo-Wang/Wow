@@ -22,8 +22,8 @@ package me.ahoo.wow.viewstore.api
  *   selectors, the Mongolian free variation selectors, the Khmer inherent vowels, the Hangul fillers and the braille
  *   blank.
  *
- * Without this rule `owner/alice%E2%80%8B` would be an owner that reads as `alice`, and `owner/%20` a blank one that
- * Wow reads as missing. An id is a user or tenant id, not a display name, so the joiners (ZWJ U+200D, ZWNJ U+200C,
+ * Without this rule `owner/alice%E2%80%8B` would be an owner that reads as `alice`, and `owner/%20` a blank one (Wow
+ * before 9.3.0 read a blank one as missing). An id is a user or tenant id, not a display name, so the joiners (ZWJ U+200D, ZWNJ U+200C,
  * format characters) are refused too, although some scripts and emoji sequences use them in text.
  *
  * Unassigned is decided by the running JDK's Unicode version (`Character.getType`): a later JDK assigns more code

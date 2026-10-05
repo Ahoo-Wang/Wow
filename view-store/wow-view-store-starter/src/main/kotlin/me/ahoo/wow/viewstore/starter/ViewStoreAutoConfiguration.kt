@@ -108,6 +108,10 @@ class ViewStoreAutoConfiguration {
     internal fun viewStoreQueryPolicy(): ViewStoreQueryPolicy =
         ViewStoreQueryPolicy(setOf(viewNamedAggregate, preferencesNamedAggregate))
 
+    @Bean("viewStoreScopeContributor")
+    internal fun viewStoreScopeContributor(): ViewStoreScopeContributor =
+        ViewStoreScopeContributor(setOf(viewNamedAggregate, preferencesNamedAggregate))
+
     @Bean
     @ConditionalOnMissingBean
     fun systemViewProvider(viewStoreProperties: ViewStoreProperties): SystemViewProvider =
