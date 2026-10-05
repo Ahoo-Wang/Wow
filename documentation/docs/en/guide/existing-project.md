@@ -17,12 +17,12 @@ Do not migrate every write path or add production infrastructure in the same cha
 
 ## Version Baseline
 
-The current Wow `9.2.3` source declares:
+The current Wow `9.2.4` source declares:
 
 | Component | Version |
 | --- | --- |
 | JDK | 17+ |
-| Wow | `9.2.3` |
+| Wow | `9.2.4` |
 | Spring Boot | `4.1.1` |
 | Kotlin | `2.4.20` |
 | KSP | `2.3.12` |
@@ -57,8 +57,8 @@ Align the platform and compiler in the annotated modules:
 
 ```kotlin
 dependencies {
-    implementation(platform("me.ahoo.wow:wow-bom:9.2.3"))
-    ksp(platform("me.ahoo.wow:wow-bom:9.2.3"))
+    implementation(platform("me.ahoo.wow:wow-bom:9.2.4"))
+    ksp(platform("me.ahoo.wow:wow-bom:9.2.4"))
 
     implementation("me.ahoo.wow:wow-api") // api module
     ksp("me.ahoo.wow:wow-compiler")
