@@ -15,8 +15,8 @@ package me.ahoo.wow.runtime.internal
 
 import java.util.ArrayDeque
 import java.util.concurrent.Executor
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -29,6 +29,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * Each lane runs at most its own concurrency on the pool and queues the rest up to its own capacity. Lanes cannot
  * starve each other: the pool's thread cap is the sum of the lanes' concurrency, so a lane whose tasks block (a
  * terminal observer that never returns) holds only its own threads. Idle threads time out.
+ *
+ * The lanes bound the work, not the pool: a lane releases its slot just before its pool thread returns, so a task
+ * submitted in that instant can find every pool thread still busy. The pool therefore keeps its threads as core
+ * threads and hands such a task to an unbounded queue, where it waits only for that thread to finish returning. It is
+ * never rejected while its lane has room, and the queue cannot grow beyond the lanes' concurrency.
  */
 internal class RuntimeLifecyclePool(
     private val threadNamePrefix: String,
@@ -44,18 +49,20 @@ internal class RuntimeLifecyclePool(
     private val threadId = AtomicInteger()
     private val reservedThreads = AtomicInteger()
     private val executor = ThreadPoolExecutor(
-        0,
+        maxThreads,
         maxThreads,
         keepAliveSeconds,
         TimeUnit.SECONDS,
-        SynchronousQueue(),
+        LinkedBlockingQueue(),
         ThreadFactory { runnable ->
             Thread(runnable, "$threadNamePrefix-${threadId.incrementAndGet()}").apply {
                 isDaemon = true
             }
         },
         ThreadPoolExecutor.AbortPolicy(),
-    )
+    ).apply {
+        allowCoreThreadTimeOut(true)
+    }
 
     /**
      * Reserves [concurrency] of this pool's threads for a lane named [name] (its threads carry that name while they
@@ -128,15 +135,16 @@ internal class RuntimeLifecycleLane(
         }
 
     fun dispose() {
-        val interrupted = synchronized(monitor) {
+        synchronized(monitor) {
             if (disposed) {
                 return
             }
             disposed = true
             queue.clear()
-            running.toList()
+            // Interrupt under the monitor: a thread leaves `running` only under it, so every thread interrupted here
+            // is still inside this lane's task and clears the interrupt before the pool hands it another lane's task.
+            running.forEach(Thread::interrupt)
         }
-        interrupted.forEach(Thread::interrupt)
     }
 
     @Suppress("TooGenericExceptionCaught")

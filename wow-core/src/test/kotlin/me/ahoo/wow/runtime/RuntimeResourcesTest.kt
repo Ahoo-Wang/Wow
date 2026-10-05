@@ -14,14 +14,19 @@
 package me.ahoo.wow.runtime
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
+import me.ahoo.wow.runtime.internal.RuntimeExecutionResources
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicReference
 
 class RuntimeResourcesTest {
     @Test
@@ -123,6 +128,35 @@ class RuntimeResourcesTest {
         runtime.stopGracefully().test().expectError(TimeoutException::class.java).verify(Duration.ofSeconds(2))
 
         calls.assert().containsSubsequence("stop:dispatcher", "stop:writer", "force:writer")
+    }
+
+    @Test
+    fun `a runtime with its own execution resources flushes on its own shutdown lane`() {
+        val ownShutdown = Schedulers.newSingle("own-runtime-shutdown", true)
+        val flushThread = AtomicReference<String>()
+        val resource = object : RuntimeResource {
+            override fun stopGracefully(): Mono<Void> =
+                Mono.fromRunnable { flushThread.set(Thread.currentThread().name) }
+
+            override fun forceStop() = Unit
+        }
+        val runtime = WowRuntime(
+            components = listOf(RuntimeResources(listOf(resource))),
+            shutdownTimeout = Duration.ofSeconds(2),
+            shutdownQuietPeriod = Duration.ZERO,
+            executionResources = object : RuntimeExecutionResources by DefaultRuntimeExecutionResources {
+                override val shutdownScheduler: Scheduler = ownShutdown
+            },
+        )
+        try {
+            runtime.start().block()
+
+            runtime.stopGracefully().block(Duration.ofSeconds(2))
+
+            flushThread.get().assert().startsWith("own-runtime-shutdown")
+        } finally {
+            ownShutdown.dispose()
+        }
     }
 
     private class RecordingResource(

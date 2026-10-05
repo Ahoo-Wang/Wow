@@ -112,6 +112,7 @@ class WowRuntime private constructor(
         shutdownQuietPeriod = shutdownQuietPeriod,
         scheduler = executionResources.quiescenceScheduler,
         failureHandler = ::handleRuntimeFailure,
+        shutdownScheduler = executionResources.shutdownScheduler,
     )
     private val componentGroup = RuntimeComponentGroup(this.components) { error ->
         firstFailure.record(error)

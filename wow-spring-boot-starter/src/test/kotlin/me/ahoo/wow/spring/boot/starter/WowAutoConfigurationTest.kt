@@ -17,6 +17,7 @@ import jakarta.annotation.PreDestroy
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
+import me.ahoo.wow.infra.batch.BatchClosedException
 import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchItemResult
 import me.ahoo.wow.infra.batch.BatchOptions
@@ -53,7 +54,9 @@ import org.springframework.core.PriorityOrdered
 import org.springframework.core.annotation.Order
 import org.springframework.test.util.ReflectionTestUtils
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Signal
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -334,6 +337,60 @@ internal class WowAutoConfigurationTest {
 
         Duration.ofNanos(System.nanoTime() - started).assert().isLessThan(Duration.ofSeconds(5))
         calls.assert().containsSubsequence("stop:dispatcher", "flush:writer", "force:writer")
+    }
+
+    @Test
+    fun `spring closes a force stopped batch writer quietly, after the runtime deadline`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val dispatcher = RecordingRuntimeComponent("dispatcher", 10, calls)
+        val writing = CountDownLatch(1)
+        val writer = BatchCoordinator<String>(
+            name = "slow-writer",
+            options = BatchOptions(maxSize = 16, maxDelay = Duration.ofSeconds(10)),
+            writer = BatchWriter { items ->
+                // A real write that outlives the 300ms shutdown deadline.
+                Mono.delay(Duration.ofSeconds(10))
+                    .doOnSubscribe { writing.countDown() }
+                    .map { items.map { BatchItemResult.Success } }
+            },
+        )
+        val resource = object : RuntimeResource {
+            override fun stopGracefully(): Mono<Void> = writer.stopGracefully()
+
+            override fun forceStop() {
+                calls.add("force:writer")
+                writer.forceStop()
+            }
+        }
+
+        // Spring destroys both the store and the appender it wraps: each closes the same coordinator.
+        fun closer() = AutoCloseable {
+            try {
+                writer.close()
+                calls.add("close:ok")
+            } catch (error: Exception) {
+                calls.add("close:failed:${error.javaClass.simpleName}")
+            }
+        }
+        lateinit var accepted: CompletableFuture<Signal<Void>?>
+        val started = System.nanoTime()
+
+        contextRunner
+            .enableWow()
+            .withPropertyValues("wow.shutdown-timeout=300ms", "wow.shutdown-quiet-period=0s")
+            .withBean("dispatcher", RuntimeComponent::class.java, { dispatcher })
+            .withBean("slowWriter", RuntimeResource::class.java, { resource })
+            .withBean("store", AutoCloseable::class.java, { closer() })
+            .withBean("appender", AutoCloseable::class.java, { closer() })
+            .run {
+                accepted = writer.submit("item").materialize().toFuture()
+            }
+
+        Duration.ofNanos(System.nanoTime() - started).assert().isLessThan(Duration.ofSeconds(5))
+        writing.count.assert().isZero()
+        accepted.get(1, TimeUnit.SECONDS)!!.throwable.assert().isInstanceOf(BatchClosedException::class.java)
+        calls.assert().containsSubsequence("stop:dispatcher", "force:writer", "close:ok", "close:ok")
+        calls.filter { it.startsWith("close:") }.assert().containsExactly("close:ok", "close:ok")
     }
 
     @Test

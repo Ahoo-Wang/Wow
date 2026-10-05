@@ -115,7 +115,13 @@ interface RuntimeResource {
 }
 ```
 
-The `RuntimeResources` component owns them. Registered first, it stops last: after every dispatcher has drained, it flushes all resources concurrently, inside the same `shutdownTimeout`. If the deadline expires, `forceStop` fails the unwritten items. A batch writer's force stop ends its graceful stop. Kafka's client cannot cancel a running close, so the runtime stops waiting for it. The stores and buses stay `AutoCloseable`; a later `close()` returns at once.
+The `RuntimeResources` component owns them. Registered first, it stops last: after every dispatcher has drained, it flushes all resources concurrently, inside the same `shutdownTimeout`. If the deadline expires, `forceStop` fails the unwritten items. A batch writer's force stop ends its graceful stop. Kafka's client cannot cancel a running close, so the runtime stops waiting for it. The stores and buses stay `AutoCloseable`. After a flush, their `close()` returns at once; a batch writer's `close()` after a force stop also returns at once, without an error, however often Spring calls it.
+
+A force stop bounds how long the runtime waits, not what is still running:
+- **Kafka:** the abandoned close keeps flushing in the background. When Spring destroys the bus, its `close()` can block until that flush ends.
+- **Batch writers:** a write that had already started is cancelled and its items fail, but the store may already have received it. The JVM does not wait for it either, since the lifecycle threads are daemon threads: a process that exits mid-flush can leave such a write applied or not.
+
+Size `wow.shutdown-timeout` so that a normal flush fits inside it.
 
 ## Lifecycle threads
 

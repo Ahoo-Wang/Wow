@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime
 
+import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
@@ -56,23 +57,30 @@ interface RuntimeResource {
  */
 class RuntimeResources internal constructor(
     private val resolve: () -> Iterable<RuntimeResource>,
-    private val scheduler: Scheduler,
+    private val scheduler: Scheduler?,
 ) : RuntimeComponent {
-    constructor(resolve: () -> Iterable<RuntimeResource>) : this(
-        resolve,
-        DefaultRuntimeExecutionResources.shutdownScheduler,
-    )
+    /**
+     * The resources are flushed on the shutdown lane of the runtime that prepares this component, so a runtime built
+     * with its own execution resources keeps the flush on its own threads.
+     */
+    constructor(resolve: () -> Iterable<RuntimeResource>) : this(resolve, null)
 
     constructor(resources: Iterable<RuntimeResource>) : this({ resources })
 
     @Volatile
     private var resources: List<RuntimeResource> = emptyList()
 
+    @Volatile
+    private var flushScheduler: Scheduler = scheduler ?: DefaultRuntimeExecutionResources.shutdownScheduler
+
     /** The resources resolved at [prepare], each once. */
     val resolved: List<RuntimeResource>
         get() = resources
 
     override fun prepare(runtimeContext: RuntimeContext): Mono<Void> = Mono.fromRunnable {
+        if (scheduler == null && runtimeContext is DefaultRuntimeContext) {
+            flushScheduler = runtimeContext.shutdownScheduler
+        }
         val distinct = Collections.newSetFromMap(IdentityHashMap<RuntimeResource, Boolean>())
         resources = resolve().filter { it !== RuntimeResource.NONE && distinct.add(it) }
     }
@@ -82,7 +90,7 @@ class RuntimeResources internal constructor(
     override fun stopGracefully(): Mono<Void> = Mono.defer {
         Mono.whenDelayError(
             resources.map { resource ->
-                Mono.defer(resource::stopGracefully).subscribeOn(scheduler)
+                Mono.defer(resource::stopGracefully).subscribeOn(flushScheduler)
             },
         )
     }

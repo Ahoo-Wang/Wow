@@ -21,6 +21,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class RuntimeLifecyclePoolTest {
@@ -132,6 +133,35 @@ class RuntimeLifecyclePoolTest {
     }
 
     @Test
+    fun `a full lane that frees a slot is never rejected by the pool`() {
+        // A lane frees its slot just before its pool thread returns. A task submitted in that instant must wait for
+        // the thread, not be rejected by the pool although its lane has room.
+        val lane = RuntimeLifecyclePool("test-lifecycle", 2).lane("test-lane", 2, 0)
+        val poolRejections = AtomicInteger()
+        try {
+            repeat(SUBMISSIONS) {
+                var submitted = false
+                while (!submitted) {
+                    try {
+                        lane.execute {}
+                        submitted = true
+                    } catch (error: RejectedExecutionException) {
+                        // The lane itself is full: retry. Any other rejection came from the pool.
+                        submitted = error.message?.endsWith("is saturated.") != true
+                        if (submitted) {
+                            poolRejections.incrementAndGet()
+                        }
+                    }
+                }
+            }
+        } finally {
+            lane.dispose()
+        }
+
+        poolRejections.get().assert().isZero()
+    }
+
+    @Test
     fun `lanes cannot reserve more threads than the pool has`() {
         val pool = RuntimeLifecyclePool("test-lifecycle", 2)
         pool.lane("first", 2, 0)
@@ -168,5 +198,9 @@ class RuntimeLifecyclePoolTest {
         )
         fired.await(1, TimeUnit.SECONDS).assert().isTrue()
         deadlineThread.get().assert().startsWith("wow-runtime-deadline-")
+    }
+
+    private companion object {
+        const val SUBMISSIONS = 100_000
     }
 }
