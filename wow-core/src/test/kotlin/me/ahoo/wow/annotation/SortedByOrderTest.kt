@@ -64,6 +64,17 @@ class SortedByOrderTest {
         sorted.map { it.label }.assert().isEqualTo(listOf("first", "b", "a"))
     }
 
+    /**
+     * The 9.3.0 release-notes example: X(100, before Y), Y(0), Z(50). 9.2's single pass sorted by value, [Y, Z, X],
+     * then moved X before Y: [X, Y, Z]. The topological sort places each item as early as its value allows once its
+     * constraints hold: [Z, X, Y]. Both satisfy "X before Y"; Z now runs before X.
+     */
+    @Test
+    fun `release-notes example - a before constraint no longer drags its item ahead of lower values`() {
+        listOf(ExampleY(), ExampleZ(), ExampleX()).sortedByOrder().map { it.label }.assert()
+            .isEqualTo(listOf("Z", "X", "Y"))
+    }
+
     @Test
     fun `should ignore dependencies on items that are not present`() {
         listOf(AfterDependencySourceItem()).sortedByOrder().map { it.label }.assert()
@@ -173,4 +184,19 @@ private class CycleFirst : FoundationOrderLabel {
 @Order(before = [CycleFirst::class])
 private class CycleSecond : FoundationOrderLabel {
     override val label: String = "cycle-second"
+}
+
+@Order(value = 100, before = [ExampleY::class])
+private class ExampleX : FoundationOrderLabel {
+    override val label: String = "X"
+}
+
+@Order(0)
+private class ExampleY : FoundationOrderLabel {
+    override val label: String = "Y"
+}
+
+@Order(50)
+private class ExampleZ : FoundationOrderLabel {
+    override val label: String = "Z"
 }

@@ -82,12 +82,15 @@ For a command body or `CommandBuilder`, the framework fills only missing fields:
 
 - the default `requestId` is `${domainEvent.id}-${index}`, starting at index `0`;
 - an explicit `requestId` is preserved;
+- a command that names no aggregate (no aggregate ID in the body or on the builder) gets one derived from the event, the Saga function, the command's index and the target aggregate type, instead of a random one (since 9.3.0). Handling the same event again therefore sends a create to the same aggregate ID with the same request ID, which is rejected as a duplicate request instead of creating a second aggregate. The derived ID has the format of the target aggregate's ID generator, with the event's creation time as its timestamp; Wow always uses CosId, and deterministic Saga IDs apply to the time-based CosId generators (the default CosId and Snowflake); segment and custom generators keep random IDs;
 - missing `tenantId` and `spaceId` propagate from the source event;
 - the source event becomes upstream and its message header is propagated.
 
-A prebuilt `CommandMessage` keeps its message and `requestId` while receiving source-event header propagation.
+A prebuilt `CommandMessage` keeps its message, aggregate ID and an explicit `requestId` while receiving source-event header propagation. A `requestId` it did not set (equal to its ID, the default) becomes `${domainEvent.id}-${index}` (since 9.3.0). Its aggregate ID is not derived, because a generated ID cannot be told from a chosen one: return a command body or `CommandBuilder` to get a derived aggregate ID.
 
 Replaying the same event with the same result order produces stable default request IDs that can cooperate with [command-gateway idempotency checks](../command/reliability.md). This does not make external side effects idempotent and does not deduplicate semantically repeated commands generated from different events.
+
+During a rolling upgrade from 9.2, a retry handled by a 9.2 node still draws a random aggregate ID, so a create retried across a 9.2 and a 9.3 node can still create two aggregates, as every retry could on 9.2; two 9.3 attempts converge.
 
 Immediate retries run the Saga function again and resend its returned commands. Newly created command messages keep the existing globally unique `commandId` generation rules, while default request IDs remain stable for idempotency checks. When an individual send returns `DuplicateRequestIdException`, the Saga skips that duplicate send and continues with subsequent commands; other errors still propagate. The Saga does not cache send progress.
 

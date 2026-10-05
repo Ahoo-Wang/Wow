@@ -56,7 +56,7 @@ Spring 启动时，Processor、Saga 和 Projection 的 AutoRegistrar 把已解�
 
 ## Filter 顺序
 
-每类 dispatcher 从 Spring 收集兼容 exchange 类型的 `ExchangeFilter`，用 `@FilterType` 选出属于自己的 Filter，再按 `@Order` 排序：`before`/`after` 约束整体满足（拓扑排序），其余按 `value`、再按注册顺序；约束指向不存在的 Filter 时忽略，约束成环时启动失败并在错误中列出这个环（自 9.3.0 起）。当前关键相对顺序分为两种：
+每类 dispatcher 从 Spring 收集兼容 exchange 类型的 `ExchangeFilter`，用 `@FilterType` 选出属于自己的 Filter，再按 `@Order` 排序：`before`/`after` 约束整体满足（拓扑排序），其余按 `value`、再按注册顺序；约束指向不存在的 Filter 时忽略，约束成环时启动失败并在错误中列出这个环（自 9.3.0 起）。即使 9.2 已满足约束，顺序也可能不同：X 为 `@Order(100, before = [Y])`、Y 为 `@Order(0)`、Z 为 `@Order(50)` 时，9.2 先按 value 排序再把 X 移到 Y 前，得到 `[X, Y, Z]`；9.3 在满足约束的前提下让每个 Filter 按 value 尽早排列，得到 `[Z, X, Y]`。当前关键相对顺序分为两种：
 
 ```text
 Processor / Saga / Projection:

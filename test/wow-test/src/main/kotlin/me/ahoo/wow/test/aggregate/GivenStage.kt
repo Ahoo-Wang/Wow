@@ -99,6 +99,9 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
     /** Where this stage's aggregate history lives and its commands run. */
     abstract val runtime: AggregateTestRuntime<C, S>
 
+    /** Keeps the `whenCommand`s that branch from this stage independent. */
+    private val siblings = SiblingHistory()
+
     protected var ownerId: String = OwnerId.DEFAULT_OWNER_ID
         private set
 
@@ -125,7 +128,7 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
         val runtime = runtime
         val ownerId = ownerId
         val spaceId = spaceId
-        return DefaultWhenStage(runtime = runtime, ownerId = ownerId, spaceId = spaceId) {
+        return DefaultWhenStage(runtime = runtime, ownerId = ownerId, spaceId = spaceId, siblings = siblings) {
             it.appendGiven(events, ownerId, spaceId)
         }
     }
@@ -149,7 +152,7 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
     /** Starts the history from [state], saved as its snapshot, in a runtime of its own. */
     override fun givenState(state: StateAggregate<S>): WhenStage<S> {
         val runtime = runtimeForGivenState()
-        return DefaultWhenStage(runtime = runtime, ownerId = ownerId, spaceId = spaceId) {
+        return DefaultWhenStage(runtime = runtime, ownerId = ownerId, spaceId = spaceId, siblings = siblings) {
             it.seedState(state)
         }
     }

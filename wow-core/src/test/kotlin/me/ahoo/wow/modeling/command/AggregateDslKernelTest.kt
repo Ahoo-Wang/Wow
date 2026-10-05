@@ -140,4 +140,27 @@ class AggregateDslKernelTest {
     private companion object {
         const val AGGREGATE_ID = "dsl-kernel-1"
     }
+
+    @Test
+    fun `sibling commands of one given each start from the given history`() {
+        val given = verifier.given(OrderProbeCreated(AGGREGATE_ID))
+
+        given.whenCommand(ChangeOrderProbe(AGGREGATE_ID))
+            .expectNoError()
+            .expectStateAggregate { version.assert().isEqualTo(2) }
+            .verify()
+        given.whenCommand(ChangeOrderProbe(AGGREGATE_ID))
+            .expectNoError()
+            .expectStateAggregate { version.assert().isEqualTo(2) }
+            .verify()
+
+        // The first sibling ran on the given store; the second on a copy of the history as it was given.
+        storedVersions().assert().isEqualTo(listOf(1, 2))
+    }
+
+    @Test
+    fun `a sibling create on an empty given is not a duplicate of its sibling`() {
+        verifier.whenCommand(CreateOrderProbe(AGGREGATE_ID)).expectNoError().verify()
+        verifier.whenCommand(CreateOrderProbe(AGGREGATE_ID)).expectNoError().verify()
+    }
 }

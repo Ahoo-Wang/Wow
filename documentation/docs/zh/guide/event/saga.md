@@ -82,12 +82,15 @@ class CartSaga {
 
 - 默认 `requestId` 为 `${domainEvent.id}-${index}`，索引从 `0` 开始；
 - 保留显式 `requestId`；
+- 没有指明聚合的命令（命令体和 builder 上都没有聚合 ID）会得到一个由事件、Saga 函数、命令序号和目标聚合类型推导出的 ID，而不是随机 ID（自 9.3.0 起）。因此再次处理同一事件时，创建命令发往同一聚合 ID、带同一 request ID，被当作重复请求拒绝，而不是创建第二个聚合。推导出的 ID 与目标聚合的 ID 生成器格式相同，时间戳为事件的创建时间；Wow 始终使用 CosId，确定性 Saga ID 适用于基于时间的 CosId 生成器（默认 CosId 与 Snowflake），号段（segment）与自定义生成器仍使用随机 ID；
 - 缺失的 `tenantId`、`spaceId` 从源事件传播；
 - 设置源事件为 upstream，并传播消息 header。
 
-预构造的 `CommandMessage` 保留自己的消息与 `requestId`，同时传播源事件 header。
+预构造的 `CommandMessage` 保留自己的消息、聚合 ID 与显式 `requestId`，同时传播源事件 header。它没有设置的 `requestId`（等于消息 ID，即默认值）改为 `${domainEvent.id}-${index}`（自 9.3.0 起）。它的聚合 ID 不做推导，因为无法区分生成的 ID 与指定的 ID：需要推导的聚合 ID 时，请返回命令体或 `CommandBuilder`。
 
 同一事件以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
+
+从 9.2 滚动升级期间，由 9.2 节点处理的重试仍取随机聚合 ID，因此跨 9.2 与 9.3 节点重试的创建命令仍可能创建两个聚合，与 9.2 上每次重试的情况相同；两次都在 9.3 上处理则会收敛为一个。
 
 即时重试会重新执行 Saga 函数并再次发送返回的命令。新创建的命令消息继续使用原有全局唯一 `commandId` 生成规则，默认 `requestId` 保持稳定以配合幂等检查。单条发送返回 `DuplicateRequestIdException` 时，Saga 跳过该次重复发送并继续后续命令；其他错误仍向上传播。Saga 不缓存发送进度。
 

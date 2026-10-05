@@ -62,6 +62,9 @@
         "modeling_command_order_probe_aggregate": {
           "type": "me.ahoo.wow.modeling.command.OrderProbeAggregate"
         },
+        "saga_stateless_saga_target": {
+          "type": "me.ahoo.wow.saga.stateless.SagaTarget"
+        },
         "messaging_aggregate": {
           "scopes": [
             "me.ahoo.wow.messaging"

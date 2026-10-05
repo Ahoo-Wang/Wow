@@ -19,6 +19,8 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DuplicateRequestIdException
+import me.ahoo.wow.command.SimpleCommandMessage
+import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
@@ -81,13 +83,14 @@ class StatelessSagaFunction(
         index: Int = 0
     ): Mono<CommandMessage<*>> {
         if (singleResult is CommandMessage<*>) {
-            val command = if (singleResult.header.isReadOnly) singleResult.copy() else singleResult
+            val command = singleResult.withDerivedRequestId(domainEvent, index)
             messagePropagator.propagate(command.header, domainEvent, this)
             return command.toMono()
         }
         val commandBuilder = singleResult as? CommandBuilder ?: singleResult.commandBuilder()
         commandBuilder
-            .requestIdIfAbsent("${domainEvent.id}-$index")
+            .requestIdIfAbsent(SagaCommandIds.requestId(domainEvent, index))
+            .derivedAggregateIdIfAbsent(domainEvent, index)
             // What the saga sets wins over the event it reacts to; the command factory then puts the body first.
             .tenantId(
                 IdentityResolver.resolve(
@@ -110,6 +113,33 @@ class StatelessSagaFunction(
             }
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
+    }
+
+    /**
+     * A command message the saga function built itself keeps its IDs, except a request ID it did not set (equal to
+     * the message ID, the default): that one becomes the derived `"<event ID>-<index>"`, so a retry is a duplicate
+     * request. Its aggregate ID is kept: a generated one cannot be told from a chosen one; return a body or a
+     * [CommandBuilder] to get a derived aggregate ID.
+     */
+    private fun CommandMessage<*>.withDerivedRequestId(domainEvent: DomainEvent<*>, index: Int): CommandMessage<*> {
+        if (requestId == id && this is SimpleCommandMessage<*>) {
+            return copy(requestId = SagaCommandIds.requestId(domainEvent, index), header = header.copy())
+        }
+        return if (header.isReadOnly) copy() else this
+    }
+
+    /** A command that names no aggregate gets one derived from the event, see [SagaCommandIds.aggregateId]. */
+    private fun CommandBuilder.derivedAggregateIdIfAbsent(domainEvent: DomainEvent<*>, index: Int): CommandBuilder {
+        if (aggregateId != null) {
+            return this
+        }
+        val metadata = body.javaClass.commandMetadata()
+        if (metadata.aggregateIdGetter?.get(body) != null) {
+            return this
+        }
+        val target = namedAggregate ?: metadata.namedAggregateGetter?.getNamedAggregate(body) ?: return this
+        val derived = SagaCommandIds.aggregateId(domainEvent, this@StatelessSagaFunction, index, target) ?: return this
+        return aggregateId(derived)
     }
 
     override fun toString(): String = "StatelessSagaFunction(actual=$delegate)"
