@@ -52,12 +52,12 @@ class MetricCommandBusTest {
     }
 
     @Test
-    fun `runtime receiver preserves delegate runtime admission protocol`() {
+    fun `runtime-owned receiver preserves delegate runtime admission protocol`() {
         val command = TestCommandMessage(id = "command-id")
         val delegate = RecordingLocalCommandBus()
-        val subscription = MessageSubscription(command.aggregateId.namedAggregate)
+        val subscription = MessageSubscription(command.aggregateId.namedAggregate, runtimeOwned = true)
 
-        metricCommandBus(delegate).runtimeReceiver(subscription)
+        metricCommandBus(delegate).receiver(subscription)
 
         delegate.runtimeSubscriptions.assert().containsExactly(subscription)
     }
@@ -219,25 +219,18 @@ private class RecordingLocalCommandBus(
             localDelivery
         }
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
-        received += subscription
-        return receiveFlux
-    }
-
     override fun receiver(
         subscription: MessageSubscription,
-    ): MessageReceiver<ServerCommandExchange<*>> =
-        MessageReceiver(
-            messages = receive(subscription),
-            readiness = readiness,
-        )
-
-    override fun runtimeReceiver(
-        subscription: MessageSubscription,
-    ): MessageReceiver<ServerCommandExchange<*>> =
-        receiver(subscription).also {
+    ): MessageReceiver<ServerCommandExchange<*>> {
+        received += subscription
+        if (subscription.runtimeOwned) {
             runtimeSubscriptions += subscription
         }
+        return MessageReceiver(
+            messages = receiveFlux,
+            readiness = readiness,
+        )
+    }
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = subscribers
 

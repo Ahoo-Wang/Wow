@@ -49,6 +49,15 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         return this
     }
 
+    /**
+     * The bus's one receive entry ([MessageBus.receiver]) as a stream with processing open from subscription, as a
+     * dispatcher uses it once the runtime is ready.
+     */
+    protected fun BUS.openedMessages(subscription: MessageSubscription): Flux<E> {
+        val receiver = receiver(subscription)
+        return receiver.messages.doOnSubscribe { receiver.openProcessing() }
+    }
+
     open fun verify(block: BUS.() -> Unit) {
         val messageBus = createMessageBus()
         messageBus.meteredForTck().use { bus ->
@@ -67,7 +76,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             return
         }
         messageBus.subscriberCount(namedAggregate).assert().isEqualTo(0)
-        messageBus.receive(MessageSubscription(namedAggregate)).test()
+        messageBus.receiver(MessageSubscription(namedAggregate)).messages.test()
             .then {
                 messageBus.subscriberCount(namedAggregate).assert().isEqualTo(1)
             }
@@ -81,7 +90,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         verify {
             val onReady = Sinks.empty<Void>()
             val message = createMessage()
-            receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
+            openedMessages(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()
@@ -102,7 +111,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     fun receive() {
         verify {
             val onReady = Sinks.empty<Void>()
-            receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
+            openedMessages(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val sendFlux = Flux.range(0, 10)
@@ -126,7 +135,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     fun sendPerformance() {
         verify {
             val onReady = Sinks.empty<Void>()
-            receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
+            openedMessages(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val duration = sendLoop(messageBus = this)
@@ -157,7 +166,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
         verify {
             val maxCount: Long = 1000
             val onReady = Sinks.empty<Void>()
-            val duration = receive(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
+            val duration = openedMessages(MessageSubscription(namedAggregate, receiverGroup = generateGlobalId()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     val sendFlux = sendLoop(messageBus = this, maxCount = maxCount.toInt())

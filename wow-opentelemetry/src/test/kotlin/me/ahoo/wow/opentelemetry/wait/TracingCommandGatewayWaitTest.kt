@@ -90,21 +90,21 @@ class TracingCommandGatewayWaitTest {
     }
 
     @Test
-    fun `runtime receiver preserves delegate runtime admission protocol`() {
-        val subscription = MessageSubscription(emptySet(), receiverGroup = "runtime")
+    fun `runtime-owned receiver preserves delegate runtime admission protocol`() {
+        val subscription = MessageSubscription(emptySet(), receiverGroup = "runtime", runtimeOwned = true)
         val expected = MessageReceiver<ServerCommandExchange<*>>(Flux.empty())
         val delegate = mockk<CommandGateway> {
-            every { runtimeReceiver(subscription) } returns expected
+            every { receiver(subscription) } returns expected
         }
 
-        val actual = TracingCommandGateway(delegate).runtimeReceiver(subscription)
+        val actual = TracingCommandGateway(delegate).receiver(subscription)
 
         actual.assert().isSameAs(expected)
         verify(exactly = 1) {
-            delegate.runtimeReceiver(subscription)
+            delegate.receiver(subscription)
         }
         verify(exactly = 0) {
-            delegate.receiver(subscription)
+            delegate.receiver(subscription.copy(runtimeOwned = false))
         }
     }
 

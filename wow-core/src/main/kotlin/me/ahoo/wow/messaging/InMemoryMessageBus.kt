@@ -199,14 +199,21 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     /**
      * Receives messages for the specified named aggregates.
      *
-     * Creates a flux that merges messages from all the sinks corresponding to the
-     * named aggregates and converts them to message exchanges.
+     * Merges the messages of the sinks of the subscription's named aggregates and converts them to message
+     * exchanges. A [runtime-owned][MessageSubscription.runtimeOwned] receiver also takes part in local-first delivery
+     * receipts: [sendIfSubscribed] suppresses the distributed copy only while every such receiver has opened
+     * processing, and each delivered exchange carries a ticket the receiver confirms or rejects. Any other receiver
+     * only observes the messages.
      *
      * @param subscription The message subscription
-     * @return A flux of message exchanges
+     * @return The message receiver
      */
-    override fun receive(subscription: MessageSubscription): Flux<E> =
-        receiveMessages(subscription)
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        if (subscription.runtimeOwned) {
+            runtimeOwnedReceiver(subscription)
+        } else {
+            MessageReceiver(receiveMessages(subscription))
+        }
 
     private fun receiveMessages(
         subscription: MessageSubscription,
@@ -243,7 +250,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     }
 
     @Suppress("TooGenericExceptionCaught")
-    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> {
+    private fun runtimeOwnedReceiver(subscription: MessageSubscription): MessageReceiver<E> {
         val routingSubscription = RoutingSubscription(
             subscription.namedAggregates.map { it.materialize() }.toSet(),
         )

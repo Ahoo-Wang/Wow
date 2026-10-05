@@ -77,7 +77,7 @@ import java.util.concurrent.atomic.AtomicReference
  * }
  *
  * // Usage
- * val dispatcher = CustomAggregateDispatcher(commandBus.runtimeReceiver(subscription))
+ * val dispatcher = CustomAggregateDispatcher(commandBus.receiver(subscription.copy(runtimeOwned = true)))
  * val runtime = WowRuntime(
  *     components = listOf(dispatcher),
  *     shutdownTimeout = Duration.ofSeconds(30),

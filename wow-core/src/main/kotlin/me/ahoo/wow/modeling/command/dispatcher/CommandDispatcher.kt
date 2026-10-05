@@ -45,6 +45,7 @@ class CommandDispatcher(
         DefaultAggregateSchedulerSupplier("CommandDispatcher"),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MainDispatcher<ServerCommandExchange<*>>(metrics) {
+    @Suppress("DEPRECATION") // Keeps the plain-stream semantics of this hook; the runtime uses createMessageReceiver.
     override fun receiveMessage(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
         return filterMessages(commandBus.receive(subscription))
     }
@@ -52,7 +53,7 @@ class CommandDispatcher(
     override fun createMessageReceiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
-        commandBus.runtimeReceiver(subscription).mapMessages(::filterMessages)
+        commandBus.receiver(subscription.copy(runtimeOwned = true)).mapMessages(::filterMessages)
 
     private fun filterMessages(
         messages: Flux<ServerCommandExchange<*>>,

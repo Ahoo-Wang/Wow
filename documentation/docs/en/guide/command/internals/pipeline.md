@@ -41,7 +41,7 @@ The precheck is not the durable concurrency decision. Atomic request-ID and vers
 
 ## Bus to Dispatcher
 
-`CommandBus.receive`, or the runtime-owned `runtimeReceiver`, produces `ServerCommandExchange` instances. `CommandDispatcher` first filters `isVoid` messages: it acknowledges them without entering the aggregate command chain. Ordinary commands are dispatched by `NamedAggregate`.
+`CommandBus.receiver`, with a runtime-owned subscription for the runtime's `CommandDispatcher`, produces `ServerCommandExchange` instances. `CommandDispatcher` first filters `isVoid` messages: it acknowledges them without entering the aggregate command chain. Ordinary commands are dispatched by `NamedAggregate`.
 
 Each `AggregateCommandDispatcher` resolves aggregate metadata and calculates a group key from the aggregate ID. Commands for one ID retain scheduler affinity while multiple IDs can share a worker. This prevents concurrent execution for one aggregate inside this process; it does not replace the EventStore's durable version constraint.
 

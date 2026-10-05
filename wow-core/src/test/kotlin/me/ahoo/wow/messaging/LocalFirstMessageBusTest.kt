@@ -413,6 +413,32 @@ class LocalFirstMessageBusShutdownTest {
     }
 
     @Test
+    fun `runtime-owned subscription takes part in local admission through the one receive entry`() {
+        val localBus = MpscLocalBus()
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "custom", runtimeOwned = true),
+        )
+        val subscription = receiver.messages.subscribe { exchange ->
+            exchange.confirmLocalDelivery()
+        }
+
+        try {
+            receiver.openProcessing()
+
+            StepVerifier.create(bus.send(LocalFirstTestMessage(id = "custom-admitted")))
+                .verifyComplete()
+
+            distributedBus.sent.single().isLocalFirst().assert().isTrue()
+        } finally {
+            receiver.closeProcessing()
+            subscription.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
     fun `multicast suppression waits for every targeted runtime admission`() {
         val localBus = MulticastLocalBus()
         val distributedBus = RecordingDistributedBus()

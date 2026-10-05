@@ -22,11 +22,12 @@ flowchart TB
 
 ## CommandBus 契约
 
-`CommandBus` 是 `MessageBus<CommandMessage<*>, ServerCommandExchange<*>>`，固定 `TopicKind.COMMAND`。三个核心动作具有不同边界：
+`CommandBus` 是 `MessageBus<CommandMessage<*>, ServerCommandExchange<*>>`，固定 `TopicKind.COMMAND`。两个核心动作具有不同边界：
 
 - `send`：返回的 `Mono<Void>` 在具体 transport 接受发送后完成；
-- `receive`：按 `MessageSubscription` 返回 exchange 流；
-- `receiver`：在消息流之外暴露 transport readiness；`runtimeReceiver` 还允许 WowRuntime 控制 processing admission 和 quiescence。
+- `receiver`：唯一的接收入口。按 `MessageSubscription` 返回 `MessageReceiver`：exchange 流、transport readiness，以及 processing admission 与 quiescence。`runtimeOwned = true` 的订阅属于 WowRuntime 的 dispatcher；本地总线只让这类 receiver 参与 local-first 投递回执。
+
+自 9.3.0 起，`receive`（普通 exchange 流，等价于订阅时即打开 processing 的 `receiver(subscription)`）与 `runtimeReceiver`（等价于 `receiver(subscription.copy(runtimeOwned = true))`）已弃用，并委托给 `receiver`。
 
 `LocalCommandBus` 额外暴露订阅者数量和 `sendIfSubscribed`。后者只有在目标本地 receiver 已取得处理准入并确认本次投递仍有效时才能返回 `true`；sink 接受或订阅数本身不够。`DistributedCommandBus` 保留同一发送/接收合同，由后端定义持久化、消费组和 ack 机制。
 

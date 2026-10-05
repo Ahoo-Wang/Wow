@@ -271,6 +271,7 @@ public abstract class me/ahoo/wow/tck/messaging/MessageBusSpec : me/ahoo/wow/api
 	public abstract fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
 	public final fun localSubscriberCount ()V
 	protected fun onReceive (Lreactor/core/publisher/Flux;Lreactor/core/publisher/Sinks$Empty;)Lreactor/core/publisher/Flux;
+	protected final fun openedMessages (Lme/ahoo/wow/messaging/MessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public final fun receive ()V
 	public final fun receivePerformance ()V
 	public final fun send ()V

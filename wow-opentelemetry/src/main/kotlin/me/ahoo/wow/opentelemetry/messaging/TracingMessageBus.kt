@@ -23,7 +23,6 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.ReactorTraceContext
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : MessageBus<M, E>> :
@@ -36,15 +35,8 @@ interface TracingMessageBus<M : Message<*, *>, E : MessageExchange<*, M>, B : Me
             delegate.send(message)
         }
 
-    override fun receive(subscription: MessageSubscription): Flux<E> {
-        return delegate.receive(subscription)
-    }
-
     override fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
         delegate.receiver(subscription)
-
-    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
-        delegate.runtimeReceiver(subscription)
 
     override fun close() {
         delegate.close()

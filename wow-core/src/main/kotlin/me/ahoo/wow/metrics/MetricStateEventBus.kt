@@ -21,7 +21,6 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 internal open class MetricStateEventBus<T : StateEventBus>(
@@ -36,17 +35,8 @@ internal open class MetricStateEventBus<T : StateEventBus>(
             messageDescriptor(message, "send"),
         )
 
-    override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> =
-        metrics.stream(
-            delegate.receive(subscription),
-            receiveDescriptor(subscription),
-        )
-
     override fun receiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
         metricReceiver(delegate.receiver(subscription), subscription)
-
-    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
-        metricReceiver(delegate.runtimeReceiver(subscription), subscription)
 
     private fun metricReceiver(
         receiver: MessageReceiver<StateEventExchange<*>>,

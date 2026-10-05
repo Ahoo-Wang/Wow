@@ -137,9 +137,6 @@ abstract class AbstractKafkaBus<M, E>(
         return KafkaReceiver.create(receiverOptions)
     }
 
-    override fun receive(subscription: MessageSubscription): Flux<E> =
-        receive(subscription, onAssigned = null)
-
     @Suppress("TooGenericExceptionCaught")
     override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
         val readiness = Sinks.empty<Void>()
@@ -156,12 +153,12 @@ abstract class AbstractKafkaBus<M, E>(
                 readiness.tryEmitError(error)
             }
         }
-        val messages = receive(subscription) { consumer, positions ->
+        val messages = streamMessages(subscription) { consumer, positions ->
             if (positions.isEmpty()) {
                 if (pendingAnchors.get() == 0L) {
                     completeReadiness()
                 }
-                return@receive
+                return@streamMessages
             }
             pendingAnchors.incrementAndGet()
             try {
@@ -201,9 +198,9 @@ abstract class AbstractKafkaBus<M, E>(
         )
     }
 
-    private fun receive(
+    private fun streamMessages(
         subscription: MessageSubscription,
-        onAssigned: KafkaAssignmentListener?,
+        onAssigned: KafkaAssignmentListener,
     ): Flux<E> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(
@@ -216,12 +213,7 @@ abstract class AbstractKafkaBus<M, E>(
                 .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
             val customizedOptions = (contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options)
                 .withCommitBeforePause(::logCommitBatchSizeCapped)
-            val readyOptions = if (onAssigned == null) {
-                customizedOptions
-            } else {
-                readinessReceiverOptions(customizedOptions, onAssigned)
-            }
-            createReceiver(readyOptions)
+            createReceiver(readinessReceiverOptions(customizedOptions, onAssigned))
                 .receive(receiverPolicy.prefetchBatches)
                 .retryWhen(receiverPolicy.retrySpec)
                 .concatMap(::decodeRecord)

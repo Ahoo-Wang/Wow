@@ -136,8 +136,11 @@ The runtime subscribes to `messages` first, then waits for `readiness`; after ev
 `openProcessing`. On shutdown it calls `closeProcessing` before physical cancellation. `mapMessages` preserves these
 callbacks. A receiver supports exactly one message subscriber.
 
-Use `runtimeReceiver()` only for a dispatcher owned by `WowRuntime`; ordinary custom consumers should use
-`receiver()` unless they implement the same local admission receipt protocol. The conservative default
+`receiver()` is the one receive entry. Only a dispatcher owned by `WowRuntime` passes a subscription with
+`runtimeOwned = true`; ordinary custom consumers leave it `false` unless they implement the same local admission
+receipt protocol (`confirmLocalDelivery`/`rejectLocalDelivery`). Since 9.3.0 `runtimeReceiver()` and `receive()` are
+deprecated and delegate to `receiver()`; a bus that gave runtime receivers special behaviour in `runtimeReceiver()`
+moves it into `receiver()` for runtime-owned subscriptions, because the runtime now calls `receiver()`. The conservative default
 `LocalMessageBus.sendIfSubscribed()` is `false`. Subscriber count or sink acceptance alone cannot prove that every
 targeted receiver acquired processing admission.
 
@@ -146,7 +149,8 @@ Transport checks:
 - Redis readiness must create the required consumer groups without processing messages before admission opens;
 - Kafka readiness must complete only after its conservative assignment boundary is established; provision topics
   before runtime startup;
-- wrappers for tracing or metrics must delegate `runtimeReceiver()` unchanged, not fall back to `receiver()`.
+- wrappers for tracing or metrics must delegate `receiver()` unchanged, subscription included; the deprecated
+  `receive()` and `runtimeReceiver()` route through it.
 
 ## 4. Update Adjacent Extensions
 
