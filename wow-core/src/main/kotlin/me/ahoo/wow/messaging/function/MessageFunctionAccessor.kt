@@ -26,7 +26,7 @@ import me.ahoo.wow.messaging.handler.MessageExchange
  * @property processor The processor instance
  * @property metadata The function metadata
  */
-data class SimpleMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R>(
+internal data class SimpleMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
     override val metadata: FunctionAccessorMetadata<P, R>
 ) : MessageFunctionAccessor<P, M, R> {
@@ -59,7 +59,7 @@ data class SimpleMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, 
  * @property processor The processor instance
  * @property metadata The function metadata
  */
-data class InjectableMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R>(
+internal data class InjectableMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R>(
     override val processor: P,
     override val metadata: FunctionAccessorMetadata<P, R>
 ) : MessageFunctionAccessor<P, M, R> {

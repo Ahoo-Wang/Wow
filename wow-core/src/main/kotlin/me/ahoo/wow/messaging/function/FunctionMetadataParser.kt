@@ -48,7 +48,7 @@ import kotlin.reflect.jvm.jvmErasure
  * Provides utilities to analyze Kotlin functions and create metadata objects
  * that describe how message functions should be invoked.
  */
-object FunctionMetadataParser {
+internal object FunctionMetadataParser {
     /**
      * Parses a Kotlin function to create function accessor metadata.
      *

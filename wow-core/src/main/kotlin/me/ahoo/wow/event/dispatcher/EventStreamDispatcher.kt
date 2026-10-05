@@ -25,7 +25,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class EventStreamDispatcher(
+internal class EventStreamDispatcher(
     override val name: String,
     override val parallelism: Int,
     override val messageBus: DomainEventBus,

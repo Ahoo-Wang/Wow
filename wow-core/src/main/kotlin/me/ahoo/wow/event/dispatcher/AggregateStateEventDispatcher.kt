@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see EventHandler
  * @see Scheduler
  */
-class AggregateStateEventDispatcher(
+internal class AggregateStateEventDispatcher(
     override val name: String =
         "${namedAggregate.aggregateName}-${AggregateStateEventDispatcher::class.simpleName!!}",
     override val namedAggregate: NamedAggregate,

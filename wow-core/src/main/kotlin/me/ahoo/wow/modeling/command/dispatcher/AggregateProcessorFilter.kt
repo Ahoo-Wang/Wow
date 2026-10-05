@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.command.dispatcher
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
@@ -23,6 +24,7 @@ import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
 
+@InternalWowApi
 @Order(ORDER_DEFAULT)
 class AggregateProcessorFilter(
     private val serviceProvider: ServiceProvider,

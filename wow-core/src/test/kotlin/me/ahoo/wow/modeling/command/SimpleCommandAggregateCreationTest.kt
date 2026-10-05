@@ -36,7 +36,7 @@ class SimpleCommandAggregateCreationTest {
 
         commandAggregate.commandRoot.assert().isSameAs(stateRoot)
         commandAggregate.state.assert().isSameAs(stateAggregate)
-        commandAggregate.commandState.assert().isEqualTo(CommandState.STORED)
+        (commandAggregate as SimpleCommandAggregate<*, *>).commandState.assert().isEqualTo(CommandState.STORED)
         commandAggregate.processorName.assert().isEqualTo("SimpleCommandAggregate")
     }
 

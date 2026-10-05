@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono
  * @constructor Creates a new AbstractCommandFunction with the specified command aggregate and after functions.
  */
 @JvmDefaultWithoutCompatibility
-abstract class AbstractCommandFunction<C : Any>(
+internal abstract class AbstractCommandFunction<C : Any>(
     val commandAggregate: CommandAggregate<C, *>,
     private val afterCommandFunctions: List<AfterCommandFunction<C>>
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {

@@ -109,7 +109,7 @@ data class CommandResult(
  * @see WaitSignal
  * @see CommandResult
  */
-fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult =
+internal fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult =
     CommandResult(
         id = this.id,
         waitCommandId = waitCommandId,
@@ -146,7 +146,7 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult =
  * @see CommandResult
  * @see Throwable.toErrorInfo
  */
-fun Throwable.toResult(
+internal fun Throwable.toResult(
     waitCommandId: String,
     commandMessage: CommandMessage<*>,
     function: FunctionInfoData = COMMAND_GATEWAY_FUNCTION,

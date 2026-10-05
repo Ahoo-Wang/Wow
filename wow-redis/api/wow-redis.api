@@ -226,12 +226,9 @@ public final class me/ahoo/wow/redis/bus/RedisServerCommandExchange : me/ahoo/wo
 	public fun clearError ()V
 	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
 	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
-	public fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
-	public fun getAggregateProcessor ()Lme/ahoo/wow/modeling/command/AggregateProcessor;
 	public fun getAggregateVersion ()Ljava/lang/Integer;
 	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
 	public fun getAttributes ()Ljava/util/Map;
-	public fun getCommandInvokeResult ()Ljava/lang/Object;
 	public fun getCommandResult ()Ljava/util/Map;
 	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
 	public fun getError ()Ljava/lang/Throwable;
@@ -243,15 +240,10 @@ public final class me/ahoo/wow/redis/bus/RedisServerCommandExchange : me/ahoo/wo
 	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
 	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/command/ServerCommandExchange;
 	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
-	public fun setAggregateMetadata (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lme/ahoo/wow/command/ServerCommandExchange;
-	public fun setAggregateProcessor (Lme/ahoo/wow/modeling/command/AggregateProcessor;)Lme/ahoo/wow/command/ServerCommandExchange;
-	public fun setAggregateVersion (I)Lme/ahoo/wow/command/ServerCommandExchange;
 	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
 	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
-	public fun setCommandInvokeResult (Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
 	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
 	public fun setError (Ljava/lang/Throwable;)V
-	public fun setEventStream (Lme/ahoo/wow/event/DomainEventStream;)Lme/ahoo/wow/command/ServerCommandExchange;
 	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/command/ServerCommandExchange;
 	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
 	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/command/ServerCommandExchange;

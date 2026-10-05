@@ -50,7 +50,7 @@ import reactor.core.publisher.Mono
  * @see MessageFunctionRegistrar
  * @see EventHandler
  */
-abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>>(
+internal abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>>(
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},

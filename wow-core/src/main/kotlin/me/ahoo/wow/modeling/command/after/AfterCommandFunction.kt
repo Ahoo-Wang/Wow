@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono
  *
  * @constructor Creates a new AfterCommandFunction with the specified metadata and delegate.
  */
-class AfterCommandFunction<C : Any>(
+internal class AfterCommandFunction<C : Any>(
     val metadata: AfterCommandFunctionMetadata<C>,
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>
 ) : MessageFunction<C, ServerCommandExchange<*>, Mono<*>> by delegate,

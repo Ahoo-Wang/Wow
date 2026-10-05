@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.modeling.command
 
+import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregate
 import org.junit.jupiter.api.Test
 
 class ExchangeCommandAggregateTest {
@@ -28,5 +31,17 @@ class ExchangeCommandAggregateTest {
 
         exchange.setCommandAggregate(aggregate).assert().isSameAs(exchange)
         exchange.getCommandAggregate<Any, Any>().assert().isSameAs(aggregate)
+    }
+
+    @Test
+    fun `command functions read the state aggregate without the command aggregate SPI`() {
+        val exchange = SimpleServerCommandExchange(mockk<CommandMessage<Any>>(relaxed = true))
+        val state = mockk<StateAggregate<Any>>()
+        val aggregate = mockk<CommandAggregate<Any, Any>> {
+            every { this@mockk.state } returns state
+        }
+        exchange.setCommandAggregate(aggregate)
+
+        exchange.extractDeclared(ReadOnlyStateAggregate::class.java).assert().isSameAs(state)
     }
 }

@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -24,6 +25,7 @@ import me.ahoo.wow.modeling.state.StateAggregate
  *
  * @param eventStore The event store to be used by created command aggregates.
  */
+@WowSpi
 class SimpleCommandAggregateFactory(
     private val eventStore: EventStore
 ) : CommandAggregateFactory {

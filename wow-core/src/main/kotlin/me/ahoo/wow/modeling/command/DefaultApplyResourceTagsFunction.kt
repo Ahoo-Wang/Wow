@@ -20,7 +20,7 @@ import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-class DefaultApplyResourceTagsFunction<C : Any>(
+internal class DefaultApplyResourceTagsFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
 ) : InternalCommandFunction<C>(commandAggregate, afterCommandFunctions) {

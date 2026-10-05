@@ -112,6 +112,16 @@ When the aggregate fails before producing a stream, the exchange is still acknow
 
 Successful `PROCESSED` therefore means aggregate execution, event append, command acknowledgement, and `DomainEventBus.send` completed, and `SendStateEventFilter` also completed; when state is initialized, the `StateEventBus.send` attempt returned. It does not guarantee successful StateEvent publication or mean snapshot, projection, event handler, or Saga completion. A failed signal alone also cannot prove that no event was appended; inspect authoritative history as described in [Failures and Idempotency](../reliability.md).
 
+## API tiers
+
+The types on this page are implementation, not application API. Since 9.3.0 wow-core says so in code:
+
+- `CommandAggregate`, its supertype `AggregateProcessor`, `CommandAggregateFactory` and `SimpleCommandAggregateFactory` are marked `@WowSpi`. Code that supplies its own command aggregate opts in with `@OptIn(WowSpi::class)`; without it the compiler warns. They keep their binary signatures within a minor line, and a minor release may change them in its release notes.
+- `AggregateProcessorFactory`, `RetryableAggregateProcessorFactory`, `AggregateProcessorFilter`, `SendDomainEventStreamFilter`, `SimpleStateAggregate`, the function-metadata types (`FunctionAccessorMetadata`, `InjectParameter`, `FirstParameterKind`, `AfterCommandFunctionMetadata`, `MessageFunctionRegistrar`, `SimpleMessageFunctionRegistrar`), the event-dispatcher bases (`CompositeEventDispatcher`, `AbstractEventFunctionRegistrar`, `EventHandler`), `COMMAND_GATEWAY_FUNCTION`, and the exchange accessors for the processor, the metadata, the invoke result, the event stream setter and the version setter are `@InternalWowApi`: Wow's own modules wire them and they may change in any release.
+- `RetryableAggregateProcessor`, `SimpleCommandAggregate`, `CommandState`, the command functions (`CommandFunction`, `AfterCommandFunction` and the built-in delete, recover and resource-tag functions), the exchange attribute keys, the function accessors and the aggregate and state event dispatchers are `internal`.
+
+Applications send commands through `CommandGateway`, handle them with `@OnCommand` functions and read `ServerCommandExchange.getEventStream()`; none of that needs an opt-in. A command function that needs the current state takes a `ReadOnlyStateAggregate<S>` parameter (for example to read `initialized`), not a `CommandAggregate`.
+
 ## Source entry points
 
 - [`DefaultCommandGateway`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt)

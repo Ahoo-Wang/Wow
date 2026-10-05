@@ -13,6 +13,7 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.event.DomainEventStream
@@ -36,9 +37,9 @@ import reactor.core.publisher.Mono
  *
  * @param C The type of the command aggregate root.
  * @param S The type of the state aggregate.
- * The [state] contains the current aggregate state, [commandRoot] is the command aggregate root,
- * and [commandState] tracks the current command-processing state.
+ * The [state] contains the current aggregate state and [commandRoot] is the command aggregate root.
  */
+@WowSpi
 interface CommandAggregate<C : Any, S : Any> :
     NamedTypedAggregate<C>,
     AggregateProcessor<C>,
@@ -50,7 +51,6 @@ interface CommandAggregate<C : Any, S : Any> :
 
     val state: StateAggregate<S>
     val commandRoot: C
-    val commandState: CommandState
 }
 
 /**
@@ -63,7 +63,7 @@ interface CommandAggregate<C : Any, S : Any> :
  * - SOURCED: After sourcing, supports storing events
  * - EXPIRED: Final state, no operations supported
  */
-enum class CommandState {
+internal enum class CommandState {
     STORED {
         override fun onSourcing(
             stateAggregate: StateAggregate<*>,

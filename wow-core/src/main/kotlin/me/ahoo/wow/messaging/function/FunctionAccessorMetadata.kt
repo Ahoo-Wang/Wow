@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.FunctionKind
@@ -28,6 +29,7 @@ import kotlin.reflect.KType
 /**
  * Enumeration of the different kinds of first parameters that message functions can accept.
  */
+@InternalWowApi
 enum class FirstParameterKind {
     /**
      * The function accepts a MessageExchange as its first parameter.
@@ -50,6 +52,7 @@ enum class FirstParameterKind {
  *
  * @property parameter The Kotlin parameter reflection object
  */
+@InternalWowApi
 data class InjectParameter(
     val parameter: KParameter
 ) {
@@ -83,6 +86,7 @@ data class InjectParameter(
  * @property firstParameterKind How the first parameter should be extracted
  * @property injectParameters Array of parameters that need dependency injection
  */
+@InternalWowApi
 data class FunctionAccessorMetadata<P, out R>(
     override val functionKind: FunctionKind,
     val accessor: FunctionAccessor<P, R>,

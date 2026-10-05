@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono
  * Useful for error-tolerant message processing where failures should be logged
  * but not propagated.
  */
-object LogResumeErrorMessageHandler {
+internal object LogResumeErrorMessageHandler {
     private val log = KotlinLogging.logger { }
 
     /**
@@ -45,4 +45,4 @@ object LogResumeErrorMessageHandler {
  * @receiver The Mono that might contain errors
  * @return A Mono that logs errors and resumes with empty
  */
-fun <T : Any> Mono<T>.logErrorResume(): Mono<T> = LogResumeErrorMessageHandler.handle(this)
+internal fun <T : Any> Mono<T>.logErrorResume(): Mono<T> = LogResumeErrorMessageHandler.handle(this)

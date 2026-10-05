@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -24,6 +25,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
  * Implementations of this interface are responsible for instantiating aggregate processors
  * for specific aggregate instances.
  */
+@InternalWowApi
 interface AggregateProcessorFactory {
     /**
      * Creates an aggregate processor for the specified aggregate ID and metadata.
@@ -50,6 +52,7 @@ interface AggregateProcessorFactory {
  * @param stateAggregateRepository Repository for accessing state aggregates.
  * @param commandAggregateFactory Factory for creating command aggregates.
  */
+@InternalWowApi
 class RetryableAggregateProcessorFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val stateAggregateRepository: StateAggregateRepository,

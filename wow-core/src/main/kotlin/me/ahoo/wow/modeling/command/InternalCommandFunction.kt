@@ -18,7 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.materialize
 
-abstract class InternalCommandFunction<C : Any>(
+internal abstract class InternalCommandFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
 ) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions) {
