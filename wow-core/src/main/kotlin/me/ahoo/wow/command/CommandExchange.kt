@@ -20,9 +20,7 @@ import me.ahoo.wow.api.exception.ErrorInfo.Companion.isFailed
 import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.command.AggregateProcessor
 import me.ahoo.wow.modeling.command.getCommandAggregate
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -41,8 +39,6 @@ interface CommandExchange<SOURCE : CommandExchange<SOURCE, C>, C : Any> : Messag
 
 internal const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
 internal const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
-internal const val AGGREGATE_METADATA_KEY = "__AGGREGATE_METADATA__"
-internal const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
 internal const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
 
 /**
@@ -58,35 +54,6 @@ internal const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
  * @see DomainEventStream
  */
 interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
-    @InternalWowApi
-    fun setAggregateMetadata(aggregateMetadata: AggregateMetadata<*, *>): ServerCommandExchange<C> =
-        setAttribute(AGGREGATE_METADATA_KEY, aggregateMetadata)
-
-    @InternalWowApi
-    fun getAggregateMetadata(): AggregateMetadata<*, *>? = getAttribute(AGGREGATE_METADATA_KEY)
-
-    /**
-     * Sets the aggregate processor responsible for handling this command.
-     *
-     * @param aggregateProcessor the aggregate processor instance
-     * @return this exchange instance for method chaining
-     * @see AggregateProcessor
-     * @see getAggregateProcessor
-     */
-    @InternalWowApi
-    fun setAggregateProcessor(aggregateProcessor: AggregateProcessor<*>): ServerCommandExchange<C> =
-        setAttribute(AGGREGATE_PROCESSOR_KEY, aggregateProcessor)
-
-    /**
-     * Gets the aggregate processor responsible for handling this command.
-     *
-     * @return the aggregate processor instance, or null if not set
-     * @see AggregateProcessor
-     * @see setAggregateProcessor
-     */
-    @InternalWowApi
-    fun getAggregateProcessor(): AggregateProcessor<C>? = getAttribute(AGGREGATE_PROCESSOR_KEY)
-
     /**
      * Sets the result of invoking the command on the aggregate.
      *

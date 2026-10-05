@@ -95,8 +95,11 @@ public final class me/ahoo/wow/opentelemetry/aggregate/AggregateSpanNameExtracto
 	public fun extract (Lme/ahoo/wow/command/ServerCommandExchange;)Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/opentelemetry/aggregate/TraceAggregateFilter : me/ahoo/wow/opentelemetry/TraceFilter, me/ahoo/wow/modeling/command/dispatcher/CommandFilter, me/ahoo/wow/opentelemetry/Traced {
-	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/aggregate/TraceAggregateFilter;
+public final class me/ahoo/wow/opentelemetry/aggregate/TraceCommandInstrumentation : me/ahoo/wow/modeling/command/dispatcher/CommandInstrumentation, me/ahoo/wow/opentelemetry/Traced {
+	public fun <init> ()V
+	public fun <init> (Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun around (Lme/ahoo/wow/command/ServerCommandExchange;Lreactor/core/publisher/Mono;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/opentelemetry/eventprocessor/EventProcessorInstrumenter {

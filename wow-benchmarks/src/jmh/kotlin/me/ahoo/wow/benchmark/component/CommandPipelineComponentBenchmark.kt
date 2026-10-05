@@ -78,7 +78,7 @@ open class CommandPipelineComponentBenchmark {
     @Benchmark
     fun handleAggregateOnly(blackhole: Blackhole) {
         val result = commandPipelineScenario.aggregateOnlyHandler
-            .handle(commandPipelineScenario.createServerExchange())
+            .handle(commandPipelineScenario.createServerExchange(), commandPipelineScenario.aggregateMetadata)
             .block()
         blackhole.consume(result)
     }
@@ -86,7 +86,7 @@ open class CommandPipelineComponentBenchmark {
     @Benchmark
     fun handleAggregateWithoutRetry(blackhole: Blackhole) {
         val result = commandPipelineScenario.aggregateOnlyWithoutRetryHandler
-            .handle(commandPipelineScenario.createServerExchange())
+            .handle(commandPipelineScenario.createServerExchange(), commandPipelineScenario.aggregateMetadata)
             .block()
         blackhole.consume(result)
     }
@@ -94,7 +94,7 @@ open class CommandPipelineComponentBenchmark {
     @Benchmark
     fun handleAggregateAndSendDomainEvent(blackhole: Blackhole) {
         val result = commandPipelineScenario.aggregateAndDomainEventHandler
-            .handle(commandPipelineScenario.createServerExchange())
+            .handle(commandPipelineScenario.createServerExchange(), commandPipelineScenario.aggregateMetadata)
             .block()
         blackhole.consume(result)
     }
@@ -102,7 +102,7 @@ open class CommandPipelineComponentBenchmark {
     @Benchmark
     fun handleAggregateAndSendDomainStateEvents(blackhole: Blackhole) {
         val result = commandPipelineScenario.aggregateDomainAndStateEventHandler
-            .handle(commandPipelineScenario.createServerExchange())
+            .handle(commandPipelineScenario.createServerExchange(), commandPipelineScenario.aggregateMetadata)
             .block()
         blackhole.consume(result)
     }
@@ -110,7 +110,7 @@ open class CommandPipelineComponentBenchmark {
     @Benchmark
     fun handleAggregateAndNotifyProcessedWithoutWait(blackhole: Blackhole) {
         val result = commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
-            .handle(commandPipelineScenario.createServerExchange())
+            .handle(commandPipelineScenario.createServerExchange(), commandPipelineScenario.aggregateMetadata)
             .block()
         blackhole.consume(result)
     }
@@ -123,7 +123,7 @@ open class CommandPipelineComponentBenchmark {
         waitPlan.propagate(SimpleCommandWaitEndpoint(""), commandMessage.header)
         val exchange = commandPipelineScenario.createServerExchange(commandMessage)
         val result = commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
-            .handle(exchange)
+            .handle(exchange, commandPipelineScenario.aggregateMetadata)
             .then(handle.await())
             .block()
         blackhole.consume(result)

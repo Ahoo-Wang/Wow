@@ -32,7 +32,7 @@ package me.ahoo.wow.api.event
  *
  * **Effects:**
  * - [me.ahoo.wow.modeling.state.StateAggregate.onSourcing] skips sourcing this event and doesn't change aggregate version
- * - [me.ahoo.wow.eventsourcing.state.SendStateEventFilter] ignores uninitialized state aggregates for state event bus
+ * - `me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler` sends no state event for an uninitialized state aggregate
  * - Aggregate snapshot processors cannot receive this state event (not stored in snapshot repository)
  *
  * @see me.ahoo.wow.api.exception.ErrorInfo for error event marking

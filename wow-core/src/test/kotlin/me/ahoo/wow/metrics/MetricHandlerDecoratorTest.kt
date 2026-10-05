@@ -29,6 +29,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import org.junit.jupiter.api.BeforeEach
@@ -48,14 +49,16 @@ class MetricHandlerDecoratorTest {
     @Test
     fun `command handler should delegate and record message identity`() {
         val exchange = SimpleServerCommandExchange(TestCommandMessage(id = "command-id"))
+        val aggregateMetadata = mockk<AggregateMetadata<*, *>>()
         val delegate = mockk<CommandHandler> {
-            every { handle(exchange) } returns Mono.empty()
+            every { handle(exchange, aggregateMetadata) } returns Mono.empty()
         }
 
-        StepVerifier.create(MetricCommandHandler(delegate, metrics, "command-handler").handle(exchange))
-            .verifyComplete()
+        StepVerifier.create(
+            MetricCommandHandler(delegate, metrics, "command-handler").handle(exchange, aggregateMetadata),
+        ).verifyComplete()
 
-        verify(exactly = 1) { delegate.handle(exchange) }
+        verify(exactly = 1) { delegate.handle(exchange, aggregateMetadata) }
         registry.operationTags("command_handler")[MetricDescriptor.MESSAGE_TAG]
             .assert()
             .isEqualTo(exchange.message.name)

@@ -154,6 +154,20 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `Flux<AggregateId>.toBatchResult(afterId)`、`ResendStateEventHandler.handle(afterId, limit)` | `toBatchResult(afterId, request, exceptionHandler)`、`resend(afterId, limit)` |
 | 非 bean 的 `WebFluxAutoConfiguration.commandMessageExtractor`、`queryRequestScope`、`commandRouterFunction`、`pointReadAdmission` 重载，`CoSecAutoConfiguration.coSecCommandBuilderExtractor` / `coSecQueryRequestScope`，三参数的 `OpenAPIAutoConfiguration.routerSpecs` | 同名的 `@Bean` 方法 |
 
+### 命令过滤器改为固定管道（9.3.0）
+
+命令侧不再有过滤器链。`DefaultCommandHandler` 按固定顺序执行处理、确认、领域事件与状态事件发布以及 `PROCESSED` 报告（见[命令处理管道](./command/internals/pipeline.md#bus-到-dispatcher)）。`ExchangeFilter<ServerCommandExchange<*>>` Bean 不再被调用，按它原来的用途改到对应的扩展点：
+
+| 已删除 | 改用 |
+|---|---|
+| 用于追踪、指标或日志的 `CommandFilter`，或带 `@FilterType(CommandDispatcher::class)` 的 `ExchangeFilter` | `CommandInstrumentation` Bean；`around(exchange, handling)` 包住每条命令的处理，必须原样返回结果 |
+| 检查或拒绝命令的命令过滤器 | 命令上的 `CommandValidator` / Jakarta 校验（在网关处执行），或在命令函数中检查 |
+| 响应已提交事件的命令过滤器 | 事件处理器、Saga 或投影 |
+| `TraceAggregateFilter`（OpenTelemetry） | 由 starter 注册的 `TraceCommandInstrumentation`；span 名称与属性不变 |
+| `AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SendStateEventFilter`、`ProcessedNotifierFilter`、`DefaultCommandHandler(chain, errorHandler)` | `DefaultCommandHandler(serviceProvider, aggregateProcessorFactory, domainEventBus, stateEventBus, commandWaitNotifier, instrumentations, errorHandler)` |
+| `CommandHandler.handle(exchange)` | `CommandHandler.handle(exchange, aggregateMetadata)` |
+| `ServerCommandExchange.setAggregateMetadata` / `getAggregateMetadata` / `setAggregateProcessor` / `getAggregateProcessor` | 处理器以参数接收 metadata |
+
 ### Mongo 所有权保护
 
 参见 [v6 → v8：Mongo 所有权保护](./migration/v6-to-v8.md#mongo-所有权保护)。

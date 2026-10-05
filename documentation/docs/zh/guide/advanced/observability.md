@@ -18,7 +18,7 @@ Wow 从两个角度观察同一条运行时管线：
 
 ## OpenTelemetry 模块注入的内容
 
-Spring starter 注册五个处理过滤器，并装饰受支持的基础设施 Bean：
+Spring starter 注册一个命令 instrumentation（`TraceCommandInstrumentation`，自 9.3.0 起；此前是命令过滤器 `TraceAggregateFilter`）和四个事件侧处理过滤器，并装饰受支持的基础设施 Bean：
 
 | 运行阶段 | instrumentation scope | 代表性 span 名称 |
 |---|---|---|
@@ -37,12 +37,12 @@ Spring starter 注册五个处理过滤器，并装饰受支持的基础设施 B
 attribute extractor，因此 `.waiting` span 不会自动获得这些 Wow message 或 aggregate attribute。这些是
 trace attribute，不是低基数指标标签。
 
-producer instrumenter 把 OpenTelemetry 传播头注入 Wow message header，consumer filter 再提取它们。
+producer instrumenter 把 OpenTelemetry 传播头注入 Wow message header，consumer filter 与命令 instrumentation 再提取它们。
 `TraceMono` 与 `TraceFlux` 会在订阅和异步 signal 上恢复 OpenTelemetry `Context`，并在完成、错误或取消
 时结束 span。wait decorator 保留 CommandGateway 的 runtime receiver/admission 契约。
 
 所有 instrumenter 都在单例对象初始化时捕获 `GlobalOpenTelemetry`。必须在 Wow ApplicationContext 创建
-filter 或 decorator 前初始化 SDK；OpenTelemetry Java Agent 在应用引导前启动，天然满足此顺序。
+filter、instrumentation 或 decorator 前初始化 SDK；OpenTelemetry Java Agent 在应用引导前启动，天然满足此顺序。
 
 ## 关联你自己的 Span
 

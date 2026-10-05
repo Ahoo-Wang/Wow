@@ -152,7 +152,10 @@ class CommandDispatcherLifecycleTest {
     }
 
     private object NoOpCommandHandler : CommandHandler {
-        override fun handle(context: ServerCommandExchange<*>): Mono<Void> = Mono.empty()
+        override fun handle(
+            exchange: ServerCommandExchange<*>,
+            aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>
+        ): Mono<Void> = Mono.empty()
     }
 
     private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {

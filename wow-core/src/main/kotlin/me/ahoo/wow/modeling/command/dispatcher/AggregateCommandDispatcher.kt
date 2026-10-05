@@ -77,10 +77,8 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
      * @param exchange The command exchange to handle.
      * @return A Mono that completes when the exchange has been processed.
      */
-    override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
-        exchange.setAggregateMetadata(aggregateMetadata)
-        return commandHandler.handle(exchange)
-    }
+    override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> =
+        commandHandler.handle(exchange, aggregateMetadata)
 
     /**
      * Generates a group key for the command exchange to ensure proper parallelism and ordering.

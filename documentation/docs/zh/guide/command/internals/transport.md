@@ -72,7 +72,7 @@ Redis 与 Kafka 的发送完成条件不同，二者都不等于聚合已经处�
 
 ## Void
 
-`LocalFirstCommandBus.send` 对 `isVoid` 命令强制写入 `local_first=false`，跳过本地优先投递并只走 distributed send。`CommandDispatcher` 接收后又用 `filterThenAck` 确认并过滤 `Void` 命令，所以它不会进入聚合 Filter chain，也不会产生 `PROCESSED` 及更晚阶段。
+`LocalFirstCommandBus.send` 对 `isVoid` 命令强制写入 `local_first=false`，跳过本地优先投递并只走 distributed send。`CommandDispatcher` 接收后又用 `filterThenAck` 确认并过滤 `Void` 命令，所以它不会进入命令管道，也不会产生 `PROCESSED` 及更晚阶段。
 
 相应地，Gateway 只允许 `supportVoidCommand=true` 的等待计划；内置 `CommandWait.sent` 支持该合同，其他阶段计划会在发送前失败。Void 路径的可观察边界就是 transport 接受，不应把它描述为聚合执行完成。
 

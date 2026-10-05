@@ -19,7 +19,6 @@ import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
-import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusType
@@ -72,10 +71,5 @@ class StateAutoConfiguration {
         distributedBus: DistributedStateEventBus
     ): LocalFirstStateEventBus {
         return LocalFirstStateEventBus(distributedBus, localBus)
-    }
-
-    @Bean
-    fun sendStateEventFilter(stateEventBus: StateEventBus): SendStateEventFilter {
-        return SendStateEventFilter(stateEventBus)
     }
 }

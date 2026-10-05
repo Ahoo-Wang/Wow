@@ -22,8 +22,6 @@ import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.event.DomainEventException
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.modeling.command.AggregateProcessor
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import org.junit.jupiter.api.Test
 
 class SimpleServerCommandExchangeTest {
@@ -32,18 +30,12 @@ class SimpleServerCommandExchangeTest {
     fun `should store command processing attributes`() {
         val message = AccountCommand(id = "account-1").toCommandMessage()
         val exchange = SimpleServerCommandExchange(message)
-        val aggregateMetadata = mockk<AggregateMetadata<*, *>>()
-        val aggregateProcessor = mockk<AggregateProcessor<*>>()
         val eventStream = mockk<DomainEventStream>()
 
-        exchange.setAggregateMetadata(aggregateMetadata).assert().isSameAs(exchange)
-        exchange.setAggregateProcessor(aggregateProcessor).assert().isSameAs(exchange)
         exchange.setCommandInvokeResult("handled").assert().isSameAs(exchange)
         exchange.setEventStream(eventStream).assert().isSameAs(exchange)
         exchange.setAggregateVersion(7).assert().isSameAs(exchange)
 
-        exchange.getAggregateMetadata().assert().isSameAs(aggregateMetadata)
-        exchange.getAggregateProcessor().assert().isSameAs(aggregateProcessor)
         exchange.getCommandInvokeResult<String>().assert().isEqualTo("handled")
         exchange.getEventStream().assert().isSameAs(eventStream)
         exchange.getAggregateVersion().assert().isEqualTo(7)

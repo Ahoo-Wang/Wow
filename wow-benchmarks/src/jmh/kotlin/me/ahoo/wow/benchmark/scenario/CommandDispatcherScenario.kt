@@ -26,7 +26,6 @@ import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.DomainEventBus
@@ -37,18 +36,14 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.runtime.WowRuntime
@@ -107,16 +102,17 @@ class CommandDispatcherScenario private constructor(
                 stateAggregateRepository,
                 SimpleCommandAggregateFactory(eventStore),
             )
-            val chain = FilterChainBuilder<ServerCommandExchange<*>>()
-                .addFilter(AggregateProcessorFilter(SimpleServiceProvider(), aggregateProcessorFactory))
-                .addFilter(SendDomainEventStreamFilter(domainEventBus))
-                .addFilter(SendStateEventFilter(stateEventBus))
-                .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
-                .build()
+            val commandHandler = DefaultCommandHandler(
+                serviceProvider = SimpleServiceProvider(),
+                aggregateProcessorFactory = aggregateProcessorFactory,
+                domainEventBus = domainEventBus,
+                stateEventBus = stateEventBus,
+                commandWaitNotifier = commandWaitNotifier,
+            )
             val commandDispatcher = CommandDispatcher(
                 namedAggregates = setOf(namedAggregate),
                 commandBus = gatewayScenario.commandGateway,
-                commandHandler = DefaultCommandHandler(chain),
+                commandHandler = commandHandler,
                 schedulerSupplier = schedulerSupplier,
             )
             val runtime = WowRuntime(

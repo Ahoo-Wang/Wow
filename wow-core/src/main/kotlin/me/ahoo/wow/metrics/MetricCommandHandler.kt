@@ -15,6 +15,7 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import reactor.core.publisher.Mono
 
 internal class MetricCommandHandler(
@@ -23,9 +24,9 @@ internal class MetricCommandHandler(
     source: String,
 ) : MetricComponentDecorator<CommandHandler>(delegate, metrics, source),
     CommandHandler {
-    override fun handle(context: ServerCommandExchange<*>): Mono<Void> =
+    override fun handle(context: ServerCommandExchange<*>, aggregateMetadata: AggregateMetadata<*, *>): Mono<Void> =
         metrics.operation(
-            delegate.handle(context),
+            delegate.handle(context, aggregateMetadata),
             descriptor(
                 component = "command_handler",
                 operation = "handle",

@@ -9,7 +9,6 @@ import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
-import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusType
@@ -38,7 +37,6 @@ class StateAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(InMemoryStateEventBus::class.java)
                     .hasSingleBean(StateEventCompensator::class.java)
-                    .hasSingleBean(SendStateEventFilter::class.java)
                     .hasSingleBean(StateEventCompensator::class.java)
             }
     }

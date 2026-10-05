@@ -15,8 +15,8 @@ flowchart TB
     Caller[调用方] --> Gateway[DefaultCommandGateway]
     Gateway --> Bus[CommandBus]
     Bus --> Dispatcher[CommandDispatcher]
-    Dispatcher --> Handler[Command Filter chain]
-    Handler --> Processor[AggregateProcessorFilter]
+    Dispatcher --> Handler[DefaultCommandHandler]
+    Handler --> Processor[AggregateProcessor]
     Processor --> Aggregate[SimpleCommandAggregate]
     Aggregate --> Store[EventStore.append]
     Processor --> Ack[exchange.acknowledge]
@@ -25,7 +25,7 @@ flowchart TB
     StateBus --> Processed[PROCESSED notifier]
 ```
 
-`CommandBus` 只负责投递和接收信封；`CommandDispatcher` 按具名聚合建立处理器，并把同一聚合 ID 映射到稳定的调度组；`CommandFilter` 链定义处理前后边界；聚合执行、事件持久化、transport ack、领域事件发布与状态事件发布是不同步骤。
+`CommandBus` 只负责投递和接收信封；`CommandDispatcher` 按具名聚合建立处理器，并把同一聚合 ID 映射到稳定的调度组；`DefaultCommandHandler` 按固定顺序执行命令管道；聚合执行、事件持久化、transport ack、领域事件发布与状态事件发布是不同步骤。
 
 ## 发送前管道
 
@@ -43,22 +43,30 @@ flowchart TB
 
 `CommandBus.receiver`（运行时的 `CommandDispatcher` 使用 runtime-owned 订阅）产生 `ServerCommandExchange`。`CommandDispatcher` 先过滤 `isVoid` 消息：这些消息会被确认但不会进入聚合命令链；普通命令继续按 `NamedAggregate` 分派。
 
-每个 `AggregateCommandDispatcher` 从 metadata 得到聚合类型，并按 aggregate ID 计算 group key。同一 ID 的命令保持调度亲和性，多个 ID 可共享 worker；这避免同一聚合在本进程内并发执行，但不替代 EventStore 的持久版本约束。
+每个 `AggregateCommandDispatcher` 持有本聚合的 metadata，随每条命令传给 `CommandHandler`，并按 aggregate ID 计算 group key。同一 ID 的命令保持调度亲和性，多个 ID 可共享 worker；这避免同一聚合在本进程内并发执行，但不替代 EventStore 的持久版本约束。
 
-`DefaultCommandHandler` 执行按 `@Order` 排序的 Filter chain。核心顺序是：
+`DefaultCommandHandler` 执行一条固定顺序的管道，命令侧不再有过滤器链（自 9.3.0 起；此前是按 `@Order` 排序的 `CommandFilter` Bean）：
 
 ```text
-ProcessedNotifierFilter
-  -> AggregateProcessorFilter
-    -> SendDomainEventStreamFilter
-      -> SendStateEventFilter
+CommandInstrumentation (each, the first outermost)
+  -> PROCESSED report
+    -> aggregate processing, then acknowledgement
+      -> DomainEventBus.send
+        -> StateEventBus.send attempt
 ```
 
-第一个 Filter 位于最外层，因此它观察的是内部整条管线的完成或错误，而不是只观察聚合函数返回。
+外层步骤包住内层步骤，因此观察的是内部整条管线的完成或错误，而不是只观察聚合函数返回。原来需要命令过滤器的场景，对应到类型化的扩展点：
+
+| 需求 | 自 9.3.0 起 |
+| --- | --- |
+| 每条命令的追踪、指标、日志 | 注册 `CommandInstrumentation` Bean：`around(exchange, handling)` 包住整条管道，不得改变结果。OpenTelemetry 模块的 `TraceCommandInstrumentation` 取代 `TraceAggregateFilter`。多个 instrumentation 按 `@Order` 依次包裹。 |
+| 命令执行前的检查或拒绝 | 在网关处校验命令（`CommandValidator`、Jakarta 校验），或在命令函数中检查；它抛出的异常让命令失败。 |
+| 响应已提交的事件 | 在发布的事件上编写事件处理器、Saga 或投影。 |
+| 改变命令函数收到的参数 | 注入参数（Spring Bean，或 exchange 提供的值）。 |
 
 ## 聚合恢复与调用
 
-`AggregateProcessorFilter` 为 exchange 放入 `ServiceProvider` 和聚合 metadata，再按聚合身份创建 `AggregateProcessor`。默认 `RetryableAggregateProcessor`：
+`DefaultCommandHandler` 为 exchange 放入 `ServiceProvider`，再按聚合身份与 metadata 创建 `AggregateProcessor`。默认 `RetryableAggregateProcessor`：
 
 - 创建命令直接构造空的 StateAggregate；
 - 其他命令从 `StateAggregateRepository` 恢复状态；
@@ -88,7 +96,7 @@ invoke command (reads state)
 
 ## ack/事件发送顺序
 
-`AggregateProcessorFilter` 对聚合处理结果使用 `finallyAck`。因此无论聚合处理成功还是报错，都会先执行 exchange 的 transport ack；成功路径再进入下一个 Filter。`SendDomainEventStreamFilter` 从 exchange 取得事件流，并在继续链之前等待 `DomainEventBus.send` 完成。其后的 `SendStateEventFilter` 在状态已初始化且已应用这条事件流（版本等于事件流的版本）时复制事件流与当前状态，转换成 `StateEvent` 并尝试 `StateEventBus.send`。
+`DefaultCommandHandler` 对聚合处理结果使用 `finallyAck`。因此无论聚合处理成功还是报错，都会先执行 exchange 的 transport ack；只有成功路径才发布。它发送处理器返回的事件流，并在继续之前等待 `DomainEventBus.send` 完成；随后在状态已初始化且已应用这条事件流（版本等于事件流的版本）时复制事件流与当前状态，转换成 `StateEvent` 并尝试 `StateEventBus.send`。
 
 实际顺序是：
 
@@ -100,27 +108,27 @@ EventStore.append
   -> PROCESSED signal
 ```
 
-如果聚合在形成事件流前失败，仍会 ack，但不会进入事件发送 Filter。若事件已经追加，而 `DomainEventBus.send` 失败，transport ack 已经发生，错误会继续传播，`StateEventBus.send` 不会执行，`PROCESSED` 会观察到失败；因此不能把领域事件发布失败解释为“事件未保存”，也不能假定 command transport 会重投它。
+如果聚合在形成事件流前失败，仍会 ack，但不会发布任何内容。若事件已经追加，而 `DomainEventBus.send` 失败，transport ack 已经发生，错误会继续传播，`StateEventBus.send` 不会执行，`PROCESSED` 会观察到失败；因此不能把领域事件发布失败解释为“事件未保存”，也不能假定 command transport 会重投它。
 
-`StateEventBus.send` 的失败边界不同：`SendStateEventFilter` 使用 `logErrorResume()` 记录错误并恢复为空完成，随后继续 Filter chain。于是成功的 `PROCESSED` 只证明 StateEvent 发布已经被尝试并返回，不证明 StateEvent 已经发布；依赖该输入的快照与投影可能没有收到消息。事件侧消费过程见[事件分发管线](../../event/dispatch.md)。
+`StateEventBus.send` 的失败边界不同：它的错误被记录日志并恢复为空完成。于是成功的 `PROCESSED` 只证明 StateEvent 发布已经被尝试并返回，不证明 StateEvent 已经发布；依赖该输入的快照与投影可能没有收到消息。事件侧消费过程见[事件分发管线](../../event/dispatch.md)。
 
 ## `PROCESSED` 错误边界
 
-`ProcessedNotifierFilter` 用 `MonoCommandWaitNotifier` 包住后续链：
+`PROCESSED` 报告用 `MonoCommandWaitNotifier` 包住内部管道：
 
 - 内部链正常完成时，从 exchange 的函数、版本、结果和可能的业务错误生成 `PROCESSED` 信号；
-- 内部链抛错时，先生成失败信号，再把原异常继续传给上层 error handler；retry-exhausted 包装会先还原其 cause；
+- 内部链抛错时，先生成失败信号，再把原异常继续传给处理器的 error handler（记录到 exchange 并打日志）；retry-exhausted 包装会先还原其 cause；
 - 没有等待 Header，或目标阶段不需要 `PROCESSED` 时，不生成信号；
 - 通知采用 fire-and-forget，通知失败只记录日志，不改写命令处理结果。
 
-所以 `PROCESSED` 成功表示聚合执行、事件追加、command ack 和 `DomainEventBus.send` 已经完成，`SendStateEventFilter` 也已完成；状态已初始化时，`StateEventBus.send` 尝试已经返回。它不保证 StateEvent 发布成功，也不表示快照、投影、事件处理器或 Saga 已完成。失败信号也不能单独证明事件未追加，必须按[失败与幂等](../reliability.md)检查权威历史。
+所以 `PROCESSED` 成功表示聚合执行、事件追加、command ack 和 `DomainEventBus.send` 已经完成；状态已应用这条事件流时，`StateEventBus.send` 尝试已经返回。它不保证 StateEvent 发布成功，也不表示快照、投影、事件处理器或 Saga 已完成。失败信号也不能单独证明事件未追加，必须按[失败与幂等](../reliability.md)检查权威历史。
 
 ## API 分层
 
 本页的类型是实现，不是应用 API。自 9.3.0 起，wow-core 在代码中标明这一点：
 
 - `CommandAggregate`、它的父接口 `AggregateProcessor`、`CommandAggregateFactory` 与 `SimpleCommandAggregateFactory` 标注 `@WowSpi`。自行提供命令聚合的代码用 `@OptIn(WowSpi::class)` 选择加入，不加入时编译器给出警告。它们在同一个次版本线内保持二进制签名不变，次版本可以修改它们，并写进发布说明。
-- `AggregateProcessorFactory`、`RetryableAggregateProcessorFactory`、`AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SimpleStateAggregate`，函数元数据类型（`FunctionAccessorMetadata`、`InjectParameter`、`FirstParameterKind`、`AfterCommandFunctionMetadata`、`MessageFunctionRegistrar`、`SimpleMessageFunctionRegistrar`），事件分发器基类（`CompositeEventDispatcher`、`AbstractEventFunctionRegistrar`、`EventHandler`），`COMMAND_GATEWAY_FUNCTION`，以及 exchange 上处理器、元数据、调用结果的存取方法和事件流、版本的设置方法标注 `@InternalWowApi`：由 Wow 自己的模块装配，任何版本都可能修改。
+- `AggregateProcessorFactory`、`RetryableAggregateProcessorFactory`、`DefaultCommandHandler`、`SimpleStateAggregate`，函数元数据类型（`FunctionAccessorMetadata`、`InjectParameter`、`FirstParameterKind`、`AfterCommandFunctionMetadata`、`MessageFunctionRegistrar`、`SimpleMessageFunctionRegistrar`），事件分发器基类（`CompositeEventDispatcher`、`AbstractEventFunctionRegistrar`、`EventHandler`），`COMMAND_GATEWAY_FUNCTION`，以及 exchange 上调用结果的存取方法和事件流、版本的设置方法标注 `@InternalWowApi`：由 Wow 自己的模块装配，任何版本都可能修改。
 - `RetryableAggregateProcessor`、`SimpleCommandAggregate`、编译后的聚合模型（`AggregateModel` 及其命令条目和编译后的函数）、exchange 属性键、函数访问器以及聚合与状态事件分发器是 `internal`。
 
 应用通过 `CommandGateway` 发送命令，用 `@OnCommand` 函数处理命令，读取 `ServerCommandExchange.getEventStream()`，这些都不需要选择加入。命令函数需要当前状态时，声明 `ReadOnlyStateAggregate<S>` 参数（例如读取 `initialized`），而不是 `CommandAggregate`。
@@ -129,6 +137,6 @@ EventStore.append
 
 - [`DefaultCommandGateway`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt)
 - [`CommandDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher.kt) 与 [`AggregateCommandDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateCommandDispatcher.kt)
-- [`AggregateProcessorFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter.kt) 与 [`SendDomainEventStreamFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter.kt)
+- [`DefaultCommandHandler`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandHandler.kt) 与 [`CommandInstrumentation`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/dispatcher/CommandInstrumentation.kt)
 - [`RetryableAggregateProcessor`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt) 与 [`SimpleCommandAggregate`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt)
-- [`EventStore`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt)、[`SendStateEventFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/state/SendStateEventFilter.kt) 与 [`NotifierFilters`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt)
+- [`EventStore`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) 与 [`MonoCommandWaitNotifier`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/MonoCommandWaitNotifier.kt)
