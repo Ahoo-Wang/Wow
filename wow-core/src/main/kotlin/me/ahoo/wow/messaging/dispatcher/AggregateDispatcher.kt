@@ -14,7 +14,7 @@
 package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.execution.dispatchKeyed
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.infra.sink.terminated
@@ -33,12 +33,14 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.SynchronousSink
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Abstract dispatcher for handling message exchanges for a specific aggregate with graceful shutdown support.
+ * Abstract dispatcher for the message exchanges of the [aggregates][namedAggregates] of one bounded context, received
+ * through one source (design X7: one receiver per role and bounded context), with graceful shutdown support.
  *
  * Exchanges run on the runtime's [KeyedExecutor][me.ahoo.wow.execution.KeyedExecutor]
  * ([RuntimeContext.keyedExecutor]): one mailbox per [mailbox key][mailboxKey] (the aggregate ID), so exchanges of one
@@ -62,6 +64,7 @@ import java.util.concurrent.atomic.AtomicReference
  *     processingAdmission = receiver::openProcessing,
  *     processingQuiescence = receiver::closeProcessing,
  * ) {
+ *     override val namedAggregates: Set<NamedAggregate> = setOf(cartAggregate, orderAggregate)
  *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
  *     override fun CommandExchange.mailboxKey(): Any = message.aggregateId.id
@@ -108,7 +111,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
-    NamedAggregateDecorator,
     TerminatedSignalCapable<Void> {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -125,15 +127,31 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      */
     abstract val messageFlux: Flux<T>
 
-    private val handleMetricDescriptor by lazy {
-        MetricDescriptor(
-            component = "dispatcher",
-            operation = "handle",
-            context = namedAggregate.contextName,
-            aggregate = namedAggregate.aggregateName,
-            processor = name,
-            source = name,
-        )
+    /** The aggregates whose exchanges [messageFlux] carries: all of one bounded context. */
+    abstract val namedAggregates: Set<NamedAggregate>
+
+    /**
+     * The `processor` and `source` metric tag of [namedAggregate]'s exchanges. Defaults to [name]; the framework's
+     * dispatchers keep the per-aggregate dispatcher names they reported before one dispatcher served a whole context.
+     */
+    protected open fun metricProcessorName(namedAggregate: NamedAggregate): String = name
+
+    private val handleMetricDescriptors = ConcurrentHashMap<String, MetricDescriptor>()
+
+    private fun handleMetricDescriptorOf(exchange: T): MetricDescriptor {
+        val namedAggregate = exchange.message as? NamedAggregate ?: namedAggregates.first()
+        handleMetricDescriptors[namedAggregate.aggregateName]?.let { return it }
+        return handleMetricDescriptors.computeIfAbsent(namedAggregate.aggregateName) {
+            val processor = metricProcessorName(namedAggregate)
+            MetricDescriptor(
+                component = "dispatcher",
+                operation = "handle",
+                context = namedAggregate.contextName,
+                aggregate = namedAggregate.aggregateName,
+                processor = processor,
+                source = processor,
+            )
+        }
     }
 
     private val terminatedSink = Sinks.empty<Void>()
@@ -217,7 +235,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
                 state = State.PREPARED
             }
             log.info {
-                "[$name] Prepare subscription to $namedAggregate."
+                "[$name] Prepare subscription to $namedAggregates."
             }
             subscribeMessagePipeline(runtimeContext, preparedDemandGate)
         }
@@ -315,7 +333,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         checkNotNull(demandGate).open()
         openProcessing()
         log.info {
-            "[$name] Start processing $namedAggregate."
+            "[$name] Start processing $namedAggregates."
         }
     }
 
@@ -336,7 +354,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     private fun handleTrackedExchange(trackedExchange: TrackedExchange<T>): Mono<Void> {
         val handledExchange = Mono.defer { handleExchange(trackedExchange.exchange) }
         val measuredExchange = if (metrics.enabled) {
-            metrics.operation(handledExchange, handleMetricDescriptor)
+            metrics.operation(handledExchange, handleMetricDescriptorOf(trackedExchange.exchange))
         } else {
             handledExchange
         }

@@ -76,7 +76,7 @@ class AggregateEventDispatcherAckTest {
     private fun dispatcher(onHandle: (DomainEventExchange<*>) -> Mono<Void>): AggregateEventDispatcher {
         val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
         return AggregateEventDispatcher(
-            namedAggregate = namedAggregate,
+            namedAggregates = setOf(namedAggregate),
             messageFlux = Flux.empty(),
             functionRegistrar = DomainEventFunctionRegistrar().apply {
                 register(CreatedFunction(namedAggregate, WITHHOLDING_FUNCTION))

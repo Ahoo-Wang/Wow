@@ -803,7 +803,8 @@ class AggregateDispatcherTest {
         processingAdmission = processingAdmission,
         metrics = metrics,
     ) {
-        override val namedAggregate: NamedAggregate = "wow-core-test.messaging_aggregate".toNamedAggregate().materialize()
+        override val namedAggregates: Set<NamedAggregate> =
+            setOf("wow-core-test.messaging_aggregate".toNamedAggregate().materialize())
         val handled: Sinks.Many<TestExchange> = Sinks.many().replay().all()
         val groups = mutableListOf<Int>()
 

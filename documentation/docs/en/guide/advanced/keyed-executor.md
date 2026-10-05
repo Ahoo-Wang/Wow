@@ -17,6 +17,7 @@ transport receiver
   → handler on one of the runtime's workers     workers = CPU cores by default
 ```
 
+- **One receiver per bounded context.** Each dispatcher opens one receiver per bounded context of its aggregates, subscribed to all of that context's aggregate topics, in the same consumer group as before (see [Kafka consumer groups](../extensions/kafka.md#consumer-groups)).
 - **One worker set per runtime.** The thread count depends on the hardware, not on the number of aggregate types or dispatchers. 20 aggregate types on 16 cores use 16 dispatch threads, not 20 × 16 per dispatcher kind.
 - **One mailbox per aggregate ID.** Messages of one aggregate ID run one at a time, in the order the dispatcher received them. Messages of different aggregate IDs run in parallel. A mailbox exists only while it has messages, and runs on the worker it was given when it was created (there is no work stealing: the affinity is fixed for the mailbox's lifetime, so a mailbox queued behind a long synchronous turn waits for it even if another worker is idle): a running worker with nothing queued if there is one (a short wait behind it is cheaper than waking a parked worker), else a parked one. Each worker has its own lock-free FIFO queue; a busy worker takes the next mailbox without being woken.
 - **Fair turns.** A mailbox runs at most `throughput` messages in one turn while they complete synchronously, then goes behind the other mailboxes of its worker, so a hot aggregate cannot starve the others.

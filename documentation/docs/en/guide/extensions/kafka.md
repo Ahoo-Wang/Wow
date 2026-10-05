@@ -136,6 +136,12 @@ Throughput depends on partitions, consumer instances, handler latency, and poll/
 
 `MessageSubscription.receiverGroup` becomes Kafka `group.id`. Kafka owns assignment and rebalance. Before deployment, verify that each runtime uses the intended group and that unrelated logical processors do not accidentally compete in one group.
 
+Since 9.3.0 a dispatcher (command, domain event, state event, projection, saga, snapshot) opens **one consumer per bounded context**, subscribed to all of that context's aggregate topics; up to 9.2 it opened one consumer per aggregate topic. The group ID is unchanged: it is still the dispatcher name (`<context>.CommandDispatcher`, …). Instances per dispatcher drop from "aggregate types" to "bounded contexts", and so do rebalance participants.
+
+**Rolling upgrade from 9.2.** 9.2 and 9.3 instances can share the same groups. Kafka's group protocol carries each member's own subscription, and the assignors Wow uses (Kafka's defaults, `RangeAssignor` then `CooperativeStickyAssignor`) assign each topic's partitions only among the members subscribed to that topic. During the upgrade a 9.2 instance's per-topic consumers and a 9.3 instance's per-context consumer therefore split each topic's partitions between them, and every rebalance (an instance leaving or joining) hands partitions over with their committed offsets. Delivery stays at-least-once: records handled but not yet committed when a partition moves are delivered again to the new owner. Commands are deduplicated by the event store's request ID check; event processors must be idempotent as before. The `Mixed-Version` CI workflow verifies this with the released 9.2.3 image and the build under test in the same groups, including a restart of the 9.3 member while commands flow (no command lost or applied twice). Keep `partition.assignment.strategy` identical on all members, as Kafka requires.
+
+One consumer now serves all of a context's topics, so a dispatcher that is slow on one aggregate backpressures (pauses) the whole context's consumer rather than one topic's.
+
 ## Key Design Decisions
 
 These constraints come from the current `KafkaTransport`, `TransportMessageBus` and their tests, not from a general Kafka tutorial.

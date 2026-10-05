@@ -31,10 +31,10 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -49,27 +49,27 @@ class DispatcherMetricsDefaultsTest {
     fun `aggregate dispatchers should default to disabled metrics`() {
         val aggregateEventDispatcher = AggregateEventDispatcher(
             name = "aggregate-event",
-            namedAggregate = namedAggregate,
+            namedAggregates = setOf(namedAggregate),
             messageFlux = Flux.empty<EventStreamExchange>(),
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,
         )
         val aggregateStateEventDispatcher = AggregateStateEventDispatcher(
             name = "aggregate-state-event",
-            namedAggregate = namedAggregate,
+            namedAggregates = setOf(namedAggregate),
             messageFlux = Flux.empty<StateEventExchange<*>>(),
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,
         )
         val aggregateCommandDispatcher = AggregateCommandDispatcher(
             name = "aggregate-command",
-            aggregateMetadata = mockk<AggregateMetadata<Any, Any>>(),
+            aggregateMetadata = listOf(MOCK_AGGREGATE_METADATA),
             messageFlux = Flux.empty(),
             commandHandler = mockk<CommandHandler>(),
         )
         val aggregateSnapshotDispatcher = AggregateSnapshotDispatcher(
             name = "aggregate-snapshot",
-            namedAggregate = namedAggregate,
+            namedAggregates = setOf(namedAggregate),
             messageFlux = Flux.empty(),
             snapshotHandler = mockk<SnapshotHandler>(),
         )

@@ -142,6 +142,15 @@ class MixedVersionCluster(
             ?: error("No node owns [$topic-$partition] in [$group]: ${listOf(description).describe()}")
     }
 
+    /**
+     * The topic sets of the members [clientId] runs in [group], one set per consumer: 9.2 runs one consumer per
+     * aggregate topic, 9.3 one per bounded context (design X7), in the same group.
+     */
+    fun memberTopics(group: String, clientId: String): List<Set<String>> =
+        describe(group).members()
+            .filter { it.clientId() == clientId }
+            .map { member -> member.assignment().topicPartitions().mapTo(sortedSetOf(), TopicPartition::topic) }
+
     /** The first key `prefix-n` that satisfies [predicate], e.g. one whose partition a given node owns. */
     fun key(prefix: String, predicate: (String) -> Boolean): String =
         generateSequence(0) { it + 1 }

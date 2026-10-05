@@ -26,14 +26,14 @@ import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Dispatcher for processing domain events within a specific aggregate context.
+ * Dispatcher for processing the domain events of the aggregates of one bounded context.
  *
  * This class handles the distribution and processing of domain event streams
- * for a particular named aggregate. It extends AbstractAggregateEventDispatcher
+ * received through one receiver for all of these aggregates. It extends AbstractAggregateEventDispatcher
  * to provide concrete implementation for event stream processing.
  *
- * @property name The name of this dispatcher (default: derived from aggregate name)
- * @property namedAggregate The named aggregate this dispatcher handles
+ * @property namedAggregates The aggregates this dispatcher handles, all of one bounded context
+ * @property name The name of this dispatcher (default: derived from the bounded context name)
  * @property messageFlux The flux of event stream exchanges to process
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
@@ -53,9 +53,9 @@ import java.util.concurrent.ConcurrentHashMap
  * @see EventHandler
  */
 internal class AggregateEventDispatcher(
+    override val namedAggregates: Set<NamedAggregate>,
     override val name: String =
-        "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}",
-    override val namedAggregate: NamedAggregate,
+        "${namedAggregates.first().contextName}-${AggregateEventDispatcher::class.simpleName!!}",
     override val messageFlux: Flux<EventStreamExchange>,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
@@ -86,4 +86,8 @@ internal class AggregateEventDispatcher(
             message = event,
             attributes = ConcurrentHashMap(attributes),
         )
+
+    /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
+    override fun metricProcessorName(namedAggregate: NamedAggregate): String =
+        "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}"
 }

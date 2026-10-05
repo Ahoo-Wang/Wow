@@ -33,11 +33,11 @@ internal class StateEventDispatcher(
 ) : AbstractEventDispatcher<StateEventExchange<*>, StateEventBus>(metrics) {
 
     override fun newAggregateDispatcher(
-        namedAggregate: NamedAggregate,
+        namedAggregates: Set<NamedAggregate>,
         messageFlux: Flux<StateEventExchange<*>>
     ): MessageDispatcher {
         return AggregateStateEventDispatcher(
-            namedAggregate = namedAggregate,
+            namedAggregates = namedAggregates,
             messageFlux = messageFlux,
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,

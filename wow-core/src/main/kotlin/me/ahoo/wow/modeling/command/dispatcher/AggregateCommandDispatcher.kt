@@ -21,16 +21,14 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
- * Aggregate command dispatcher grouped by named aggregate.
+ * The command dispatcher of the aggregates of one bounded context, fed by one receiver (design X7).
  *
- * This dispatcher manages command processing for a specific named aggregate. Commands of one aggregate ID run one at
- * a time in arrival order in that ID's mailbox; different aggregate IDs run in parallel on the runtime's shared
- * workers ([me.ahoo.wow.execution.KeyedExecutor]).
+ * Each command is handled with the [AggregateMetadata] of its aggregate. Commands of one aggregate ID run one at a
+ * time in arrival order in that ID's mailbox; different aggregate IDs run in parallel on the runtime's shared workers
+ * ([me.ahoo.wow.execution.KeyedExecutor]).
  *
- * @param C The type of the command aggregate root.
- * @param S The type of the state aggregate.
+ * @property aggregateMetadata The metadata of the dispatched aggregates, all of one bounded context.
  * @param name The name of this dispatcher.
- * @property aggregateMetadata The metadata for the aggregate being dispatched.
  * @param messageFlux The flux of command exchanges to process.
  * @param commandHandler The command handler for processing commands.
  * @param messageReadiness Completion of asynchronous message-source setup when
@@ -40,10 +38,10 @@ import reactor.core.publisher.Mono
  * @param processingQuiescence Logical transport gate closed by [quiesce].
  * @param metrics Instance-scoped metrics recorder for dispatcher operations.
  */
-class AggregateCommandDispatcher<C : Any, S : Any>(
+class AggregateCommandDispatcher(
+    val aggregateMetadata: List<AggregateMetadata<*, *>>,
     override val name: String =
-        "${aggregateMetadata.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}",
-    val aggregateMetadata: AggregateMetadata<C, S>,
+        "${aggregateMetadata.first().contextName}-${AggregateCommandDispatcher::class.simpleName!!}",
     override val messageFlux: Flux<ServerCommandExchange<*>>,
     private val commandHandler: CommandHandler,
     messageReadiness: Mono<Void> = Mono.empty(),
@@ -56,18 +54,43 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     processingQuiescence = processingQuiescence,
     metrics = metrics,
 ) {
-    override val namedAggregate: NamedAggregate
-        get() = aggregateMetadata.namedAggregate
+    init {
+        require(aggregateMetadata.isNotEmpty()) {
+            "aggregateMetadata must not be empty."
+        }
+        require(aggregateMetadata.map { it.contextName }.distinct().size == 1) {
+            "aggregateMetadata must belong to one bounded context."
+        }
+    }
+
+    private val metadataByAggregateName: Map<String, AggregateMetadata<*, *>> =
+        aggregateMetadata.associateBy { it.aggregateName }
+
+    override val namedAggregates: Set<NamedAggregate> =
+        aggregateMetadata.mapTo(LinkedHashSet()) { it.namedAggregate }
 
     /**
-     * Handles a single command exchange by setting up the processing context and delegating to the command handler.
+     * Handles a single command exchange with the metadata of its aggregate.
      *
      * @param exchange The command exchange to handle.
-     * @return A Mono that completes when the exchange has been processed.
+     * @return A Mono that completes when the exchange has been processed; an error when the command's aggregate is
+     * not one of [aggregateMetadata] (its receiver subscribes only their topics).
      */
-    override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> =
-        commandHandler.handle(exchange, aggregateMetadata)
+    override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> {
+        val metadata = metadataByAggregateName[exchange.message.aggregateName]
+            ?: return Mono.error(
+                IllegalStateException(
+                    "[$name] Received a command of aggregate[${exchange.message.aggregateName}], " +
+                        "which is not one of $namedAggregates.",
+                ),
+            )
+        return commandHandler.handle(exchange, metadata)
+    }
 
     /** Commands of one aggregate run in order: the mailbox key is the aggregate ID. */
     override fun ServerCommandExchange<*>.mailboxKey(): Any = message.aggregateId.id
+
+    /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
+    override fun metricProcessorName(namedAggregate: NamedAggregate): String =
+        "${namedAggregate.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}"
 }

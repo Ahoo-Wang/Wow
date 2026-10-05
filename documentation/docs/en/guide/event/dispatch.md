@@ -39,7 +39,7 @@ flowchart TB
     EventFilters ~~~ SnapshotPath
 ```
 
-`EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each creates subscriptions from the aggregate topics supported by its registered functions. An aggregate without a corresponding function does not get a consumption path for that dispatcher.
+`EventStreamDispatcher` retains only `FunctionKind.EVENT`; `StateEventDispatcher` retains only `FunctionKind.STATE_EVENT`. Each subscribes to the aggregate topics supported by its registered functions, with one receiver (one Kafka consumer) per bounded context of those aggregates since 9.3.0. An aggregate without a corresponding function does not get a consumption path for that dispatcher.
 
 One received event stream handles its events with `concatMap`. Multiple functions matching one event run through `flatMap`, so no function order may be assumed. The keyed executor supplies only serial processing per aggregate ID within one dispatcher; it does not establish global order across dispatchers, processes, or external systems.
 

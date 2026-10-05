@@ -30,6 +30,7 @@ import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -65,6 +66,28 @@ class MainDispatcherTest {
         StepVerifier.create(dispatcher.stopGracefully())
             .verifyComplete()
         dispatcher.childStopCount.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `the aggregates of one bounded context share one receiver and one child`() {
+        val cart = "wow-core-test.cart".toNamedAggregate()
+        val order = "wow-core-test.order".toNamedAggregate()
+        val payment = "wow-core-test-payment.payment".toNamedAggregate()
+        val dispatcher = RecordingMainDispatcher(namedAggregates = linkedSetOf(cart, payment, order))
+
+        prepareAndStart(dispatcher)
+
+        dispatcher.subscriptions.map { it.namedAggregates }.assert().containsExactly(
+            setOf(cart.materialize(), order.materialize()),
+            setOf(payment.materialize()),
+        )
+        dispatcher.subscriptions.map { it.receiverGroup }.toSet().assert().containsExactly("recording-main")
+        dispatcher.childAggregates.assert().containsExactly(
+            setOf(cart.materialize(), order.materialize()),
+            setOf(payment.materialize()),
+        )
+        dispatcher.quiesce()
+        StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
     }
 
     @Test
@@ -213,6 +236,11 @@ class MainDispatcherTest {
         )
 
     private class RecordingMainDispatcher(
+        override val namedAggregates: Set<NamedAggregate> = setOf(
+            // Two bounded contexts: one receiver and one child each.
+            "wow-core-test.messaging_aggregate".toNamedAggregate().materialize(),
+            "wow-core-test-other.command_aggregate".toNamedAggregate().materialize(),
+        ),
         private val forceFailure: RuntimeException? = null,
         private val childStartAction: (() -> Unit)? = null,
         private val childForceAction: (() -> Unit)? = null,
@@ -235,15 +263,15 @@ class MainDispatcherTest {
         private var childRuntimeContext: RuntimeContext? = null
 
         override val name: String = "recording-main"
-        override val namedAggregates: Set<NamedAggregate> = setOf(
-            "wow-core-test.messaging_aggregate".toNamedAggregate().materialize(),
-            "wow-core-test.command_aggregate".toNamedAggregate().materialize(),
-        )
+
+        val subscriptions = CopyOnWriteArrayList<MessageSubscription>()
+        val childAggregates = CopyOnWriteArrayList<Set<NamedAggregate>>()
 
         override fun createMessageReceiver(
             subscription: MessageSubscription,
         ): MessageReceiver<String> {
             receiveCount.incrementAndGet()
+            subscriptions += subscription
             return MessageReceiver(
                 messages = Flux.just(subscription.receiverGroup),
                 processingAdmission = processingOpenCount::incrementAndGet,
@@ -252,14 +280,15 @@ class MainDispatcherTest {
         }
 
         override fun newAggregateDispatcher(
-            namedAggregate: NamedAggregate,
+            namedAggregates: Set<NamedAggregate>,
             messageFlux: Flux<String>
         ): MessageDispatcher {
             createCount.incrementAndGet()
+            childAggregates += namedAggregates
             return object : MessageDispatcher {
                 private var runtimeContext: RuntimeContext? = null
 
-                override val name: String = "child-${namedAggregate.aggregateName}"
+                override val name: String = "child-${namedAggregates.first().contextName}"
                 override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
                     Mono.fromRunnable {
                         this.runtimeContext = runtimeContext
