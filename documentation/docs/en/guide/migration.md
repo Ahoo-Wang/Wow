@@ -183,7 +183,7 @@ The command side no longer has a filter chain. `DefaultCommandHandler` runs proc
 |---|---|
 | `me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction` / `GenerateBIScriptHandlerFunctionFactory` | wired by `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` (internal) |
 | `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
-| `GenerateBIScriptRouteContributor` in `DefaultRouteContributors.all()` | a `RouteContributor` bean (the Starter registers it when `wow-bi` is present); outside Spring pass `DefaultRouteContributors.all() + GenerateBIScriptRouteContributor` to `RouterSpecs` |
+| `GenerateBIScriptRouteContributor` in `DefaultRouteContributors.all()` | a `RouteContributor` bean the Starter registers when `wow-bi` is present; the route is served only through the Starter |
 
 ### Mongo Ownership Guard
 

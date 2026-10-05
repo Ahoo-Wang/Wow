@@ -142,7 +142,7 @@ class Cart(private val state: CartState)
 | `POST` | `/wow/command/send` | API Client 使用的通用命令入口 |
 | `POST` | `/wow/command/wait` | 等待信号接收端点 |
 | `GET` | `/wow/metadata` | 已加载 Wow 元数据 |
-| `POST` | `/wow/bi/script` | BI 同步脚本生成 |
+| `POST` | `/wow/bi/script` | BI 同步脚本生成（仅当 classpath 上有 `wow-bi`） |
 | `GET` | `/wow/id/global` | 全局 ID 生成 |
 
 发布上述任一路由都不会自动保护它。应用必须配置认证、授权、限流和网络暴露策略。
@@ -183,7 +183,7 @@ curl 'http://localhost:8080/wow/metadata' \
 
 ### 生成 BI 同步脚本
 
-`POST /wow/bi/script` 为当前本地聚合生成 ClickHouse 同步与展开 SQL。路由和 OpenAPI operation 默认存在，`wow.bi.script.enabled=false` 会同时移除两者。启用路由不会自动授权。
+`POST /wow/bi/script` 为当前本地聚合生成 ClickHouse 同步与展开 SQL。classpath 上有 `wow-bi`（直接添加，或请求 Starter 的 `bi-support` capability）且 `wow.bi.script.enabled` 不为 `false` 时，路由和 OpenAPI operation 存在；否则两者都不存在。启用路由不会自动授权。
 
 端点要求 `application/json` 请求体。`{}` 表示使用服务端选项执行 `DEPLOY`。请求字段包含部署覆盖、`operation` 和 `replayFromEarliestConfirmed`；`previousManifest` 不属于合同。提供 `topology` 时必须提供 `topology.mode`；`STANDALONE` 拒绝 cluster 对象，`CLUSTER` 只接受 cluster `name` 与 `installation` 覆盖。
 

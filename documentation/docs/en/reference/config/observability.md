@@ -58,8 +58,8 @@ the runtime. When disabled or when no registry exists, it uses `WowMetrics.NONE`
 
 ## Business Intelligence Scripts
 
-`wow.bi.script.enabled` controls the `/wow/bi/script` operational route, its OpenAPI operation, and BI inspector
-auto-configuration. The complete `wow.bi.script.*` tree and its production ownership rules are documented in
+When `wow-bi` is on the classpath, `wow.bi.script.enabled` controls the `/wow/bi/script` operational route, its
+OpenAPI operation, and BI inspector auto-configuration; without `wow-bi` none of them exists. The complete `wow.bi.script.*` tree and its production ownership rules are documented in
 [BI Deployment and Recovery](/guide/bi-operations). Disabling the route does not stop existing ClickHouse consumers
 or change BI data.
 

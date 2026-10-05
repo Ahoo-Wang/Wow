@@ -49,6 +49,7 @@ application {
 dependencies {
     implementation(platform(project(":wow-dependencies")))
     implementation(project(":wow-view-store-starter"))
+    implementation(project(":wow-bi"))
     implementation(project(":wow-kafka"))
     implementation(project(":wow-mongo"))
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")

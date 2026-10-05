@@ -68,7 +68,7 @@ class BiAutoConfiguration {
 
     /**
      * The WebFlux side: the deployment inspector, and, when the WebFlux router is configured (this runs after
-     * [WebFluxAutoConfiguration]), the route handler and the error statuses.
+     * [WebFluxAutoConfiguration]), the route handler, which registers the error statuses.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnWebfluxEnabled
@@ -84,13 +84,6 @@ class BiAutoConfiguration {
         )
         fun noOpBiDeploymentInspector(): BiDeploymentInspector = NoOpBiDeploymentInspector
 
-        @Bean("biScriptErrorStatuses")
-        @ConditionalOnBean(RequestExceptionHandler::class)
-        internal fun biScriptErrorStatuses(): BiScriptErrorStatuses {
-            BiScriptErrorStatuses.register()
-            return BiScriptErrorStatuses
-        }
-
         @Bean
         @ConditionalOnBean(RequestExceptionHandler::class)
         fun generateBIScriptHandlerFunctionFactory(
@@ -100,6 +93,8 @@ class BiAutoConfiguration {
             exceptionHandler: RequestExceptionHandler,
             biScriptAggregateExclusions: ObjectProvider<BiScriptAggregateExclusion>,
         ): HttpRouteHandlerFunctionFactory {
+            // Registered with the handler, so the statuses exist whenever the route does.
+            BiScriptErrorStatuses.register()
             val deploymentInspector = requireNotNull(biDeploymentInspector.getIfAvailable()) {
                 "BiDeploymentInspector is required when wow.bi.script.enabled=true " +
                     "(inspector.type=${biScriptProperties.inspector.type})"

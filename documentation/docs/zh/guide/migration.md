@@ -176,7 +176,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 |---|---|
 | `me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction` / `GenerateBIScriptHandlerFunctionFactory` | 由 `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` 装配（内部类） |
 | `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
-| `DefaultRouteContributors.all()` 中的 `GenerateBIScriptRouteContributor` | `RouteContributor` bean（`wow-bi` 存在时由 Starter 注册）；不用 Spring 时向 `RouterSpecs` 传入 `DefaultRouteContributors.all() + GenerateBIScriptRouteContributor` |
+| `DefaultRouteContributors.all()` 中的 `GenerateBIScriptRouteContributor` | `wow-bi` 存在时由 Starter 注册的 `RouteContributor` bean；该路由只通过 Starter 提供 |
 
 ### Mongo 所有权保护
 

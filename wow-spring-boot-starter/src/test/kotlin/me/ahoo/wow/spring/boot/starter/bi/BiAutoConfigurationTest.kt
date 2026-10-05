@@ -119,7 +119,6 @@ class BiAutoConfigurationTest {
                     .doesNotHaveBean("noOpBiDeploymentInspector")
                     .doesNotHaveBean(RouteContributor::class.java)
                     .doesNotHaveBean(HttpRouteHandlerFunctionFactory::class.java)
-                    .doesNotHaveBean("biScriptErrorStatuses")
             }
     }
 
