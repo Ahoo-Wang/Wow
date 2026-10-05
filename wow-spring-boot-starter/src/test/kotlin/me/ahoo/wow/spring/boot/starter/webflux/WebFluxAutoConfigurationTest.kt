@@ -873,8 +873,12 @@ internal class WebFluxAutoConfigurationTest {
                     .expectErrorMessage("cosec-request|cosec-space")
                     .verify()
 
+                // A fresh request: the command above already gave `request` a route identity.
+                val queryRequest = MockServerRequest.builder()
+                    .header(CoSecIdentityHeaders.SPACE_ID, "cosec-space")
+                    .build()
                 context.getBean(QueryRequestScope::class.java)
-                    .resolve(aggregateMetadata<Order, OrderState>(), request)
+                    .resolve(aggregateMetadata<Order, OrderState>(), queryRequest)
                     .assert().isEqualTo(QueryScope(declared = SpaceIdFilter("cosec-space")))
             }
     }

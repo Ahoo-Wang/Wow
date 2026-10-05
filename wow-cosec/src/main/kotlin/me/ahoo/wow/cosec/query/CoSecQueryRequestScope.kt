@@ -26,7 +26,8 @@ import org.springframework.web.reactive.function.server.ServerRequest
  */
 @Deprecated(
     "Scheduled for removal in 10.0.0. CoSec contributes CoSec-Space-Id as a space header alias " +
-        "(CoSecIdentityHeaders.ALIASES), which DefaultQueryRequestScope reads."
+        "(CoSecIdentityHeaders.ALIASES): the router applies it to every route it materializes, and the " +
+        "QueryRequestScope bean to a query handler invoked outside the router."
 )
 object CoSecQueryRequestScope : AbstractQueryRequestScope() {
 

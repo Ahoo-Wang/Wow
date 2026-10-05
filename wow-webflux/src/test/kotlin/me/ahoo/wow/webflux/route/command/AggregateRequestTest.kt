@@ -20,6 +20,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.ChainWaitTarget
@@ -314,6 +315,18 @@ class AggregateRequestTest {
         request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-a")
         request.getOwnerId().assert().isEqualTo("owner-a")
         request.getAggregateId().assert().isEqualTo("id-a")
+    }
+
+    /** The deprecated reader keeps 9.2's rule: for an aggregate owned by its ID, the owner header wins over `{id}`. */
+    @Test
+    fun `the deprecated owner-policy aggregate id reader keeps 9_2 behaviour`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, "a")
+            .header(CommandComponent.Header.OWNER_ID, "b")
+            .build()
+        request.getAggregateId(OwnerPolicy.AGGREGATE_ID).assert().isEqualTo("b")
+        request.getAggregateId(OwnerPolicy.AGGREGATE_ID, "c").assert().isEqualTo("c")
+        request.getAggregateId(OwnerPolicy.ALWAYS).assert().isEqualTo("a")
     }
 
     @Test

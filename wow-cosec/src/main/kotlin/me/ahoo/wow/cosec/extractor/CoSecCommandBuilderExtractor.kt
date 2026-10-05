@@ -27,7 +27,8 @@ import reactor.core.publisher.Mono
  */
 @Deprecated(
     "Scheduled for removal in 10.0.0. CoSec contributes its headers as identity header aliases " +
-        "(CoSecIdentityHeaders.ALIASES), which DefaultCommandBuilderExtractor reads."
+        "(CoSecIdentityHeaders.ALIASES): the router applies them to every route it materializes, and the " +
+        "CommandMessageExtractor bean to a command handler invoked outside the router."
 )
 object CoSecCommandBuilderExtractor : CommandBuilderExtractor {
     const val REQUEST_ID_KEY = CoSecIdentityHeaders.REQUEST_ID
