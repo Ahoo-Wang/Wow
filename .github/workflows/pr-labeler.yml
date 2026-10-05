@@ -51,6 +51,12 @@ jobs:
   # PR's code is still never checked out.
   breaking:
     name: Label Breaking Change
+    # After the path labeler: actions/labeler writes the PR's label set, and
+    # run in parallel it could drop `breaking-change` added a moment earlier
+    # (seen on #3941). `always()` keeps the breaking check independent of the
+    # path labeler's result.
+    needs: label
+    if: ${{ always() }}
     permissions:
       contents: read
       pull-requests: write
