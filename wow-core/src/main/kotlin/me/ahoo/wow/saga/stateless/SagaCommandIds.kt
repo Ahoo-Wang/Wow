@@ -14,9 +14,13 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.cosid.Decorator
+import me.ahoo.cosid.IdConverter
 import me.ahoo.cosid.IdGenerator
+import me.ahoo.cosid.converter.DatePrefixIdConverter
+import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.cosid.CosIdState
+import me.ahoo.cosid.cosid.RadixCosIdStateParser
 import me.ahoo.cosid.snowflake.SecondSnowflakeId
 import me.ahoo.cosid.snowflake.SnowflakeId
 import me.ahoo.wow.api.event.DomainEvent
@@ -40,7 +44,11 @@ import java.util.concurrent.TimeUnit
  * saga function, the command's index and the target aggregate type. It parses, sorts and looks like an ID that
  * generator made. This works for the time-based CosId generators, the default CosId and Snowflake (incl. their
  * clock-sync and string decorators). A segment generator (database-allocated ranges, which a derived ID could collide
- * with) and a custom generator keep random IDs.
+ * with), a custom generator, and a generator whose string form depends on the current date or the time zone (a date
+ * prefix, a friendly ID) keep random IDs.
+ *
+ * The aggregate ID is set on the command builder before any `CommandBuilderRewriter` runs, so a rewriter sees it and
+ * may replace it.
  */
 internal object SagaCommandIds {
     private const val COSID_MACHINE_BIT = 20
@@ -68,14 +76,18 @@ internal object SagaCommandIds {
 
     /** An ID in [generator]'s format for [timestampMillis], whose machine and sequence bits come from [hash]. */
     fun derive(generator: IdGenerator, timestampMillis: Long, hash: Long): String? =
-        when (val idGenerator = innermostTimeBased(generator)) {
-            is CosIdGenerator -> deriveCosId(idGenerator, timestampMillis, hash)
+        when (val idGenerator = timeBasedGenerator(generator)) {
+            // A string decorator around a CosId generator formats another way: keep random IDs.
+            is CosIdGenerator -> deriveCosId(idGenerator, timestampMillis, hash).takeIf { generator is CosIdGenerator }
             is SnowflakeId -> deriveSnowflake(generator, idGenerator, timestampMillis, hash)
             else -> null
         }
 
-    /** The first time-based generator in [generator]'s decorator chain; the outermost keeps its string converter. */
-    private fun innermostTimeBased(generator: IdGenerator): IdGenerator? {
+    /**
+     * The first time-based generator in [generator]'s decorator chain (the outermost one keeps its string converter),
+     * or `null` when there is none.
+     */
+    private fun timeBasedGenerator(generator: IdGenerator): IdGenerator? {
         var current: Any? = generator
         while (current != null) {
             if (current is CosIdGenerator || current is SnowflakeId) {
@@ -90,9 +102,15 @@ internal object SagaCommandIds {
         val machineId = (hash and ((1L shl COSID_MACHINE_BIT) - 1)).toInt()
         val sequence = ((hash ushr COSID_MACHINE_BIT) and ((1L shl COSID_SEQUENCE_BIT) - 1)).toInt()
         val parser = generator.stateParser
+        // A friendly (date-formatted) parser depends on the time zone, which may differ between nodes.
+        if (parser !is RadixCosIdStateParser) {
+            return null
+        }
         val id = parser.asString(timestampMillis, machineId, sequence)
-        // A generator with another bit layout cannot hold these values: it keeps random IDs.
-        return id.takeIf { runCatching { parser.asState(it) }.getOrNull() == CosIdState(timestampMillis, machineId, sequence) }
+        // Parse it back: a parser with narrower machine or sequence fields than the default 20/16 bits drops some of
+        // the hash bits, so the state no longer matches and the generator keeps random IDs.
+        val roundTrip = runCatching { parser.asState(id) }.getOrNull()
+        return id.takeIf { roundTrip == CosIdState(timestampMillis, machineId, sequence) }
     }
 
     private fun deriveSnowflake(outer: IdGenerator, snowflake: SnowflakeId, timestampMillis: Long, hash: Long): String? {
@@ -107,7 +125,26 @@ internal object SagaCommandIds {
         val id = (diff shl (snowflake.machineBit + snowflake.sequenceBit)) or
             (machineId shl snowflake.sequenceBit) or
             sequence
-        return outer.idConverter().asString(id)
+        val converter = outer.idConverter()
+        if (converter.dependsOnClockOrZone()) {
+            return null
+        }
+        return converter.asString(id)
+    }
+
+    /**
+     * A converter that formats with the current date ([DatePrefixIdConverter]) or a time zone
+     * ([SnowflakeFriendlyIdConverter]) would make the same ID differ between nodes or days: those keep random IDs.
+     */
+    private fun IdConverter.dependsOnClockOrZone(): Boolean {
+        var current: Any? = this
+        while (current != null) {
+            if (current is DatePrefixIdConverter || current is SnowflakeFriendlyIdConverter) {
+                return true
+            }
+            current = (current as? Decorator<*>)?.actual
+        }
+        return false
     }
 
     private fun hash(seed: String): Long {

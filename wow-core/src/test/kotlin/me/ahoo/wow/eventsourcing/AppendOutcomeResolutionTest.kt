@@ -14,6 +14,7 @@ package me.ahoo.wow.eventsourcing
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.exception.RecoverableException
@@ -115,6 +116,22 @@ class AppendOutcomeResolutionTest {
             .verify()
         store.storedIds().assert().containsExactly(other.id)
         store.appendCalls.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a create whose request ID created the aggregate already is a duplicate request, not an ID collision`() {
+        val created = eventStream("request-0")
+        val retried = eventStream("request-0")
+        val store = ScriptedEventStore({ it.commit() }, { it.commit() })
+        StepVerifier.create(store.append(created)).verifyComplete()
+
+        StepVerifier.create(store.appendResolvingOutcome(retried))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(DuplicateRequestIdException::class.java)
+                it.cause.assert().isInstanceOf(DuplicateAggregateIdException::class.java)
+            }
+            .verify()
+        store.storedIds().assert().containsExactly(created.id)
     }
 
     @Test

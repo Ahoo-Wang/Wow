@@ -17,9 +17,12 @@ import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
 import io.mockk.mockk
 import me.ahoo.cosid.IdGenerator
+import me.ahoo.cosid.converter.DatePrefixIdConverter
 import me.ahoo.cosid.converter.Radix62IdConverter
+import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter
 import me.ahoo.cosid.cosid.CosIdGenerator
 import me.ahoo.cosid.segment.SegmentId
+import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId
 import me.ahoo.cosid.snowflake.SecondSnowflakeId
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser
@@ -114,6 +117,32 @@ class SagaCommandIdsTest {
         val secondsState = SnowflakeIdStateParser.of(seconds).parse(seconds.idConverter().asLong(secondsId))
         secondsState.timestamp.atZone(ZoneId.systemDefault()).toInstant().epochSecond
             .assert().isEqualTo(TimeUnit.MILLISECONDS.toSeconds(createTime))
+    }
+
+    @Test
+    fun `a seconds snowflake wrapped in clock-sync and string decorators gets a derived ID`() {
+        val createTime = System.currentTimeMillis()
+        val seconds = SecondSnowflakeId(1)
+        val wrapped = StringSnowflakeId(ClockSyncSnowflakeId(seconds), Radix62IdConverter.PAD_START)
+        val id = SagaCommandIds.derive(wrapped, createTime, 0x5DEECE66DL)!!
+
+        val state = SnowflakeIdStateParser.of(seconds).parse(Radix62IdConverter.PAD_START.asLong(id))
+        state.timestamp.atZone(ZoneId.systemDefault()).toInstant().epochSecond
+            .assert().isEqualTo(TimeUnit.MILLISECONDS.toSeconds(createTime))
+    }
+
+    @Test
+    fun `generators whose string form depends on the date or the zone keep random IDs`() {
+        val datePrefixed = StringSnowflakeId(
+            MillisecondSnowflakeId(1),
+            DatePrefixIdConverter("yyMMdd", "-", Radix62IdConverter.PAD_START),
+        )
+        SagaCommandIds.derive(datePrefixed, System.currentTimeMillis(), 1L).assert().isNull()
+        val friendly = StringSnowflakeId(
+            MillisecondSnowflakeId(1),
+            SnowflakeFriendlyIdConverter(SnowflakeIdStateParser.of(MillisecondSnowflakeId(1))),
+        )
+        SagaCommandIds.derive(friendly, System.currentTimeMillis(), 1L).assert().isNull()
     }
 
     @Test
