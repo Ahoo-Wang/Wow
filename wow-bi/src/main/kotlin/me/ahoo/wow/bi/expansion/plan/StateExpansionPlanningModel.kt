@@ -73,5 +73,6 @@ internal class StateExpansionPlanningSession(
 ) {
     val views: MutableList<ExpansionViewPlan> = mutableListOf()
     val diagnostics: MutableList<BiScriptDiagnostic> = mutableListOf()
+    val sensitivity: StateExpansionSensitivity = StateExpansionSensitivity(this)
     val propertyCollector: StateExpansionPropertyCollector = StateExpansionPropertyCollector(this)
 }

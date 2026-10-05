@@ -20,6 +20,7 @@ import me.ahoo.wow.bi.type.JsonTokenShape
 import me.ahoo.wow.bi.type.ScalarMapping
 
 internal class StateExpansionCollectionCollector(
+    private val session: StateExpansionPlanningSession,
     private val fallbackCollector: StateExpansionFallbackCollector,
 ) {
     fun collect(request: PropertyPlanningRequest) {
@@ -66,8 +67,12 @@ internal class StateExpansionCollectionCollector(
         val collectionPointer = request.parent.pointer +
             JsonPointerSegment.Property(encodePointerSegment(request.name))
         val elementPointer = collectionPointer + JsonPointerSegment.Index(cursorReference)
-        request.draft.columns.add(rawObjectArrayColumn(request.toRawColumnRequest()))
-        if (request.type.requiresRawCompanion()) {
+        // The elements' raw JSON (the array, its nullable companion, each element's companion) holds every property.
+        val omitRaw = session.sensitivity.omitRaw(request.path, request.type)
+        if (!omitRaw) {
+            request.draft.columns.add(rawObjectArrayColumn(request.toRawColumnRequest()))
+        }
+        if (request.type.requiresRawCompanion() && !omitRaw) {
             request.draft.columns.add(
                 rawCompanionColumn(
                     request = request.toRawColumnRequest(),
@@ -100,7 +105,7 @@ internal class StateExpansionCollectionCollector(
                         request.type.requiresRawCompanion() ||
                         elementType.requiresRawCompanion(),
                 ),
-                rawElementCompanion = elementType.requiresRawCompanion(),
+                rawElementCompanion = elementType.requiresRawCompanion() && !omitRaw,
             )
         )
     }

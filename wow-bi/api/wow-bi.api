@@ -193,6 +193,7 @@ public final class me/ahoo/wow/bi/BiScriptDiagnosticCode : java/lang/Enum {
 	public static final field MAX_DEPTH_REACHED Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
 	public static final field ORPHANED_DATA_TABLE Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
 	public static final field RAW_JSON_FALLBACK Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
+	public static final field SENSITIVE_FIELD_OMITTED Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
 	public static fun values ()[Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
@@ -213,6 +214,7 @@ public final class me/ahoo/wow/bi/BiScriptMappingDecision : java/lang/Enum {
 	public static final field DATA_TABLE_RETAINED Lme/ahoo/wow/bi/BiScriptMappingDecision;
 	public static final field EXTERNAL_CONFIGURATION_REQUIRED Lme/ahoo/wow/bi/BiScriptMappingDecision;
 	public static final field MAX_DEPTH_RAW_JSON Lme/ahoo/wow/bi/BiScriptMappingDecision;
+	public static final field OMITTED Lme/ahoo/wow/bi/BiScriptMappingDecision;
 	public static final field RAW_JSON Lme/ahoo/wow/bi/BiScriptMappingDecision;
 	public static final field RECONCILIATION_PLANNED Lme/ahoo/wow/bi/BiScriptMappingDecision;
 	public static final field RECONCILIATION_SKIPPED Lme/ahoo/wow/bi/BiScriptMappingDecision;
@@ -252,11 +254,12 @@ public final class me/ahoo/wow/bi/BiScriptOptions {
 	public static final field MAX_TIMEZONE_LENGTH I
 	public static final field MAX_TOPIC_PREFIX_LENGTH I
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()I
 	public final fun component11 ()Lme/ahoo/wow/bi/UnsupportedTypeStrategy;
+	public final fun component12 ()Z
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Lme/ahoo/wow/bi/ClickHouseTopology;
 	public final fun component4 ()Ljava/lang/String;
@@ -265,8 +268,8 @@ public final class me/ahoo/wow/bi/BiScriptOptions {
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Lme/ahoo/wow/bi/KafkaOffsetStorage;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;)Lme/ahoo/wow/bi/BiScriptOptions;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiScriptOptions;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiScriptOptions;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;Z)Lme/ahoo/wow/bi/BiScriptOptions;
+	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiScriptOptions;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/ClickHouseTopology;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;ILme/ahoo/wow/bi/UnsupportedTypeStrategy;ZILjava/lang/Object;)Lme/ahoo/wow/bi/BiScriptOptions;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getConsumerDatabase ()Ljava/lang/String;
 	public final fun getConsumerGroupNamespace ()Ljava/lang/String;
@@ -275,6 +278,7 @@ public final class me/ahoo/wow/bi/BiScriptOptions {
 	public final fun getKafkaKeeperPathPrefix ()Ljava/lang/String;
 	public final fun getKafkaOffsetStorage ()Lme/ahoo/wow/bi/KafkaOffsetStorage;
 	public final fun getMaxExpansionDepth ()I
+	public final fun getOmitSensitiveFields ()Z
 	public final fun getTimezone ()Ljava/lang/String;
 	public final fun getTopicPrefix ()Ljava/lang/String;
 	public final fun getTopology ()Lme/ahoo/wow/bi/ClickHouseTopology;

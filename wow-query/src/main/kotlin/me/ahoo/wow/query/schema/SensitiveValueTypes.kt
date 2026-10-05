@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import com.fasterxml.jackson.annotation.JsonValue
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
@@ -53,6 +54,15 @@ internal fun QueryMemberFact.effectiveMaskRule(): MaskRule? {
     }
     return own
 }
+
+/**
+ * The effective [SensitivityLevel] of this member, or `null` when it is not sensitive: the same rule the query schema
+ * applies ([effectiveMaskRule]), for other Wow engines (BI) that must honour `@Sensitive` the same way.
+ *
+ * @throws QuerySchemaConflictException as [effectiveMaskRule] does.
+ */
+@InternalWowApi
+fun QueryMemberFact.effectiveSensitivityLevel(): SensitivityLevel? = effectiveMaskRule()?.level
 
 /** Whether the member's JVM value may carry a mask: a string, or a value type whose `@Sensitive` protects it. */
 internal fun QueryMemberFact.holdsMaskableValue(): Boolean =

@@ -62,9 +62,17 @@ Diagnostics 是稳定的结构化审阅面：
 | `ORPHANED_DATA_TABLE` | 因归属/对账不足以安全删除，保留受管数据 |
 | `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | cluster 的 `internal_replication` 必须由外部配置 |
 | `COMPUTED_OBJECT_DRIFT` | view/materialized-view 定义不同，已规划对账 |
+| `SENSITIVE_FIELD_OMITTED` | `@Sensitive` 属性未展开为列（`omitSensitiveFields`） |
 
 `UnsupportedTypeStrategy.RAW_JSON` 是默认策略；`FAIL` 会拒绝不支持或无法验证的 shape，不生成 fallback
 column。
+
+默认情况下，`@Sensitive` 状态属性与其他属性一样展开，已有脚本不变。设置 `omitSensitiveFields = true`
+（`wow.bi.script.omit-sensitive-fields=true`）后，两个级别的敏感属性都不会出现在展开视图中：既不生成它们自己的列，
+也不生成包含它们的值的任何原始 JSON 列（可空对象的 raw companion、对象数组、原始 JSON 回退）。判定规则与查询子系统
+打码所用的规则相同（直接、元注解或值类型上的 `@Sensitive`），每个被省略的路径都以 `SENSITIVE_FIELD_OMITTED` 报告。
+只有 `__state` 中的原始状态仍然包含该值；请在 ClickHouse 中限制对它的访问。该开关是服务端配置，`/wow/bi/script`
+请求不能覆盖它。
 
 ### HTTP 路由
 

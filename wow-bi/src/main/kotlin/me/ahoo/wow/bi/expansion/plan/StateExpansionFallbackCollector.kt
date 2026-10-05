@@ -23,6 +23,7 @@ internal class StateExpansionFallbackCollector(
     private val session: StateExpansionPlanningSession,
 ) {
     fun collectDepth(request: PropertyPlanningRequest) {
+        if (session.sensitivity.omitRaw(request.path, request.type)) return
         request.draft.columns.add(rawValueColumn(request.toRawColumnRequest()))
         val sourceType = request.type.javaType.toCanonical()
         session.diagnostics.add(
@@ -40,6 +41,7 @@ internal class StateExpansionFallbackCollector(
 
     fun collectOpaque(node: PlanningNode, draft: ViewDraft) {
         val path = node.path.ifBlank { ROOT_PATH }
+        if (session.sensitivity.omitRaw(path, node.type)) return
         val sourceType = node.type.javaType.toCanonical()
         require(session.options.unsupportedTypeStrategy == UnsupportedTypeStrategy.RAW_JSON) {
             "Unsupported property [$path] for aggregate [${session.aggregate}] with type [$sourceType]."
@@ -68,6 +70,7 @@ internal class StateExpansionFallbackCollector(
     }
 
     fun collectRaw(request: PropertyPlanningRequest) {
+        if (session.sensitivity.omitRaw(request.path, request.type)) return
         val sourceType = request.type.javaType.toCanonical()
         require(session.options.unsupportedTypeStrategy == UnsupportedTypeStrategy.RAW_JSON) {
             "Unsupported property [${request.path}] for aggregate [${session.aggregate}] with type [$sourceType]."

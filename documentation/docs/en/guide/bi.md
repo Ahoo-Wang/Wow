@@ -65,9 +65,18 @@ Diagnostics are a stable structured review surface:
 | `ORPHANED_DATA_TABLE` | Managed data is retained because ownership/reconciliation cannot safely remove it |
 | `CLUSTER_INTERNAL_REPLICATION_REQUIRED` | Cluster-side `internal_replication` must be configured externally |
 | `COMPUTED_OBJECT_DRIFT` | A view/materialized-view definition differs and reconciliation is planned |
+| `SENSITIVE_FIELD_OMITTED` | A `@Sensitive` property was left out of the expansion columns (`omitSensitiveFields`) |
 
 `UnsupportedTypeStrategy.RAW_JSON` is the default; `FAIL` rejects unsupported or unverifiable shapes instead of
 emitting fallback columns.
+
+`@Sensitive` state properties are expanded like any other property by default, so existing scripts do not change.
+Set `omitSensitiveFields = true` (`wow.bi.script.omit-sensitive-fields=true`) to leave them, at either level, out of
+the expansion views: neither their own column nor any raw JSON column of a value that contains them (a nullable
+object's raw companion, an object array, a raw-JSON fallback) is generated. The rule the query subsystem masks by
+decides (a direct, meta-annotated or value-type `@Sensitive`), and each omitted path is reported as
+`SENSITIVE_FIELD_OMITTED`. Only the raw state in `__state` still holds the value; restrict access to it in ClickHouse.
+The switch is server configuration: a `/wow/bi/script` request cannot override it.
 
 ### HTTP Route
 

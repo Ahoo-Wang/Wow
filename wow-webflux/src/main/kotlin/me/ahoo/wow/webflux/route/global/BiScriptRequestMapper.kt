@@ -43,6 +43,7 @@ internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptO
         maxExpansionDepth = maxExpansionDepth ?: base.maxExpansionDepth,
         unsupportedTypeStrategy = unsupportedTypeStrategy?.toDomain()
             ?: base.unsupportedTypeStrategy,
+        omitSensitiveFields = base.omitSensitiveFields,
     )
 }
 

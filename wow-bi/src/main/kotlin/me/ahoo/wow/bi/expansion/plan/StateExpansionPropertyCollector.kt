@@ -25,7 +25,7 @@ internal class StateExpansionPropertyCollector(
     private val session: StateExpansionPlanningSession,
 ) {
     private val fallbackCollector = StateExpansionFallbackCollector(session)
-    private val collectionCollector = StateExpansionCollectionCollector(fallbackCollector)
+    private val collectionCollector = StateExpansionCollectionCollector(session, fallbackCollector)
 
     fun collectObjectProperties(parent: PlanningNode, draft: ViewDraft) {
         when (val shape = JacksonWireShapeInspector.inspect(parent.type)) {
@@ -55,6 +55,9 @@ internal class StateExpansionPropertyCollector(
             type = property.type,
             draft = draft,
         )
+        if (session.sensitivity.omitProperty(property, request.path)) {
+            return
+        }
         draft.propertyTargetNames.add(request.targetName)
 
         if (parent.depth + 1 > session.options.maxExpansionDepth && !request.type.canRenderDirectly()) {
@@ -121,7 +124,7 @@ internal class StateExpansionPropertyCollector(
                 placement = ColumnPlacement.WITH,
             )
         )
-        if (request.type.requiresRawCompanion()) {
+        if (request.type.requiresRawCompanion() && !session.sensitivity.omitRaw(request.path, request.type)) {
             request.draft.columns.add(rawCompanionColumn(request.toRawColumnRequest()))
         }
         collectResolvedProperties(
