@@ -14,11 +14,23 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 
 interface SynchronousSnapshotCursorQueryApi<S : Any> :
     SnapshotCursorQueryApi<
         CursorPage<MaterializedSnapshot<S>>,
         CursorPage<Map<String, Any>>,
         CursorPage<S>,
-        >
+        > {
+    @PostExchange(SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME)
+    override fun cursor(@RequestBody query: ICursorQuery): CursorPage<MaterializedSnapshot<S>>
+
+    @PostExchange(SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME)
+    override fun dynamicCursor(@RequestBody query: ICursorQuery): CursorPage<Map<String, Any>>
+
+    @PostExchange(SNAPSHOT_CURSOR_QUERY_STATE_RESOURCE_NAME)
+    override fun cursorState(@RequestBody query: ICursorQuery): CursorPage<S>
+}

@@ -15,10 +15,21 @@ package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Flux
 
 interface ReactiveSnapshotListQueryApi<S : Any> :
-    SnapshotListQueryApi<Flux<MaterializedSnapshot<S>>, Flux<Map<String, Any>>, Flux<S>>
+    SnapshotListQueryApi<Flux<MaterializedSnapshot<S>>, Flux<Map<String, Any>>, Flux<S>> {
+    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
+    override fun list(@RequestBody query: IListQuery): Flux<MaterializedSnapshot<S>>
+
+    @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)
+    override fun dynamicList(@RequestBody query: IListQuery): Flux<Map<String, Any>>
+
+    @PostExchange(SNAPSHOT_LIST_STATE_RESOURCE_NAME)
+    override fun listState(@RequestBody query: IListQuery): Flux<S>
+}
 
 fun <S : Any> IListQuery.query(snapshotQueryApi: ReactiveSnapshotListQueryApi<S>): Flux<MaterializedSnapshot<S>> {
     return snapshotQueryApi.list(this)
