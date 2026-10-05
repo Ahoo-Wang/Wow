@@ -78,6 +78,11 @@ class DispatcherMetricsDefaultsTest {
         aggregateStateEventDispatcher.name.assert().isEqualTo("aggregate-state-event")
         aggregateCommandDispatcher.name.assert().isEqualTo("aggregate-command")
         aggregateSnapshotDispatcher.name.assert().isEqualTo("aggregate-snapshot")
+        AggregateSnapshotDispatcher(
+            namedAggregates = setOf(MOCK_AGGREGATE_METADATA.namedAggregate),
+            messageFlux = Flux.empty(),
+            snapshotHandler = mockk<SnapshotHandler>(),
+        ).contextName.assert().isEqualTo(MOCK_AGGREGATE_METADATA.contextName)
     }
 
     @Test
