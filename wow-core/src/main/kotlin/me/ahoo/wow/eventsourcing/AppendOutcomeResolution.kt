@@ -13,7 +13,9 @@
 package me.ahoo.wow.eventsourcing
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.exception.recoverable
 import reactor.core.publisher.Mono
@@ -35,7 +37,10 @@ private enum class SlotHolder {
  * holds [eventStream]'s version slot holds it for good:
  *
  * - [eventStream] itself: the append committed, and this completes normally.
- * - another stream: [eventStream] can never commit, and the original failure is returned.
+ * - another stream: [eventStream] can never commit, and the original failure is returned, except for a create
+ *   (version 1) whose request ID the existing stream already carries: that is a retry of the request that created the
+ *   aggregate (a saga resending a create with its derived aggregate ID, after the Bloom window), reported as
+ *   [DuplicateRequestIdException] rather than an aggregate ID collision.
  * - nobody, after a recoverable failure: the write is retried once with the same stream. The
  *   slot decides between the retry and a write still in flight, then it is read again.
  * - nobody, otherwise, or the store cannot be read: the original failure is returned.
@@ -45,7 +50,7 @@ internal fun EventStore.appendResolvingOutcome(eventStream: DomainEventStream): 
         slotHolder(eventStream, failure).flatMap { holder ->
             when (holder) {
                 SlotHolder.SELF -> committedDespite(eventStream, failure)
-                SlotHolder.OTHER -> Mono.error(failure)
+                SlotHolder.OTHER -> duplicateCreateRequestOr(eventStream, failure)
                 SlotHolder.NONE -> if (failure.recoverable == RecoverableType.RECOVERABLE) {
                     rewrite(eventStream, failure)
                 } else {
@@ -54,6 +59,21 @@ internal fun EventStore.appendResolvingOutcome(eventStream: DomainEventStream): 
             }
         }
     }
+
+private fun EventStore.duplicateCreateRequestOr(eventStream: DomainEventStream, failure: Throwable): Mono<Void> {
+    if (failure !is DuplicateAggregateIdException || eventStream.version != Version.INITIAL_VERSION) {
+        return Mono.error(failure)
+    }
+    return existsRequestId(eventStream.aggregateId, eventStream.requestId)
+        .onErrorReturn(false)
+        .flatMap { exists ->
+            if (exists) {
+                Mono.error(DuplicateRequestIdException(eventStream.aggregateId, eventStream.requestId, cause = failure))
+            } else {
+                Mono.error(failure)
+            }
+        }
+}
 
 private fun EventStore.rewrite(eventStream: DomainEventStream, failure: Throwable): Mono<Void> =
     append(eventStream).onErrorResume { rewriteFailure ->

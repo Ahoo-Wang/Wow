@@ -16,6 +16,7 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventStream
@@ -82,8 +83,9 @@ class RetryableAggregateProcessorTest {
             .verifyComplete()
         created.get().assert().isEqualTo(1)
 
+        // The same create again carries the request ID that created the aggregate: a duplicate request (K3).
         StepVerifier.create(result)
-            .expectError(DuplicateAggregateIdException::class.java)
+            .expectError(DuplicateRequestIdException::class.java)
             .verify()
         created.get().assert().isEqualTo(2)
     }

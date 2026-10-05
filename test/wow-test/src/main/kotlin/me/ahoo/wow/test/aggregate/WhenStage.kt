@@ -14,7 +14,6 @@
 package me.ahoo.wow.test.aggregate
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.SpaceIdCapable
@@ -23,7 +22,6 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.test.validation.validate
 import reactor.core.publisher.Mono
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Defines the stage for specifying commands to execute in aggregate testing.
@@ -70,16 +68,18 @@ interface WhenStage<S : Any> {
  * @param runtime where the aggregate's history lives and its commands run
  * @param ownerId the owner of the given history, used by a command that states none
  * @param spaceId the space of the given history, used by a command that states none
- * @param prepare sets up the history of the aggregate a command addresses, before the first command of this stage
- *   for that aggregate runs; later commands continue the same history (branch with `fork` for independent ones)
+ * @param siblings keeps the commands that branch from the same given stage independent: each starts from the given
+ *   history, not after its siblings
+ * @param prepare sets up the history of the aggregate a command addresses (given events or state) before the command
+ *   runs, on the runtime the command runs on
  */
 internal class DefaultWhenStage<C : Any, S : Any>(
     private val runtime: AggregateTestRuntime<C, S>,
     private val ownerId: String,
     private val spaceId: SpaceId,
+    private val siblings: SiblingHistory,
     private val prepare: (AggregateTestRuntime<C, S>) -> Mono<Void>
 ) : WhenStage<S> {
-    private val prepared = ConcurrentHashMap<AggregateId, Mono<Void>>()
 
     override fun whenCommand(
         command: Any,
@@ -96,9 +96,12 @@ internal class DefaultWhenStage<C : Any, S : Any>(
             spaceId = spaceId.ifBlank { this.spaceId },
             header = header,
         )
-        val target = runtime.withAggregateId(commandMessage.aggregateId)
+        // Sibling `whenCommand`s of one given stage are independent, see [SiblingHistory].
+        val branch = siblings.branch(runtime.withAggregateId(commandMessage.aggregateId))
+        val target = branch.runtime
+        val preconditions = branch.start.then(Mono.defer { prepare(target) }).cache()
         val expectedResultMono = Mono.defer {
-            prepared.computeIfAbsent(target.aggregateId) { Mono.defer { prepare(target) }.cache() }.then(
+            preconditions.then(
                 Mono.defer {
                     val exchange = SimpleServerCommandExchange(commandMessage)
                     try {

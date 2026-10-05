@@ -148,21 +148,35 @@ internal class AggregateTestRuntime<C : Any, S : Any>(
     }
 
     /** An independent copy: the same history in new in-memory stores, with a copy of the service provider. */
-    fun fork(): AggregateTestRuntime<C, S> {
-        val forked = AggregateTestRuntime(
+    fun fork(): AggregateTestRuntime<C, S> =
+        isolated().also { it.copyHistory(this, Int.MAX_VALUE).block() }
+
+    /** A runtime for the same aggregate in new, empty in-memory stores, with a copy of the service provider. */
+    fun isolated(): AggregateTestRuntime<C, S> =
+        AggregateTestRuntime(
             metadata = metadata,
             aggregateId = aggregateId,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = InMemoryEventStore(),
             serviceProvider = serviceProvider.copy(),
         )
-        snapshotStore.load<S>(aggregateId)
-            .flatMap { forked.snapshotStore.save(it) }
-            .thenMany(eventStore.load(aggregateId).concatMap { forked.eventStore.append(it.copy()) })
+
+    /** The version of the aggregate's history: its last stored event or its snapshot, 0 without history. */
+    fun version(): Mono<Int> =
+        eventStore.last(aggregateId).map { it.version }.defaultIfEmpty(0)
+            .zipWith(snapshotStore.load<S>(aggregateId).map { it.version }.defaultIfEmpty(0), ::maxOf)
+
+    /** Copies [source]'s history up to [version] (its snapshot and event streams) into this runtime's stores. */
+    fun copyHistory(source: AggregateTestRuntime<C, S>, version: Int): Mono<Void> =
+        source.snapshotStore.load<S>(aggregateId)
+            .filter { it.version <= version }
+            .flatMap { snapshotStore.save(it) }
+            .thenMany(
+                source.eventStore.load(aggregateId)
+                    .takeWhile { it.version <= version }
+                    .concatMap { eventStore.append(it.copy()) }
+            )
             .then()
-            .block()
-        return forked
-    }
 
     /**
      * The same stores and services for [aggregateId]: the aggregate a command message addresses, which can differ
