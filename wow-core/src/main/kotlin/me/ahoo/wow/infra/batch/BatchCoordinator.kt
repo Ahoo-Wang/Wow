@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.infra.batch
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.Exceptions
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Coordinates bounded, non-blocking admission and graceful shutdown for
@@ -159,6 +161,22 @@ class BatchCoordinator<T : Any>(
         return Mono.fromFuture(termination, true).then()
     }
 
+    /** The failure [forceStop] installed; [close] after it returns quietly instead of throwing it. */
+    private val forceStopCause = AtomicReference<Throwable>()
+    private val forceStopCloseLogged = AtomicBoolean()
+
+    /**
+     * Closes admission and fails every accepted item that is not written yet with [BatchClosedException], without
+     * waiting. A coordinator that already closed is not affected. A later [close] returns at once without throwing,
+     * so an owner that closes after the runtime force-stopped it (Spring bean destruction) does not fail.
+     */
+    fun forceStop() {
+        // Published before the failure, so a close that observes this failure also recognises it. Repeated force
+        // stops reuse the first cause.
+        forceStopCause.compareAndSet(null, BatchClosedException(name))
+        failLifecycle(forceStopCause.get())
+    }
+
     override fun close() {
         close(DEFAULT_CLOSE_TIMEOUT)
     }
@@ -173,7 +191,15 @@ class BatchCoordinator<T : Any>(
             "timeout must be positive."
         }
         initiateClose()
-        lifecycle.failureCause?.let { throw it }
+        lifecycle.failureCause?.let { failure ->
+            if (failure === forceStopCause.get()) {
+                if (forceStopCloseLogged.compareAndSet(false, true)) {
+                    log.info { "Batch coordinator[$name] was force stopped; unwritten items were failed." }
+                }
+                return
+            }
+            throw failure
+        }
         val closeTermination = if (resultDispatcher.isDispatchingResult) {
             processorTermination
         } else {
@@ -341,5 +367,6 @@ class BatchCoordinator<T : Any>(
 
     private companion object {
         val DEFAULT_CLOSE_TIMEOUT: Duration = Duration.ofSeconds(30)
+        private val log = KotlinLogging.logger {}
     }
 }

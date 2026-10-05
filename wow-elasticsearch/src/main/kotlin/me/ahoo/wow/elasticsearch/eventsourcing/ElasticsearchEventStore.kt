@@ -28,6 +28,7 @@ import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -65,6 +66,13 @@ class ElasticsearchEventStore(
             indexNaming = indexNaming,
         )
     }
+
+    /**
+     * The batch writer of this store's event streams, flushed by the runtime after its dispatchers stop
+     * ([me.ahoo.wow.runtime.RuntimeResources]); [RuntimeResource.NONE] when the store writes directly.
+     */
+    val runtimeResource: RuntimeResource
+        get() = if (batchOptions == null) RuntimeResource.NONE else appender
 
     companion object {
         private const val NOT_FOUND_CODE = 404

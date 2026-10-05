@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.kafka
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.kafka.AbstractKafkaBus
 import me.ahoo.wow.kafka.AcknowledgeKafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.CommandTopicConverter
 import me.ahoo.wow.kafka.DefaultCommandTopicConverter
@@ -31,12 +32,15 @@ import me.ahoo.wow.kafka.KafkaStateEventBus
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.StateEventTopicConverter
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
+import me.ahoo.wow.spring.boot.starter.runtimeResourceOf
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -101,6 +105,17 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     }
 
     @Bean
+    @ConditionalOnProperty(
+        CommandProperties.BUS_TYPE,
+        matchIfMissing = true,
+        havingValue = BusType.KAFKA_NAME,
+    )
+    fun kafkaCommandBusRuntimeResource(
+        @Qualifier("kafkaCommandBus")
+        kafkaCommandBus: DistributedCommandBus
+    ): RuntimeResource = runtimeResourceOf(kafkaCommandBus, AbstractKafkaBus<*, *>::runtimeResource)
+
+    @Bean
     @ConditionalOnMissingBean
     fun defaultEventStreamTopicConverter(): EventStreamTopicConverter {
         return DefaultEventStreamTopicConverter(kafkaProperties.topicPrefix)
@@ -129,6 +144,17 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     }
 
     @Bean
+    @ConditionalOnProperty(
+        EventProperties.BUS_TYPE,
+        matchIfMissing = true,
+        havingValue = BusType.KAFKA_NAME,
+    )
+    fun kafkaDomainEventBusRuntimeResource(
+        @Qualifier("kafkaDomainEventBus")
+        kafkaDomainEventBus: DistributedDomainEventBus
+    ): RuntimeResource = runtimeResourceOf(kafkaDomainEventBus, AbstractKafkaBus<*, *>::runtimeResource)
+
+    @Bean
     @ConditionalOnMissingBean
     fun stateEventTopicConverter(): StateEventTopicConverter {
         return DefaultStateEventTopicConverter(kafkaProperties.topicPrefix)
@@ -155,4 +181,15 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             recordDecodeFailureHandler = recordDecodeFailureHandler,
         )
     }
+
+    @Bean
+    @ConditionalOnProperty(
+        StateProperties.BUS_TYPE,
+        matchIfMissing = true,
+        havingValue = BusType.KAFKA_NAME,
+    )
+    fun kafkaStateEventBusRuntimeResource(
+        @Qualifier("kafkaStateEventBus")
+        kafkaStateEventBus: DistributedStateEventBus
+    ): RuntimeResource = runtimeResourceOf(kafkaStateEventBus, AbstractKafkaBus<*, *>::runtimeResource)
 }

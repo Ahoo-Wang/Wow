@@ -25,7 +25,7 @@ import me.ahoo.wow.metrics.MetricDescriptor
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.runtime.RuntimeActivity
 import me.ahoo.wow.runtime.RuntimeContext
-import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
+import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.publishTerminalSignal
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
@@ -104,9 +104,7 @@ import java.util.concurrent.atomic.AtomicReference
  * @see MessageExchange for the exchange type contract
  */
 abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected constructor(
-    private val cleanupDispatcher: (Runnable) -> Boolean = { action ->
-        RuntimeCleanupExecutor.execute(action)
-    },
+    private val cleanupDispatcher: (Runnable) -> Boolean = DefaultRuntimeExecutionResources::dispatchCleanup,
     private val messageReadiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
     private val processingQuiescence: () -> Unit = {},

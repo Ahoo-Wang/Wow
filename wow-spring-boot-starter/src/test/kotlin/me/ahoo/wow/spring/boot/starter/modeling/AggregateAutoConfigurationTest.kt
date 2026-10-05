@@ -31,6 +31,7 @@ import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.runtime.RuntimeResources
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.WowRuntimeLifecycle
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -68,7 +69,9 @@ internal class AggregateAutoConfigurationTest {
                     .hasSingleBean(FilterChain::class.java)
                     .hasSingleBean(CommandHandler::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
-                context.getBean(WowRuntime::class.java).components.single().assert()
+                context.getBean(
+                    WowRuntime::class.java
+                ).components.filterNot { it is RuntimeResources }.single().assert()
                     .isInstanceOf(CommandDispatcher::class.java)
             }
     }

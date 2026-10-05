@@ -104,11 +104,40 @@ flowchart LR
 
 组合组件可以向子组件提供借用视图，例如 `BorrowedAggregateSchedulerSupplier`。子组件可完成自身生命周期，但不能关闭由父组件拥有的共享 Scheduler。
 
+## 存储与传输资源
+
+批量写入器和 Kafka 生产者持有分发器已经接受的工作。批量写入器指开启批量的 Mongo、Elasticsearch 事件流追加器和快照保存器。它们都是 `RuntimeResource`：
+
+```kotlin
+interface RuntimeResource {
+    fun stopGracefully(): Mono<Void>
+    fun forceStop()
+}
+```
+
+`RuntimeResources` 组件拥有这些资源。它注册在最前，所以最后停止：所有分发器排空后，它在同一个 `shutdownTimeout` 内并发刷写全部资源。超过时限时，`forceStop` 让尚未写入的条目失败。批量写入器的强制停止会结束它的优雅停止。Kafka 客户端无法取消进行中的关闭，运行时不再等待它。存储与总线仍然是 `AutoCloseable`。刷写完成后，它们的 `close()` 立即返回；批量写入器被强制停止后，`close()` 同样立即返回且不报错，无论 Spring 调用多少次。
+
+强制停止限制的是运行时等待多久，而不是仍在运行的工作：
+- **Kafka**：被放弃的关闭仍在后台刷写。Spring 销毁总线时，它的 `close()` 可能阻塞到这次刷写结束。
+- **批量写入器**：已经开始的写入会被取消，它的条目失败，但存储可能已经收到这次写入。JVM 也不会等它，因为生命周期线程是守护线程：进程在刷写中途退出时，这样的写入可能已生效，也可能没有。
+
+`wow.shutdown-timeout` 应足以容纳一次正常的刷写。
+
+## 生命周期线程
+
+运行时的生命周期线程集中由 `RuntimeExecutionResources` 拥有：
+- 一个有界的守护线程生命周期池。停机、公开的终止观察者、终止控制和物理清理各占一条通道。
+- 一个时限计时线程。
+
+线程池为每条通道预留线程。阻塞的观察者因此只占用观察者通道，不会拖延停机、终止控制面或清理。空闲线程会超时回收。
+
 ## Spring 所有权
 
 Starter 提供唯一的 `WowRuntimeLifecycle` 把 Runtime 适配到 Spring `SmartLifecycle`。默认 Runtime 从当前 ApplicationContext 收集 singleton `RuntimeComponent`，按 Spring order 排序，并拒绝竞争性的 Spring `Lifecycle`、destroy method 或其他销毁 owner。
 
-应用提供自定义 Runtime 时，必须显式拥有组件拓扑；Starter 不会把自动发现的组件再追加进去。配置、Bean 名和覆盖规则由[Spring Boot Starter](../extensions/spring-boot-starter.md#bean-装配与覆盖)维护。
+默认 Runtime 还会把 `RuntimeResources` 注册在最前，在 Runtime prepare 时解析所有 `RuntimeResource` Bean。Mongo、Elasticsearch、Kafka 自动配置为它们创建的每个存储和总线各注册一个。
+
+应用提供自定义 Runtime 时，必须显式拥有组件拓扑；Starter 不会把自动发现的组件再追加进去。这样的 Runtime 应把一个 `RuntimeResources` 放在最前，否则批量写入器只在 Spring 关闭存储时才刷写。配置、Bean 名和覆盖规则由[Spring Boot Starter](../extensions/spring-boot-starter.md#bean-装配与覆盖)维护。
 
 ## 自定义组件检查清单
 

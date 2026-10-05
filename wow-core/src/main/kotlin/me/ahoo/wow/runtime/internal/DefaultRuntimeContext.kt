@@ -41,6 +41,8 @@ internal class DefaultRuntimeContext(
     private val shutdownQuietPeriod: Duration = Duration.ZERO,
     private val scheduler: Scheduler = Schedulers.parallel(),
     private val failureHandler: (Throwable) -> Unit = {},
+    /** The owning runtime's shutdown lane; runtime-owned components run their stop work on it. */
+    val shutdownScheduler: Scheduler = DefaultRuntimeExecutionResources.shutdownScheduler,
 ) : RuntimeContext {
     companion object {
         private const val QUIESCING_MASK = Long.MIN_VALUE

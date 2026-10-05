@@ -23,7 +23,7 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
-import me.ahoo.wow.runtime.internal.RuntimeCleanupExecutor
+import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertTimeoutPreemptively
@@ -793,7 +793,7 @@ class AggregateDispatcherTest {
         override val scheduler: Scheduler = Schedulers.immediate(),
         override val name: String = "recording-dispatcher",
         cleanupDispatcher: (Runnable) -> Boolean = { action ->
-            RuntimeCleanupExecutor.execute(action)
+            DefaultRuntimeExecutionResources.dispatchCleanup(action)
         },
         messageReadiness: Mono<Void> = Mono.empty(),
         processingAdmission: () -> Unit = {},

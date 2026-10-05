@@ -16,13 +16,19 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.runtime.RuntimeResource
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 
-internal interface ElasticsearchSnapshotSaver : AutoCloseable {
+internal interface ElasticsearchSnapshotSaver : AutoCloseable, RuntimeResource {
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
 
     override fun close() = Unit
+
+    /** A direct writer has nothing to flush. */
+    override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
 }
 
 internal class DirectElasticsearchSnapshotSaver(

@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.apache.kafka.clients.consumer.Consumer
@@ -104,6 +105,20 @@ abstract class AbstractKafkaBus<M, E>(
     }
 
     protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
+
+    /**
+     * This bus's producer as a runtime resource: the runtime closes it, flushing the records it buffered, after its
+     * dispatchers stop and within the same shutdown deadline ([me.ahoo.wow.runtime.RuntimeResources]). Closing is
+     * idempotent, so a later [close] returns at once. The Kafka client cannot cancel a running close: on force stop
+     * the runtime stops waiting for it.
+     */
+    val runtimeResource: RuntimeResource = object : RuntimeResource {
+        override fun stopGracefully(): Mono<Void> = Mono.fromRunnable(this@AbstractKafkaBus::close)
+
+        override fun forceStop() = Unit
+
+        override fun toString(): String = "${this@AbstractKafkaBus.javaClass.simpleName}.sender"
+    }
     abstract val messageType: Class<M>
     override fun send(message: M): Mono<Void> {
         return Mono.defer {

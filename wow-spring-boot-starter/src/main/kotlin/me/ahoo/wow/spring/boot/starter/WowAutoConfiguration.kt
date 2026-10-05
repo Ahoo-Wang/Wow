@@ -20,6 +20,8 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.runtime.RuntimeComponent
+import me.ahoo.wow.runtime.RuntimeResource
+import me.ahoo.wow.runtime.RuntimeResources
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.SpringServiceProvider
 import me.ahoo.wow.spring.WowRuntimeLifecycle
@@ -123,8 +125,12 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     internal fun wowRuntime(
         beanFactory: ConfigurableListableBeanFactory,
     ): WowRuntime {
+        // First, so it stops last: storage and transport resources flush after every dispatcher has drained.
+        val resources = RuntimeResources {
+            beanFactory.getBeansOfType(RuntimeResource::class.java, false, true).values
+        }
         return WowRuntime(
-            components = beanFactory.localRuntimeComponents(),
+            components = listOf(resources) + beanFactory.localRuntimeComponents(),
             shutdownTimeout = wowProperties.shutdownTimeout,
             shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
         )

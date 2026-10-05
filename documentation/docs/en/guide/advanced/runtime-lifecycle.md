@@ -104,11 +104,40 @@ Each new runtime activity restarts the quiet period. After a continuous idle int
 
 A composite can give children a borrowed resource view such as `BorrowedAggregateSchedulerSupplier`. Children complete their lifecycle without closing a Scheduler owned by the parent.
 
+## Storage and transport resources
+
+A batch writer (the Mongo and Elasticsearch event-stream appender and snapshot saver with batching enabled) and a Kafka producer hold work the dispatchers already accepted. Each is a `RuntimeResource`:
+
+```kotlin
+interface RuntimeResource {
+    fun stopGracefully(): Mono<Void>
+    fun forceStop()
+}
+```
+
+The `RuntimeResources` component owns them. Registered first, it stops last: after every dispatcher has drained, it flushes all resources concurrently, inside the same `shutdownTimeout`. If the deadline expires, `forceStop` fails the unwritten items. A batch writer's force stop ends its graceful stop. Kafka's client cannot cancel a running close, so the runtime stops waiting for it. The stores and buses stay `AutoCloseable`. After a flush, their `close()` returns at once; a batch writer's `close()` after a force stop also returns at once, without an error, however often Spring calls it.
+
+A force stop bounds how long the runtime waits, not what is still running:
+- **Kafka:** the abandoned close keeps flushing in the background. When Spring destroys the bus, its `close()` can block until that flush ends.
+- **Batch writers:** a write that had already started is cancelled and its items fail, but the store may already have received it. The JVM does not wait for it either, since the lifecycle threads are daemon threads: a process that exits mid-flush can leave such a write applied or not.
+
+Size `wow.shutdown-timeout` so that a normal flush fits inside it.
+
+## Lifecycle threads
+
+The runtime owns its lifecycle threads in one place, `RuntimeExecutionResources`:
+- One bounded, daemon lifecycle pool. Shutdown, public terminal observers, termination control and physical cleanup each run on their own lane.
+- One deadline timer thread.
+
+The pool reserves each lane's threads. An observer that blocks therefore holds only the observer lane, and cannot delay shutdown, the termination control plane or cleanup. Idle threads time out.
+
 ## Spring ownership
 
 The Starter supplies the single `WowRuntimeLifecycle` adapter to Spring `SmartLifecycle`. The default runtime collects singleton `RuntimeComponent` beans from the current application context, orders them with Spring semantics, and rejects competing Spring lifecycle, destroy-method, or cleanup owners.
 
-An application-provided runtime explicitly owns its component topology; the Starter does not append auto-discovered components. [Spring Boot Starter](../extensions/spring-boot-starter.md#bean-wiring-and-overrides) owns bean names, configuration, and replacement rules.
+The default runtime also registers `RuntimeResources` first, resolving every `RuntimeResource` bean when the runtime prepares. The Mongo, Elasticsearch and Kafka auto-configurations register one for each store and bus they create.
+
+An application-provided runtime explicitly owns its component topology; the Starter does not append auto-discovered components. Such a runtime should put a `RuntimeResources` first, or its batch writers are flushed only when Spring closes the stores. [Spring Boot Starter](../extensions/spring-boot-starter.md#bean-wiring-and-overrides) owns bean names, configuration, and replacement rules.
 
 ## Custom component checklist
 

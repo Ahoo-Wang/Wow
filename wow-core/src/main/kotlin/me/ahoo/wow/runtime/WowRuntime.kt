@@ -29,7 +29,6 @@ import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.TimeUnit
@@ -78,18 +77,6 @@ class WowRuntime private constructor(
         constructorMarker = Unit,
     )
 
-    private companion object {
-        const val SHUTDOWN_QUEUE_CAPACITY: Int = 256
-        const val SHUTDOWN_THREAD_TTL_SECONDS: Int = 60
-        val SHUTDOWN_DEADLINE_SCHEDULER = Schedulers.newBoundedElastic(
-            1,
-            SHUTDOWN_QUEUE_CAPACITY,
-            "wow-runtime-deadline",
-            SHUTDOWN_THREAD_TTL_SECONDS,
-            true,
-        )
-    }
-
     private enum class State {
         NEW,
         STARTING,
@@ -125,6 +112,7 @@ class WowRuntime private constructor(
         shutdownQuietPeriod = shutdownQuietPeriod,
         scheduler = executionResources.quiescenceScheduler,
         failureHandler = ::handleRuntimeFailure,
+        shutdownScheduler = executionResources.shutdownScheduler,
     )
     private val componentGroup = RuntimeComponentGroup(this.components) { error ->
         firstFailure.record(error)
@@ -146,7 +134,7 @@ class WowRuntime private constructor(
     private val terminationControlClaimed = AtomicBoolean()
     private var forceCleanupStarted = false
     private var shutdownOwner: ShutdownOwner? = null
-    internal var shutdownDeadlineScheduler: Scheduler = SHUTDOWN_DEADLINE_SCHEDULER
+    internal var shutdownDeadlineScheduler: Scheduler = executionResources.deadlineScheduler
 
     @Volatile
     private var state = State.NEW

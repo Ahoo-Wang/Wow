@@ -20,14 +20,20 @@ import co.elastic.clients.elasticsearch.core.IndexRequest
 import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 
-internal interface ElasticsearchEventStreamAppender : AutoCloseable {
+internal interface ElasticsearchEventStreamAppender : AutoCloseable, RuntimeResource {
     fun append(eventStream: DomainEventStream): Mono<Void>
 
     override fun close() = Unit
+
+    /** A direct writer has nothing to flush. */
+    override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
 }
 
 internal class DirectElasticsearchEventStreamAppender(
