@@ -24,10 +24,13 @@ import java.time.Duration
  * **Entries.** Trimming is off by default: an entry stays until it is deleted by hand, so a consumer group that falls
  * behind, or a new group that replays from the start, still finds it. Set at most one of:
  * - [maxLength]: every `XADD` trims the stream to about this many entries (`MAXLEN ~`);
- * - [maxAge]: every `XADD` trims entries older than this (`MINID ~`, from the sender's clock).
+ * - [maxAge]: every `XADD` trims entries older than this (`MINID ~`, from the sender's clock). It must be at least
+ *   [MIN_MAX_AGE] and far larger than the clock skew between senders: a sender whose clock runs ahead trims younger
+ *   entries.
  * Trimming applies to every consumer group: an entry a lagging group has not read yet is lost to it, so size the
  * limit to the slowest group's worst lag. With [approximate] (the default) Redis trims whole macro nodes, which is
- * much cheaper; the stream may hold a few more entries than the limit.
+ * much cheaper; the stream may hold a few more entries than the limit. Trimming needs Redis 7.0 or later: it can remove
+ * entries still pending for a consumer, and before 7.0 claiming such an entry (`XCLAIM`) keeps failing.
  *
  * **Consumers.** Each subscription start joins its group under a new consumer name, so a restarted node leaves its old
  * consumer behind. When a receiver starts, it deletes (`XGROUP DELCONSUMER`) the consumers of its group that have no
@@ -44,8 +47,8 @@ data class RedisStreamRetentionOptions(
         require(maxLength == null || maxLength > 0) {
             "maxLength must be positive."
         }
-        require(maxAge == null || maxAge >= MIN_DURATION) {
-            "maxAge must be at least 1 millisecond."
+        require(maxAge == null || maxAge >= MIN_MAX_AGE) {
+            "maxAge must be at least $MIN_MAX_AGE: MINID uses the sender's clock, so the age must dwarf clock skew."
         }
         require(maxLength == null || maxAge == null) {
             "Set at most one of maxLength and maxAge: Redis trims a stream by one strategy."
@@ -71,6 +74,10 @@ data class RedisStreamRetentionOptions(
 
     companion object {
         private val MIN_DURATION = Duration.ofMillis(1)
+
+        /** The shortest [maxAge]: `MINID` comes from the sender's clock, so a shorter age is mostly clock skew. */
+        @JvmField
+        val MIN_MAX_AGE: Duration = Duration.ofMinutes(1)
 
         @JvmField
         val DEFAULT_CONSUMER_IDLE_TIMEOUT: Duration = Duration.ofMinutes(30)

@@ -28,8 +28,10 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import org.reactivestreams.Subscription
 import org.springframework.data.redis.connection.stream.Consumer
 import org.springframework.data.redis.connection.stream.ReadOffset
+import org.springframework.data.redis.connection.stream.RecordId
 import org.springframework.data.redis.connection.stream.StreamOffset
 import org.springframework.data.redis.connection.stream.StreamReadOptions
+import org.springframework.data.redis.connection.stream.StreamRecords
 import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -75,10 +77,17 @@ class RedisStreamRetentionTest {
     @Test
     fun `max age trims entries older than the age on every send`() {
         val topic = redis.key("max-age")
-        val untrimmed = bus(topic, RedisStreamRetentionOptions.DEFAULT)
-        send(untrimmed, 20)
-        Mono.delay(Duration.ofMillis(300)).block()
-        val bus = bus(topic, RedisStreamRetentionOptions(maxAge = Duration.ofMillis(200), approximate = false))
+        // Entries two minutes old, added under explicit IDs: the minimum age is one minute.
+        val old = System.currentTimeMillis() - Duration.ofMinutes(2).toMillis()
+        repeat(20) { sequence ->
+            redis.redisTemplate.opsForStream<String, String>()
+                .add(
+                    StreamRecords.newRecord().`in`(topic).ofMap(mapOf("old" to "$sequence"))
+                        .withId(RecordId.of(old, sequence.toLong()))
+                )
+                .block()
+        }
+        val bus = bus(topic, RedisStreamRetentionOptions(maxAge = Duration.ofMinutes(1), approximate = false))
 
         send(bus, 1)
 

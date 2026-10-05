@@ -326,6 +326,7 @@ public final class me/ahoo/wow/redis/bus/RedisStreamRetentionOptions {
 	public static final field Companion Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions$Companion;
 	public static final field DEFAULT Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;
 	public static final field DEFAULT_CONSUMER_IDLE_TIMEOUT Ljava/time/Duration;
+	public static final field MIN_MAX_AGE Ljava/time/Duration;
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/Long;Ljava/time/Duration;ZLjava/time/Duration;)V
 	public synthetic fun <init> (Ljava/lang/Long;Ljava/time/Duration;ZLjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

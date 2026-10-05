@@ -83,6 +83,10 @@ recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consu
 
 裁剪对所有消费者组生效。落后的组尚未读到的条目会对它丢失，recovery 也补不回来，所以上限要按最慢的组的最坏延迟来定。
 
+开启裁剪前：
+- **需要 Redis 7.0 及以上。** 裁剪可能删掉某个 consumer 仍在待处理的条目。Redis 7.0 在 recovery 认领（`XCLAIM`）这类条目时会清掉它们的引用；在 Redis 6.2 上，认领已被裁剪的待处理条目可能在每轮 recovery 中反复报错。
+- **`max-age` 要远大于时钟偏差。** `MINID` 按发送节点的时钟计算，而不是 Redis 的时钟。时钟偏快的发送方会裁掉按 Redis 时钟尚未达到 `max-age` 的条目。`max-age` 至少为 `1m`，并应远大于节点间的时钟偏差。
+
 每次订阅启动都以新的 consumer 名加入组，重启会留下旧 consumer。接收器启动时，会删除本组中没有待处理条目、且空闲达到 `consumer-idle-timeout`（默认 `30m`）的 consumer。检查和删除在同一个脚本里执行，不会丢失待处理条目。活跃的 consumer 每隔几秒就会轮询，不会空闲这么久；即使被删，下一次读取也会重新创建它。设置 `reap-idle-consumers=false` 可保留所有 consumer。
 
 ## 事件总线

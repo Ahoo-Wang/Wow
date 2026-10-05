@@ -83,6 +83,10 @@ Streams are not trimmed by default: an entry stays until it is deleted by hand, 
 
 Trimming applies to every consumer group. An entry that a lagging group has not read yet is lost to that group, and recovery cannot bring it back, so size the limit to the slowest group's worst lag.
 
+Before turning trimming on:
+- **Redis 7.0 or later.** Trimming can remove an entry that is still pending for some consumer. Redis 7.0 drops such references when recovery claims them (`XCLAIM`). On Redis 6.2, claiming a trimmed pending entry can keep failing on every recovery pass.
+- **`max-age` far above clock skew.** `MINID` is computed from the sending node's clock, not Redis's. A sender whose clock runs ahead trims entries that are younger than `max-age` by Redis's clock. `max-age` must be at least `1m` and should be much larger than the skew between your nodes.
+
 Each subscription start joins its group under a new consumer name, so restarts leave old consumers behind. When a receiver starts, it deletes the consumers of its group that have nothing pending and have been idle for `consumer-idle-timeout` (default `30m`). The check and the delete run in one script, so no pending entry is lost. A live consumer polls every few seconds and is never that idle; if one is deleted anyway, its next read re-creates it. Set `reap-idle-consumers=false` to keep every consumer.
 
 ## Event Bus

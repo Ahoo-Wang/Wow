@@ -25,7 +25,10 @@ import java.time.Duration
 class RedisStreamRetentionProperties(
     /** Trim each stream to about this many entries on every send (`MAXLEN ~`). */
     var maxLength: Long? = null,
-    /** Trim entries older than this on every send (`MINID ~`). */
+    /**
+     * Trim entries older than this on every send (`MINID ~`, from the sender's clock): at least one minute, and far
+     * larger than the clock skew between nodes. Trimming needs Redis 7.0 or later.
+     */
     var maxAge: Duration? = null,
     /** Trim whole macro nodes (`~`), which is much cheaper than exact trimming. */
     var approximate: Boolean = true,

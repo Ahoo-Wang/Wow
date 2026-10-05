@@ -42,18 +42,21 @@ class RedisStreamRetentionOptionsTest {
 
     @Test
     fun `max age trims entries older than now minus the age`() {
-        val trim = RedisStreamRetentionOptions(maxAge = Duration.ofSeconds(1), approximate = false)
-            .addOptions(5_000)
+        val trim = RedisStreamRetentionOptions(maxAge = Duration.ofMinutes(1), approximate = false)
+            .addOptions(65_000)
             .trimOptions!!
 
         trim.trimOperator.assert().isEqualTo(TrimOperator.EXACT)
-        (trim.trimStrategy as MinIdTrimStrategy).threshold().assert().isEqualTo(RecordId.of(4_000, 0))
+        (trim.trimStrategy as MinIdTrimStrategy).threshold().assert().isEqualTo(RecordId.of(5_000, 0))
     }
 
     @Test
     fun `invalid options are rejected`() {
         assertThrows<IllegalArgumentException> { RedisStreamRetentionOptions(maxLength = 0) }
         assertThrows<IllegalArgumentException> { RedisStreamRetentionOptions(maxAge = Duration.ZERO) }
+        // MINID uses the sender's clock: an age near clock skew trims entries that are not that old yet.
+        assertThrows<IllegalArgumentException> { RedisStreamRetentionOptions(maxAge = Duration.ofSeconds(59)) }
+        RedisStreamRetentionOptions(maxAge = RedisStreamRetentionOptions.MIN_MAX_AGE).trims.assert().isTrue()
         assertThrows<IllegalArgumentException> {
             RedisStreamRetentionOptions(maxLength = 10, maxAge = Duration.ofMinutes(1))
         }
