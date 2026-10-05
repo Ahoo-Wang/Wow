@@ -181,7 +181,7 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 9.2 Point-Read Admission Factory Without Scope Contributors
 
-- **Kept compatible**: 9.2's `WebFluxAutoConfiguration.pointReadAdmission(…)` took the host's `QueryRequestScope` as the whole caller scope. 9.3 appends every `ScopeContributor` bean's scope to it, on the query routes and on point reads, so the bean method takes the contributors too. The 9.2 signature stays as a deprecated method that is no longer a bean and adds no contributor.
+- **Kept compatible**: 9.2's `WebFluxAutoConfiguration.pointReadAdmission(…)` took the host's `QueryRequestScope` as the whole caller scope. 9.3 appends every `ScopeContributor` bean's scope to it, on the query routes and on point reads, so the bean method takes the contributors too. The 9.2 signature stays as a deprecated method that is no longer a bean; a `PointReadAdmission` built with it drops every `ScopeContributor`'s restriction from point reads (the view store's application among them, which then fails closed in its query policy).
 - **Markers**: `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration.kt`
 - **Replacement**: the `pointReadAdmission` bean method that also takes `ObjectProvider<ScopeContributor>`; code building a `PointReadAdmission` by hand passes `CompositeQueryRequestScope.of(scope, contributors)`.
 - **Removal in v10**: delete the contributor-less `pointReadAdmission` of `WebFluxAutoConfiguration`. Code still calling it stops compiling.

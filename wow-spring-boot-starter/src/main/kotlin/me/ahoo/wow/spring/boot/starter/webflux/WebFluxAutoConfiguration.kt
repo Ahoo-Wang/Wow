@@ -274,7 +274,10 @@ class WebFluxAutoConfiguration {
     }
 
     // compat(wow<9.3): the factory method before scope contributors; no longer a bean.
-    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores scope contributors.")
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it drops every ScopeContributor's restriction " +
+            "from point reads. Use the bean method that takes the ScopeContributor provider."
+    )
     fun pointReadAdmission(
         webFluxProperties: WebFluxProperties,
         queryRequestScope: QueryRequestScope,

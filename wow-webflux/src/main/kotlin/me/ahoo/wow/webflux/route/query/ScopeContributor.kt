@@ -25,6 +25,14 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * [provenance][QueryScopeProvenance] by the [QueryScope] half it is returned in. An embedded library (the view store's
  * application, say) adds its dimension this way beside the host's [QueryRequestScope], instead of replacing it.
  *
+ * Return a value in the [authenticated][QueryScope.authenticated] half only when it was checked against the caller's
+ * credentials (or comes from them); anything the request merely states (a header, a path variable) belongs in the
+ * [declared][QueryScope.declared] half, which restricts the query but is no security boundary.
+ *
+ * Only the query routes and point-read admission the starter builds apply contributors. A host that builds them with
+ * its own [QueryRequestScope] skips them, so a contributor whose restriction is a security rule should also check for
+ * it where it is enforced (a [QueryPolicy][me.ahoo.wow.query.QueryPolicy] reading the caller scope fails closed).
+ *
  * Contributors run after the host's [QueryRequestScope] (so a blank identity path segment is reported first), in
  * their order, on every query route and on point reads under point-read admission; their scopes are appended to the
  * host's. A contributor that has nothing to add for an aggregate returns [QueryScope.NONE]; one that throws refuses

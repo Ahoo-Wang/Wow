@@ -19,12 +19,16 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.domain.ViewStoreException
@@ -50,8 +54,16 @@ class ViewStoreQueryPolicyTest {
         every { schema.model } returns model
     }
 
-    private fun evaluate(context: QueryContext<*>): Mono<FilterExpression> =
-        Mono.deferContextual { policy.evaluate(it, context) }
+    /** Evaluates under [scope], the caller scope the route resolved (the contributor's, by default). */
+    private fun evaluate(
+        context: QueryContext<*>,
+        scope: QueryScope = contributor.contribute(metadata(), request()),
+    ): Mono<FilterExpression> =
+        Mono.deferContextual { policy.evaluate(it, context) }.contextWrite { it.withQueryScope(scope) }
+
+    private fun Mono<FilterExpression>.expectCode(errorCode: String) = test()
+        .expectErrorMatches { it is ViewStoreException && it.errorCode == errorCode }
+        .verify()
 
     private fun metadata(namedAggregate: NamedAggregate = view): AggregateMetadata<*, *> = mockk {
         every { this@mockk.namedAggregate } returns namedAggregate
@@ -77,20 +89,46 @@ class ViewStoreQueryPolicyTest {
 
     @Test
     fun `refuses HTTP event stream queries`() {
-        evaluate(context(model = QueryModel.EVENT_STREAM)).test()
-            .expectErrorMatches {
-                it is ViewStoreException && it.errorCode == ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED
-            }
-            .verify()
+        evaluate(context(model = QueryModel.EVENT_STREAM)).expectCode(ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED)
     }
 
     @Test
-    fun `leaves snapshot queries, in-process queries and other aggregates to their scope`() {
+    fun `passes an HTTP snapshot query whose scope carries the application`() {
         evaluate(context()).test().expectNext(MatchAllFilter).verifyComplete()
-        evaluate(context(entry = QueryEntry.IN_PROCESS, model = QueryModel.EVENT_STREAM)).test()
+        // Among the host's tenant and owner, as the route resolves it.
+        val host = TenantIdFilter("t1").appendFilter(OwnerIdFilter("alice"))
+        val contributed = contributor.contribute(metadata(), request())
+        evaluate(context(), QueryScope(declared = host.appendFilter(contributed.declared))).test()
             .expectNext(MatchAllFilter).verifyComplete()
-        evaluate(context(model = QueryModel.EVENT_STREAM, namedAggregate = "example-service.order".toNamedAggregate()))
-            .test().expectNext(MatchAllFilter).verifyComplete()
+    }
+
+    @Test
+    fun `fails closed on an HTTP snapshot query whose scope came without the contributor`() {
+        val hostOnly = QueryScope(declared = TenantIdFilter("t1").appendFilter(OwnerIdFilter("alice")))
+        evaluate(context(), hostOnly).expectCode(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+        evaluate(context(), QueryScope.NONE).expectCode(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+        // Another field, or the application under an OR, is no restriction to one application.
+        val other = QueryScope(declared = filter { "state.title" eq "console" })
+        evaluate(context(), other).expectCode(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+        val either = QueryScope(
+            declared = filter {
+                or {
+                    "state.appId" eq "console"
+                    "state.appId" eq "portal"
+                }
+            }
+        )
+        evaluate(context(), either).expectCode(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+    }
+
+    @Test
+    fun `leaves in-process queries and other aggregates alone`() {
+        evaluate(context(entry = QueryEntry.IN_PROCESS, model = QueryModel.EVENT_STREAM), QueryScope.NONE).test()
+            .expectNext(MatchAllFilter).verifyComplete()
+        evaluate(context(entry = QueryEntry.IN_PROCESS), QueryScope.NONE).test()
+            .expectNext(MatchAllFilter).verifyComplete()
+        evaluate(context(namedAggregate = "example-service.order".toNamedAggregate()), QueryScope.NONE).test()
+            .expectNext(MatchAllFilter).verifyComplete()
     }
 
     @Test
