@@ -29,6 +29,7 @@ enum class BiScriptDiagnosticCode {
     ORPHANED_DATA_TABLE,
     CLUSTER_INTERNAL_REPLICATION_REQUIRED,
     COMPUTED_OBJECT_DRIFT,
+    SENSITIVE_FIELD_OMITTED,
 }
 
 enum class BiScriptMappingDecision {
@@ -38,6 +39,7 @@ enum class BiScriptMappingDecision {
     DATA_TABLE_RETAINED,
     EXTERNAL_CONFIGURATION_REQUIRED,
     RECONCILIATION_PLANNED,
+    OMITTED,
 }
 
 data class BiScriptDiagnostic(

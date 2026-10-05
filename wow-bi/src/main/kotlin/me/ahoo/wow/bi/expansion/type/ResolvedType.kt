@@ -41,4 +41,8 @@ internal data class ResolvedJsonProperty(
     val type: ResolvedType,
     val origin: ResolvedTypeOrigin,
     val declaringMember: Member,
+    /** The annotations on the property, its backing field and its getter (meta-annotations not expanded). */
+    val annotations: List<Annotation> = emptyList(),
+    /** The class the values are declared with: a Kotlin value class, or the element class of a container. */
+    val valueType: Class<*> = type.rawClass,
 )

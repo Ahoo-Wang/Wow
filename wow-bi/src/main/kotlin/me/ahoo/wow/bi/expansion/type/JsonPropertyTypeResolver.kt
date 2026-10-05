@@ -81,6 +81,7 @@ internal object JsonPropertyTypeResolver {
             .filter(BeanPropertyDefinition::couldSerialize)
             .map { property ->
                 resolveProperty(type.rawClass, property, kotlinRootBindings, javaRootBindings)
+                    .withMemberFacts(type.rawClass, property)
             }
             .sortedBy(ResolvedJsonProperty::serializedName)
             .toList()
@@ -148,6 +149,59 @@ internal object JsonPropertyTypeResolver {
             origin = ResolvedTypeOrigin.JAVA,
             declaringMember = declaringMember,
         )
+    }
+
+    /** Adds what the query schema reads to decide sensitivity: the property's annotations and value class. */
+    private fun ResolvedJsonProperty.withMemberFacts(
+        rootClass: Class<*>,
+        property: BeanPropertyDefinition,
+    ): ResolvedJsonProperty {
+        val kotlinProperty = TypeHierarchyResolver.run { rootClass.kotlinProperty(declaringMember) }
+        return copy(
+            annotations = property.declaredAnnotations(declaringMember, kotlinProperty),
+            valueType = kotlinProperty?.returnType?.valueClass() ?: property.primaryType.valueClass(),
+        )
+    }
+
+    private fun BeanPropertyDefinition.declaredAnnotations(
+        declaringMember: Member,
+        kotlinProperty: KProperty1<*, *>?,
+    ): List<Annotation> = buildList {
+        kotlinProperty?.let { kotlinProperty ->
+            addAll(kotlinProperty.annotations)
+            kotlinProperty.javaField?.let { addAll(it.annotations) }
+            kotlinProperty.javaGetter?.let { addAll(it.annotations) }
+        }
+        (declaringMember as? java.lang.reflect.AnnotatedElement)?.let { addAll(it.annotations) }
+        field?.annotated?.let { addAll(it.annotations) }
+        getter?.annotated?.let { addAll(it.annotations) }
+        if (declaringMember is Method && field == null) {
+            generateSequence(declaringMember.declaringClass) { it.superclass }
+                .firstNotNullOfOrNull { type -> type.declaredFields.firstOrNull { it.name == internalName } }
+                ?.let { addAll(it.annotations) }
+        }
+    }.distinct()
+
+    private fun KType.valueClass(): Class<*>? {
+        var current: KType = this
+        while (true) {
+            val declared = (current.classifier as? KClass<*>)?.java ?: return null
+            val contained = when {
+                Map::class.java.isAssignableFrom(declared) -> current.arguments.lastOrNull()?.type
+                Iterable::class.java.isAssignableFrom(declared) || declared.isArray ->
+                    current.arguments.singleOrNull()?.type ?: return declared.componentType ?: declared
+                else -> return declared
+            }
+            current = contained ?: return declared
+        }
+    }
+
+    private fun JavaType.valueClass(): Class<*> {
+        var current = this
+        while (current.isContainerType && current.contentType != null) {
+            current = current.contentType
+        }
+        return current.rawClass
     }
 
     private object TypeHierarchyResolver {

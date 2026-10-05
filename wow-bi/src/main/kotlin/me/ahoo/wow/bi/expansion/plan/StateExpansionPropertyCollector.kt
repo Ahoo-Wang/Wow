@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.bi.expansion.plan
 
+import me.ahoo.wow.bi.BiScriptDiagnostic
+import me.ahoo.wow.bi.BiScriptDiagnosticCode
+import me.ahoo.wow.bi.BiScriptMappingDecision
 import me.ahoo.wow.bi.expansion.type.JacksonWireShapeInspector
 import me.ahoo.wow.bi.expansion.type.JsonWireShape
 import me.ahoo.wow.bi.expansion.type.ResolvedJsonProperty
@@ -20,6 +23,8 @@ import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.bi.type.ClickHouseTypeMapping.scalarMapping
 import me.ahoo.wow.bi.type.JsonTokenShape
 import me.ahoo.wow.bi.type.ScalarMapping
+import me.ahoo.wow.query.schema.QueryMemberFact
+import me.ahoo.wow.query.schema.effectiveSensitivityLevel
 
 internal class StateExpansionPropertyCollector(
     private val session: StateExpansionPlanningSession,
@@ -55,6 +60,9 @@ internal class StateExpansionPropertyCollector(
             type = property.type,
             draft = draft,
         )
+        if (session.options.omitSensitiveFields && omitSensitive(property, request)) {
+            return
+        }
         draft.propertyTargetNames.add(request.targetName)
 
         if (parent.depth + 1 > session.options.maxExpansionDepth && !request.type.canRenderDirectly()) {
@@ -72,6 +80,28 @@ internal class StateExpansionPropertyCollector(
             isUnsupportedPlatformObject(request.type) -> fallbackCollector.collectRaw(request)
             else -> collectObjectProperty(request)
         }
+    }
+
+    /** Leaves a `@Sensitive` property out, under the query schema's own rule, and says so in a diagnostic. */
+    private fun omitSensitive(property: ResolvedJsonProperty, request: PropertyPlanningRequest): Boolean {
+        val level = QueryMemberFact(
+            name = request.path,
+            type = property.type.rawClass,
+            annotations = property.annotations,
+            valueType = property.valueType,
+        ).effectiveSensitivityLevel() ?: return false
+        session.diagnostics.add(
+            BiScriptDiagnostic(
+                code = BiScriptDiagnosticCode.SENSITIVE_FIELD_OMITTED,
+                aggregate = session.aggregate,
+                path = request.path,
+                sourceType = property.type.javaType.toCanonical(),
+                decision = BiScriptMappingDecision.OMITTED,
+                message = "Sensitive property [${request.path}] ($level) is left out of the expansion columns; " +
+                    "the raw state in __state still holds it.",
+            )
+        )
+        return true
     }
 
     private fun collectScalarProperty(request: PropertyPlanningRequest): Boolean {

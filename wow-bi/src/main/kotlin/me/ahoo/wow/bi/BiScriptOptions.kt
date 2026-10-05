@@ -27,6 +27,12 @@ data class BiScriptOptions(
     val kafkaKeeperPathPrefix: String = DEFAULT_KAFKA_KEEPER_PATH_PREFIX,
     val maxExpansionDepth: Int = 5,
     val unsupportedTypeStrategy: UnsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
+    /**
+     * Leave `@Sensitive` state properties (either level) out of the expansion columns, as the query subsystem never
+     * returns their raw value. Off by default, which keeps generated scripts unchanged. The raw state (`__state`) and
+     * the scoped JSON of an enclosing value that falls back to raw JSON still hold the value.
+     */
+    val omitSensitiveFields: Boolean = false,
 ) {
     init {
         database.requireValidRequiredValue("database", MAX_DATABASE_LENGTH)
