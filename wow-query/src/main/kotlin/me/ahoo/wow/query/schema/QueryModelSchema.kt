@@ -226,6 +226,24 @@ class QueryModelSchema(
     /** The content hash of what this schema lets callers do: the version of its budget-free capability descriptor. */
     val version: String by lazy { describe(budget = null, defaultListSize = null).version }
 
+    /**
+     * Whether [other] is the same schema as this one, so a refresh can keep this instance: the same [version] (what
+     * callers can do), the same native facts the version does not describe — bindings, storage support and
+     * sensitivity — and the same logical definition, compared structurally. The version alone is not enough: its
+     * descriptor leaves out fields without a capability or projection, the nullability of map values and array items,
+     * and protected enum values, all of which the masker reads, so an edited declaration could otherwise be ignored
+     * until a restart.
+     */
+    internal fun compilesSameAs(other: QueryModelSchema): Boolean =
+        model == other.model && provisional == other.provisional &&
+            fullProjectionAvailable == other.fullProjectionAvailable && storage == other.storage &&
+            capabilities == other.capabilities && approximateMetrics == other.approximateMetrics &&
+            definition.sensitivity == other.definition.sensitivity &&
+            definition.root.sameDefinitionAs(other.definition.root) &&
+            bindings.keys == other.bindings.keys &&
+            bindings.all { (path, native) -> native.sameAs(other.bindings.getValue(path)) } &&
+            version == other.version
+
     /** The logical paths of the masked fields, in declaration order. */
     val maskedFields: List<String> by lazy { maskedValues.map { it.first.logicalPath() }.distinct() }
 
@@ -388,3 +406,6 @@ internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema?
 private val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
 private const val MAX_CACHED_DESCRIPTORS = 16
 private const val MAX_CACHED_DYNAMIC_FIELDS = 1024
+
+private fun QueryValueBindings.sameAs(other: QueryValueBindings): Boolean =
+    bindings == other.bindings && projectionPath == other.projectionPath && responsePath == other.responsePath

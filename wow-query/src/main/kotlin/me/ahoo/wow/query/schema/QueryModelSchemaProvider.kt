@@ -45,7 +45,9 @@ internal class UnavailableQueryModelSchemaProvider(
  * The Catalog's compilation of one aggregate model (design §5.2): merges the declarations of [sources] into the
  * logical model under [sensitivity], asks the storage [adapter] for its facts about it, and compiles them into the
  * published [QueryModelSchema]. The first load is shared by concurrent callers; a refresh reloads the sources and the
- * storage's native structures and replaces the published schema only when it compiles. A
+ * storage's native structures and replaces the published schema only when it compiles to a different schema: when the
+ * [version][QueryModelSchema.version] and the native facts are unchanged, the published instance (and the
+ * descriptors it has cached) is kept. The 9.1 declaration-file scan runs once, on the first load. A
  * [provisional][QueryModelSchema.provisional] schema is never published: it is answered for `provisionalTtl`, so a
  * storage that is never written is not asked again on every query, and the first load after that compiles the
  * storage again. Once the storage exists its schema is the one published, at most `provisionalTtl` after it does.
@@ -68,6 +70,9 @@ class DefaultQueryModelSchemaProvider(
     private val kept = AtomicReference<Provisional?>()
     private val firstLoad = AtomicReference<Mono<QueryModelSchema>>()
     private val refreshLoad = AtomicReference<Mono<QueryModelSchema>>()
+
+    /** compat(wow<9.2): the 9.1 declaration files, listed once; a classpath scan is not repeated on every refresh. */
+    private val legacyListed = AtomicReference<List<String>>()
     private val merger = QuerySchemaMerger()
 
     override fun schema(): Mono<QueryModelSchema> {
@@ -96,6 +101,7 @@ class DefaultQueryModelSchemaProvider(
 
         lateinit var candidate: Mono<QueryModelSchema>
         candidate = Mono.defer { resolve(refresh = true) }
+            .map(::keepUnchanged)
             .doOnSuccess { schema ->
                 schema?.let {
                     published.set(it.takeUnless(QueryModelSchema::provisional))
@@ -107,6 +113,13 @@ class DefaultQueryModelSchemaProvider(
             .contextWrite { it.forInProcessQuery() }
             .share()
         return refreshLoad.compareAndExchange(null, candidate) ?: candidate
+    }
+
+    /** The published schema when [compiled] is the same schema, so its instance and its caches survive a refresh. */
+    private fun keepUnchanged(compiled: QueryModelSchema): QueryModelSchema {
+        if (compiled.provisional) return compiled
+        val current = published.get() ?: return compiled
+        return if (current.compilesSameAs(compiled)) current else compiled
     }
 
     private fun currentProvisional(): QueryModelSchema? =
@@ -142,7 +155,10 @@ class DefaultQueryModelSchemaProvider(
             }
 
     /** compat(wow<9.2): the 9.1 declaration files of this model across every source. */
-    private fun legacyFiles(): Mono<List<String>> =
-        Mono.fromCallable { sources.flatMap { it.listLegacyDeclarations(context) } }
-            .subscribeOn(Schedulers.boundedElastic())
+    private fun legacyFiles(): Mono<List<String>> {
+        legacyListed.get()?.let { return Mono.just(it) }
+        return Mono.fromCallable {
+            sources.flatMap { it.listLegacyDeclarations(context) }.also { legacyListed.compareAndSet(null, it) }
+        }.subscribeOn(Schedulers.boundedElastic())
+    }
 }

@@ -57,10 +57,10 @@ fun QueryModelSchema.maskRecord(record: ObjectNode): ObjectNode = SchemaMasker.c
  * [filter] is already canonical and normalized: aliases replaced, `EQ`/`NE` of `null` lowered to `IS_NULL`/
  * `IS_NOT_NULL`, `IS_EMPTY_STRING` lowered to `EQ ""`.
  *
- * The semantics are those of the filter semantics matrix ([me.ahoo.wow.api.query.spec.FilterSemantics]), which every
- * backend reproduces: numbers compare by value whatever their JSON width, a scalar operand matches any element of an
- * array field and an array operand of `EQ` matches the whole array, negations match a record without the field, and
- * a field set to `null` exists but is null.
+ * The semantics are those of the filter semantics matrix (`me.ahoo.wow.tck.query.FilterSemantics` in wow-tck),
+ * which every backend reproduces: numbers compare by value whatever their JSON width, a scalar operand matches any
+ * element of an array field and an array operand of `EQ` matches the whole array, negations match a record without
+ * the field, and a field set to `null` exists but is null.
  *
  * Supported: `MATCH_ALL`, `MATCH_NONE`, `AND`, `OR`, `NOR`, the id, tenant, owner, space and deletion filters, and on a
  * field `EQ`, `NE`, `IN`, `NOT_IN`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS` and `IS_EMPTY`. These are what

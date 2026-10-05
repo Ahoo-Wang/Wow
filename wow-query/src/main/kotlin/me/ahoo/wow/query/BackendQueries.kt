@@ -157,21 +157,28 @@ private fun ObjectNode.requireStandardAggregation(metrics: Set<String>): ObjectN
  * Checks that this backend row holds only standard JSON values: objects, arrays, strings, booleans, nulls, integers
  * and finite decimals. Drivers convert their own values; a `NaN`, an infinity, a POJO or binary node that slips
  * through fails the query here, as a server fault, instead of reaching the wire. [subject] names the offending path
- * in the error.
+ * in the error. The path is built only when a value fails: a valid row costs one walk and no strings.
  */
 internal fun ObjectNode.requireStandardJson(subject: (String) -> String): ObjectNode {
-    requireStandardJson("", subject)
+    requireStandardJson(ArrayList(), subject)
     return this
 }
 
-private fun JsonNode.requireStandardJson(path: String, subject: (String) -> String) {
+/** [path] holds the property names from the row to this node; arrays add none. */
+private fun JsonNode.requireStandardJson(path: ArrayList<String>, subject: (String) -> String) {
     when {
         isObject -> properties().forEach { (name, value) ->
-            value.requireStandardJson(if (path.isEmpty()) name else "$path.$name", subject)
+            path.add(name)
+            value.requireStandardJson(path, subject)
+            path.removeAt(path.lastIndex)
         }
         isArray -> forEach { it.requireStandardJson(path, subject) }
         isString || isBoolean || isNull || isIntegralNumber || isBigDecimal -> Unit
-        isFloat || isDouble -> checkExecution(doubleValue().isFinite()) { "${subject(path)} must be finite." }
-        else -> throw QueryExecutionException("${subject(path)} must be a standard JSON value.")
+        isFloat || isDouble -> checkExecution(doubleValue().isFinite()) { "${subject(path.render())} must be finite." }
+        else -> throw QueryExecutionException("${subject(path.render())} must be a standard JSON value.")
     }
 }
+
+/** Joins the names as the per-node concatenation did: a name after an empty prefix starts the path again. */
+private fun List<String>.render(): String =
+    fold("") { prefix, name -> if (prefix.isEmpty()) name else "$prefix.$name" }

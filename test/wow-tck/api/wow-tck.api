@@ -811,7 +811,7 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun projection should preserve scalar and object subtree semantics ()V
 	public final fun query helpers defer schema lookup until subscription ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
-	public final fun schema refresh should replace and publish one new object ()V
+	public final fun schema refresh with unchanged storage keeps the published object ()V
 	public final fun schema should aggregate annotated epoch fields as time ()V
 	public final fun schema should execute exact range and sort bindings ()V
 	public final fun schema should expose system state and backend-neutral capabilities ()V
