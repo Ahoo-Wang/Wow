@@ -16,6 +16,8 @@ package me.ahoo.wow.kafka
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.messaging.transport.TransportMessage
+import me.ahoo.wow.messaging.transport.TransportMessageBus
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.wire.WireGolden
@@ -30,7 +32,6 @@ import org.junit.jupiter.api.Test
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverRecord
 import reactor.kafka.sender.SenderOptions
-import reactor.kafka.sender.SenderRecord
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -42,8 +43,8 @@ import tools.jackson.databind.node.ObjectNode
  * topic names, the partition key, the (absent) record headers and the value bytes must not change. Changing a golden
  * needs a design decision, not a re-generation.
  *
- * The record is taken from the production bus itself ([AbstractKafkaBus.encode], reached reflectively because it is
- * protected), and the golden record is decoded by the production [AbstractKafkaBus.decode], which also checks that the
+ * The record is taken from the production bus itself ([TransportMessageBus.encode] and [toProducerRecord]), and the
+ * golden record is decoded by the production [TransportMessageBus.decode], which also checks that the
  * key and topic agree with the decoded message.
  */
 class KafkaWireFormatGoldenTest {
@@ -72,8 +73,8 @@ class KafkaWireFormatGoldenTest {
         }
     }
 
-    private fun verify(bus: AbstractKafkaBus<*, *>, message: Message<*, *>, golden: String) {
-        val record: ProducerRecord<String, String> = bus.encodeRecord(message)
+    private fun verify(bus: TransportMessageBus<*, *>, message: Message<*, *>, golden: String) {
+        val record: ProducerRecord<String, String> = bus.encodeRecord(message).toProducerRecord()
         WireGolden.assertMatches(golden, record.toGoldenJson())
 
         val goldenRecord = JsonSerializer.readTree(WireGolden.read(golden)) as ObjectNode
@@ -84,7 +85,7 @@ class KafkaWireFormatGoldenTest {
             goldenRecord["key"].asString(),
             goldenRecord["value"].asString(),
         )
-        val decoded = bus.decodeRecord(ReceiverRecord(consumerRecord, mockk(relaxed = true)))
+        val decoded = bus.decode(KafkaTransportRecord(ReceiverRecord(consumerRecord, mockk(relaxed = true))))
         decoded.toJsonString().assert().isEqualTo(goldenRecord["value"].asString())
     }
 
@@ -101,17 +102,8 @@ class KafkaWireFormatGoldenTest {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun AbstractKafkaBus<*, *>.encodeRecord(message: Message<*, *>): SenderRecord<String, String, *> {
-        val encode = AbstractKafkaBus::class.java.getDeclaredMethod("encode", Message::class.java)
-        encode.isAccessible = true
-        return encode.invoke(this, message) as SenderRecord<String, String, *>
-    }
-
-    private fun AbstractKafkaBus<*, *>.decodeRecord(record: ReceiverRecord<String, String>): Message<*, *> {
-        val decode = AbstractKafkaBus::class.java.getDeclaredMethod("decode", ReceiverRecord::class.java)
-        decode.isAccessible = true
-        return decode.invoke(this, record) as Message<*, *>
-    }
+    private fun TransportMessageBus<*, *>.encodeRecord(message: Message<*, *>): TransportMessage =
+        (this as TransportMessageBus<Message<*, *>, *>).encode(message)
 
     private fun senderOptions(): SenderOptions<String, String> =
         SenderOptions.create(

@@ -45,9 +45,6 @@ class CommandDispatcher(
         DefaultAggregateSchedulerSupplier("CommandDispatcher"),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MainDispatcher<ServerCommandExchange<*>>(metrics) {
-    override fun receiveMessage(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> =
-        filterMessages(commandBus.receiver(subscription).openedMessages())
-
     override fun createMessageReceiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =

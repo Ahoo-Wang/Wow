@@ -13,13 +13,15 @@
 
 package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.event.DistributedDomainEventBus
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.messaging.transport.TopicNaming
+import me.ahoo.wow.messaging.transport.TransportDomainEventBus
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
-import reactor.core.publisher.Mono
 import java.time.Duration
 
+/**
+ * The domain event stream bus on Redis Streams: a [TransportDomainEventBus] over a [RedisStreamTransport], with streams from [topicConverter].
+ * Undecodable entries are reported to [messageBusObserver] and stay pending ([RedisRecordDecodeFailureHandler]).
+ */
 class RedisDomainEventBus(
     redisTemplate: ReactiveStringRedisTemplate,
     topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter,
@@ -27,22 +29,14 @@ class RedisDomainEventBus(
     recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
     retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
-) : DistributedDomainEventBus,
-    AbstractRedisMessageBus<DomainEventStream, EventStreamExchange>(
-        redisTemplate,
-        topicConverter,
-        pollTimeout,
-        recoveryOptions,
-        messageBusObserver,
-        retentionOptions,
-    ) {
-    override val messageType: Class<DomainEventStream>
-        get() = DomainEventStream::class.java
-
-    override fun DomainEventStream.toExchange(acknowledgePublisher: Mono<Void>): EventStreamExchange {
-        return RedisEventStreamExchange(
-            this,
-            acknowledgePublisher,
-        )
-    }
-}
+) : TransportDomainEventBus(
+    transport = RedisStreamTransport(
+        redisTemplate = redisTemplate,
+        pollTimeout = pollTimeout,
+        recoveryOptions = recoveryOptions,
+        messageBusObserver = messageBusObserver,
+        retentionOptions = retentionOptions,
+    ),
+    topicNaming = TopicNaming(topicConverter::convert),
+    decodeFailureHandler = RedisRecordDecodeFailureHandler(messageBusObserver),
+)

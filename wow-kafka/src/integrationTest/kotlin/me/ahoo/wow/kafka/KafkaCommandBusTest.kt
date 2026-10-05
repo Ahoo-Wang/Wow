@@ -19,6 +19,8 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.transport.TransportDecodeException
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.command.CommandBusSpec
 import me.ahoo.wow.tck.container.KafkaTestFixture
@@ -142,7 +144,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 .consumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"),
             receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
-            recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+            decodeFailureHandler = TransportDecodeFailureHandler.FAIL,
         )
         val receiverGroup = generateGlobalId()
         val aggregateId = generateGlobalId()
@@ -219,7 +221,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 .commitInterval(commitInterval),
             receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
-            recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+            decodeFailureHandler = TransportDecodeFailureHandler.FAIL,
         )
         val roundTrips = 10
         val messages = List(roundTrips) { createMessage() }
@@ -324,7 +326,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 .consumerProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false),
             receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
             receiverPolicy = KafkaReceiverPolicy(),
-            recordDecodeFailureHandler = AcknowledgeKafkaRecordDecodeFailureHandler,
+            decodeFailureHandler = TransportDecodeFailureHandler.ACKNOWLEDGE,
         )
         val rawSender = KafkaSender.create(kafka.senderOptions())
         val receiverGroup = generateGlobalId()
@@ -387,7 +389,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 )
                 .test()
                 .expectErrorSatisfies {
-                    it.assert().isInstanceOf(KafkaRecordDecodeException::class.java)
+                    it.assert().isInstanceOf(TransportDecodeException::class.java)
                     assertFailure(it)
                 }
                 .verify(Duration.ofMinutes(2))

@@ -63,6 +63,8 @@ wow:
 
 `RedisCommandBus` 只在 `wow.command.bus.type=redis` 时装配。发送成功表示 Stream record 已写入 Redis，不表示命令已处理。
 
+自 9.3.0 起，三个 Redis 总线就是建在 `RedisStreamTransport` 之上的核心传输总线（见[传输 SPI](../command/internals/transport.md#传输-spi)），构造器与 Stream 格式不变。`msg` 字段缺失或无法解码、或消息属于别的 stream 的条目，会报告给 `RedisMessageBusObserver` 并保持待处理（`RedisRecordDecodeFailureHandler`）。
+
 ### Stream 命名规则
 
 默认命令 Stream 为 `${contextAlias}.${aggregateName}:command`；领域事件和状态事件分别使用 `:event`、`:state`。命名来自 `NamedAggregate.toStringWithAlias()`，不是可随意改动的数据迁移细节。

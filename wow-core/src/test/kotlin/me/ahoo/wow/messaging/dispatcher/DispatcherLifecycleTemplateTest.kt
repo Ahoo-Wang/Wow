@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging.dispatcher
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
@@ -113,8 +114,8 @@ class DispatcherLifecycleTemplateTest {
         override val namedAggregates: Set<NamedAggregate> =
             setOf("runtime-template.child".toNamedAggregate().materialize())
 
-        override fun receiveMessage(subscription: MessageSubscription): Flux<String> =
-            Flux.empty()
+        override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<String> =
+            MessageReceiver(Flux.empty())
 
         override fun newAggregateDispatcher(
             namedAggregate: NamedAggregate,
@@ -132,8 +133,8 @@ class DispatcherLifecycleTemplateTest {
         override val name: String = "multi-parent"
         override val namedAggregates: Set<NamedAggregate> = childrenByAggregate.keys
 
-        override fun receiveMessage(subscription: MessageSubscription): Flux<String> =
-            Flux.empty()
+        override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<String> =
+            MessageReceiver(Flux.empty())
 
         override fun newAggregateDispatcher(
             namedAggregate: NamedAggregate,

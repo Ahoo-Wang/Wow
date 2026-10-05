@@ -14,16 +14,12 @@
 package me.ahoo.wow.kafka
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.DistributedMessageBus
-import me.ahoo.wow.messaging.MessageReceiver
-import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.messaging.transport.Transport
+import me.ahoo.wow.messaging.transport.TransportMessage
+import me.ahoo.wow.messaging.transport.TransportReceiver
+import me.ahoo.wow.messaging.transport.TransportRecord
 import me.ahoo.wow.runtime.RuntimeResource
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -33,7 +29,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kafka.receiver.KafkaReceiver
-import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.receiver.ReceiverOptions.ConsumerListener
 import reactor.kafka.receiver.ReceiverRecord
@@ -61,20 +56,12 @@ internal fun Consumer<*, *>.anchorAssignedPositions(
     commitAsync(initialOffsets) { _, error -> completion(error) }
 }
 
-/**
- * Applies [policy] to these options: out-of-order commits keep at most [KafkaReceiverPolicy.maxDeferredCommits]
- * acknowledged offsets. Receiver options customizers run after this and may change it; [withCommitBeforePause]
- * then ties the commit trigger to the final value.
- */
 internal fun <K, V> ReceiverOptions<K, V>.withReceiverPolicy(policy: KafkaReceiverPolicy): ReceiverOptions<K, V> =
     maxDeferredCommits(policy.maxDeferredCommits)
 
 /**
- * Starts a commit once `maxDeferredCommits` acknowledged offsets are waiting. Reactor Kafka stops polling at that
- * limit (per consumer, across all its topics and partitions) and otherwise commits only every `commitInterval`,
- * so without the batch trigger a receiver would handle at most `maxDeferredCommits` records per commit interval.
- * A smaller positive `commitBatchSize` is kept; a larger one is capped and reported to [onCapped]. In-order
- * commits (`maxDeferredCommits` 0) are left alone.
+ * Caps `commitBatchSize` at `maxDeferredCommits`: the consumer stops polling once that many acknowledged offsets are
+ * waiting, so a commit must be due by then.
  */
 internal fun <K, V> ReceiverOptions<K, V>.withCommitBeforePause(
     onCapped: (commitBatchSize: Int, maxDeferredCommits: Int) -> Unit = { _, _ -> },
@@ -90,61 +77,47 @@ internal fun <K, V> ReceiverOptions<K, V>.withCommitBeforePause(
     return commitBatchSize(maxDeferredCommits)
 }
 
-abstract class AbstractKafkaBus<M, E>(
-    private val topicConverter: AggregateTopicConverter,
+/**
+ * Kafka as a [Transport]: one producer per transport, one consumer per [open].
+ *
+ * A record's key, timestamp and value are the [TransportMessage]'s, with no headers. [open] subscribes the consumer
+ * [group] to the topics and completes readiness only after every assigned partition's position has been committed
+ * as the group's offset ([anchorAssignedPartitions]), so the first assignment never skips records published after
+ * readiness. Receive errors are retried with [KafkaReceiverPolicy.retrySpec].
+ */
+@WowSpi
+open class KafkaTransport(
     private val senderOptions: SenderOptions<String, String>,
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
     private val receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
-    private val recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler =
-        FailKafkaRecordDecodeFailureHandler,
-) : DistributedMessageBus<M, E>
-    where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+) : Transport {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
-    protected val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
+    private val sender: KafkaSender<String, String> = KafkaSender.create(senderOptions)
 
     /**
-     * This bus's producer as a runtime resource: the runtime closes it, flushing the records it buffered, after its
+     * The producer as a runtime resource: the runtime closes it, flushing the records it buffered, after its
      * dispatchers stop and within the same shutdown deadline ([me.ahoo.wow.runtime.RuntimeResources]). Closing is
      * idempotent, so a later [close] returns at once. The Kafka client cannot cancel a running close: on force stop
      * the runtime stops waiting for it.
      */
-    val runtimeResource: RuntimeResource = object : RuntimeResource {
-        override fun stopGracefully(): Mono<Void> = Mono.fromRunnable(this@AbstractKafkaBus::close)
+    override val runtimeResource: RuntimeResource = object : RuntimeResource {
+        override fun stopGracefully(): Mono<Void> = Mono.fromRunnable(this@KafkaTransport::close)
 
         override fun forceStop() = Unit
 
-        override fun toString(): String = "${this@AbstractKafkaBus.javaClass.simpleName}.sender"
-    }
-    abstract val messageType: Class<M>
-    override fun send(message: M): Mono<Void> {
-        return Mono.defer {
-            log.debug {
-                "Send $message."
-            }
-            message.withReadOnly()
-            val senderRecord = encode(message)
-            sender.send(Mono.just(senderRecord))
-                .doOnNext {
-                    @Suppress("ThrowingExceptionsWithoutMessageOrCause")
-                    val error = it.exception()
-                    if (error != null) {
-                        it.correlationMetadata().tryEmitError(error)
-                    } else {
-                        it.correlationMetadata().tryEmitEmpty()
-                    }
-                }
-                .flatMap {
-                    it.correlationMetadata().asMono()
-                }
-                .next()
-        }
+        override fun toString(): String = "${this@KafkaTransport.javaClass.simpleName}.sender"
     }
 
-    abstract fun M.toExchange(receiverOffset: ReceiverOffset): E
+    override fun send(message: TransportMessage): Mono<Void> =
+        sender.send(Mono.just(SenderRecord.create(message.toProducerRecord(), null as Void?)))
+            .next()
+            .flatMap { result ->
+                result.exception()?.let { Mono.error<Void>(it) } ?: Mono.empty()
+            }
 
     protected open fun createReceiver(
         receiverOptions: ReceiverOptions<String, String>,
@@ -153,7 +126,7 @@ abstract class AbstractKafkaBus<M, E>(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
+    override fun open(group: String, topics: Set<String>): TransportReceiver {
         val readiness = Sinks.empty<Void>()
         val readinessTerminated = AtomicBoolean()
         val assignmentFailure = Sinks.empty<Void>()
@@ -168,12 +141,12 @@ abstract class AbstractKafkaBus<M, E>(
                 readiness.tryEmitError(error)
             }
         }
-        val messages = streamMessages(subscription) { consumer, positions ->
+        val records = streamRecords(group, topics) { consumer, positions ->
             if (positions.isEmpty()) {
                 if (pendingAnchors.get() == 0L) {
                     completeReadiness()
                 }
-                return@streamMessages
+                return@streamRecords
             }
             pendingAnchors.incrementAndGet()
             try {
@@ -207,31 +180,29 @@ abstract class AbstractKafkaBus<M, E>(
                     CancellationException("Kafka receiver initialization was cancelled."),
                 )
             }
-        return MessageReceiver(
-            messages = messages,
-            readiness = readiness.asMono(),
-        )
+        return object : TransportReceiver {
+            override val records: Flux<TransportRecord> = records
+            override val readiness: Mono<Void> = readiness.asMono()
+        }
     }
 
-    private fun streamMessages(
-        subscription: MessageSubscription,
+    private fun streamRecords(
+        group: String,
+        topics: Set<String>,
         onAssigned: KafkaAssignmentListener,
-    ): Flux<E> {
+    ): Flux<TransportRecord> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(
                 receiverOptions.withReceiverPolicy(receiverPolicy),
             )
-                .consumerProperty(
-                    ConsumerConfig.GROUP_ID_CONFIG,
-                    subscription.receiverGroup,
-                )
-                .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
+                .consumerProperty(ConsumerConfig.GROUP_ID_CONFIG, group)
+                .subscription(topics)
             val customizedOptions = (contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options)
                 .withCommitBeforePause(::logCommitBatchSizeCapped)
             createReceiver(readinessReceiverOptions(customizedOptions, onAssigned))
                 .receive(receiverPolicy.prefetchBatches)
                 .retryWhen(receiverPolicy.retrySpec)
-                .concatMap(::decodeRecord)
+                .map<TransportRecord>(::KafkaTransportRecord)
         }
     }
 
@@ -328,53 +299,48 @@ abstract class AbstractKafkaBus<M, E>(
             }
         }
 
-    protected fun encode(message: M): SenderRecord<String, String, Sinks.Empty<Void>> {
-        val producerRecord = ProducerRecord(
-            /* topic = */
-            topicConverter.convert(message),
-            /* partition = */
-            null,
-            /* timestamp = */
-            message.createTime,
-            /* key = */
-            message.aggregateId.id,
-            /* value = */
-            message.toJsonString(),
-        )
-        return SenderRecord.create(producerRecord, Sinks.empty())
-    }
-
-    private fun decodeRecord(receiverRecord: ReceiverRecord<String, String>): Mono<E> {
-        return Mono.fromCallable {
-            decode(receiverRecord)
-        }.onErrorResume(Exception::class.java) {
-            val failure = KafkaRecordDecodeFailure(receiverRecord, it)
-            recordDecodeFailureHandler.handle(failure)
-                .then(
-                    Mono.fromRunnable {
-                        receiverRecord.receiverOffset().acknowledge()
-                    },
-                ).then(Mono.empty())
-        }.map {
-            it.toExchange(receiverRecord.receiverOffset())
-        }
-    }
-
-    protected fun decode(receiverRecord: ReceiverRecord<String, String>): M {
-        val message = receiverRecord.value().toObject(messageType)
-        require(receiverRecord.key() == message.aggregateId.id) {
-            "Kafka record key does not match the decoded aggregate id."
-        }
-        require(receiverRecord.topic() == topicConverter.convert(message)) {
-            "Kafka record topic does not match the decoded aggregate."
-        }
-        return message
-    }
-
     override fun close() {
         log.info {
             "[${this.javaClass.simpleName}] Close KafkaSender."
         }
         sender.close()
     }
+}
+
+/**
+ * The Kafka record of [this] message: no partition (the key's), no headers.
+ */
+internal fun TransportMessage.toProducerRecord(): ProducerRecord<String, String> =
+    ProducerRecord(
+        /* topic = */
+        topic,
+        /* partition = */
+        null,
+        /* timestamp = */
+        timestamp,
+        /* key = */
+        key,
+        /* value = */
+        payload,
+    )
+
+/**
+ * A received Kafka record; acknowledging it marks its offset for the next commit.
+ */
+internal class KafkaTransportRecord(
+    private val record: ReceiverRecord<String, String>,
+) : TransportRecord {
+    override val topic: String
+        get() = record.topic()
+    override val key: String?
+        get() = record.key()
+    override val payload: String?
+        get() = record.value()
+    override val id: String
+        get() = "${record.partition()}-${record.offset()}"
+
+    override fun ack(): Mono<Void> =
+        Mono.fromRunnable {
+            record.receiverOffset().acknowledge()
+        }
 }

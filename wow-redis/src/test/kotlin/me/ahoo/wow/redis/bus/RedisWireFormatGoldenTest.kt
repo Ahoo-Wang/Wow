@@ -19,6 +19,7 @@ import io.mockk.slot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.transport.TransportMessageBus
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -85,7 +86,7 @@ class RedisWireFormatGoldenTest {
 
         val goldenEntry = JsonSerializer.readTree(WireGolden.read(golden)) as ObjectNode
         val encoded = goldenEntry["fields"][MESSAGE_FIELD].asString()
-        val decoded = encoded.toObject((bus as AbstractRedisMessageBus<*, *>).messageType)
+        val decoded = encoded.toObject((bus as TransportMessageBus<*, *>).messageType)
         goldenEntry["stream"].asString().assert().isEqualTo(stream.captured)
         decoded.toJsonString().assert().isEqualTo(encoded)
     }

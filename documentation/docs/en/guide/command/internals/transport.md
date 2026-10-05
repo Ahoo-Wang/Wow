@@ -29,6 +29,10 @@ flowchart TB
 
 Since 9.3.0 `receiver` is the only entry and every bus implements it; 9.2's `receive` and `runtimeReceiver` are removed. A consumer that wants a plain exchange stream with processing open from subscription reads `receiver(subscription).openedMessages()`; a runtime-owned receiver is `receiver(subscription.copy(runtimeOwned = true))`.
 
+## Transport SPI
+
+Since 9.3.0 every distributed bus is a `TransportMessageBus` over a `Transport` (`me.ahoo.wow.messaging.transport`, a `@WowSpi`). A transport only moves strings: `send(TransportMessage)` publishes a topic, key, payload and timestamp, and `open(group, topics)` returns a `TransportReceiver` with the records, readiness, processing admission and close. `TransportMessageBus` does the rest once for every backend: topic names (memoised per aggregate), JSON encoding, decoding, the key and topic checks, the decode-failure policy (`TransportDecodeFailureHandler`) and one exchange type per message kind (`TransportServerCommandExchange`, `TransportEventStreamExchange`, `TransportStateEventExchange`). `TransportCommandBus`, `TransportDomainEventBus` and `TransportStateEventBus` are the three buses; `KafkaTransport`, `RedisStreamTransport` and `InMemoryTransport` are the built-in transports. The Kafka and Redis buses are these buses over their transport, so topics, keys, JSON and consumer groups are the 9.2 ones.
+
 `LocalCommandBus` additionally exposes subscriber count and `sendIfSubscribed`. The latter may return `true` only when target local receivers have obtained processing admission and this delivery remains valid; sink acceptance or subscriber count alone is insufficient. `DistributedCommandBus` keeps the same send/receive contract, with persistence, consumer groups, and acknowledgement supplied by its backend.
 
 ## InMemory
@@ -41,13 +45,13 @@ This implementation is suitable for single-process execution and tests; it provi
 
 ## Kafka
 
-`KafkaCommandBus` reuses `AbstractKafkaBus`:
+`KafkaCommandBus` is a `TransportCommandBus` over `KafkaTransport`:
 
 - the command's named aggregate is converted to a topic;
 - record key is aggregate ID and value is read-only command JSON;
 - `send` waits for the Reactor Kafka sender result and reports producer failure as a Reactor error;
-- `receiver` assigns the subscribed topics to a consumer group and converts records into exchanges holding a `ReceiverOffset`;
-- exchange acknowledgement calls `ReceiverOffset.acknowledge()`.
+- `receiver` assigns the subscribed topics to a consumer group and converts records into exchanges holding the received record;
+- exchange acknowledgement calls the record's `ReceiverOffset.acknowledge()`.
 
 `receiver.readiness` completes only after partition assignment and a conservative initial offset boundary are anchored, avoiding a startup window that could miss messages. Decode failure follows an explicit failure handler; acknowledgement of successfully processed records remains the exchange ack boundary.
 

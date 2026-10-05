@@ -13,13 +13,15 @@
 
 package me.ahoo.wow.redis.bus
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.DistributedCommandBus
-import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.transport.TopicNaming
+import me.ahoo.wow.messaging.transport.TransportCommandBus
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
-import reactor.core.publisher.Mono
 import java.time.Duration
 
+/**
+ * The command bus on Redis Streams: a [TransportCommandBus] over a [RedisStreamTransport], with streams from [topicConverter].
+ * Undecodable entries are reported to [messageBusObserver] and stay pending ([RedisRecordDecodeFailureHandler]).
+ */
 class RedisCommandBus(
     redisTemplate: ReactiveStringRedisTemplate,
     topicConverter: CommandTopicConverter = DefaultCommandTopicConverter,
@@ -27,22 +29,14 @@ class RedisCommandBus(
     recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
     retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
-) : DistributedCommandBus,
-    AbstractRedisMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(
-        redisTemplate,
-        topicConverter,
-        pollTimeout,
-        recoveryOptions,
-        messageBusObserver,
-        retentionOptions,
-    ) {
-    override val messageType: Class<CommandMessage<*>>
-        get() = CommandMessage::class.java
-
-    override fun CommandMessage<*>.toExchange(acknowledgePublisher: Mono<Void>): ServerCommandExchange<*> {
-        return RedisServerCommandExchange(
-            this,
-            acknowledgePublisher,
-        )
-    }
-}
+) : TransportCommandBus(
+    transport = RedisStreamTransport(
+        redisTemplate = redisTemplate,
+        pollTimeout = pollTimeout,
+        recoveryOptions = recoveryOptions,
+        messageBusObserver = messageBusObserver,
+        retentionOptions = retentionOptions,
+    ),
+    topicNaming = TopicNaming(topicConverter::convert),
+    decodeFailureHandler = RedisRecordDecodeFailureHandler(messageBusObserver),
+)

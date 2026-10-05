@@ -12,33 +12,31 @@
  */
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.DistributedCommandBus
-import me.ahoo.wow.command.ServerCommandExchange
-import reactor.kafka.receiver.ReceiverOffset
+import me.ahoo.wow.messaging.transport.TopicNaming
+import me.ahoo.wow.messaging.transport.Transport
+import me.ahoo.wow.messaging.transport.TransportCommandBus
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
+/**
+ * The command bus on Kafka: a [TransportCommandBus] over a [KafkaTransport], with topics from [topicConverter].
+ */
 class KafkaCommandBus(
+    transport: Transport,
     topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
-    senderOptions: SenderOptions<String, String>,
-    receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
-    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
-) : DistributedCommandBus, AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
-    topicConverter,
-    senderOptions,
-    receiverOptions,
-    receiverOptionsCustomizer,
-    receiverPolicy,
-    recordDecodeFailureHandler,
-) {
-
-    override val messageType: Class<CommandMessage<*>>
-        get() = CommandMessage::class.java
-
-    override fun CommandMessage<*>.toExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
-        return KafkaServerCommandExchange(this, receiverOffset)
-    }
+    decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
+) : TransportCommandBus(transport, TopicNaming(topicConverter::convert), decodeFailureHandler) {
+    constructor(
+        topicConverter: CommandTopicConverter = DefaultCommandTopicConverter(),
+        senderOptions: SenderOptions<String, String>,
+        receiverOptions: ReceiverOptions<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+        receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+        decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
+    ) : this(
+        transport = KafkaTransport(senderOptions, receiverOptions, receiverOptionsCustomizer, receiverPolicy),
+        topicConverter = topicConverter,
+        decodeFailureHandler = decodeFailureHandler,
+    )
 }

@@ -81,6 +81,9 @@ sealed interface RedisMessageBusObservation {
 enum class RedisRecordDecodeFailureReason {
     MISSING_MESSAGE_FIELD,
     DESERIALIZATION_FAILED,
+
+    /** The entry decodes, but its message belongs to another stream. */
+    TOPIC_MISMATCH,
 }
 
 /**

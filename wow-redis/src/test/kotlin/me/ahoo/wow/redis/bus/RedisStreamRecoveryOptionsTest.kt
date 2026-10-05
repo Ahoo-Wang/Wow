@@ -34,11 +34,11 @@ class RedisStreamRecoveryOptionsTest {
             every { opsForStream<String, String>() } returns mockk()
         }
         val commandBus = RedisCommandBus(redisTemplate)
-        val recoveryOptionsField = AbstractRedisMessageBus::class.java
+        val recoveryOptionsField = RedisStreamTransport::class.java
             .getDeclaredField("recoveryOptions")
             .apply { isAccessible = true }
 
-        val recoveryOptions = recoveryOptionsField.get(commandBus) as RedisStreamRecoveryOptions
+        val recoveryOptions = recoveryOptionsField.get(commandBus.transport) as RedisStreamRecoveryOptions
 
         recoveryOptions.enabled.assert().isTrue()
         RedisDomainEventBus(redisTemplate, recoveryOptions = RedisStreamRecoveryOptions.DISABLED)

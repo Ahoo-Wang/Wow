@@ -47,10 +47,8 @@ import java.util.concurrent.atomic.AtomicReference
  * class MyMainDispatcher : MainDispatcher<MyMessage>() {
  *     override val namedAggregates = setOf(myAggregate1, myAggregate2)
  *
- *     override fun receiveMessage(subscription: MessageSubscription): Flux<MyMessage> {
- *         // Implementation to receive messages for the subscription
- *         return myMessageFlux
- *     }
+ *     override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<MyMessage> =
+ *         myMessageBus.receiver(subscription.copy(runtimeOwned = true))
  *
  *     override fun newAggregateDispatcher(
  *         namedAggregate: NamedAggregate,
@@ -94,30 +92,13 @@ abstract class MainDispatcher<T : Any>(
     abstract val namedAggregates: Set<NamedAggregate>
 
     /**
-     * Creates a flux of messages for the specified subscription.
-     *
-     * This method should return a reactive stream of messages that are destined for the given aggregate.
-     * The implementation should handle message sourcing, filtering, and any necessary transformations.
-     *
-     * @param subscription The subscription to receive messages for. Must not be null.
-     * @return A [Flux] of messages for the subscription. May be empty if no messages are available.
-     *
-     * @throws IllegalArgumentException if the subscription is invalid or unsupported.
-     * @throws RuntimeException if there are issues with message sourcing or connectivity.
+     * The message source of [subscription] with its transport readiness signal and processing admission: usually the
+     * bus's [receiver][me.ahoo.wow.messaging.MessageBus.receiver] for a
+     * [runtime-owned][MessageSubscription.runtimeOwned] copy of [subscription].
      */
-    abstract fun receiveMessage(subscription: MessageSubscription): Flux<T>
-
-    /**
-     * Creates the message source together with its transport readiness signal.
-     *
-     * Existing synchronous sources may rely on this default. Dispatchers backed
-     * by an asynchronous transport should preserve the receiver returned by
-     * their message bus.
-     */
-    protected open fun createMessageReceiver(
+    protected abstract fun createMessageReceiver(
         subscription: MessageSubscription,
-    ): MessageReceiver<T> =
-        MessageReceiver(receiveMessage(subscription))
+    ): MessageReceiver<T>
 
     /**
      * Creates a new message dispatcher for a specific named aggregate.

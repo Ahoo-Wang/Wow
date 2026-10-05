@@ -19,7 +19,7 @@ Wow 负责把框架消息转换为 Kafka record，并把收到的 record 包装�
 
 ### 类层级
 
-`KafkaCommandBus`、`KafkaDomainEventBus`、`KafkaStateEventBus` 共用 `AbstractKafkaBus` 的发送、接收、重试和解码管线，只分别声明消息类型、主题转换器与 exchange 类型。
+自 9.3.0 起，`KafkaCommandBus`、`KafkaDomainEventBus`、`KafkaStateEventBus` 就是建在 `KafkaTransport` 之上的核心 `TransportCommandBus`、`TransportDomainEventBus`、`TransportStateEventBus`（见[传输 SPI](../command/internals/transport.md#传输-spi)）。`KafkaTransport` 负责生产者、消费者、就绪锚定与接收重试；核心总线负责编码、解码、键与主题校验和解码失败策略。三个总线只有主题转换器不同。也可以在已有传输上构建总线：`KafkaCommandBus(transport, topicConverter, decodeFailureHandler)`。
 
 ### 三种总线，三种主题类型
 
@@ -96,7 +96,7 @@ wow:
 
 ### 解码失败策略
 
-默认 `FAIL`：坏 record 终止当前接收流并进入重试。`ACKNOWLEDGE` 会确认并跳过坏 record，可能造成不可恢复的数据丢失，只应在有死信、审计和重放方案时启用。
+该策略决定 `TransportDecodeFailureHandler` Bean（`TransportDecodeFailureHandler.FAIL` 或 `.ACKNOWLEDGE`；9.2 及以前的 Bean 类型是 `KafkaRecordDecodeFailureHandler`）。value 不是该总线的消息 JSON，或 key、topic 与解码出的消息不一致，都算解码失败。默认 `FAIL`：坏 record 终止当前接收流并进入重试。`ACKNOWLEDGE` 会确认并跳过坏 record，可能造成不可恢复的数据丢失，只应在有死信、审计和重放方案时启用。
 
 ## 主题命名规则
 
@@ -136,7 +136,7 @@ record key 是 `aggregateId.id`，Kafka 的分区器据此把同一聚合的 rec
 
 ## 关键设计决策
 
-这些约束来自当前 `AbstractKafkaBus` 与测试，不是通用 Kafka 教程。
+这些约束来自当前 `KafkaTransport`、`TransportMessageBus` 与测试，不是通用 Kafka 教程。
 
 ### 1. Kafka 层的字符串序列化
 
@@ -156,9 +156,9 @@ exchange 的 `acknowledge()` 提交处理完成的 offset，`max-deferred-commit
 9.2.2 及以前默认 `max-deferred-commits=1` 且没有上述提交触发：每确认一条记录，消费者都要暂停到下一次定期提交，所以接收端大约每个 `commitInterval`（5 秒）只处理一次拉取。现在默认值为 500，即 Kafka 默认的 `max.poll.records`。显式配置过 `max-deferred-commits` 的部署保留原值，但达到该数量后会立即提交，而不再暂停等待。
 :::
 
-### 4. 用于发送反馈的相关元数据
+### 4. 发送反馈
 
-每次发送使用 correlation sink 接收 `KafkaSender` 成功或异常；`Mono<Void>` 只有在发送反馈完成后终止，不代表下游消费者已处理该消息。
+每次发送等待该 record 的 `KafkaSender` 结果，producer 异常作为 Reactor error 返回；`Mono<Void>` 只有在发送反馈完成后终止，不代表下游消费者已处理该消息。
 
 ## 监控和可观察性
 

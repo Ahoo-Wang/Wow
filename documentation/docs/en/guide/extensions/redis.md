@@ -63,6 +63,8 @@ wow:
 
 `RedisCommandBus` is created only for `wow.command.bus.type=redis`. A successful send means Redis stored the Stream record, not that a command processor handled it.
 
+Since 9.3.0 the three Redis buses are the core transport buses over a `RedisStreamTransport` (see [Transport SPI](../command/internals/transport.md#transport-spi)); their constructors and the Stream format are unchanged. An entry whose `msg` field is missing or does not decode, or whose message belongs to another stream, is reported to `RedisMessageBusObserver` and stays pending (`RedisRecordDecodeFailureHandler`).
+
 ### Stream Naming Rules
 
 The default command Stream is `${contextAlias}.${aggregateName}:command`; domain and state events use `:event` and `:state`. Names come from `NamedAggregate.toStringWithAlias()` and are data-migration concerns, not arbitrary labels.

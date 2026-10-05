@@ -12,34 +12,31 @@
  */
 package me.ahoo.wow.kafka
 
-import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
-import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import reactor.kafka.receiver.ReceiverOffset
+import me.ahoo.wow.messaging.transport.TopicNaming
+import me.ahoo.wow.messaging.transport.Transport
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportStateEventBus
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
+/**
+ * The state event bus on Kafka: a [TransportStateEventBus] over a [KafkaTransport], with topics from [topicConverter].
+ */
 class KafkaStateEventBus(
+    transport: Transport,
     topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter(),
-    senderOptions: SenderOptions<String, String>,
-    receiverOptions: ReceiverOptions<String, String>,
-    receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-    receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
-    recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
-) : DistributedStateEventBus,
-    AbstractKafkaBus<StateEvent<*>, StateEventExchange<*>>(
-        topicConverter,
-        senderOptions,
-        receiverOptions,
-        receiverOptionsCustomizer,
-        receiverPolicy,
-        recordDecodeFailureHandler,
-    ) {
-
-    override val messageType: Class<StateEvent<*>>
-        get() = StateEvent::class.java
-
-    override fun StateEvent<*>.toExchange(receiverOffset: ReceiverOffset): StateEventExchange<*> {
-        return KafkaStateEventExchange(this, receiverOffset)
-    }
+    decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
+) : TransportStateEventBus(transport, TopicNaming(topicConverter::convert), decodeFailureHandler) {
+    constructor(
+        topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter(),
+        senderOptions: SenderOptions<String, String>,
+        receiverOptions: ReceiverOptions<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+        receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+        decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
+    ) : this(
+        transport = KafkaTransport(senderOptions, receiverOptions, receiverOptionsCustomizer, receiverPolicy),
+        topicConverter = topicConverter,
+        decodeFailureHandler = decodeFailureHandler,
+    )
 }
