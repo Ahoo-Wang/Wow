@@ -174,9 +174,11 @@ private fun JsonNode.requireStandardJson(path: ArrayList<String>, subject: (Stri
         }
         isArray -> forEach { it.requireStandardJson(path, subject) }
         isString || isBoolean || isNull || isIntegralNumber || isBigDecimal -> Unit
-        isFloat || isDouble -> checkExecution(
-            doubleValue().isFinite()
-        ) { "${subject(path.joinToString("."))} must be finite." }
-        else -> throw QueryExecutionException("${subject(path.joinToString("."))} must be a standard JSON value.")
+        isFloat || isDouble -> checkExecution(doubleValue().isFinite()) { "${subject(path.render())} must be finite." }
+        else -> throw QueryExecutionException("${subject(path.render())} must be a standard JSON value.")
     }
 }
+
+/** Joins the names as the per-node concatenation did: a name after an empty prefix starts the path again. */
+private fun List<String>.render(): String =
+    fold("") { prefix, name -> if (prefix.isEmpty()) name else "$prefix.$name" }

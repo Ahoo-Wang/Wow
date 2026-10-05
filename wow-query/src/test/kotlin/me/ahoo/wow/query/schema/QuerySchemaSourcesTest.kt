@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -153,6 +154,47 @@ class QuerySchemaSourcesTest {
         writeLegacyFile(tempDir, conventionJson("Legacy"))
 
         provider.refresh().block()!!.assert().isSameAs(first)
+    }
+
+    @Test
+    fun `a working directory edit of item nullability under a masked array publishes a new schema`() {
+        val masked = BeanQuerySchemaSource(
+            listOf(
+                QuerySchemaRegistration(
+                    ORDER_CONTEXT,
+                    QuerySchemaDeclaration(
+                        mapOf(
+                            QueryField("state.phones") to QueryFieldDeclaration(
+                                kind = DeclarationValue.Set(QueryValueKind.ARRAY),
+                                items = DeclarationValue.Set(
+                                    QueryFieldDeclaration(
+                                        kind = DeclarationValue.Set(QueryValueKind.SCALAR),
+                                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                                        maskRule = DeclarationValue.Set(MaskRule(SensitivityLevel.DISPLAY)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        writeWorkingFile("""{"fields":{"state.phones":{"items":{"types":["STRING"],"nullable":false}}}}""")
+        val provider = provider(listOf(masked, WorkingDirectoryQuerySchemaSource(basePath = tempDir)))
+        val first = provider.schema().block()!!
+        val firstItems = first.root.properties.getValue("state").properties.getValue("phones").items!!
+        firstItems.nullable.assert().isFalse()
+        firstItems.maskRule.assert().isEqualTo(MaskRule(SensitivityLevel.DISPLAY))
+
+        // The working directory is read again on every refresh.
+        writeWorkingFile("""{"fields":{"state.phones":{"items":{"types":["STRING"],"nullable":true}}}}""")
+        val refreshed = provider.refresh().block()!!
+
+        // The capability descriptor does not describe item nullability: only the structural comparison sees the edit.
+        refreshed.version.assert().isEqualTo(first.version)
+        refreshed.assert().isNotSameAs(first)
+        refreshed.root.properties.getValue("state").properties.getValue("phones").items!!.nullable.assert().isTrue()
+        provider.schema().block()!!.assert().isSameAs(refreshed)
     }
 
     @Test

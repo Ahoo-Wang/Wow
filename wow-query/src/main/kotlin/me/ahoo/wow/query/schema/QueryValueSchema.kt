@@ -100,6 +100,30 @@ class QueryValueSchema(
         }
         this.properties.keys.forEach(::requireQueryPathSegment)
     }
+
+    /**
+     * Whether [other] declares the same value, recursively: every fact a consumer of the logical definition reads
+     * (the masker reads nullability, kinds, value types, items and alternatives), including the ones the capability
+     * descriptor leaves out. Property order counts, as it does for the descriptor.
+     */
+    @Suppress("CyclomaticComplexMethod")
+    internal fun sameDefinitionAs(other: QueryValueSchema): Boolean {
+        if (this === other) return true
+        return kind == other.kind && nullable == other.nullable && required == other.required &&
+            title == other.title && description == other.description && valueTypes == other.valueTypes &&
+            semanticType == other.semanticType && maskRule == other.maskRule && variant == other.variant &&
+            aliases == other.aliases && deprecated == other.deprecated && enumSnapshot == other.enumSnapshot &&
+            enumDescriptions == other.enumDescriptions &&
+            sameDefinition(items, other.items) &&
+            sameDefinition(additionalProperties, other.additionalProperties) &&
+            alternatives.size == other.alternatives.size &&
+            alternatives.indices.all { alternatives[it].sameDefinitionAs(other.alternatives[it]) } &&
+            properties.keys.toList() == other.properties.keys.toList() &&
+            properties.all { (name, value) -> value.sameDefinitionAs(other.properties.getValue(name)) }
+    }
+
+    private fun sameDefinition(value: QueryValueSchema?, other: QueryValueSchema?): Boolean =
+        if (value == null || other == null) value === other else value.sameDefinitionAs(other)
 }
 
 /** A native binding as a storage adapter reports it; [physicalScope] is [QueryFieldBinding.physicalScope]. */

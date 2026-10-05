@@ -228,15 +228,18 @@ class QueryModelSchema(
 
     /**
      * Whether [other] is the same schema as this one, so a refresh can keep this instance: the same [version] (what
-     * callers can do), and the same native facts the version does not describe — bindings, mask rules, storage support
-     * and sensitivity.
+     * callers can do), the same native facts the version does not describe — bindings, storage support and
+     * sensitivity — and the same logical definition, compared structurally. The version alone is not enough: its
+     * descriptor leaves out fields without a capability or projection, the nullability of map values and array items,
+     * and protected enum values, all of which the masker reads, so an edited declaration could otherwise be ignored
+     * until a restart.
      */
     internal fun compilesSameAs(other: QueryModelSchema): Boolean =
         model == other.model && provisional == other.provisional &&
             fullProjectionAvailable == other.fullProjectionAvailable && storage == other.storage &&
             capabilities == other.capabilities && approximateMetrics == other.approximateMetrics &&
             definition.sensitivity == other.definition.sensitivity &&
-            maskedValues.map { it.first to it.second.maskRule } == other.maskedValues.map { it.first to it.second.maskRule } &&
+            definition.root.sameDefinitionAs(other.definition.root) &&
             bindings.keys == other.bindings.keys &&
             bindings.all { (path, native) -> native.sameAs(other.bindings.getValue(path)) } &&
             version == other.version

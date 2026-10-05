@@ -508,6 +508,14 @@ class BackendQueriesTest {
             RecordingBackend(pages = { BackendPage(listOf(nonStandard.first())) })
                 .single(QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter), schema)).block()
         }.message.assert().isEqualTo("Query result [nested.value] must be a standard JSON value.")
+        // An empty property name renders as it always did: a name after an empty prefix starts the path again.
+        val emptyKeys = JsonSerializer.createObjectNode().also {
+            it.putObject("").putObject("state").putObject("").put("value", Double.NaN)
+        }
+        assertThrows<QueryExecutionException> {
+            RecordingBackend(records = { Flux.just(emptyKeys) })
+                .list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).blockLast()
+        }.message.assert().isEqualTo("Query result [state..value] must be finite.")
     }
 
     @Test
