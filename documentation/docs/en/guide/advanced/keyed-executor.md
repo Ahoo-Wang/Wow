@@ -61,7 +61,7 @@ Write consistency still comes from aggregate boundaries and the EventStore appen
 
 ## Tuning
 
-Raise `workers` only for CPU-bound handlers; non-blocking I/O does not hold a worker. Raise `max-in-flight` when one dispatcher serves many concurrently active aggregates over a high-latency store; lower it to bound memory and downstream load. A single hot aggregate stays serial whatever the settings. Handlers must not block: a blocking call holds one of the few shared workers (annotate such a function with `@Blocking` to run it on `boundedElastic`).
+Raise `workers` only for CPU-bound handlers; non-blocking I/O does not hold a worker. Raise `max-in-flight` when one dispatcher serves many concurrently active aggregates over a high-latency store; lower it to bound memory and downstream load. A single hot aggregate stays serial whatever the settings. Handlers must not block: the workers are Reactor non-blocking threads (as the 9.2 `newParallel` threads were), so `block()` on them fails fast, and a function annotated with `@Blocking` runs on `boundedElastic` instead of holding one of the few shared workers.
 
 ## Verification and source
 

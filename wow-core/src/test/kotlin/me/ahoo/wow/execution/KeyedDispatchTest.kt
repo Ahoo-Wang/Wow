@@ -20,6 +20,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Operators
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import reactor.util.retry.Retry
 import java.time.Duration
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 class KeyedDispatchTest {
     private val executor = KeyedExecutor(workers = 4, maxInFlight = 64, name = "keyed-dispatch-test")
@@ -325,6 +327,22 @@ class KeyedDispatchTest {
         }
 
         StepVerifier.create(dispatched).expectComplete().verify(Duration.ofSeconds(5))
+    }
+
+    @Test
+    fun `workers are non-blocking threads where block fails fast`() {
+        val nonBlocking = AtomicBoolean()
+        val blockFailure = AtomicReference<Throwable?>()
+        val dispatched = Flux.just(1).dispatchKeyed(executor, { it }) {
+            Mono.fromRunnable {
+                nonBlocking.set(Schedulers.isInNonBlockingThread())
+                blockFailure.set(runCatching { Mono.delay(Duration.ofMillis(1)).block() }.exceptionOrNull())
+            }
+        }
+
+        StepVerifier.create(dispatched).expectComplete().verify(Duration.ofSeconds(5))
+        nonBlocking.get().assert().isTrue()
+        blockFailure.get().assert().isInstanceOf(IllegalStateException::class.java)
     }
 
     @Test
