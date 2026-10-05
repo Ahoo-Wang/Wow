@@ -160,6 +160,7 @@ public final class me/ahoo/wow/redis/bus/RedisRecordDecodeFailureHandler$Compani
 public final class me/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason : java/lang/Enum {
 	public static final field DESERIALIZATION_FAILED Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
 	public static final field MISSING_MESSAGE_FIELD Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
+	public static final field TOPIC_MISMATCH Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
 	public static fun values ()[Lme/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason;
@@ -237,6 +238,7 @@ public final class me/ahoo/wow/redis/bus/RedisStreamTransport$RedisTransportReco
 	public final fun getGroup ()Ljava/lang/String;
 	public fun getId ()Ljava/lang/String;
 	public fun getKey ()Ljava/lang/String;
+	public fun getKeyed ()Z
 	public fun getPayload ()Ljava/lang/String;
 	public fun getTopic ()Ljava/lang/String;
 	public fun nack ()Lreactor/core/publisher/Mono;

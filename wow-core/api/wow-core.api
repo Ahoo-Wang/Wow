@@ -3594,7 +3594,9 @@ public abstract interface class me/ahoo/wow/messaging/transport/TopicNaming {
 }
 
 public final class me/ahoo/wow/messaging/transport/TopicNamingKt {
-	public static final fun memoized (Lme/ahoo/wow/messaging/transport/TopicNaming;)Lme/ahoo/wow/messaging/transport/TopicNaming;
+	public static final field DEFAULT_MEMOIZED_AGGREGATES I
+	public static final fun memoized (Lme/ahoo/wow/messaging/transport/TopicNaming;I)Lme/ahoo/wow/messaging/transport/TopicNaming;
+	public static synthetic fun memoized$default (Lme/ahoo/wow/messaging/transport/TopicNaming;IILjava/lang/Object;)Lme/ahoo/wow/messaging/transport/TopicNaming;
 }
 
 public abstract interface class me/ahoo/wow/messaging/transport/Transport : java/lang/AutoCloseable {
@@ -3746,13 +3748,19 @@ public abstract interface class me/ahoo/wow/messaging/transport/TransportRecord 
 	public abstract fun ack ()Lreactor/core/publisher/Mono;
 	public abstract fun getId ()Ljava/lang/String;
 	public abstract fun getKey ()Ljava/lang/String;
+	public fun getKeyed ()Z
 	public abstract fun getPayload ()Ljava/lang/String;
 	public abstract fun getTopic ()Ljava/lang/String;
 	public fun nack ()Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/messaging/transport/TransportRecord$DefaultImpls {
+	public static fun getKeyed (Lme/ahoo/wow/messaging/transport/TransportRecord;)Z
 	public static fun nack (Lme/ahoo/wow/messaging/transport/TransportRecord;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportRecordMismatchException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/messaging/transport/TransportServerCommandExchange : me/ahoo/wow/command/ServerCommandExchange {

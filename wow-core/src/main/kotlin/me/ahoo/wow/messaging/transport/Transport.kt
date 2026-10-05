@@ -72,8 +72,15 @@ data class TransportMessage(
 interface TransportRecord {
     val topic: String
 
-    /** The record key, or `null` when the backend has none (Redis Streams). */
+    /** The record key; `null` on a backend without keys, or on a keyed record published without one. */
     val key: String?
+
+    /**
+     * Whether the backend has record keys. A keyed record's [key] must equal the decoded message's aggregate ID (a
+     * missing key does not); Redis Streams records are not keyed.
+     */
+    val keyed: Boolean
+        get() = true
 
     /** The encoded message, or `null` when the backend record carries none. */
     val payload: String?

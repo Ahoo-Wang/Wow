@@ -80,3 +80,9 @@ private val log = KotlinLogging.logger {}
 class TransportDecodeException(
     failure: TransportDecodeFailure,
 ) : RuntimeException("Failed to decode transport record [${failure.description}].")
+
+/**
+ * A record whose payload decodes but whose key or topic does not match the decoded message: it was published under
+ * another aggregate's key or topic.
+ */
+class TransportRecordMismatchException(message: String) : IllegalArgumentException(message)

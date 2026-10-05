@@ -643,6 +643,22 @@ class KafkaTransportTest {
     }
 
     @Test
+    fun `should reject a record without a key`() {
+        val message = message()
+        val receiverOffset = mockk<ReceiverOffset>(relaxed = true)
+        assertRejectedRecord(
+            message = message,
+            record = receiverRecord(
+                message = message,
+                receiverOffset = receiverOffset,
+                key = null,
+            ),
+            receiverOffset = receiverOffset,
+            expectedMessage = "Transport record key does not match the decoded aggregate id.",
+        )
+    }
+
+    @Test
     fun `should reject a topic that does not match the aggregate`() {
         val message = message()
         val receiverOffset = mockk<ReceiverOffset>(relaxed = true)
@@ -708,7 +724,7 @@ class KafkaTransportTest {
         message: CommandMessage<*>,
         receiverOffset: ReceiverOffset,
         topic: String = DefaultCommandTopicConverter().convert(message),
-        key: String = message.aggregateId.id,
+        key: String? = message.aggregateId.id,
         value: String = message.toJsonString(),
     ): ReceiverRecord<String, String> {
         return mockk {

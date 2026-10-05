@@ -83,20 +83,20 @@ abstract class TransportMessageBus<M, E>(
     /**
      * The message [record] carries, read-only.
      *
-     * @throws IllegalArgumentException when the record has no payload, or its key or topic does not match the
-     * decoded message
+     * @throws IllegalArgumentException when the record has no payload
+     * @throws TransportRecordMismatchException when its key (on a [keyed][TransportRecord.keyed] record) or topic
+     * does not match the decoded message
      */
     fun decode(record: TransportRecord): M {
         val payload = requireNotNull(record.payload) {
             "Transport record has no payload."
         }
         val message = payload.toObject(messageType)
-        val key = record.key
-        require(key == null || key == message.aggregateId.id) {
-            "Transport record key does not match the decoded aggregate id."
+        if (record.keyed && record.key != message.aggregateId.id) {
+            throw TransportRecordMismatchException("Transport record key does not match the decoded aggregate id.")
         }
-        require(record.topic == topicOf(message)) {
-            "Transport record topic does not match the decoded aggregate."
+        if (record.topic != topicOf(message)) {
+            throw TransportRecordMismatchException("Transport record topic does not match the decoded aggregate.")
         }
         message.withReadOnly()
         return message
@@ -108,13 +108,16 @@ abstract class TransportMessageBus<M, E>(
             group = group,
             topics = subscription.namedAggregates.mapTo(linkedSetOf(), topicNaming::topicOf),
         )
+        // A decode failure reaches readiness from inside the inner publisher, before concatMap cancels the transport,
+        // whose readiness would otherwise fail first with its own cancellation error.
         val decodeFailure = Sinks.empty<Void>()
         val messages = transportReceiver.records
-            .concatMap { record -> decodeRecord(group, record) }
-            .doOnError { decodeFailure.tryEmitError(it) }
+            .concatMap { record ->
+                decodeRecord(group, record).doOnError { decodeFailure.tryEmitError(it) }
+            }
         return MessageReceiver(
             messages = messages,
-            readiness = Mono.firstWithSignal(transportReceiver.readiness, decodeFailure.asMono()),
+            readiness = Mono.firstWithSignal(decodeFailure.asMono(), transportReceiver.readiness),
             processingAdmission = transportReceiver::openProcessing,
             processingQuiescence = transportReceiver::close,
         )

@@ -18,14 +18,17 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -69,7 +72,7 @@ class TransportMessageBusTest {
         val bus = TransportCommandBus(RecordingTransport(), NAMING)
         val message = command()
 
-        val decoded = bus.decode(record(bus, message, key = null))
+        val decoded = bus.decode(record(bus, message, key = null, keyed = false))
 
         decoded.id.assert().isEqualTo(message.id)
         decoded.isReadOnly.assert().isTrue()
@@ -83,10 +86,13 @@ class TransportMessageBusTest {
         assertThrows<IllegalArgumentException> {
             bus.decode(record(bus, message, payload = null))
         }.message.assert().isEqualTo("Transport record has no payload.")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<TransportRecordMismatchException> {
             bus.decode(record(bus, message, key = "wrong-key"))
         }.message.assert().isEqualTo("Transport record key does not match the decoded aggregate id.")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<TransportRecordMismatchException> {
+            bus.decode(record(bus, message, key = null))
+        }.message.assert().isEqualTo("Transport record key does not match the decoded aggregate id.")
+        assertThrows<TransportRecordMismatchException> {
             bus.decode(record(bus, message, topic = "wrong.topic"))
         }.message.assert().isEqualTo("Transport record topic does not match the decoded aggregate.")
     }
@@ -132,6 +138,43 @@ class TransportMessageBusTest {
             .expectError(TransportDecodeException::class.java)
             .verify(Duration.ofSeconds(1))
         record.acks.get().assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a decode failure before readiness fails the readiness with the decode error, not the cancellation`() {
+        val message = command()
+        val transport = RecordingTransport()
+        val bus = TransportCommandBus(transport, NAMING)
+        val transportReadiness = Sinks.empty<Void>()
+        transport.readiness = transportReadiness.asMono()
+        transport.records = Flux.just<TransportRecord>(record(bus, message, payload = "not-json"))
+            .concatWith(Flux.never())
+            .doOnCancel {
+                transportReadiness.tryEmitError(CancellationException("receiver initialization was cancelled."))
+            }
+
+        val receiver = bus.receiver(MessageSubscription(message, "group"))
+        receiver.openedMessages()
+            .test()
+            .expectError(TransportDecodeException::class.java)
+            .verify(Duration.ofSeconds(1))
+        receiver.readiness.test()
+            .expectError(TransportDecodeException::class.java)
+            .verify(Duration.ofSeconds(1))
+    }
+
+    @Test
+    fun `memoized naming stops caching beyond its bound`() {
+        val namings = AtomicInteger()
+        val naming = countingNaming(namings).memoized(maxAggregates = 1)
+        val first = command()
+        val other = "other.aggregate".toNamedAggregate()
+
+        repeat(2) { naming.topicOf(first) }
+        repeat(2) { naming.topicOf(other) }
+
+        namings.get().assert().isEqualTo(3)
+        naming.topicOf(other).assert().isEqualTo("topic:other.aggregate")
     }
 
     @Test
@@ -205,7 +248,8 @@ class TransportMessageBusTest {
         topic: String = bus.topicOf(message),
         key: String? = message.aggregateId.id,
         payload: String? = message.toJsonString(),
-    ) = TestRecord(topic, key, payload)
+        keyed: Boolean = true,
+    ) = TestRecord(topic, key, payload, keyed)
 
     private fun countingNaming(counter: AtomicInteger) = TopicNaming {
         counter.incrementAndGet()
@@ -216,6 +260,7 @@ class TransportMessageBusTest {
         override val topic: String,
         override val key: String?,
         override val payload: String?,
+        override val keyed: Boolean = true,
     ) : TransportRecord {
         val acks = AtomicInteger()
         override val id: String = "1"
@@ -224,7 +269,7 @@ class TransportMessageBusTest {
     }
 
     private class RecordingTransport(
-        private val readiness: Mono<Void> = Mono.empty(),
+        var readiness: Mono<Void> = Mono.empty(),
     ) : Transport {
         val sent = mutableListOf<TransportMessage>()
         val opened = mutableListOf<Pair<String, Set<String>>>()

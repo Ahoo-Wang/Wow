@@ -24,6 +24,7 @@ import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
 import me.ahoo.wow.messaging.transport.TransportMessage
 import me.ahoo.wow.messaging.transport.TransportReceiver
 import me.ahoo.wow.messaging.transport.TransportRecord
+import me.ahoo.wow.messaging.transport.TransportRecordMismatchException
 import org.springframework.data.redis.connection.stream.Consumer
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.connection.stream.ReadOffset
@@ -213,6 +214,8 @@ class RedisStreamTransport(
     ) : TransportRecord {
         override val key: String?
             get() = null
+        override val keyed: Boolean
+            get() = false
         override val payload: String?
             get() = record.value[MESSAGE_FIELD]
         override val id: String
@@ -242,10 +245,10 @@ class RedisRecordDecodeFailureHandler(
                 consumerGroup = failure.group,
                 recordId = record.id,
                 messageType = failure.messageType.name,
-                reason = if (missingPayload) {
-                    RedisRecordDecodeFailureReason.MISSING_MESSAGE_FIELD
-                } else {
-                    RedisRecordDecodeFailureReason.DESERIALIZATION_FAILED
+                reason = when {
+                    missingPayload -> RedisRecordDecodeFailureReason.MISSING_MESSAGE_FIELD
+                    failure.cause is TransportRecordMismatchException -> RedisRecordDecodeFailureReason.TOPIC_MISMATCH
+                    else -> RedisRecordDecodeFailureReason.DESERIALIZATION_FAILED
                 },
                 failureType = if (missingPayload) null else failure.cause.javaClass.name,
             )

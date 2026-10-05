@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.transport
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The topic that carries one kind of message of an aggregate on one backend. Topic names are frozen wire format:
@@ -26,19 +27,31 @@ fun interface TopicNaming {
 
 /**
  * This naming computed once per aggregate, which holds because a topic depends only on the context and aggregate
- * names.
+ * names. At most [maxAggregates] aggregates are kept, so records naming arbitrary aggregates cannot grow it without
+ * bound; beyond that a topic is computed on every call.
  */
-fun TopicNaming.memoized(): TopicNaming =
-    this as? MemoizedTopicNaming ?: MemoizedTopicNaming(this)
+fun TopicNaming.memoized(maxAggregates: Int = DEFAULT_MEMOIZED_AGGREGATES): TopicNaming =
+    this as? MemoizedTopicNaming ?: MemoizedTopicNaming(this, maxAggregates)
 
-private class MemoizedTopicNaming(private val delegate: TopicNaming) : TopicNaming {
+const val DEFAULT_MEMOIZED_AGGREGATES: Int = 1024
+
+private class MemoizedTopicNaming(
+    private val delegate: TopicNaming,
+    private val maxAggregates: Int,
+) : TopicNaming {
     private val topics = ConcurrentHashMap<String, ConcurrentHashMap<String, String>>()
+    private val size = AtomicInteger()
 
     override fun topicOf(namedAggregate: NamedAggregate): String {
-        val contextTopics = topics[namedAggregate.contextName]
-            ?: topics.computeIfAbsent(namedAggregate.contextName) { ConcurrentHashMap() }
-        return contextTopics[namedAggregate.aggregateName]
-            ?: contextTopics.computeIfAbsent(namedAggregate.aggregateName) {
+        topics[namedAggregate.contextName]?.get(namedAggregate.aggregateName)?.let {
+            return it
+        }
+        if (size.get() >= maxAggregates) {
+            return delegate.topicOf(namedAggregate)
+        }
+        return topics.computeIfAbsent(namedAggregate.contextName) { ConcurrentHashMap() }
+            .computeIfAbsent(namedAggregate.aggregateName) {
+                size.incrementAndGet()
                 delegate.topicOf(namedAggregate)
             }
     }
