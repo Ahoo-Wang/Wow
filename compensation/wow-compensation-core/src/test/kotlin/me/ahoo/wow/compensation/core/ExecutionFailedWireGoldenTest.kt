@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.serialization.toJsonString
 import org.junit.jupiter.api.Test
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import java.io.File
@@ -36,6 +37,16 @@ class ExecutionFailedWireGoldenTest {
     fun `CreateExecutionFailed body is byte-identical to 9_2`() {
         val sent = record(compensationId = null, error = handlerError())
 
+        sent.assertGolden("create-execution-failed.json")
+    }
+
+    @Test
+    fun `a failure whose in-process retries were exhausted is recorded as its cause`() {
+        val exhausted = Exceptions.retryExhausted("Retries exhausted: 3/3", handlerError())
+
+        val sent = record(compensationId = null, error = exhausted)
+
+        // Since 9.3.0 the record is the cause's; 9.2 recorded the retry-exhausted wrapper (IllegalState).
         sent.assertGolden("create-execution-failed.json")
     }
 

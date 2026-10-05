@@ -18,6 +18,8 @@ import me.ahoo.wow.event.dispatcher.EventHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogResumeErrorHandler
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.processing.failure.FailureRecordingHandler
 
@@ -35,16 +37,29 @@ interface StatelessSagaHandler : EventHandler
  * @param errorHandler The error handler for processing failures (default: [LogResumeErrorHandler]).
  * @param failureRecorder Records failures durably (default: none).
  * @param ackOnUnrecordedFailure Whether a failure no recorder recorded is acknowledged (default: true).
+ * @param metrics Counts the processing outcomes (default: none).
  */
 class DefaultStatelessSagaHandler(
     chain: FilterChain<DomainEventExchange<*>>,
     errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler(),
     failureRecorder: FailureRecorder = FailureRecorder.NONE,
     ackOnUnrecordedFailure: Boolean = true,
+    metrics: WowMetrics = WowMetrics.NONE,
 ) : FailureRecordingHandler<DomainEventExchange<*>>(
     chain = chain,
     errorHandler = errorHandler,
     failureRecorder = failureRecorder,
     ackOnUnrecordedFailure = ackOnUnrecordedFailure,
+    metrics = metrics,
 ),
-    StatelessSagaHandler
+    StatelessSagaHandler {
+    override fun metricDescriptor(context: DomainEventExchange<*>): MetricDescriptor =
+        MetricDescriptor(
+            component = "stateless_saga_handler",
+            operation = "process",
+            context = context.message.contextName,
+            aggregate = context.message.aggregateName,
+            message = context.message.name,
+            processor = context.getFunction()?.processorName ?: MetricDescriptor.NONE,
+        )
+}

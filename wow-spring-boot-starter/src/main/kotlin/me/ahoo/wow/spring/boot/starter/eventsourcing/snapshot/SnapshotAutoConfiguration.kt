@@ -117,8 +117,13 @@ class SnapshotAutoConfiguration(
     fun snapshotHandler(
         @Qualifier("snapshotFilterChain") chain: FilterChain<StateEventExchange<*>>,
         failureRecorder: ObjectProvider<FailureRecorder>,
+        metrics: ObjectProvider<WowMetrics>,
     ): SnapshotHandler {
-        return DefaultSnapshotHandler(chain = chain, failureRecorder = failureRecorder.orNone())
+        return DefaultSnapshotHandler(
+            chain = chain,
+            failureRecorder = failureRecorder.orNone(),
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
+        )
     }
 
     @Bean

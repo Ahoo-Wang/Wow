@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.processing.failure
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
@@ -26,6 +27,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.handler.isAcknowledgementWithheld
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.saga.stateless.DefaultStatelessSagaHandler
 import org.junit.jupiter.api.BeforeEach
@@ -197,6 +199,75 @@ class FailureRecordingHandlerTest {
     }
 
     @Test
+    fun `an exhausted in-process retry is recorded and handled as its cause, with or without a wait plan`() {
+        val cause = IllegalArgumentException("last attempt failed")
+        // Without a wait plan the chain fails with the retry-exhausted error; with one, the notifier unwrapped it.
+        listOf(Exceptions.retryExhausted("Retries exhausted: 3/3", cause), cause).forEach { chainError ->
+            handledErrors.clear()
+            val exchange = exchange()
+            val recorded = CopyOnWriteArrayList<Throwable>()
+            val recorder = recorder { error ->
+                recorded.add(error)
+                Mono.just(ProcessingOutcome.FAILURE_RECORDED)
+            }
+
+            handler(failing(exchange, chainError), recorder).handle(exchange).test().verifyComplete()
+
+            recorded.single().assert().isSameAs(cause)
+            handledErrors.single().assert().isSameAs(cause)
+            exchange.getError().assert().isSameAs(cause)
+        }
+    }
+
+    @Test
+    fun `each outcome is counted with the function identity`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = WowMetrics(registry)
+        val failed = exchange()
+        val handled = exchange()
+
+        DefaultDomainEventHandler(
+            failing(failed, IllegalStateException()),
+            errorHandler,
+            FailureRecorder.NONE,
+            true,
+            metrics
+        )
+            .handle(failed).test().verifyComplete()
+        DefaultDomainEventHandler(succeeding(handled), errorHandler, FailureRecorder.NONE, true, metrics)
+            .handle(handled).test().verifyComplete()
+
+        registry.find("wow.processing.outcomes").tag("outcome", "failure_unrecorded")
+            .tag("component", "domain_event_handler").counter()!!.count().assert().isEqualTo(1.0)
+        registry.find("wow.processing.outcomes").tag("outcome", "handled").counter()!!.count().assert().isEqualTo(1.0)
+    }
+
+    @Test
+    fun `projection, saga and snapshot outcomes are counted under their component`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = WowMetrics(registry)
+        val projected = exchange()
+        val sagaHandled = exchange()
+        DefaultProjectionHandler(succeeding(projected), errorHandler, metrics = metrics)
+            .handle(projected).test().verifyComplete()
+        DefaultStatelessSagaHandler(succeeding(sagaHandled), errorHandler, metrics = metrics)
+            .handle(sagaHandled).test().verifyComplete()
+        val stateExchange = mockk<StateEventExchange<*>>(relaxed = true) {
+            every { message.contextName } returns "context"
+            every { message.aggregateName } returns "aggregate"
+        }
+        val stateChain = mockk<FilterChain<StateEventExchange<*>>> {
+            every { filter(stateExchange) } returns Mono.empty()
+        }
+        DefaultSnapshotHandler(stateChain, metrics = metrics).handle(stateExchange).test().verifyComplete()
+
+        listOf("projection_handler", "stateless_saga_handler", "snapshot_handler").forEach { component ->
+            registry.find("wow.processing.outcomes").tag("component", component).tag("outcome", "handled")
+                .counter()!!.count().assert().isEqualTo(1.0)
+        }
+    }
+
+    @Test
     fun `outcomes acknowledge according to the switch`() {
         ProcessingOutcome.HANDLED.acknowledges(false).assert().isTrue()
         ProcessingOutcome.FAILURE_RECORDED.acknowledges(false).assert().isTrue()
@@ -246,6 +317,9 @@ class FailureRecordingHandlerTest {
         val id = generateGlobalId()
         return mockk<DomainEventExchange<*>> {
             every { message.id } returns id
+            every { message.contextName } returns "context"
+            every { message.aggregateName } returns "aggregate"
+            every { message.name } returns "event"
             every { this@mockk.attributes } returns attributes
             every { getFunction() } returns null
             every { setError(any()) } answers { attributes["__error__"] = firstArg() }

@@ -1564,8 +1564,9 @@ public final class me/ahoo/wow/event/compensation/StateEventCompensator : me/aho
 }
 
 public final class me/ahoo/wow/event/dispatcher/DefaultDomainEventHandler : me/ahoo/wow/processing/failure/FailureRecordingHandler, me/ahoo/wow/event/dispatcher/DomainEventHandler {
-	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;Z)V
-	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun metricDescriptor (Lme/ahoo/wow/event/EventExchange;)Lme/ahoo/wow/metrics/MetricDescriptor;
 }
 
 public final class me/ahoo/wow/event/dispatcher/DomainEventDispatcher : me/ahoo/wow/event/dispatcher/CompositeEventDispatcher {
@@ -1966,8 +1967,9 @@ public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/AggregateSnapsh
 }
 
 public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/DefaultSnapshotHandler : me/ahoo/wow/processing/failure/FailureRecordingHandler, me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler {
-	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;)V
-	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun metricDescriptor (Lme/ahoo/wow/event/EventExchange;)Lme/ahoo/wow/metrics/MetricDescriptor;
 }
 
 public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatcher : me/ahoo/wow/messaging/dispatcher/MainDispatcher {
@@ -3952,6 +3954,7 @@ public final class me/ahoo/wow/metrics/WowMetrics {
 	public final fun getEnabled ()Z
 	public final fun operation (Lreactor/core/publisher/Flux;Lme/ahoo/wow/metrics/MetricDescriptor;)Lreactor/core/publisher/Flux;
 	public final fun operation (Lreactor/core/publisher/Mono;Lme/ahoo/wow/metrics/MetricDescriptor;)Lreactor/core/publisher/Mono;
+	public final fun processingOutcome (Lme/ahoo/wow/metrics/MetricDescriptor;Ljava/lang/String;)V
 	public final fun stream (Lreactor/core/publisher/Flux;Lme/ahoo/wow/metrics/MetricDescriptor;)Lreactor/core/publisher/Flux;
 }
 
@@ -4459,10 +4462,11 @@ public final class me/ahoo/wow/processing/failure/FailureRecorder$DefaultImpls {
 
 public abstract class me/ahoo/wow/processing/failure/FailureRecordingHandler : me/ahoo/wow/filter/Handler {
 	public static final field Companion Lme/ahoo/wow/processing/failure/FailureRecordingHandler$Companion;
-	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;Z)V
-	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun handle (Ljava/lang/Object;)Lreactor/core/publisher/Mono;
 	public fun handle (Lme/ahoo/wow/event/EventExchange;)Lreactor/core/publisher/Mono;
+	protected abstract fun metricDescriptor (Lme/ahoo/wow/event/EventExchange;)Lme/ahoo/wow/metrics/MetricDescriptor;
 }
 
 public final class me/ahoo/wow/processing/failure/FailureRecordingHandler$Companion {
@@ -4481,8 +4485,9 @@ public final class me/ahoo/wow/processing/failure/ProcessingOutcome : java/lang/
 }
 
 public final class me/ahoo/wow/projection/DefaultProjectionHandler : me/ahoo/wow/processing/failure/FailureRecordingHandler, me/ahoo/wow/projection/ProjectionHandler {
-	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;Z)V
-	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun metricDescriptor (Lme/ahoo/wow/event/EventExchange;)Lme/ahoo/wow/metrics/MetricDescriptor;
 }
 
 public final class me/ahoo/wow/projection/ProjectionDispatcher : me/ahoo/wow/event/dispatcher/CompositeEventDispatcher {
@@ -4602,8 +4607,9 @@ public final class me/ahoo/wow/saga/stateless/DefaultCommandStream : java/lang/I
 }
 
 public final class me/ahoo/wow/saga/stateless/DefaultStatelessSagaHandler : me/ahoo/wow/processing/failure/FailureRecordingHandler, me/ahoo/wow/saga/stateless/StatelessSagaHandler {
-	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;Z)V
-	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lme/ahoo/wow/processing/failure/FailureRecorder;ZLme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun metricDescriptor (Lme/ahoo/wow/event/EventExchange;)Lme/ahoo/wow/metrics/MetricDescriptor;
 }
 
 public final class me/ahoo/wow/saga/stateless/ExchangeCommandStreamKt {

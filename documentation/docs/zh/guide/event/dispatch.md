@@ -101,7 +101,7 @@ Filter 从左到右进入、从右到左观察完成或错误。唯一的 `Retry
 | `FAILURE_UNRECORDED` | 没有记录失败的记录器（`FailureRecorder.NONE`，未启用补偿模块时的默认值） | 仅当 `wow.event.ack-on-unrecorded-failure` 为 `true`（默认） |
 | `RECORDING_FAILED` | 记录器未能记录 | 否 |
 
-随后处理错误交给组件的 `ErrorHandler`（记录错误作为 suppressed 附在其上）。启用补偿模块时记录器是 `CompensationFailureRecorder`：首次执行失败创建 `ExecutionFailed`，补偿执行失败更新已有记录，带补偿 ID 的执行成功写回 `ApplyExecutionSuccess`。记录发生在通知器发出信号之后，因此 wait 信号不再等待补偿记录（9.3.0 之前补偿过滤器位于通知器之内）。Processor、Saga 与 Projection 记录即时重试后仍未恢复的错误；Snapshot 没有该层，首次函数失败即可进入持久补偿。完整状态机见[事件补偿](./compensation.md)。
+随后处理错误交给组件的 `ErrorHandler`（记录错误作为 suppressed 附在其上）。启用补偿模块时记录器是 `CompensationFailureRecorder`：首次执行失败创建 `ExecutionFailed`，补偿执行失败更新已有记录，带补偿 ID 的执行成功写回 `ApplyExecutionSuccess`。记录发生在通知器发出信号之后，因此 wait 信号不再等待补偿记录（9.3.0 之前补偿过滤器位于通知器之内）：记录与信号最终一致，调用方如需记录，按事件 ID 轮询 `ExecutionFailed`。进程内重试耗尽的失败，无论有无等待计划，都按其原因（最后一次尝试的错误）记录和处理（9.3.0 之前记录的是 `IllegalState` "Retries exhausted" 与 `UNKNOWN`）。启用指标时，每个结果计入 `wow.processing.outcomes`（标签 `component`、`context`、`aggregate`、`message`、`processor`、`outcome`）。Processor、Saga 与 Projection 记录即时重试后仍未恢复的错误；Snapshot 没有该层，首次函数失败即可进入持久补偿。完整状态机见[事件补偿](./compensation.md)。
 
 ## Ack 与失败边界
 

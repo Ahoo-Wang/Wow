@@ -20,6 +20,8 @@ import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.messaging.handler.withholdAcknowledgement
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 
@@ -32,6 +34,11 @@ import reactor.core.publisher.Mono
  *   added to it as suppressed). When the outcome [does not acknowledge][ProcessingOutcome.acknowledges], the exchange
  *   [withholds its acknowledgement][withholdAcknowledgement], so the bus delivers the message again.
  *
+ * A failure whose in-process retries were exhausted (`RetryableFilter`) is recorded and handled as its cause, the
+ * error the function last failed with, as the wait notifier reports it.
+ *
+ * Each outcome is counted in [metrics] (`wow.processing.outcomes`, tag `outcome`) with [metricDescriptor].
+ *
  * With [FailureRecorder.NONE] and [ackOnUnrecordedFailure] on (the defaults), a failure is logged by the default
  * error handler and acknowledged, as before 9.3.0.
  */
@@ -40,6 +47,7 @@ abstract class FailureRecordingHandler<E : EventExchange<*, *>>(
     private val errorHandler: ErrorHandler<E>,
     private val failureRecorder: FailureRecorder = FailureRecorder.NONE,
     private val ackOnUnrecordedFailure: Boolean = true,
+    private val metrics: WowMetrics = WowMetrics.NONE,
 ) : Handler<E> {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -53,28 +61,39 @@ abstract class FailureRecordingHandler<E : EventExchange<*, *>>(
                 if (error == null) {
                     onSuccess(context)
                 } else {
-                    onFailure(context, error)
+                    onFailure(context, error.retryExhaustedCause())
                 }
             }
 
-    private fun onSuccess(context: E): Mono<Void> =
-        Mono.defer { failureRecorder.recordSuccess(context) }
+    /** The metric identity of the processing of [context]. */
+    protected abstract fun metricDescriptor(context: E): MetricDescriptor
+
+    private fun onSuccess(context: E): Mono<Void> {
+        countOutcome(context, ProcessingOutcome.HANDLED)
+        return Mono.defer { failureRecorder.recordSuccess(context) }
             .onErrorResume { handleError(context, it) }
+    }
 
     private fun onFailure(context: E, error: Throwable): Mono<Void> =
         Mono.defer { failureRecorder.recordFailure(context, error) }
             .defaultIfEmpty(ProcessingOutcome.FAILURE_UNRECORDED)
             .onErrorResume { recordError ->
-                val cause = if (Exceptions.isRetryExhausted(recordError)) recordError.cause else null
-                error.addSuppressedOnce(cause ?: recordError)
+                error.addSuppressedOnce(recordError.retryExhaustedCause())
                 Mono.just(ProcessingOutcome.RECORDING_FAILED)
             }
             .flatMap { outcome ->
+                countOutcome(context, outcome)
                 if (!outcome.acknowledges(ackOnUnrecordedFailure)) {
                     withhold(context, outcome)
                 }
                 handleError(context, error)
             }
+
+    private fun countOutcome(context: E, outcome: ProcessingOutcome) {
+        if (metrics.enabled) {
+            metrics.processingOutcome(metricDescriptor(context), outcome.name.lowercase())
+        }
+    }
 
     private fun withhold(context: E, outcome: ProcessingOutcome) {
         log.warn {
@@ -90,6 +109,9 @@ abstract class FailureRecordingHandler<E : EventExchange<*, *>>(
         return errorHandler.handle(context, error)
     }
 }
+
+private fun Throwable.retryExhaustedCause(): Throwable =
+    if (Exceptions.isRetryExhausted(this)) cause ?: this else this
 
 /**
  * Adds [error] as suppressed unless it is this throwable itself or an equal failure (same type and message) is

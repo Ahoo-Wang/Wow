@@ -133,7 +133,7 @@ wow-compiler       只依赖元数据模型，生成结果可复现
 | WP | 内容 | 兼容类别 | 证明 | 规模 |
 |---|---|---|---|---|
 | X1 | **Transport SPI**：Kafka、Redis、内存实现 `Transport`；通用 `TransportMessageBus` 负责编解码、校验、就绪、交换；现有 `Kafka*Bus`/`Redis*Bus` 保留为薄门面（构造器不变），各自的交换类合并为核心的 `TransportExchange`；主题名按聚合缓存；Kafka 发送去掉关联 sink | 内部 + API 弃用（交换类） | `MessageBusSpec` 等在三种实现上运行；混部测试（G1）：同主题、同键、同 JSON、同消费组 | L |
-| X2 | **失败策略统一**：`TransportFailurePolicy` 在核心定义一次接收重试与解码失败策略，Redis 获得与 Kafka 相同的默认重试；Redis、Kafka 注册各自的可恢复异常；删除未使用的 `retryStrategy`（弃用）；`FailureRecorder` + `ProcessingOutcome`：失败既未处理也未记录时可选择不确认（默认行为见 §8 Q7），补偿模块改为实现记录器，不再按类名排序过滤器 | 行为变化（Redis、Kafka 的瞬时故障会重试）+ API 新增 | 暂停 Redis 容器 5 秒，分发器存活；补偿命令的线上载荷与 9.2 逐字节一致 | M |
+| X2 | **失败策略统一**：`TransportFailurePolicy` 在核心定义一次接收重试（解码失败策略已由 X1 的 `TransportDecodeFailureHandler` 统一），Redis 获得与 Kafka 相同的默认重试；Redis、Kafka 注册各自的可恢复异常；删除未使用的 `retryStrategy`（直接删除，不弃用）；`FailureRecorder` + `ProcessingOutcome`：失败既未处理也未记录时可选择不确认（默认行为见 §8 Q7），补偿模块改为实现记录器，不再按类名排序过滤器 | 行为变化（Redis、Kafka 的瞬时故障会重试）+ API 新增 | 暂停 Redis 容器 5 秒，分发器存活；补偿命令的线上载荷与 9.2 逐字节一致 | M |
 | X3 | **生命周期**：批量写入器、Kafka 发送器以 `RuntimeComponent` 纳入运行时，在同一个 `shutdownTimeout` 内于分发器之后停止；5 个生命周期线程池并为 2 个，全部归 `RuntimeExecutionResources` | 内部 | `WowRuntimeTest`（时限）、批量关闭测试、Spring 关停测试 | M |
 | X4 | **热路径**：计量器缓存（名称与标签不变）；以 G2 的数据为准，再决定是否去掉双重原子守卫、属性表逐函数复制等 | 内部 | 计量器快照测试；G2 前后对比 | M |
 | X5 | **本地优先**：分布式副本异步发送，不再等本地准入（D3，已定）；去掉整条总线的监视器锁 | 行为变化（发送更早完成；线上标记语义不变） | 本地优先契约测试；混部：9.2 消费者仍过滤 `local_first` 副本 | M |

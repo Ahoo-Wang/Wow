@@ -556,7 +556,7 @@ public class me/ahoo/wow/spring/boot/starter/event/EventDispatcherAutoConfigurat
 	public fun domainEventHandlerRegistrar ()Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;
 	public fun eventDispatcherFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun eventDispatcherFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventFunctionFilter;
-	public fun eventDispatcherHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
+	public fun eventDispatcherHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
 	public fun eventDispatcherRetryableFilter ()Lme/ahoo/wow/messaging/handler/RetryableFilter;
 	public fun eventProcessorAutoRegistrar (Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/event/EventProcessorAutoRegistrar;
 	public fun eventProcessorErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
@@ -820,7 +820,7 @@ public class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotAuto
 	public fun snapshotDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatcher;
 	public fun snapshotFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun snapshotFunctionFilter (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter;
-	public fun snapshotHandler (Lme/ahoo/wow/filter/FilterChain;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
+	public fun snapshotHandler (Lme/ahoo/wow/filter/FilterChain;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
 	public fun versionOffsetSnapshotStrategy (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
 }
 
@@ -1304,7 +1304,7 @@ public class me/ahoo/wow/spring/boot/starter/projection/ProjectionDispatcherAuto
 	public fun projectionErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
 	public fun projectionFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun projectionFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/projection/ProjectionFunctionFilter;
-	public fun projectionHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/projection/ProjectionHandler;
+	public fun projectionHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/projection/ProjectionHandler;
 	public fun projectionHandlerRegistrar ()Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;
 	public fun projectionProcessorAutoRegistrar (Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/projection/ProjectionProcessorAutoRegistrar;
 }
@@ -1570,7 +1570,7 @@ public class me/ahoo/wow/spring/boot/starter/saga/StatelessSagaAutoConfiguration
 	public fun statelessSagaErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
 	public fun statelessSagaFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun statelessSagaFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionFilter;
-	public fun statelessSagaHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
+	public fun statelessSagaHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
 	public fun statelessSagaHandlerRegistrar (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;
 	public fun statelessSagaProcessorAutoRegistrar (Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/saga/StatelessSagaProcessorAutoRegistrar;
 }

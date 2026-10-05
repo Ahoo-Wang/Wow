@@ -104,12 +104,14 @@ class StatelessSagaAutoConfiguration {
         @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<*>>,
         failureRecorder: ObjectProvider<FailureRecorder>,
         eventProperties: ObjectProvider<EventProperties>,
+        metrics: ObjectProvider<WowMetrics>,
     ): StatelessSagaHandler {
         return DefaultStatelessSagaHandler(
             chain = chain,
             errorHandler = statelessSagaErrorHandler,
             failureRecorder = failureRecorder.orNone(),
             ackOnUnrecordedFailure = eventProperties.ackOnUnrecordedFailure(),
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 

@@ -94,12 +94,14 @@ class ProjectionDispatcherAutoConfiguration {
         @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<*>>,
         failureRecorder: ObjectProvider<FailureRecorder>,
         eventProperties: ObjectProvider<EventProperties>,
+        metrics: ObjectProvider<WowMetrics>,
     ): ProjectionHandler {
         return DefaultProjectionHandler(
             chain = chain,
             errorHandler = projectionErrorHandler,
             failureRecorder = failureRecorder.orNone(),
             ackOnUnrecordedFailure = eventProperties.ackOnUnrecordedFailure(),
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 

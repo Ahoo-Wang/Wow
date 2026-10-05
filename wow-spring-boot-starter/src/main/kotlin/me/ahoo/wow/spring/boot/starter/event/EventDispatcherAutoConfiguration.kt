@@ -94,12 +94,14 @@ class EventDispatcherAutoConfiguration {
         @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<*>>,
         failureRecorder: ObjectProvider<FailureRecorder>,
         eventProperties: ObjectProvider<EventProperties>,
+        metrics: ObjectProvider<WowMetrics>,
     ): DomainEventHandler {
         return DefaultDomainEventHandler(
             chain = chain,
             errorHandler = eventProcessorErrorHandler,
             failureRecorder = failureRecorder.orNone(),
             ackOnUnrecordedFailure = eventProperties.ackOnUnrecordedFailure(),
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
         )
     }
 
