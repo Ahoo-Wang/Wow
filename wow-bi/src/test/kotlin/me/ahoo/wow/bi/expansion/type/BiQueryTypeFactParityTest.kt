@@ -15,8 +15,10 @@ package me.ahoo.wow.bi.expansion.type
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.bi.expansion.plan.isUnsupportedPlatformObject
 import me.ahoo.wow.bi.type.ClickHouseTypeMapping.scalarMapping
+import me.ahoo.wow.bi.type.JsonTokenShape
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.example.domain.order.OrderState
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test
  * model and OpenAPI resolve them with [JsonQueryModelSource]. This test walks both over the example, compensation and
  * view-store states and compares, per serialized path, the property names, the value kind and the nullability.
  *
+ * Below a kind mismatch the names are still compared, and scalars compare their JSON value type and the `uuid` format.
  * The divergences below are the known ones; a new divergence (or one that disappears) fails the test, so a change to
  * either engine that moves them apart, or together, is seen in review.
  */
@@ -48,56 +51,90 @@ class BiQueryTypeFactParityTest {
     }
 
     @Test
-    fun `BI and the query model see the same property names`() {
+    fun `BI and the query model see the same property names wherever BI expands a value`() {
         STATE_TYPES.flatMap { stateType ->
             val root = ResolvedType(JsonSerializer.constructType(stateType), Nullability.NON_NULL, emptyList())
             compare(stateType.simpleName, root, JsonQueryModelSource().describe(stateType))
-        }.filter { it.contains("ABSENT") }.assert().isEmpty()
+        }.filter { it.contains("ABSENT") }.assert()
+            .allMatch { it.startsWith("ExecutionFailedState.eventId.aggregateId.") }
     }
 
-    @Suppress("CyclomaticComplexMethod")
     private fun compare(path: String, type: ResolvedType, queryFact: QueryTypeFact): List<String> = buildList {
         val fact = queryFact.withoutNull()
         val biKind = type.biKind()
         val queryKind = fact.kind.toBiKind()
         if (biKind != queryKind) {
             add("$path kind: bi=$biKind query=$queryKind")
-            return@buildList
         }
-        val biNullable = when (type.nullability) {
-            Nullability.NON_NULL -> false
-            Nullability.NULLABLE -> true
-            Nullability.UNKNOWN -> null
+        compareNullability(path, type, fact)?.let(::add)
+        if (biKind == BiKind.SCALAR && queryKind == BiKind.SCALAR) {
+            compareScalar(path, type, fact)?.let(::add)
         }
-        if (biNullable != null && fact.nullable != null && biNullable != fact.nullable) {
-            add("$path nullable: bi=$biNullable query=${fact.nullable}")
-        }
-        when (biKind) {
-            BiKind.OBJECT -> if (type.javaType.isMapLikeType) {
+        // Below a kind mismatch the names are still compared, as far as both sides describe them.
+        when {
+            type.javaType.isMapLikeType -> {
                 val value = type.arguments.getOrNull(1)
                 val additional = fact.additionalProperties
                 if (value != null && additional != null) addAll(compare("$path{}", value, additional))
-            } else {
-                val biProperties = (JacksonWireShapeInspector.inspect(type) as JsonWireShape.ExpandableObject)
-                    .properties.associateBy(ResolvedJsonProperty::serializedName)
-                (biProperties.keys + fact.properties.keys).sorted().forEach { name ->
-                    val bi = biProperties[name]
-                    val query = fact.properties[name]
-                    when {
-                        bi == null -> add("$path.$name ABSENT in bi")
-                        query == null -> add("$path.$name ABSENT in query")
-                        else -> addAll(compare("$path.$name", bi.type, query))
-                    }
-                }
             }
 
-            BiKind.ARRAY -> {
+            type.javaType.isCollectionLikeType || type.javaType.isArrayType -> {
                 val element = type.arguments.firstOrNull()
                 val items = fact.items
                 if (element != null && items != null) addAll(compare("$path[]", element, items))
             }
 
-            else -> Unit
+            biKind == BiKind.SCALAR || queryKind == BiKind.SCALAR -> Unit
+            else -> addAll(compareProperties(path, type, fact))
+        }
+    }
+
+    private fun compareNullability(path: String, type: ResolvedType, fact: QueryTypeFact): String? {
+        val biNullable = when (type.nullability) {
+            Nullability.NON_NULL -> false
+            Nullability.NULLABLE -> true
+            Nullability.UNKNOWN -> null
+        }
+        if (biNullable == null || fact.nullable == null || biNullable == fact.nullable) return null
+        return "$path nullable: bi=$biNullable query=${fact.nullable}"
+    }
+
+    /** The JSON value type of a scalar, and the `uuid` format, as BI's column mapping reads them. */
+    private fun compareScalar(path: String, type: ResolvedType, fact: QueryTypeFact): String? {
+        val shape = type.rawClass.scalarMapping()?.tokenShape ?: return null
+        val biValueType = when (shape) {
+            JsonTokenShape.STRING, JsonTokenShape.UUID_STRING -> QueryValueType.STRING
+            JsonTokenShape.INTEGER -> QueryValueType.INTEGER
+            JsonTokenShape.NUMBER, JsonTokenShape.NUMBER_OR_SPECIAL_STRING -> QueryValueType.DECIMAL
+            JsonTokenShape.BOOLEAN -> QueryValueType.BOOLEAN
+            else -> return null
+        }
+        if (fact.valueTypes.isNotEmpty() && biValueType !in fact.valueTypes) {
+            return "$path valueType: bi=$biValueType query=${fact.valueTypes}"
+        }
+        val biUuid = shape == JsonTokenShape.UUID_STRING
+        val queryUuid = "uuid" in fact.formats
+        if (biUuid != queryUuid) {
+            return "$path format uuid: bi=$biUuid query=$queryUuid"
+        }
+        return null
+    }
+
+    private fun compareProperties(path: String, type: ResolvedType, fact: QueryTypeFact): List<String> = buildList {
+        if (fact.properties.isEmpty() || isUnsupportedPlatformObject(type)) return@buildList
+        val biProperties = when (val shape = JacksonWireShapeInspector.inspect(type)) {
+            is JsonWireShape.ExpandableObject -> shape.properties
+            // Not expanded by BI, but its resolver still describes the bean.
+            is JsonWireShape.Opaque -> JsonPropertyTypeResolver.resolve(type)
+        }.associateBy(ResolvedJsonProperty::serializedName)
+        (biProperties.keys + fact.properties.keys).sorted().forEach { name ->
+            val bi = biProperties[name]
+            val query = fact.properties[name]
+            when {
+                bi == null -> add("$path.$name ABSENT in bi")
+                query == null -> add("$path.$name ABSENT in query")
+                else -> addAll(compare("$path.$name", bi.type, query))
+            }
         }
     }
 
@@ -107,6 +144,8 @@ class BiQueryTypeFactParityTest {
         val value = alternatives.filterNot { it.kind == QueryValueKind.NULL }.singleOrNull() ?: return this
         return QueryTypeFact(
             kind = value.kind,
+            valueTypes = value.valueTypes,
+            formats = value.formats,
             nullable = true,
             properties = value.properties,
             items = value.items,
@@ -155,8 +194,14 @@ class BiQueryTypeFactParityTest {
             "OrderState.paidAmount kind: bi=RAW query=SCALAR",
             "OrderState.payable kind: bi=RAW query=SCALAR",
             "OrderState.totalAmount kind: bi=RAW query=SCALAR",
-            // AggregateId has a custom serializer: BI does not expand it, the query model describes its object shape.
+            // AggregateId has a custom serializer: BI does not expand it, the query model describes its object shape,
+            // whose names are the serializer's, not the bean's that BI's resolver reads.
             "ExecutionFailedState.eventId.aggregateId kind: bi=RAW query=OBJECT",
+            "ExecutionFailedState.eventId.aggregateId.aggregateId ABSENT in bi",
+            "ExecutionFailedState.eventId.aggregateId.aggregateName ABSENT in bi",
+            "ExecutionFailedState.eventId.aggregateId.contextName ABSENT in bi",
+            "ExecutionFailedState.eventId.aggregateId.id ABSENT in query",
+            "ExecutionFailedState.eventId.aggregateId.namedAggregate ABSENT in query",
             // An enum serialized through @JsonValue: BI keeps it raw, the query model sees the string.
             "ViewState.audience kind: bi=RAW query=SCALAR",
             // `String?` with @JsonInclude(NON_NULL): JSON never holds null (absent instead). BI reads the Kotlin type.

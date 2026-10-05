@@ -42,7 +42,7 @@ data class BiScriptProperties(
     var maxExpansionDepth: Int? = null,
     var unsupportedTypeStrategy: UnsupportedTypeStrategy? = null,
     /** Leave `@Sensitive` state properties out of the expansion columns ([BiScriptOptions.omitSensitiveFields]). */
-    var omitSensitiveFields: Boolean = false,
+    var omitSensitiveFields: Boolean? = null,
     @NestedConfigurationProperty
     var inspector: BiDeploymentInspectorProperties = BiDeploymentInspectorProperties(),
 ) {
@@ -135,7 +135,7 @@ internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperti
         kafkaKeeperPathPrefix = kafkaKeeperPathPrefix ?: defaultBiScriptOptions.kafkaKeeperPathPrefix,
         maxExpansionDepth = maxExpansionDepth ?: defaultBiScriptOptions.maxExpansionDepth,
         unsupportedTypeStrategy = unsupportedTypeStrategy ?: defaultBiScriptOptions.unsupportedTypeStrategy,
-        omitSensitiveFields = omitSensitiveFields,
+        omitSensitiveFields = omitSensitiveFields ?: defaultBiScriptOptions.omitSensitiveFields,
     )
 }
 

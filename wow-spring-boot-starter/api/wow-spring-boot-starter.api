@@ -189,13 +189,13 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptProperties {
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties$Companion;
 	public static final field PREFIX Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;ZLme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)V
-	public synthetic fun <init> (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;ZLme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Ljava/lang/Boolean;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Ljava/lang/Boolean;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component10 ()Ljava/lang/String;
 	public final fun component11 ()Ljava/lang/Integer;
 	public final fun component12 ()Lme/ahoo/wow/bi/UnsupportedTypeStrategy;
-	public final fun component13 ()Z
+	public final fun component13 ()Ljava/lang/Boolean;
 	public final fun component14 ()Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
@@ -205,8 +205,8 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptProperties {
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Ljava/lang/String;
 	public final fun component9 ()Lme/ahoo/wow/bi/KafkaOffsetStorage;
-	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;ZLme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;ZLme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Ljava/lang/Boolean;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;ZLjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/KafkaOffsetStorage;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/bi/UnsupportedTypeStrategy;Ljava/lang/Boolean;Lme/ahoo/wow/spring/boot/starter/bi/BiDeploymentInspectorProperties;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getConsumerDatabase ()Ljava/lang/String;
 	public final fun getConsumerGroupNamespace ()Ljava/lang/String;
@@ -217,7 +217,7 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptProperties {
 	public final fun getKafkaKeeperPathPrefix ()Ljava/lang/String;
 	public final fun getKafkaOffsetStorage ()Lme/ahoo/wow/bi/KafkaOffsetStorage;
 	public final fun getMaxExpansionDepth ()Ljava/lang/Integer;
-	public final fun getOmitSensitiveFields ()Z
+	public final fun getOmitSensitiveFields ()Ljava/lang/Boolean;
 	public final fun getTimezone ()Ljava/lang/String;
 	public final fun getTopicPrefix ()Ljava/lang/String;
 	public final fun getTopology ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;
@@ -232,7 +232,7 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptProperties {
 	public final fun setKafkaKeeperPathPrefix (Ljava/lang/String;)V
 	public final fun setKafkaOffsetStorage (Lme/ahoo/wow/bi/KafkaOffsetStorage;)V
 	public final fun setMaxExpansionDepth (Ljava/lang/Integer;)V
-	public final fun setOmitSensitiveFields (Z)V
+	public final fun setOmitSensitiveFields (Ljava/lang/Boolean;)V
 	public final fun setTimezone (Ljava/lang/String;)V
 	public final fun setTopicPrefix (Ljava/lang/String;)V
 	public final fun setTopology (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties;)V

@@ -35,6 +35,7 @@ class StateExpansionPlannerSensitiveTest {
         val plan = StateExpansionPlanner(BiScriptOptions()).plan(sensitiveAggregateMetadata)
 
         plan.columnPaths().assert().containsAll(SENSITIVE_PATHS + PLAIN_PATHS)
+        plan.selectedPaths().assert().containsAll(RAW_PATHS)
         plan.diagnostics.none { it.code == BiScriptDiagnosticCode.SENSITIVE_FIELD_OMITTED }.assert().isTrue()
     }
 
@@ -45,16 +46,29 @@ class StateExpansionPlannerSensitiveTest {
         plan.columnPaths().assert().containsAll(PLAIN_PATHS).doesNotContainAnyElementsOf(SENSITIVE_PATHS)
         plan.views.flatMap { it.columns }.none { it.path.startsWith("phones") }.assert().isTrue()
         val omitted = plan.diagnostics.filter { it.code == BiScriptDiagnosticCode.SENSITIVE_FIELD_OMITTED }
-        omitted.map { it.path }.assert().containsExactlyInAnyOrderElementsOf(SENSITIVE_PATHS)
+        omitted.map { it.path }.assert().containsExactlyInAnyOrderElementsOf(SENSITIVE_PATHS + RAW_PATHS)
         omitted.forEach { it.decision.assert().isEqualTo(BiScriptMappingDecision.OMITTED) }
         omitted.single { it.path == "password" }.message.assert().contains("CONFIDENTIAL")
+    }
+
+    @Test
+    fun `should leave out the raw JSON of a value that holds a sensitive property`() {
+        val plan = StateExpansionPlanner(BiScriptOptions(omitSensitiveFields = true)).plan(sensitiveAggregateMetadata)
+
+        // A nullable object's raw companion and an object array's raw column would carry idCard.
+        plan.selectedPaths().assert().doesNotContainAnyElementsOf(RAW_PATHS)
+        // Their plain children are still expanded.
+        plan.columnPaths().assert().contains("maybeProfile.nickname", "profiles.nickname")
+        plan.diagnostics.filter { it.path in RAW_PATHS }.forEach {
+            it.message.assert().contains("raw JSON")
+        }
     }
 
     @Test
     fun `should omit exactly the properties the query schema masks`() {
         val plan = StateExpansionPlanner(BiScriptOptions(omitSensitiveFields = true)).plan(sensitiveAggregateMetadata)
         val omitted = plan.diagnostics.filter { it.code == BiScriptDiagnosticCode.SENSITIVE_FIELD_OMITTED }
-            .map { it.path }
+            .map { it.path } - RAW_PATHS
 
         val masked = JsonQueryModelSource().describe(SensitiveState::class.java).sensitivePaths("")
         omitted.assert().containsExactlyInAnyOrderElementsOf(masked)
@@ -69,12 +83,17 @@ class StateExpansionPlannerSensitiveTest {
             BiScriptOptions(consumerGroupNamespace = consumerGroupNamespace, omitSensitiveFields = true)
         ).generate(setOf(sensitiveAggregateMetadata)).script
 
-        expanded.assert().contains("AS \"password\"", "AS \"profile__id_card\"")
-        omitted.assert().doesNotContain("AS \"password\"", "AS \"profile__id_card\"")
+        val profilesArray = "'profiles') AS \"profiles\""
+        expanded.assert().contains("AS \"password\"", "AS \"profile__id_card\"", profilesArray)
+        omitted.assert().doesNotContain("AS \"password\"", "AS \"profile__id_card\"", profilesArray)
         omitted.assert().contains("AS \"name\"")
     }
 
     private fun StateExpansionPlan.columnPaths(): Set<String> = views.flatMap { it.columns }.map { it.path }.toSet()
+
+    /** The paths of the columns a view outputs (a nested object's own column is only a WITH alias). */
+    private fun StateExpansionPlan.selectedPaths(): Set<String> = views.flatMap { it.columns }
+        .filter { it.placement == ColumnPlacement.SELECT }.map { it.path }.toSet()
 
     private fun QueryTypeFact.sensitivePaths(path: String): Set<String> = buildSet {
         if (member?.effectiveSensitivityLevel() != null) {
@@ -91,8 +110,18 @@ class StateExpansionPlannerSensitiveTest {
     }
 
     private companion object {
-        val SENSITIVE_PATHS = setOf("password", "email", "token", "phone", "phones", "profile.idCard")
-        val PLAIN_PATHS = setOf("name", "profile.nickname")
+        val SENSITIVE_PATHS = setOf(
+            "password",
+            "email",
+            "token",
+            "phone",
+            "phones",
+            "profile.idCard",
+            "maybeProfile.idCard",
+            "profiles.idCard",
+        )
+        val RAW_PATHS = setOf("maybeProfile", "profiles")
+        val PLAIN_PATHS = setOf("name", "profile.nickname", "maybeProfile.nickname", "profiles.nickname")
     }
 }
 
@@ -124,6 +153,8 @@ class SensitiveState(override val id: String) : Identifier {
     val phone: SensitivePhone = SensitivePhone("")
     val phones: List<SensitivePhone> = emptyList()
     val profile: SensitiveProfile = SensitiveProfile()
+    val maybeProfile: SensitiveProfile? = null
+    val profiles: List<SensitiveProfile> = emptyList()
 }
 
 class SensitiveProfile {

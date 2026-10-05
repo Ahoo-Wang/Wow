@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.bi.expansion.plan
 
-import me.ahoo.wow.bi.BiScriptDiagnostic
-import me.ahoo.wow.bi.BiScriptDiagnosticCode
-import me.ahoo.wow.bi.BiScriptMappingDecision
 import me.ahoo.wow.bi.expansion.type.JacksonWireShapeInspector
 import me.ahoo.wow.bi.expansion.type.JsonWireShape
 import me.ahoo.wow.bi.expansion.type.ResolvedJsonProperty
@@ -23,14 +20,12 @@ import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.bi.type.ClickHouseTypeMapping.scalarMapping
 import me.ahoo.wow.bi.type.JsonTokenShape
 import me.ahoo.wow.bi.type.ScalarMapping
-import me.ahoo.wow.query.schema.QueryMemberFact
-import me.ahoo.wow.query.schema.effectiveSensitivityLevel
 
 internal class StateExpansionPropertyCollector(
     private val session: StateExpansionPlanningSession,
 ) {
     private val fallbackCollector = StateExpansionFallbackCollector(session)
-    private val collectionCollector = StateExpansionCollectionCollector(fallbackCollector)
+    private val collectionCollector = StateExpansionCollectionCollector(session, fallbackCollector)
 
     fun collectObjectProperties(parent: PlanningNode, draft: ViewDraft) {
         when (val shape = JacksonWireShapeInspector.inspect(parent.type)) {
@@ -60,7 +55,7 @@ internal class StateExpansionPropertyCollector(
             type = property.type,
             draft = draft,
         )
-        if (session.options.omitSensitiveFields && omitSensitive(property, request)) {
+        if (session.sensitivity.omitProperty(property, request.path)) {
             return
         }
         draft.propertyTargetNames.add(request.targetName)
@@ -80,28 +75,6 @@ internal class StateExpansionPropertyCollector(
             isUnsupportedPlatformObject(request.type) -> fallbackCollector.collectRaw(request)
             else -> collectObjectProperty(request)
         }
-    }
-
-    /** Leaves a `@Sensitive` property out, under the query schema's own rule, and says so in a diagnostic. */
-    private fun omitSensitive(property: ResolvedJsonProperty, request: PropertyPlanningRequest): Boolean {
-        val level = QueryMemberFact(
-            name = request.path,
-            type = property.type.rawClass,
-            annotations = property.annotations,
-            valueType = property.valueType,
-        ).effectiveSensitivityLevel() ?: return false
-        session.diagnostics.add(
-            BiScriptDiagnostic(
-                code = BiScriptDiagnosticCode.SENSITIVE_FIELD_OMITTED,
-                aggregate = session.aggregate,
-                path = request.path,
-                sourceType = property.type.javaType.toCanonical(),
-                decision = BiScriptMappingDecision.OMITTED,
-                message = "Sensitive property [${request.path}] ($level) is left out of the expansion columns; " +
-                    "the raw state in __state still holds it.",
-            )
-        )
-        return true
     }
 
     private fun collectScalarProperty(request: PropertyPlanningRequest): Boolean {
@@ -151,7 +124,7 @@ internal class StateExpansionPropertyCollector(
                 placement = ColumnPlacement.WITH,
             )
         )
-        if (request.type.requiresRawCompanion()) {
+        if (request.type.requiresRawCompanion() && !session.sensitivity.omitRaw(request.path, request.type)) {
             request.draft.columns.add(rawCompanionColumn(request.toRawColumnRequest()))
         }
         collectResolvedProperties(

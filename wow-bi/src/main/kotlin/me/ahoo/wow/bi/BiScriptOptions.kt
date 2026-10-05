@@ -28,9 +28,11 @@ data class BiScriptOptions(
     val maxExpansionDepth: Int = 5,
     val unsupportedTypeStrategy: UnsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
     /**
-     * Leave `@Sensitive` state properties (either level) out of the expansion columns, as the query subsystem never
-     * returns their raw value. Off by default, which keeps generated scripts unchanged. The raw state (`__state`) and
-     * the scoped JSON of an enclosing value that falls back to raw JSON still hold the value.
+     * Leave `@Sensitive` state properties (either level) out of the expansion views, as the query subsystem never
+     * returns their raw value: neither their own column nor any raw JSON column of a value that contains them (a
+     * nullable object's companion, an object array, a raw-JSON fallback) is generated. Only the raw state (`__state`)
+     * still holds the value. Off by default, which keeps generated scripts unchanged. Server-side only: the HTTP
+     * request cannot override it.
      */
     val omitSensitiveFields: Boolean = false,
 ) {

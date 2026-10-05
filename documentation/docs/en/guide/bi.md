@@ -72,10 +72,11 @@ emitting fallback columns.
 
 `@Sensitive` state properties are expanded like any other property by default, so existing scripts do not change.
 Set `omitSensitiveFields = true` (`wow.bi.script.omit-sensitive-fields=true`) to leave them, at either level, out of
-the expansion columns. The rule the query subsystem masks by decides (a direct, meta-annotated or value-type
-`@Sensitive`), and each omitted path is reported as `SENSITIVE_FIELD_OMITTED`. The raw state in `__state`, and the
-scoped raw JSON of an enclosing value that falls back to raw JSON, still hold the value; restrict access to them in
-ClickHouse.
+the expansion views: neither their own column nor any raw JSON column of a value that contains them (a nullable
+object's raw companion, an object array, a raw-JSON fallback) is generated. The rule the query subsystem masks by
+decides (a direct, meta-annotated or value-type `@Sensitive`), and each omitted path is reported as
+`SENSITIVE_FIELD_OMITTED`. Only the raw state in `__state` still holds the value; restrict access to it in ClickHouse.
+The switch is server configuration: a `/wow/bi/script` request cannot override it.
 
 ### HTTP Route
 
