@@ -22,9 +22,6 @@ public abstract interface class me/ahoo/wow/command/CommandBus : me/ahoo/wow/api
 public final class me/ahoo/wow/command/CommandBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/command/CommandBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/command/CommandBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public abstract interface class me/ahoo/wow/command/CommandExchange : me/ahoo/wow/messaging/handler/MessageExchange {
@@ -70,9 +67,6 @@ public final class me/ahoo/wow/command/CommandGateway$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/command/CommandGateway;)V
 	public static fun getEnforcesCommandWaitTimeout (Lme/ahoo/wow/command/CommandGateway;)Z
 	public static fun getTopicKind (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun sendAndWaitForProcessed (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public static fun sendAndWaitForSent (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public static fun sendAndWaitForSnapshot (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
@@ -159,9 +153,7 @@ public final class me/ahoo/wow/command/DefaultCommandGateway : me/ahoo/wow/comma
 	public fun close ()V
 	public fun getEnforcesCommandWaitTimeout ()Z
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun sendAndWait (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/command/wait/WaitPlan;)Lreactor/core/publisher/Mono;
@@ -184,9 +176,6 @@ public abstract interface class me/ahoo/wow/command/DistributedCommandBus : me/a
 public final class me/ahoo/wow/command/DistributedCommandBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/command/DistributedCommandBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/command/DistributedCommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/command/DistributedCommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/command/DistributedCommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public final class me/ahoo/wow/command/DuplicateRequestIdException : me/ahoo/wow/exception/WowException, me/ahoo/wow/api/modeling/NamedAggregate {
@@ -216,9 +205,6 @@ public abstract interface class me/ahoo/wow/command/LocalCommandBus : me/ahoo/wo
 public final class me/ahoo/wow/command/LocalCommandBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/command/LocalCommandBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/command/LocalCommandBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun sendIfSubscribed (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 }
 
@@ -231,9 +217,7 @@ public final class me/ahoo/wow/command/LocalFirstCommandBus : me/ahoo/wow/comman
 	public fun getLocalBus ()Lme/ahoo/wow/command/LocalCommandBus;
 	public synthetic fun getLocalBus ()Lme/ahoo/wow/messaging/LocalMessageBus;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 }
@@ -1165,9 +1149,6 @@ public abstract interface class me/ahoo/wow/event/DistributedDomainEventBus : me
 public final class me/ahoo/wow/event/DistributedDomainEventBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/event/DistributedDomainEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/event/DistributedDomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/event/DistributedDomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/event/DistributedDomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public abstract interface class me/ahoo/wow/event/DomainEventBus : me/ahoo/wow/api/messaging/TopicKindCapable, me/ahoo/wow/messaging/MessageBus {
@@ -1177,9 +1158,6 @@ public abstract interface class me/ahoo/wow/event/DomainEventBus : me/ahoo/wow/a
 public final class me/ahoo/wow/event/DomainEventBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/event/DomainEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/event/DomainEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public final class me/ahoo/wow/event/DomainEventException : me/ahoo/wow/exception/WowException {
@@ -1315,9 +1293,6 @@ public abstract interface class me/ahoo/wow/event/LocalDomainEventBus : me/ahoo/
 public final class me/ahoo/wow/event/LocalDomainEventBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/event/LocalDomainEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/event/LocalDomainEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun sendIfSubscribed (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
 }
 
@@ -1330,9 +1305,7 @@ public final class me/ahoo/wow/event/LocalFirstDomainEventBus : me/ahoo/wow/even
 	public fun getLocalBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
 	public synthetic fun getLocalBus ()Lme/ahoo/wow/messaging/LocalMessageBus;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
 }
@@ -1341,9 +1314,7 @@ public final class me/ahoo/wow/event/NoOpDomainEventBus : me/ahoo/wow/event/Doma
 	public static final field INSTANCE Lme/ahoo/wow/event/NoOpDomainEventBus;
 	public fun close ()V
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
 }
@@ -2029,9 +2000,6 @@ public abstract interface class me/ahoo/wow/eventsourcing/state/DistributedState
 public final class me/ahoo/wow/eventsourcing/state/DistributedStateEventBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public final class me/ahoo/wow/eventsourcing/state/InMemoryStateEventBus : me/ahoo/wow/messaging/InMemoryMessageBus, me/ahoo/wow/eventsourcing/state/LocalStateEventBus {
@@ -2053,9 +2021,7 @@ public final class me/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus : me/
 	public fun getLocalBus ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
 	public synthetic fun getLocalBus ()Lme/ahoo/wow/messaging/LocalMessageBus;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
 }
@@ -2066,9 +2032,6 @@ public abstract interface class me/ahoo/wow/eventsourcing/state/LocalStateEventB
 public final class me/ahoo/wow/eventsourcing/state/LocalStateEventBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun sendIfSubscribed (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
 }
 
@@ -2150,9 +2113,6 @@ public abstract interface class me/ahoo/wow/eventsourcing/state/StateEventBus : 
 public final class me/ahoo/wow/eventsourcing/state/StateEventBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/eventsourcing/state/StateEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
-	public static fun receive (Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public final class me/ahoo/wow/eventsourcing/state/StateEventData : me/ahoo/wow/event/DomainEventStream, me/ahoo/wow/eventsourcing/state/StateEvent, me/ahoo/wow/infra/Decorator {
@@ -3273,9 +3233,6 @@ public abstract interface class me/ahoo/wow/messaging/DistributedMessageBus : me
 
 public final class me/ahoo/wow/messaging/DistributedMessageBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/messaging/DistributedMessageBus;)V
-	public static fun receive (Lme/ahoo/wow/messaging/DistributedMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/messaging/DistributedMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/messaging/DistributedMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public abstract class me/ahoo/wow/messaging/InMemoryMessageBus : me/ahoo/wow/messaging/LocalMessageBus {
@@ -3284,9 +3241,7 @@ public abstract class me/ahoo/wow/messaging/InMemoryMessageBus : me/ahoo/wow/mes
 	public fun close ()V
 	public abstract fun createExchange (Lme/ahoo/wow/api/messaging/Message;)Lme/ahoo/wow/messaging/handler/MessageExchange;
 	public abstract fun getSinkSupplier ()Lkotlin/jvm/functions/Function1;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
@@ -3310,9 +3265,7 @@ public abstract interface class me/ahoo/wow/messaging/LocalFirstMessageBus : me/
 
 public final class me/ahoo/wow/messaging/LocalFirstMessageBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/messaging/LocalFirstMessageBus;)V
-	public static fun receive (Lme/ahoo/wow/messaging/LocalFirstMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public static fun receiver (Lme/ahoo/wow/messaging/LocalFirstMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/messaging/LocalFirstMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun send (Lme/ahoo/wow/messaging/LocalFirstMessageBus;Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 }
 
@@ -3335,25 +3288,17 @@ public abstract interface class me/ahoo/wow/messaging/LocalMessageBus : me/ahoo/
 
 public final class me/ahoo/wow/messaging/LocalMessageBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/messaging/LocalMessageBus;)V
-	public static fun receive (Lme/ahoo/wow/messaging/LocalMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/messaging/LocalMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/messaging/LocalMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun sendIfSubscribed (Lme/ahoo/wow/messaging/LocalMessageBus;Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 }
 
 public abstract interface class me/ahoo/wow/messaging/MessageBus : java/lang/AutoCloseable {
 	public fun close ()V
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public abstract fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public abstract fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/messaging/MessageBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/messaging/MessageBus;)V
-	public static fun receive (Lme/ahoo/wow/messaging/MessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
-	public static fun receiver (Lme/ahoo/wow/messaging/MessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public static fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 }
 
 public final class me/ahoo/wow/messaging/MessageReceiver {
@@ -3364,25 +3309,20 @@ public final class me/ahoo/wow/messaging/MessageReceiver {
 	public final fun getReadiness ()Lreactor/core/publisher/Mono;
 	public final fun mapMessages (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public final fun openProcessing ()V
+	public final fun openedMessages ()Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/messaging/MessageSubscription {
 	public static final field Companion Lme/ahoo/wow/messaging/MessageSubscription$Companion;
 	public static final field DEFAULT_RECEIVER_GROUP Ljava/lang/String;
-	public synthetic fun <init> (Ljava/util/Set;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/util/Set;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Ljava/util/Set;Ljava/lang/String;Z)V
 	public synthetic fun <init> (Ljava/util/Set;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;Z)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/util/Set;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Z
-	public final synthetic fun copy (Ljava/util/Set;Ljava/lang/String;)Lme/ahoo/wow/messaging/MessageSubscription;
 	public final fun copy (Ljava/util/Set;Ljava/lang/String;Z)Lme/ahoo/wow/messaging/MessageSubscription;
-	public static synthetic fun copy$default (Lme/ahoo/wow/messaging/MessageSubscription;Ljava/util/Set;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/messaging/MessageSubscription;
 	public static synthetic fun copy$default (Lme/ahoo/wow/messaging/MessageSubscription;Ljava/util/Set;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/messaging/MessageSubscription;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getNamedAggregates ()Ljava/util/Set;

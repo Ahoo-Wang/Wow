@@ -81,7 +81,7 @@ class Order(private val state: OrderState)
 | `@AggregateRoute(owner = AggregateRoute.Owner.X)` | `@AggregateOwner(OwnerPolicy.X)` |
 | `@AggregateRoute(resourceName = "r", spaced = true, owner = …)` | `@AggregateRoute(resourceName = "r")` 加上两个注解 |
 
-只剩这两个属性的 `@AggregateRoute` 可以删掉。这一改动只改声明：路由、OpenAPI 文档、命令的 space 与 owner、存储都不变，改动前后构建的节点可以混部。读取策略的代码改用 `AggregateMetadata.spaced` 与 `AggregateMetadata.owner`，用 `AggregateRouteMetadata.ownerPolicy`（及其 `OwnerPolicy` 构造函数）代替 `owner`，用 `getAggregateId(OwnerPolicy…)`。弃用的写法在 10.0.0 移除。
+只剩这两个属性的 `@AggregateRoute` 可以删掉。这一改动只改声明：路由、OpenAPI 文档、命令的 space 与 owner、存储都不变，改动前后构建的节点可以混部。读取策略的代码改用 `AggregateMetadata.spaced` 与 `AggregateMetadata.owner`，用 `AggregateRouteMetadata.ownerPolicy`（及其 `OwnerPolicy` 构造函数）代替 `owner`。弃用的写法在 10.0.0 移除。
 
 ## 状态、领域事件与不变量
 

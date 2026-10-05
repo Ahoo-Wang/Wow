@@ -13,7 +13,7 @@ The module does not authenticate a request, verify header authenticity, authoriz
 
 ## How It Works
 
-Three behaviors form the integration: `CoSecCommandRequestHeaderAppender` extracts app/device, `CoSecIdentityHeaders.ALIASES` adds `CoSec-Request-Id` and `CoSec-Space-Id` as identity header aliases that every WebFlux route reads for commands and queries alike, and service-loaded `CoSecMessagePropagator` propagates app/device. Since 9.3.0 the aliases replace the two SPI overrides, `CoSecCommandBuilderExtractor` and `CoSecQueryRequestScope`: they are deprecated, no longer registered as beans, and still work when an application registers them itself. Wow owns context transport only; the security stack owns trusted identity and policy decisions.
+Three behaviors form the integration: `CoSecCommandRequestHeaderAppender` extracts app/device, `CoSecIdentityHeaders.ALIASES` adds `CoSec-Request-Id` and `CoSec-Space-Id` as identity header aliases that every WebFlux route reads for commands and queries alike, and service-loaded `CoSecMessagePropagator` propagates app/device. Since 9.3.0 the aliases replace the two SPI overrides of 9.2, `CoSecCommandBuilderExtractor` and `CoSecQueryRequestScope`, which are removed. Wow owns context transport only; the security stack owns trusted identity and policy decisions.
 
 ## Installation
 

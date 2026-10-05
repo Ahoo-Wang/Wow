@@ -153,7 +153,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
         val firstReady = Sinks.empty<Void>()
 
         try {
-            bus.receive(MessageSubscription(namedAggregate, receiverGroup))
+            bus.receiver(MessageSubscription(namedAggregate, receiverGroup)).openedMessages()
                 .contextWrite {
                     it.writeReceiverOptionsCustomizer { options ->
                         options.addAssignListener {
@@ -180,7 +180,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 .expectComplete()
                 .verify(Duration.ofMinutes(2))
 
-            bus.receive(MessageSubscription(namedAggregate, receiverGroup))
+            bus.receiver(MessageSubscription(namedAggregate, receiverGroup)).openedMessages()
                 .take(1)
                 .test()
                 .consumeNextWith {
@@ -228,7 +228,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
         val lastReceivedAt = AtomicLong()
 
         try {
-            bus.receive(MessageSubscription(namedAggregate, generateGlobalId()))
+            bus.receiver(MessageSubscription(namedAggregate, generateGlobalId())).openedMessages()
                 .contextWrite {
                     it.writeReceiverOptionsCustomizer { options ->
                         options.addAssignListener {
@@ -344,7 +344,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 )
                 .then()
                 .then(bus.send(validMessage))
-                .thenMany(bus.receive(MessageSubscription(namedAggregate, receiverGroup)).take(1))
+                .thenMany(bus.receiver(MessageSubscription(namedAggregate, receiverGroup)).openedMessages().take(1))
                 .test()
                 .consumeNextWith {
                     it.message.id.assert().isEqualTo(validMessage.id)
@@ -378,7 +378,7 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 .send(Mono.just(record))
                 .then()
                 .thenMany(
-                    bus.receive(MessageSubscription(namedAggregate, receiverGroup))
+                    bus.receiver(MessageSubscription(namedAggregate, receiverGroup)).openedMessages()
                         .contextWrite {
                             it.writeReceiverOptionsCustomizer { options ->
                                 options.subscription(setOf(record.topic()))

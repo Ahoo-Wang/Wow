@@ -220,7 +220,7 @@ class RedisCommandBusTest : CommandBusSpec() {
         )
         bus.send(validMessage).block(Duration.ofSeconds(5))
 
-        bus.receive(subscription)
+        bus.receiver(subscription).openedMessages()
             .take(1)
             .concatMap { exchange -> exchange.acknowledge().thenReturn(exchange) }
             .test()
@@ -252,7 +252,7 @@ class RedisCommandBusTest : CommandBusSpec() {
             recoveryOptions = RedisStreamRecoveryOptions.DISABLED,
             pollTimeout = Duration.ofMillis(20),
         )
-        oldBus.receive(subscription)
+        oldBus.receiver(subscription).openedMessages()
             .doOnSubscribe {
                 Mono.delay(Duration.ofMillis(100))
                     .thenMany(Flux.fromIterable(messages).concatMap(oldBus::send))
@@ -283,7 +283,7 @@ class RedisCommandBusTest : CommandBusSpec() {
             ),
             pollTimeout = Duration.ofMillis(20),
         )
-        recoveringBus.receive(subscription)
+        recoveringBus.receiver(subscription).openedMessages()
             .take(messages.size.toLong())
             .concatMap { exchange -> exchange.acknowledge().thenReturn(exchange) }
             .test()
@@ -320,7 +320,7 @@ class RedisCommandBusTest : CommandBusSpec() {
             pollTimeout = Duration.ofSeconds(2),
         )
         val received = CountDownLatch(1)
-        val activeSubscription = activeBus.receive(subscription)
+        val activeSubscription = activeBus.receiver(subscription).openedMessages()
             .doOnNext { received.countDown() }
             .subscribe()
         val recoveringBus = RedisCommandBus(
@@ -332,7 +332,7 @@ class RedisCommandBusTest : CommandBusSpec() {
             activeBus.send(message).block(Duration.ofSeconds(5))
             received.await(5, TimeUnit.SECONDS).assert().isTrue()
 
-            recoveringBus.receive(subscription)
+            recoveringBus.receiver(subscription).openedMessages()
                 .take(1)
                 .concatMap { exchange -> exchange.acknowledge().thenReturn(exchange) }
                 .test()

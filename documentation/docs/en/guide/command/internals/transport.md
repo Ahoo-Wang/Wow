@@ -27,7 +27,7 @@ flowchart TB
 - `send`: its `Mono<Void>` completes when the concrete transport accepts the send;
 - `receiver`: the one receive entry. It returns a `MessageReceiver` for a `MessageSubscription`: the exchanges, the transport readiness, and processing admission and quiescence. A subscription with `runtimeOwned = true` is a WowRuntime dispatcher's; local buses let only such receivers take part in local-first delivery receipts.
 
-Since 9.3.0 `receive` (the plain exchange stream, now `receiver(subscription)` with processing opened on subscription) and `runtimeReceiver` (now `receiver(subscription.copy(runtimeOwned = true))`) are deprecated and delegate to `receiver`.
+Since 9.3.0 `receiver` is the only entry and every bus implements it; 9.2's `receive` and `runtimeReceiver` are removed. A consumer that wants a plain exchange stream with processing open from subscription reads `receiver(subscription).openedMessages()`; a runtime-owned receiver is `receiver(subscription.copy(runtimeOwned = true))`.
 
 `LocalCommandBus` additionally exposes subscriber count and `sendIfSubscribed`. The latter may return `true` only when target local receivers have obtained processing admission and this delivery remains valid; sink acceptance or subscriber count alone is insufficient. `DistributedCommandBus` keeps the same send/receive contract, with persistence, consumer groups, and acknowledgement supplied by its backend.
 
@@ -46,14 +46,14 @@ This implementation is suitable for single-process execution and tests; it provi
 - the command's named aggregate is converted to a topic;
 - record key is aggregate ID and value is read-only command JSON;
 - `send` waits for the Reactor Kafka sender result and reports producer failure as a Reactor error;
-- `receive` assigns the subscribed topics to a consumer group and converts records into exchanges holding a `ReceiverOffset`;
+- `receiver` assigns the subscribed topics to a consumer group and converts records into exchanges holding a `ReceiverOffset`;
 - exchange acknowledgement calls `ReceiverOffset.acknowledge()`.
 
 `receiver.readiness` completes only after partition assignment and a conservative initial offset boundary are anchored, avoiding a startup window that could miss messages. Decode failure follows an explicit failure handler; acknowledgement of successfully processed records remains the exchange ack boundary.
 
 ## Redis
 
-`RedisCommandBus` uses Redis Streams. `send` writes read-only command JSON to the topic stream under the `msg` field. `receive` creates or reuses a consumer group for each topic, reads from `lastConsumed`, and puts the `XACK` publisher into the exchange.
+`RedisCommandBus` uses Redis Streams. `send` writes read-only command JSON to the topic stream under the `msg` field. `receiver` creates or reuses a consumer group for each topic, reads from `lastConsumed`, and puts the `XACK` publisher into the exchange.
 
 `receiver.readiness` fires after consumer groups are prepared, while actual reads remain blocked by processing admission. Optional recovery scans and claims eligible pending records. Undecodable records are reported through `RedisMessageBusObserver` and remain pending instead of being presented as successful consumption.
 

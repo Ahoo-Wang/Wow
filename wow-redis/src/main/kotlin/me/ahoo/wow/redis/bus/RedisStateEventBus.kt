@@ -36,25 +36,6 @@ class RedisStateEventBus(
         messageBusObserver,
         retentionOptions,
     ) {
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use the constructor with retentionOptions.",
-        level = DeprecationLevel.HIDDEN
-    )
-    constructor(
-        redisTemplate: ReactiveStringRedisTemplate,
-        topicConverter: StateEventTopicConverter = DefaultStateEventTopicConverter,
-        pollTimeout: Duration = Duration.ofSeconds(2),
-        recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
-        messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
-    ) : this(
-        redisTemplate,
-        topicConverter,
-        pollTimeout,
-        recoveryOptions,
-        messageBusObserver,
-        RedisStreamRetentionOptions.DEFAULT,
-    )
-
     override val messageType: Class<StateEvent<*>>
         get() = StateEvent::class.java
 

@@ -99,7 +99,7 @@ class LocalFirstMessageBusTest {
             LocalFirstTestMessage(),
             receiverGroup = "receiver-group",
         )
-        val receiver = bus.runtimeReceiver(subscription)
+        val receiver = bus.receiver(subscription.copy(runtimeOwned = true))
         val messages = receiver.messages.subscribe()
 
         try {
@@ -129,10 +129,11 @@ class LocalFirstMessageBusTest {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = bus.runtimeReceiver(
+        val receiver = bus.receiver(
             MessageSubscription(
                 LocalFirstTestMessage(),
                 receiverGroup = "receiver-group",
+                runtimeOwned = true,
             ),
         )
         val localDeliveryEntered = CountDownLatch(1)
@@ -238,7 +239,7 @@ class LocalFirstMessageBusTest {
         val fallbackMessage = LocalFirstTestMessage(id = "fallback")
         val onNextEntered = CountDownLatch(1)
         val releaseOnNext = CountDownLatch(1)
-        val localSubscription = localBus.receive(MessageSubscription(activeMessage)).subscribe {
+        val localSubscription = localBus.receiver(MessageSubscription(activeMessage)).openedMessages().subscribe {
             onNextEntered.countDown()
             check(releaseOnNext.await(5, TimeUnit.SECONDS)) {
                 "Timed out waiting to release the active local delivery."
@@ -317,7 +318,7 @@ class LocalFirstMessageBusTest {
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
         val subscription = MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group")
 
-        StepVerifier.create(bus.receive(subscription).collectList())
+        StepVerifier.create(bus.receiver(subscription).openedMessages().collectList())
             .assertNext { exchanges ->
                 exchanges.map { it.message.id }.toSet().assert().isEqualTo(setOf("local", "remote"))
                 filteredDistributedExchange.acknowledged.assert().isTrue()
@@ -337,8 +338,8 @@ class LocalFirstMessageBusShutdownTest {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = localBus.runtimeReceiver(
-            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group", runtimeOwned = true),
         )
         val dispatcher = LocalReceiptDispatcher(receiver)
 
@@ -391,8 +392,8 @@ class LocalFirstMessageBusShutdownTest {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = localBus.runtimeReceiver(
-            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "custom"),
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "custom", runtimeOwned = true),
         )
         val subscription = receiver.messages.subscribe { exchange ->
             exchange.confirmLocalDelivery()
@@ -449,9 +450,9 @@ class LocalFirstMessageBusShutdownTest {
         )
         val secondAdmissionEntered = CountDownLatch(1)
         val releaseSecondAdmission = CountDownLatch(1)
-        val firstDispatcher = LocalReceiptDispatcher(localBus.runtimeReceiver(subscription))
+        val firstDispatcher = LocalReceiptDispatcher(localBus.receiver(subscription.copy(runtimeOwned = true)))
         val secondDispatcher = LocalReceiptDispatcher(
-            receiver = localBus.runtimeReceiver(subscription.copy(receiverGroup = "second")),
+            receiver = localBus.receiver(subscription.copy(receiverGroup = "second", runtimeOwned = true)),
             beforeGroupKey = {
                 secondAdmissionEntered.countDown()
                 check(releaseSecondAdmission.await(5, TimeUnit.SECONDS)) {
@@ -500,9 +501,9 @@ class LocalFirstMessageBusShutdownTest {
             LocalFirstTestMessage(),
             receiverGroup = "first",
         )
-        val admittedDispatcher = LocalReceiptDispatcher(localBus.runtimeReceiver(subscription))
+        val admittedDispatcher = LocalReceiptDispatcher(localBus.receiver(subscription.copy(runtimeOwned = true)))
         val rejectedDispatcher = LocalReceiptDispatcher(
-            localBus.runtimeReceiver(subscription.copy(receiverGroup = "second")),
+            localBus.receiver(subscription.copy(receiverGroup = "second", runtimeOwned = true)),
         )
         val admittedContext = DefaultRuntimeContext()
         val rejectedContext = DefaultRuntimeContext()
@@ -534,8 +535,8 @@ class LocalFirstMessageBusShutdownTest {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = localBus.runtimeReceiver(
-            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group", runtimeOwned = true),
         )
         val handled = CountDownLatch(2)
         val dispatcher = ChainedLocalReceiptDispatcher(receiver, bus, handled)
@@ -563,8 +564,8 @@ class LocalFirstMessageBusShutdownTest {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = localBus.runtimeReceiver(
-            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group", runtimeOwned = true),
         )
         val dispatcher = LocalReceiptDispatcher(receiver)
         val runtimeContext = DefaultRuntimeContext()
@@ -600,8 +601,8 @@ class LocalFirstMessageBusShutdownTest {
             LocalFirstTestMessage(),
             receiverGroup = "receiver-group",
         )
-        val bareSubscription = localBus.receive(subscription).subscribe()
-        val receiver = localBus.runtimeReceiver(subscription)
+        val bareSubscription = localBus.receiver(subscription).openedMessages().subscribe()
+        val receiver = localBus.receiver(subscription.copy(runtimeOwned = true))
         receiver.openProcessing()
         val executor = Executors.newSingleThreadExecutor()
         val managedSubscription = executor.submit<Disposable> {
@@ -630,8 +631,8 @@ class LocalFirstMessageBusShutdownTest {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = localBus.runtimeReceiver(
-            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group", runtimeOwned = true),
         )
         val subscriber = ZeroDemandSubscriber<LocalFirstTestExchange>()
         receiver.messages.subscribe(subscriber)
@@ -663,8 +664,8 @@ class LocalFirstMessageBusShutdownTest {
             },
         )
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
-        val receiver = localBus.runtimeReceiver(
-            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group", runtimeOwned = true),
         )
         val subscriber = ZeroDemandSubscriber<LocalFirstTestExchange>()
         receiver.messages.subscribe(subscriber)
@@ -692,8 +693,8 @@ class LocalFirstMessageBusShutdownTest {
             LocalFirstTestMessage(),
             receiverGroup = "receiver-group",
         )
-        val firstReceiver = localBus.runtimeReceiver(subscription)
-        val secondReceiver = localBus.runtimeReceiver(subscription.copy(receiverGroup = "second"))
+        val firstReceiver = localBus.receiver(subscription.copy(runtimeOwned = true))
+        val secondReceiver = localBus.receiver(subscription.copy(receiverGroup = "second", runtimeOwned = true))
         val firstReceived = AtomicInteger()
         val secondReceived = AtomicInteger()
         val firstSubscription = firstReceiver.messages.subscribe { firstReceived.incrementAndGet() }
@@ -835,20 +836,15 @@ private class RecordingLocalBus(
             send(message).thenReturn(true)
         }
 
-    override fun receive(subscription: MessageSubscription): Flux<LocalFirstTestExchange> {
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<LocalFirstTestExchange> {
         received += subscription
-        return receiveFlux
-    }
-
-    override fun receiver(
-        subscription: MessageSubscription,
-    ): MessageReceiver<LocalFirstTestExchange> =
-        MessageReceiver(
-            messages = receive(subscription),
+        return MessageReceiver(
+            messages = receiveFlux,
             readiness = readiness,
             processingAdmission = processingAdmission,
             processingQuiescence = processingQuiescence,
         )
+    }
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = subscribers
 }
@@ -870,20 +866,15 @@ private class RecordingDistributedBus(
             sent += message
         }
 
-    override fun receive(subscription: MessageSubscription): Flux<LocalFirstTestExchange> {
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<LocalFirstTestExchange> {
         received += subscription
-        return receiveFlux
-    }
-
-    override fun receiver(
-        subscription: MessageSubscription,
-    ): MessageReceiver<LocalFirstTestExchange> =
-        MessageReceiver(
-            messages = receive(subscription),
+        return MessageReceiver(
+            messages = receiveFlux,
             readiness = readiness,
             processingAdmission = processingAdmission,
             processingQuiescence = processingQuiescence,
         )
+    }
 }
 
 private class ZeroDemandSubscriber<T : Any> : BaseSubscriber<T>() {

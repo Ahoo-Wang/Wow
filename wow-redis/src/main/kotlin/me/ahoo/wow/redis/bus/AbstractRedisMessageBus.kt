@@ -61,25 +61,6 @@ abstract class AbstractRedisMessageBus<M, E>(
     private val retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use the constructor with retentionOptions.",
-        level = DeprecationLevel.HIDDEN
-    )
-    constructor(
-        redisTemplate: ReactiveStringRedisTemplate,
-        topicConverter: AggregateTopicConverter,
-        pollTimeout: Duration = Duration.ofSeconds(2),
-        recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
-        messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
-    ) : this(
-        redisTemplate,
-        topicConverter,
-        pollTimeout,
-        recoveryOptions,
-        messageBusObserver,
-        RedisStreamRetentionOptions.DEFAULT,
-    )
-
     private val streamOps = redisTemplate.opsForStream<String, String>()
     private val consumerReaper = RedisStreamConsumerReaper(redisTemplate)
     abstract val messageType: Class<M>

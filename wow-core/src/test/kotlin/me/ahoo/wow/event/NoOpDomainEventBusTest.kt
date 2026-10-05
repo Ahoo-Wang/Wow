@@ -30,7 +30,7 @@ class NoOpDomainEventBusTest {
 
     @Test
     fun `receive is empty`() {
-        StepVerifier.create(NoOpDomainEventBus.receive(MessageSubscription(emptySet())))
+        StepVerifier.create(NoOpDomainEventBus.receiver(MessageSubscription(emptySet())).openedMessages())
             .verifyComplete()
     }
 

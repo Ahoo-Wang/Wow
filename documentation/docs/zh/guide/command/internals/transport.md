@@ -27,7 +27,7 @@ flowchart TB
 - `send`：返回的 `Mono<Void>` 在具体 transport 接受发送后完成；
 - `receiver`：唯一的接收入口。按 `MessageSubscription` 返回 `MessageReceiver`：exchange 流、transport readiness，以及 processing admission 与 quiescence。`runtimeOwned = true` 的订阅属于 WowRuntime 的 dispatcher；本地总线只让这类 receiver 参与 local-first 投递回执。
 
-自 9.3.0 起，`receive`（普通 exchange 流，等价于订阅时即打开 processing 的 `receiver(subscription)`）与 `runtimeReceiver`（等价于 `receiver(subscription.copy(runtimeOwned = true))`）已弃用，并委托给 `receiver`。
+自 9.3.0 起，`receiver` 是唯一入口，每个总线都实现它；9.2 的 `receive` 与 `runtimeReceiver` 已删除。需要订阅时即打开 processing 的普通 exchange 流的 consumer 读取 `receiver(subscription).openedMessages()`；runtime-owned receiver 即 `receiver(subscription.copy(runtimeOwned = true))`。
 
 `LocalCommandBus` 额外暴露订阅者数量和 `sendIfSubscribed`。后者只有在目标本地 receiver 已取得处理准入并确认本次投递仍有效时才能返回 `true`；sink 接受或订阅数本身不够。`DistributedCommandBus` 保留同一发送/接收合同，由后端定义持久化、消费组和 ack 机制。
 
@@ -35,7 +35,7 @@ flowchart TB
 
 `InMemoryCommandBus` 以 `NamedAggregate` 为 key 创建 MPSC unicast sink：多个发送者可以并发写入，但每个具名聚合的命令只允许一个消费链。消息发出前被标记为只读，并转换为 `SimpleServerCommandExchange`。
 
-普通 `send` 没有订阅者时会记录 debug 并完成，因此它只证明本进程 sink 的发送动作结束，不证明存在处理者。运行时的 `runtimeReceiver` 维护连接和 processing-open 状态；`sendIfSubscribed` 为每个投递创建 receipt，只有所有目标 receiver 接受运行时准入后才报告本地投递成功。
+普通 `send` 没有订阅者时会记录 debug 并完成，因此它只证明本进程 sink 的发送动作结束，不证明存在处理者。runtime-owned receiver 维护连接和 processing-open 状态；`sendIfSubscribed` 为每个投递创建 receipt，只有所有目标 receiver 接受运行时准入后才报告本地投递成功。
 
 该实现适合单进程运行和测试，不提供跨进程持久性。
 
@@ -46,14 +46,14 @@ flowchart TB
 - topic 由命令的具名聚合转换；
 - record key 是 aggregate ID，value 是只读命令 JSON；
 - `send` 等待 Reactor Kafka sender result，producer error 作为 Reactor error 返回；
-- `receive` 为订阅的 topic 设置 consumer group，并把 record 转为带 `ReceiverOffset` 的 exchange；
+- `receiver` 为订阅的 topic 设置 consumer group，并把 record 转为带 `ReceiverOffset` 的 exchange；
 - exchange ack 调用 `ReceiverOffset.acknowledge()`。
 
 `receiver.readiness` 只在 partition assignment 完成并保存保守的初始 offset 边界后完成，避免启动窗口漏消息。解码失败由显式 failure handler 处理；成功处理的消费确认仍属于 exchange ack 边界。
 
 ## Redis
 
-`RedisCommandBus` 使用 Redis Streams：`send` 把只读命令 JSON 写入 topic stream 的 `msg` 字段；`receive` 为每个 topic 建立或复用 consumer group，从 `lastConsumed` 读取，并把 `XACK` publisher 放入 exchange。
+`RedisCommandBus` 使用 Redis Streams：`send` 把只读命令 JSON 写入 topic stream 的 `msg` 字段；`receiver` 为每个 topic 建立或复用 consumer group，从 `lastConsumed` 读取，并把 `XACK` publisher 放入 exchange。
 
 `receiver.readiness` 在 consumer group 准备完成后触发，但读取还受 processing admission 控制。可选 recovery 会扫描并认领满足条件的 pending record；无法解码的记录会通过 `RedisMessageBusObserver` 报告且保持 pending，不伪装成已成功消费。
 

@@ -56,6 +56,13 @@ class MessageReceiver<E : Any>(
             }
         }
 
+    /**
+     * [messages] with processing opened on subscription: the stream a consumer that is ready at once reads, so a
+     * transport that gates consumption on [openProcessing] streams immediately. Like [messages], it supports exactly
+     * one subscriber.
+     */
+    fun openedMessages(): Flux<E> = messages.doOnSubscribe { openProcessing() }
+
     fun openProcessing() {
         synchronized(processingMonitor) {
             if (processingState != ProcessingState.PENDING) {

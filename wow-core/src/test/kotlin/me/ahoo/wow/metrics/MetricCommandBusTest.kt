@@ -90,7 +90,7 @@ class MetricCommandBusTest {
         )
         val commandBus = metricCommandBus(delegate)
         val subscription = MessageSubscription(command.aggregateId.namedAggregate, receiverGroup = "test-group")
-        val publisher = commandBus.receive(subscription)
+        val publisher = commandBus.receiver(subscription).openedMessages()
 
         StepVerifier.create(publisher)
             .expectNext(exchange)
@@ -109,7 +109,7 @@ class MetricCommandBusTest {
         val commandBus = metricCommandBus(delegate)
 
         StepVerifier.create(
-            commandBus.receive(MessageSubscription(command.aggregateId.namedAggregate))
+            commandBus.receiver(MessageSubscription(command.aggregateId.namedAggregate)).openedMessages()
                 .writeMetricsSubscriber("command-handler")
         )
             .expectNext(exchange)
@@ -125,7 +125,7 @@ class MetricCommandBusTest {
                 receiverGroup = "order-handler",
             )
 
-            commandBus.receive(subscription).blockLast()
+            commandBus.receiver(subscription).openedMessages().blockLast()
 
             meterRegistry.receiveMeterIds()
                 .mapNotNull { it.getTag(MetricDescriptor.SUBSCRIBER_TAG) }
@@ -141,9 +141,9 @@ class MetricCommandBusTest {
             val inventory = MaterializedNamedAggregate("sales", "Inventory")
             val payment = MaterializedNamedAggregate("sales", "Payment")
 
-            commandBus.receive(MessageSubscription(linkedSetOf(payment, inventory), "handler"))
+            commandBus.receiver(MessageSubscription(linkedSetOf(payment, inventory), "handler")).openedMessages()
                 .blockLast()
-            commandBus.receive(MessageSubscription(linkedSetOf(inventory, payment), "handler"))
+            commandBus.receiver(MessageSubscription(linkedSetOf(inventory, payment), "handler")).openedMessages()
                 .blockLast()
 
             meterRegistry.receiveMeterIds()

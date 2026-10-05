@@ -199,20 +199,6 @@ class WebFluxAutoConfiguration {
         )
     }
 
-    // compat(wow<9.3): the factory method before identity header aliases; no longer a bean.
-    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores identity header aliases.")
-    fun commandMessageExtractor(
-        commandMessageFactory: CommandMessageFactory,
-        commandBuilderExtractor: CommandBuilderExtractor,
-        commandRequestHeaderAppenderObjectProvider: ObjectProvider<CommandRequestHeaderAppender>
-    ): CommandMessageExtractor {
-        return DefaultCommandMessageExtractor(
-            commandMessageFactory = commandMessageFactory,
-            commandBuilderExtractor = commandBuilderExtractor,
-            commandRequestHeaderAppends = commandRequestHeaderAppenderObjectProvider.toList<CommandRequestHeaderAppender>()
-        )
-    }
-
     /**
      * [DefaultQueryRequestScope], applying the identity header aliases also to a query handler invoked outside the
      * router (the router hands its own routes their aliases).
@@ -225,12 +211,6 @@ class WebFluxAutoConfiguration {
             return DefaultQueryRequestScope
         }
         return IdentityHeaderAliasesQueryRequestScope(DefaultQueryRequestScope, aliases)
-    }
-
-    // compat(wow<9.3): the factory method before identity header aliases; no longer a bean.
-    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores identity header aliases.")
-    fun queryRequestScope(): QueryRequestScope {
-        return DefaultQueryRequestScope
     }
 
     @Bean
@@ -273,30 +253,6 @@ class WebFluxAutoConfiguration {
         )
     }
 
-    // compat(wow<9.3): the factory method before scope contributors; no longer a bean.
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it drops every ScopeContributor's restriction " +
-            "from point reads. Use the bean method that takes the ScopeContributor provider."
-    )
-    fun pointReadAdmission(
-        webFluxProperties: WebFluxProperties,
-        queryRequestScope: QueryRequestScope,
-        queryPolicies: ObjectProvider<QueryPolicy>,
-        snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
-        eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
-        querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
-        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
-    ): PointReadAdmission = createPointReadAdmission(
-        webFluxProperties = webFluxProperties,
-        queryRequestScope = queryRequestScope,
-        queryPolicies = queryPolicies,
-        snapshotQueryBackendFactory = snapshotQueryBackendFactory,
-        eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
-        querySchemaCatalog = querySchemaCatalog,
-        queryEntryPolicy = queryEntryPolicy,
-        scopeContributors = emptyList(),
-    )
-
     /**
      * Point-read admission, when `wow.webflux.state.point-read-admission` is on, under the same caller scope as the
      * query routes: the [QueryRequestScope] and every [ScopeContributor].
@@ -312,27 +268,6 @@ class WebFluxAutoConfiguration {
         querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
         queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
         scopeContributors: ObjectProvider<ScopeContributor>,
-    ): PointReadAdmission = createPointReadAdmission(
-        webFluxProperties = webFluxProperties,
-        queryRequestScope = queryRequestScope,
-        queryPolicies = queryPolicies,
-        snapshotQueryBackendFactory = snapshotQueryBackendFactory,
-        eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
-        querySchemaCatalog = querySchemaCatalog,
-        queryEntryPolicy = queryEntryPolicy,
-        scopeContributors = scopeContributors.orderedStream().toList(),
-    )
-
-    @Suppress("LongParameterList")
-    private fun createPointReadAdmission(
-        webFluxProperties: WebFluxProperties,
-        queryRequestScope: QueryRequestScope,
-        queryPolicies: ObjectProvider<QueryPolicy>,
-        snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
-        eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
-        querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
-        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
-        scopeContributors: List<ScopeContributor>,
     ): PointReadAdmission {
         val state = webFluxProperties.state
         val entryPolicy = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT }
@@ -348,7 +283,10 @@ class WebFluxAutoConfiguration {
         val catalog = querySchemaCatalog.ifAvailable
         return PointReadAdmission(
             enabled = true,
-            queryRequestScope = CompositeQueryRequestScope.of(queryRequestScope, scopeContributors),
+            queryRequestScope = CompositeQueryRequestScope.of(
+                queryRequestScope,
+                scopeContributors.orderedStream().toList()
+            ),
             tracingMaxVersions = state.tracingMaxVersions,
             // The same policies, in the same order, as the query gateways.
             policies = queryPolicies.toList(),
@@ -483,18 +421,6 @@ class WebFluxAutoConfiguration {
             routerSpecs = routerSpecs,
             routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar,
             identityHeaderAliases = identityHeaderAliases.merged(),
-        ).build()
-    }
-
-    // compat(wow<9.3): the factory method before identity header aliases; no longer a bean.
-    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores identity header aliases.")
-    fun commandRouterFunction(
-        routerSpecs: RouterSpecs,
-        routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
-    ): RouterFunction<ServerResponse> {
-        return RouterFunctionBuilder(
-            routerSpecs = routerSpecs,
-            routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar
         ).build()
     }
 }

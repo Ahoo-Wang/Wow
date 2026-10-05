@@ -16,7 +16,6 @@ package me.ahoo.wow.messaging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.handler.MessageExchange
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -51,36 +50,8 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      * only when new messages can no longer be missed. A [runtime-owned][MessageSubscription.runtimeOwned]
      * subscription is a [me.ahoo.wow.runtime.WowRuntime] dispatcher's: local buses may let it take part in
      * local-first delivery receipts.
-     *
-     * Implementations override this. The default only adapts an implementation written before 9.3.0 that overrides
-     * the deprecated [receive] instead; an implementation must override one of the two.
      */
-    fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
-        @Suppress("DEPRECATION")
-        MessageReceiver(receive(subscription))
-
-    /**
-     * The messages of [subscription] as a plain stream: the [receiver]'s messages with processing opened on
-     * subscription, so a transport that gates consumption on [MessageReceiver.openProcessing] reads at once.
-     */
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use receiver(subscription), the single receive entry.",
-        ReplaceWith("receiver(subscription)"),
-    )
-    fun receive(subscription: MessageSubscription): Flux<E> {
-        val receiver = receiver(subscription)
-        return receiver.messages.doOnSubscribe { receiver.openProcessing() }
-    }
-
-    /**
-     * The message source owned by a [me.ahoo.wow.runtime.WowRuntime] dispatcher.
-     */
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use receiver with a runtime-owned subscription.",
-        ReplaceWith("receiver(subscription.copy(runtimeOwned = true))"),
-    )
-    fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
-        receiver(subscription.copy(runtimeOwned = true))
+    fun receiver(subscription: MessageSubscription): MessageReceiver<E>
 }
 
 /**

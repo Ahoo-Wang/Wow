@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.identity
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
@@ -32,7 +33,9 @@ import me.ahoo.wow.webflux.route.identity.RouteIdentitySource.STATIC
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
  * Each route's identity binding is computed from its contract: the generated routes of the example aggregates
@@ -175,5 +178,80 @@ class RouteIdentityBindingTest {
             .binding(Cart::class.java.aggregateRouteMetadata()).spaceId.source.assert().isEqualTo(NONE)
         RouteIdentity.of(MockServerRequest.builder().build())
             .binding(Cart::class.java.aggregateRouteMetadata()).aggregateId.source.assert().isEqualTo(OWNER)
+    }
+
+    private fun orderBinding(request: ServerRequest): RouteIdentityBinding =
+        RouteIdentity.of(request).binding(Order::class.java.aggregateRouteMetadata())
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", " ", "\t"])
+    fun `a declared but blank path variable is rejected instead of falling back to the header`(blank: String) {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, blank)
+            .pathVariable(MessageRecords.OWNER_ID, blank)
+            .pathVariable(MessageRecords.ID, blank)
+            .header(CommandComponent.Header.TENANT_ID, "victim")
+            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .build()
+        val binding = orderBinding(request)
+
+        assertThrownBy<IllegalArgumentException> { binding.tenantId(request) }
+            .hasMessage("Path variable [tenantId] must not be blank.")
+        assertThrownBy<IllegalArgumentException> { binding.ownerId(request) }
+            .hasMessage("Path variable [ownerId] must not be blank.")
+        assertThrownBy<IllegalArgumentException> { binding.aggregateId(request) }
+            .hasMessage("Path variable [id] must not be blank.")
+    }
+
+    @Test
+    fun `a declared path variable wins over a header that agrees or is absent`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
+            .pathVariable(MessageRecords.OWNER_ID, "owner-a")
+            .pathVariable(MessageRecords.ID, "id-a")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-a")
+            // The aggregate ID is not a fact a header may contradict: the path wins, the header is ignored.
+            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .build()
+        val binding = orderBinding(request)
+
+        binding.tenantId(request).assert().isEqualTo("tenant-a")
+        binding.ownerId(request).assert().isEqualTo("owner-a")
+        binding.aggregateId(request).assert().isEqualTo("id-a")
+    }
+
+    @Test
+    fun `a header contradicting a declared tenant or owner path variable is rejected`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
+            .pathVariable(MessageRecords.OWNER_ID, "owner-a")
+            .header(CommandComponent.Header.TENANT_ID, "victim")
+            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .build()
+        val binding = orderBinding(request)
+
+        assertThrownBy<IllegalArgumentException> {
+            binding.tenantId(request)
+        }.hasMessage("Conflicting tenantId: the route fixes [tenant-a], but the request header gives [victim].")
+        assertThrownBy<IllegalArgumentException> {
+            binding.ownerId(request)
+        }.hasMessage("Conflicting ownerId: the route fixes [owner-a], but the request header gives [victim].")
+    }
+
+    @Test
+    fun `a route without the variable reads the header`() {
+        val request = MockServerRequest.builder()
+            .header(CommandComponent.Header.TENANT_ID, "tenant-h")
+            .header(CommandComponent.Header.OWNER_ID, "owner-h")
+            .header(CommandComponent.Header.AGGREGATE_ID, "id-h")
+            .header(CommonComponent.Header.SPACE_ID, "space-h")
+            .build()
+        val binding = orderBinding(request)
+
+        binding.tenantId(request).assert().isEqualTo("tenant-h")
+        binding.ownerId(request).assert().isEqualTo("owner-h")
+        binding.aggregateId(request).assert().isEqualTo("id-h")
+        binding.spaceId(request).assert().isEqualTo("space-h")
     }
 }

@@ -10,9 +10,7 @@ public abstract class me/ahoo/wow/kafka/AbstractKafkaBus : me/ahoo/wow/messaging
 	public abstract fun getMessageType ()Ljava/lang/Class;
 	public final fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
 	protected final fun getSender ()Lreactor/kafka/sender/KafkaSender;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public abstract fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/messaging/handler/MessageExchange;
 }

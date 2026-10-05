@@ -52,7 +52,7 @@ class InMemoryMessageBusTest {
         val bus = TestInMemoryMessageBus()
         val message = TestNamedMessage()
 
-        StepVerifier.create(bus.receive(MessageSubscription(message)))
+        StepVerifier.create(bus.receiver(MessageSubscription(message)).openedMessages())
             .then {
                 bus.subscriberCount(message).assert().isEqualTo(1)
                 bus.send(message).subscribe()
@@ -69,7 +69,7 @@ class InMemoryMessageBusTest {
         val bus = TestInMemoryMessageBus()
         val message = TestNamedMessage()
 
-        StepVerifier.create(bus.receive(MessageSubscription(message)))
+        StepVerifier.create(bus.receiver(MessageSubscription(message)).openedMessages())
             .then {
                 bus.subscriberCount(message).assert().isEqualTo(1)
                 bus.close()
@@ -84,7 +84,8 @@ class InMemoryMessageBusTest {
         val bus = RetryCloseInMemoryMessageBus()
         val message = TestNamedMessage()
         val completed = CountDownLatch(1)
-        val subscription = bus.receive(MessageSubscription(message)).subscribe({}, {}, completed::countDown)
+        val subscription = bus.receiver(MessageSubscription(message)).openedMessages()
+            .subscribe({}, {}, completed::countDown)
         try {
             assertThrows<Sinks.EmissionException> {
                 bus.close()
@@ -111,7 +112,7 @@ class InMemoryMessageBusTest {
 
         bus.close()
 
-        val reopened = bus.receive(MessageSubscription(message)).subscribe()
+        val reopened = bus.receiver(MessageSubscription(message)).openedMessages().subscribe()
         try {
             sinkCreations.get().assert().isEqualTo(2)
             bus.subscriberCount(message).assert().isEqualTo(1)
@@ -129,7 +130,7 @@ class InMemoryMessageBusTest {
         val message = TestNamedMessage()
         val received = AtomicReference<Flux<TestMessageExchange>>()
         val receiveThread = Thread {
-            received.set(bus.receive(MessageSubscription(message)))
+            received.set(bus.receiver(MessageSubscription(message)).openedMessages())
         }.also(Thread::start)
         sinkSupplierEntered.await(5, TimeUnit.SECONDS).assert().isTrue()
         val closeThread = Thread(bus::close).also(Thread::start)
@@ -157,7 +158,7 @@ class InMemoryMessageBusTest {
         val bus = TestInMemoryMessageBus()
         val closingMessage = TestNamedMessage(aggregateName = "closing_aggregate")
         val concurrentMessage = TestNamedMessage(aggregateName = "concurrent_aggregate")
-        val subscription = bus.receive(MessageSubscription(closingMessage))
+        val subscription = bus.receiver(MessageSubscription(closingMessage)).openedMessages()
             .doOnComplete {
                 completionEntered.countDown()
                 check(releaseCompletion.await(5, TimeUnit.SECONDS)) {
@@ -172,7 +173,7 @@ class InMemoryMessageBusTest {
             StepVerifier.create(bus.send(concurrentMessage))
                 .verifyComplete()
             concurrentMessage.isReadOnly.assert().isTrue()
-            StepVerifier.create(bus.receive(MessageSubscription(concurrentMessage)))
+            StepVerifier.create(bus.receiver(MessageSubscription(concurrentMessage)).openedMessages())
                 .expectComplete()
                 .verify(Duration.ofSeconds(1))
         } finally {
@@ -194,7 +195,7 @@ class InMemoryMessageBusTest {
         val onNextEntered = CountDownLatch(1)
         val releaseOnNext = CountDownLatch(1)
         val activeCompleted = CountDownLatch(1)
-        val activeSubscription = bus.receive(MessageSubscription(activeMessage)).subscribe(
+        val activeSubscription = bus.receiver(MessageSubscription(activeMessage)).openedMessages().subscribe(
             {
                 onNextEntered.countDown()
                 check(releaseOnNext.await(5, TimeUnit.SECONDS)) {
@@ -204,7 +205,7 @@ class InMemoryMessageBusTest {
             { throw AssertionError("Expected active MPSC completion.", it) },
             { activeCompleted.countDown() },
         )
-        val throwingSubscription = bus.receive(MessageSubscription(throwingMessage)).subscribe()
+        val throwingSubscription = bus.receiver(MessageSubscription(throwingMessage)).openedMessages().subscribe()
         val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
         try {
             val activeSend = executor.submit { bus.send(activeMessage).block(Duration.ofSeconds(5)) }
@@ -213,7 +214,7 @@ class InMemoryMessageBusTest {
             assertThrows<IllegalStateException> {
                 bus.close()
             }
-            StepVerifier.create(bus.receive(MessageSubscription(concurrentMessage)))
+            StepVerifier.create(bus.receiver(MessageSubscription(concurrentMessage)).openedMessages())
                 .expectComplete()
                 .verify(Duration.ofSeconds(1))
 
@@ -221,7 +222,7 @@ class InMemoryMessageBusTest {
             activeSend.get(5, TimeUnit.SECONDS)
             activeCompleted.await(5, TimeUnit.SECONDS).assert().isTrue()
 
-            val reopened = bus.receive(MessageSubscription(concurrentMessage)).subscribe()
+            val reopened = bus.receiver(MessageSubscription(concurrentMessage)).openedMessages().subscribe()
             try {
                 bus.subscriberCount(concurrentMessage).assert().isEqualTo(1)
             } finally {
@@ -243,7 +244,7 @@ class InMemoryMessageBusTest {
         val message = TestNamedMessage()
         val completionFailure = IllegalStateException("completion failed")
         val subscription = AtomicReference<Subscription>()
-        bus.receive(MessageSubscription(message)).subscribe(
+        bus.receiver(MessageSubscription(message)).openedMessages().subscribe(
             object : CoreSubscriber<TestMessageExchange> {
                 override fun currentContext(): Context = Context.empty()
 
@@ -267,7 +268,7 @@ class InMemoryMessageBusTest {
         }.assert().isSameAs(completionFailure)
 
         val reopenedError = AtomicReference<Throwable?>()
-        val reopened = bus.receive(MessageSubscription(message)).subscribe({}, reopenedError::set)
+        val reopened = bus.receiver(MessageSubscription(message)).openedMessages().subscribe({}, reopenedError::set)
         try {
             reopenedError.get().assert().isNull()
             bus.subscriberCount(message).assert().isEqualTo(1)
@@ -283,7 +284,7 @@ class InMemoryMessageBusTest {
         val bus = TestInMemoryMessageBus()
         val message = TestNamedMessage()
         val completionFailure = IllegalStateException("completion failed")
-        bus.receive(MessageSubscription(message)).subscribe(
+        bus.receiver(MessageSubscription(message)).openedMessages().subscribe(
             object : CoreSubscriber<TestMessageExchange> {
                 override fun currentContext(): Context = Context.empty()
 
@@ -306,7 +307,7 @@ class InMemoryMessageBusTest {
         }.assert().isSameAs(completionFailure)
 
         val reopenedError = AtomicReference<Throwable?>()
-        val reopened = bus.receive(MessageSubscription(message)).subscribe({}, reopenedError::set)
+        val reopened = bus.receiver(MessageSubscription(message)).openedMessages().subscribe({}, reopenedError::set)
         try {
             reopenedError.get().assert().isNull()
             bus.subscriberCount(message).assert().isEqualTo(1)
@@ -324,15 +325,15 @@ class InMemoryMessageBusTest {
         val firstMessage = TestNamedMessage(aggregateName = "first")
         val secondMessage = TestNamedMessage(aggregateName = "second")
         val reopenedMessage = TestNamedMessage(aggregateName = "reopened")
-        val first = bus.receive(MessageSubscription(firstMessage)).subscribe()
-        val second = bus.receive(MessageSubscription(secondMessage)).subscribe()
+        val first = bus.receiver(MessageSubscription(firstMessage)).openedMessages().subscribe()
+        val second = bus.receiver(MessageSubscription(secondMessage)).openedMessages().subscribe()
         try {
             assertThrows<IllegalStateException> {
                 bus.close()
             }.assert().isSameAs(failure)
             closeCalls.get().assert().isEqualTo(2)
 
-            val reopened = bus.receive(MessageSubscription(reopenedMessage)).subscribe()
+            val reopened = bus.receiver(MessageSubscription(reopenedMessage)).openedMessages().subscribe()
             try {
                 bus.subscriberCount(reopenedMessage).assert().isEqualTo(1)
             } finally {

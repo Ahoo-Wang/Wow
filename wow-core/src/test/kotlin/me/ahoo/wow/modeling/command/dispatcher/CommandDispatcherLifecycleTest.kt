@@ -47,10 +47,6 @@ class CommandDispatcherLifecycleTest {
         val commandBus = object : CommandBus {
             override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
 
-            override fun receive(
-                subscription: MessageSubscription,
-            ): Flux<ServerCommandExchange<*>> = Flux.never()
-
             override fun receiver(
                 subscription: MessageSubscription,
             ): MessageReceiver<ServerCommandExchange<*>> =
@@ -97,10 +93,6 @@ class CommandDispatcherLifecycleTest {
         val cancelled = CountDownLatch(1)
         val commandBus = object : CommandBus {
             override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
-
-            override fun receive(
-                subscription: MessageSubscription,
-            ): Flux<ServerCommandExchange<*>> = Flux.never()
 
             override fun receiver(
                 subscription: MessageSubscription,
@@ -155,7 +147,8 @@ class CommandDispatcherLifecycleTest {
     private object NoOpCommandBus : CommandBus {
         override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
 
-        override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.never()
+        override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+            MessageReceiver(Flux.never())
     }
 
     private object NoOpCommandHandler : CommandHandler {

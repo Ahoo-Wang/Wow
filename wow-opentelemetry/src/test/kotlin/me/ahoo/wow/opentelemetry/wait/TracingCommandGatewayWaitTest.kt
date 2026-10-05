@@ -67,7 +67,7 @@ class TracingCommandGatewayWaitTest {
     fun `closing traced gateway releases its command bus`() {
         val bus = InMemoryCommandBus()
         val subscription = MessageSubscription(MOCK_AGGREGATE_METADATA.namedAggregate)
-        val receiver = bus.receive(subscription).subscribe()
+        val receiver = bus.receiver(subscription).openedMessages().subscribe()
         val coordinator = DefaultWaitCoordinator()
         val gateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),

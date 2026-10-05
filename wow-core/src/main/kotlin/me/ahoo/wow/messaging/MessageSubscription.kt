@@ -42,27 +42,6 @@ data class MessageSubscription(
         runtimeOwned: Boolean = false,
     ) : this(setOf(namedAggregate), receiverGroup, runtimeOwned)
 
-    /** compat(wow<9.3): the 9.2 constructor, kept for callers compiled against it. */
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use the constructor with runtimeOwned.",
-        level = DeprecationLevel.HIDDEN
-    )
-    constructor(namedAggregates: Set<NamedAggregate>, receiverGroup: String = DEFAULT_RECEIVER_GROUP) :
-        this(namedAggregates, receiverGroup, false)
-
-    /** compat(wow<9.3): the 9.2 constructor, kept for callers compiled against it. */
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use the constructor with runtimeOwned.",
-        level = DeprecationLevel.HIDDEN
-    )
-    constructor(namedAggregate: NamedAggregate, receiverGroup: String = DEFAULT_RECEIVER_GROUP) :
-        this(setOf(namedAggregate), receiverGroup, false)
-
-    /** compat(wow<9.3): the 9.2 `copy`, kept for callers compiled against it. */
-    @Deprecated("Scheduled for removal in 10.0.0. Use copy with runtimeOwned.", level = DeprecationLevel.HIDDEN)
-    fun copy(namedAggregates: Set<NamedAggregate> = this.namedAggregates, receiverGroup: String = this.receiverGroup) =
-        copy(namedAggregates = namedAggregates, receiverGroup = receiverGroup, runtimeOwned = runtimeOwned)
-
     companion object {
         const val DEFAULT_RECEIVER_GROUP = "default"
     }

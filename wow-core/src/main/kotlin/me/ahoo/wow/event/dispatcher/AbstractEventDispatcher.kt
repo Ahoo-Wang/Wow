@@ -60,10 +60,8 @@ internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS :
             .toSet()
     }
 
-    @Suppress("DEPRECATION") // Keeps the plain-stream semantics of this hook; the runtime uses createMessageReceiver.
-    override fun receiveMessage(subscription: MessageSubscription): Flux<E> {
-        return messageBus.receive(subscription)
-    }
+    override fun receiveMessage(subscription: MessageSubscription): Flux<E> =
+        messageBus.receiver(subscription).openedMessages()
 
     override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<E> =
         messageBus.receiver(subscription.copy(runtimeOwned = true))

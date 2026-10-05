@@ -510,7 +510,6 @@ public abstract interface class me/ahoo/wow/api/event/SpaceTransferred {
 }
 
 public final class me/ahoo/wow/api/exception/BindingError : me/ahoo/wow/api/naming/Named {
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -1170,7 +1169,6 @@ public final class me/ahoo/wow/api/query/AggregationGroup$DatePart : me/ahoo/wow
 }
 
 public final class me/ahoo/wow/api/query/AggregationGroup$Histogram : me/ahoo/wow/api/query/AggregationGroup {
-	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;D)V
 	public fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;DLme/ahoo/wow/api/query/AggregationExpression;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;DLme/ahoo/wow/api/query/AggregationExpression;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/QueryField;
@@ -1189,8 +1187,6 @@ public final class me/ahoo/wow/api/query/AggregationGroup$Histogram : me/ahoo/wo
 }
 
 public final class me/ahoo/wow/api/query/AggregationGroup$Terms : me/ahoo/wow/api/query/AggregationGroup {
-	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationExpression;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationExpression;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/QueryField;

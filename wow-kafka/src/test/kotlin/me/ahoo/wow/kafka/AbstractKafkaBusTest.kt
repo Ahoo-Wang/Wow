@@ -512,7 +512,7 @@ class AbstractKafkaBusTest {
         val receiverGroup = generateGlobalId()
 
         try {
-            bus.receive(MessageSubscription(message, receiverGroup))
+            bus.receiver(MessageSubscription(message, receiverGroup)).openedMessages()
                 .contextWrite {
                     it.writeReceiverOptionsCustomizer { options ->
                         options.consumerProperty(CONTEXT_CUSTOMIZED, true)
@@ -550,7 +550,7 @@ class AbstractKafkaBusTest {
         )
 
         try {
-            bus.receive(MessageSubscription(message, generateGlobalId()))
+            bus.receiver(MessageSubscription(message, generateGlobalId())).openedMessages()
                 .contextWrite {
                     it.writeReceiverOptionsCustomizer { options -> options.maxDeferredCommits(3) }
                 }
@@ -579,7 +579,7 @@ class AbstractKafkaBusTest {
         val bus = testBus(record, failureHandler)
 
         try {
-            bus.receive(MessageSubscription(message, generateGlobalId()))
+            bus.receiver(MessageSubscription(message, generateGlobalId())).openedMessages()
                 .test()
                 .verifyComplete()
 
@@ -607,7 +607,7 @@ class AbstractKafkaBusTest {
         val bus = testBus(record, failureHandler)
 
         try {
-            bus.receive(MessageSubscription(message, generateGlobalId()))
+            bus.receiver(MessageSubscription(message, generateGlobalId())).openedMessages()
                 .test()
                 .expectErrorSatisfies {
                     it.assert().isSameAs(expected)
@@ -668,7 +668,7 @@ class AbstractKafkaBusTest {
         val bus = testBus(record, failureHandler)
 
         try {
-            bus.receive(MessageSubscription(message, generateGlobalId()))
+            bus.receiver(MessageSubscription(message, generateGlobalId())).openedMessages()
                 .test()
                 .verifyComplete()
 
