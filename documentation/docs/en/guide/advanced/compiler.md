@@ -36,7 +36,7 @@ Three `SymbolProcessorProvider` implementations are registered through ServiceLo
 
 These are build outputs. Do not edit or commit them. Change annotations/domain types and rerun KSP.
 
-The output depends only on the sources: the `@Generated` annotation carries no generation time, so two builds of the same sources produce identical files and the build cache can reuse them. The processor depends on `wow-metadata` (the `wow-metadata.json` model) and `wow-api`, not on the `wow-core` runtime, so a change to the runtime does not re-run KSP.
+The output depends only on the sources: the `@Generated` annotation carries no generation time, so two builds of the same sources produce identical files and the build cache can reuse them. The processor depends on `wow-metadata` (the `wow-metadata.json` model) and `wow-api`, not on the `wow-core` runtime, so the runtime is not on the processor classpath.
 
 ## `META-INF/wow-metadata.json`
 

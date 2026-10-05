@@ -410,6 +410,8 @@ test('wire modules, the example cluster, dependency versions and the harness run
     'wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/wait/CommandWaitHandlerFunction.kt',
     'wow-spring/src/main/kotlin/A.kt',
     'wow-spring-boot-starter/src/main/kotlin/A.kt',
+    // Aggregate naming and the wow-metadata.json model live here.
+    'wow-metadata/src/main/kotlin/me/ahoo/wow/naming/NamingStrategy.kt',
     'example/example-api/src/main/kotlin/A.kt',
     'example/example-domain/src/main/kotlin/A.kt',
     'example/example-server/src/dist/config/application.yaml',
