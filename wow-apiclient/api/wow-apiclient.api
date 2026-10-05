@@ -112,6 +112,8 @@ public final class me/ahoo/wow/apiclient/command/SyncRestCommandGateway$DefaultI
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/ReactiveSnapshotAggregationQueryApi : me/ahoo/wow/apiclient/query/SnapshotAggregationQueryApi {
+	public synthetic fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;)Ljava/lang/Object;
+	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotAggregationQueryApiKt {
@@ -119,6 +121,8 @@ public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotAggregationQueryA
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/ReactiveSnapshotCountQueryApi : me/ahoo/wow/apiclient/query/SnapshotCountQueryApi {
+	public synthetic fun count (Lme/ahoo/wow/api/query/FilterExpression;)Ljava/lang/Object;
+	public abstract fun count (Lme/ahoo/wow/api/query/FilterExpression;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotCountQueryApi$DefaultImpls {
@@ -131,9 +135,21 @@ public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotCountQueryApiKt {
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/ReactiveSnapshotCursorQueryApi : me/ahoo/wow/apiclient/query/SnapshotCursorQueryApi {
+	public synthetic fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/lang/Object;
+	public abstract fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;)Lreactor/core/publisher/Mono;
+	public synthetic fun cursorState (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/lang/Object;
+	public abstract fun cursorState (Lme/ahoo/wow/api/query/ICursorQuery;)Lreactor/core/publisher/Mono;
+	public synthetic fun dynamicCursor (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/lang/Object;
+	public abstract fun dynamicCursor (Lme/ahoo/wow/api/query/ICursorQuery;)Lreactor/core/publisher/Mono;
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/ReactiveSnapshotListQueryApi : me/ahoo/wow/apiclient/query/SnapshotListQueryApi {
+	public synthetic fun dynamicList (Lme/ahoo/wow/api/query/IListQuery;)Ljava/lang/Object;
+	public abstract fun dynamicList (Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
+	public synthetic fun list (Lme/ahoo/wow/api/query/IListQuery;)Ljava/lang/Object;
+	public abstract fun list (Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
+	public synthetic fun listState (Lme/ahoo/wow/api/query/IListQuery;)Ljava/lang/Object;
+	public abstract fun listState (Lme/ahoo/wow/api/query/IListQuery;)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotListQueryApiKt {
@@ -143,6 +159,12 @@ public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotListQueryApiKt {
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/ReactiveSnapshotPagedQueryApi : me/ahoo/wow/apiclient/query/SnapshotPagedQueryApi {
+	public synthetic fun dynamicPaged (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/lang/Object;
+	public abstract fun dynamicPaged (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
+	public synthetic fun paged (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/lang/Object;
+	public abstract fun paged (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
+	public synthetic fun pagedState (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/lang/Object;
+	public abstract fun pagedState (Lme/ahoo/wow/api/query/IPagedQuery;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotPagedQueryApiKt {
@@ -165,10 +187,16 @@ public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotQueryApiKt {
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/ReactiveSnapshotSingleQueryApi : me/ahoo/wow/apiclient/query/SnapshotSingleQueryApi {
+	public synthetic fun dynamicSingle (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
+	public abstract fun dynamicSingle (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
 	public synthetic fun getById (Ljava/lang/String;)Ljava/lang/Object;
 	public fun getById (Ljava/lang/String;)Lreactor/core/publisher/Mono;
 	public synthetic fun getStateById (Ljava/lang/String;)Ljava/lang/Object;
 	public fun getStateById (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public synthetic fun single (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
+	public abstract fun single (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
+	public synthetic fun singleState (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
+	public abstract fun singleState (Lme/ahoo/wow/api/query/ISingleQuery;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/apiclient/query/ReactiveSnapshotSingleQueryApi$DefaultImpls {
@@ -257,6 +285,8 @@ public final class me/ahoo/wow/apiclient/query/SnapshotSingleQueryApiKt {
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/SynchronousSnapshotAggregationQueryApi : me/ahoo/wow/apiclient/query/SnapshotAggregationQueryApi {
+	public synthetic fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;)Ljava/lang/Object;
+	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;)Ljava/util/List;
 }
 
 public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotAggregationQueryApiKt {
@@ -264,6 +294,8 @@ public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotAggregationQue
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/SynchronousSnapshotCountQueryApi : me/ahoo/wow/apiclient/query/SnapshotCountQueryApi {
+	public abstract fun count (Lme/ahoo/wow/api/query/FilterExpression;)Ljava/lang/Long;
+	public synthetic fun count (Lme/ahoo/wow/api/query/FilterExpression;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotCountQueryApi$DefaultImpls {
@@ -276,9 +308,21 @@ public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotCountQueryApiK
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/SynchronousSnapshotCursorQueryApi : me/ahoo/wow/apiclient/query/SnapshotCursorQueryApi {
+	public synthetic fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/lang/Object;
+	public abstract fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
+	public synthetic fun cursorState (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/lang/Object;
+	public abstract fun cursorState (Lme/ahoo/wow/api/query/ICursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
+	public synthetic fun dynamicCursor (Lme/ahoo/wow/api/query/ICursorQuery;)Ljava/lang/Object;
+	public abstract fun dynamicCursor (Lme/ahoo/wow/api/query/ICursorQuery;)Lme/ahoo/wow/api/query/CursorPage;
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/SynchronousSnapshotListQueryApi : me/ahoo/wow/apiclient/query/SnapshotListQueryApi {
+	public synthetic fun dynamicList (Lme/ahoo/wow/api/query/IListQuery;)Ljava/lang/Object;
+	public abstract fun dynamicList (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/List;
+	public synthetic fun list (Lme/ahoo/wow/api/query/IListQuery;)Ljava/lang/Object;
+	public abstract fun list (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/List;
+	public synthetic fun listState (Lme/ahoo/wow/api/query/IListQuery;)Ljava/lang/Object;
+	public abstract fun listState (Lme/ahoo/wow/api/query/IListQuery;)Ljava/util/List;
 }
 
 public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotListQueryApiKt {
@@ -288,6 +332,12 @@ public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotListQueryApiKt
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/SynchronousSnapshotPagedQueryApi : me/ahoo/wow/apiclient/query/SnapshotPagedQueryApi {
+	public synthetic fun dynamicPaged (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/lang/Object;
+	public abstract fun dynamicPaged (Lme/ahoo/wow/api/query/IPagedQuery;)Lme/ahoo/wow/api/query/PagedList;
+	public synthetic fun paged (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/lang/Object;
+	public abstract fun paged (Lme/ahoo/wow/api/query/IPagedQuery;)Lme/ahoo/wow/api/query/PagedList;
+	public synthetic fun pagedState (Lme/ahoo/wow/api/query/IPagedQuery;)Ljava/lang/Object;
+	public abstract fun pagedState (Lme/ahoo/wow/api/query/IPagedQuery;)Lme/ahoo/wow/api/query/PagedList;
 }
 
 public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotPagedQueryApiKt {
@@ -310,9 +360,14 @@ public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotQueryApiKt {
 }
 
 public abstract interface class me/ahoo/wow/apiclient/query/SynchronousSnapshotSingleQueryApi : me/ahoo/wow/apiclient/query/SnapshotSingleQueryApi {
+	public synthetic fun dynamicSingle (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
+	public abstract fun dynamicSingle (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/util/Map;
 	public synthetic fun getById (Ljava/lang/String;)Ljava/lang/Object;
 	public fun getById (Ljava/lang/String;)Lme/ahoo/wow/api/query/MaterializedSnapshot;
 	public fun getStateById (Ljava/lang/String;)Ljava/lang/Object;
+	public synthetic fun single (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
+	public abstract fun single (Lme/ahoo/wow/api/query/ISingleQuery;)Lme/ahoo/wow/api/query/MaterializedSnapshot;
+	public abstract fun singleState (Lme/ahoo/wow/api/query/ISingleQuery;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/apiclient/query/SynchronousSnapshotSingleQueryApi$DefaultImpls {

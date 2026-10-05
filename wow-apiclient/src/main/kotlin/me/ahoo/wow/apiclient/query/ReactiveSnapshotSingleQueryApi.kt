@@ -16,10 +16,21 @@ package me.ahoo.wow.apiclient.query
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.query.dsl.singleQuery
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Mono
 
 interface ReactiveSnapshotSingleQueryApi<S : Any> :
     SnapshotSingleQueryApi<Mono<MaterializedSnapshot<S>>, Mono<Map<String, Any>>, Mono<S>> {
+    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
+    override fun single(@RequestBody singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>>
+
+    @PostExchange(SNAPSHOT_SINGLE_RESOURCE_NAME)
+    override fun dynamicSingle(@RequestBody singleQuery: ISingleQuery): Mono<Map<String, Any>>
+
+    @PostExchange(SNAPSHOT_SINGLE_STATE_RESOURCE_NAME)
+    override fun singleState(@RequestBody singleQuery: ISingleQuery): Mono<S>
+
     override fun getById(id: String): Mono<MaterializedSnapshot<S>> {
         singleQuery {
             filter {

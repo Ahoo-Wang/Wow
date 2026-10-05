@@ -64,7 +64,7 @@ interface CartQueryClient : ReactiveSnapshotQueryApi<CartData>
 
 `ReactiveSnapshotQueryApi<S>` composes single, list, paged, and count interfaces. Their inherited `@PostExchange` paths are relative to `@HttpExchange`: `snapshot/single`, `snapshot/list`, `snapshot/paged`, and `snapshot/count`, plus state-only variants.
 
-When CoApi or application conventions require concrete generic metadata, redeclare methods with the concrete return type and `@RequestBody`, as the repository example clients do. Do not duplicate the route path on every method.
+Since 9.2.4 the reactive and synchronous query interfaces redeclare every query method with its concrete return type (`Mono<MaterializedSnapshot<S>>`, `List<S>`, …), so an HTTP interface proxy reads the response into the client's state type without the client redeclaring anything. Before 9.2.4 a proxy saw only the generic `R` of the base interface: reactive calls failed to decode (`Type definition error: Mono`) and synchronous calls returned the state as a `Map` unless the client redeclared the methods.
 
 `@HttpExchange("cart")` calls the base, unscoped snapshot-query variant. To call a tenant- or owner-scoped variant, bind an application-owned interface or routing layer to that generated path and supply the required values. Protect the base route explicitly; choosing the scoped client path is not authorization. Do not guess a context-prefixed URL—inspect the server OpenAPI.
 
