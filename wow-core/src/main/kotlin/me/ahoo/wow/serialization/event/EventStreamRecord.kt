@@ -29,7 +29,6 @@ import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.SpaceIdRecord
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 interface EventStreamRecord :
@@ -89,36 +88,6 @@ class DelegatingEventStreamRecord(override val actual: ObjectNode) : EventStream
 
 fun ObjectNode.toEventStreamRecord(): EventStreamRecord {
     return DelegatingEventStreamRecord(this)
-}
-
-@Suppress("LongParameterList")
-class FlatEventStreamRecord(
-    override val id: String,
-    private val rawAggregateId: AggregateId,
-    override val header: ObjectNode,
-    override val version: Int,
-    override val ownerId: String,
-    override val spaceId: SpaceId,
-    override val commandId: String,
-    override val requestId: String,
-    override val body: JsonNode,
-    override val createTime: Long
-) : EventStreamRecord {
-
-    override val actual: ObjectNode
-        get() = throw UnsupportedOperationException()
-    override val contextName: String
-        get() = rawAggregateId.contextName
-    override val aggregateName: String
-        get() = rawAggregateId.aggregateName
-    override val aggregateId: String
-        get() = rawAggregateId.id
-    override val tenantId: String
-        get() = rawAggregateId.tenantId
-
-    override fun toAggregateId(): AggregateId {
-        return rawAggregateId
-    }
 }
 
 @Suppress("LongParameterList")

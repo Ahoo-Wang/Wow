@@ -128,24 +128,12 @@ interface MessageAggregateIdRecord : JsonRecord {
 
 interface MessageRecord : MessageIdRecord, HeaderRecord, MessageBodyRecord, MessageCreateTimeRecord
 
-class DelegatingMessageRecord(override val actual: ObjectNode) : MessageRecord
-
-fun ObjectNode.toMessageRecord(): MessageRecord {
-    return DelegatingMessageRecord(this)
-}
-
 interface NamedBoundedContextMessageRecord :
     MessageIdRecord,
     MessageNamedBoundedContextRecord,
     HeaderRecord,
     MessageBodyRecord,
     MessageCreateTimeRecord
-
-class DelegatingNamedBoundedContextMessageRecord(override val actual: ObjectNode) : NamedBoundedContextMessageRecord
-
-fun ObjectNode.toBoundedContextMessageRecord(): NamedBoundedContextMessageRecord {
-    return DelegatingNamedBoundedContextMessageRecord(this)
-}
 
 interface MessageCommandIdRecord : JsonRecord {
     val commandId: String

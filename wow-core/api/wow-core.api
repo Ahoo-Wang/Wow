@@ -4642,28 +4642,6 @@ public final class me/ahoo/wow/serialization/AggregateIdJsonSerializer : tools/j
 	public fun serialize (Lme/ahoo/wow/api/modeling/AggregateId;Ltools/jackson/core/JsonGenerator;Ltools/jackson/databind/SerializationContext;)V
 }
 
-public final class me/ahoo/wow/serialization/DelegatingMessageRecord : me/ahoo/wow/serialization/MessageRecord {
-	public fun <init> (Ltools/jackson/databind/node/ObjectNode;)V
-	public fun getActual ()Ltools/jackson/databind/node/ObjectNode;
-	public fun getBody ()Ltools/jackson/databind/JsonNode;
-	public fun getCreateTime ()J
-	public fun getHeader ()Ltools/jackson/databind/node/ObjectNode;
-	public fun getId ()Ljava/lang/String;
-	public fun toMessageHeader ()Lme/ahoo/wow/api/messaging/Header;
-}
-
-public final class me/ahoo/wow/serialization/DelegatingNamedBoundedContextMessageRecord : me/ahoo/wow/serialization/NamedBoundedContextMessageRecord {
-	public fun <init> (Ltools/jackson/databind/node/ObjectNode;)V
-	public fun getActual ()Ltools/jackson/databind/node/ObjectNode;
-	public fun getBody ()Ltools/jackson/databind/JsonNode;
-	public fun getContextName ()Ljava/lang/String;
-	public fun getCreateTime ()J
-	public fun getHeader ()Ltools/jackson/databind/node/ObjectNode;
-	public fun getId ()Ljava/lang/String;
-	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
-	public fun toMessageHeader ()Lme/ahoo/wow/api/messaging/Header;
-}
-
 public abstract interface class me/ahoo/wow/serialization/HeaderRecord : me/ahoo/wow/serialization/JsonRecord {
 	public fun getHeader ()Ltools/jackson/databind/node/ObjectNode;
 	public fun toMessageHeader ()Lme/ahoo/wow/api/messaging/Header;
@@ -4672,11 +4650,6 @@ public abstract interface class me/ahoo/wow/serialization/HeaderRecord : me/ahoo
 public final class me/ahoo/wow/serialization/HeaderRecord$DefaultImpls {
 	public static fun getHeader (Lme/ahoo/wow/serialization/HeaderRecord;)Ltools/jackson/databind/node/ObjectNode;
 	public static fun toMessageHeader (Lme/ahoo/wow/serialization/HeaderRecord;)Lme/ahoo/wow/api/messaging/Header;
-}
-
-public final class me/ahoo/wow/serialization/JsonMessageRecordKt {
-	public static final fun toBoundedContextMessageRecord (Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/serialization/NamedBoundedContextMessageRecord;
-	public static final fun toMessageRecord (Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/serialization/MessageRecord;
 }
 
 public abstract interface class me/ahoo/wow/serialization/JsonRecord {
@@ -5153,28 +5126,6 @@ public final class me/ahoo/wow/serialization/event/EventTypeRegistry {
 	public final fun register (Lme/ahoo/wow/configuration/WowMetadata;)Ljava/util/List;
 	public final fun register (Lme/ahoo/wow/serialization/event/EventTypeDescriptor;)Lme/ahoo/wow/serialization/event/EventTypeDescriptor;
 	public final fun resolve (Lme/ahoo/wow/serialization/event/EventTypeId;Ljava/lang/String;)Ljava/lang/Class;
-}
-
-public final class me/ahoo/wow/serialization/event/FlatEventStreamRecord : me/ahoo/wow/serialization/event/EventStreamRecord {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/modeling/AggregateId;Ltools/jackson/databind/node/ObjectNode;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;J)V
-	public fun getActual ()Ltools/jackson/databind/node/ObjectNode;
-	public fun getAggregateId ()Ljava/lang/String;
-	public fun getAggregateName ()Ljava/lang/String;
-	public fun getBody ()Ltools/jackson/databind/JsonNode;
-	public fun getCommandId ()Ljava/lang/String;
-	public fun getContextName ()Ljava/lang/String;
-	public fun getCreateTime ()J
-	public fun getHeader ()Ltools/jackson/databind/node/ObjectNode;
-	public fun getId ()Ljava/lang/String;
-	public fun getOwnerId ()Ljava/lang/String;
-	public fun getRequestId ()Ljava/lang/String;
-	public fun getSpaceId ()Ljava/lang/String;
-	public fun getTenantId ()Ljava/lang/String;
-	public fun getVersion ()I
-	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
-	public fun toAggregateId ()Lme/ahoo/wow/api/modeling/AggregateId;
-	public fun toDomainEventStream ()Lme/ahoo/wow/event/DomainEventStream;
-	public fun toMessageHeader ()Lme/ahoo/wow/api/messaging/Header;
 }
 
 public final class me/ahoo/wow/serialization/event/JsonDomainEvent : me/ahoo/wow/api/event/DomainEvent, me/ahoo/wow/api/modeling/NamedAggregate {

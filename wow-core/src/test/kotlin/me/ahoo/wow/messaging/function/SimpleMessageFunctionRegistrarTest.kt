@@ -14,8 +14,10 @@
 package me.ahoo.wow.messaging.function
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.TestMessageBody
 import me.ahoo.wow.messaging.TestNamedMessage
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -122,6 +124,61 @@ class SimpleMessageFunctionRegistrarTest {
             .assert().isEqualTo(listOf(matching))
     }
 
+    @Test
+    fun `a function without topics that matches messages itself is asked for every message`() {
+        val anyTopic = RegistrarFunction(id = "any-topic", supportedTopics = emptySet(), matchesAnyTopic = true)
+        val registrar = SimpleMessageFunctionRegistrar<RegistrarFunction>()
+        registrar.register(anyTopic)
+
+        registrar.supportedFunctions(TestNamedMessage(body = TestMessageBody())).toList()
+            .assert().containsExactly(anyTopic)
+    }
+
+    @Test
+    fun `topic functions and functions without topics are both returned for a message`() {
+        val topicFunction = RegistrarFunction(id = "topic", supportedTopics = setOf(topic))
+        val anyTopic = RegistrarFunction(id = "any-topic", supportedTopics = emptySet(), matchesAnyTopic = true)
+        val anyTopicOtherType = RegistrarFunction(
+            id = "any-topic-other-type",
+            supportedType = String::class.java,
+            supportedTopics = emptySet(),
+            matchesAnyTopic = true,
+        )
+        val registrar = SimpleMessageFunctionRegistrar<RegistrarFunction>()
+        registrar.register(topicFunction)
+        registrar.register(anyTopic)
+        registrar.register(anyTopicOtherType)
+
+        registrar.supportedFunctions(TestNamedMessage(body = TestMessageBody())).toList()
+            .assert().containsExactlyInAnyOrder(topicFunction, anyTopic)
+    }
+
+    @Test
+    fun `unregistering a function without topics removes it`() {
+        val anyTopic = RegistrarFunction(id = "any-topic", supportedTopics = emptySet(), matchesAnyTopic = true)
+        val registrar = SimpleMessageFunctionRegistrar<RegistrarFunction>()
+        registrar.register(anyTopic)
+
+        registrar.unregister(anyTopic)
+
+        registrar.functions.assert().isEmpty()
+        registrar.supportedFunctions(TestNamedMessage(body = TestMessageBody())).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `unregistering one of two functions of a topic keeps the other`() {
+        val first = RegistrarFunction(id = "first", supportedTopics = setOf(topic))
+        val second = RegistrarFunction(id = "second", supportedTopics = setOf(topic))
+        val registrar = SimpleMessageFunctionRegistrar<RegistrarFunction>()
+        registrar.register(first)
+        registrar.register(second)
+
+        registrar.unregister(first)
+
+        registrar.supportedFunctions(TestNamedMessage(body = TestMessageBody())).toList()
+            .assert().containsExactly(second)
+    }
+
     private fun waitUntilBlockedOrTerminated(thread: Thread) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
         while (thread.isAlive && thread.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
@@ -161,8 +218,14 @@ private class BlockingTopicsRegistrarFunction(
 private data class RegistrarFunction(
     val id: String,
     override val supportedType: Class<*> = TestMessageBody::class.java,
-    override val supportedTopics: Set<NamedAggregate>
+    override val supportedTopics: Set<NamedAggregate>,
+    /** Matches by type only, as a custom function that declares no topics does. */
+    val matchesAnyTopic: Boolean = false,
 ) : MessageFunction<Any, MessageExchange<*, *>, String> {
+    override fun <M> supportMessage(message: M): Boolean
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate =
+        if (matchesAnyTopic) supportedType.isInstance(message.body) else super.supportMessage(message)
+
     override val processor: Any = Any()
     override val contextName: String = "wow-core-test"
     override val processorName: String = "RegistrarProcessor"

@@ -105,6 +105,16 @@ class WowExceptionTest {
             .assert().isEqualTo(RecoverableType.RECOVERABLE)
     }
 
+    @Test
+    fun `an exception none of the retry entries matches keeps its default classification`() {
+        retryAnnotation("exactRecoverable")
+            .recoverable(TimeoutException::class.java)
+            .assert().isEqualTo(RecoverableType.RECOVERABLE)
+        retryAnnotation("exactUnrecoverable")
+            .recoverable(RuntimeException::class.java)
+            .assert().isEqualTo(RecoverableType.UNKNOWN)
+    }
+
     private fun retryAnnotation(methodName: String): Retry =
         RetryFixture::class.java.getDeclaredMethod(methodName).getAnnotation(Retry::class.java)
 }
