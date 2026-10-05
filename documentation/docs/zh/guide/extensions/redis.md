@@ -73,6 +73,10 @@ wow:
 
 subscription 的 receiver group 成为 Redis consumer group。group 创建时的 `BUSYGROUP` 被视为并发创建后的正常状态；权限、键类型或连接错误仍会失败。
 
+### 接收重试
+
+自 9.3.0 起，接收流失败后按核心的 `TransportFailurePolicy` 重新订阅，默认值与 Kafka 相同：连续重试 3 次，退避从 `10s` 起（`wow.redis.message-bus.receiver.retry-attempts` / `retry-backoff`，Bean `redisTransportFailurePolicy`）。新订阅以新的 consumer 加入消费组，旧 consumer 遗留的 pending 条目由恢复机制认领。重试耗尽后错误才到达 dispatcher，并让运行时停止。9.3.0 之前，任何 Redis 接收错误（包括一次故障切换的抖动）都会立即让运行时停止。连接丢失与命令超时（`RedisConnectionFailureException`、`QueryTimeoutException` 及其 Lettuce 原因）也注册为 `RECOVERABLE`（`RedisRecoverableExceptionProvider`），`RetryableFilter` 与事件存储追加结果判定会重试它们。
+
 ### Pending 消息恢复
 
 recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consumer 不活跃后 claim。它只处理 ack 前因进程终止/取消、transport 或 decode 等路径遗留且仍在 Stream 中的 PEL entry，不恢复被 trim、删除或未持久化的数据。
@@ -93,7 +97,7 @@ recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consu
 
 ## 事件总线
 
-领域事件与状态事件复用相同 Streams 管线和显式 acknowledge 语义。`RECOVERABLE` 失败先由进程内 `RetryableFilter` 重试；耗尽后，已启用的 compensation filter 可记录后续补偿，默认 `LogResumeErrorHandler` 记录并恢复，而 `AbstractAggregateEventDispatcher.finallyAck` 在成功或错误后都会确认原 exchange。因此普通业务 handler 失败不依赖 Redis PEL recovery 重投；只有确认前终止/取消、transport、decode 等未确认路径才可能由 Redis redelivery/recovery 重新交付。处理器仍应保持幂等以覆盖这些未确认路径和显式补偿。
+领域事件与状态事件复用相同 Streams 管线和显式 acknowledge 语义。`RECOVERABLE` 失败先由进程内 `RetryableFilter` 重试；耗尽后，已启用的补偿模块记录它以便后续补偿，默认 `LogResumeErrorHandler` 记录并恢复，而 `AbstractAggregateEventDispatcher.finallyAck` 在成功或错误后都会确认原 exchange。因此普通业务 handler 失败不依赖 Redis PEL recovery 重投（除非 `wow.event.ack-on-unrecorded-failure=false` 或补偿记录失败，见[失败记录](../event/dispatch.md#失败记录)）；只有确认前终止/取消、transport、decode 等未确认路径才可能由 Redis redelivery/recovery 重新交付。处理器仍应保持幂等以覆盖这些未确认路径和显式补偿。
 
 ### 领域事件 Stream
 

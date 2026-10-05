@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.redis
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.redis.bus.CompositeRedisMessageBusObserver
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
@@ -30,6 +31,7 @@ import me.ahoo.wow.spring.boot.starter.event.EventProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -50,8 +52,22 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 @ConditionalOnWowEnabled
 @ConditionalOnRedisEnabled
 @ConditionalOnClass(RedisCommandBus::class)
-@EnableConfigurationProperties(RedisStreamRecoveryProperties::class, RedisStreamRetentionProperties::class)
+@EnableConfigurationProperties(
+    RedisStreamRecoveryProperties::class,
+    RedisStreamRetentionProperties::class,
+    RedisStreamReceiverProperties::class,
+)
 class RedisMessageBusAutoConfiguration {
+    companion object {
+        /** The receive-retry policy of the Redis Streams transports, from `wow.redis.message-bus.receiver.retry-*`. */
+        const val REDIS_TRANSPORT_FAILURE_POLICY = "redisTransportFailurePolicy"
+    }
+
+    @Bean(REDIS_TRANSPORT_FAILURE_POLICY)
+    @ConditionalOnMissingBean(name = [REDIS_TRANSPORT_FAILURE_POLICY])
+    fun redisTransportFailurePolicy(receiverProperties: RedisStreamReceiverProperties): TransportFailurePolicy {
+        return receiverProperties.toFailurePolicy()
+    }
 
     @Bean
     @ConditionalOnProperty(
@@ -64,12 +80,14 @@ class RedisMessageBusAutoConfiguration {
         recoveryProperties: RedisStreamRecoveryProperties,
         retentionProperties: RedisStreamRetentionProperties,
         observers: ObjectProvider<RedisMessageBusObserver>,
+        @Qualifier(REDIS_TRANSPORT_FAILURE_POLICY) failurePolicy: TransportFailurePolicy,
     ): DistributedCommandBus {
         return RedisCommandBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
             messageBusObserver = observers.toObserver(),
             retentionOptions = retentionProperties.toOptions(),
+            failurePolicy = failurePolicy,
         )
     }
 
@@ -84,12 +102,14 @@ class RedisMessageBusAutoConfiguration {
         recoveryProperties: RedisStreamRecoveryProperties,
         retentionProperties: RedisStreamRetentionProperties,
         observers: ObjectProvider<RedisMessageBusObserver>,
+        @Qualifier(REDIS_TRANSPORT_FAILURE_POLICY) failurePolicy: TransportFailurePolicy,
     ): DistributedDomainEventBus {
         return RedisDomainEventBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
             messageBusObserver = observers.toObserver(),
             retentionOptions = retentionProperties.toOptions(),
+            failurePolicy = failurePolicy,
         )
     }
 
@@ -104,12 +124,14 @@ class RedisMessageBusAutoConfiguration {
         recoveryProperties: RedisStreamRecoveryProperties,
         retentionProperties: RedisStreamRetentionProperties,
         observers: ObjectProvider<RedisMessageBusObserver>,
+        @Qualifier(REDIS_TRANSPORT_FAILURE_POLICY) failurePolicy: TransportFailurePolicy,
     ): DistributedStateEventBus {
         return RedisStateEventBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
             messageBusObserver = observers.toObserver(),
             retentionOptions = retentionProperties.toOptions(),
+            failurePolicy = failurePolicy,
         )
     }
 

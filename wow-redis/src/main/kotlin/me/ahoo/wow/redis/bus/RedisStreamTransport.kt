@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.transport.Transport
 import me.ahoo.wow.messaging.transport.TransportDecodeFailure
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureAction
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.messaging.transport.TransportMessage
 import me.ahoo.wow.messaging.transport.TransportReceiver
 import me.ahoo.wow.messaging.transport.TransportRecord
@@ -58,6 +59,10 @@ internal fun Throwable.isBusyGroup(): Boolean =
  * when [RedisStreamRetentionOptions.consumerIdleTimeout] is set, then completes readiness; reading starts only once
  * processing opens. With recovery enabled, entries left pending by consumers whose lease expired are claimed and
  * delivered again ([RedisStreamRecoveryOptions]).
+ *
+ * A failed receive stream is subscribed again according to [failurePolicy] (as a new consumer of the same group,
+ * whose leftover pending entries recovery claims); readiness fails, and the dispatcher sees the error, only once the
+ * policy's retries are exhausted.
  */
 @WowSpi
 class RedisStreamTransport(
@@ -66,6 +71,7 @@ class RedisStreamTransport(
     private val recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     private val messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
     private val retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
+    private val failurePolicy: TransportFailurePolicy = TransportFailurePolicy.DEFAULT,
 ) : Transport {
     private val streamOps = redisTemplate.opsForStream<String, String>()
     private val consumerReaper = RedisStreamConsumerReaper(redisTemplate)
@@ -120,7 +126,7 @@ class RedisStreamTransport(
         val options = StreamReceiverOptions.builder().pollTimeout(pollTimeout)
             .build()
 
-        return Flux.defer {
+        val records = Flux.defer {
             val createGroupPublisher = topics.map { topic ->
                 createGroup(topic, group).then(reapIdleConsumers(topic, group))
             }.let { publishers ->
@@ -140,6 +146,7 @@ class RedisStreamTransport(
                         .thenMany(readPublisher),
                 )
         }
+        return failurePolicy.retryReceive(records)
     }
 
     private fun createGroup(topic: String, group: String) = streamOps.createGroup(topic, ReadOffset.latest(), group)

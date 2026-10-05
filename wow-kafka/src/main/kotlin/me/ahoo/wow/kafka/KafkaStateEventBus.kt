@@ -15,6 +15,7 @@ package me.ahoo.wow.kafka
 import me.ahoo.wow.messaging.transport.TopicNaming
 import me.ahoo.wow.messaging.transport.Transport
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.messaging.transport.TransportStateEventBus
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
@@ -34,8 +35,15 @@ class KafkaStateEventBus(
         receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
         decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
+        failurePolicy: TransportFailurePolicy = TransportFailurePolicy.DEFAULT,
     ) : this(
-        transport = KafkaTransport(senderOptions, receiverOptions, receiverOptionsCustomizer, receiverPolicy),
+        transport = KafkaTransport(
+            senderOptions = senderOptions,
+            receiverOptions = receiverOptions,
+            receiverOptionsCustomizer = receiverOptionsCustomizer,
+            receiverPolicy = receiverPolicy,
+            failurePolicy = failurePolicy,
+        ),
         topicConverter = topicConverter,
         decodeFailureHandler = decodeFailureHandler,
     )

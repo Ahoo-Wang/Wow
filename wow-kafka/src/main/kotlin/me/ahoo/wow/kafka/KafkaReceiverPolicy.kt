@@ -12,9 +12,6 @@
  */
 package me.ahoo.wow.kafka
 
-import reactor.util.retry.Retry
-import java.time.Duration
-
 /**
  * Receive-side policy of the Kafka buses.
  *
@@ -24,12 +21,12 @@ import java.time.Duration
  *   Reactor Kafka stops polling while this many acknowledged offsets wait for a commit; the buses therefore also
  *   commit as soon as that many are waiting (Reactor Kafka's `commitBatchSize`, capped at this value), so the pause
  *   only lasts while an earlier record is still in flight, or a commit is.
- * - [retrySpec]: retry of the receive stream.
+ *
+ * Receive retries follow the transport's [me.ahoo.wow.messaging.transport.TransportFailurePolicy].
  */
 class KafkaReceiverPolicy(
     val prefetchBatches: Int = DEFAULT_PREFETCH_BATCHES,
     val maxDeferredCommits: Int = DEFAULT_MAX_DEFERRED_COMMITS,
-    val retrySpec: Retry = defaultRetrySpec(),
 ) {
     init {
         require(prefetchBatches > 0) {
@@ -49,21 +46,5 @@ class KafkaReceiverPolicy(
          * periodic commit (`commitInterval`, 5 s by default).
          */
         const val DEFAULT_MAX_DEFERRED_COMMITS: Int = 500
-        const val DEFAULT_RETRY_ATTEMPTS: Long = 3
-        val DEFAULT_RETRY_BACKOFF: Duration = Duration.ofSeconds(10)
-
-        fun defaultRetrySpec(
-            maxAttempts: Long = DEFAULT_RETRY_ATTEMPTS,
-            minBackoff: Duration = DEFAULT_RETRY_BACKOFF,
-        ): Retry {
-            require(maxAttempts >= 0) {
-                "maxAttempts must not be negative."
-            }
-            require(!minBackoff.isNegative) {
-                "minBackoff must not be negative."
-            }
-            return Retry.backoff(maxAttempts, minBackoff)
-                .transientErrors(true)
-        }
     }
 }

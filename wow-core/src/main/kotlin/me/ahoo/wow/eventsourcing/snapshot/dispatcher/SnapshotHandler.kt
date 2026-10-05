@@ -14,18 +14,25 @@
 package me.ahoo.wow.eventsourcing.snapshot.dispatcher
 
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogResumeErrorHandler
+import me.ahoo.wow.processing.failure.FailureRecorder
+import me.ahoo.wow.processing.failure.FailureRecordingHandler
 
 interface SnapshotHandler : Handler<StateEventExchange<*>>
 
+/**
+ * The snapshot handler. The snapshot function acknowledges its state event itself ([SnapshotFunctionFilter]), so a
+ * failure is recorded with [failureRecorder] but never withholds the acknowledgement.
+ */
 class DefaultSnapshotHandler(
     chain: FilterChain<StateEventExchange<*>>,
-    errorHandler: ErrorHandler<StateEventExchange<*>> = LogResumeErrorHandler()
-) : SnapshotHandler, AbstractHandler<StateEventExchange<*>>(
-    chain,
-    errorHandler,
+    errorHandler: ErrorHandler<StateEventExchange<*>> = LogResumeErrorHandler(),
+    failureRecorder: FailureRecorder = FailureRecorder.NONE,
+) : SnapshotHandler, FailureRecordingHandler<StateEventExchange<*>>(
+    chain = chain,
+    errorHandler = errorHandler,
+    failureRecorder = failureRecorder,
 )

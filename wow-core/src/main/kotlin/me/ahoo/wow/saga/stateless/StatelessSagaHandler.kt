@@ -15,10 +15,11 @@ package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.dispatcher.EventHandler
-import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogResumeErrorHandler
+import me.ahoo.wow.processing.failure.FailureRecorder
+import me.ahoo.wow.processing.failure.FailureRecordingHandler
 
 /**
  * Handler interface for stateless sagas that processes domain events.
@@ -32,12 +33,18 @@ interface StatelessSagaHandler : EventHandler
  *
  * @param chain The filter chain to apply to domain event exchanges.
  * @param errorHandler The error handler for processing failures (default: [LogResumeErrorHandler]).
+ * @param failureRecorder Records failures durably (default: none).
+ * @param ackOnUnrecordedFailure Whether a failure no recorder recorded is acknowledged (default: true).
  */
 class DefaultStatelessSagaHandler(
     chain: FilterChain<DomainEventExchange<*>>,
-    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : AbstractHandler<DomainEventExchange<*>>(
-    chain,
-    errorHandler,
+    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler(),
+    failureRecorder: FailureRecorder = FailureRecorder.NONE,
+    ackOnUnrecordedFailure: Boolean = true,
+) : FailureRecordingHandler<DomainEventExchange<*>>(
+    chain = chain,
+    errorHandler = errorHandler,
+    failureRecorder = failureRecorder,
+    ackOnUnrecordedFailure = ackOnUnrecordedFailure,
 ),
     StatelessSagaHandler

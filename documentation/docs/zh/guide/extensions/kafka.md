@@ -92,7 +92,9 @@ wow:
 
 ### 接收端重试策略
 
-接收流按 `retry-attempts` 与 `retry-backoff` 重试连续失败。`prefetch-batches`、`max-deferred-commits` 必须大于 0；重试次数和退避不能为负，非法值由 `KafkaReceiverPolicy` 在启动装配时拒绝。
+接收流按 `retry-attempts` 与 `retry-backoff` 重试连续失败；重试耗尽后错误才到达 dispatcher，并让运行时停止。自 9.3.0 起重试由核心的 `TransportFailurePolicy` 定义，Kafka 与 Redis 相同（Bean `kafkaTransportFailurePolicy`；`KafkaReceiverPolicy` 不再有 `retrySpec`）。`prefetch-batches`、`max-deferred-commits` 必须大于 0；重试次数和退避不能为负，非法值在启动装配时被拒绝。
+
+自 9.3.0 起，Kafka 的 `RetriableException` 及其子类（超时、leader 变更、broker 不可用）注册为 `RECOVERABLE`（`KafkaRecoverableExceptionProvider`），`RetryableFilter` 与事件存储追加结果判定会重试因此失败的发送。
 
 ### 解码失败策略
 

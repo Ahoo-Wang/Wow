@@ -15,11 +15,12 @@ package me.ahoo.wow.event.dispatcher
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogResumeErrorHandler
+import me.ahoo.wow.processing.failure.FailureRecorder
+import me.ahoo.wow.processing.failure.FailureRecordingHandler
 
 /**
  * Base interface for event handlers that process domain event exchanges.
@@ -50,6 +51,8 @@ interface DomainEventHandler : EventHandler
  *
  * @param chain The filter chain to process domain events
  * @param errorHandler The error handler for processing failures (default: LogResumeErrorHandler)
+ * @param failureRecorder Records failures durably (default: none)
+ * @param ackOnUnrecordedFailure Whether a failure no recorder recorded is acknowledged (default: true)
  *
  * @see DomainEventHandler
  * @see AbstractHandler
@@ -58,9 +61,13 @@ interface DomainEventHandler : EventHandler
  */
 class DefaultDomainEventHandler(
     chain: FilterChain<DomainEventExchange<*>>,
-    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : AbstractHandler<DomainEventExchange<*>>(
-    chain,
-    errorHandler,
+    errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler(),
+    failureRecorder: FailureRecorder = FailureRecorder.NONE,
+    ackOnUnrecordedFailure: Boolean = true,
+) : FailureRecordingHandler<DomainEventExchange<*>>(
+    chain = chain,
+    errorHandler = errorHandler,
+    failureRecorder = failureRecorder,
+    ackOnUnrecordedFailure = ackOnUnrecordedFailure,
 ),
     DomainEventHandler

@@ -26,7 +26,7 @@ pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard exec vitest run
 ```
 
-`ExecutionFailedSpec` covers prepare, force prepare, success, another failure, and retry-specification changes. `CompensationFilterTest` covers filter error boundaries, while Dashboard tests cover queue conditions and action state. Successful commands prove only these local gates, not real messaging, storage, notifications, or a deployment environment.
+`ExecutionFailedSpec` covers prepare, force prepare, success, another failure, and retry-specification changes. `CompensationFailureRecorderTest` covers the recorder's error boundaries, `ExecutionFailedWireGoldenTest` locks the command bodies, while Dashboard tests cover queue conditions and action state. Successful commands prove only these local gates, not real messaging, storage, notifications, or a deployment environment.
 
 ## Local Service Startup, Health, and Route Check
 

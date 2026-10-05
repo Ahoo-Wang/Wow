@@ -27,6 +27,7 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.saga.stateless.DefaultStatelessSagaHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
@@ -35,6 +36,9 @@ import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import me.ahoo.wow.spring.boot.starter.event.EventProperties
+import me.ahoo.wow.spring.boot.starter.event.ackOnUnrecordedFailure
+import me.ahoo.wow.spring.boot.starter.event.orNone
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
@@ -97,9 +101,16 @@ class StatelessSagaAutoConfiguration {
     @Bean
     fun statelessSagaHandler(
         @Qualifier("statelessSagaFilterChain") chain: FilterChain<DomainEventExchange<*>>,
-        @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<*>>
+        @Qualifier("statelessSagaErrorHandler") statelessSagaErrorHandler: ErrorHandler<DomainEventExchange<*>>,
+        failureRecorder: ObjectProvider<FailureRecorder>,
+        eventProperties: ObjectProvider<EventProperties>,
     ): StatelessSagaHandler {
-        return DefaultStatelessSagaHandler(chain, statelessSagaErrorHandler)
+        return DefaultStatelessSagaHandler(
+            chain = chain,
+            errorHandler = statelessSagaErrorHandler,
+            failureRecorder = failureRecorder.orNone(),
+            ackOnUnrecordedFailure = eventProperties.ackOnUnrecordedFailure(),
+        )
     }
 
     @Bean

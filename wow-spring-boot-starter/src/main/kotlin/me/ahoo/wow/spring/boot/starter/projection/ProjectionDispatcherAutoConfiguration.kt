@@ -24,6 +24,7 @@ import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.projection.ProjectionFunctionFilter
@@ -32,6 +33,9 @@ import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import me.ahoo.wow.spring.boot.starter.event.EventProperties
+import me.ahoo.wow.spring.boot.starter.event.ackOnUnrecordedFailure
+import me.ahoo.wow.spring.boot.starter.event.orNone
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
@@ -87,9 +91,16 @@ class ProjectionDispatcherAutoConfiguration {
     @Bean
     fun projectionHandler(
         @Qualifier("projectionFilterChain") chain: FilterChain<DomainEventExchange<*>>,
-        @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<*>>
+        @Qualifier("projectionErrorHandler") projectionErrorHandler: ErrorHandler<DomainEventExchange<*>>,
+        failureRecorder: ObjectProvider<FailureRecorder>,
+        eventProperties: ObjectProvider<EventProperties>,
     ): ProjectionHandler {
-        return DefaultProjectionHandler(chain, projectionErrorHandler)
+        return DefaultProjectionHandler(
+            chain = chain,
+            errorHandler = projectionErrorHandler,
+            failureRecorder = failureRecorder.orNone(),
+            ackOnUnrecordedFailure = eventProperties.ackOnUnrecordedFailure(),
+        )
     }
 
     @Bean

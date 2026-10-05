@@ -63,7 +63,7 @@ The WeCom URL is a credential and should be injected through a secret. Successfu
 `wow.compensation.enabled=false` removes the complete application-side `CompensationAutoConfiguration`:
 
 - `EventCompensateSupporter`;
-- `DomainEventCompensationFilter` and `StateEventCompensationFilter`;
+- `CompensationFailureRecorder`, the event handlers' `FailureRecorder` (before 9.3.0, `DomainEventCompensationFilter` and `StateEventCompensationFilter`);
 - `CompensationEventProcessor`.
 
 With WebFlux on, the event compensate route (`PUT …/event/{version}/compensate`) needs `EventCompensateSupporter`, so it is left out of the router and the OpenAPI document; the other routes are unchanged. Up to 9.2.2 this combination failed at startup.

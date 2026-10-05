@@ -26,6 +26,7 @@ import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.transport.TransportDecodeFailure
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureAction
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.apache.kafka.clients.consumer.Consumer
@@ -51,6 +52,7 @@ import reactor.util.retry.Retry
 import java.time.Duration
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("LargeClass")
 class KafkaTransportTest {
@@ -419,8 +421,8 @@ class KafkaTransportTest {
         }
         bus = TestKafkaBus(
             receiver = receiver,
-            receiverPolicy = KafkaReceiverPolicy(
-                retrySpec = Retry.max(0)
+            failurePolicy = TransportFailurePolicy(
+                Retry.max(0)
                     .onRetryExhaustedThrow { _, signal -> signal.failure() },
             ),
             anchorAction = { _, _, _ -> throw failure },
@@ -506,7 +508,6 @@ class KafkaTransportTest {
         val policy = KafkaReceiverPolicy(
             prefetchBatches = 2,
             maxDeferredCommits = 7,
-            retrySpec = Retry.max(0),
         )
         val bus = TestKafkaBus(
             receiver = receiver,
@@ -543,6 +544,37 @@ class KafkaTransportTest {
     }
 
     @Test
+    fun `a failed receive stream is resubscribed according to the failure policy`() {
+        val message = message()
+        val record = receiverRecord(message, receiverOffset = mockk())
+        val receiver = mockk<KafkaReceiver<String, String>>()
+        val subscriptions = AtomicInteger()
+        every { receiver.receive(1) } returns Flux.defer {
+            if (subscriptions.incrementAndGet() == 1) {
+                Flux.error(IllegalStateException("broker blip"))
+            } else {
+                Flux.just(record)
+            }
+        }
+        val bus = TestKafkaBus(
+            receiver = receiver,
+            failurePolicy = TransportFailurePolicy(Retry.max(1)),
+        )
+
+        try {
+            bus.receiver(MessageSubscription(message, generateGlobalId())).openedMessages()
+                .test()
+                .consumeNextWith {
+                    it.message.id.assert().isEqualTo(message.id)
+                }
+                .verifyComplete()
+            subscriptions.get().assert().isEqualTo(2)
+        } finally {
+            bus.close()
+        }
+    }
+
+    @Test
     fun `commit batch size is capped after the receiver options customizers`() {
         val message = message()
         val receiver = mockk<KafkaReceiver<String, String>>()
@@ -550,7 +582,7 @@ class KafkaTransportTest {
         val bus = TestKafkaBus(
             receiver = receiver,
             receiverOptionsCustomizer = { it.commitBatchSize(50) },
-            receiverPolicy = KafkaReceiverPolicy(maxDeferredCommits = 7, retrySpec = Retry.max(0)),
+            receiverPolicy = KafkaReceiverPolicy(maxDeferredCommits = 7),
         )
 
         try {
@@ -740,7 +772,8 @@ class KafkaTransportTest {
     private class TestKafkaBus(
         receiver: KafkaReceiver<String, String>,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
-        receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(retrySpec = Retry.max(0)),
+        receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+        failurePolicy: TransportFailurePolicy = TransportFailurePolicy(Retry.max(0)),
         decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
         anchorAction: (
             Consumer<*, *>,
@@ -748,7 +781,13 @@ class KafkaTransportTest {
             (Throwable?) -> Unit,
         ) -> Unit = { _, _, completion -> completion(null) },
     ) : AutoCloseable {
-        private val transport = TestKafkaTransport(receiver, receiverOptionsCustomizer, receiverPolicy, anchorAction)
+        private val transport = TestKafkaTransport(
+            receiver,
+            receiverOptionsCustomizer,
+            receiverPolicy,
+            failurePolicy,
+            anchorAction
+        )
         private val bus = KafkaCommandBus(transport = transport, decodeFailureHandler = decodeFailureHandler)
 
         val capturedOptions: ReceiverOptions<String, String>?
@@ -764,6 +803,7 @@ class KafkaTransportTest {
         private val receiver: KafkaReceiver<String, String>,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
+        failurePolicy: TransportFailurePolicy,
         private val anchorAction: (
             Consumer<*, *>,
             Map<TopicPartition, Long>,
@@ -774,6 +814,7 @@ class KafkaTransportTest {
         receiverOptions = receiverOptions(),
         receiverOptionsCustomizer = receiverOptionsCustomizer,
         receiverPolicy = receiverPolicy,
+        failurePolicy = failurePolicy,
     ) {
         var capturedOptions: ReceiverOptions<String, String>? = null
 

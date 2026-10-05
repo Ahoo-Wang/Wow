@@ -29,9 +29,11 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import me.ahoo.wow.spring.boot.starter.event.orNone
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
@@ -113,9 +115,10 @@ class SnapshotAutoConfiguration(
 
     @Bean
     fun snapshotHandler(
-        @Qualifier("snapshotFilterChain") chain: FilterChain<StateEventExchange<*>>
+        @Qualifier("snapshotFilterChain") chain: FilterChain<StateEventExchange<*>>,
+        failureRecorder: ObjectProvider<FailureRecorder>,
     ): SnapshotHandler {
-        return DefaultSnapshotHandler(chain)
+        return DefaultSnapshotHandler(chain = chain, failureRecorder = failureRecorder.orNone())
     }
 
     @Bean

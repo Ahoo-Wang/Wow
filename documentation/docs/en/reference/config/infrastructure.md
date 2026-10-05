@@ -26,7 +26,7 @@ Configuration classes: `KafkaProperties`, `KafkaReceiverProperties`; required ca
 | `wow.kafka.consumer` | Map\<String, String\> | `{}` | Consumer overrides; higher precedence than common properties |
 | `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka poll batches to prefetch |
 | `wow.kafka.receiver.max-deferred-commits` | Int | `500` | Acknowledged offsets retained for out-of-order completion; a commit starts when this many are waiting |
-| `wow.kafka.receiver.retry-attempts` | Long | `3` | Maximum attempts for one consecutive receive-failure burst |
+| `wow.kafka.receiver.retry-attempts` | Long | `3` | Maximum retries for one consecutive receive-failure burst (`TransportFailurePolicy`) |
 | `wow.kafka.receiver.retry-backoff` | Duration | `10s` | Minimum receiver retry backoff |
 | `wow.kafka.receiver.decode-failure-strategy` | Enum | `fail` | `fail` or `acknowledge` |
 
@@ -83,11 +83,13 @@ All four MongoDB/Elasticsearch Store constructors share `me.ahoo.wow.infra.batch
 
 ## Redis
 
-Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`, `RedisStreamRetentionProperties`; required capability: `redis-support`.
+Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`, `RedisStreamRetentionProperties`, `RedisStreamReceiverProperties`; required capability: `redis-support`.
 
 | Property | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `wow.redis.enabled` | Boolean | `true` | Enables Redis auto-configuration |
+| `wow.redis.message-bus.receiver.retry-attempts` | Long | `3` | Maximum retries for one consecutive receive-failure burst (since 9.3.0; before, a Redis receive error was not retried) |
+| `wow.redis.message-bus.receiver.retry-backoff` | Duration | `10s` | Minimum receiver retry backoff |
 | `wow.redis.message-bus.recovery.enabled` | Boolean | `true` | Recovers abandoned pending messages in Redis Streams consumer groups |
 | `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | Minimum idle time before a pending entry can be claimed |
 | `wow.redis.message-bus.recovery.interval` | Duration | `30s` | Interval between recovery sweeps |

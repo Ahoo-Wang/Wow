@@ -15,11 +15,11 @@ package me.ahoo.wow.spring.boot.starter.compensation
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
-import me.ahoo.wow.compensation.core.DomainEventCompensationFilter
-import me.ahoo.wow.compensation.core.StateEventCompensationFilter
+import me.ahoo.wow.compensation.core.CompensationFailureRecorder
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
+import me.ahoo.wow.processing.failure.FailureRecorder
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -38,13 +38,8 @@ class CompensationAutoConfiguration {
     }
 
     @Bean
-    fun domainEventCompensationFilter(commandGateway: CommandGateway): DomainEventCompensationFilter {
-        return DomainEventCompensationFilter(commandGateway)
-    }
-
-    @Bean
-    fun stateEventCompensationFilter(commandGateway: CommandGateway): StateEventCompensationFilter {
-        return StateEventCompensationFilter(commandGateway)
+    fun compensationFailureRecorder(commandGateway: CommandGateway): FailureRecorder {
+        return CompensationFailureRecorder(commandGateway)
     }
 
     @Bean

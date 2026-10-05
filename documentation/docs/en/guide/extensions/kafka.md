@@ -92,7 +92,9 @@ Each bus independently supports `kafka`, `redis`, `in_memory`, or `no_op`. Do no
 
 ### Receiver Retry Policy
 
-The receive stream retries consecutive failures according to `retry-attempts` and `retry-backoff`. `prefetch-batches` and `max-deferred-commits` must be positive; attempts and backoff must not be negative. `KafkaReceiverPolicy` rejects invalid values while the runtime is wired.
+The receive stream retries consecutive failures according to `retry-attempts` and `retry-backoff`; only once they are exhausted does the error reach the dispatcher, which stops the runtime. Since 9.3.0 the retry is the core `TransportFailurePolicy`, the same for Kafka and Redis (bean `kafkaTransportFailurePolicy`; `KafkaReceiverPolicy` no longer has a `retrySpec`). `prefetch-batches` and `max-deferred-commits` must be positive; attempts and backoff must not be negative. Invalid values are rejected while the runtime is wired.
+
+Kafka's `RetriableException` and its subclasses (timeouts, leader changes, unavailable brokers) are registered as `RECOVERABLE` since 9.3.0 (`KafkaRecoverableExceptionProvider`), so `RetryableFilter` and the event-store append resolution retry a send that failed on them.
 
 ### Decode Failure Policy
 

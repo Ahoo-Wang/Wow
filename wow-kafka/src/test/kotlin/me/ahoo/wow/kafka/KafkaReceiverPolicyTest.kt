@@ -15,8 +15,6 @@ package me.ahoo.wow.kafka
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import reactor.util.retry.RetryBackoffSpec
-import java.time.Duration
 
 class KafkaReceiverPolicyTest {
 
@@ -26,10 +24,6 @@ class KafkaReceiverPolicyTest {
 
         policy.prefetchBatches.assert().isEqualTo(1)
         policy.maxDeferredCommits.assert().isEqualTo(500)
-        val retrySpec = policy.retrySpec as RetryBackoffSpec
-        retrySpec.maxAttempts.assert().isEqualTo(3)
-        retrySpec.minBackoff.assert().isEqualTo(Duration.ofSeconds(10))
-        retrySpec.isTransientErrors.assert().isTrue()
     }
 
     @Test
@@ -41,13 +35,5 @@ class KafkaReceiverPolicyTest {
         assertThrows<IllegalArgumentException> {
             KafkaReceiverPolicy(maxDeferredCommits = 0)
         }.message.assert().contains("must be greater than 0")
-
-        assertThrows<IllegalArgumentException> {
-            KafkaReceiverPolicy.defaultRetrySpec(maxAttempts = -1)
-        }.message.assert().isEqualTo("maxAttempts must not be negative.")
-
-        assertThrows<IllegalArgumentException> {
-            KafkaReceiverPolicy.defaultRetrySpec(minBackoff = Duration.ofNanos(-1))
-        }.message.assert().isEqualTo("minBackoff must not be negative.")
     }
 }
