@@ -122,7 +122,8 @@ class CommandKernelOrderTest {
 
     @Test
     fun `on error sees the last committed state when the append fails`() {
-        val outcome = process(FailingAppendEventStore(IllegalStateException("append failed")), CreateOrderProbe(AGGREGATE_ID))
+        val outcome =
+            process(FailingAppendEventStore(IllegalStateException("append failed")), CreateOrderProbe(AGGREGATE_ID))
 
         outcome.error.assert().isNotNull()
         val call = OrderProbe.onErrorCalls.single()

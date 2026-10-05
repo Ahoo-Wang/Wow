@@ -67,25 +67,28 @@ ProcessedNotifierFilter
 - 每次尝试都从第一次尝试之前的 exchange 开始：失败尝试留下的错误、事件流、聚合版本、命令调用结果、命令结果和命令聚合都不带到下一次，等待信号不会报告一个没有持久化的版本（自 9.2.3 起）；
 - `@OnError` 函数只在最终失败后（重试耗尽时取其原因）在最近一次加载的聚合上执行一次：通常是最后一次尝试的聚合，最后一次尝试在加载前失败时用更早一次尝试的聚合；没有任何尝试加载到聚合时不执行，自定义的非 `SimpleCommandAggregate` 的 `CommandAggregate` 由它自己的 `process` 处理错误（自 9.2.3 起）。
 
-`SimpleCommandAggregate.process` 随后检查期望版本、创建许可、owner、space、删除/恢复状态和命令函数是否存在。检查通过后，它在聚合的 `AggregateModel` 中查找命令。该模型在解析聚合元数据时编译一次：命令条目（含匹配的 after-command 函数以及内置的删除、恢复、资源标签处理）、错误函数，以及该类型所有状态聚合共享的溯源表。处理函数把命令根或状态根作为参数接收，不再按聚合实例或按命令绑定（自 9.3.0 起）。命令条目调用匹配函数及有序的 after-command 函数，把返回值展平为一条 `DomainEventStream` 并放入 exchange。
+`SimpleCommandAggregate.process` 随后检查期望版本、创建许可、owner、space、删除/恢复状态和命令函数是否存在。检查通过后，它在聚合的 `AggregateModel` 中查找命令。该模型在解析聚合元数据时编译一次：命令条目（含匹配的 after-command 函数以及内置的删除、恢复、资源标签处理）、错误函数，以及该类型所有状态聚合共享的溯源表。处理函数把命令根或状态根作为参数接收，不再按聚合实例或按命令绑定（自 9.3.0 起）。命令条目调用匹配函数及有序的 after-command 函数，把返回值展平为一条 `DomainEventStream` 并放入 exchange。每个函数在模型编译时选定唯一的结果适配器，把各种返回形态（普通值、`Mono`、`Flux`、其他 `Publisher`、`Flow`、`suspend` 结果）转成这条事件流，并使用同一条异常规则：函数抛出的异常不经包装直接传出，返回 `Flow` 的函数在返回之前抛出的异常也一样（自 9.3.0 起）。
 
-## 内存溯源与 append
+## 决定、追加、再应用
 
-命令函数产出事件流后，`SimpleCommandAggregate` 先调用 `state.onSourcing(eventStream)` 更新当前工作实例，再调用 `EventStore.append(eventStream)`。这个顺序让同一次处理中的内存状态立即可用，但权威提交点仍是 append 成功：
+命令函数只读状态。它产出的事件流先追加，追加成功后才应用到状态（自 9.3.0 起；此前先应用再追加）：
 
 ```text
-invoke command
+invoke command (reads state)
   -> build DomainEventStream
-  -> source events into in-memory state
   -> EventStore.append
-  -> mark command state STORED
+  -> source the committed events into the state
 ```
 
-append 前 exchange 的 aggregate version 已更新为事件流版本；只有 append 成功后命令状态才回到 `STORED`。append 失败时命令聚合进入 `EXPIRED`，本次工作实例不能继续使用。事件历史与状态恢复的完整合同见[事件溯源](../../domain/event-sourcing.md)。
+- **追加之前或追加时失败**（守卫、命令函数、版本冲突、存储错误）：状态停在最后一次已提交的版本。`@OnError` 看到的就是这个状态，exchange 上的聚合版本也保持已提交的版本。
+- **追加之后溯源失败**：提交无法撤回，命令按已提交报告：事件已存储并照常发布，失败以 ERROR 记录日志，不为它发送 `StateEvent`。该状态实例可能只应用了事件流的一部分，因此被丢弃：这个命令聚合不再接受后续命令。之后加载该聚合会执行同一个溯源函数并以同样的方式失败，直到修复为止。
+- `StateAggregate.onSourcing` 在事件流的所有溯源函数都执行完之后，才推进版本、事件 ID、操作人、事件时间和系统元数据（owner、space、删除标记、标签）；实现 `VersionAware` 的状态也在这时得到新版本。溯源函数抛出异常时，它们全部保持原来的版本。
+
+追加成功后，exchange 上的聚合版本才变为事件流的版本。事件历史与状态恢复的完整合同见[事件溯源](../../domain/event-sourcing.md)。
 
 ## ack/事件发送顺序
 
-`AggregateProcessorFilter` 对聚合处理结果使用 `finallyAck`。因此无论聚合处理成功还是报错，都会先执行 exchange 的 transport ack；成功路径再进入下一个 Filter。`SendDomainEventStreamFilter` 从 exchange 取得事件流，并在继续链之前等待 `DomainEventBus.send` 完成。其后的 `SendStateEventFilter` 在状态已初始化时复制事件流与当前状态，转换成 `StateEvent` 并尝试 `StateEventBus.send`。
+`AggregateProcessorFilter` 对聚合处理结果使用 `finallyAck`。因此无论聚合处理成功还是报错，都会先执行 exchange 的 transport ack；成功路径再进入下一个 Filter。`SendDomainEventStreamFilter` 从 exchange 取得事件流，并在继续链之前等待 `DomainEventBus.send` 完成。其后的 `SendStateEventFilter` 在状态已初始化且已应用这条事件流（版本等于事件流的版本）时复制事件流与当前状态，转换成 `StateEvent` 并尝试 `StateEventBus.send`。
 
 实际顺序是：
 
@@ -118,7 +121,7 @@ EventStore.append
 
 - `CommandAggregate`、它的父接口 `AggregateProcessor`、`CommandAggregateFactory` 与 `SimpleCommandAggregateFactory` 标注 `@WowSpi`。自行提供命令聚合的代码用 `@OptIn(WowSpi::class)` 选择加入，不加入时编译器给出警告。它们在同一个次版本线内保持二进制签名不变，次版本可以修改它们，并写进发布说明。
 - `AggregateProcessorFactory`、`RetryableAggregateProcessorFactory`、`AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SimpleStateAggregate`，函数元数据类型（`FunctionAccessorMetadata`、`InjectParameter`、`FirstParameterKind`、`AfterCommandFunctionMetadata`、`MessageFunctionRegistrar`、`SimpleMessageFunctionRegistrar`），事件分发器基类（`CompositeEventDispatcher`、`AbstractEventFunctionRegistrar`、`EventHandler`），`COMMAND_GATEWAY_FUNCTION`，以及 exchange 上处理器、元数据、调用结果的存取方法和事件流、版本的设置方法标注 `@InternalWowApi`：由 Wow 自己的模块装配，任何版本都可能修改。
-- `RetryableAggregateProcessor`、`SimpleCommandAggregate`、`CommandState`、编译后的聚合模型（`AggregateModel` 及其命令条目和编译后的函数）、exchange 属性键、函数访问器以及聚合与状态事件分发器是 `internal`。
+- `RetryableAggregateProcessor`、`SimpleCommandAggregate`、编译后的聚合模型（`AggregateModel` 及其命令条目和编译后的函数）、exchange 属性键、函数访问器以及聚合与状态事件分发器是 `internal`。
 
 应用通过 `CommandGateway` 发送命令，用 `@OnCommand` 函数处理命令，读取 `ServerCommandExchange.getEventStream()`，这些都不需要选择加入。命令函数需要当前状态时，声明 `ReadOnlyStateAggregate<S>` 参数（例如读取 `initialized`），而不是 `CommandAggregate`。
 

@@ -81,8 +81,11 @@ class SimpleStateAggregate<S : Any>(
     /**
      * Applies a stream of domain events to update the aggregate's state.
      *
-     * This method validates the event stream against the current aggregate state, applies each event
-     * to the state using registered sourcing functions, and updates metadata such as version and ownership.
+     * The stream is checked first (aggregate ID, next version). Then every event is applied to the state: the
+     * user's sourcing functions run, and the framework's system events (delete, recover, owner, space, tags) are noted.
+     * Only after all of them succeeded does the aggregate take the stream's version, event ID, operator, time and the
+     * noted metadata. When a sourcing function throws, the aggregate's metadata stays at the previous version; the
+     * state object may hold part of the stream and must be discarded.
      *
      * @param eventStream The domain event stream to source from.
      * @return This aggregate instance after sourcing.
@@ -115,13 +118,26 @@ class SimpleStateAggregate<S : Any>(
                 expectVersion = expectedNextVersion,
             )
         }
+        val metadata = SourcedMetadata(
+            ownerId = eventStream.ownerId.ifBlank { ownerId },
+            spaceId = eventStream.spaceId.ifBlank { spaceId },
+            deleted = deleted,
+            tags = tags,
+        )
+        for (domainEvent in eventStream) {
+            sourcing(domainEvent, metadata)
+        }
+        commit(eventStream, metadata)
+        return this
+    }
+
+    /** Advances the aggregate to [eventStream] once every event of it has been applied. */
+    private fun commit(eventStream: DomainEventStream, metadata: SourcedMetadata) {
         version = eventStream.version
-        if (eventStream.ownerId.isNotBlank()) {
-            ownerId = eventStream.ownerId
-        }
-        if (eventStream.spaceId.isNotBlank()) {
-            spaceId = eventStream.spaceId
-        }
+        ownerId = metadata.ownerId
+        spaceId = metadata.spaceId
+        deleted = metadata.deleted
+        tags = metadata.tags
         eventId = eventStream.id
         operator = eventStream.header.operator.orEmpty()
         eventTime = eventStream.createTime
@@ -129,50 +145,41 @@ class SimpleStateAggregate<S : Any>(
             firstOperator = operator
             firstEventTime = eventTime
         }
-        processAware(eventStream)
-
-        for (domainEvent in eventStream) {
-            sourcing(domainEvent)
+        if (state is VersionAware) {
+            state.version = eventStream.version
         }
-
         if (state is StateAggregateTagsExtractor<*>) {
             @Suppress("UNCHECKED_CAST")
             val extractor = state as StateAggregateTagsExtractor<S>
             tags = extractor.extract(this)
-        }
-        return this
-    }
-
-    private fun processAware(eventStream: DomainEventStream) {
-        if (state is VersionAware) {
-            state.version = eventStream.version
         }
     }
 
     /**
      * Applies a single domain event to the aggregate's state.
      *
-     * Handles special events like [AggregateDeleted], [AggregateRecovered], and [OwnerTransferred],
-     * and invokes registered sourcing functions for other events.
+     * Notes the effect of the system events [AggregateDeleted], [AggregateRecovered], [OwnerTransferred],
+     * [SpaceTransferred] and [ResourceTagsApplied] on [metadata], and invokes the registered sourcing function.
      *
      * @param domainEvent The domain event to apply.
+     * @param metadata The metadata the stream will set.
      */
-    private fun sourcing(domainEvent: DomainEvent<*>) {
+    private fun sourcing(domainEvent: DomainEvent<*>, metadata: SourcedMetadata) {
         val domainEventBody = domainEvent.body
         if (domainEventBody is AggregateDeleted) {
-            deleted = true
+            metadata.deleted = true
         }
         if (domainEventBody is AggregateRecovered) {
-            deleted = false
+            metadata.deleted = false
         }
         if (domainEventBody is OwnerTransferred) {
-            ownerId = domainEventBody.toOwnerId
+            metadata.ownerId = domainEventBody.toOwnerId
         }
         if (domainEventBody is SpaceTransferred) {
-            spaceId = domainEventBody.toSpaceId
+            metadata.spaceId = domainEventBody.toSpaceId
         }
         if (domainEventBody is ResourceTagsApplied) {
-            tags = domainEventBody.tags
+            metadata.tags = domainEventBody.tags
         }
         val sourcingFunction = sourcingTable[domainEventBody.javaClass]
         if (sourcingFunction != null) {
@@ -183,6 +190,14 @@ class SimpleStateAggregate<S : Any>(
             }
         }
     }
+
+    /** The aggregate metadata a stream being sourced will set, applied only when the whole stream was sourced. */
+    private class SourcedMetadata(
+        var ownerId: String,
+        var spaceId: SpaceId,
+        var deleted: Boolean,
+        var tags: AbacTags
+    )
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

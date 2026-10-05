@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 
 class MonoFunctionAccessorTest {
@@ -31,7 +30,7 @@ class MonoFunctionAccessorTest {
     fun `should use simple accessor for Mono return values`() {
         val accessor = ReactiveAccessorFixture::monoValue.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.MONO)
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext("mono")
             .verifyComplete()
@@ -41,7 +40,7 @@ class MonoFunctionAccessorTest {
     fun `should use sync accessor for non reactive return values`() {
         val accessor = ReactiveAccessorFixture::syncValue.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.SYNC)
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext("sync")
             .verifyComplete()
@@ -52,7 +51,7 @@ class MonoFunctionAccessorTest {
         val accessor = ReactiveAccessorFixture::fluxValues
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
-        accessor.assert().isInstanceOf(FluxMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.FLUX)
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext(listOf("flux-1", "flux-2"))
             .verifyComplete()
@@ -63,7 +62,7 @@ class MonoFunctionAccessorTest {
         val accessor = ReactiveAccessorFixture::publisherValues
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
-        accessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.PUBLISHER)
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext(listOf("publisher-1", "publisher-2"))
             .verifyComplete()
@@ -73,7 +72,7 @@ class MonoFunctionAccessorTest {
     fun `should adapt suspend return values into Mono`() {
         val accessor = ReactiveAccessorFixture::suspendValue.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(SuspendMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.SUSPEND)
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext("suspend")
             .verifyComplete()
@@ -84,7 +83,7 @@ class MonoFunctionAccessorTest {
         val accessor = ReactiveAccessorFixture::flowValues
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
-        accessor.assert().isInstanceOf(FlowMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.FLOW)
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext(listOf("flow-1", "flow-2"))
             .verifyComplete()
@@ -94,7 +93,7 @@ class MonoFunctionAccessorTest {
     fun `should wrap blocking functions with blocking accessor`() {
         val accessor = ReactiveAccessorFixture::blockingValue.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(BlockingMonoFunctionAccessor::class.java)
+        (accessor as AdaptedMonoFunctionAccessor<*, *>).blocking.assert().isTrue()
         StepVerifier.create(accessor.invoke(fixture))
             .expectNext("blocking")
             .verifyComplete()
@@ -104,7 +103,7 @@ class MonoFunctionAccessorTest {
     fun `invoke1 should use simple accessor for Mono return values`() {
         val accessor = ReactiveAccessorFixture::monoEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.MONO)
         StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("mono wow")
             .verifyComplete()
@@ -115,7 +114,7 @@ class MonoFunctionAccessorTest {
         val accessor = ReactiveAccessorFixture::extensionMonoEcho
             .toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.MONO)
         StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("mono wow")
             .verifyComplete()
@@ -125,7 +124,7 @@ class MonoFunctionAccessorTest {
     fun `invoke1 should use sync accessor`() {
         val accessor = ReactiveAccessorFixture::syncEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.SYNC)
         StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("sync wow")
             .verifyComplete()
@@ -136,7 +135,7 @@ class MonoFunctionAccessorTest {
         val accessor = ReactiveAccessorFixture::fluxEcho
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
-        accessor.assert().isInstanceOf(FluxMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.FLUX)
         StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext(listOf("flux wow", "flux wow"))
             .verifyComplete()
@@ -147,7 +146,7 @@ class MonoFunctionAccessorTest {
         val accessor = ReactiveAccessorFixture::publisherEcho
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
-        accessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)
+        accessor.adapter().assert().isEqualTo(ResultAdapter.PUBLISHER)
         StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext(listOf("publisher wow", "publisher wow"))
             .verifyComplete()
@@ -157,24 +156,45 @@ class MonoFunctionAccessorTest {
     fun `invoke1 should preserve blocking accessor wrapper`() {
         val accessor = ReactiveAccessorFixture::blockingEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
-        accessor.assert().isInstanceOf(BlockingMonoFunctionAccessor::class.java)
+        (accessor as AdaptedMonoFunctionAccessor<*, *>).blocking.assert().isTrue()
         StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("blocking wow")
             .verifyComplete()
     }
 
     @Test
-    fun `blocking invoke1 should delegate to wrapped invoke1`() {
-        val delegate = RecordingMonoFunctionAccessor()
-        val accessor = BlockingMonoFunctionAccessor(delegate, Schedulers.immediate())
+    fun `should unwrap an exception thrown while creating a flow`() {
+        val accessor = ReactiveAccessorFixture::throwingFlow.toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
-        StepVerifier.create(accessor.invoke1(fixture, "wow"))
-            .expectNext("single wow")
-            .verifyComplete()
-
-        delegate.invoke1Count.assert().isEqualTo(1)
-        delegate.invokeArrayCount.assert().isEqualTo(0)
+        StepVerifier.create(accessor.invoke(fixture))
+            .expectErrorMatches { it is IllegalStateException && it.message == "flow" }
+            .verify()
     }
+
+    @Test
+    fun `should unwrap exceptions thrown by sync and suspend functions`() {
+        StepVerifier.create(
+            ReactiveAccessorFixture::throwingSync.toMonoFunctionAccessor<ReactiveAccessorFixture, String>().invoke(
+                fixture
+            ),
+        ).expectErrorMatches { it is IllegalStateException && it.message == "sync" }
+            .verify()
+        StepVerifier.create(
+            ReactiveAccessorFixture::throwingSuspend.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+                .invoke(fixture),
+        ).expectErrorMatches { it is IllegalStateException && it.message == "suspend" }
+            .verify()
+    }
+
+    @Test
+    fun `should not move non blocking functions`() {
+        val accessor = ReactiveAccessorFixture::syncValue.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        (accessor as AdaptedMonoFunctionAccessor<*, *>).blocking.assert().isFalse()
+    }
+
+    private fun MonoFunctionAccessor<*, *>.adapter(): ResultAdapter =
+        (this as AdaptedMonoFunctionAccessor<*, *>).resultAdapter
 }
 
 private class ReactiveAccessorFixture {
@@ -211,29 +231,12 @@ private class ReactiveAccessorFixture {
 
     @Blocking
     fun blockingEcho(value: String): String = "blocking $value"
+
+    fun throwingFlow(): Flow<String> = throw IllegalStateException("flow")
+
+    fun throwingSync(): String = throw IllegalStateException("sync")
+
+    suspend fun throwingSuspend(): String = throw IllegalStateException("suspend")
 }
 
 private fun ReactiveAccessorFixture.extensionMonoEcho(value: String): Mono<String> = monoEcho(value)
-
-private class RecordingMonoFunctionAccessor : MonoFunctionAccessor<ReactiveAccessorFixture, Mono<String>> {
-    var invokeArrayCount: Int = 0
-    var invoke1Count: Int = 0
-
-    override val function = ReactiveAccessorFixture::syncEcho
-
-    override fun invoke(
-        target: ReactiveAccessorFixture,
-        args: Array<Any?>
-    ): Mono<String> {
-        invokeArrayCount++
-        return Mono.just("array ${args[0]}")
-    }
-
-    override fun invoke1(
-        target: ReactiveAccessorFixture,
-        arg: Any?
-    ): Mono<String> {
-        invoke1Count++
-        return Mono.just("single $arg")
-    }
-}

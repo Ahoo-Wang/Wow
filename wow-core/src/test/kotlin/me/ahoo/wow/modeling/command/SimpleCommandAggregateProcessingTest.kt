@@ -57,7 +57,7 @@ class SimpleCommandAggregateProcessingTest {
 
         aggregate.commandRoot.state().assert().isEqualTo("created")
         aggregate.state.version.assert().isEqualTo(1)
-        aggregate.commandState.assert().isEqualTo(CommandState.STORED)
+        aggregate.discarded.assert().isFalse()
         StepVerifier.create(eventStore.load(aggregate.aggregateId))
             .expectNextCount(1)
             .verifyComplete()
@@ -104,21 +104,6 @@ class SimpleCommandAggregateProcessingTest {
             .expectErrorSatisfies { error ->
                 error.assert().isInstanceOf(IllegalArgumentException::class.java)
                 error.message.assert().contains("Undefined command")
-            }
-            .verify()
-    }
-
-    @Test
-    fun `process rejects command when current command state is not stored`() {
-        val aggregate = commandAggregate()
-        aggregate.commandState = CommandState.SOURCED
-
-        StepVerifier.create(
-            aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage()))
-        )
-            .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(IllegalStateException::class.java)
-                error.message.assert().contains("is not stored")
             }
             .verify()
     }
@@ -356,7 +341,7 @@ class SimpleCommandAggregateProcessingTest {
 
         string.assert().contains("SimpleCommandAggregate(state=")
         string.assert().contains("metadata=")
-        string.assert().contains("commandState=STORED")
+        string.assert().contains("discarded=false")
     }
 
     private fun commandAggregate(

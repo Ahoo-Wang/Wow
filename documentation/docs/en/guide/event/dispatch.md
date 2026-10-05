@@ -56,7 +56,7 @@ See [Event Processor](./processor.md) and [Saga](../event/saga.md) for applicati
 
 ## Filter Order
 
-Each dispatcher collects Spring `ExchangeFilter` beans compatible with its exchange type, applies `@FilterType` to keep filters for that dispatcher, and sorts them by `@Order`. The current critical relative order has two forms:
+Each dispatcher collects Spring `ExchangeFilter` beans compatible with its exchange type, applies `@FilterType` to keep filters for that dispatcher, and sorts them by `@Order`: the `before`/`after` constraints are satisfied as a whole (a topological sort), ties go by `value` and then by registration order, a constraint naming a filter that is not present is ignored, and constraints that form a cycle fail startup with an error naming the cycle (since 9.3.0). The current critical relative order has two forms:
 
 ```text
 Processor / Saga / Projection:

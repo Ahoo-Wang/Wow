@@ -16,12 +16,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.appendResolvingOutcome
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.reactor.checkpoint
-import reactor.core.publisher.Mono
 
 /**
  * Represents a command aggregate that processes commands and manages state transitions.
@@ -51,69 +46,4 @@ interface CommandAggregate<C : Any, S : Any> :
 
     val state: StateAggregate<S>
     val commandRoot: C
-}
-
-/**
- * Represents the state of command processing in a command aggregate.
- *
- * This enum defines the lifecycle states of command processing: from initial storage,
- * through event sourcing, to final storage, and eventual expiration.
- *
- * - STORED: Initial state, supports sourcing events
- * - SOURCED: After sourcing, supports storing events
- * - EXPIRED: Final state, no operations supported
- */
-internal enum class CommandState {
-    STORED {
-        override fun onSourcing(
-            stateAggregate: StateAggregate<*>,
-            eventStream: DomainEventStream
-        ): CommandState {
-            stateAggregate.onSourcing(eventStream)
-            return SOURCED
-        }
-    },
-    SOURCED {
-        override fun onStore(eventStore: EventStore, eventStream: DomainEventStream): Mono<CommandState> {
-            return eventStore.appendResolvingOutcome(eventStream)
-                .checkpoint {
-                    "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [CommandState]"
-                }
-                .thenReturn(STORED)
-        }
-    },
-    EXPIRED
-    ;
-
-    /**
-     * Applies event sourcing to the state aggregate with the given event stream.
-     *
-     * @param stateAggregate The state aggregate to source events into.
-     * @param eventStream The domain event stream to source.
-     * @return The next command state.
-     * @throws UnsupportedOperationException if the current state doesn't support sourcing.
-     */
-    open fun onSourcing(
-        stateAggregate: StateAggregate<*>,
-        eventStream: DomainEventStream
-    ): CommandState =
-        throw UnsupportedOperationException(
-            "Failed to Sourcing eventStream[${eventStream.id}]: Current State[$this] does not support this operation.",
-        )
-
-    /**
-     * Stores the event stream in the event store.
-     *
-     * @param eventStore The event store to append to.
-     * @param eventStream The domain event stream to store.
-     * @return A Mono that completes with the next command state.
-     * @throws UnsupportedOperationException if the current state doesn't support storing.
-     */
-    open fun onStore(
-        eventStore: EventStore,
-        eventStream: DomainEventStream
-    ): Mono<CommandState> =
-        throw UnsupportedOperationException(
-            "Failed to Store eventStream[${eventStream.id}]: Current State[$this] does not support this operation.",
-        )
 }

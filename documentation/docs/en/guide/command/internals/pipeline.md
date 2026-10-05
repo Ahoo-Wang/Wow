@@ -67,25 +67,28 @@ The first Filter is the outermost wrapper, so it observes completion or failure 
 - starts every attempt from the exchange as it was before the first one: the error, event stream, aggregate version, command-invoke result, command results and command aggregate of a failed attempt are not carried over, so a wait signal never reports a version that was not stored (since 9.2.3);
 - runs the `@OnError` function once, after the final failure (unwrapped from a retry exhaustion), on the most recently loaded aggregate: the last attempt's, or an earlier attempt's when the last one failed before loading; not when no attempt loaded one, and not for a custom `CommandAggregate` that is not a `SimpleCommandAggregate`, whose own `process` handles its errors (since 9.2.3).
 
-`SimpleCommandAggregate.process` then checks expected version, create permission, owner, space, deleted/recovery state, and command-function availability. It looks the command up in the aggregate's `AggregateModel`, which is compiled once when the aggregate metadata is parsed: the command entries (with the matching after-command functions and the built-in delete, recover and resource-tag handlers), the error functions and the sourcing table that every state aggregate of the type shares. Handlers take the command root or state root as an argument, so nothing is bound per aggregate instance or per command (since 9.3.0). The entry invokes the matching function and ordered after-command functions, flattens their returns into one `DomainEventStream`, and stores it on the exchange.
+`SimpleCommandAggregate.process` then checks expected version, create permission, owner, space, deleted/recovery state, and command-function availability. It looks the command up in the aggregate's `AggregateModel`, which is compiled once when the aggregate metadata is parsed: the command entries (with the matching after-command functions and the built-in delete, recover and resource-tag handlers), the error functions and the sourcing table that every state aggregate of the type shares. Handlers take the command root or state root as an argument, so nothing is bound per aggregate instance or per command (since 9.3.0). The entry invokes the matching function and ordered after-command functions, flattens their returns into one `DomainEventStream`, and stores it on the exchange. One result adapter, chosen per function when the model compiles, turns every return shape (a value, `Mono`, `Flux`, another `Publisher`, `Flow` or a `suspend` result) into that stream with one exception rule: what the function throws arrives unwrapped, also when a function returning `Flow` throws before returning it (since 9.3.0).
 
-## In-memory sourcing and append
+## Decide, append, then apply
 
-After the function produces an event stream, `SimpleCommandAggregate` first calls `state.onSourcing(eventStream)` on the current working instance and then calls `EventStore.append(eventStream)`. The order makes the new state available during the same processing attempt, but append success remains the authoritative commit point:
+The command function only reads the state. Its event stream is appended first and applied to the state only after the append succeeded (since 9.3.0; before it, events were applied first):
 
 ```text
-invoke command
+invoke command (reads state)
   -> build DomainEventStream
-  -> source events into in-memory state
   -> EventStore.append
-  -> mark command state STORED
+  -> source the committed events into the state
 ```
 
-Before append, the exchange aggregate version is set to the event-stream version; the command state returns to `STORED` only after append succeeds. An append failure moves this command aggregate to `EXPIRED`, so the working instance cannot continue. See [Event Sourcing](../../domain/event-sourcing.md) for the history and recovery contract.
+- **A failure before or during the append** (a guard, the command function, a version conflict, a store error) leaves the state at the last committed version. `@OnError` sees that state, and the exchange's aggregate version stays the committed one.
+- **A sourcing failure after the append** cannot undo the commit, so the command is reported as committed: its events are stored and published, the failure is logged at ERROR, and no `StateEvent` is sent for it. The state instance may hold part of the stream, so it is discarded: that command aggregate refuses further commands. Loading the aggregate later runs the same sourcing function and fails the same way until it is fixed.
+- `StateAggregate.onSourcing` advances the version, event ID, operator, event time and the system metadata (owner, space, deleted, tags) only after every sourcing function of the stream ran; a `VersionAware` state gets the new version at that point too. When a sourcing function throws, all of them stay at the previous version.
+
+The exchange's aggregate version becomes the stream's version once the append succeeded. See [Event Sourcing](../../domain/event-sourcing.md) for the history and recovery contract.
 
 ## Ack/event-send order
 
-`AggregateProcessorFilter` applies `finallyAck` to aggregate processing. The exchange transport acknowledgement therefore runs whether aggregate processing completes or fails; only the successful path enters the next Filter. `SendDomainEventStreamFilter` obtains the stream from the exchange and waits for `DomainEventBus.send` before continuing. The following `SendStateEventFilter`, when state is initialized, copies the event stream and current state into a `StateEvent` and attempts `StateEventBus.send`.
+`AggregateProcessorFilter` applies `finallyAck` to aggregate processing. The exchange transport acknowledgement therefore runs whether aggregate processing completes or fails; only the successful path enters the next Filter. `SendDomainEventStreamFilter` obtains the stream from the exchange and waits for `DomainEventBus.send` before continuing. The following `SendStateEventFilter`, when the state is initialized and has applied this stream (its version is the stream's), copies the event stream and current state into a `StateEvent` and attempts `StateEventBus.send`.
 
 The effective order is:
 
@@ -118,7 +121,7 @@ The types on this page are implementation, not application API. Since 9.3.0 wow-
 
 - `CommandAggregate`, its supertype `AggregateProcessor`, `CommandAggregateFactory` and `SimpleCommandAggregateFactory` are marked `@WowSpi`. Code that supplies its own command aggregate opts in with `@OptIn(WowSpi::class)`; without it the compiler warns. They keep their binary signatures within a minor line, and a minor release may change them in its release notes.
 - `AggregateProcessorFactory`, `RetryableAggregateProcessorFactory`, `AggregateProcessorFilter`, `SendDomainEventStreamFilter`, `SimpleStateAggregate`, the function-metadata types (`FunctionAccessorMetadata`, `InjectParameter`, `FirstParameterKind`, `AfterCommandFunctionMetadata`, `MessageFunctionRegistrar`, `SimpleMessageFunctionRegistrar`), the event-dispatcher bases (`CompositeEventDispatcher`, `AbstractEventFunctionRegistrar`, `EventHandler`), `COMMAND_GATEWAY_FUNCTION`, and the exchange accessors for the processor, the metadata, the invoke result, the event stream setter and the version setter are `@InternalWowApi`: Wow's own modules wire them and they may change in any release.
-- `RetryableAggregateProcessor`, `SimpleCommandAggregate`, `CommandState`, the compiled aggregate model (`AggregateModel`, its command entries and compiled functions), the exchange attribute keys, the function accessors and the aggregate and state event dispatchers are `internal`.
+- `RetryableAggregateProcessor`, `SimpleCommandAggregate`, the compiled aggregate model (`AggregateModel`, its command entries and compiled functions), the exchange attribute keys, the function accessors and the aggregate and state event dispatchers are `internal`.
 
 Applications send commands through `CommandGateway`, handle them with `@OnCommand` functions and read `ServerCommandExchange.getEventStream()`; none of that needs an opt-in. A command function that needs the current state takes a `ReadOnlyStateAggregate<S>` parameter (for example to read `initialized`), not a `CommandAggregate`.
 

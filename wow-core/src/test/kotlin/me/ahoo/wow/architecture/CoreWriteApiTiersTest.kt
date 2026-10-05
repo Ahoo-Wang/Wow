@@ -36,7 +36,6 @@ import me.ahoo.wow.messaging.function.SimpleMessageFunctionAccessor
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.CommandState
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessor
 import me.ahoo.wow.modeling.command.SimpleCommandAggregate
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
@@ -74,7 +73,6 @@ class CoreWriteApiTiersTest {
             CompiledFunction::class,
             InjectedParameter::class,
             SourcingFunction::class,
-            CommandState::class,
             SimpleCommandAggregate::class,
             RetryableAggregateProcessor::class,
             MessageFunctionAccessor::class,
