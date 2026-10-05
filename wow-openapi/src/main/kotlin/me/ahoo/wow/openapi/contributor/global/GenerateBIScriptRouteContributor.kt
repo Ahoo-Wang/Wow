@@ -34,6 +34,10 @@ import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
 import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 
+/**
+ * The contract of the BI script route. It is not one of [me.ahoo.wow.openapi.contributor.DefaultRouteContributors]:
+ * whoever wires BI (the Spring Boot starter, when `wow-bi` is on the classpath) adds it next to the handler.
+ */
 object GenerateBIScriptRouteContributor : RouteContributor {
     override val id: String = "global.bi-script"
     override val category: RouteCategory = RouteCategory.GLOBAL

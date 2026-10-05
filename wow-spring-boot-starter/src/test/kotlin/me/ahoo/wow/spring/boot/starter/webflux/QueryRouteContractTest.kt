@@ -71,6 +71,7 @@ import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
@@ -81,7 +82,6 @@ import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.FIXED_STORAGE
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.fixedSchemas
-import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.QueryRouteModule
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.test.SagaVerifier
@@ -269,9 +269,9 @@ class QueryRouteContractTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
+                BiAutoConfiguration::class.java,
             )
             .run { context ->
                 context.assert().hasNotFailed()

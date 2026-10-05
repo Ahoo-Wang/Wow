@@ -20,7 +20,6 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.ErrorInfoConverter
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
@@ -160,29 +159,6 @@ class WebFluxErrorStrategyTest {
                 .consumeNextWith { response ->
                     response.statusCode().assert().isEqualTo(expectedStatus)
                     response.headers().getFirst(ERROR_CODE).assert().isEqualTo(expectedCode)
-                }
-                .verifyComplete()
-        }
-    }
-
-    @Test
-    fun `should map BI inspection failures to upstream HTTP statuses`() {
-        val request = MockServerRequest.builder()
-            .method(HttpMethod.POST)
-            .uri(URI.create("/wow/bi/script"))
-            .build()
-        val cases = mapOf(
-            BiDeploymentInspectionException.Inconsistent("inconsistent") to HttpStatus.BAD_GATEWAY,
-            BiDeploymentInspectionException.Unavailable() to HttpStatus.SERVICE_UNAVAILABLE,
-            BiDeploymentInspectionException.Timeout() to HttpStatus.GATEWAY_TIMEOUT,
-        )
-
-        cases.forEach { (error, expectedStatus) ->
-            DefaultWebFluxErrorStrategy.toServerResponse(request, error)
-                .test()
-                .consumeNextWith { response ->
-                    response.statusCode().assert().isEqualTo(expectedStatus)
-                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(error.errorInfo.errorCode)
                 }
                 .verifyComplete()
         }

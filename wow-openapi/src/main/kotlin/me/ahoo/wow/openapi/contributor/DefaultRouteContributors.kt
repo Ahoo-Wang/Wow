@@ -20,10 +20,14 @@ import me.ahoo.wow.openapi.contributor.aggregate.snapshot.SnapshotRouteContribut
 import me.ahoo.wow.openapi.contributor.aggregate.state.StateRouteContributor
 import me.ahoo.wow.openapi.contributor.global.CommandFacadeRouteContributor
 import me.ahoo.wow.openapi.contributor.global.CommandWaitRouteContributor
-import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.openapi.contributor.global.GenerateGlobalIdRouteContributor
 import me.ahoo.wow.openapi.contributor.global.GetWowMetadataRouteContributor
 
+/**
+ * The routes every Wow HTTP service has. Optional routes are not here: the BI script route
+ * ([me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor]) is added only where BI is wired, for
+ * example by the Spring Boot starter when `wow-bi` is on the classpath.
+ */
 object DefaultRouteContributors {
     fun all(): List<RouteContributor> {
         return listOf(
@@ -31,7 +35,6 @@ object DefaultRouteContributors {
             CommandFacadeRouteContributor,
             GetWowMetadataRouteContributor,
             GenerateGlobalIdRouteContributor,
-            GenerateBIScriptRouteContributor,
             CommandRouteContributor,
             StateRouteContributor,
             SnapshotRouteContributor,

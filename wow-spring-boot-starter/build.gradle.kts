@@ -41,6 +41,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "cosec-support", version.toString())
     }
+    registerFeature("biSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "bi-support", version.toString())
+    }
 }
 dependencies {
     kapt(platform(project(":wow-dependencies")))
@@ -54,15 +58,14 @@ dependencies {
     "redisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     "mockSupportImplementation"(project(":wow-mock"))
     "kafkaSupportImplementation"(project(":wow-kafka"))
-    "webfluxSupportApi"(project(":wow-bi"))
     "webfluxSupportImplementation"(project(":wow-webflux"))
     "cosecSupportImplementation"(project(":wow-cosec"))
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))
     "elasticsearchSupportImplementation"("org.springframework.boot:spring-boot-starter-data-elasticsearch")
     "opentelemetrySupportImplementation"(project(":wow-opentelemetry"))
-    "openapiSupportApi"(project(":wow-bi"))
     "openapiSupportImplementation"(project(":wow-openapi"))
     "openapiSupportImplementation"("org.springdoc:springdoc-openapi-starter-common")
+    "biSupportApi"(project(":wow-bi"))
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.boot:spring-boot-starter-jackson")
@@ -96,5 +99,6 @@ configurations.named("testImplementation") {
         configurations.getByName("opentelemetrySupportImplementation"),
         configurations.getByName("openapiSupportImplementation"),
         configurations.getByName("cosecSupportImplementation"),
+        configurations.getByName("biSupportImplementation"),
     )
 }

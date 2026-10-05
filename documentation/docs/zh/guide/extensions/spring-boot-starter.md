@@ -27,11 +27,12 @@ Spring Boot 从 `AutoConfiguration.imports` 加载 Wow 配置，再由 `@Conditi
 | `redis-support` | `wow-redis` + reactive Redis starter |
 | `mock-support` | `wow-mock` |
 | `kafka-support` | `wow-kafka` |
-| `webflux-support` | `wow-bi` API + `wow-webflux` |
+| `webflux-support` | `wow-webflux` |
 | `elasticsearch-support` | `wow-elasticsearch` + Spring Data Elasticsearch |
 | `opentelemetry-support` | `wow-opentelemetry` |
-| `openapi-support` | `wow-bi` API + `wow-openapi` + springdoc common |
+| `openapi-support` | `wow-openapi` + springdoc common |
 | `cosec-support` | `wow-cosec` |
+| `bi-support` | `wow-bi` API |
 
 请求完整坐标，例如 `requireCapability("me.ahoo.wow:mongo-support")`。Maven 不解析 Gradle feature variants，需要显式依赖相应模块。
 

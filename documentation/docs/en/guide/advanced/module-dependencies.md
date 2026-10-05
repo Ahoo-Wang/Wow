@@ -66,7 +66,6 @@ graph LR
     SCHEMA[wow-schema] --> OPENAPI
     CORE --> WEBFLUX[wow-webflux]
     OPENAPI --> WEBFLUX
-    BI[wow-bi] --> WEBFLUX
     CORE --> OTEL[wow-opentelemetry]
     WEBFLUX --> COSEC[wow-cosec]
 
@@ -76,7 +75,7 @@ graph LR
     ES -. elasticsearch-support .-> STARTER
     WEBFLUX -. webflux-support .-> STARTER
     OTEL -. opentelemetry-support .-> STARTER
-    BI -. "openapi-support (api)" .-> STARTER
+    BI[wow-bi] -. bi-support .-> STARTER
     OPENAPI -. "openapi-support (implementation)" .-> STARTER
     COSEC -. cosec-support .-> STARTER
 ```
@@ -194,15 +193,16 @@ A passing TCK does not prove capacity, upgrade safety, or disaster recovery for 
 | `redis-support` | `wow-redis` | Reactive Redis Spring Boot starter |
 | `mock-support` | `wow-mock` | Test only |
 | `kafka-support` | `wow-kafka` | Reactor Kafka |
-| `webflux-support` | `wow-bi` (API), `wow-webflux` | Spring WebFlux is already a base Starter dependency |
+| `webflux-support` | `wow-webflux` | Spring WebFlux is already a base Starter dependency |
 | `elasticsearch-support` | `wow-elasticsearch` | Elasticsearch Spring Boot starter |
 | `opentelemetry-support` | `wow-opentelemetry` | OpenTelemetry instrumentation API |
-| `openapi-support` | `wow-bi` (API), `wow-openapi` (implementation) | springdoc common |
+| `openapi-support` | `wow-openapi` (implementation) | springdoc common |
 | `cosec-support` | `wow-cosec` | CoSec integration chain |
+| `bi-support` | `wow-bi` (API) | ClickHouse client (through `wow-bi`) |
 
 A capability means **code is available**. `wow.*.enabled` and bus/storage properties decide **whether it is wired**. Backend health, schemas, topics, permissions, and recovery drills decide **whether it is operable**. These layers are not interchangeable.
 
-For `openapi-support`, `openapiSupportApi(project(":wow-bi"))` exposes the BI script API to consumers, while `openapiSupportImplementation(project(":wow-openapi"))` supplies OpenAPI generation internally. Both are direct project dependencies of that feature variant.
+`wow-webflux` and `openapi-support` do not bring `wow-bi`. The BI script route (`POST /wow/bi/script`) is wired only when `wow-bi` is on the classpath: request `bi-support` (`biSupportApi(project(":wow-bi"))`) or add `wow-bi` directly. Without it the route, its OpenAPI operation and its schemas are absent.
 
 ## Build Configuration
 

@@ -147,7 +147,7 @@ wow-api -> wow-metadata -> wow-core -> wow-spring -> wow-spring-boot-starter
                         -> wow-compiler (KSP; no wow-core dependency)
 ```
 
-`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, and `cosec-support`.
+`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, `cosec-support`, and `bi-support` (`wow-bi`; the BI script route exists only when `wow-bi` is on the classpath).
 
 
 ## Code Style

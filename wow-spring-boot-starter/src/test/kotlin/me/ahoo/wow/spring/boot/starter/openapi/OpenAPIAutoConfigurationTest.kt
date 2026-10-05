@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.SpecVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
+import me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -80,7 +81,8 @@ class OpenAPIAutoConfigurationTest {
             }
             runner
                 .enableWow()
-                .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+                .withPropertyValues("wow.webflux.enabled=false")
+                .withUserConfiguration(OpenAPIAutoConfiguration::class.java, BiAutoConfiguration::class.java)
                 .run { context: AssertableApplicationContext ->
                     val openAPI = OpenAPI()
                     context.getBean(WowOpenApiCustomizer::class.java).customise(openAPI)
@@ -89,5 +91,21 @@ class OpenAPIAutoConfigurationTest {
                         .assert().isEqualTo(enabled != false)
                 }
         }
+    }
+
+    @Test
+    fun `should leave the BI route out without wow-bi on the classpath`() {
+        contextRunner
+            .enableWow()
+            .withClassLoader(FilteredClassLoader("me.ahoo.wow.bi."))
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java, BiAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                context.getBean(RouterSpecs::class.java).toRouteCatalog().routes.map { it.path }.assert()
+                    .doesNotContain(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                val openAPI = OpenAPI()
+                context.getBean(WowOpenApiCustomizer::class.java).customise(openAPI)
+                openAPI.paths.containsKey(BuiltInHttpRoutePaths.Global.BI_SCRIPT).assert().isFalse()
+            }
     }
 }

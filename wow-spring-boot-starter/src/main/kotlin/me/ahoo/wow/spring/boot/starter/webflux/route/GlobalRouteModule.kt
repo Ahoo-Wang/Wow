@@ -14,16 +14,12 @@
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
 
-internal class GlobalRouteModule(
-    biScriptHandlerFunctionFactory: GenerateBIScriptHandlerFunctionFactory?,
-) : WebFluxRouteModule {
-    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = buildList {
-        add(GlobalIdHandlerFunctionFactory())
-        biScriptHandlerFunctionFactory?.let(::add)
-        add(GetWowMetadataHandlerFunctionFactory())
-    }
+internal class GlobalRouteModule : WebFluxRouteModule {
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
+        GlobalIdHandlerFunctionFactory(),
+        GetWowMetadataHandlerFunctionFactory(),
+    )
 }

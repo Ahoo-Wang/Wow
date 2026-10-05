@@ -12,9 +12,7 @@
  */
 package me.ahoo.wow.spring.boot.starter.webflux
 
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitCoordinator
@@ -32,11 +30,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
-import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
-import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
-import me.ahoo.wow.spring.boot.starter.bi.toBiScriptOptions
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.EventRouteModule
@@ -62,7 +56,6 @@ import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
-import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
@@ -87,7 +80,6 @@ import org.springframework.core.annotation.Order
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebExceptionHandler
-import java.util.function.Predicate
 
 /**
  * WebFlux Auto Configuration .
@@ -97,7 +89,7 @@ import java.util.function.Predicate
 @AutoConfiguration(after = [CommandAutoConfiguration::class, OpenAPIAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnWebfluxEnabled
-@EnableConfigurationProperties(WebFluxProperties::class, BiScriptProperties::class)
+@EnableConfigurationProperties(WebFluxProperties::class)
 @ConditionalOnClass(
     name = ["org.springframework.web.server.WebFilter", "me.ahoo.wow.webflux.route.command.CommandHandlerFunction"],
 )
@@ -370,28 +362,8 @@ class WebFluxAutoConfiguration {
     @Bean(name = ["globalRouteModule"])
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
-    internal fun globalRouteModule(
-        kafkaProperties: ObjectProvider<KafkaProperties>,
-        biScriptProperties: BiScriptProperties,
-        biDeploymentInspector: ObjectProvider<BiDeploymentInspector>,
-        exceptionHandler: RequestExceptionHandler,
-        biScriptAggregateExclusions: ObjectProvider<BiScriptAggregateExclusion>,
-    ): GlobalRouteModule {
-        if (!biScriptProperties.enabled) {
-            return GlobalRouteModule(biScriptHandlerFunctionFactory = null)
-        }
-        val deploymentInspector = requireNotNull(biDeploymentInspector.getIfAvailable()) {
-            "BiDeploymentInspector is required when wow.bi.script.enabled=true " +
-                "(inspector.type=${biScriptProperties.inspector.type})"
-        }
-        return GlobalRouteModule(
-            GenerateBIScriptHandlerFunctionFactory(
-                options = biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()),
-                deploymentInspector = deploymentInspector,
-                exceptionHandler = exceptionHandler,
-                aggregateFilter = biScriptAggregateExclusions.orderedStream().toList().toAggregateFilter(),
-            )
-        )
+    internal fun globalRouteModule(): GlobalRouteModule {
+        return GlobalRouteModule()
     }
 
     @Bean
@@ -427,6 +399,3 @@ class WebFluxAutoConfiguration {
 
 private fun ObjectProvider<IdentityHeaderAliases>.merged(): IdentityHeaderAliases =
     IdentityHeaderAliases.merge(orderedStream().toList())
-
-private fun List<BiScriptAggregateExclusion>.toAggregateFilter(): Predicate<NamedAggregate> =
-    Predicate { namedAggregate -> none { it.excludes(namedAggregate) } }
