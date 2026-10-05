@@ -21,6 +21,7 @@ import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
+import org.springframework.http.HttpStatusCode
 import org.springframework.http.MediaType
 import org.springframework.validation.BindingResult
 import org.springframework.web.ErrorResponse
@@ -31,14 +32,31 @@ import reactor.core.publisher.Mono
 import java.io.FileNotFoundException
 import java.util.concurrent.TimeoutException
 
+/**
+ * The one mapping from a failure to what an HTTP client sees.
+ *
+ * Every error Wow's routes report goes through it: the error response of a JSON route ([toServerResponse]), a failure
+ * outside the routes ([writeToExchange]), and, since 9.3.0, the error event of an SSE stream and the error of a batch
+ * result ([toErrorInfo]), so one failure gets the same error code and message on every route.
+ */
 interface WebFluxErrorStrategy {
     fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse>
     fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void>
+
+    /**
+     * The error code and message reported for [throwable] where the response has no status of its own: an SSE error
+     * event, the error of a batch result. A failure the strategy does not classify is `InternalServerError` with a
+     * generic message, never the exception's own.
+     *
+     * A strategy that changes the codes or messages of [toServerResponse] overrides this too; by default it is
+     * [DefaultWebFluxErrorStrategy]'s mapping.
+     */
+    fun toErrorInfo(throwable: Throwable): ErrorInfo = throwable.toWebFluxErrorInfo()
 }
 
 object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
     override fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
-        val errorInfo = throwable.toWebFluxErrorInfo()
+        val errorInfo = toErrorInfo(throwable)
         return ServerResponse.status(throwable.httpStatus(errorInfo))
             .contentType(MediaType.APPLICATION_JSON)
             .header(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
@@ -51,7 +69,7 @@ object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
             return Mono.empty()
         }
 
-        val errorInfo = throwable.toWebFluxErrorInfo()
+        val errorInfo = toErrorInfo(throwable)
         response.statusCode = throwable.httpStatus(errorInfo)
         response.headers.contentType = MediaType.APPLICATION_JSON
         response.headers.set(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
@@ -59,7 +77,8 @@ object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
     }
 }
 
-private fun Throwable.httpStatus(errorInfo: ErrorInfo) =
+/** The status for [errorInfo] of this failure: the one an [ErrorResponse] carries, else its error code's. */
+internal fun Throwable.httpStatus(errorInfo: ErrorInfo): HttpStatusCode =
     (this as? ErrorResponse)?.statusCode ?: errorInfo.toHttpStatus()
 
 private fun Throwable.toWebFluxErrorInfo(): ErrorInfo {

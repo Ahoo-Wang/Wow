@@ -28,6 +28,7 @@ public final class me/ahoo/wow/webflux/exception/DefaultGlobalExceptionHandlerKt
 
 public final class me/ahoo/wow/webflux/exception/DefaultWebFluxErrorStrategy : me/ahoo/wow/webflux/exception/WebFluxErrorStrategy {
 	public static final field INSTANCE Lme/ahoo/wow/webflux/exception/DefaultWebFluxErrorStrategy;
+	public fun toErrorInfo (Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/ErrorInfo;
 	public fun toServerResponse (Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
 	public fun writeToExchange (Lorg/springframework/web/server/ServerWebExchange;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
 }
@@ -65,6 +66,11 @@ public final class me/ahoo/wow/webflux/exception/NoResourceFoundExceptionConvert
 
 public abstract interface class me/ahoo/wow/webflux/exception/RequestExceptionHandler {
 	public abstract fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
+	public fun handleInBody (Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/ErrorInfo;
+}
+
+public final class me/ahoo/wow/webflux/exception/RequestExceptionHandler$DefaultImpls {
+	public static fun handleInBody (Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/ErrorInfo;
 }
 
 public final class me/ahoo/wow/webflux/exception/ResponseStatusExceptionConverter : me/ahoo/wow/exception/ErrorInfoConverter {
@@ -90,8 +96,13 @@ public final class me/ahoo/wow/webflux/exception/ServerWebInputExceptionConverte
 }
 
 public abstract interface class me/ahoo/wow/webflux/exception/WebFluxErrorStrategy {
+	public fun toErrorInfo (Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/ErrorInfo;
 	public abstract fun toServerResponse (Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
 	public abstract fun writeToExchange (Lorg/springframework/web/server/ServerWebExchange;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/webflux/exception/WebFluxErrorStrategy$DefaultImpls {
+	public static fun toErrorInfo (Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/ErrorInfo;
 }
 
 public final class me/ahoo/wow/webflux/exception/WebFluxRequestExceptionHandler : me/ahoo/wow/webflux/exception/RequestExceptionHandler {
@@ -100,6 +111,7 @@ public final class me/ahoo/wow/webflux/exception/WebFluxRequestExceptionHandler 
 	public synthetic fun <init> (Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun formatRequest (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
+	public fun handleInBody (Lorg/springframework/web/reactive/function/server/ServerRequest;Ljava/lang/Throwable;)Lme/ahoo/wow/api/exception/ErrorInfo;
 }
 
 public abstract class me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport : me/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory {
@@ -113,6 +125,7 @@ public abstract class me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFac
 
 public final class me/ahoo/wow/webflux/route/BatchResultsKt {
 	public static final fun toBatchResult (Lreactor/core/publisher/Flux;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public static final fun toBatchResult (Lreactor/core/publisher/Flux;Ljava/lang/String;Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)Lreactor/core/publisher/Mono;
 }
 
 public abstract class me/ahoo/wow/webflux/route/CommandRouteHandlerFunctionFactorySupport : me/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory {
@@ -342,6 +355,7 @@ public final class me/ahoo/wow/webflux/route/event/state/ResendStateEventHandler
 	public static final field Companion Lme/ahoo/wow/webflux/route/event/state/ResendStateEventHandler$Companion;
 	public fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)V
 	public final fun handle (Ljava/lang/String;I)Lreactor/core/publisher/Mono;
+	public final fun resend (Ljava/lang/String;I)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/webflux/route/event/state/ResendStateEventHandler$Companion {

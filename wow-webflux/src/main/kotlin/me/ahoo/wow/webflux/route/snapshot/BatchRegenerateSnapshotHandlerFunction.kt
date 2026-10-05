@@ -58,7 +58,7 @@ class BatchRegenerateSnapshotHandlerFunction(
             batchExecutionPolicy.apply(scanFlux) { aggregateId ->
                 handler.handle(aggregateId).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
             }
-        }.toBatchResult(afterId).toServerResponse(request, exceptionHandler)
+        }.toBatchResult(afterId, request, exceptionHandler).toServerResponse(request, exceptionHandler)
     }
 }
 

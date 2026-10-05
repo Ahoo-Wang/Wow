@@ -116,7 +116,7 @@ HTTP 预算类拒绝（`HTTP list query limit[...] must be between ...` 等）�
 
 ## 流
 
-查询流（`listStream`、`listStateStream`、`aggregateStream`、事件客户端的 `loadStream`）和 `CommandClient.sendAndWaitStream` 在服务端中途失败时以 `WowError` 出错。此时 Wow 已经应答了 HTTP 200，于是发出最后一个以错误码命名的事件并关闭；客户端把这个事件变成错误：
+查询流（`listStream`、`listStateStream`、`aggregateStream`、事件客户端的 `loadStream`）和 `CommandClient.sendAndWaitStream` 在服务端中途失败时以 `WowError` 出错。此时 Wow 已经应答了 HTTP 200，于是发出最后一个以错误码命名的事件并关闭。错误码和消息与 JSON 路由的应答相同：自 Wow 9.3.0 起，服务端的意外失败是 `InternalServerError` 加通用消息（此前是 `BadRequest` 加异常的原始消息）。客户端把这个事件变成错误：
 
 ```ts
 import { WowError, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';

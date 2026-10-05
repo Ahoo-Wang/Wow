@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.exception
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
 import org.springframework.http.HttpStatusCode
@@ -24,7 +25,18 @@ import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
 
 interface RequestExceptionHandler {
+    /** The error response of a request that failed before its response started. */
     fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse>
+
+    /**
+     * The error a response reports in its body, because its status is already `200`: the error event of an SSE
+     * stream that fails, the error of a batch result. Since 9.3.0 it is mapped like [handle]'s response, so an
+     * unexpected failure is `InternalServerError` with a generic message here too.
+     *
+     * By default it is [DefaultWebFluxErrorStrategy]'s mapping, without logging.
+     */
+    fun handleInBody(request: ServerRequest, throwable: Throwable): ErrorInfo =
+        DefaultWebFluxErrorStrategy.toErrorInfo(throwable)
 }
 
 class WebFluxRequestExceptionHandler(
@@ -34,6 +46,18 @@ class WebFluxRequestExceptionHandler(
 
     fun ServerRequest.formatRequest(): String {
         return "HTTP ${method()} ${uri()}"
+    }
+
+    /** Maps [throwable] with the error strategy and logs it as [handle] logs the response it would have rendered. */
+    override fun handleInBody(request: ServerRequest, throwable: Throwable): ErrorInfo {
+        val errorInfo = errorStrategy.toErrorInfo(throwable)
+        log.requestFailure(
+            request.formatRequest(),
+            throwable.httpStatus(errorInfo),
+            errorInfo.errorCode,
+            throwable
+        )
+        return errorInfo
     }
 
     override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
@@ -81,6 +105,8 @@ class WebFluxRequestExceptionHandler(
  * - a 4xx whose code is `IllegalState` is too: the server reached a state it did not expect (a backend timeout, a
  *   broken invariant), not a request it refused, so it is logged at `WARN` with its stack trace, although the answer
  *   stays a 400 (the status of existing routes is part of the v9 REST contract);
+ * - so is a `BatchTaskError`: a task of a batch failed, and its message only names the aggregate; the cause (the
+ *   handler's or the store's exception) is in the stack trace, logged at `WARN`;
  * - any other 4xx is the request's: one `WARN` line with the message, no stack trace.
  */
 internal fun KLogger.requestFailure(
@@ -91,11 +117,14 @@ internal fun KLogger.requestFailure(
 ) {
     when {
         status.is5xxServerError -> error(throwable) { request }
-        status.is4xxClientError && errorCode != ErrorCodes.ILLEGAL_STATE ->
+        status.is4xxClientError && errorCode !in CODES_LOGGED_WITH_STACK ->
             warn { "$request - ${throwable.singleLineMessage()}" }
 
         else -> warn(throwable) { request }
     }
 }
+
+/** The 4xx error codes that are the server's failure, not the request's, so their stack trace is logged. */
+private val CODES_LOGGED_WITH_STACK = setOf(ErrorCodes.ILLEGAL_STATE, BatchTaskException.ERROR_CODE)
 
 internal fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')

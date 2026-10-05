@@ -116,7 +116,7 @@ HTTP budget rejections (`HTTP list query limit[...] must be between ...` and the
 
 ## Streams
 
-A query stream (`listStream`, `listStateStream`, `aggregateStream`, the event client's `loadStream`) and `CommandClient.sendAndWaitStream` error with a `WowError` when the server fails midway. Wow has already answered HTTP 200 by then, so it sends one last event named after the error code and closes; the client turns that event into the error:
+A query stream (`listStream`, `listStateStream`, `aggregateStream`, the event client's `loadStream`) and `CommandClient.sendAndWaitStream` error with a `WowError` when the server fails midway. Wow has already answered HTTP 200 by then, so it sends one last event named after the error code and closes. The code and message are the ones a JSON route would answer with: since Wow 9.3.0 an unexpected server failure is `InternalServerError` with a generic message (before, `BadRequest` with the exception's own message). The client turns that event into the error:
 
 ```ts
 import { WowError, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';

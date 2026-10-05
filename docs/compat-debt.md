@@ -165,8 +165,15 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `receiver(subscription)`; `receiver(subscription.copy(runtimeOwned = true))` for a runtime-owned receiver.
 - **Removal in v10**: delete `receive` and `runtimeReceiver` from `MessageBus` and make `receiver` abstract; delete the hidden constructors and `copy` of `MessageSubscription`. A bus that implements only `receive` then stops compiling, and the release notes tell implementers to override `receiver`. Remove the deprecated-default exemption from `DefaultMethodContract` (`test/wow-tck`) if nothing else uses it.
 
+### Wow 9.2 WebFlux Error Helpers
+
+- **Kept compatible**: helpers that map an error outside `WebFluxErrorStrategy`, which 9.3.0 made the one mapping of every route error. `Throwable.toResponseEntity()` and `ErrorInfo.toServerResponse()` (no caller in Wow) still map with the core converter, so an unexpected exception is `BadRequest` with its own message there. `Flux<AggregateId>.toBatchResult(afterId)` and `ResendStateEventHandler.handle(afterId, limit)` map with `DefaultWebFluxErrorStrategy` and log on their own, so a custom strategy and the request's log line do not reach them.
+- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/Responses.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/BatchResults.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/event/state/ResendStateEventHandler.kt`
+- **Replacement**: `WebFluxErrorStrategy.toServerResponse` (or the `RequestExceptionHandler` bean); `toBatchResult(afterId, request, exceptionHandler)`; `ResendStateEventHandler.resend(afterId, limit)` followed by that `toBatchResult`.
+- **Removal in v10**: delete the four functions. Callers move to the replacements; nothing on the wire changes.
+
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.
 
-- **SSE error events say `BadRequest` with the exception's own message.** On an event-stream route, an error mid-stream goes out as an SSE event built by the core converter (`toErrorInfo()` in `errorResume`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/response/WebFluxResponseStrategy.kt`): an unmapped exception becomes event `BadRequest` and its raw message reaches the client. The JSON path answers the same exception with 500 `InternalServerError` and "Unexpected server error" (`WebFluxErrorStrategy`). 9.1.5 behaves the same, and 9.1 and 9.2 run mixed in one cluster, so a change in 9.2 alone would give one route two error shapes depending on the node that answers (#3845, user decision 2026-10-01). v10: build the SSE error event with the HTTP error strategy, so an unmapped exception is event `InternalServerError` with the generic message, and say so in the release notes.
+None.

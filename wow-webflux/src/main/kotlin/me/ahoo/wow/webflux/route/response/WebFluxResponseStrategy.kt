@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.route.response
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
@@ -133,20 +132,23 @@ private fun ErrorInfo.toJsonResponse(): Mono<ServerResponse> {
         .bodyValue(toJsonString())
 }
 
+/**
+ * Ends a failed stream with an error event, mapped and logged by [RequestExceptionHandler.handleInBody] (the stream's
+ * `200` is already sent), then propagates the failure.
+ */
 internal fun Flux<ServerSentEvent<String>>.errorResume(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Flux<ServerSentEvent<String>> {
     return onErrorResume { original ->
         Flux.defer {
-            val errorInfo = original.toErrorInfo()
+            val errorInfo = exceptionHandler.handleInBody(request, original)
             val errorEvent = ServerSentEvent.builder<String>()
                 .id(generateGlobalId())
                 .event(errorInfo.errorCode)
                 .data(errorInfo.toJsonString())
                 .build()
-
-            exceptionHandler.handle(request, original).thenMany(Flux.just(errorEvent))
+            Flux.just(errorEvent)
         }.onErrorResume { handlerError ->
             if (handlerError !== original && original.suppressed.none { it === handlerError }) {
                 original.addSuppressed(handlerError)

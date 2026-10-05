@@ -32,6 +32,11 @@ import me.ahoo.wow.webflux.route.response.errorResume as responseErrorResume
 
 object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
 
+/**
+ * Maps with the core converter, not the [me.ahoo.wow.webflux.exception.WebFluxErrorStrategy] Wow's routes use, so an
+ * unexpected exception is `BadRequest` with its own message here.
+ */
+@Deprecated("Scheduled for removal in 10.0.0. Use WebFluxErrorStrategy.toServerResponse.")
 fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val errorInfo = toErrorInfo()
     val status = errorInfo.toHttpStatus()
@@ -41,6 +46,7 @@ fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
         .body(errorInfo)
 }
 
+@Deprecated("Scheduled for removal in 10.0.0. Use WebFluxErrorStrategy.toServerResponse.")
 fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
     val status = toHttpStatus()
     return ServerResponse.status(status)

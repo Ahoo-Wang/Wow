@@ -25,8 +25,11 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
+import me.ahoo.wow.webflux.route.toBatchResult
 import org.junit.jupiter.api.Test
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
 
 class ResendStateEventHandlerTest {
@@ -52,7 +55,8 @@ class ResendStateEventHandlerTest {
             ),
             batchExecutionPolicy = BatchExecutionPolicy(),
         )
-        handlerFunction.handle("(0)", 10)
+        handlerFunction.resend("(0)", 10)
+            .toBatchResult("(0)", MockServerRequest.builder().build(), WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.size.assert().isOne()
