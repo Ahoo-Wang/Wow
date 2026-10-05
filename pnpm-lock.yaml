@@ -277,8 +277,8 @@ catalogs:
       specifier: ^8.70.1
       version: 8.70.1
     unplugin-dts:
-      specifier: 1.1.1
-      version: 1.1.1
+      specifier: 1.1.2
+      version: 1.1.2
     vite:
       specifier: 8.3.2
       version: 8.3.2
@@ -657,7 +657,7 @@ importers:
         version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
-        version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -843,7 +843,7 @@ importers:
         version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
-        version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -913,7 +913,7 @@ importers:
         version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
-        version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -989,7 +989,7 @@ importers:
         version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
-        version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -1152,7 +1152,7 @@ importers:
         version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
-        version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -1203,7 +1203,7 @@ importers:
         version: 8.70.1(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)
       unplugin-dts:
         specifier: 'catalog:'
-        version: 1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1))
       vite:
         specifier: 'catalog:'
         version: 8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)
@@ -1983,9 +1983,6 @@ packages:
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
     engines: {node: '>=6.0.0'}
-
-  '@jridgewell/sourcemap-codec@1.5.5':
-    resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
@@ -6561,8 +6558,8 @@ packages:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
 
-  unplugin-dts@1.1.1:
-    resolution: {integrity: sha512-Z2VcabC0hjYuzF62oWmZXVoxagkM8bUWgqUy+dotoJTPnooR5mNaxbpv63JCmcaxdGCW2Bb75omK6FOryOYCRg==}
+  unplugin-dts@1.1.2:
+    resolution: {integrity: sha512-RDqy90XUmFj6rz4U5YoTMdYdaCJe2ZnQZaWIjkWS4952Gv0zBTQyqWtlGgVMPYHa982dURvyoc+sUOFIcDFv+w==}
     peerDependencies:
       '@microsoft/api-extractor': '>=7'
       '@rspack/core': ^1
@@ -7752,8 +7749,6 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/resolve-uri@3.1.2': {}
-
-  '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
@@ -11116,7 +11111,7 @@ snapshots:
 
   magic-string@0.30.21:
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   magic-string@1.4.2:
     dependencies:
@@ -12578,7 +12573,7 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unplugin-dts@1.1.1(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)):
+  unplugin-dts@1.1.2(@microsoft/api-extractor@7.59.3(@types/node@26.6.4))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)):
     dependencies:
       '@rollup/pluginutils': 5.4.0(rollup@4.63.4)
       '@volar/typescript': 2.4.28
