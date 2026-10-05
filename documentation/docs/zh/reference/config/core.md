@@ -76,7 +76,7 @@ LocalFirst 同时发送分布式副本并尝试本地准入。所有目标本地
 
 ### IdempotencyProperties
 
-Bloom Filter 是进程内的快速预检，不是业务真相来源。预检拒绝后，`DefaultCommandGateway` 仍会通过 EventStore 的 request-id 检查确认是否真的重复。发送失败会释放已占用的条目。关闭此配置会安装 no-op 预检，但不会把客户端重试自动变成 exactly-once。
+Bloom Filter 是进程内的快速预检，不是业务真相来源。预检拒绝后，`DefaultCommandGateway` 仍会通过 EventStore 的 request-id 检查确认是否真的重复；没有 EventStore 的网关会放行。发送失败会释放已占用的条目。处理命令的节点另有一个相同配置的 Bloom Filter，在处理函数执行之前对照自己的 EventStore 检查 request ID（自 9.3.0 起）。关闭此配置会同时关闭这两处检查，但不会把客户端重试自动变成 exactly-once。
 
 #### BloomFilter
 

@@ -29,15 +29,16 @@ flowchart TB
 
 ## Pre-send pipeline
 
-Every `DefaultCommandGateway` send path first runs the same `check`:
+`DefaultCommandGateway` is a facade: it puts one admission chain in front of a `CommandBus` it does not own. Every send path runs the same chain, in this order:
 
 1. A body implementing `CommandValidator` validates itself before the Jakarta `Validator` runs.
 2. `RequestIdChecker.check(aggregateId, requestId)` performs the request-ID precheck; `false` terminates with `DuplicateRequestIdException`. Validation runs first, so a command that fails it does not consume its request ID (since 9.2.3).
-3. `CommandBus.send` is invoked only after both checks complete; when it fails, `RequestIdChecker.release` gives the reservation back.
+3. For `sendAndWait` and `sendAndWaitStream` only: the wait plan must support a `Void` command, the wait handle is registered, and the message to send is built as a copy of the caller's message whose Header also carries the wait keys. The caller's message is not modified (since 9.3.0; before it, the gateway wrote the wait keys into the caller's Header just before sending).
+4. `CommandBus.send`; when it fails, `RequestIdChecker.release` gives the reservation back.
 
-`sendAndWait` and `sendAndWaitStream` also verify that the wait plan supports a `Void` command, register a wait handle, propagate the wait plan into the Header, and then send. `sendAndWaitForSent` is a separate fast path: it allocates no handle and propagates no wait Header, but synthesizes a `SENT` result after `CommandBus.send` succeeds.
+The `SENT` signal is produced in one place, after `CommandBus.send` succeeded or failed, and handed to whoever waits: the registered handle, the upstream wait of a command a saga sends for a waiting chain, or the result of `sendAndWaitForSent`. `sendAndWaitForSent` registers no handle and writes no wait Header. Every wait is bounded by one end-to-end deadline, armed once when the call is subscribed, on the gateway's own timer (since 9.3.0; a stream used to re-arm its timeout per element on a shared scheduler). Closing the gateway releases only that timer; it does not close the `CommandBus`, which belongs to whoever created it (since 9.3.0).
 
-The precheck is not the durable concurrency decision. Atomic request-ID and version conflicts remain the responsibility of `EventStore.append`; see [Failures and Idempotency](../reliability.md).
+The precheck is not the durable concurrency decision. The processing node checks the request ID again before the aggregate runs (below), and atomic request-ID and version conflicts remain the responsibility of `EventStore.append`; see [Failures and Idempotency](../reliability.md).
 
 ## Bus to Dispatcher
 
@@ -50,10 +51,12 @@ Each `AggregateCommandDispatcher` holds its aggregate's metadata, passes it to t
 ```text
 CommandInstrumentation (each, the first outermost)
   -> PROCESSED report
-    -> aggregate processing, then acknowledgement
+    -> request-ID check, aggregate processing, then acknowledgement
       -> DomainEventBus.send
         -> StateEventBus.send attempt
 ```
+
+The request-ID check runs on the node that processes the command, before the aggregate's handler (since 9.3.0). It uses its own Bloom filter, not the gateway's, and asks the `EventStore` only when that filter has seen the request ID; a request ID the aggregate already committed fails the command with `DuplicateRequestIdException` without running the handler. `wow.command.idempotency.enabled=false` turns it off together with the gateway's check.
 
 The outer steps wrap the inner ones, so they observe completion or failure of the entire inner pipeline, not just the aggregate function return. What used to need a command filter maps to a typed extension point:
 

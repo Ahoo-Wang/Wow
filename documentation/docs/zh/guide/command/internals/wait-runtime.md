@@ -88,7 +88,7 @@ tail 信号可能先于主 Saga 信号到达。状态机会按到达序号暂存
 
 `DefaultWaitCoordinator` 用 `ConcurrentHashMap<waitCommandId, WaitHandle>` 路由信号。同一个 `waitCommandId` 只能注册一个 handle；未知 ID 或被状态机忽略的信号返回 `false`。
 
-`DefaultWaitLastHandle` 使用 `Sinks.one` 只保留最终信号；`DefaultWaitStreamHandle` 使用单订阅 unicast sink，缓冲并发到达的 accepted 信号。两者都在锁内归约状态，并在完成、错误或取消时幂等注销。
+`DefaultWaitLastHandle` 使用 `Sinks.one` 只保留最终信号；`DefaultWaitStreamHandle` 使用单订阅 unicast sink，缓冲并发到达的 accepted 信号。两者都在锁内归约状态，并在完成、错误或取消时幂等注销。信号在释放锁之后发出（自 9.3.0 起）：订阅者处理信号时从不持有这把锁；流式句柄按状态接受信号的顺序投递，订阅者在处理中重入触发的信号排在正在投递的信号之后。
 
 handle 本身不应用 timeout。`DefaultCommandGateway` 把 `WaitPlan.timeout` 作为包含预检、发送和等待的端到端期限；`Mono.using` / `Flux.using` 保证超时、取消和正常终止都释放 handle。释放观察资源不会撤销已发送命令。
 

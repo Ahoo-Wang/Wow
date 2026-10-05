@@ -45,6 +45,8 @@ class CommandGatewayScenario private constructor(
     override fun close() {
         subscription?.dispose()
         commandGateway.close()
+        // The gateway does not close the bus it did not create.
+        commandBus.close()
     }
 
     companion object {

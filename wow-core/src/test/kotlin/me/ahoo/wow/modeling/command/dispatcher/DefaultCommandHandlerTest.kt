@@ -13,12 +13,17 @@
 
 package me.ahoo.wow.modeling.command.dispatcher
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.DefaultRequestIdChecker
+import me.ahoo.wow.command.DuplicateRequestIdException
+import me.ahoo.wow.command.RequestIdChecker
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.RecordingCommandWaitNotifier
@@ -27,10 +32,14 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.filter.ErrorHandler
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
@@ -48,6 +57,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -75,6 +85,7 @@ class DefaultCommandHandlerTest {
         domainEventBus: DomainEventBus? = this.domainEventBus,
         stateEventBus: StateEventBus? = this.stateEventBus,
         instrumentations: List<CommandInstrumentation> = emptyList(),
+        requestIdChecker: RequestIdChecker? = null,
         errorHandler: ErrorHandler<ServerCommandExchange<*>> = ErrorHandler { _, error ->
             calls += "error-handler:${error.message}"
             Mono.empty()
@@ -86,6 +97,7 @@ class DefaultCommandHandlerTest {
         stateEventBus = stateEventBus,
         commandWaitNotifier = notifier,
         instrumentations = instrumentations,
+        requestIdChecker = requestIdChecker,
         errorHandler = errorHandler,
     )
 
@@ -149,6 +161,69 @@ class DefaultCommandHandlerTest {
         calls.assert().isEqualTo(listOf("process", "ack", "error-handler:processing failed"))
         exchange.getError().assert().isSameAs(failure)
         notifier.notifications.single().signal.succeeded.assert().isFalse()
+    }
+
+    @Test
+    fun `a request id the processing node already committed fails the command without running the aggregate`() {
+        val checked = mutableListOf<String>()
+        val requestIdChecker = RequestIdChecker { aggregateId, requestId ->
+            checked += "${aggregateId.id}/$requestId"
+            Mono.just(false)
+        }
+
+        handle(handler({ Mono.just(eventStream()) }, requestIdChecker = requestIdChecker))
+
+        checked.assert().containsExactly("${exchange.message.aggregateId.id}/${exchange.message.requestId}")
+        calls.assert().hasSize(2)
+        calls[0].assert().isEqualTo("ack")
+        calls[1].assert().startsWith("error-handler:")
+        exchange.getError().assert().isInstanceOf(DuplicateRequestIdException::class.java)
+        val signal = notifier.notifications.single().signal
+        signal.stage.assert().isEqualTo(CommandStage.PROCESSED)
+        signal.errorCode.assert().isEqualTo(ErrorCodes.DUPLICATE_REQUEST_ID)
+        domainEventBus.sent.assert().isEmpty()
+    }
+
+    @Test
+    fun `a new request id passes the processing node check and the aggregate runs`() {
+        handle(
+            handler(
+                committing(eventStream(), stateVersion = 1),
+                requestIdChecker = RequestIdChecker { _, _ -> Mono.just(true) },
+            )
+        )
+
+        calls.assert().isEqualTo(listOf("process", "ack", "domain-event", "state-event"))
+    }
+
+    @Test
+    fun `the processing node check confirms a resent command against the event store`() {
+        // The gateway's own Bloom filter is not shared: the processing node keeps its own, and asks the event store
+        // only when that filter has seen the request ID.
+        val eventStore = InMemoryEventStore()
+        val requestIdChecker = DefaultRequestIdChecker(
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
+                BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+                    BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 1000)
+                }
+            },
+            requestIdExistenceChecker = eventStore,
+        )
+        val committed = eventStream()
+        handle(
+            handler(
+                {
+                    eventStore.append(committed).thenReturn(committed)
+                },
+                requestIdChecker = requestIdChecker,
+            )
+        )
+        exchange.getError().assert().isNull()
+
+        exchange = RecordingExchange(exchange.message, calls)
+        handle(handler({ Mono.error(IllegalStateException("must not run")) }, requestIdChecker = requestIdChecker))
+
+        exchange.getError().assert().isInstanceOf(DuplicateRequestIdException::class.java)
     }
 
     @Test

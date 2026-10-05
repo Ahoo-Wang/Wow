@@ -102,6 +102,7 @@ class DefaultCommandGatewayTest {
             idempotencyChecker = IdempotencyChecker {
                 idempotencyChecks.incrementAndGet() == 1
             },
+            requestIdExistenceChecker = EXISTING_REQUEST_ID,
         )
         val result = gateway.send(command)
 
@@ -292,8 +293,13 @@ class DefaultCommandGatewayTest {
             .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
             .verifyComplete()
 
-        commandBus.sent.single().assert().isSameAs(command)
-        command.header["command_wait_endpoint"].assert().isEqualTo("test-command-wait-endpoint")
+        // The wait headers are written into the message the gateway builds, never into the caller's message (B20).
+        val sent = commandBus.sent.single()
+        sent.assert().isNotSameAs(command)
+        sent.id.assert().isEqualTo(command.id)
+        sent.header["command_wait_endpoint"].assert().isEqualTo("test-command-wait-endpoint")
+        sent.header["command_wait_id"].assert().isEqualTo("wait-command-id")
+        command.header.isEmpty().assert().isTrue()
         waitCoordinator.contains("wait-command-id").assert().isFalse()
     }
 
@@ -556,6 +562,7 @@ class DefaultCommandGatewayTest {
             idempotencyChecker = IdempotencyChecker {
                 idempotencyChecks.getAndIncrement() == 0
             },
+            requestIdExistenceChecker = EXISTING_REQUEST_ID,
         )
         val command = TestCommandMessage(id = "command-id")
         val waitPlan = CommandWait.processed(command.commandId)
@@ -729,6 +736,9 @@ class DefaultCommandGatewayTest {
             commandWaitNotifier = notifier,
         ).also { gateways += it }
 }
+
+/** An event store's answer for a request ID it already holds. */
+private val EXISTING_REQUEST_ID = RequestIdExistenceChecker { _, _ -> Mono.just(true) }
 
 private class RecordingCommandBus : CommandBus {
     val sent: MutableList<CommandMessage<*>> = mutableListOf()

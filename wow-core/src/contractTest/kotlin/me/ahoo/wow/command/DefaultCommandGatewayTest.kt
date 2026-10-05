@@ -23,6 +23,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
+import me.ahoo.wow.eventsourcing.RequestIdExistenceChecker
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
@@ -167,7 +168,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun `should not send command when idempotency check fails`() {
+    fun `should not send command when idempotency check fails and the event store confirms the request id`() {
         val commandBus = mockk<CommandBus> {
             every { send(any()) } returns Mono.empty()
         }
@@ -180,6 +181,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 DefaultAggregateIdempotencyCheckerProvider {
                     IdempotencyChecker { false }
                 },
+                RequestIdExistenceChecker { _, _ -> Mono.just(true) },
             ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)

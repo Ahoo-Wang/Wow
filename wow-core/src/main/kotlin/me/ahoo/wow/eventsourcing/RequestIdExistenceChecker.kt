@@ -36,16 +36,18 @@ fun interface RequestIdExistenceChecker {
 }
 
 /**
- * No-op implementation used when no authoritative request ID existence checker is available.
+ * The existence checker of a node that has no event store, such as a gateway-only service.
  *
- * It fails closed by reporting the request ID as existing, preserving duplicate protection when
- * a probabilistic precheck rejects a request ID but no event store can confirm it.
+ * It answers "absent": such a node cannot know, and the authoritative check runs where the command is processed,
+ * against the event store, before the command handler runs (`DefaultCommandHandler`), with the event store's unique
+ * request ID as the last guard at append. Since 9.3.0; it used to answer "exists", so a Bloom-filter false positive on
+ * a gateway-only service rejected a legitimate command, and a resent command was rejected on the gateway only.
  */
 object NoopRequestIdExistenceChecker : RequestIdExistenceChecker {
-    private val EXISTS = Mono.just(true)
+    private val ABSENT = Mono.just(false)
 
     override fun existsRequestId(
         aggregateId: AggregateId,
         requestId: String
-    ): Mono<Boolean> = EXISTS
+    ): Mono<Boolean> = ABSENT
 }

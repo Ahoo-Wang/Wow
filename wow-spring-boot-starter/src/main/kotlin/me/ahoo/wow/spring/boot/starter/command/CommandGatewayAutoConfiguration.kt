@@ -73,18 +73,8 @@ class CommandGatewayAutoConfiguration {
         matchIfMissing = true,
         havingValue = "true",
     )
-    fun idempotencyChecker(commandProperties: CommandProperties): AggregateIdempotencyCheckerProvider {
-        val bloomFilter = commandProperties.idempotency.bloomFilter
-        return DefaultAggregateIdempotencyCheckerProvider {
-            BloomFilterIdempotencyChecker(bloomFilter.ttl) {
-                BloomFilter.create(
-                    Funnels.stringFunnel(Charsets.UTF_8),
-                    bloomFilter.expectedInsertions,
-                    bloomFilter.fpp,
-                )
-            }
-        }
-    }
+    fun idempotencyChecker(commandProperties: CommandProperties): AggregateIdempotencyCheckerProvider =
+        commandProperties.idempotency.bloomFilterCheckerProvider()
 
     @Bean
     @ConditionalOnMissingBean
@@ -188,3 +178,19 @@ class CommandGatewayAutoConfiguration {
         )
     }
 }
+
+/**
+ * A provider of Bloom-filter idempotency checkers configured by these properties. The gateway and the command handler
+ * each get their own, so that the gateway's reservation of a request ID is not taken for a duplicate when the same
+ * node then processes the command.
+ */
+internal fun IdempotencyProperties.bloomFilterCheckerProvider(): AggregateIdempotencyCheckerProvider =
+    DefaultAggregateIdempotencyCheckerProvider {
+        BloomFilterIdempotencyChecker(bloomFilter.ttl) {
+            BloomFilter.create(
+                Funnels.stringFunnel(Charsets.UTF_8),
+                bloomFilter.expectedInsertions,
+                bloomFilter.fpp,
+            )
+        }
+    }

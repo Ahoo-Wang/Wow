@@ -71,19 +71,20 @@ class DefaultRequestIdCheckerTest {
     }
 
     @Test
-    fun `check returns false when precheck rejects with noop existence checker`() {
+    fun `check passes when precheck rejects with noop existence checker`() {
+        // A node without an event store cannot confirm a duplicate; the processing node checks it (9.3.0).
         val checker = defaultRequestIdChecker(
             idempotencyChecker = IdempotencyChecker { false },
             requestIdExistenceChecker = NoopRequestIdExistenceChecker,
         )
 
         StepVerifier.create(checker.check(testAggregateId(), "request-1"))
-            .expectNext(false)
+            .expectNext(true)
             .verifyComplete()
     }
 
     @Test
-    fun `check returns false with default noop existence checker when precheck rejects`() {
+    fun `check passes with default noop existence checker when precheck rejects`() {
         val checker = DefaultRequestIdChecker(
             idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider {
                 IdempotencyChecker { false }
@@ -91,7 +92,7 @@ class DefaultRequestIdCheckerTest {
         )
 
         StepVerifier.create(checker.check(testAggregateId(), "request-1"))
-            .expectNext(false)
+            .expectNext(true)
             .verifyComplete()
     }
 

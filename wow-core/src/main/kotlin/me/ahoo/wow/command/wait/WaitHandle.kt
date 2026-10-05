@@ -18,6 +18,9 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 import reactor.util.concurrent.Queues
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * A low-level, single-subscriber command wait resource.
@@ -64,6 +67,10 @@ internal interface SkipsSuccessfulSentSignal
 
 const val DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE: Int = 16
 
+/**
+ * A last-result handle. The wait state advances under a lock; the result is emitted after the lock is released, by
+ * the one caller whose signal completed the wait, so a subscriber reacting to the result never runs under the lock.
+ */
 internal class DefaultWaitLastHandle(
     override val plan: WaitPlan,
     private val onTerminate: () -> Unit,
@@ -86,25 +93,23 @@ internal class DefaultWaitLastHandle(
     }
 
     override fun next(signal: WaitSignal): Boolean {
-        var shouldTerminate = false
+        var completed = false
+        var finalSignal: WaitSignal? = null
         val accepted = synchronized(lock) {
             if (terminated) {
                 return false
             }
             val transition = state.next(signal)
             if (transition.completed) {
-                val emitResult = transition.finalSignal?.let {
-                    sink.tryEmitValue(it)
-                } ?: sink.tryEmitEmpty()
-                emitResult.requireTerminalEmission()
-                if (!terminated) {
-                    terminated = true
-                    shouldTerminate = true
-                }
+                terminated = true
+                completed = true
+                finalSignal = transition.finalSignal
             }
             transition.acceptedSignal != null
         }
-        if (shouldTerminate) {
+        if (completed) {
+            val emitResult = finalSignal?.let { sink.tryEmitValue(it) } ?: sink.tryEmitEmpty()
+            emitResult.requireTerminalEmission()
             onTerminate()
         }
         return accepted
@@ -142,6 +147,12 @@ internal class DefaultWaitLastHandle(
     }
 }
 
+/**
+ * A streaming handle. The wait state advances under a lock, which also fixes the order of the emissions it decides;
+ * the emissions themselves run after the lock is released, drained by one caller at a time in that order. A
+ * subscriber reacting to a signal therefore never runs under the lock, and a signal it causes re-entrantly is queued
+ * behind the one being delivered.
+ */
 internal class DefaultWaitStreamHandle(
     override val plan: WaitPlan,
     private val onTerminate: () -> Unit,
@@ -152,6 +163,9 @@ internal class DefaultWaitStreamHandle(
     private val lock = Any()
     private val state: WaitState = createWaitState(plan)
     private var terminated: Boolean = false
+    private val terminationReported = AtomicBoolean()
+    private val emissions = ConcurrentLinkedQueue<Emission>()
+    private val drainers = AtomicInteger()
 
     override fun stream(): Flux<WaitSignal> =
         sink.asFlux()
@@ -164,72 +178,105 @@ internal class DefaultWaitStreamHandle(
     }
 
     override fun next(signal: WaitSignal): Boolean {
-        var shouldTerminate = false
-        var emissionException: Sinks.EmissionException? = null
+        var completed = false
         val accepted = synchronized(lock) {
             if (terminated) {
                 return false
             }
             val transition = state.next(signal)
-            transition.acceptedSignal?.let {
-                val emitResult = sink.tryEmitNext(it)
-                if (emitResult != Sinks.EmitResult.OK) {
-                    terminated = true
-                    shouldTerminate = true
-                    emissionException = emitResult.toEmissionException()
-                    return@synchronized true
-                }
-            }
+            transition.acceptedSignal?.let { emissions.offer(Emission.Next(it)) }
             if (transition.completed) {
-                sink.tryEmitComplete().requireTerminalEmission()
-                if (!terminated) {
-                    terminated = true
-                    shouldTerminate = true
-                }
+                emissions.offer(Emission.Complete)
+                terminated = true
+                completed = true
             }
             transition.acceptedSignal != null
         }
-        emissionException?.let {
-            sink.tryEmitError(it).requireTerminalEmission(it)
+        val failure = drain()
+        if (completed) {
+            reportTerminated()
         }
-        if (shouldTerminate) {
-            onTerminate()
-        }
-        emissionException?.let {
-            throw it
-        }
+        failure?.let { throw it }
         return accepted
     }
 
     override fun error(throwable: Throwable) {
-        terminateWithSink {
-            sink.tryEmitError(throwable).also {
-                it.requireTerminalEmission(throwable)
-            }
-        }
+        terminate(Emission.Error(throwable))
     }
 
     override fun cancel() {
-        terminateWithSink {
-            sink.tryEmitComplete().also {
-                it.requireTerminalEmission()
-            }
-        }
+        terminate(Emission.Complete)
     }
 
-    private fun terminateWithSink(emit: () -> Unit) {
+    private fun terminate(emission: Emission) {
         val shouldTerminate = synchronized(lock) {
             if (terminated) {
                 false
             } else {
                 terminated = true
+                emissions.offer(emission)
                 true
             }
         }
         if (shouldTerminate) {
-            emit()
+            drain()
+            reportTerminated()
+        }
+    }
+
+    private fun reportTerminated() {
+        if (terminationReported.compareAndSet(false, true)) {
             onTerminate()
         }
+    }
+
+    /**
+     * Performs the queued emissions in order, unless another caller is already doing so. Returns the failure of a
+     * signal the sink refused, after the stream was terminated with it.
+     */
+    private fun drain(): Sinks.EmissionException? {
+        if (drainers.getAndIncrement() != 0) {
+            return null
+        }
+        var failure: Sinks.EmissionException? = null
+        var missed = 1
+        while (missed != 0) {
+            while (true) {
+                val emission = emissions.poll() ?: break
+                failure = emit(emission) ?: failure
+            }
+            missed = drainers.addAndGet(-missed)
+        }
+        return failure
+    }
+
+    private fun emit(emission: Emission): Sinks.EmissionException? {
+        when (emission) {
+            is Emission.Next -> {
+                val emitResult = sink.tryEmitNext(emission.signal)
+                if (emitResult == Sinks.EmitResult.OK) {
+                    return null
+                }
+                val failure = emitResult.toEmissionException()
+                synchronized(lock) {
+                    terminated = true
+                    emissions.clear()
+                }
+                sink.tryEmitError(failure).requireTerminalEmission(failure)
+                reportTerminated()
+                return failure
+            }
+
+            is Emission.Error -> sink.tryEmitError(emission.error).requireTerminalEmission(emission.error)
+            Emission.Complete -> sink.tryEmitComplete().requireTerminalEmission()
+        }
+        return null
+    }
+
+    private sealed interface Emission {
+        class Next(val signal: WaitSignal) : Emission
+        class Error(val error: Throwable) : Emission
+        data object Complete : Emission
     }
 }
 

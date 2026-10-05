@@ -71,6 +71,8 @@ open class LocalFirstCommandSendE2EBenchmark {
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                 NoOpIdempotencyChecker
             },
+            // Idempotency is off here, so the processing node does not check request IDs either (as in Spring).
+            processingRequestIdChecker = null,
             validator = NoOpValidator,
         )
         if (bus == "local-first") {

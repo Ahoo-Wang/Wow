@@ -41,6 +41,7 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -55,28 +56,54 @@ class DefaultCommandGatewayTimeoutTest {
     }
 
     @Test
-    fun `gateway close disposes its timer even when command bus close fails`() {
+    fun `gateway close disposes its timer and leaves the command bus it did not create open`() {
         val timer = Schedulers.newSingle("test-command-timer")
         val snapshot = Schedulers.setFactoryWithSnapshot(object : Schedulers.Factory {
             override fun newSingle(threadFactory: ThreadFactory): Scheduler = timer
         })
-        val failure = IllegalStateException("close failed")
+        val busCloses = AtomicInteger()
         val commandBus = object : CommandBus by TimeoutTestCommandBus() {
-            override fun close() = throw failure
+            override fun close() {
+                busCloses.incrementAndGet()
+            }
         }
         val gateway = commandGateway(commandBus, DefaultWaitCoordinator())
         try {
             StepVerifier.create(gateway.sendAndWaitForSent(TestCommandMessage(id = "sent")))
                 .expectNextCount(1)
                 .verifyComplete()
-            runCatching { gateway.close() }.exceptionOrNull().assert().isSameAs(failure)
+            gateway.close()
             timer.isDisposed.assert().isTrue()
+            busCloses.get().assert().isEqualTo(0)
         } finally {
             gateways.remove(gateway)
             Schedulers.resetFrom(snapshot)
             timer.dispose()
         }
     }
+
+    @Test
+    fun `send and wait after close fails because no deadline can be scheduled`() {
+        val gateway = commandGateway(waitCoordinator = DefaultWaitCoordinator())
+        gateway.close()
+
+        StepVerifier.create(
+            gateway.sendAndWait(TestCommandMessage(id = "after-close"), CommandWait.processed("after-close")),
+        )
+            .expectErrorMatches(::isRejected)
+            .verify(Duration.ofSeconds(1))
+        StepVerifier.create(
+            gateway.sendAndWaitStream(
+                TestCommandMessage(id = "after-close-stream"),
+                CommandWait.processed("after-close-stream"),
+            ),
+        )
+            .expectErrorMatches(::isRejected)
+            .verify(Duration.ofSeconds(1))
+    }
+
+    private fun isRejected(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.any { it is RejectedExecutionException }
 
     @Test
     fun `global single scheduler work does not delay command timeout`() {

@@ -36,6 +36,7 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.configuration.requiredNamedAggregate
+import me.ahoo.wow.eventsourcing.RequestIdExistenceChecker
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
@@ -46,6 +47,7 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.WrongCommandMessage
 import me.ahoo.wow.test.validation.TestValidator
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
 
@@ -75,6 +77,13 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
         BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 2000000)
     }
 
+    /**
+     * The authoritative answer behind the Bloom-filter precheck. The gateway under test has no event store, so the
+     * default stands in for one that holds every request ID the precheck has seen.
+     */
+    protected open val requestIdExistenceChecker: RequestIdExistenceChecker =
+        RequestIdExistenceChecker { _, _ -> Mono.just(true) }
+
     protected abstract fun createCommandBus(): CommandBus
 
     override fun createMessageBus(): CommandGateway {
@@ -84,6 +93,7 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             validator = TestValidator,
             requestIdChecker = DefaultRequestIdChecker(
                 DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+                requestIdExistenceChecker,
             ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
