@@ -14,11 +14,12 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.openapi.RouteSuffixes
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 
-const val SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/cursor"
-const val SNAPSHOT_CURSOR_QUERY_STATE_RESOURCE_NAME = "$SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME/state"
+const val SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_CURSOR
+const val SNAPSHOT_CURSOR_QUERY_STATE_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_CURSOR_STATE
 
 interface SnapshotCursorQueryApi<R, RD, RS> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME)

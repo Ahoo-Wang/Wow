@@ -68,6 +68,19 @@ interface ReactiveRestCommandGateway : RestCommandGateway<Mono<ResponseEntity<Co
         aggregate: String?
     ): Mono<ResponseEntity<CommandResult>>
 
+    /**
+     * Sends [command] with [headers], built by [CommandRequest.toRequestHeaders]: the same request as the [send] that
+     * takes one parameter per header.
+     */
+    @PostExchange
+    fun send(
+        sendUri: URI,
+        @RequestHeader
+        headers: Map<String, String>,
+        @RequestBody
+        command: Any
+    ): Mono<ResponseEntity<CommandResult>>
+
     override fun unwrapResponse(commandRequest: CommandRequest, response: Mono<ResponseEntity<CommandResult>>): Mono<CommandResult> {
         return response.mapNotNull<CommandResult> {
             it.body

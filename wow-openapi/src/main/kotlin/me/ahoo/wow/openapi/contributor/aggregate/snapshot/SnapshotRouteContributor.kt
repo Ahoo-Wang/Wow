@@ -16,10 +16,9 @@ package me.ahoo.wow.openapi.contributor.aggregate.snapshot
 import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
+import me.ahoo.wow.openapi.RouteSuffixes
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -66,6 +65,10 @@ import me.ahoo.wow.openapi.contributor.stateSingleResponse
 import me.ahoo.wow.openapi.contributor.tooManyRequestsResponseRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
+/**
+ * The snapshot routes of an aggregate. Their paths come from [me.ahoo.wow.openapi.RouteSuffixes]; their resource and
+ * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
+ */
 object SnapshotRouteContributor : RouteContributor {
     override val id: String = "aggregate.snapshot"
     override val category: RouteCategory = RouteCategory.SNAPSHOT
@@ -108,7 +111,7 @@ object SnapshotRouteContributor : RouteContributor {
         method = Https.Method.POST,
         appendTenantPath = false,
         appendOwnerPath = false,
-        appendPathSuffix = "snapshot/schema/refresh",
+        appendPathSuffix = RouteSuffixes.SNAPSHOT_SCHEMA_REFRESH,
         responses = componentContext.querySchemaResponses(),
     )
 
@@ -127,7 +130,7 @@ object SnapshotRouteContributor : RouteContributor {
         method = Https.Method.GET,
         appendTenantPath = false,
         appendOwnerPath = false,
-        appendPathSuffix = "snapshot/schema",
+        appendPathSuffix = RouteSuffixes.SNAPSHOT_SCHEMA,
         extraParameters = querySchemaParameters,
         responses = componentContext.querySchemaResponses(),
     )
@@ -150,7 +153,7 @@ object SnapshotRouteContributor : RouteContributor {
                 operationSummary = "Count Snapshot",
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
-                appendPathSuffix = "snapshot/count",
+                appendPathSuffix = RouteSuffixes.SNAPSHOT_COUNT,
                 requestBody = componentContext.aggregatedCountQueryRequestBodyRef(aggregateMetadata),
                 responses = listOf(
                     componentContext.countQueryResponseRef(),
@@ -186,7 +189,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Aggregate Snapshot",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/aggregation",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_AGGREGATION,
             accept = STREAMING_ACCEPT,
             requestBody = componentContext.aggregatedAggregationQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
@@ -215,7 +218,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "List Query Snapshot",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/list",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_LIST,
             accept = STREAMING_ACCEPT,
             requestBody = componentContext.aggregatedListQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
@@ -242,7 +245,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "List Query Snapshot State",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/list/state",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_LIST_STATE,
             accept = STREAMING_ACCEPT,
             requestBody = componentContext.aggregatedListQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
@@ -267,7 +270,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Paged Query Snapshot",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/paged",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_PAGED,
             requestBody = componentContext.aggregatedPagedQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
@@ -293,7 +296,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Paged Query Snapshot State",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/paged/state",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_PAGED_STATE,
             requestBody = componentContext.aggregatedPagedQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
@@ -317,7 +320,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Cursor Query Snapshot",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/cursor",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_CURSOR,
             requestBody = componentContext.aggregatedCursorQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
@@ -343,7 +346,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Cursor Query Snapshot State",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/cursor/state",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_CURSOR_STATE,
             requestBody = componentContext.aggregatedCursorQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
@@ -367,7 +370,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Single Snapshot",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/single",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_SINGLE,
             requestBody = componentContext.aggregatedSingleQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
@@ -394,7 +397,7 @@ object SnapshotRouteContributor : RouteContributor {
             operationSummary = "Single Snapshot State",
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
-            appendPathSuffix = "snapshot/single/state",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_SINGLE_STATE,
             requestBody = componentContext.aggregatedSingleQueryRequestBodyRef(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
@@ -422,7 +425,7 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = aggregateRouteMetadata.defaultAppendTenantPath(),
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
-            appendPathSuffix = "snapshot",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT,
             responses = loadSnapshotResponses(aggregateRouteMetadata, componentContext)
         )
     }
@@ -444,7 +447,7 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = aggregateRouteMetadata.defaultAppendTenantPath(),
             appendOwnerPath = false,
             appendIdPath = true,
-            appendPathSuffix = "snapshot",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT,
             responses = listOf(
                 HttpResponse(Https.Code.OK),
                 componentContext.notFoundResponseRef()
@@ -468,7 +471,7 @@ object SnapshotRouteContributor : RouteContributor {
             method = Https.Method.PUT,
             appendTenantPath = false,
             appendOwnerPath = false,
-            appendPathSuffix = "snapshot/{$BATCH_AFTER_ID}/{$BATCH_LIMIT}",
+            appendPathSuffix = RouteSuffixes.SNAPSHOT_BATCH,
             extraParameters = listOf(
                 componentContext.batchAfterIdPathParameterRef(),
                 componentContext.batchLimitPathParameterRef()

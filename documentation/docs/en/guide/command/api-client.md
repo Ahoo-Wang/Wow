@@ -73,6 +73,8 @@ val request = CommandRequest(
 
 `type` defaults to `body::class.java.name`. `WaitPlan` defaults to `PROCESSED` and contains only `waitStage`, `waitContext`, `waitProcessor`, and millisecond `waitTimeout`. `aggregateId`, `aggregateVersion`, `tenantId`, `ownerId`, `spaceId`, `requestId`, `localFirst`, `context`, and `aggregate` are sent as routing or message headers for the global facade.
 
+Since 9.3.0, `CommandRequest.toRequestHeaders()` returns those headers as one `Map`, one entry per header that has a value, and both gateways have `send(sendUri, headers, command)`, which sends them as one argument instead of fourteen header parameters. `send(CommandRequest)` and the header-per-parameter `send` are unchanged and send the same request.
+
 ## Target Service Resolution
 
 The current `CommandRequest.sendUri` rule is:

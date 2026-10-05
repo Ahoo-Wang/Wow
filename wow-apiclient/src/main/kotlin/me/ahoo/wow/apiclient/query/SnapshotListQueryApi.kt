@@ -14,11 +14,12 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.openapi.RouteSuffixes
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 
-const val SNAPSHOT_LIST_RESOURCE_NAME = "$SNAPSHOT_RESOURCE_NAME/list"
-const val SNAPSHOT_LIST_STATE_RESOURCE_NAME = "$SNAPSHOT_LIST_RESOURCE_NAME/state"
+const val SNAPSHOT_LIST_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_LIST
+const val SNAPSHOT_LIST_STATE_RESOURCE_NAME = RouteSuffixes.SNAPSHOT_LIST_STATE
 
 interface SnapshotListQueryApi<R, RD, RS> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_LIST_RESOURCE_NAME)

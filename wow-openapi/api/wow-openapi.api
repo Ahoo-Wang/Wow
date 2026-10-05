@@ -237,6 +237,39 @@ public final class me/ahoo/wow/openapi/RouteIdSpec {
 	public final fun resourceName (Ljava/lang/String;)Lme/ahoo/wow/openapi/RouteIdSpec;
 }
 
+public final class me/ahoo/wow/openapi/RouteSuffixes {
+	public static final field EVENT Ljava/lang/String;
+	public static final field EVENT_AGGREGATION Ljava/lang/String;
+	public static final field EVENT_COMPENSATE Ljava/lang/String;
+	public static final field EVENT_COUNT Ljava/lang/String;
+	public static final field EVENT_CURSOR Ljava/lang/String;
+	public static final field EVENT_LIST Ljava/lang/String;
+	public static final field EVENT_PAGED Ljava/lang/String;
+	public static final field EVENT_RANGE Ljava/lang/String;
+	public static final field EVENT_SCHEMA Ljava/lang/String;
+	public static final field EVENT_SCHEMA_REFRESH Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/RouteSuffixes;
+	public static final field SNAPSHOT Ljava/lang/String;
+	public static final field SNAPSHOT_AGGREGATION Ljava/lang/String;
+	public static final field SNAPSHOT_BATCH Ljava/lang/String;
+	public static final field SNAPSHOT_COUNT Ljava/lang/String;
+	public static final field SNAPSHOT_CURSOR Ljava/lang/String;
+	public static final field SNAPSHOT_CURSOR_STATE Ljava/lang/String;
+	public static final field SNAPSHOT_LIST Ljava/lang/String;
+	public static final field SNAPSHOT_LIST_STATE Ljava/lang/String;
+	public static final field SNAPSHOT_PAGED Ljava/lang/String;
+	public static final field SNAPSHOT_PAGED_STATE Ljava/lang/String;
+	public static final field SNAPSHOT_SCHEMA Ljava/lang/String;
+	public static final field SNAPSHOT_SCHEMA_REFRESH Ljava/lang/String;
+	public static final field SNAPSHOT_SINGLE Ljava/lang/String;
+	public static final field SNAPSHOT_SINGLE_STATE Ljava/lang/String;
+	public static final field STATE Ljava/lang/String;
+	public static final field STATE_BATCH Ljava/lang/String;
+	public static final field STATE_TIME_BASED Ljava/lang/String;
+	public static final field STATE_TRACING Ljava/lang/String;
+	public static final field STATE_VERSIONED Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/openapi/RouterSpecs {
 	public static final field Companion Lme/ahoo/wow/openapi/RouterSpecs$Companion;
 	public static final field DEFAULT_OPENAPI_INFO_TITLE Ljava/lang/String;

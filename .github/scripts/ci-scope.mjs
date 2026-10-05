@@ -129,6 +129,10 @@ const RULES = [
     [DOCS, VIEW_ENGINE_DOCS],
   ],
   [/^documentation\//, [DOCS]],
+  // The committed contract snapshots of wow-openapi: wow-client's tests read
+  // them (test/fixtures/serverContract.ts) for its endpoint paths and header
+  // names; they change with the routes the same-source contract serves.
+  [/^wow-openapi\/src\/test\/resources\/openapi\//, [SDK, CONTRACT]],
   // The modules whose bytes cross between versions (messages, buses, stores,
   // the wait endpoint), the example cluster the mixed-version test starts, and
   // the dependency versions (a Jackson bump can change the JSON): the
@@ -233,6 +237,7 @@ const UNIT_RULES = [
   ],
   [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
   [/^typescript\/(wow-(?:react|generator|view-store))\//, match => [match[1]]],
+  [/^wow-openapi\/src\/test\/resources\/openapi\//, () => ['wow-client']],
 ];
 
 export function unitPackages(paths) {

@@ -14,12 +14,9 @@
 package me.ahoo.wow.openapi.contributor.aggregate.event
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.HEAD_VERSION
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.TAIL_VERSION
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
+import me.ahoo.wow.openapi.RouteSuffixes
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -59,8 +56,11 @@ import me.ahoo.wow.openapi.contributor.querySchemaResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.tailVersionPathParameterRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.serialization.MessageRecords
 
+/**
+ * The event routes of an aggregate. Their paths come from [me.ahoo.wow.openapi.RouteSuffixes]; their resource and
+ * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
+ */
 object EventRouteContributor : RouteContributor {
     override val id: String = "aggregate.event"
     override val category: RouteCategory = RouteCategory.EVENT
@@ -103,7 +103,7 @@ object EventRouteContributor : RouteContributor {
         method = Https.Method.POST,
         appendTenantPath = false,
         appendOwnerPath = false,
-        appendPathSuffix = "event/schema/refresh",
+        appendPathSuffix = RouteSuffixes.EVENT_SCHEMA_REFRESH,
         responses = componentContext.querySchemaResponses(),
     )
 
@@ -122,7 +122,7 @@ object EventRouteContributor : RouteContributor {
         method = Https.Method.GET,
         appendTenantPath = false,
         appendOwnerPath = false,
-        appendPathSuffix = "event/schema",
+        appendPathSuffix = RouteSuffixes.EVENT_SCHEMA,
         extraParameters = querySchemaParameters,
         responses = componentContext.querySchemaResponses(),
     )
@@ -146,7 +146,7 @@ object EventRouteContributor : RouteContributor {
                 operationSummary = "Aggregate Event Stream",
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
-                appendPathSuffix = "event/aggregation",
+                appendPathSuffix = RouteSuffixes.EVENT_AGGREGATION,
                 accept = STREAMING_ACCEPT,
                 requestBody = componentContext.aggregationQueryRequestBodyRef(),
                 responses = listOf(componentContext.aggregationResponse()),
@@ -161,7 +161,7 @@ object EventRouteContributor : RouteContributor {
                 operationSummary = "Count Event Stream",
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
-                appendPathSuffix = "event/count",
+                appendPathSuffix = RouteSuffixes.EVENT_COUNT,
                 requestBody = componentContext.countQueryRequestBodyRef(),
                 responses = listOf(componentContext.countQueryResponseRef())
             ),
@@ -175,7 +175,7 @@ object EventRouteContributor : RouteContributor {
                 operationSummary = "List Query Event Stream",
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
-                appendPathSuffix = "event/list",
+                appendPathSuffix = RouteSuffixes.EVENT_LIST,
                 accept = STREAMING_ACCEPT,
                 requestBody = componentContext.listQueryRequestBodyRef(),
                 responses = listOf(componentContext.eventStreamListResponse(aggregateMetadata))
@@ -190,7 +190,7 @@ object EventRouteContributor : RouteContributor {
                 operationSummary = "Paged Query Event Stream",
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
-                appendPathSuffix = "event/paged",
+                appendPathSuffix = RouteSuffixes.EVENT_PAGED,
                 requestBody = componentContext.pagedQueryRequestBodyRef(),
                 responses = listOf(componentContext.eventStreamPagedResponse(aggregateMetadata))
             ),
@@ -204,7 +204,7 @@ object EventRouteContributor : RouteContributor {
                 operationSummary = "Cursor Query Event Stream",
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
-                appendPathSuffix = "event/cursor",
+                appendPathSuffix = RouteSuffixes.EVENT_CURSOR,
                 requestBody = componentContext.cursorQueryRequestBodyRef(),
                 responses = listOf(componentContext.eventStreamCursorResponse(aggregateMetadata))
             )
@@ -228,7 +228,7 @@ object EventRouteContributor : RouteContributor {
             appendTenantPath = aggregateRouteMetadata.defaultAppendTenantPath(),
             appendOwnerPath = false,
             appendIdPath = true,
-            appendPathSuffix = "event/{$HEAD_VERSION}/{$TAIL_VERSION}",
+            appendPathSuffix = RouteSuffixes.EVENT_RANGE,
             accept = STREAMING_ACCEPT,
             extraParameters = listOf(
                 componentContext.headVersionPathParameterRef(),
@@ -254,7 +254,7 @@ object EventRouteContributor : RouteContributor {
             appendTenantPath = aggregateRouteMetadata.defaultAppendTenantPath(),
             appendOwnerPath = false,
             appendIdPath = true,
-            appendPathSuffix = "{${MessageRecords.VERSION}}/compensate",
+            appendPathSuffix = RouteSuffixes.EVENT_COMPENSATE,
             extraParameters = listOf(componentContext.versionPathParameterRef()),
             requestBody = componentContext.compensationTargetRequestBodyRef(),
             responses = listOf(
@@ -279,7 +279,7 @@ object EventRouteContributor : RouteContributor {
             operationSummary = "Resend State Event",
             appendTenantPath = false,
             appendOwnerPath = false,
-            appendPathSuffix = "state/{$BATCH_AFTER_ID}/{$BATCH_LIMIT}",
+            appendPathSuffix = RouteSuffixes.STATE_BATCH,
             extraParameters = listOf(
                 componentContext.batchAfterIdPathParameterRef(),
                 componentContext.batchLimitPathParameterRef()

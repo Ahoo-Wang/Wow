@@ -73,6 +73,8 @@ val request = CommandRequest(
 
 `type` 默认使用 `body::class.java.name`。`WaitPlan` 默认等待 `PROCESSED`，并只包含 `waitStage`、`waitContext`、`waitProcessor` 和毫秒值 `waitTimeout`。`aggregateId`、`aggregateVersion`、`tenantId`、`ownerId`、`spaceId`、`requestId`、`localFirst`、`context` 与 `aggregate` 都会作为全局门面的路由或消息头发送。
 
+自 9.3.0 起，`CommandRequest.toRequestHeaders()` 把这些请求头作为一个 `Map` 返回（只含有值的请求头），两个网关都新增了 `send(sendUri, headers, command)`，用这一个参数代替 14 个请求头参数发送。`send(CommandRequest)` 和逐个请求头传参的 `send` 不变，发出的请求相同。
+
 ## 目标服务解析
 
 `CommandRequest.sendUri` 的当前计算规则是：
