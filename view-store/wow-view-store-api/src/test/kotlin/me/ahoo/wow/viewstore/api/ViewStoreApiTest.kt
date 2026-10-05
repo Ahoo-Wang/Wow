@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
+import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesView
 import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -69,5 +70,23 @@ class ViewStoreApiTest {
             it["source"].asString().assert().isEqualTo("stored")
             it["version"].asInt().assert().isEqualTo(3)
         }
+    }
+
+    @Test
+    fun `preferences never written answer an empty order at version 0`() {
+        val json = mapper.writeValueAsString(ViewPreferencesView(definitionId = "orders"))
+
+        mapper.readTree(json).assert().isEqualTo(
+            mapper.readTree(
+                """{"definitionId":"orders","order":[],"defaultInstanceId":null,"autoRun":null,"lastTabs":null,"version":0}"""
+            )
+        )
+    }
+
+    @Test
+    fun `an empty preferences body sets empty preferences`() {
+        mapper.readValue<ViewPreferencesInput>("{}").toCommand("orders").assert().isEqualTo(
+            SetViewPreferences(definitionId = "orders", order = emptyList()),
+        )
     }
 }

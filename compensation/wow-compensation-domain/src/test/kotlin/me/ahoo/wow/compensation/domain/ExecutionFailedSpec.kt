@@ -191,6 +191,32 @@ class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>
         }
     }
     on {
+        name("ForcePrepareWhilePrepared")
+        val executionFailedCreated = ExecutionFailedCreated(
+            eventId = EVENT_ID,
+            function = function,
+            error = newError(),
+            executeAt = System.currentTimeMillis(),
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 0),
+            retrySpec = DefaultNextRetryAtCalculatorTest.testRetrySpec,
+        )
+        val compensationPrepared = CompensationPrepared(
+            eventId = EVENT_ID,
+            function = function,
+            retryState = DefaultNextRetryAtCalculator.nextRetryState(DefaultNextRetryAtCalculatorTest.testRetrySpec, 1),
+        )
+        givenEvent(arrayOf(executionFailedCreated, compensationPrepared)) {
+            // A prepared execution that has not timed out is still running: forcing another one is refused.
+            whenCommand(ForcePrepareCompensation(id = generateGlobalId())) {
+                expectErrorType(IllegalStateException::class)
+                expectState {
+                    status.assert().isEqualTo(ExecutionFailedStatus.PREPARED)
+                    retryState.retries.assert().isEqualTo(1)
+                }
+            }
+        }
+    }
+    on {
         val executionFailedCreated = ExecutionFailedCreated(
             eventId = EVENT_ID,
             function = function,

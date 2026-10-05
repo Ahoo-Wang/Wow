@@ -27,4 +27,12 @@ class SpringServiceProviderTest {
         serviceProvider.copyTo(targetServiceProvider)
         targetServiceProvider.getRequiredService<SpringServiceProviderTest>().assert().isSameAs(this)
     }
+
+    @Test
+    fun `a service is found by its name`() {
+        val serviceProvider = SpringServiceProvider(DefaultListableBeanFactory())
+        serviceProvider.register(this, "named", typeOf<SpringServiceProviderTest>())
+
+        serviceProvider.getService<SpringServiceProviderTest>("named").assert().isSameAs(this)
+    }
 }
