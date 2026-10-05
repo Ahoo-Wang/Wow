@@ -34,7 +34,8 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withRemoteIp
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.withUserAgent
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
+import me.ahoo.wow.messaging.propagation.MessagePropagators
+import me.ahoo.wow.messaging.propagation.propagate
 import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -49,7 +50,7 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
  * Every id, timestamp and header value is fixed, so serializing a sample gives the same bytes on every run. The headers
  * are stamped the way the 9.2.x runtime stamps them: request headers and `local_first` and the operator from the web
  * edge, `trace_id` from command creation, `command_wait_*` from a real [WaitPlan] propagated by the gateway, and the
- * event-side headers from the SPI propagators (`MessagePropagatorProvider`).
+ * event-side headers from the default propagators (`MessagePropagators.DEFAULT`, the ServiceLoader contributions).
  *
  * The golden files built from these samples are frozen v9 wire contracts (design WP G1); see the golden tests in
  * wow-core, wow-kafka, wow-redis and wow-spring-boot-starter.
@@ -123,7 +124,7 @@ object WireSamples {
     /** The event stream the aggregate appends for [commandMessage], with headers propagated from the command. */
     fun domainEventStream(): DomainEventStream {
         val command = commandMessage()
-        val header = DefaultHeader.empty().propagate(command)
+        val header = DefaultHeader.empty().propagate(command, MessagePropagators.DEFAULT)
         val events = listOf(
             MockAggregateCreated("wire"),
             MockAggregateChanged("wire-changed"),

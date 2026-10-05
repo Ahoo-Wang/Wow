@@ -158,6 +158,13 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `WebFluxErrorStrategy.toServerResponse` (or the `RequestExceptionHandler` bean).
 - **Removal in v10**: delete the two functions. Callers move to the replacement; nothing on the wire changes.
 
+### Wow 9.2 Propagation And Recoverable-Exception Singletons
+
+- **Kept compatible**: 9.2 held header propagation in the `MessagePropagatorProvider` object (with its `Header.propagate(upstream)` member extension) and the recoverable-exception classification in the `RecoverableExceptionRegistrar` object. 9.3 injects a `MessagePropagators` and a `RecoverableExceptionRegistry` (Spring beans; `DEFAULT` outside Spring). `MessagePropagatorProvider` stays as a deprecated object delegating to `MessagePropagators.DEFAULT`; `RecoverableExceptionRegistrar` became the interface providers register into, and its deprecated companion object keeps the static `register`, `unregister` and `getRecoverableType` calls working against `RecoverableExceptionRegistry.DEFAULT`.
+- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/messaging/propagation/MessagePropagatorProvider.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/exception/RecoverableExceptionRegistrar.kt`
+- **Replacement**: an injected `MessagePropagators` (or `MessagePropagators.DEFAULT`) and the top-level `Header.propagate(upstream, propagators)`; `RecoverableExceptionRegistry.DEFAULT` or the `recoverableExceptionRegistry` bean.
+- **Removal in v10**: delete `MessagePropagatorProvider.kt` and the companion object of `RecoverableExceptionRegistrar`. Callers move to the replacement; nothing on the wire changes.
+
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.

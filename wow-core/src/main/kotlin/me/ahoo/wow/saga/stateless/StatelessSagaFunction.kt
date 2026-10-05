@@ -29,7 +29,7 @@ import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -41,11 +41,14 @@ import reactor.kotlin.core.publisher.toMono
  * @param delegate The underlying message function that handles the domain event processing.
  * @param commandGateway The gateway used to send commands.
  * @param commandMessageFactory The factory for creating command messages.
+ * @param messagePropagator Propagates the event's context into the commands this saga function sends, with this
+ * function as their producer: a chain wait reaches only the commands of the saga function it waits for.
  */
 class StatelessSagaFunction(
     override val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
     private val commandGateway: CommandGateway,
-    private val commandMessageFactory: CommandMessageFactory
+    private val commandMessageFactory: CommandMessageFactory,
+    private val messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ) : MessageFunction<Any, DomainEventExchange<*>, Mono<CommandStream>>,
     Decorator<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
     override val contextName: String = delegate.contextName
@@ -79,7 +82,7 @@ class StatelessSagaFunction(
     ): Mono<CommandMessage<*>> {
         if (singleResult is CommandMessage<*>) {
             val command = if (singleResult.header.isReadOnly) singleResult.copy() else singleResult
-            command.header.propagate(domainEvent)
+            messagePropagator.propagate(command.header, domainEvent, this)
             return command.toMono()
         }
         val commandBuilder = singleResult as? CommandBuilder ?: singleResult.commandBuilder()
@@ -103,7 +106,7 @@ class StatelessSagaFunction(
             )
             .upstream(domainEvent)
             .header {
-                it.propagate(domainEvent)
+                messagePropagator.propagate(it, domainEvent, this@StatelessSagaFunction)
             }
         @Suppress("UNCHECKED_CAST")
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>

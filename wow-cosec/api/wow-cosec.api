@@ -18,6 +18,7 @@ public final class me/ahoo/wow/cosec/propagation/CoSecMessagePropagator : me/aho
 	public static final field DEVICE_ID Ljava/lang/String;
 	public fun <init> ()V
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
 public final class me/ahoo/wow/cosec/propagation/CoSecMessagePropagator$Companion {

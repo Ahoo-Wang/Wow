@@ -22,23 +22,23 @@ class RecoverableExceptionRegistrarTest {
 
     @Test
     fun `should register replace and resolve recoverable type through superclass lookup`() {
-        RecoverableExceptionRegistrar.unregister(RegisteredRecoverableException::class.java)
+        RecoverableExceptionRegistry.DEFAULT.unregister(RegisteredRecoverableException::class.java)
         try {
-            RecoverableExceptionRegistrar.register(
+            RecoverableExceptionRegistry.DEFAULT.register(
                 RegisteredRecoverableException::class.java,
                 RecoverableType.UNRECOVERABLE,
             )
-            RecoverableExceptionRegistrar.getRecoverableType(RegisteredRecoverableSubclassException::class.java)
+            RecoverableExceptionRegistry.DEFAULT.getRecoverableType(RegisteredRecoverableSubclassException::class.java)
                 .assert().isEqualTo(RecoverableType.UNRECOVERABLE)
 
-            RecoverableExceptionRegistrar.register(
+            RecoverableExceptionRegistry.DEFAULT.register(
                 RegisteredRecoverableException::class.java,
                 RecoverableType.RECOVERABLE,
             )
             RegisteredRecoverableSubclassException::class.java.recoverable.assert()
                 .isEqualTo(RecoverableType.RECOVERABLE)
         } finally {
-            RecoverableExceptionRegistrar.unregister(RegisteredRecoverableException::class.java)
+            RecoverableExceptionRegistry.DEFAULT.unregister(RegisteredRecoverableException::class.java)
         }
 
         RegisteredRecoverableSubclassException::class.java.recoverable.assert().isEqualTo(RecoverableType.UNKNOWN)
@@ -53,13 +53,13 @@ class RecoverableExceptionRegistrarTest {
 
     @Test
     fun `should prefer explicit registration over default recoverable classifications`() {
-        RecoverableExceptionRegistrar.unregister(TimeoutException::class.java)
+        RecoverableExceptionRegistry.DEFAULT.unregister(TimeoutException::class.java)
         try {
-            RecoverableExceptionRegistrar.register(TimeoutException::class.java, RecoverableType.UNRECOVERABLE)
+            RecoverableExceptionRegistry.DEFAULT.register(TimeoutException::class.java, RecoverableType.UNRECOVERABLE)
 
             TimeoutException::class.java.recoverable.assert().isEqualTo(RecoverableType.UNRECOVERABLE)
         } finally {
-            RecoverableExceptionRegistrar.unregister(TimeoutException::class.java)
+            RecoverableExceptionRegistry.DEFAULT.unregister(TimeoutException::class.java)
         }
 
         TimeoutException::class.java.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
@@ -67,18 +67,21 @@ class RecoverableExceptionRegistrarTest {
 
     @Test
     fun `should prefer exact registration over registered superclass`() {
-        RecoverableExceptionRegistrar.unregister(RuntimeException::class.java)
-        RecoverableExceptionRegistrar.unregister(IllegalStateException::class.java)
+        RecoverableExceptionRegistry.DEFAULT.unregister(RuntimeException::class.java)
+        RecoverableExceptionRegistry.DEFAULT.unregister(IllegalStateException::class.java)
         try {
-            RecoverableExceptionRegistrar.register(RuntimeException::class.java, RecoverableType.UNRECOVERABLE)
-            RecoverableExceptionRegistrar.register(IllegalStateException::class.java, RecoverableType.RECOVERABLE)
+            RecoverableExceptionRegistry.DEFAULT.register(RuntimeException::class.java, RecoverableType.UNRECOVERABLE)
+            RecoverableExceptionRegistry.DEFAULT.register(
+                IllegalStateException::class.java,
+                RecoverableType.RECOVERABLE
+            )
 
-            RecoverableExceptionRegistrar.getRecoverableType(IllegalStateException::class.java)
+            RecoverableExceptionRegistry.DEFAULT.getRecoverableType(IllegalStateException::class.java)
                 .assert().isEqualTo(RecoverableType.RECOVERABLE)
             IllegalStateException::class.java.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
         } finally {
-            RecoverableExceptionRegistrar.unregister(IllegalStateException::class.java)
-            RecoverableExceptionRegistrar.unregister(RuntimeException::class.java)
+            RecoverableExceptionRegistry.DEFAULT.unregister(IllegalStateException::class.java)
+            RecoverableExceptionRegistry.DEFAULT.unregister(RuntimeException::class.java)
         }
     }
 

@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.propagation
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 
 /**
  * Interface for message propagators that transfer context information from upstream messages to headers.
@@ -22,6 +23,9 @@ import me.ahoo.wow.api.messaging.Message
  * Message propagators are responsible for copying relevant context data (like tracing information,
  * user details, etc.) from source messages to target message headers for distributed tracing
  * and context propagation.
+ *
+ * The runtime calls the propagators of a [MessagePropagators] registry: the Spring bean, made of the ServiceLoader
+ * contributions and the `MessagePropagator` beans, or [MessagePropagators.DEFAULT] outside Spring.
  */
 interface MessagePropagator {
     /**
@@ -34,4 +38,15 @@ interface MessagePropagator {
         header: Header,
         upstream: Message<*, *>
     )
+
+    /**
+     * Propagates context from [upstream] to the header of a message that [producer] creates from it, such as a
+     * command a saga function sends for an event. A propagator whose keys belong to one downstream function only
+     * (the wait chain) uses [producer] to decide; the default ignores it.
+     */
+    fun propagate(
+        header: Header,
+        upstream: Message<*, *>,
+        producer: FunctionInfo,
+    ) = propagate(header, upstream)
 }

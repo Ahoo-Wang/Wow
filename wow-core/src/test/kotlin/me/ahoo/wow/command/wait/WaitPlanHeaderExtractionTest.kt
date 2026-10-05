@@ -150,7 +150,8 @@ class WaitPlanHeaderExtractionTest {
         )
         val header = DefaultHeader.empty()
 
-        extracted.propagate(header, TestDomainEvent())
+        // Only to a command the saga function the chain waits for produces (B6).
+        extracted.propagate(header, TestDomainEvent(), testFunction())
 
         header[WAIT_COMMAND_ID].assert().isEqualTo("wait-id")
         header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(TEST_ENDPOINT)
@@ -158,6 +159,23 @@ class WaitPlanHeaderExtractionTest {
         header.containsKey(COMMAND_WAIT_STAGE).assert().isFalse()
         header[COMMAND_WAIT_TAIL_STAGE].assert().isEqualTo(CommandStage.PROJECTED.name)
         header.extractWaitPlan()!!.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.PROJECTED, tailFunction))
+    }
+
+    @Test
+    fun chainPlanDoesNotPropagateFromAnEventToAnotherProducerOrAnUnknownOne() {
+        val extracted = ExtractedWaitPlan(
+            endpoint = TEST_ENDPOINT,
+            waitCommandId = "wait-id",
+            plan = CommandWait.chain("wait-id", testNamedFunction(), CommandStage.PROJECTED, testNamedFunction()),
+        )
+        val otherProducer = DefaultHeader.empty()
+        val unknownProducer = DefaultHeader.empty()
+
+        extracted.propagate(otherProducer, TestDomainEvent(), testFunction(processorName = "OtherSaga"))
+        extracted.propagate(unknownProducer, TestDomainEvent())
+
+        otherProducer.isEmpty().assert().isTrue()
+        unknownProducer.isEmpty().assert().isTrue()
     }
 
     @Test

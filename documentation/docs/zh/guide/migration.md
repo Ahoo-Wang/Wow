@@ -177,6 +177,13 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 - `DefaultCommandGateway.close()` 不再关闭传给它的 `CommandBus`。`close()` 之后网关无法再调度截止时间：`sendAndWait*` 以 `RejectedExecutionException` 失败。手工构建网关的代码自己关闭总线；Spring 会关闭总线 Bean。
 - `sendAndWait` / `sendAndWaitStream` 发送的是 Header 带等待键的消息副本，调用方的消息不被修改。从传入的消息读回等待键的代码，改为从接收到的消息读取。
 
+### 请求头传播与可恢复异常改为 Bean（9.3.0）
+
+- `MessagePropagatorProvider` 已弃用。运行时使用注入的 `MessagePropagators`（Spring Bean，Spring 之外用 `MessagePropagators.DEFAULT`）；`import ...MessagePropagatorProvider.propagate` 改为 `import me.ahoo.wow.messaging.propagation.propagate`。`MessagePropagator` 现在也可以是 Bean。
+- `RecoverableExceptionRegistrar` 改为接口，注册表是 `RecoverableExceptionRegistry`。`RecoverableExceptionRegistrar.register(...)` 这样的静态调用仍能编译，但已弃用；改用 `RecoverableExceptionRegistry.DEFAULT` 或 `recoverableExceptionRegistry` Bean。`RecoverableExceptionProvider` 现在也可以是 Bean。
+- `wow.messaging.propagation.request` 从 Spring 环境读取；在 Spring 之外不再读取该系统属性。
+- chain 等待的 tail 只传给 chain 所等待的那个 Saga 函数发出的命令；chain 计划必须等待随它发送的命令（`waitCommandId` 等于命令 ID），否则 `sendAndWait` 以 `IllegalArgumentException` 失败。见[命令等待运行时](./command/internals/wait-runtime.md)。
+
 ### BI 脚本路由需要 `wow-bi`（9.3.0）
 
 `wow-webflux` 以及 Starter 的 `webflux-support` / `openapi-support` capability 不再引入 `wow-bi`（及 ClickHouse client）。提供 `POST /wow/bi/script` 的应用需自行添加 `wow-bi`，或请求 Starter 的 `bi-support` capability；它在 classpath 上时，该路由、它的 OpenAPI operation 与 schema、错误码以及 `wow.bi.script.*` 配置都不变。没有它时该路由不存在。BI 路由相关类已移到 Starter：

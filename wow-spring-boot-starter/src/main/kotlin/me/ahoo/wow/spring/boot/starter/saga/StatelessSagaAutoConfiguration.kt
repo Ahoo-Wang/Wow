@@ -25,6 +25,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.saga.stateless.DefaultStatelessSagaHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
@@ -51,9 +52,14 @@ class StatelessSagaAutoConfiguration {
     @ConditionalOnMissingBean
     fun statelessSagaHandlerRegistrar(
         commandGateway: CommandGateway,
-        commandMessageFactory: CommandMessageFactory
+        commandMessageFactory: CommandMessageFactory,
+        messagePropagators: ObjectProvider<MessagePropagators>,
     ): StatelessSagaFunctionRegistrar {
-        return StatelessSagaFunctionRegistrar(commandGateway, commandMessageFactory)
+        return StatelessSagaFunctionRegistrar(
+            commandGateway = commandGateway,
+            commandMessageFactory = commandMessageFactory,
+            messagePropagator = messagePropagators.getIfAvailable { MessagePropagators.DEFAULT },
+        )
     }
 
     @Bean

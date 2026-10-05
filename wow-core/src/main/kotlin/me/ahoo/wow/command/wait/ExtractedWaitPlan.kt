@@ -16,12 +16,23 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.command.wait.chain.SimpleWaitingChain.Companion.COMMAND_WAIT_CHAIN
 import me.ahoo.wow.command.wait.chain.SimpleWaitingChain.Companion.SIMPLE_CHAIN
 import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.extractWaitingChainTail
 import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.propagateWaitingChainTail
 import me.ahoo.wow.messaging.propagation.MessagePropagator
 
+/**
+ * The wait plan a message carries, which propagates its wait keys to the messages derived from that message:
+ *
+ * - from a command to the event stream it commits: all of them, whatever the target (the event store keeps them,
+ *   decision V1);
+ * - from an event to a command: only for a chain wait, and only to a command that the saga function the chain waits
+ *   for sends (B6, since 9.3.0). Such a command carries the chain's tail. A command another saga, an event processor
+ *   or application code derives from the same event gets no wait keys: nobody waits for it. Before 9.3.0 every
+ *   command derived from the event carried the tail.
+ */
 data class ExtractedWaitPlan(
     override val endpoint: String,
     override val waitCommandId: String,
@@ -30,21 +41,33 @@ data class ExtractedWaitPlan(
     WaitCommandIdCapable,
     MessagePropagator {
     override fun propagate(header: Header, upstream: Message<*, *>) {
-        val target = plan.target
-        if (!target.shouldPropagate(upstream)) {
+        propagateTo(header, upstream, producer = null)
+    }
+
+    override fun propagate(header: Header, upstream: Message<*, *>, producer: FunctionInfo) {
+        propagateTo(header, upstream, producer)
+    }
+
+    private fun propagateTo(header: Header, upstream: Message<*, *>, producer: FunctionInfo?) {
+        if (upstream is CommandMessage<*>) {
+            plan.propagate(this, header)
             return
         }
-        if (target is ChainWaitTarget && upstream !is CommandMessage<*>) {
-            header
-                .propagateWaitCommandId(waitCommandId)
-                .propagateCommandWaitEndpoint(endpoint)
-                .propagateWaitingChainTail(target.tail.stage, target.tail.function)
+        val target = plan.target as? ChainWaitTarget ?: return
+        if (producer == null || !target.function.matchesWaitFunction(producer)) {
             return
         }
-        plan.propagate(this, header)
+        header
+            .propagateWaitCommandId(waitCommandId)
+            .propagateCommandWaitEndpoint(endpoint)
+            .propagateWaitingChainTail(target.tail.stage, target.tail.function)
     }
 }
 
+/**
+ * Whether a wait with this target propagates past [upstream] at all: from a command always, from an event only for a
+ * chain wait (and then only to the commands of the chain's saga function, see [ExtractedWaitPlan]).
+ */
 fun WaitTarget.shouldPropagate(upstream: Message<*, *>): Boolean =
     this is ChainWaitTarget || upstream is CommandMessage<*>
 

@@ -13,58 +13,33 @@
 
 package me.ahoo.wow.messaging.propagation
 
-import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import java.util.*
 
 /**
- * Provider that aggregates and delegates to all available message propagators.
+ * The ServiceLoader propagators as a process-wide singleton.
  *
- * This provider uses Java ServiceLoader to discover and load all MessagePropagator
- * implementations, then delegates propagation calls to each of them in order.
+ * compat(wow<9.3): code written against 9.2 propagates through this object; it delegates to
+ * [MessagePropagators.DEFAULT]. The runtime uses an injected [MessagePropagators] instead.
  */
+@Deprecated("Scheduled for removal in 10.0.0. Use an injected MessagePropagators, or MessagePropagators.DEFAULT.")
 object MessagePropagatorProvider : MessagePropagator {
-    private val log = KotlinLogging.logger {}
-
-    /**
-     * Lazily loaded list of all available message propagators.
-     *
-     * Uses ServiceLoader to discover propagators and sorts them by order annotation.
-     */
-    private val messagePropagators: List<MessagePropagator> by lazy {
-        ServiceLoader.load(MessagePropagator::class.java)
-            .sortedByOrder()
-            .map {
-                log.info {
-                    "Load MessagePropagator: [${it.javaClass.name}]"
-                }
-                it
-            }
-    }
-
-    /**
-     * Propagates context using all loaded propagators.
-     *
-     * @param header The target header to propagate to
-     * @param upstream The upstream message to propagate from
-     */
     override fun propagate(
         header: Header,
         upstream: Message<*, *>
     ) {
-        messagePropagators.forEach { it.propagate(header, upstream) }
+        MessagePropagators.DEFAULT.propagate(header, upstream)
     }
 
     /**
-     * Extension function to propagate context to this header from an upstream message.
-     *
-     * @param upstream The upstream message to propagate from
-     * @return This header with propagated context
+     * Propagates [upstream]'s context to this header and returns it.
      */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use Header.propagate(upstream, propagators).",
+        ReplaceWith("propagate(upstream, MessagePropagators.DEFAULT)"),
+    )
     fun Header.propagate(upstream: Message<*, *>): Header {
-        propagate(this, upstream)
+        MessagePropagators.DEFAULT.propagate(this, upstream)
         return this
     }
 }

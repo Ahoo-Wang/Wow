@@ -24,6 +24,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.flatEvent
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Flux
@@ -51,7 +52,11 @@ internal abstract class CommandEntry<C : Any>(
     /** The same handler for another command type: a supertype handler matched polymorphically. */
     abstract fun withAfterFunctions(afterFunctions: List<CompiledFunction<C, Mono<*>>>): CommandEntry<C>
 
-    fun invoke(aggregate: CommandAggregate<C, *>, exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+    fun invoke(
+        aggregate: CommandAggregate<C, *>,
+        exchange: ServerCommandExchange<*>,
+        messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
+    ): Mono<DomainEventStream> {
         exchange.setFunction(function)
         return invokeWithAfter(aggregate, exchange).map {
             it.toDomainEventStream(
@@ -60,6 +65,7 @@ internal abstract class CommandEntry<C : Any>(
                 stateOwnerId = aggregate.state.ownerId,
                 stateSpaceId = aggregate.state.spaceId,
                 commandSpaced = spaced,
+                messagePropagator = messagePropagator,
             ).also { eventStream ->
                 exchange.setEventStream(eventStream)
             }

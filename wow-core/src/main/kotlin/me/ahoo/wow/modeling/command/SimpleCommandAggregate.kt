@@ -24,6 +24,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.appendResolvingOutcome
 import me.ahoo.wow.exception.NotFoundResourceException
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.reactor.checkpoint
 import reactor.core.Exceptions
@@ -42,12 +43,14 @@ import reactor.kotlin.core.publisher.toMono
  * @property commandRoot The command aggregate root instance.
  * @param eventStore The event store for persisting domain events.
  * @param model The aggregate type compiled once: its command entries, error functions and sourcing table.
+ * @param messagePropagator Propagates the command's context into the event streams it commits.
  */
 internal class SimpleCommandAggregate<C : Any, S : Any>(
     override val state: StateAggregate<S>,
     override val commandRoot: C,
     private val eventStore: EventStore,
-    private val model: AggregateModel<C, S>
+    private val model: AggregateModel<C, S>,
+    private val messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ) : CommandAggregate<C, S>,
     NamedTypedAggregate<C> by model.metadata.command {
     private companion object {
@@ -154,7 +157,7 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
             requireNotNull(commandEntry) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
-            commandEntry.invoke(this, exchange).flatMap { eventStream ->
+            commandEntry.invoke(this, exchange, messagePropagator).flatMap { eventStream ->
                 eventStore.appendResolvingOutcome(eventStream)
                     .checkpoint {
                         "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [SimpleCommandAggregate]"

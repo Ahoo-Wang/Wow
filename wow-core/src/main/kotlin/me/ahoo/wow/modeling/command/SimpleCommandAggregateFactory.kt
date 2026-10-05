@@ -14,6 +14,7 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 
@@ -24,10 +25,12 @@ import me.ahoo.wow.modeling.state.StateAggregate
  * the aggregate follows an aggregation pattern (separate command and state aggregates).
  *
  * @param eventStore The event store to be used by created command aggregates.
+ * @param messagePropagator Propagates a command's context into the event streams it commits.
  */
 @WowSpi
 class SimpleCommandAggregateFactory(
-    private val eventStore: EventStore
+    private val eventStore: EventStore,
+    private val messagePropagator: MessagePropagators = MessagePropagators.DEFAULT,
 ) : CommandAggregateFactory {
     /**
      * Creates a new SimpleCommandAggregate instance.
@@ -55,6 +58,7 @@ class SimpleCommandAggregateFactory(
             commandRoot = commandRoot as C,
             eventStore = eventStore,
             model = metadata.model,
+            messagePropagator = messagePropagator,
         )
     }
 }

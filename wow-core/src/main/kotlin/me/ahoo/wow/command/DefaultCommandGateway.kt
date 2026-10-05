@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 
 import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.wait.ChainWaitTarget
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -170,7 +171,7 @@ class DefaultCommandGateway(
         waitPlan: WaitPlan
     ): Flux<CommandResult> =
         Flux.defer {
-            validateVoidCommandWaitPlan(command, waitPlan)
+            validateWaitPlan(command, waitPlan)
             admission.admit(command)
                 .mapToCommandResultException(command, waitPlan)
                 .thenMany(
@@ -196,7 +197,7 @@ class DefaultCommandGateway(
         waitPlan: WaitPlan
     ): Mono<CommandResult> =
         Mono.defer {
-            validateVoidCommandWaitPlan(command, waitPlan)
+            validateWaitPlan(command, waitPlan)
             admission.admit(command)
                 .mapToCommandResultException(command, waitPlan)
                 .then(
@@ -233,12 +234,20 @@ class DefaultCommandGateway(
         }.mapToCommandResultException(admitted.message, waitPlan)
     }
 
-    private fun validateVoidCommandWaitPlan(
+    /**
+     * A void command needs a plan that supports it. A chain wait must wait on the command it is sent with: its state
+     * tells the root command from the commands of the chain's tail by comparing their IDs to the wait command ID (B6).
+     */
+    private fun validateWaitPlan(
         command: CommandMessage<*>,
         waitPlan: WaitPlan
     ) {
         require(!command.isVoid || waitPlan.supportVoidCommand) {
             "The wait plan[${waitPlan.javaClass.simpleName}] for the void command must support void command."
+        }
+        require(waitPlan.target !is ChainWaitTarget || waitPlan.waitCommandId == command.commandId) {
+            "A chain wait must wait on the command it is sent with: waitCommandId[${waitPlan.waitCommandId}] is not " +
+                "the command ID[${command.commandId}]."
         }
     }
 

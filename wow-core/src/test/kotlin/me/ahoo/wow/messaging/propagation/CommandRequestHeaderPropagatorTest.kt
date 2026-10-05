@@ -43,7 +43,7 @@ class CommandRequestHeaderPropagatorTest {
     }
 
     @Test
-    fun `propagate does nothing when disabled by system property`() {
+    fun `propagate does nothing when disabled`() {
         val upstream = TestNamedMessage(
             header = DefaultHeader.empty()
                 .withUserAgent("JUnit")
@@ -51,9 +51,7 @@ class CommandRequestHeaderPropagatorTest {
         )
         val target = DefaultHeader.empty()
 
-        withSystemProperty(ENABLED_KEY, "false") {
-            CommandRequestHeaderPropagator().propagate(target, upstream)
-        }
+        CommandRequestHeaderPropagator(enabled = false).propagate(target, upstream)
 
         target.userAgent.assert().isNull()
         target.remoteIp.assert().isNull()

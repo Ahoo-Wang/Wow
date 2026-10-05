@@ -21,8 +21,12 @@ import me.ahoo.wow.api.messaging.Message
  *
  * This propagator helps maintain client request context across message boundaries,
  * useful for auditing and security purposes.
+ *
+ * @param enabled Whether it propagates; the starter sets it from `wow.messaging.propagation.request` (default true).
+ * Since 9.3.0 the runtime no longer reads that key as a JVM system property itself; a system property still reaches
+ * the Spring setting through the environment.
  */
-class CommandRequestHeaderPropagator : MessagePropagator {
+class CommandRequestHeaderPropagator(private val enabled: Boolean = true) : MessagePropagator {
     companion object {
         /**
          * System property key to enable/disable this propagator.
@@ -56,7 +60,6 @@ class CommandRequestHeaderPropagator : MessagePropagator {
     /**
      * Whether this propagator is enabled, controlled by system property.
      */
-    private val enabled: Boolean = System.getProperty(ENABLED_KEY)?.toBoolean() != false
 
     /**
      * Propagates user agent and remote IP information if enabled.

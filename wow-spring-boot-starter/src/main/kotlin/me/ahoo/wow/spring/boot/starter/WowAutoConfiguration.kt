@@ -16,7 +16,12 @@ import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.ErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
+import me.ahoo.wow.exception.RecoverableExceptionProvider
+import me.ahoo.wow.exception.RecoverableExceptionRegistry
 import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator
+import me.ahoo.wow.messaging.propagation.MessagePropagator
+import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.runtime.RuntimeComponent
@@ -48,6 +53,7 @@ import org.springframework.context.support.AbstractApplicationContext
 import org.springframework.context.support.DefaultLifecycleProcessor
 import org.springframework.core.Ordered
 import org.springframework.core.PriorityOrdered
+import org.springframework.core.env.Environment
 
 /**
  * Wow AutoConfiguration .
@@ -115,6 +121,40 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             ErrorInfoConverterRegistrar.register(it)
         }
         return ErrorInfoConverterRegistrar
+    }
+
+    /**
+     * The runtime's header propagation: the ServiceLoader contributions and the application's `MessagePropagator`
+     * beans, in `@Order`. `wow.messaging.propagation.request` (default `true`) switches the request-header propagator.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    fun messagePropagators(
+        propagators: ObjectProvider<MessagePropagator>,
+        environment: Environment,
+    ): MessagePropagators {
+        val requestHeaders = environment.getProperty(
+            CommandRequestHeaderPropagator.ENABLED_KEY,
+            Boolean::class.java,
+            true,
+        )
+        val services = MessagePropagators.loadServices().map {
+            if (it is CommandRequestHeaderPropagator) CommandRequestHeaderPropagator(requestHeaders) else it
+        }
+        return MessagePropagators(services + propagators.orderedStream().toList())
+    }
+
+    /**
+     * The process's recoverable-exception classification ([RecoverableExceptionRegistry.DEFAULT], seeded by the
+     * ServiceLoader contributions), with the `RecoverableExceptionProvider` beans registered into it.
+     */
+    @Bean
+    fun recoverableExceptionRegistry(
+        providers: ObjectProvider<RecoverableExceptionProvider>,
+    ): RecoverableExceptionRegistry {
+        val registry = RecoverableExceptionRegistry.DEFAULT
+        providers.orderedStream().forEach(registry::register)
+        return registry
     }
 
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")

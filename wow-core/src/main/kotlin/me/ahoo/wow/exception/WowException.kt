@@ -103,12 +103,12 @@ val Throwable.recoverable: RecoverableType
  * - All others → UNKNOWN
  *
  * @return the recoverable type classification for this exception class
- * @see RecoverableExceptionRegistrar
+ * @see RecoverableExceptionRegistry
  * @see RecoverableType
  */
 val Class<out Throwable>.recoverable: RecoverableType
     get() {
-        RecoverableExceptionRegistrar.getRecoverableType(this)?.let {
+        RecoverableExceptionRegistry.DEFAULT.getRecoverableType(this)?.let {
             return it
         }
         return when {

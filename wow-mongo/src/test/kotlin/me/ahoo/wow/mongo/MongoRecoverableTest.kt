@@ -21,7 +21,7 @@ import com.mongodb.ServerAddress
 import com.mongodb.WriteError
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.exception.RecoverableExceptionRegistrar
+import me.ahoo.wow.exception.RecoverableExceptionRegistry
 import me.ahoo.wow.exception.recoverable
 import org.bson.BsonDocument
 import org.junit.jupiter.api.Test
@@ -31,7 +31,7 @@ import org.junit.jupiter.params.provider.ValueSource
 class MongoRecoverableTest {
     @Test
     fun mongoSocketExceptionIsRecoverable() {
-        RecoverableExceptionRegistrar.getRecoverableType(MongoSocketException::class.java)
+        RecoverableExceptionRegistry.DEFAULT.getRecoverableType(MongoSocketException::class.java)
             .assert().isEqualTo(RecoverableType.RECOVERABLE)
         val exception = MongoSocketException("connection refused", ServerAddress("localhost"))
         exception.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
