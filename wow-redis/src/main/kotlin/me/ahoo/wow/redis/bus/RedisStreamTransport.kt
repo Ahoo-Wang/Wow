@@ -15,16 +15,15 @@ package me.ahoo.wow.redis.bus
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.lettuce.core.RedisBusyException
-import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.DistributedMessageBus
-import me.ahoo.wow.messaging.MessageReceiver
-import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.messaging.transport.Transport
+import me.ahoo.wow.messaging.transport.TransportDecodeFailure
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureAction
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportMessage
+import me.ahoo.wow.messaging.transport.TransportReceiver
+import me.ahoo.wow.messaging.transport.TransportRecord
 import org.springframework.data.redis.connection.stream.Consumer
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.connection.stream.ReadOffset
@@ -35,8 +34,6 @@ import org.springframework.data.redis.stream.StreamReceiver.StreamReceiverOption
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.publisher.SynchronousSink
-import tools.jackson.core.JacksonException
 import java.time.Duration
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -52,32 +49,37 @@ internal fun Throwable.isBusyGroup(): Boolean =
                 ?.takeWhile { character -> !character.isWhitespace() } == "BUSYGROUP"
         }
 
-abstract class AbstractRedisMessageBus<M, E>(
+/**
+ * Redis Streams as a [Transport]: a topic is a stream, a message is one entry whose [MESSAGE_FIELD] field holds the
+ * payload (keys, timestamps and headers are not written).
+ *
+ * [open] creates the consumer group at the stream's end (`$`) for every topic that lacks one, reaps idle consumers
+ * when [RedisStreamRetentionOptions.consumerIdleTimeout] is set, then completes readiness; reading starts only once
+ * processing opens. With recovery enabled, entries left pending by consumers whose lease expired are claimed and
+ * delivered again ([RedisStreamRecoveryOptions]).
+ */
+@WowSpi
+class RedisStreamTransport(
     private val redisTemplate: ReactiveStringRedisTemplate,
-    private val topicConverter: AggregateTopicConverter,
     private val pollTimeout: Duration = Duration.ofSeconds(2),
     private val recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     private val messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
     private val retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
-) : DistributedMessageBus<M, E>
-    where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
+) : Transport {
     private val streamOps = redisTemplate.opsForStream<String, String>()
     private val consumerReaper = RedisStreamConsumerReaper(redisTemplate)
-    abstract val messageType: Class<M>
-    override fun send(message: M): Mono<Void> {
-        return Mono.defer {
-            message.withReadOnly()
-            val topic = topicConverter.convert(message)
-            val entry = mapOf(MESSAGE_FIELD to message.toJsonString())
+
+    override fun send(message: TransportMessage): Mono<Void> =
+        Mono.defer {
+            val entry = mapOf(MESSAGE_FIELD to message.payload)
             if (retentionOptions.trims) {
-                streamOps.add(topic, entry, retentionOptions.addOptions(System.currentTimeMillis())).then()
+                streamOps.add(message.topic, entry, retentionOptions.addOptions(System.currentTimeMillis())).then()
             } else {
-                streamOps.add(topic, entry).then()
+                streamOps.add(message.topic, entry).then()
             }
         }
-    }
 
-    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
+    override fun open(group: String, topics: Set<String>): TransportReceiver {
         val readiness = Sinks.empty<Void>()
         val readAdmission = Sinks.empty<Void>()
         val readinessTerminated = AtomicBoolean()
@@ -91,33 +93,33 @@ abstract class AbstractRedisMessageBus<M, E>(
                 readiness.tryEmitError(error)
             }
         }
-        val messages = streamMessages(subscription, ::completeReadiness, readAdmission)
+        val records = streamRecords(group, topics, ::completeReadiness, readAdmission)
             .doOnError(::failReadiness)
             .doOnCancel {
                 failReadiness(
                     CancellationException("Redis receiver initialization was cancelled."),
                 )
             }
-        return MessageReceiver(
-            messages = messages,
-            readiness = readiness.asMono(),
-            processingAdmission = {
+        return object : TransportReceiver {
+            override val records: Flux<TransportRecord> = records
+            override val readiness: Mono<Void> = readiness.asMono()
+
+            override fun openProcessing() {
                 readAdmission.tryEmitEmpty()
-            },
-        )
+            }
+        }
     }
 
-    private fun streamMessages(
-        subscription: MessageSubscription,
+    private fun streamRecords(
+        group: String,
+        topics: Set<String>,
         onReady: () -> Unit,
         readAdmission: Sinks.Empty<Void>,
-    ): Flux<E> {
+    ): Flux<TransportRecord> {
         val options = StreamReceiverOptions.builder().pollTimeout(pollTimeout)
             .build()
 
         return Flux.defer {
-            val group = subscription.receiverGroup
-            val topics = subscription.namedAggregates.map(topicConverter::convert)
             val createGroupPublisher = topics.map { topic ->
                 createGroup(topic, group).then(reapIdleConsumers(topic, group))
             }.let { publishers ->
@@ -158,7 +160,7 @@ abstract class AbstractRedisMessageBus<M, E>(
         options: StreamReceiverOptions<String, MapRecord<String, String, String>>,
         consumer: Consumer,
         group: String
-    ): Flux<E> {
+    ): Flux<TransportRecord> {
         val streamOffset = StreamOffset.create(topic, ReadOffset.lastConsumed())
         val liveRecords = StreamReceiver.create(
             redisTemplate.connectionFactory,
@@ -190,69 +192,72 @@ abstract class AbstractRedisMessageBus<M, E>(
         } else {
             liveRecords
         }
-        return records.handle<E> { record, sink ->
-            record.decode(topic, group, consumer.name, sink)
-        }
-    }
-
-    private fun MapRecord<String, String, String>.decode(
-        topic: String,
-        group: String,
-        consumerName: String,
-        sink: SynchronousSink<E>,
-    ) {
-        val encodedMessage = value[MESSAGE_FIELD]
-        if (encodedMessage == null) {
-            reportDecodeFailure(
-                failure = RedisMessageBusObservation.RecordDecodeFailed(
-                    topic = topic,
-                    consumerGroup = group,
-                    recordId = id.value,
-                    messageType = messageType.name,
-                    reason = RedisRecordDecodeFailureReason.MISSING_MESSAGE_FIELD,
-                    failureType = null,
-                ),
-                consumerName = consumerName,
-            )
-            return
-        }
-        try {
-            val message = encodedMessage.toObject(messageType)
-            message.withReadOnly()
-            val acknowledgePublisher = streamOps.acknowledge(topic, group, id).then()
-            sink.next(message.toExchange(acknowledgePublisher))
-        } catch (failure: JacksonException) {
-            reportDecodeFailure(
-                failure = RedisMessageBusObservation.RecordDecodeFailed(
-                    topic = topic,
-                    consumerGroup = group,
-                    recordId = id.value,
-                    messageType = messageType.name,
-                    reason = RedisRecordDecodeFailureReason.DESERIALIZATION_FAILED,
-                    failureType = failure.javaClass.name,
-                ),
-                consumerName = consumerName,
+        return records.map { record ->
+            RedisTransportRecord(
+                topic = topic,
+                group = group,
+                consumerName = consumer.name,
+                record = record,
             )
         }
     }
 
-    private fun reportDecodeFailure(
-        failure: RedisMessageBusObservation.RecordDecodeFailed,
-        consumerName: String,
-    ) {
-        messageBusObserver.notifySafely(failure)
-        log.error {
-            "Failed to decode Redis Stream record [${failure.recordId}] from topic [${failure.topic}] " +
-                "for consumer group [${failure.consumerGroup}] as consumer [$consumerName] " +
-                "with message type [${failure.messageType}], reason [${failure.reason}], " +
-                "and failure type [${failure.failureType}]. " +
-                "The record remains pending; its payload was omitted from this log."
-        }
+    /**
+     * A received stream entry; acknowledging it sends `XACK` for its group.
+     */
+    inner class RedisTransportRecord internal constructor(
+        override val topic: String,
+        val group: String,
+        val consumerName: String,
+        private val record: MapRecord<String, String, String>,
+    ) : TransportRecord {
+        override val key: String?
+            get() = null
+        override val payload: String?
+            get() = record.value[MESSAGE_FIELD]
+        override val id: String
+            get() = record.id.value
+
+        override fun ack(): Mono<Void> = streamOps.acknowledge(topic, group, record.id).then()
     }
+}
 
-    abstract fun M.toExchange(acknowledgePublisher: Mono<Void>): E
-
+/**
+ * The Redis decode-failure policy: report the record to the [observer] and the log (without its payload) and leave it
+ * pending, so the consumer continues with the next entry.
+ */
+class RedisRecordDecodeFailureHandler(
+    private val observer: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+) : TransportDecodeFailureHandler {
     companion object {
         private val log = KotlinLogging.logger {}
     }
+
+    override fun handle(failure: TransportDecodeFailure): Mono<TransportDecodeFailureAction> =
+        Mono.fromSupplier {
+            val record = failure.record
+            val missingPayload = record.payload == null
+            val observation = RedisMessageBusObservation.RecordDecodeFailed(
+                topic = record.topic,
+                consumerGroup = failure.group,
+                recordId = record.id,
+                messageType = failure.messageType.name,
+                reason = if (missingPayload) {
+                    RedisRecordDecodeFailureReason.MISSING_MESSAGE_FIELD
+                } else {
+                    RedisRecordDecodeFailureReason.DESERIALIZATION_FAILED
+                },
+                failureType = if (missingPayload) null else failure.cause.javaClass.name,
+            )
+            observer.notifySafely(observation)
+            val consumerName = (record as? RedisStreamTransport.RedisTransportRecord)?.consumerName
+            log.error {
+                "Failed to decode Redis Stream record [${observation.recordId}] from topic [${observation.topic}] " +
+                    "for consumer group [${observation.consumerGroup}] as consumer [$consumerName] " +
+                    "with message type [${observation.messageType}], reason [${observation.reason}], " +
+                    "and failure type [${observation.failureType}]. " +
+                    "The record remains pending; its payload was omitted from this log."
+            }
+            TransportDecodeFailureAction.LEAVE_PENDING
+        }
 }

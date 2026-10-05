@@ -934,13 +934,13 @@ public class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration {
 	public fun <init> (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties;)V
 	public fun defaultCommandTopicConverter ()Lme/ahoo/wow/kafka/CommandTopicConverter;
 	public fun defaultEventStreamTopicConverter ()Lme/ahoo/wow/kafka/EventStreamTopicConverter;
-	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)Lme/ahoo/wow/command/DistributedCommandBus;
 	public fun kafkaCommandBusRuntimeResource (Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/runtime/RuntimeResource;
-	public fun kafkaDomainEventBus (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun kafkaDomainEventBus (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)Lme/ahoo/wow/event/DistributedDomainEventBus;
 	public fun kafkaDomainEventBusRuntimeResource (Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun kafkaReceiverPolicy ()Lme/ahoo/wow/kafka/KafkaReceiverPolicy;
-	public fun kafkaRecordDecodeFailureHandler ()Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;
-	public fun kafkaStateEventBus (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun kafkaRecordDecodeFailureHandler ()Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;
+	public fun kafkaStateEventBus (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
 	public fun kafkaStateEventBusRuntimeResource (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun receiverOptionsCustomizer ()Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;
 	public fun stateEventTopicConverter ()Lme/ahoo/wow/kafka/StateEventTopicConverter;

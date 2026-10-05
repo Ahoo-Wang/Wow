@@ -16,10 +16,9 @@ package me.ahoo.wow.spring.boot.starter.kafka
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.kafka.AcknowledgeKafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.KafkaReceiverPolicy
-import me.ahoo.wow.kafka.KafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import org.junit.jupiter.api.Test
@@ -44,7 +43,7 @@ internal class KafkaAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(ReceiverOptionsCustomizer::class.java)
                     .hasSingleBean(KafkaReceiverPolicy::class.java)
-                    .hasSingleBean(KafkaRecordDecodeFailureHandler::class.java)
+                    .hasSingleBean(TransportDecodeFailureHandler::class.java)
                     .hasSingleBean(CommandBus::class.java)
                     .hasSingleBean(DomainEventBus::class.java)
             }
@@ -83,9 +82,9 @@ internal class KafkaAutoConfigurationTest {
                 val retrySpec = policy.retrySpec as RetryBackoffSpec
                 retrySpec.maxAttempts.assert().isEqualTo(5)
                 retrySpec.minBackoff.assert().isEqualTo(Duration.ofSeconds(1))
-                context.getBean(KafkaRecordDecodeFailureHandler::class.java)
+                context.getBean(TransportDecodeFailureHandler::class.java)
                     .assert()
-                    .isSameAs(AcknowledgeKafkaRecordDecodeFailureHandler)
+                    .isSameAs(TransportDecodeFailureHandler.ACKNOWLEDGE)
             }
     }
 }

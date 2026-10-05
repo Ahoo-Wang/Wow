@@ -1973,7 +1973,6 @@ public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatc
 	public fun getName ()Ljava/lang/String;
 	public fun getNamedAggregates ()Ljava/util/Set;
 	public fun newAggregateDispatcher (Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;)Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;
-	public fun receiveMessage (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatcherKt {
@@ -3326,7 +3325,7 @@ public abstract class me/ahoo/wow/messaging/dispatcher/MainDispatcher : me/ahoo/
 	public fun <init> ()V
 	public fun <init> (Lme/ahoo/wow/metrics/WowMetrics;)V
 	public synthetic fun <init> (Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	protected fun createMessageReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	protected abstract fun createMessageReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public final fun forceStop ()V
 	protected final fun forceStopAggregateDispatchers ()V
 	protected fun forceStopManaged ()V
@@ -3336,7 +3335,6 @@ public abstract class me/ahoo/wow/messaging/dispatcher/MainDispatcher : me/ahoo/
 	public abstract fun newAggregateDispatcher (Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;)Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;
 	public final fun prepare (Lme/ahoo/wow/runtime/RuntimeContext;)Lreactor/core/publisher/Mono;
 	public final fun quiesce ()V
-	public abstract fun receiveMessage (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public final fun start ()V
 	protected final fun stopAggregateDispatchersGracefully ()Lreactor/core/publisher/Mono;
 	public final fun stopGracefully ()Lreactor/core/publisher/Mono;
@@ -3583,6 +3581,252 @@ public final class me/ahoo/wow/messaging/propagation/WaitPlanMessagePropagator :
 	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
 }
 
+public final class me/ahoo/wow/messaging/transport/InMemoryTransport : me/ahoo/wow/messaging/transport/Transport {
+	public fun <init> ()V
+	public fun close ()V
+	public fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
+	public fun open (Ljava/lang/String;Ljava/util/Set;)Lme/ahoo/wow/messaging/transport/TransportReceiver;
+	public fun send (Lme/ahoo/wow/messaging/transport/TransportMessage;)Lreactor/core/publisher/Mono;
+}
+
+public abstract interface class me/ahoo/wow/messaging/transport/TopicNaming {
+	public abstract fun topicOf (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/messaging/transport/TopicNamingKt {
+	public static final fun memoized (Lme/ahoo/wow/messaging/transport/TopicNaming;)Lme/ahoo/wow/messaging/transport/TopicNaming;
+}
+
+public abstract interface class me/ahoo/wow/messaging/transport/Transport : java/lang/AutoCloseable {
+	public fun close ()V
+	public fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
+	public abstract fun open (Ljava/lang/String;Ljava/util/Set;)Lme/ahoo/wow/messaging/transport/TransportReceiver;
+	public abstract fun send (Lme/ahoo/wow/messaging/transport/TransportMessage;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/messaging/transport/Transport$DefaultImpls {
+	public static fun close (Lme/ahoo/wow/messaging/transport/Transport;)V
+	public static fun getRuntimeResource (Lme/ahoo/wow/messaging/transport/Transport;)Lme/ahoo/wow/runtime/RuntimeResource;
+}
+
+public class me/ahoo/wow/messaging/transport/TransportCommandBus : me/ahoo/wow/messaging/transport/TransportMessageBus, me/ahoo/wow/command/DistributedCommandBus {
+	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected fun createExchange (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun createExchange (Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportDecodeException : java/lang/RuntimeException {
+	public fun <init> (Lme/ahoo/wow/messaging/transport/TransportDecodeFailure;)V
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportDecodeFailure {
+	public fun <init> (Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Exception;)V
+	public final fun getCause ()Ljava/lang/Exception;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getMessageType ()Ljava/lang/Class;
+	public final fun getRecord ()Lme/ahoo/wow/messaging/transport/TransportRecord;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportDecodeFailureAction : java/lang/Enum {
+	public static final field ACKNOWLEDGE Lme/ahoo/wow/messaging/transport/TransportDecodeFailureAction;
+	public static final field FAIL Lme/ahoo/wow/messaging/transport/TransportDecodeFailureAction;
+	public static final field LEAVE_PENDING Lme/ahoo/wow/messaging/transport/TransportDecodeFailureAction;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/messaging/transport/TransportDecodeFailureAction;
+	public static fun values ()[Lme/ahoo/wow/messaging/transport/TransportDecodeFailureAction;
+}
+
+public abstract interface class me/ahoo/wow/messaging/transport/TransportDecodeFailureHandler {
+	public static final field ACKNOWLEDGE Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;
+	public static final field Companion Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler$Companion;
+	public static final field FAIL Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;
+	public abstract fun handle (Lme/ahoo/wow/messaging/transport/TransportDecodeFailure;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportDecodeFailureHandler$Companion {
+}
+
+public class me/ahoo/wow/messaging/transport/TransportDomainEventBus : me/ahoo/wow/messaging/transport/TransportMessageBus, me/ahoo/wow/event/DistributedDomainEventBus {
+	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun createExchange (Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	protected fun createExchange (Lme/ahoo/wow/event/DomainEventStream;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/event/EventStreamExchange;
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportEventStreamExchange : me/ahoo/wow/event/EventStreamExchange {
+	public fun <init> (Lme/ahoo/wow/event/DomainEventStream;Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/event/DomainEventStream;Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getMessage ()Lme/ahoo/wow/event/DomainEventStream;
+	public final fun getRecord ()Lme/ahoo/wow/messaging/transport/TransportRecord;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportMessage {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;)Lme/ahoo/wow/messaging/transport/TransportMessage;
+	public static synthetic fun copy$default (Lme/ahoo/wow/messaging/transport/TransportMessage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/messaging/transport/TransportMessage;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getPayload ()Ljava/lang/String;
+	public final fun getTimestamp ()J
+	public final fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class me/ahoo/wow/messaging/transport/TransportMessageBus : me/ahoo/wow/messaging/DistributedMessageBus {
+	public static final field Companion Lme/ahoo/wow/messaging/transport/TransportMessageBus$Companion;
+	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	protected abstract fun createExchange (Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public final fun decode (Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/api/messaging/Message;
+	public final fun encode (Lme/ahoo/wow/api/messaging/Message;)Lme/ahoo/wow/messaging/transport/TransportMessage;
+	public abstract fun getMessageType ()Ljava/lang/Class;
+	public final fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
+	public final fun getTransport ()Lme/ahoo/wow/messaging/transport/Transport;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public final fun topicOf (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportMessageBus$Companion {
+}
+
+public abstract interface class me/ahoo/wow/messaging/transport/TransportReceiver {
+	public fun close ()V
+	public fun getReadiness ()Lreactor/core/publisher/Mono;
+	public abstract fun getRecords ()Lreactor/core/publisher/Flux;
+	public fun openProcessing ()V
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportReceiver$DefaultImpls {
+	public static fun close (Lme/ahoo/wow/messaging/transport/TransportReceiver;)V
+	public static fun getReadiness (Lme/ahoo/wow/messaging/transport/TransportReceiver;)Lreactor/core/publisher/Mono;
+	public static fun openProcessing (Lme/ahoo/wow/messaging/transport/TransportReceiver;)V
+}
+
+public abstract interface class me/ahoo/wow/messaging/transport/TransportRecord {
+	public abstract fun ack ()Lreactor/core/publisher/Mono;
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getKey ()Ljava/lang/String;
+	public abstract fun getPayload ()Ljava/lang/String;
+	public abstract fun getTopic ()Ljava/lang/String;
+	public fun nack ()Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportRecord$DefaultImpls {
+	public static fun nack (Lme/ahoo/wow/messaging/transport/TransportRecord;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportServerCommandExchange : me/ahoo/wow/command/ServerCommandExchange {
+	public fun <init> (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getEventStream ()Lme/ahoo/wow/event/DomainEventStream;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public final fun getRecord ()Lme/ahoo/wow/messaging/transport/TransportRecord;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public class me/ahoo/wow/messaging/transport/TransportStateEventBus : me/ahoo/wow/messaging/transport/TransportMessageBus, me/ahoo/wow/eventsourcing/state/DistributedStateEventBus {
+	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/messaging/transport/TopicNaming;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun createExchange (Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	protected fun createExchange (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lme/ahoo/wow/messaging/transport/TransportRecord;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+}
+
+public final class me/ahoo/wow/messaging/transport/TransportStateEventExchange : me/ahoo/wow/eventsourcing/state/StateEventExchange {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lme/ahoo/wow/messaging/transport/TransportRecord;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getMessage ()Lme/ahoo/wow/eventsourcing/state/StateEvent;
+	public final fun getRecord ()Lme/ahoo/wow/messaging/transport/TransportRecord;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
 public abstract class me/ahoo/wow/metadata/CacheableMetadataParser {
 	public fun <init> ()V
 	public final fun parse (Ljava/lang/Class;)Lme/ahoo/wow/metadata/Metadata;
@@ -3819,7 +4063,6 @@ public final class me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher : m
 	public fun getNamedAggregates ()Ljava/util/Set;
 	public final fun getParallelism ()I
 	public fun newAggregateDispatcher (Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/core/publisher/Flux;)Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;
-	public fun receiveMessage (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 }
 
 public abstract interface class me/ahoo/wow/modeling/command/dispatcher/CommandHandler {

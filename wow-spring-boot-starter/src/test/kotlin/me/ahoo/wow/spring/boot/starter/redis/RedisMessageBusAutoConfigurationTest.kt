@@ -12,13 +12,13 @@ import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.redis.bus.AbstractRedisMessageBus
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
 import me.ahoo.wow.redis.bus.RedisMessageBusObservation
 import me.ahoo.wow.redis.bus.RedisMessageBusObserver
 import me.ahoo.wow.redis.bus.RedisStateEventBus
 import me.ahoo.wow.redis.bus.RedisStreamRecoveryOptions
+import me.ahoo.wow.redis.bus.RedisStreamTransport
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -184,10 +184,10 @@ class RedisMessageBusAutoConfigurationTest {
                     consumerGroup = "group",
                     failureType = IllegalStateException::class.java.name,
                 )
-                val observerField = AbstractRedisMessageBus::class.java
+                val observerField = RedisStreamTransport::class.java
                     .getDeclaredField("messageBusObserver")
                     .apply { isAccessible = true }
-                val observer = observerField.get(context.getBean(RedisCommandBus::class.java))
+                val observer = observerField.get(context.getBean(RedisCommandBus::class.java).transport)
                     as RedisMessageBusObserver
 
                 observer.onObservation(observation)
@@ -212,11 +212,11 @@ class RedisMessageBusAutoConfigurationTest {
             .withUserConfiguration(RedisMessageBusAutoConfiguration::class.java)
             .run { context ->
                 context.assert().hasNotFailed()
-                val observerField = AbstractRedisMessageBus::class.java
+                val observerField = RedisStreamTransport::class.java
                     .getDeclaredField("messageBusObserver")
                     .apply { isAccessible = true }
 
-                observerField.get(context.getBean(RedisCommandBus::class.java))
+                observerField.get(context.getBean(RedisCommandBus::class.java).transport)
                     .assert()
                     .isSameAs(singleObserver)
             }

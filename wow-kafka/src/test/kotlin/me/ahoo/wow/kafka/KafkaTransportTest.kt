@@ -21,7 +21,11 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.transport.TransportDecodeFailure
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureAction
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.apache.kafka.clients.consumer.Consumer
@@ -49,7 +53,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
-class AbstractKafkaBusTest {
+class KafkaTransportTest {
 
     @Test
     fun `assignment positions are anchored asynchronously`() {
@@ -574,8 +578,8 @@ class AbstractKafkaBusTest {
             receiverOffset = receiverOffset,
             value = "not-json",
         )
-        val failureHandler = mockk<KafkaRecordDecodeFailureHandler>()
-        every { failureHandler.handle(any()) } returns Mono.empty()
+        val failureHandler = mockk<TransportDecodeFailureHandler>()
+        every { failureHandler.handle(any()) } returns Mono.just(TransportDecodeFailureAction.ACKNOWLEDGE)
         val bus = testBus(record, failureHandler)
 
         try {
@@ -602,7 +606,7 @@ class AbstractKafkaBusTest {
             value = "not-json",
         )
         val expected = IllegalStateException("failure-handler")
-        val failureHandler = mockk<KafkaRecordDecodeFailureHandler>()
+        val failureHandler = mockk<TransportDecodeFailureHandler>()
         every { failureHandler.handle(any()) } returns Mono.error(expected)
         val bus = testBus(record, failureHandler)
 
@@ -634,7 +638,7 @@ class AbstractKafkaBusTest {
                 key = "wrong-key",
             ),
             receiverOffset = receiverOffset,
-            expectedMessage = "Kafka record key does not match the decoded aggregate id.",
+            expectedMessage = "Transport record key does not match the decoded aggregate id.",
         )
     }
 
@@ -650,7 +654,7 @@ class AbstractKafkaBusTest {
                 topic = "wrong.topic",
             ),
             receiverOffset = receiverOffset,
-            expectedMessage = "Kafka record topic does not match the decoded aggregate.",
+            expectedMessage = "Transport record topic does not match the decoded aggregate.",
         )
     }
 
@@ -660,10 +664,10 @@ class AbstractKafkaBusTest {
         receiverOffset: ReceiverOffset,
         expectedMessage: String,
     ) {
-        var failure: KafkaRecordDecodeFailure? = null
-        val failureHandler = KafkaRecordDecodeFailureHandler {
+        var failure: TransportDecodeFailure? = null
+        val failureHandler = TransportDecodeFailureHandler {
             failure = it
-            Mono.empty()
+            Mono.just(TransportDecodeFailureAction.ACKNOWLEDGE)
         }
         val bus = testBus(record, failureHandler)
 
@@ -683,13 +687,13 @@ class AbstractKafkaBusTest {
 
     private fun testBus(
         record: ReceiverRecord<String, String>,
-        failureHandler: KafkaRecordDecodeFailureHandler,
+        failureHandler: TransportDecodeFailureHandler,
     ): TestKafkaBus {
         val receiver = mockk<KafkaReceiver<String, String>>()
         every { receiver.receive(1) } returns Flux.just(record)
         return TestKafkaBus(
             receiver = receiver,
-            recordDecodeFailureHandler = failureHandler,
+            decodeFailureHandler = failureHandler,
         )
     }
 
@@ -711,36 +715,51 @@ class AbstractKafkaBusTest {
             every { topic() } returns topic
             every { key() } returns key
             every { value() } returns value
+            every { partition() } returns 0
+            every { offset() } returns 0L
             every { receiverOffset() } returns receiverOffset
         }
     }
 
     private class TestKafkaBus(
-        private val receiver: KafkaReceiver<String, String>,
+        receiver: KafkaReceiver<String, String>,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(retrySpec = Retry.max(0)),
-        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
-        private val anchorAction: (
+        decodeFailureHandler: TransportDecodeFailureHandler = TransportDecodeFailureHandler.FAIL,
+        anchorAction: (
             Consumer<*, *>,
             Map<TopicPartition, Long>,
             (Throwable?) -> Unit,
         ) -> Unit = { _, _, completion -> completion(null) },
-    ) : AbstractKafkaBus<CommandMessage<*>, ServerCommandExchange<*>>(
-        topicConverter = DefaultCommandTopicConverter(),
+    ) : AutoCloseable {
+        private val transport = TestKafkaTransport(receiver, receiverOptionsCustomizer, receiverPolicy, anchorAction)
+        private val bus = KafkaCommandBus(transport = transport, decodeFailureHandler = decodeFailureHandler)
+
+        val capturedOptions: ReceiverOptions<String, String>?
+            get() = transport.capturedOptions
+
+        fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+            bus.receiver(subscription)
+
+        override fun close() = bus.close()
+    }
+
+    private class TestKafkaTransport(
+        private val receiver: KafkaReceiver<String, String>,
+        receiverOptionsCustomizer: ReceiverOptionsCustomizer,
+        receiverPolicy: KafkaReceiverPolicy,
+        private val anchorAction: (
+            Consumer<*, *>,
+            Map<TopicPartition, Long>,
+            (Throwable?) -> Unit,
+        ) -> Unit,
+    ) : KafkaTransport(
         senderOptions = senderOptions(),
         receiverOptions = receiverOptions(),
         receiverOptionsCustomizer = receiverOptionsCustomizer,
         receiverPolicy = receiverPolicy,
-        recordDecodeFailureHandler = recordDecodeFailureHandler,
     ) {
         var capturedOptions: ReceiverOptions<String, String>? = null
-
-        override val messageType: Class<CommandMessage<*>>
-            get() = CommandMessage::class.java
-
-        override fun CommandMessage<*>.toExchange(receiverOffset: ReceiverOffset): ServerCommandExchange<*> {
-            return KafkaServerCommandExchange(this, receiverOffset)
-        }
 
         override fun createReceiver(
             receiverOptions: ReceiverOptions<String, String>,

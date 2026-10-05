@@ -13,15 +13,12 @@
 package me.ahoo.wow.kafka
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.EventStreamExchange
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
 import reactor.kafka.receiver.KafkaReceiver
-import reactor.kafka.receiver.ReceiverOffset
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
@@ -61,14 +58,14 @@ class KafkaBusDefaultsTest {
                 receiverOptions = receiverOptions(),
             ),
         )
-        val abstractBus = TestAbstractKafkaBus(
+        val transport = TestKafkaTransport(
             senderOptions = senderOptions(),
             receiverOptions = receiverOptions(),
         )
 
         buses.forEach(AutoCloseable::close)
-        abstractBus.createDefaultReceiver(receiverOptions()).assert().isNotNull()
-        abstractBus.close()
+        transport.createDefaultReceiver(receiverOptions()).assert().isNotNull()
+        transport.close()
     }
 
     private fun senderOptions(): SenderOptions<String, String> {
@@ -91,21 +88,10 @@ class KafkaBusDefaultsTest {
         )
     }
 
-    private class TestAbstractKafkaBus(
+    private class TestKafkaTransport(
         senderOptions: SenderOptions<String, String>,
         receiverOptions: ReceiverOptions<String, String>,
-    ) : AbstractKafkaBus<DomainEventStream, EventStreamExchange>(
-        DefaultEventStreamTopicConverter(),
-        senderOptions,
-        receiverOptions,
-    ) {
-        override val messageType: Class<DomainEventStream>
-            get() = DomainEventStream::class.java
-
-        override fun DomainEventStream.toExchange(receiverOffset: ReceiverOffset): EventStreamExchange {
-            return KafkaEventStreamExchange(this, receiverOffset)
-        }
-
+    ) : KafkaTransport(senderOptions, receiverOptions) {
         fun createDefaultReceiver(
             receiverOptions: ReceiverOptions<String, String>,
         ): KafkaReceiver<String, String> {

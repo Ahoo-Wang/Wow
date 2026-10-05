@@ -24,7 +24,6 @@ import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>>(
@@ -59,9 +58,6 @@ internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS :
             }
             .toSet()
     }
-
-    override fun receiveMessage(subscription: MessageSubscription): Flux<E> =
-        messageBus.receiver(subscription).openedMessages()
 
     override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<E> =
         messageBus.receiver(subscription.copy(runtimeOwned = true))

@@ -16,22 +16,20 @@ package me.ahoo.wow.spring.boot.starter.kafka
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
-import me.ahoo.wow.kafka.AbstractKafkaBus
-import me.ahoo.wow.kafka.AcknowledgeKafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.CommandTopicConverter
 import me.ahoo.wow.kafka.DefaultCommandTopicConverter
 import me.ahoo.wow.kafka.DefaultEventStreamTopicConverter
 import me.ahoo.wow.kafka.DefaultStateEventTopicConverter
 import me.ahoo.wow.kafka.EventStreamTopicConverter
-import me.ahoo.wow.kafka.FailKafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.KafkaCommandBus
 import me.ahoo.wow.kafka.KafkaDomainEventBus
 import me.ahoo.wow.kafka.KafkaReceiverPolicy
-import me.ahoo.wow.kafka.KafkaRecordDecodeFailureHandler
 import me.ahoo.wow.kafka.KafkaStateEventBus
 import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.StateEventTopicConverter
+import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportMessageBus
 import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -69,10 +67,10 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
 
     @Bean
     @ConditionalOnMissingBean
-    fun kafkaRecordDecodeFailureHandler(): KafkaRecordDecodeFailureHandler {
+    fun kafkaRecordDecodeFailureHandler(): TransportDecodeFailureHandler {
         return when (kafkaProperties.receiver.decodeFailureStrategy) {
-            KafkaRecordDecodeFailureStrategy.FAIL -> FailKafkaRecordDecodeFailureHandler
-            KafkaRecordDecodeFailureStrategy.ACKNOWLEDGE -> AcknowledgeKafkaRecordDecodeFailureHandler
+            KafkaRecordDecodeFailureStrategy.FAIL -> TransportDecodeFailureHandler.FAIL
+            KafkaRecordDecodeFailureStrategy.ACKNOWLEDGE -> TransportDecodeFailureHandler.ACKNOWLEDGE
         }
     }
 
@@ -92,7 +90,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         topicConverter: CommandTopicConverter,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
-        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
+        decodeFailureHandler: TransportDecodeFailureHandler,
     ): DistributedCommandBus {
         return KafkaCommandBus(
             topicConverter = topicConverter,
@@ -100,7 +98,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
-            recordDecodeFailureHandler = recordDecodeFailureHandler,
+            decodeFailureHandler = decodeFailureHandler,
         )
     }
 
@@ -113,7 +111,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     fun kafkaCommandBusRuntimeResource(
         @Qualifier("kafkaCommandBus")
         kafkaCommandBus: DistributedCommandBus
-    ): RuntimeResource = runtimeResourceOf(kafkaCommandBus, AbstractKafkaBus<*, *>::runtimeResource)
+    ): RuntimeResource = runtimeResourceOf(kafkaCommandBus, TransportMessageBus<*, *>::runtimeResource)
 
     @Bean
     @ConditionalOnMissingBean
@@ -131,7 +129,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         topicConverter: EventStreamTopicConverter,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
-        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
+        decodeFailureHandler: TransportDecodeFailureHandler,
     ): DistributedDomainEventBus {
         return KafkaDomainEventBus(
             topicConverter = topicConverter,
@@ -139,7 +137,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
-            recordDecodeFailureHandler = recordDecodeFailureHandler,
+            decodeFailureHandler = decodeFailureHandler,
         )
     }
 
@@ -152,7 +150,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     fun kafkaDomainEventBusRuntimeResource(
         @Qualifier("kafkaDomainEventBus")
         kafkaDomainEventBus: DistributedDomainEventBus
-    ): RuntimeResource = runtimeResourceOf(kafkaDomainEventBus, AbstractKafkaBus<*, *>::runtimeResource)
+    ): RuntimeResource = runtimeResourceOf(kafkaDomainEventBus, TransportMessageBus<*, *>::runtimeResource)
 
     @Bean
     @ConditionalOnMissingBean
@@ -170,7 +168,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         topicConverter: StateEventTopicConverter,
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
-        recordDecodeFailureHandler: KafkaRecordDecodeFailureHandler,
+        decodeFailureHandler: TransportDecodeFailureHandler,
     ): DistributedStateEventBus {
         return KafkaStateEventBus(
             topicConverter = topicConverter,
@@ -178,7 +176,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
-            recordDecodeFailureHandler = recordDecodeFailureHandler,
+            decodeFailureHandler = decodeFailureHandler,
         )
     }
 
@@ -191,5 +189,5 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     fun kafkaStateEventBusRuntimeResource(
         @Qualifier("kafkaStateEventBus")
         kafkaStateEventBus: DistributedStateEventBus
-    ): RuntimeResource = runtimeResourceOf(kafkaStateEventBus, AbstractKafkaBus<*, *>::runtimeResource)
+    ): RuntimeResource = runtimeResourceOf(kafkaStateEventBus, TransportMessageBus<*, *>::runtimeResource)
 }

@@ -55,9 +55,6 @@ class SnapshotDispatcher(
         DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MainDispatcher<StateEventExchange<*>>(metrics) {
-    override fun receiveMessage(subscription: MessageSubscription): Flux<StateEventExchange<*>> =
-        filterMessages(stateEventBus.receiver(subscription).openedMessages())
-
     override fun createMessageReceiver(
         subscription: MessageSubscription,
     ): MessageReceiver<StateEventExchange<*>> =

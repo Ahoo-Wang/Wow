@@ -29,6 +29,10 @@ flowchart TB
 
 自 9.3.0 起，`receiver` 是唯一入口，每个总线都实现它；9.2 的 `receive` 与 `runtimeReceiver` 已删除。需要订阅时即打开 processing 的普通 exchange 流的 consumer 读取 `receiver(subscription).openedMessages()`；runtime-owned receiver 即 `receiver(subscription.copy(runtimeOwned = true))`。
 
+## 传输 SPI
+
+自 9.3.0 起，每个分布式总线都是建在 `Transport`（`me.ahoo.wow.messaging.transport`，`@WowSpi`）之上的 `TransportMessageBus`。传输只搬运字符串：`send(TransportMessage)` 发布主题、键、载荷和时间戳，`open(group, topics)` 返回带记录、就绪信号、处理准入与关闭的 `TransportReceiver`。其余工作由 `TransportMessageBus` 为所有后端统一完成：主题命名（按聚合缓存）、JSON 编码、解码、键与主题校验、解码失败策略（`TransportDecodeFailureHandler`），以及每种消息一个交换类型（`TransportServerCommandExchange`、`TransportEventStreamExchange`、`TransportStateEventExchange`）。`TransportCommandBus`、`TransportDomainEventBus`、`TransportStateEventBus` 是三种总线；内置传输有 `KafkaTransport`、`RedisStreamTransport` 和 `InMemoryTransport`。Kafka 与 Redis 总线就是这些总线加上各自的传输，所以主题、键、JSON 与消费组都与 9.2 相同。
+
 `LocalCommandBus` 额外暴露订阅者数量和 `sendIfSubscribed`。后者只有在目标本地 receiver 已取得处理准入并确认本次投递仍有效时才能返回 `true`；sink 接受或订阅数本身不够。`DistributedCommandBus` 保留同一发送/接收合同，由后端定义持久化、消费组和 ack 机制。
 
 ## InMemory
@@ -41,13 +45,13 @@ flowchart TB
 
 ## Kafka
 
-`KafkaCommandBus` 复用 `AbstractKafkaBus`：
+`KafkaCommandBus` 是基于 `KafkaTransport` 的 `TransportCommandBus`：
 
 - topic 由命令的具名聚合转换；
 - record key 是 aggregate ID，value 是只读命令 JSON；
 - `send` 等待 Reactor Kafka sender result，producer error 作为 Reactor error 返回；
-- `receiver` 为订阅的 topic 设置 consumer group，并把 record 转为带 `ReceiverOffset` 的 exchange；
-- exchange ack 调用 `ReceiverOffset.acknowledge()`。
+- `receiver` 为订阅的 topic 设置 consumer group，并把 record 转为持有该 record 的 exchange；
+- exchange ack 调用该 record 的 `ReceiverOffset.acknowledge()`。
 
 `receiver.readiness` 只在 partition assignment 完成并保存保守的初始 offset 边界后完成，避免启动窗口漏消息。解码失败由显式 failure handler 处理；成功处理的消费确认仍属于 exchange ack 边界。
 

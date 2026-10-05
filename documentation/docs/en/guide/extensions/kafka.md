@@ -19,7 +19,7 @@ The send path is `CommandGateway`/event publisher → Wow bus → Kafka. The rec
 
 ### Class Hierarchy
 
-`KafkaCommandBus`, `KafkaDomainEventBus`, and `KafkaStateEventBus` share the send, receive, retry, and decode pipeline in `AbstractKafkaBus`. They differ only in message type, topic converter, and exchange type.
+Since 9.3.0 `KafkaCommandBus`, `KafkaDomainEventBus`, and `KafkaStateEventBus` are the core `TransportCommandBus`, `TransportDomainEventBus` and `TransportStateEventBus` over a `KafkaTransport` (see [Transport SPI](../command/internals/transport.md#transport-spi)). `KafkaTransport` owns the producer, the consumer, readiness anchoring and receive retry; the core bus owns encoding, decoding, the key and topic checks and the decode-failure policy. Each bus differs only in its topic converter. A bus can also be built over an existing transport: `KafkaCommandBus(transport, topicConverter, decodeFailureHandler)`.
 
 ### Three Buses, Three Topic Kinds
 
@@ -96,7 +96,7 @@ The receive stream retries consecutive failures according to `retry-attempts` an
 
 ### Decode Failure Policy
 
-`FAIL` is the default: a malformed record terminates the current receive stream and enters retry. `ACKNOWLEDGE` acknowledges and skips the record, which can cause unrecoverable data loss. Use it only with a dead-letter, audit, and replay procedure.
+The strategy selects the `TransportDecodeFailureHandler` bean (`TransportDecodeFailureHandler.FAIL` or `.ACKNOWLEDGE`; until 9.2 the bean type was `KafkaRecordDecodeFailureHandler`). A record fails to decode when its value is not the bus's message JSON, or its key or topic does not match the decoded message. `FAIL` is the default: a malformed record terminates the current receive stream and enters retry. `ACKNOWLEDGE` acknowledges and skips the record, which can cause unrecoverable data loss. Use it only with a dead-letter, audit, and replay procedure.
 
 ## Topic Naming Rules
 
@@ -136,7 +136,7 @@ Throughput depends on partitions, consumer instances, handler latency, and poll/
 
 ## Key Design Decisions
 
-These constraints come from the current `AbstractKafkaBus` and its tests, not from a general Kafka tutorial.
+These constraints come from the current `KafkaTransport`, `TransportMessageBus` and their tests, not from a general Kafka tutorial.
 
 ### 1. String Serialization at the Kafka Layer
 
@@ -156,9 +156,9 @@ Reactor Kafka stops polling while `max-deferred-commits` acknowledged offsets wa
 Up to 9.2.2 the default was `max-deferred-commits=1` without the commit trigger: after each acknowledged record the consumer paused until the next periodic commit, so a receiver handled about one poll per `commitInterval` (5 s). The default is now 500, Kafka's default `max.poll.records`. A deployment that set `max-deferred-commits` explicitly keeps its value and now commits after that many acknowledgements instead of pausing.
 :::
 
-### 4. Correlation Metadata for Send Feedback
+### 4. Send Feedback
 
-Each send uses correlation metadata to receive `KafkaSender` success or failure. The returned `Mono<Void>` completes after producer feedback, not after a downstream consumer processes the message.
+Each send waits for the `KafkaSender` result of its record and reports the producer's exception as a Reactor error. The returned `Mono<Void>` completes after producer feedback, not after a downstream consumer processes the message.
 
 ## Monitoring and Observability
 

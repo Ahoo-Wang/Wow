@@ -240,19 +240,16 @@ class MainDispatcherTest {
             "wow-core-test.command_aggregate".toNamedAggregate().materialize(),
         )
 
-        override fun receiveMessage(subscription: MessageSubscription): Flux<String> {
-            receiveCount.incrementAndGet()
-            return Flux.just(subscription.receiverGroup)
-        }
-
         override fun createMessageReceiver(
             subscription: MessageSubscription,
-        ): MessageReceiver<String> =
-            MessageReceiver(
-                messages = receiveMessage(subscription),
+        ): MessageReceiver<String> {
+            receiveCount.incrementAndGet()
+            return MessageReceiver(
+                messages = Flux.just(subscription.receiverGroup),
                 processingAdmission = processingOpenCount::incrementAndGet,
                 processingQuiescence = processingCloseCount::incrementAndGet,
             )
+        }
 
         override fun newAggregateDispatcher(
             namedAggregate: NamedAggregate,
