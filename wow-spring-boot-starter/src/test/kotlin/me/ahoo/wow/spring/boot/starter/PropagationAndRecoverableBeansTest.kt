@@ -21,6 +21,7 @@ import me.ahoo.wow.exception.RecoverableExceptionProvider
 import me.ahoo.wow.exception.RecoverableExceptionRegistry
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator
 import me.ahoo.wow.messaging.propagation.MessagePropagator
 import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.tck.wire.WireSamples
@@ -57,6 +58,36 @@ internal class PropagationAndRecoverableBeansTest {
                 val header = context.getBean(MessagePropagators::class.java).headerOf(WireSamples.commandMessage())
 
                 header["tenant_hint"].assert().isEqualTo("from-bean")
+            }
+    }
+
+    @Test
+    fun `a bean wins over the ServiceLoader propagator of the same class`() {
+        contextRunner
+            .withPropertyValues("wow.messaging.propagation.request=false")
+            .withBean("requestHeaders", MessagePropagator::class.java, { CommandRequestHeaderPropagator(true) })
+            .run { context ->
+                val propagators = context.getBean(MessagePropagators::class.java).propagators
+                propagators.filterIsInstance<CommandRequestHeaderPropagator>().assert().hasSize(1)
+                val header = context.getBean(MessagePropagators::class.java).headerOf(WireSamples.commandMessage())
+                header["user_agent"].assert().isNotNull()
+            }
+    }
+
+    @Test
+    fun `provider beans are registered at startup under lazy initialization`() {
+        contextRunner
+            .withPropertyValues("spring.main.lazy-initialization=true")
+            .withBean("beanProvider", RecoverableExceptionProvider::class.java, { BeanRecoverableProvider })
+            .withInitializer {
+                it.addBeanFactoryPostProcessor(org.springframework.boot.LazyInitializationBeanFactoryPostProcessor())
+            }
+            .run {
+                try {
+                    BeanClassifiedException::class.java.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
+                } finally {
+                    RecoverableExceptionRegistry.DEFAULT.unregister(BeanClassifiedException::class.java)
+                }
             }
     }
 

@@ -50,20 +50,6 @@ interface RecoverableExceptionRegistrar {
      * @param throwableClass the exception class to unregister
      */
     fun unregister(throwableClass: Class<out Throwable>)
-
-    /**
-     * compat(wow<9.3): `RecoverableExceptionRegistrar` was the global registry object; code written against 9.2 calls
-     * it statically. It delegates to [RecoverableExceptionRegistry.DEFAULT].
-     */
-    @Deprecated("Scheduled for removal in 10.0.0. Use RecoverableExceptionRegistry (the bean, or its DEFAULT).")
-    companion object : RecoverableExceptionRegistrar by RecoverableExceptionRegistry.DEFAULT {
-        @Deprecated(
-            "Scheduled for removal in 10.0.0. Use RecoverableExceptionRegistry.getRecoverableType.",
-            ReplaceWith("RecoverableExceptionRegistry.DEFAULT.getRecoverableType(throwableClass)"),
-        )
-        fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? =
-            RecoverableExceptionRegistry.DEFAULT.getRecoverableType(throwableClass)
-    }
 }
 
 /**

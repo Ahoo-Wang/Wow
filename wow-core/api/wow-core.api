@@ -2269,15 +2269,8 @@ public abstract interface class me/ahoo/wow/exception/RecoverableExceptionProvid
 }
 
 public abstract interface class me/ahoo/wow/exception/RecoverableExceptionRegistrar {
-	public static final field Companion Lme/ahoo/wow/exception/RecoverableExceptionRegistrar$Companion;
 	public abstract fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
 	public abstract fun unregister (Ljava/lang/Class;)V
-}
-
-public final class me/ahoo/wow/exception/RecoverableExceptionRegistrar$Companion : me/ahoo/wow/exception/RecoverableExceptionRegistrar {
-	public final fun getRecoverableType (Ljava/lang/Class;)Lme/ahoo/wow/api/exception/RecoverableType;
-	public fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
-	public fun unregister (Ljava/lang/Class;)V
 }
 
 public final class me/ahoo/wow/exception/RecoverableExceptionRegistry : me/ahoo/wow/exception/RecoverableExceptionRegistrar {
@@ -3584,13 +3577,6 @@ public final class me/ahoo/wow/messaging/propagation/MessagePropagator$DefaultIm
 	public static fun propagate (Lme/ahoo/wow/messaging/propagation/MessagePropagator;Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
 }
 
-public final class me/ahoo/wow/messaging/propagation/MessagePropagatorProvider : me/ahoo/wow/messaging/propagation/MessagePropagator {
-	public static final field INSTANCE Lme/ahoo/wow/messaging/propagation/MessagePropagatorProvider;
-	public final fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)Lme/ahoo/wow/api/messaging/Header;
-	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
-	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;Lme/ahoo/wow/api/messaging/function/FunctionInfo;)V
-}
-
 public final class me/ahoo/wow/messaging/propagation/MessagePropagators {
 	public static final field Companion Lme/ahoo/wow/messaging/propagation/MessagePropagators$Companion;
 	public fun <init> (Ljava/util/List;)V
@@ -4612,8 +4598,8 @@ public final class me/ahoo/wow/saga/stateless/StatelessSagaFunctionFilter : me/a
 }
 
 public final class me/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar : me/ahoo/wow/event/dispatcher/AbstractEventFunctionRegistrar {
-	public fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/propagation/MessagePropagators;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;)V
-	public synthetic fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/propagation/MessagePropagators;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;Lme/ahoo/wow/messaging/propagation/MessagePropagators;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/messaging/function/MessageFunctionRegistrar;Lme/ahoo/wow/messaging/propagation/MessagePropagators;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun resolveProcessor (Ljava/lang/Object;)Ljava/util/Set;
 }
 

@@ -47,6 +47,7 @@ import org.springframework.context.ApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.Lifecycle
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Lazy
 import org.springframework.context.annotation.Primary
 import org.springframework.context.annotation.Role
 import org.springframework.context.support.AbstractApplicationContext
@@ -124,8 +125,10 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     /**
-     * The runtime's header propagation: the ServiceLoader contributions and the application's `MessagePropagator`
-     * beans, in `@Order`. `wow.messaging.propagation.request` (default `true`) switches the request-header propagator.
+     * The runtime's header propagation: the application's `MessagePropagator` beans and the ServiceLoader contributions
+     * (a bean wins over a ServiceLoader propagator of the same class), ordered by Wow's `@Order`
+     * (`me.ahoo.wow.api.annotation.Order`), not Spring's. `wow.messaging.propagation.request` (default `true`) switches
+     * the request-header propagator here; [MessagePropagators.DEFAULT] does not read it.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -141,14 +144,17 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         val services = MessagePropagators.loadServices().map {
             if (it is CommandRequestHeaderPropagator) CommandRequestHeaderPropagator(requestHeaders) else it
         }
-        return MessagePropagators(services + propagators.orderedStream().toList())
+        return MessagePropagators((propagators.orderedStream().toList() + services).distinctBy { it.javaClass })
     }
 
     /**
      * The process's recoverable-exception classification ([RecoverableExceptionRegistry.DEFAULT], seeded by the
-     * ServiceLoader contributions), with the `RecoverableExceptionProvider` beans registered into it.
+     * ServiceLoader contributions), with the `RecoverableExceptionProvider` beans registered into it. Never lazy:
+     * the classification is read through [RecoverableExceptionRegistry.DEFAULT], not by injection, so the providers
+     * must be registered at startup even under `spring.main.lazy-initialization`.
      */
     @Bean
+    @Lazy(false)
     fun recoverableExceptionRegistry(
         providers: ObjectProvider<RecoverableExceptionProvider>,
     ): RecoverableExceptionRegistry {

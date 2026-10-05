@@ -186,9 +186,9 @@ The starter fails startup when the context still holds such a bean (an `Exchange
 
 ### Header Propagation and Recoverable Exceptions Are Beans (9.3.0)
 
-- `MessagePropagatorProvider` is deprecated. The runtime uses an injected `MessagePropagators` (the Spring bean, or `MessagePropagators.DEFAULT` outside Spring); `import ...MessagePropagatorProvider.propagate` becomes `import me.ahoo.wow.messaging.propagation.propagate`. A `MessagePropagator` can now also be a bean.
-- `RecoverableExceptionRegistrar` is an interface; the registry is `RecoverableExceptionRegistry`. Static calls such as `RecoverableExceptionRegistrar.register(...)` still compile and are deprecated; use `RecoverableExceptionRegistry.DEFAULT` or the `recoverableExceptionRegistry` bean. A `RecoverableExceptionProvider` can now also be a bean.
-- `wow.messaging.propagation.request` is read from the Spring environment; outside Spring the system property is no longer read.
+- `MessagePropagatorProvider` is removed. Use an injected `MessagePropagators` (the Spring bean, or `MessagePropagators.DEFAULT` outside Spring); `import ...MessagePropagatorProvider.propagate` becomes `import me.ahoo.wow.messaging.propagation.propagate`. A `MessagePropagator` can now also be a bean; a bean wins over a ServiceLoader propagator of the same class, and Wow's `@Order` (not Spring's) orders them.
+- `RecoverableExceptionRegistrar` is now the interface `RecoverableExceptionProvider`s register into; the static object is removed. Use `RecoverableExceptionRegistry.DEFAULT` or the `recoverableExceptionRegistry` bean (`register`, `unregister`, `getRecoverableType`). A `RecoverableExceptionProvider` can now also be a bean.
+- `wow.messaging.propagation.request` is read from the Spring environment and applies to the runtime's injected `MessagePropagators` only; `MessagePropagators.DEFAULT` ignores it, and outside Spring the `-D` system property is no longer read.
 - A chain wait's tail reaches only the commands of the Saga function the chain waits for, and a chain plan must wait on the command it is sent with (`waitCommandId` = command ID), otherwise `sendAndWait` fails with `IllegalArgumentException`. See [Command Wait Runtime](./command/internals/wait-runtime.md).
 
 ### BI Script Route Needs `wow-bi` (9.3.0)

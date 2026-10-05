@@ -194,13 +194,13 @@ StateEvents drive snapshot processing. With a distributed implementation, includ
 
 ## Header Propagation
 
-When a message is derived from another (an event stream from its command, a command from the event a Saga reacts to), the `MessagePropagators` bean copies context headers onto it: the wait keys, the operator, the trace, the request headers, and whatever the application adds. It holds the `MessagePropagator` implementations listed in `META-INF/services/me.ahoo.wow.messaging.propagation.MessagePropagator` and the application's `MessagePropagator` beans, in `@Order` (since 9.3.0; before it, only the ServiceLoader list, held by the `MessagePropagatorProvider` singleton).
+When a message is derived from another (an event stream from its command, a command from the event a Saga reacts to), the `MessagePropagators` bean copies context headers onto it: the wait keys, the operator, the trace, the request headers, and whatever the application adds. It holds the `MessagePropagator` implementations listed in `META-INF/services/me.ahoo.wow.messaging.propagation.MessagePropagator` and the application's `MessagePropagator` beans (a bean wins over a listed implementation of the same class), ordered by Wow's `@Order` (`me.ahoo.wow.api.annotation.Order`), not Spring's (since 9.3.0; before it, only the ServiceLoader list, held by the removed `MessagePropagatorProvider` singleton).
 
 | Property | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `wow.messaging.propagation.request` | Boolean | `true` | Propagates `user_agent` and `remote_ip` to derived messages |
 
-Since 9.3.0 the runtime reads this switch from the Spring environment, so it can be set in `application.yaml`; a JVM system property of the same name still reaches it. Outside Spring the runtime no longer reads the system property.
+Since 9.3.0 the runtime reads this switch from the Spring environment, so it can be set in `application.yaml`; a JVM system property of the same name still reaches it. It applies to the runtime's injected `MessagePropagators` only: `MessagePropagators.DEFAULT` ignores it, and outside Spring the system property is no longer read.
 
 The classification of recoverable exceptions works the same way: `RecoverableExceptionProvider` implementations listed in `META-INF/services/me.ahoo.wow.exception.RecoverableExceptionProvider` and `RecoverableExceptionProvider` beans register into the `recoverableExceptionRegistry` bean, the process's one `RecoverableExceptionRegistry`.
 

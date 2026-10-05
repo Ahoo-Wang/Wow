@@ -194,13 +194,13 @@ StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积
 
 ## 请求头传播
 
-一条消息由另一条派生时（事件流由它的命令派生，命令由 Saga 处理的事件派生），`MessagePropagators` Bean 把上下文请求头复制过去：等待键、操作人、追踪、请求头，以及应用自己添加的内容。它包含 `META-INF/services/me.ahoo.wow.messaging.propagation.MessagePropagator` 列出的 `MessagePropagator` 实现和应用的 `MessagePropagator` Bean，按 `@Order` 排序（自 9.3.0 起；此前只有 ServiceLoader 列表，由单例 `MessagePropagatorProvider` 持有）。
+一条消息由另一条派生时（事件流由它的命令派生，命令由 Saga 处理的事件派生），`MessagePropagators` Bean 把上下文请求头复制过去：等待键、操作人、追踪、请求头，以及应用自己添加的内容。它包含 `META-INF/services/me.ahoo.wow.messaging.propagation.MessagePropagator` 列出的 `MessagePropagator` 实现和应用的 `MessagePropagator` Bean（同一类的 Bean 优先于列出的实现），按 Wow 的 `@Order`（`me.ahoo.wow.api.annotation.Order`）而不是 Spring 的排序（自 9.3.0 起；此前只有 ServiceLoader 列表，由已删除的单例 `MessagePropagatorProvider` 持有）。
 
 | 属性 | 类型 | 默认值 | 含义 |
 | --- | --- | --- | --- |
 | `wow.messaging.propagation.request` | Boolean | `true` | 把 `user_agent`、`remote_ip` 传播到派生消息 |
 
-自 9.3.0 起运行时从 Spring 环境读取这个开关，因此可以写在 `application.yaml` 里；同名的 JVM 系统属性仍然有效。在 Spring 之外，运行时不再读取该系统属性。
+自 9.3.0 起运行时从 Spring 环境读取这个开关，因此可以写在 `application.yaml` 里；同名的 JVM 系统属性仍然有效。它只作用于运行时注入的 `MessagePropagators`：`MessagePropagators.DEFAULT` 忽略它，在 Spring 之外也不再读取该系统属性。
 
 可恢复异常的分类同理：`META-INF/services/me.ahoo.wow.exception.RecoverableExceptionProvider` 列出的 `RecoverableExceptionProvider` 实现和 `RecoverableExceptionProvider` Bean 注册到 `recoverableExceptionRegistry` Bean，即进程唯一的 `RecoverableExceptionRegistry`。
 
