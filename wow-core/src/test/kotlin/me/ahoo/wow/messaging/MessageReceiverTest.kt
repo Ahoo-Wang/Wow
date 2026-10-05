@@ -83,4 +83,19 @@ class MessageReceiverTest {
         processingAdmissions.get().assert().isZero()
         processingQuiescences.get().assert().isOne()
     }
+
+    @Test
+    fun `opened messages open processing on subscription`() {
+        val processingAdmissions = AtomicInteger()
+        val receiver = MessageReceiver(
+            messages = Flux.just(1, 2),
+            processingAdmission = processingAdmissions::incrementAndGet,
+        )
+
+        processingAdmissions.get().assert().isZero()
+        StepVerifier.create(receiver.openedMessages())
+            .expectNext(1, 2)
+            .verifyComplete()
+        processingAdmissions.get().assert().isOne()
+    }
 }

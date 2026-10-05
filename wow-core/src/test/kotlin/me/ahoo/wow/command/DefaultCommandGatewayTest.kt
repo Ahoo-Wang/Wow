@@ -44,6 +44,7 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -739,7 +740,8 @@ private class RecordingCommandBus : CommandBus {
             sendResult(message)
         }
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+        MessageReceiver(Flux.empty())
 }
 
 private class RecordingLastWaitCoordinator(

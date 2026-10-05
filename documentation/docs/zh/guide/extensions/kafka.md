@@ -15,7 +15,7 @@ Wow 负责把框架消息转换为 Kafka record，并把收到的 record 包装�
 
 ### 高层流程
 
-发送路径是 `CommandGateway`/事件发布器 → Wow 总线 → Kafka；接收路径是 Kafka → Wow exchange → 命令、事件、投影或 Saga 处理器。`send`、`receive` 均保持 Reactor 非阻塞契约。
+发送路径是 `CommandGateway`/事件发布器 → Wow 总线 → Kafka；接收路径是 Kafka → Wow exchange → 命令、事件、投影或 Saga 处理器。`send`、`receiver` 均保持 Reactor 非阻塞契约。
 
 ### 类层级
 

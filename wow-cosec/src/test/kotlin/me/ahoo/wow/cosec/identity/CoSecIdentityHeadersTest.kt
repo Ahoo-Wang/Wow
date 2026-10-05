@@ -11,14 +11,10 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package me.ahoo.wow.cosec.identity
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.factory.CommandBuilder
-import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
-import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -40,9 +36,9 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * CoSec's headers as identity header aliases give what CoSec's two SPI overrides gave: the default command builder
- * extractor and query request scope, reading the aliases the route carries, agree with the deprecated
- * [CoSecCommandBuilderExtractor] and [CoSecQueryRequestScope] on every request.
+ * CoSec's headers as identity header aliases: the default command builder extractor and query request scope, reading
+ * the aliases the route carries, take `CoSec-Space-Id` / `CoSec-Request-Id` where Wow's own header is absent, as if
+ * the request had sent Wow's header.
  */
 class CoSecIdentityHeadersTest {
     private val spacedRoute = Order::class.java.aggregateRouteMetadata()
@@ -50,7 +46,7 @@ class CoSecIdentityHeadersTest {
 
     /**
      * A request as the router hands it over: with [aliases], the route identity the router materialized with CoSec's
-     * aliases; without, as 9.2 served it (no aliases, CoSec's overrides read the headers themselves).
+     * aliases; without, a route with no aliases.
      */
     private fun request(
         wowSpace: String?,
@@ -96,21 +92,21 @@ class CoSecIdentityHeadersTest {
         "wow-space, , wow-request, ",
         ", , , ",
     )
-    fun `the aliases give what the CoSec overrides gave`(
+    fun `a CoSec header counts as Wow's own header where that is absent`(
         wowSpace: String?,
         coSecSpace: String?,
         wowRequest: String?,
         coSecRequest: String?,
     ) {
         val withAliases = request(wowSpace, coSecSpace, wowRequest, coSecRequest)
-        val asIn92 = request(wowSpace, coSecSpace, wowRequest, coSecRequest, aliases = false)
+        val wowHeadersOnly = request(wowSpace ?: coSecSpace, null, wowRequest ?: coSecRequest, null, aliases = false)
         for (route in listOf(spacedRoute, plainRoute)) {
             build(DefaultCommandBuilderExtractor, route, withAliases).assert()
-                .isEqualTo(build(CoSecCommandBuilderExtractor, route, asIn92))
+                .isEqualTo(build(DefaultCommandBuilderExtractor, route, wowHeadersOnly))
         }
         for (aggregate in listOf(aggregateMetadata<Order, OrderState>(), MOCK_AGGREGATE_METADATA)) {
             DefaultQueryRequestScope.resolve(aggregate, withAliases).assert()
-                .isEqualTo(CoSecQueryRequestScope.resolve(aggregate, asIn92))
+                .isEqualTo(DefaultQueryRequestScope.resolve(aggregate, wowHeadersOnly))
         }
     }
 

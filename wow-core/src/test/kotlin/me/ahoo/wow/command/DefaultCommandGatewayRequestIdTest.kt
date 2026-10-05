@@ -30,6 +30,7 @@ import me.ahoo.wow.eventsourcing.RequestIdExistenceChecker
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -180,5 +181,6 @@ private class FailingFirstCommandBus(private val failures: Int = 1) : CommandBus
             if (sent.size <= failures) Mono.error(failure) else Mono.empty()
         }
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+        MessageReceiver(Flux.empty())
 }

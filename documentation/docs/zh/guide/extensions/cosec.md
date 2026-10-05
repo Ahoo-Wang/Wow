@@ -13,7 +13,7 @@ description: 在 Wow WebFlux 命令与查询中提取并传播 CoSec 上下文�
 
 ## 工作原理
 
-三个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device；`CoSecIdentityHeaders.ALIASES` 把 `CoSec-Request-Id`、`CoSec-Space-Id` 登记为身份请求头别名，每条 WebFlux 路由的命令与查询都会读取；service-loaded `CoSecMessagePropagator` 传播 app/device。自 9.3.0 起，别名取代了两个 SPI 覆盖 `CoSecCommandBuilderExtractor` 与 `CoSecQueryRequestScope`：它们已弃用，不再注册为 bean，应用自行注册时仍可用。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
+三个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device；`CoSecIdentityHeaders.ALIASES` 把 `CoSec-Request-Id`、`CoSec-Space-Id` 登记为身份请求头别名，每条 WebFlux 路由的命令与查询都会读取；service-loaded `CoSecMessagePropagator` 传播 app/device。自 9.3.0 起，别名取代了 9.2 的两个 SPI 覆盖 `CoSecCommandBuilderExtractor` 与 `CoSecQueryRequestScope`，二者已删除。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
 
 ## 安装
 

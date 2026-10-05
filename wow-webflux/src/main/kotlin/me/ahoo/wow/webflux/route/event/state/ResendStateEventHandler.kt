@@ -22,12 +22,9 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_HEAD_VERSION
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
-import me.ahoo.wow.webflux.route.toBatchResult
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 
 class ResendStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -43,14 +40,6 @@ class ResendStateEventHandler(
                 processorName = "ResendStateEventHandler",
                 name = "Resend"
             )
-    }
-
-    @Deprecated(
-        "Scheduled for removal in 10.0.0. Use resend(afterId, limit).toBatchResult(afterId, request, exceptionHandler)."
-    )
-    fun handle(afterId: String, limit: Int): Mono<BatchResult> {
-        @Suppress("DEPRECATION")
-        return resend(afterId, limit).toBatchResult(afterId)
     }
 
     /** Resends the state events of up to [limit] aggregates after [afterId]; emits each aggregate it resent. */

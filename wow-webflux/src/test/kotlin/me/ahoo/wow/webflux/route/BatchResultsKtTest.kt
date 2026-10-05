@@ -99,17 +99,5 @@ class BatchResultsKtTest {
             .verifyComplete()
     }
 
-    @Suppress("DEPRECATION")
-    @Test
-    fun `the deprecated overload maps with the default strategy`() {
-        Flux.error<AggregateId>(NullPointerException("secret"))
-            .toBatchResult("id0")
-            .test()
-            .consumeNextWith {
-                it.errorCode.assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
-            }
-            .verifyComplete()
-    }
-
     private val request = MockServerRequest.builder().build()
 }

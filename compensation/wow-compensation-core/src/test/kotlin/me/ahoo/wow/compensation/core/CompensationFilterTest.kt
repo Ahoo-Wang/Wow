@@ -118,7 +118,8 @@ class DomainEventCompensationFilterTest {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val sink = Sinks.empty<Void>()
-        commandBus.receive(MessageSubscription(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
+        commandBus.receiver(MessageSubscription(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
+            .openedMessages()
             .doOnNext {
                 sink.tryEmitEmpty()
             }
@@ -283,7 +284,8 @@ class DomainEventCompensationFilterTest {
     fun `should not retry when retry is disabled`() {
         val commandBus = InMemoryCommandBus()
         val sink = Sinks.empty<Void>()
-        commandBus.receive(MessageSubscription(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
+        commandBus.receiver(MessageSubscription(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
+            .openedMessages()
             .doOnNext {
                 sink.tryEmitEmpty()
             }

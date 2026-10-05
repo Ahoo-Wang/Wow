@@ -81,7 +81,7 @@ The application fails at startup, naming the aggregate (and, for two resources, 
 | `@AggregateRoute(owner = AggregateRoute.Owner.X)` | `@AggregateOwner(OwnerPolicy.X)` |
 | `@AggregateRoute(resourceName = "r", spaced = true, owner = …)` | `@AggregateRoute(resourceName = "r")` with both annotations |
 
-Remove an `@AggregateRoute` that carried nothing else. The change is declaration-only: routes, the OpenAPI document, the space and owner of commands, and storage stay the same, so nodes built before and after it run side by side. Code that reads the policy uses `AggregateMetadata.spaced` and `AggregateMetadata.owner`, `AggregateRouteMetadata.ownerPolicy` (and its `OwnerPolicy` constructor) in place of `owner`, and `getAggregateId(OwnerPolicy…)`. The deprecated forms are removed in 10.0.0.
+Remove an `@AggregateRoute` that carried nothing else. The change is declaration-only: routes, the OpenAPI document, the space and owner of commands, and storage stay the same, so nodes built before and after it run side by side. Code that reads the policy uses `AggregateMetadata.spaced` and `AggregateMetadata.owner`, and `AggregateRouteMetadata.ownerPolicy` (and its `OwnerPolicy` constructor) in place of `owner`. The deprecated forms are removed in 10.0.0.
 
 ## State, Domain Events, and Invariants
 

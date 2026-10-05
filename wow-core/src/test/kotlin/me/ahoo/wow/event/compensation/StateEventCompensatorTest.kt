@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.modeling.aggregateId
@@ -42,7 +43,7 @@ class StateEventCompensatorTest {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("compensated-versions")
         val eventStore = InMemoryEventStore()
         val stateEventBus = InMemoryStateEventBus()
-        val received = stateEventBus.receive(MessageSubscription(aggregateId.namedAggregate))
+        val received = stateEventBus.receiver(MessageSubscription(aggregateId.namedAggregate)).openedMessages()
             .map { it.message }.take(2).collectList().toFuture()
         try {
             for (version in 1..2) {
@@ -184,6 +185,7 @@ class StateEventCompensatorTest {
                 sent += message
             }
 
-        override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> = Flux.empty()
+        override fun receiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
+            MessageReceiver(Flux.empty())
     }
 }

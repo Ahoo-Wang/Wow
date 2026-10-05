@@ -64,34 +64,8 @@ class OpenAPIAutoConfiguration {
         openAPIComponentContext: OpenAPIComponentContext,
         biScriptProperties: BiScriptProperties,
         eventCompensateSupporter: ObjectProvider<EventCompensateSupporter>,
-    ): RouterSpecs = routerSpecs(
-        boundedContext = boundedContext,
-        openAPIComponentContext = openAPIComponentContext,
-        biScriptProperties = biScriptProperties,
-        eventCompensation = eventCompensateSupporter.ifAvailable != null,
-    )
-
-    /**
-     * The route catalog with the event compensate route, as before 9.2.3. Not a bean: [routerSpecs] with an
-     * [EventCompensateSupporter] provider is.
-     */
-    fun routerSpecs(
-        boundedContext: NamedBoundedContext,
-        openAPIComponentContext: OpenAPIComponentContext,
-        biScriptProperties: BiScriptProperties,
-    ): RouterSpecs = routerSpecs(
-        boundedContext = boundedContext,
-        openAPIComponentContext = openAPIComponentContext,
-        biScriptProperties = biScriptProperties,
-        eventCompensation = true,
-    )
-
-    private fun routerSpecs(
-        boundedContext: NamedBoundedContext,
-        openAPIComponentContext: OpenAPIComponentContext,
-        biScriptProperties: BiScriptProperties,
-        eventCompensation: Boolean,
     ): RouterSpecs {
+        val eventCompensation = eventCompensateSupporter.ifAvailable != null
         val contributors = DefaultRouteContributors.all()
             .filterNot { contributor ->
                 contributor === GenerateBIScriptRouteContributor && !biScriptProperties.enabled

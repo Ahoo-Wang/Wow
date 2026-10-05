@@ -24,9 +24,9 @@ import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
-import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
+import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -52,9 +52,9 @@ open class EventPublishComponentBenchmark {
     @Setup
     fun setup() {
         domainEventBus = InMemoryDomainEventBus()
-        domainEventBus.receive(MessageSubscription(BenchmarkAggregates.namedAggregate)).subscribe()
+        domainEventBus.receiver(MessageSubscription(BenchmarkAggregates.namedAggregate)).openedMessages().subscribe()
         stateEventBus = InMemoryStateEventBus()
-        stateEventBus.receive(MessageSubscription(BenchmarkAggregates.namedAggregate)).subscribe()
+        stateEventBus.receiver(MessageSubscription(BenchmarkAggregates.namedAggregate)).openedMessages().subscribe()
 
         registrar = SimpleMessageFunctionRegistrar()
         registrar.register(BenchmarkEventHandler(BenchmarkAggregates.namedAggregate))

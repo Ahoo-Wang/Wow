@@ -1,6 +1,6 @@
 # Compatibility Debt
 
-Wow 9.x keeps compatibility with what it replaced. The TypeScript packages still reach Wow 8.x servers, keep the deprecated Condition API, and keep the names they had in [fetcher](https://github.com/Ahoo-Wang/fetcher). The Kotlin query API and its HTTP endpoints still accept that Condition API. All of it is removed in v10, together, as one breaking release. Dropping any of it earlier is a breaking change that 9.x does not take, not even in an `x.Y.0` release.
+Wow 9.x keeps compatibility with what it replaced. The TypeScript packages still reach Wow 8.x servers, keep the deprecated Condition API, and keep the names they had in [fetcher](https://github.com/Ahoo-Wang/fetcher). The Kotlin query API and its HTTP endpoints still accept that Condition API. All of it is removed in v10, together, as one breaking release. Dropping any of it earlier is a breaking change that 9.x does not take, not even in an `x.Y.0` release. Binary-only shims, JVM declarations kept only so that bytecode compiled against an older 9.x still links, are the exception: an `x.Y.0` removes them, as 9.3.0 did.
 
 This ledger lists every piece of that debt. Each entry says what is kept compatible, where its markers are, what replaces it, and how v10 removes it.
 
@@ -123,13 +123,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `wow.query.http.*`.
 - **Removal in v10**: delete `LegacyHttpQueryKeys.kt`, its call in `QueryAutoConfiguration.queryEntryPolicy` and the six `wow.webflux.query.*` entries in `additional-spring-configuration-metadata.json`.
 
-### Wow 9.1 Constructors In `wow-api`
-
-- **Kept compatible**: the 9.1.5 JVM constructors `BindingError(name, msg)`, `AggregationGroup.Terms(field, alias, missingKey)` (and its `$default` form) and `AggregationGroup.Histogram(field, alias, interval)`, which a library compiled against 9.1.5 calls. They are `DeprecationLevel.HIDDEN`: in the bytecode, invisible to new source.
-- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/exception/ErrorInfo.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/AggregationQuery.kt`
-- **Replacement**: the primary constructors (`code`, `expression`).
-- **Removal in v10**: delete the three hidden constructors. Source never sees them; binaries compiled against 9.1 fail with `NoSuchMethodError`, which the release notes say.
-
 ### Wow 9.1 Query Schema Declaration Location
 
 - **Kept compatible**: 9.1 fell back to `wow-query-schema/{context}/{aggregate}/{model}.json`, in a format 9.2 does not read, and 9.1 nodes may still need the file while 9.1 and 9.2 run side by side. When no source (classpath, working directory or bean) declares that model in 9.2, a file there is logged as a warning naming the 9.2 location and the model uses its inferred schema; `wow.query.schema.legacy-declarations=fail` (`LegacyQuerySchemaDeclarationPolicy.FAIL`) fails the model instead. Beside a 9.2 declaration it is only logged.
@@ -153,45 +146,17 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 9.2 Aggregate Policies On `@AggregateRoute`
 
-- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property, and the `ServerRequest.getAggregateId(AggregateRoute.Owner…)` overloads.
-- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregatePolicyResolver.kt`, `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/metadata/AggregateRouteMetadata.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt`
-- **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`; `getAggregateId(OwnerPolicy…)`.
-- **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute`, the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes), the two `AggregateRoute.Owner` overloads; `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
-
-### Wow 9.2 Message Bus Receive Entries
-
-- **Kept compatible**: 9.2's `MessageBus` had three receive entries: `receive` (abstract, a plain exchange stream), `receiver` (defaulting to `receive`) and `runtimeReceiver` (defaulting to `receiver`, overridden by local buses for the runtime's local delivery receipts). 9.3 keeps one, `receiver`, and says that a subscription is the runtime's with `MessageSubscription.runtimeOwned`. `receive` and `runtimeReceiver` are deprecated defaults onto it (`receive` opens processing on subscription, so a transport gating reads on it streams at once). `receiver` still defaults to `receive`, so a bus that implements only `receive` keeps working. `MessageSubscription` keeps its 9.2 JVM constructors and `copy` as hidden overloads.
-- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageSubscription.kt`
-- **Replacement**: `receiver(subscription)`; `receiver(subscription.copy(runtimeOwned = true))` for a runtime-owned receiver.
-- **Removal in v10**: delete `receive` and `runtimeReceiver` from `MessageBus` and make `receiver` abstract; delete the hidden constructors and `copy` of `MessageSubscription`. A bus that implements only `receive` then stops compiling, and the release notes tell implementers to override `receiver`. Remove the deprecated-default exemption from `DefaultMethodContract` (`test/wow-tck`) if nothing else uses it.
+- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property.
+- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregatePolicyResolver.kt`, `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/metadata/AggregateRouteMetadata.kt`
+- **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`.
+- **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute` and the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes); `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
 
 ### Wow 9.2 WebFlux Error Helpers
 
-- **Kept compatible**: helpers that map an error outside `WebFluxErrorStrategy`, which 9.3.0 made the one mapping of every route error. `Throwable.toResponseEntity()` and `ErrorInfo.toServerResponse()` (no caller in Wow) still map with the core converter, so an unexpected exception is `BadRequest` with its own message there. `Flux<AggregateId>.toBatchResult(afterId)` and `ResendStateEventHandler.handle(afterId, limit)` map with `DefaultWebFluxErrorStrategy` and log on their own, so a custom strategy and the request's log line do not reach them.
-- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/Responses.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/BatchResults.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/event/state/ResendStateEventHandler.kt`
-- **Replacement**: `WebFluxErrorStrategy.toServerResponse` (or the `RequestExceptionHandler` bean); `toBatchResult(afterId, request, exceptionHandler)`; `ResendStateEventHandler.resend(afterId, limit)` followed by that `toBatchResult`.
-- **Removal in v10**: delete the four functions. Callers move to the replacements; nothing on the wire changes.
-
-### Wow 9.2 Request Identity Readers And CoSec's SPI Overrides
-
-- **Kept compatible**: 9.2 read a request's tenant, owner, space and aggregate ID through `ServerRequest` extensions (`getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId`, `getAggregateId` and its `OwnerPolicy` overloads), and CoSec added `CoSec-Space-Id` / `CoSec-Request-Id` by overriding two SPIs with `CoSecCommandBuilderExtractor` and `CoSecQueryRequestScope`, which `CoSecAutoConfiguration` registered as beans. 9.3 decides every identity fact through one `IdentityResolver` from the route's `RouteIdentityBinding`, and CoSec contributes its headers once as `IdentityHeaderAliases`. The extensions are deprecated and delegate to the binding (same rule, V3 included); the two CoSec objects are deprecated and still work when used directly; `CoSecAutoConfiguration.coSecCommandBuilderExtractor()` / `coSecQueryRequestScope()` and the alias-less `WebFluxAutoConfiguration.commandRouterFunction`, `commandMessageExtractor` and `queryRequestScope` stay as deprecated methods that are no longer beans.
-- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt`, `wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/extractor/CoSecCommandBuilderExtractor.kt`, `wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/query/CoSecQueryRequestScope.kt`, `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/cosec/CoSecAutoConfiguration.kt`, `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration.kt`
-- **Replacement**: `DefaultCommandBuilderExtractor` and `DefaultQueryRequestScope`, which read the route's identity binding and its header aliases; an integration registers an `IdentityHeaderAliases` bean (CoSec's is `CoSecIdentityHeaders.ALIASES`). A custom handler reads identity through the route, not through the request extensions.
-- **Removal in v10**: delete the deprecated `ServerRequest` identity extensions, `CoSecCommandBuilderExtractor`, `CoSecQueryRequestScope`, the two deprecated `CoSecAutoConfiguration` methods and the alias-less `commandRouterFunction`, `commandMessageExtractor` and `queryRequestScope` of `WebFluxAutoConfiguration`. Code still calling them stops compiling; the migration guide points to the aliases bean.
-
-### Wow 9.2 Point-Read Admission Factory Without Scope Contributors
-
-- **Kept compatible**: 9.2's `WebFluxAutoConfiguration.pointReadAdmission(…)` took the host's `QueryRequestScope` as the whole caller scope. 9.3 appends every `ScopeContributor` bean's scope to it, on the query routes and on point reads, so the bean method takes the contributors too. The 9.2 signature stays as a deprecated method that is no longer a bean; a `PointReadAdmission` built with it drops every `ScopeContributor`'s restriction from point reads (the view store's application among them, which then fails closed in its query policy).
-- **Markers**: `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration.kt`
-- **Replacement**: the `pointReadAdmission` bean method that also takes `ObjectProvider<ScopeContributor>`; code building a `PointReadAdmission` by hand passes `CompositeQueryRequestScope.of(scope, contributors)`.
-- **Removal in v10**: delete the contributor-less `pointReadAdmission` of `WebFluxAutoConfiguration`. Code still calling it stops compiling.
-
-### Wow 9.2 Redis Message Bus Constructors
-
-- **Kept compatible**: the 9.2 JVM constructors of `AbstractRedisMessageBus`, `RedisCommandBus`, `RedisDomainEventBus` and `RedisStateEventBus` (with their `$default` forms), which a library compiled against 9.2 calls. 9.3 adds a trailing `retentionOptions` parameter (stream trimming and idle-consumer reaping); the 9.2 signatures are `DeprecationLevel.HIDDEN` overloads that pass `RedisStreamRetentionOptions.DEFAULT`.
-- **Markers**: `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt`, `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/RedisCommandBus.kt`, `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/RedisDomainEventBus.kt`, `wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/RedisStateEventBus.kt`
-- **Replacement**: the primary constructors (`retentionOptions` defaults to `RedisStreamRetentionOptions.DEFAULT`).
-- **Removal in v10**: delete the four hidden constructors. Source never sees them; binaries compiled against 9.2 fail with `NoSuchMethodError`, which the release notes say.
+- **Kept compatible**: `Throwable.toResponseEntity()` and `ErrorInfo.toServerResponse()`, helpers an application may call to map an error outside `WebFluxErrorStrategy`, which 9.3.0 made the one mapping of every route error. They still map with the core converter (no caller in Wow), so an unexpected exception is `BadRequest` with its own message there.
+- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/Responses.kt`
+- **Replacement**: `WebFluxErrorStrategy.toServerResponse` (or the `RequestExceptionHandler` bean).
+- **Removal in v10**: delete the two functions. Callers move to the replacement; nothing on the wire changes.
 
 ## Held Until v10
 

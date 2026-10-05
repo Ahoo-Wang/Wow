@@ -55,7 +55,7 @@ class InMemoryCommandBusAtomicSinkTest {
         }
         val namedAggregate = messages.getValue(0).first()
         val bus = InMemoryCommandBus()
-        val received = bus.receive(MessageSubscription(namedAggregate))
+        val received = bus.receiver(MessageSubscription(namedAggregate)).openedMessages()
             .take(total.toLong())
             .collectList()
             .toFuture()
@@ -108,7 +108,7 @@ class InMemoryCommandBusAtomicSinkTest {
         val terminal = CountDownLatch(1)
         val completed = AtomicBoolean()
         val observedError = AtomicReference<Throwable?>()
-        val subscription = bus.receive(MessageSubscription(message)).subscribe(
+        val subscription = bus.receiver(MessageSubscription(message)).openedMessages().subscribe(
             {
                 onNextEntered.countDown()
                 check(releaseOnNext.await(5, TimeUnit.SECONDS)) {
@@ -138,7 +138,7 @@ class InMemoryCommandBusAtomicSinkTest {
             val rejectedWhileClosing = TestCommandMessage()
             bus.send(rejectedWhileClosing).block(Duration.ofSeconds(5))
             rejectedWhileClosing.isReadOnly.assert().isTrue()
-            bus.receive(MessageSubscription(rejectedWhileClosing))
+            bus.receiver(MessageSubscription(rejectedWhileClosing)).openedMessages()
                 .collectList()
                 .block(Duration.ofSeconds(5))
                 .assert()
@@ -152,7 +152,7 @@ class InMemoryCommandBusAtomicSinkTest {
             observedError.get().assert().isNull()
             cachedSinks(bus).assert().isEmpty()
 
-            val reopenedSubscription = bus.receive(MessageSubscription(message)).subscribe()
+            val reopenedSubscription = bus.receiver(MessageSubscription(message)).openedMessages().subscribe()
             try {
                 val reopenedSink = cachedSinks(bus).single()
                 reopenedSink.assert().isNotSameAs(closingSink)
@@ -175,7 +175,7 @@ class InMemoryCommandBusAtomicSinkTest {
         val bus = InMemoryCommandBus()
         val closeReturned = AtomicBoolean()
         val completed = AtomicBoolean()
-        val subscription = bus.receive(MessageSubscription(message)).subscribe(
+        val subscription = bus.receiver(MessageSubscription(message)).openedMessages().subscribe(
             {
                 bus.close()
                 closeReturned.set(true)
@@ -201,7 +201,7 @@ class InMemoryCommandBusAtomicSinkTest {
         val message = TestCommandMessage()
         val bus = InMemoryCommandBus()
         val closeReturned = AtomicBoolean()
-        bus.receive(MessageSubscription(message))
+        bus.receiver(MessageSubscription(message)).openedMessages()
         @Suppress("UNCHECKED_CAST")
         val closingSink = cachedSinks(bus).single() as Sinks.Many<CommandMessage<*>>
         val subscriber = object : BaseSubscriber<CommandMessage<*>>() {
@@ -242,7 +242,7 @@ class InMemoryCommandBusAtomicSinkTest {
         try {
             val subscribing = executor.submit {
                 subscription.set(
-                    bus.receive(MessageSubscription(message)).subscribe(
+                    bus.receiver(MessageSubscription(message)).openedMessages().subscribe(
                         {
                             onNextEntered.countDown()
                             check(releaseOnNext.await(5, TimeUnit.SECONDS)) {

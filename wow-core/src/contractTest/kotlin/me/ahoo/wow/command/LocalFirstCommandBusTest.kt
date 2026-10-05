@@ -26,7 +26,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
             val onReady = Sinks.empty<Void>()
             val message = createMessage()
             message.header.withLocalFirst(false)
-            receive(MessageSubscription(namedAggregate, receiverGroup = GlobalIdGenerator.generateAsString()))
+            openedMessages(MessageSubscription(namedAggregate, receiverGroup = GlobalIdGenerator.generateAsString()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()
@@ -48,7 +48,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
         verify {
             val onReady = Sinks.empty<Void>()
             val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
-            receive(MessageSubscription(namedAggregate, receiverGroup = GlobalIdGenerator.generateAsString()))
+            openedMessages(MessageSubscription(namedAggregate, receiverGroup = GlobalIdGenerator.generateAsString()))
                 .onReceive(onReady)
                 .doOnSubscribe {
                     onReady.asMono()

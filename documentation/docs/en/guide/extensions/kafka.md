@@ -15,7 +15,7 @@ Wow converts framework messages to Kafka records and wraps received records in a
 
 ### High-Level Flow
 
-The send path is `CommandGateway`/event publisher → Wow bus → Kafka. The receive path is Kafka → Wow exchange → command, event, projection, or Saga processor. Both `send` and `receive` retain Reactor's non-blocking contract.
+The send path is `CommandGateway`/event publisher → Wow bus → Kafka. The receive path is Kafka → Wow exchange → command, event, projection, or Saga processor. Both `send` and `receiver` retain Reactor's non-blocking contract.
 
 ### Class Hierarchy
 

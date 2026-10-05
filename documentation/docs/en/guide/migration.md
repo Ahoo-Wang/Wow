@@ -145,6 +145,22 @@ See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#re
 
 `@AggregateRoute(spaced, owner)` is deprecated in favour of `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate, and conflicting declarations of a policy or of the static tenant now fail. See [Migrating from `@AggregateRoute(spaced, owner)`](./domain/aggregate.md#migrating-from-aggregateroute-spaced-owner).
 
+### Compatibility Shims Removed (9.3.0)
+
+9.3.0 removes declarations that only kept older bytecode or 9.2 extension code linking. Recompile libraries built against 9.2 or earlier before upgrading; source that already compiled without deprecation warnings needs no change.
+
+| Removed | Use instead |
+|---|---|
+| `MessageBus.receive(subscription)` | `receiver(subscription).openedMessages()`; a bus implements `receiver`, which is now abstract |
+| `MessageBus.runtimeReceiver(subscription)` | `receiver(subscription.copy(runtimeOwned = true))` |
+| `MessageSubscription` constructors and `copy` without `runtimeOwned` (JVM only) | the constructors and `copy` with `runtimeOwned` (it defaults to `false`) |
+| Redis bus constructors without `retentionOptions` (JVM only) | the primary constructors (`retentionOptions` defaults to `RedisStreamRetentionOptions.DEFAULT`) |
+| 9.1 constructors of `BindingError`, `AggregationGroup.Terms` and `AggregationGroup.Histogram` (JVM only) | the primary constructors |
+| `ServerRequest.getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId`, `getAggregateId` (all overloads) | `DefaultCommandBuilderExtractor` / `DefaultQueryRequestScope`, or `RouteIdentity.of(request).binding(…)` |
+| `CoSecCommandBuilderExtractor`, `CoSecQueryRequestScope` | `CoSecIdentityHeaders.ALIASES`, registered by `CoSecAutoConfiguration` |
+| `Flux<AggregateId>.toBatchResult(afterId)`, `ResendStateEventHandler.handle(afterId, limit)` | `toBatchResult(afterId, request, exceptionHandler)`, `resend(afterId, limit)` |
+| Non-bean `WebFluxAutoConfiguration.commandMessageExtractor`, `queryRequestScope`, `commandRouterFunction` and `pointReadAdmission` overloads, `CoSecAutoConfiguration.coSecCommandBuilderExtractor` / `coSecQueryRequestScope`, the three-argument `OpenAPIAutoConfiguration.routerSpecs` | the `@Bean` methods of the same name |
+
 ### Mongo Ownership Guard
 
 See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).

@@ -53,10 +53,8 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
      * The bus's one receive entry ([MessageBus.receiver]) as a stream with processing open from subscription, as a
      * dispatcher uses it once the runtime is ready.
      */
-    protected fun BUS.openedMessages(subscription: MessageSubscription): Flux<E> {
-        val receiver = receiver(subscription)
-        return receiver.messages.doOnSubscribe { receiver.openProcessing() }
-    }
+    protected fun BUS.openedMessages(subscription: MessageSubscription): Flux<E> =
+        receiver(subscription).openedMessages()
 
     open fun verify(block: BUS.() -> Unit) {
         val messageBus = createMessageBus()

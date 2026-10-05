@@ -34,4 +34,12 @@ class MessageSubscriptionTest {
             MessageSubscription(namedAggregate, receiverGroup = " ")
         }.message.assert().isEqualTo("receiverGroup must not be blank.")
     }
+
+    @Test
+    fun `runtimeOwned defaults to false and survives copy`() {
+        val subscription = MessageSubscription(namedAggregate, "handler")
+
+        subscription.runtimeOwned.assert().isFalse()
+        subscription.copy(runtimeOwned = true).copy(receiverGroup = "other").runtimeOwned.assert().isTrue()
+    }
 }

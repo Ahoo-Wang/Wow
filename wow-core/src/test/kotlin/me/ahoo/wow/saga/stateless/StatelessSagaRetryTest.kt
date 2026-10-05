@@ -43,6 +43,7 @@ import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -140,7 +141,8 @@ class StatelessSagaRetryTest {
                 }
             }
 
-            override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
+            override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+                MessageReceiver(Flux.empty())
         }
         val gateway = DefaultCommandGateway(
             SimpleCommandWaitEndpoint("retry"),
@@ -241,7 +243,8 @@ class StatelessSagaRetryTest {
                     }
                 }
             }
-            override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
+            override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+                MessageReceiver(Flux.empty())
         }
         val gateway = DefaultCommandGateway(
             endpoint,

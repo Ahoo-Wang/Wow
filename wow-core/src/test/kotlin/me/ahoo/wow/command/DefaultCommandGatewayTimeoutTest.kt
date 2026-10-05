@@ -30,6 +30,7 @@ import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStreamHandle
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.withTimeout
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -337,5 +338,6 @@ private class TimeoutTestCommandBus(
 ) : CommandBus {
     override fun send(message: CommandMessage<*>): Mono<Void> = sendResult
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.empty()
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+        MessageReceiver(Flux.empty())
 }

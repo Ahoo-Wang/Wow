@@ -53,8 +53,8 @@ open class CommandPipelineComponentBenchmark {
         domainEventBus = InMemoryDomainEventBus()
         stateEventBus = InMemoryStateEventBus()
         val subscription = MessageSubscription(BenchmarkAggregates.namedAggregate)
-        domainEventSubscription = domainEventBus.receive(subscription).subscribe()
-        stateEventSubscription = stateEventBus.receive(subscription).subscribe()
+        domainEventSubscription = domainEventBus.receiver(subscription).openedMessages().subscribe()
+        stateEventSubscription = stateEventBus.receiver(subscription).openedMessages().subscribe()
         waitCoordinator = DefaultWaitCoordinator()
         val commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         commandPipelineScenario = CommandPipelineScenario.create(

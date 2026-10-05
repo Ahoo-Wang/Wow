@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.messaging.compensation.CompensationTarget
@@ -76,7 +77,8 @@ class DomainEventCompensatorTest {
                 sent += message
             }
 
-        override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.empty()
+        override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+            MessageReceiver(Flux.empty())
     }
 }
 

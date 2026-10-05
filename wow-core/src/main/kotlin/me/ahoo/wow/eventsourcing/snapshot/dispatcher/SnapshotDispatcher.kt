@@ -55,10 +55,8 @@ class SnapshotDispatcher(
         DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MainDispatcher<StateEventExchange<*>>(metrics) {
-    @Suppress("DEPRECATION") // Keeps the plain-stream semantics of this hook; the runtime uses createMessageReceiver.
-    override fun receiveMessage(subscription: MessageSubscription): Flux<StateEventExchange<*>> {
-        return filterMessages(stateEventBus.receive(subscription))
-    }
+    override fun receiveMessage(subscription: MessageSubscription): Flux<StateEventExchange<*>> =
+        filterMessages(stateEventBus.receiver(subscription).openedMessages())
 
     override fun createMessageReceiver(
         subscription: MessageSubscription,

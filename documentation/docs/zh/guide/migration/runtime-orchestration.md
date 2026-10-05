@@ -134,9 +134,10 @@ subscriber。
 
 `receiver()` 是唯一的接收入口。只有 `WowRuntime` 拥有的 dispatcher 才传入 `runtimeOwned = true` 的订阅；普通
 自定义 consumer 保持 `false`，除非它实现同一 local admission receipt protocol（`confirmLocalDelivery`/
-`rejectLocalDelivery`）。自 9.3.0 起 `runtimeReceiver()` 与 `receive()` 已弃用并委托给 `receiver()`；曾在
-`runtimeReceiver()` 中为运行时 receiver 提供特殊行为的总线，要把它移到 `receiver()` 中按 runtime-owned 订阅处理，
-因为运行时现在调用 `receiver()`。`LocalMessageBus.sendIfSubscribed()` 的保守
+`rejectLocalDelivery`）。自 9.3.0 起 `receiver()` 是抽象方法，`runtimeReceiver()` 与 `receive()` 已删除：
+实现 `receive()` 的总线改为实现 `receiver()`；曾在 `runtimeReceiver()` 中为运行时 receiver 提供特殊行为的总线，
+要把它移到 `receiver()` 中按 runtime-owned 订阅处理。调用 `receive()` 的代码改读
+`receiver(subscription).openedMessages()`。`LocalMessageBus.sendIfSubscribed()` 的保守
 默认值是 `false`。subscriber count 或 sink acceptance 都不能证明每个目标 receiver 已获取 processing
 admission。
 
@@ -144,8 +145,7 @@ Transport 检查：
 
 - Redis readiness 必须创建所需 consumer group，但在 admission 打开前不处理消息；
 - Kafka readiness 只有建立保守 assignment boundary 后才完成；runtime 启动前先创建 topic；
-- tracing/metrics wrapper 必须原样委派 `receiver()`（连同订阅）；已弃用的 `receive()` 与 `runtimeReceiver()`
-  经由它转发。
+- tracing/metrics wrapper 必须原样委派 `receiver()`（连同订阅）。
 
 ## 4. 更新相邻扩展
 

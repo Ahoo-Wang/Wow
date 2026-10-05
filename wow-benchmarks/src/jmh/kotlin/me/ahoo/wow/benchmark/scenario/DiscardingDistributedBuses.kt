@@ -19,6 +19,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -33,7 +34,8 @@ class DiscardingDistributedCommandBus : DistributedCommandBus {
 
     override fun send(message: CommandMessage<*>): Mono<Void> = Mono.fromRunnable { sent.increment() }
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> = Flux.never()
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+        MessageReceiver(Flux.never())
 }
 
 /**
@@ -44,5 +46,6 @@ class DiscardingDistributedDomainEventBus : DistributedDomainEventBus {
 
     override fun send(message: DomainEventStream): Mono<Void> = Mono.fromRunnable { sent.increment() }
 
-    override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.never()
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+        MessageReceiver(Flux.never())
 }
