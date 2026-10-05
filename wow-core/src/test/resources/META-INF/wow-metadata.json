@@ -44,6 +44,15 @@
         "modeling_command_error_handling_aggregate": {
           "type": "me.ahoo.wow.modeling.command.ErrorHandlingCommandAggregate"
         },
+        "modeling_command_kernel_characterization_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.KernelCharacterizationAggregate"
+        },
+        "modeling_command_kernel_after_command_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.KernelAfterCommandAggregate"
+        },
+        "modeling_command_kernel_inheriting_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.KernelInheritingAggregate"
+        },
         "modeling_command_custom_internal_aggregate": {
           "type": "me.ahoo.wow.modeling.command.CustomInternalCommandAggregate"
         },
