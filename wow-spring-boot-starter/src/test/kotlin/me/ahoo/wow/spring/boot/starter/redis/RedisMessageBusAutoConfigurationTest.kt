@@ -10,6 +10,7 @@ import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -131,6 +132,12 @@ class RedisMessageBusAutoConfigurationTest {
                     .hasSingleBean(RedisStateEventBus::class.java)
                     .hasSingleBean(LocalFirstDomainEventBus::class.java)
                     .hasSingleBean(LocalFirstStateEventBus::class.java)
+                context.getBeansOfType(LocalFirstDistributedCopies::class.java).values.toSet().assert().isEqualTo(
+                    setOf(
+                        context.getBean(LocalFirstDomainEventBus::class.java).distributedCopies,
+                        context.getBean(LocalFirstStateEventBus::class.java).distributedCopies,
+                    ),
+                )
             }
     }
 

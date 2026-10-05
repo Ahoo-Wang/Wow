@@ -33,13 +33,13 @@ flowchart TB
 
 自 9.3.0 起，每个分布式总线都是建在 `Transport`（`me.ahoo.wow.messaging.transport`，`@WowSpi`）之上的 `TransportMessageBus`。传输只搬运字符串：`send(TransportMessage)` 发布主题、键、载荷和时间戳，`open(group, topics)` 返回带记录、就绪信号、处理准入与关闭的 `TransportReceiver`。其余工作由 `TransportMessageBus` 为所有后端统一完成：主题命名（按聚合缓存）、JSON 编码、解码、键与主题校验、解码失败策略（`TransportDecodeFailureHandler`），以及每种消息一个交换类型（`TransportServerCommandExchange`、`TransportEventStreamExchange`、`TransportStateEventExchange`）。`TransportCommandBus`、`TransportDomainEventBus`、`TransportStateEventBus` 是三种总线；内置传输有 `KafkaTransport`、`RedisStreamTransport` 和 `InMemoryTransport`。Kafka 与 Redis 总线就是这些总线加上各自的传输，所以主题、键、JSON 与消费组都与 9.2 相同。
 
-`LocalCommandBus` 额外暴露订阅者数量和 `sendIfSubscribed`。后者只有在目标本地 receiver 已取得处理准入并确认本次投递仍有效时才能返回 `true`；sink 接受或订阅数本身不够。`DistributedCommandBus` 保留同一发送/接收合同，由后端定义持久化、消费组和 ack 机制。
+`LocalCommandBus` 额外暴露订阅者数量和 `handOff`。消息进入每个路由到的 processing-open receiver 的本地 sink 时交付被接受；只有这些 receiver 对本次投递取得处理准入时，准入结果才为 `true`；sink 接受或订阅数本身不会抑制 distributed 副本。`DistributedCommandBus` 保留同一发送/接收合同，由后端定义持久化、消费组和 ack 机制。
 
 ## InMemory
 
 `InMemoryCommandBus` 以 `NamedAggregate` 为 key 创建 MPSC unicast sink：多个发送者可以并发写入，但每个具名聚合的命令只允许一个消费链。消息发出前被标记为只读，并转换为 `SimpleServerCommandExchange`。
 
-普通 `send` 没有订阅者时会记录 debug 并完成，因此它只证明本进程 sink 的发送动作结束，不证明存在处理者。runtime-owned receiver 维护连接和 processing-open 状态；`sendIfSubscribed` 为每个投递创建 receipt，只有所有目标 receiver 接受运行时准入后才报告本地投递成功。
+普通 `send` 没有订阅者时会记录 debug 并完成，因此它只证明本进程 sink 的发送动作结束，不证明存在处理者。runtime-owned receiver 维护连接和 processing-open 状态；`handOff` 为每个投递创建 receipt，只有所有目标 receiver 接受运行时准入后，其准入结果才报告成功。
 
 该实现适合单进程运行和测试，不提供跨进程持久性。
 
@@ -67,12 +67,25 @@ Redis 与 Kafka 的发送完成条件不同，二者都不等于聚合已经处�
 
 `LocalFirstCommandBus` 组合一个 local bus 和一个 distributed bus。对本地聚合且 Header 未显式禁用 local-first 的命令，它不会在两条路径中二选一，而是建立受标记约束的双副本流程：
 
-1. 复制命令，标记 `local_first=true`，调用 `localBus.sendIfSubscribed`。
-2. 只有 runtime-owned 本地 receiver 已 processing-open 并确认投递仍有效时，receipt 才返回 `true`。
-3. 再复制原命令发送到 distributed bus；distributed 副本的 `local_first` 值等于本地投递结果。
+1. 复制命令，标记 `local_first=true`，交给本地总线（`localBus.handOff`）。只有所有路由到的 runtime-owned receiver 都已订阅且 processing-open、消息进入它们的本地 sink 时，交付才被接受；交付从不等待 receiver 拉取消息。
+2. 每个路由到的 receiver 在其 dispatcher 拉取消息时确认准入，或拒绝（例如关闭时）；全部决定后交付的准入结果完成。
+3. 再复制原命令发往 distributed bus；其 `local_first` 值等于准入结果。
 4. 合并接收端过滤并 ack 已标记为“本地已处理”的 distributed 副本；本地准入失败、关闭或异常时，该副本保持可处理。
 
-因此 distributed 副本承担回退和可观察记录，`local_first=true` 是经过准入确认的抑制标记，不是仅凭 subscriber count 的猜测。原消息与两个副本使用独立可变 Header，避免两条路径互相改写。
+`send` 何时完成（自 9.3.0 起）：
+
+| 情况 | `send` 完成时机 | distributed 副本 |
+| --- | --- | --- |
+| 已交付 | 消息进入本地 sink 时立即完成 | receiver 全部决定后异步发送：全部准入为 `local_first=true`，先被拒绝为 `false` |
+| 被拒绝交付：没有可路由的 receiver、本地 sink 已满或已关闭 | distributed bus 接受副本时完成，失败则随之失败 | `local_first=false`，在 `send` 完成前发送 |
+| 本地交付异常 | 同上（记录错误日志） | `local_first=false` |
+| 交付后被拒绝（receiver 关闭） | 已完成 | `local_first=false`，异步发送 |
+
+发送方从不等待本地 receiver 的需求，因此会发送消息的处理器（命令处理器发布事件、Saga 发送命令）无论 dispatcher 多满都不会互相阻塞。异步副本发送失败会记录日志，并由 distributed bus 的发送指标计数；关停时，运行时在 dispatcher 停止之后、传输关闭之前，于 `shutdownTimeout` 内等待在途副本（`LocalFirstDistributedCopies`）。
+
+**local-first 以崩溃持久性换取延迟。** 已交付但尚未处理的消息只存在于本进程：进程崩溃时该消息会丢失——副本还未发送，或已标记 `local_first=true` 被其他成员跳过。9.3.0 之前准入之后本就如此；交付只把窗口扩大到消息在本地 sink 中等待的时间。消息必须在进程崩溃后仍被处理（跨崩溃的至少一次）时，请关闭 local-first（`wow.command.bus.local-first.enabled=false`，事件与状态事件同理）。
+
+每个聚合的本地路由在自己的监视器下决定投递；关闭总线时先关闭所有路由，因此不同聚合的 local-first 发送不再争用整条总线的锁。distributed 副本承担回退和可观察记录，`local_first=true` 是经过准入确认的抑制标记，不是仅凭 subscriber count 的猜测。原消息与两个副本使用独立可变 Header，避免两条路径互相改写。
 
 ## Void
 

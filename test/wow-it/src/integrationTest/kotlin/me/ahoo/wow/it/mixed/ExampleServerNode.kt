@@ -42,14 +42,15 @@ sealed interface ExampleServerNode : AutoCloseable {
     fun logTail(): String
 
     /**
-     * The Spring arguments every node gets: Kafka buses, Mongo stores, no local-first shortcut (so a command or event
-     * can only reach a processor through the shared broker), and a distinct CosId machine id (wait ids are routed back
-     * to the waiting node by machine id).
+     * The Spring arguments every node gets: Kafka buses, Mongo stores, no local-first shortcut unless [localFirst] (so
+     * a command or event can only reach a processor through the shared broker), and a distinct CosId machine id (wait
+     * ids are routed back to the waiting node by machine id).
      */
     fun clusterArguments(
         machineId: Int,
         mongoUri: String,
         kafkaBootstrapServers: String,
+        localFirst: Boolean,
     ): List<String> = listOf(
         "--spring.autoconfigure.exclude=$ELASTICSEARCH_AUTOCONFIGURATIONS",
         "--spring.mongodb.uri=$mongoUri",
@@ -58,11 +59,11 @@ sealed interface ExampleServerNode : AutoCloseable {
         "--wow.kafka.bootstrap-servers=$kafkaBootstrapServers",
         "--wow.kafka.consumer[client.id]=$name",
         "--wow.command.bus.type=kafka",
-        "--wow.command.bus.local-first.enabled=false",
+        "--wow.command.bus.local-first.enabled=$localFirst",
         "--wow.event.bus.type=kafka",
-        "--wow.event.bus.local-first.enabled=false",
+        "--wow.event.bus.local-first.enabled=$localFirst",
         "--wow.eventsourcing.state.bus.type=kafka",
-        "--wow.eventsourcing.state.bus.local-first.enabled=false",
+        "--wow.eventsourcing.state.bus.local-first.enabled=$localFirst",
         "--wow.eventsourcing.store.storage=mongo",
         "--wow.eventsourcing.snapshot.storage=mongo",
         "--logging.level.me.ahoo.wow=info",
@@ -83,6 +84,7 @@ class ImageNode(
     image: String,
     network: Network,
     machineId: Int,
+    localFirst: Boolean,
 ) : ExampleServerNode {
     private val container: GenericContainer<*> = GenericContainer(DockerImageName.parse(image))
         .withNetwork(network)
@@ -94,6 +96,7 @@ class ImageNode(
                 machineId = machineId,
                 mongoUri = "mongodb://${MixedVersionCluster.MONGO_ALIAS}:27017/${MixedVersionCluster.DATABASE}?directConnection=true",
                 kafkaBootstrapServers = MixedVersionCluster.KAFKA_NETWORK_BOOTSTRAP,
+                localFirst = localFirst,
             ).toTypedArray(),
         )
         .waitingFor(
@@ -134,6 +137,7 @@ class ProcessNode(
     private val machineId: Int,
     private val mongoUri: String,
     private val kafkaBootstrapServers: String,
+    private val localFirst: Boolean,
 ) : ExampleServerNode {
     private val port = freePort()
     private val workDir: Path = Files.createTempDirectory("wow-mixed-$name")
@@ -153,7 +157,7 @@ class ProcessNode(
         )
         val command = listOf(installHome.resolve("bin/example-server").toString()) +
             "--server.port=$port" +
-            clusterArguments(machineId, mongoUri, kafkaBootstrapServers)
+            clusterArguments(machineId, mongoUri, kafkaBootstrapServers, localFirst)
         val builder = ProcessBuilder(command)
             .directory(workDir.toFile())
             .redirectErrorStream(true)

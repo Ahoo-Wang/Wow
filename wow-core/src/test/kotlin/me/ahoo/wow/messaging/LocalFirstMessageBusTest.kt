@@ -157,7 +157,7 @@ class LocalFirstMessageBusTest {
             releaseLocalDelivery.countDown()
             send.get(5, TimeUnit.SECONDS)
 
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             releaseLocalDelivery.countDown()
             messages.dispose()
@@ -181,6 +181,49 @@ class LocalFirstMessageBusTest {
         distributedBus.sent.single().assert().isNotSameAs(message)
         message.isLocalFirst().assert().isFalse()
         distributedBus.sent.single().isLocalFirst().assert().isTrue()
+    }
+
+    @Test
+    fun `a locally delivered send completes without waiting for its distributed copy`() {
+        val localBus = RecordingLocalBus(subscribers = 1)
+        val distributedBus = RecordingDistributedBus()
+        val copySent = Sinks.empty<Void>()
+        distributedBus.sendResult = { copySent.asMono() }
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "message-id")))
+            .expectComplete()
+            .verify(Duration.ofSeconds(1))
+
+        // The copy went out (marked locally handled) and is still in flight: the sender did not wait for it.
+        // Wire flag unchanged: the copy carries `local_first: "true"`, which 9.2 consumers filter too.
+        distributedBus.sent.single().header[LOCAL_FIRST_HEADER].assert().isEqualTo("true")
+        copySent.currentSubscriberCount().assert().isEqualTo(1)
+        copySent.tryEmitEmpty().orThrow()
+    }
+
+    @Test
+    fun `a failed distributed copy of a locally delivered message does not fail the send`() {
+        val localBus = RecordingLocalBus(subscribers = 1)
+        val distributedBus = RecordingDistributedBus()
+        distributedBus.sendResult = { Mono.error(IllegalStateException("broker down")) }
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "message-id"))).verifyComplete()
+
+        distributedBus.sent.single().isLocalFirst().assert().isTrue()
+    }
+
+    @Test
+    fun `without local delivery the send waits for the distributed bus and fails with it`() {
+        val distributedBus = RecordingDistributedBus()
+        distributedBus.sendResult = { Mono.error(IllegalStateException("broker down")) }
+        val bus = RecordingLocalFirstMessageBus(RecordingLocalBus(subscribers = 0), distributedBus)
+
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "message-id")))
+            .expectErrorMessage("broker down")
+            .verify()
+        distributedBus.sent.single().isLocalFirst().assert().isFalse()
     }
 
     @Test
@@ -351,7 +394,7 @@ class LocalFirstMessageBusShutdownTest {
                 .verifyComplete()
 
             dispatcher.handled.get().assert().isOne()
-            distributedBus.sent.single().isLocalFirst().assert().isTrue()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
         } finally {
             dispatcher.quiesce()
             StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
@@ -379,7 +422,7 @@ class LocalFirstMessageBusShutdownTest {
                 .verifyComplete()
 
             received.get().assert().isZero()
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             receiver.closeProcessing()
             subscription.dispose()
@@ -405,7 +448,7 @@ class LocalFirstMessageBusShutdownTest {
             StepVerifier.create(bus.send(LocalFirstTestMessage(id = "custom-admitted")))
                 .verifyComplete()
 
-            distributedBus.sent.single().isLocalFirst().assert().isTrue()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
         } finally {
             receiver.closeProcessing()
             subscription.dispose()
@@ -431,10 +474,46 @@ class LocalFirstMessageBusShutdownTest {
             StepVerifier.create(bus.send(LocalFirstTestMessage(id = "custom-admitted")))
                 .verifyComplete()
 
-            distributedBus.sent.single().isLocalFirst().assert().isTrue()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
         } finally {
             receiver.closeProcessing()
             subscription.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `a local bus closed and opened again routes locally again`() {
+        val localBus = MulticastLocalBus()
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        fun admittingReceiver(): Pair<MessageReceiver<LocalFirstTestExchange>, Disposable> {
+            val receiver = localBus.receiver(
+                MessageSubscription(LocalFirstTestMessage(), receiverGroup = "custom", runtimeOwned = true),
+            )
+            val subscription = receiver.messages.subscribe { it.confirmLocalDelivery() }
+            receiver.openProcessing()
+            return receiver to subscription
+        }
+
+        val (first, firstSubscription) = admittingReceiver()
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "before-close"))).verifyComplete()
+        localBus.close()
+        first.closeProcessing()
+        firstSubscription.dispose()
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "after-close"))).verifyComplete()
+        val (second, secondSubscription) = admittingReceiver()
+        try {
+            StepVerifier.create(bus.send(LocalFirstTestMessage(id = "reopened"))).verifyComplete()
+
+            distributedBus.awaitSent(3).map { it.id to it.isLocalFirst() }.toSet().assert().containsExactlyInAnyOrder(
+                "before-close" to true,
+                "after-close" to false,
+                "reopened" to true,
+            )
+        } finally {
+            second.closeProcessing()
+            secondSubscription.dispose()
             bus.close()
         }
     }
@@ -473,13 +552,13 @@ class LocalFirstMessageBusShutdownTest {
                 bus.send(LocalFirstTestMessage(id = "multicast-admitted"))
                     .block(Duration.ofSeconds(5))
             }
+            // The copy waits for every admission (this test sink delivers on the sending thread).
             secondAdmissionEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
             distributedBus.sent.assert().isEmpty()
-            send.isDone.assert().isFalse()
 
             releaseSecondAdmission.countDown()
             send.get(5, TimeUnit.SECONDS)
-            distributedBus.sent.single().isLocalFirst().assert().isTrue()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
         } finally {
             releaseSecondAdmission.countDown()
             firstDispatcher.quiesce()
@@ -520,7 +599,7 @@ class LocalFirstMessageBusShutdownTest {
 
             admittedDispatcher.handled.get().assert().isOne()
             rejectedDispatcher.handled.get().assert().isZero()
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             admittedDispatcher.quiesce()
             rejectedDispatcher.quiesce()
@@ -549,12 +628,83 @@ class LocalFirstMessageBusShutdownTest {
                 .verifyComplete()
 
             handled.await(1, TimeUnit.SECONDS).assert().isTrue()
-            distributedBus.sent.map { it.id }.toSet()
+            distributedBus.awaitSent(2).map { it.id }.toSet()
                 .assert().isEqualTo(setOf("first", "nested"))
             distributedBus.sent.all { it.isLocalFirst() }.assert().isTrue()
         } finally {
             dispatcher.quiesce()
             StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `handlers that send through a bounded demand window never wait for each other`() {
+        // A command handler that publishes an event, and a saga that sends a command, both wait for their send. With a
+        // demand window of 4 and 100 concurrent commands, a send that waited for the receiver to pull its message
+        // would wait forever: every slot is held by a handler waiting for a message that needs a slot.
+        val localBus = MpscLocalBus()
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "loop", runtimeOwned = true),
+        )
+        val window = 4
+        val commands = 100
+        val handledEvents = CountDownLatch(commands)
+        // At most `window` messages are pulled and in flight; one more is pulled only when a handler completed. A
+        // message is admitted when pulled, as a dispatcher confirms it.
+        val pipeline = object : BaseSubscriber<LocalFirstTestExchange>() {
+            override fun hookOnSubscribe(subscription: Subscription) = Unit
+
+            override fun hookOnNext(exchange: LocalFirstTestExchange) {
+                exchange.confirmLocalDelivery()
+                val handling = if (exchange.message.id.startsWith("command-")) {
+                    bus.send(LocalFirstTestMessage(id = "event-" + exchange.message.id.removePrefix("command-")))
+                } else {
+                    Mono.fromRunnable { handledEvents.countDown() }
+                }
+                handling.doFinally { request(1) }.subscribe()
+            }
+        }
+        receiver.messages.subscribe(pipeline)
+
+        try {
+            receiver.openProcessing()
+            // All commands are queued before the window opens, so the events their handlers send queue behind them.
+            val sends = (0 until commands).map { bus.send(LocalFirstTestMessage(id = "command-$it")).toFuture() }
+            pipeline.request(window.toLong())
+            sends.forEach { it.get(10, TimeUnit.SECONDS) }
+
+            handledEvents.await(10, TimeUnit.SECONDS).assert().isTrue()
+            distributedBus.awaitSent(2 * commands).all { it.isLocalFirst() }.assert().isTrue()
+        } finally {
+            receiver.closeProcessing()
+            pipeline.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `a full local sink falls back to the distributed copy before the send completes`() {
+        val localBus = FullSinkLocalBus()
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "full", runtimeOwned = true),
+        )
+        val subscription = receiver.messages.subscribe()
+
+        try {
+            receiver.openProcessing()
+
+            StepVerifier.create(bus.send(LocalFirstTestMessage(id = "overflow"))).verifyComplete()
+
+            // Sent before the send completed, eligible for distributed processing.
+            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+        } finally {
+            receiver.closeProcessing()
+            subscription.dispose()
             bus.close()
         }
     }
@@ -579,7 +729,7 @@ class LocalFirstMessageBusShutdownTest {
                 .verifyComplete()
 
             dispatcher.handled.get().assert().isZero()
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             dispatcher.quiesce()
             StepVerifier.create(dispatcher.stopGracefully()).verifyComplete()
@@ -614,7 +764,7 @@ class LocalFirstMessageBusShutdownTest {
             StepVerifier.create(bus.send(LocalFirstTestMessage(id = "not-connected")))
                 .verifyComplete()
 
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             receiver.closeProcessing()
             releaseManagedSubscription.countDown()
@@ -639,14 +789,14 @@ class LocalFirstMessageBusShutdownTest {
 
         try {
             receiver.openProcessing()
-            val send = bus.send(LocalFirstTestMessage(id = "buffered")).toFuture()
+            // The sender completes on hand-off, although nothing pulled the message.
+            bus.send(LocalFirstTestMessage(id = "buffered")).toFuture().get(1, TimeUnit.SECONDS)
+            distributedBus.sent.assert().isEmpty()
 
-            send.isDone.assert().isFalse()
             receiver.closeProcessing()
-            send.get(1, TimeUnit.SECONDS)
 
             subscriber.received.get().assert().isZero()
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             subscriber.dispose()
             bus.close()
@@ -672,10 +822,10 @@ class LocalFirstMessageBusShutdownTest {
 
         try {
             receiver.openProcessing()
-            val send = bus.send(LocalFirstTestMessage(id = "buffered")).toFuture()
+            bus.send(LocalFirstTestMessage(id = "buffered")).toFuture().get(1, TimeUnit.SECONDS)
 
             receiver.closeProcessing()
-            send.get(1, TimeUnit.SECONDS)
+            distributedBus.awaitSent()
 
             resumedOnLifecycleThread.get().assert().isFalse()
         } finally {
@@ -710,7 +860,7 @@ class LocalFirstMessageBusShutdownTest {
 
             firstReceived.get().assert().isZero()
             secondReceived.get().assert().isZero()
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             firstSubscription.dispose()
             secondSubscription.dispose()
@@ -751,7 +901,9 @@ class LocalFirstMessageBusShutdownTest {
 private class RecordingLocalFirstMessageBus(
     override val localBus: LocalMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>,
     override val distributedBus: DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>,
-) : LocalFirstMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>
+) : LocalFirstMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
+    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies()
+}
 
 private class MpscLocalBus : InMemoryMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>() {
     override val sinkSupplier: (NamedAggregate) -> Sinks.Many<LocalFirstTestMessage> = {
@@ -762,6 +914,18 @@ private class MpscLocalBus : InMemoryMessageBus<LocalFirstTestMessage, LocalFirs
     private lateinit var sink: Sinks.Many<LocalFirstTestMessage>
     val physicalSubscriberCount: Int
         get() = sink.currentSubscriberCount()
+
+    override fun LocalFirstTestMessage.createExchange(): LocalFirstTestExchange =
+        LocalFirstTestExchange(this)
+}
+
+/** A local bus whose sink is always full. */
+private class FullSinkLocalBus : InMemoryMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>() {
+    override val sinkSupplier: (NamedAggregate) -> Sinks.Many<LocalFirstTestMessage> = {
+        object : Sinks.Many<LocalFirstTestMessage> by Sinks.unsafe().many().multicast().onBackpressureBuffer() {
+            override fun tryEmitNext(t: LocalFirstTestMessage): Sinks.EmitResult = Sinks.EmitResult.FAIL_OVERFLOW
+        }
+    }
 
     override fun LocalFirstTestMessage.createExchange(): LocalFirstTestExchange =
         LocalFirstTestExchange(this)
@@ -822,6 +986,7 @@ private class RecordingLocalBus(
     val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
     val received: MutableList<MessageSubscription> = mutableListOf()
     var sendResult: (LocalFirstTestMessage) -> Mono<Void> = { Mono.empty() }
+    var admission: Mono<Boolean> = Mono.just(true)
 
     override fun send(message: LocalFirstTestMessage): Mono<Void> =
         Mono.defer {
@@ -829,11 +994,11 @@ private class RecordingLocalBus(
             sendResult(message)
         }
 
-    override fun sendIfSubscribed(message: LocalFirstTestMessage): Mono<Boolean> =
+    override fun handOff(message: LocalFirstTestMessage): Mono<LocalHandoff> =
         if (subscribers == 0) {
-            Mono.just(false)
+            Mono.just(LocalHandoff.REFUSED)
         } else {
-            send(message).thenReturn(true)
+            send(message).thenReturn(LocalHandoff.accepted(admission))
         }
 
     override fun receiver(subscription: MessageSubscription): MessageReceiver<LocalFirstTestExchange> {
@@ -859,11 +1024,23 @@ private class RecordingDistributedBus(
     // Thread-safe: a handler's chained send records on the dispatcher thread while the test thread records its own.
     val sent: MutableList<LocalFirstTestMessage> = CopyOnWriteArrayList()
     val received: MutableList<MessageSubscription> = CopyOnWriteArrayList()
+    var sendResult: (LocalFirstTestMessage) -> Mono<Void> = { Mono.empty() }
+
+    /** The sent copies once [count] arrived: a copy after a local hand-off is sent asynchronously. */
+    fun awaitSent(count: Int = 1): List<LocalFirstTestMessage> {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (sent.size < count && System.nanoTime() < deadline) {
+            Thread.sleep(5)
+        }
+        sent.assert().hasSize(count)
+        return sent.toList()
+    }
 
     override fun send(message: LocalFirstTestMessage): Mono<Void> =
-        Mono.fromRunnable {
+        Mono.defer {
             onSend(message)
             sent += message
+            sendResult(message)
         }
 
     override fun receiver(subscription: MessageSubscription): MessageReceiver<LocalFirstTestExchange> {

@@ -26,6 +26,7 @@ import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -51,7 +52,7 @@ class MetricEventBusDecoratorTest {
         var closed = 0
         val delegate = mockk<LocalDomainEventBus> {
             every { send(stream) } returns Mono.empty()
-            every { sendIfSubscribed(stream) } returns Mono.just(true)
+            every { handOff(stream) } returns Mono.just(LocalHandoff.REFUSED)
             every { subscriberCount(aggregate) } returns 2
             every { receiver(subscription) } returns receiver(exchange, { opened++ }, { closed++ })
             every { receiver(runtimeSubscription) } returns receiver(exchange, { opened++ }, { closed++ })
@@ -60,7 +61,7 @@ class MetricEventBusDecoratorTest {
         val eventBus = MetricLocalDomainEventBus(delegate, WowMetrics(registry), "local-domain-event-bus")
 
         StepVerifier.create(eventBus.send(stream)).verifyComplete()
-        StepVerifier.create(eventBus.sendIfSubscribed(stream)).expectNext(true).verifyComplete()
+        StepVerifier.create(eventBus.handOff(stream)).expectNext(LocalHandoff.REFUSED).verifyComplete()
         eventBus.subscriberCount(aggregate).assert().isEqualTo(2)
         assertReceiver(eventBus.receiver(subscription), exchange)
         assertReceiver(eventBus.receiver(runtimeSubscription), exchange)
@@ -73,7 +74,7 @@ class MetricEventBusDecoratorTest {
             .containsExactlyInAnyOrder("send", "send_if_subscribed")
         verify(exactly = 1) {
             delegate.send(stream)
-            delegate.sendIfSubscribed(stream)
+            delegate.handOff(stream)
             delegate.subscriberCount(aggregate)
             delegate.receiver(subscription)
             delegate.receiver(runtimeSubscription)
@@ -93,7 +94,7 @@ class MetricEventBusDecoratorTest {
         var closed = 0
         val delegate = mockk<LocalStateEventBus> {
             every { send(stateEvent) } returns Mono.empty()
-            every { sendIfSubscribed(stateEvent) } returns Mono.just(false)
+            every { handOff(stateEvent) } returns Mono.just(LocalHandoff.REFUSED)
             every { subscriberCount(aggregate) } returns 3
             every { receiver(subscription) } returns receiver(exchange, { opened++ }, { closed++ })
             every { receiver(runtimeSubscription) } returns receiver(exchange, { opened++ }, { closed++ })
@@ -102,7 +103,7 @@ class MetricEventBusDecoratorTest {
         val eventBus = MetricLocalStateEventBus(delegate, WowMetrics(registry), "local-state-event-bus")
 
         StepVerifier.create(eventBus.send(stateEvent)).verifyComplete()
-        StepVerifier.create(eventBus.sendIfSubscribed(stateEvent)).expectNext(false).verifyComplete()
+        StepVerifier.create(eventBus.handOff(stateEvent)).expectNext(LocalHandoff.REFUSED).verifyComplete()
         eventBus.subscriberCount(aggregate).assert().isEqualTo(3)
         assertReceiver(eventBus.receiver(subscription), exchange)
         assertReceiver(eventBus.receiver(runtimeSubscription), exchange)
@@ -115,7 +116,7 @@ class MetricEventBusDecoratorTest {
             .containsExactlyInAnyOrder("send", "send_if_subscribed")
         verify(exactly = 1) {
             delegate.send(stateEvent)
-            delegate.sendIfSubscribed(stateEvent)
+            delegate.handOff(stateEvent)
             delegate.subscriberCount(aggregate)
             delegate.receiver(subscription)
             delegate.receiver(runtimeSubscription)

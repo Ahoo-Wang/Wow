@@ -87,6 +87,7 @@ public final class me/ahoo/wow/spring/boot/starter/WowRuntimeComponentOrder {
 	public static final field COMMAND I
 	public static final field EVENT I
 	public static final field INSTANCE Lme/ahoo/wow/spring/boot/starter/WowRuntimeComponentOrder;
+	public static final field LOCAL_FIRST_COPIES I
 	public static final field PROJECTION I
 	public static final field SNAPSHOT I
 	public static final field STATELESS_SAGA I
@@ -297,6 +298,7 @@ public class me/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration {
 	public fun inMemoryCommandBus ()Lme/ahoo/wow/command/LocalCommandBus;
 	public fun localCommandBus ()Lme/ahoo/wow/command/LocalCommandBus;
 	public fun localFirstCommandBus (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/command/LocalFirstCommandBus;
+	public fun localFirstCommandBusDistributedCopies (Lme/ahoo/wow/command/LocalFirstCommandBus;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
 	public fun noOpValidator ()Ljakarta/validation/Validator;
 }
 
@@ -547,6 +549,7 @@ public class me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration {
 	public fun inMemoryDomainEventBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
 	public fun localDomainEventBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
 	public fun localFirstDomainEventBus (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/event/LocalFirstDomainEventBus;
+	public fun localFirstDomainEventBusDistributedCopies (Lme/ahoo/wow/event/LocalFirstDomainEventBus;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
 	public fun ooOpDomainEventBus ()Lme/ahoo/wow/event/DomainEventBus;
 }
 
@@ -880,6 +883,7 @@ public class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateAutoConfig
 	public fun <init> ()V
 	public fun inMemoryStateEventBus ()Lme/ahoo/wow/eventsourcing/state/StateEventBus;
 	public fun localFirstStateEventBus (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;
+	public fun localFirstStateEventBusDistributedCopies (Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
 	public fun localStateEventBus ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
 	public fun stateEventCompensator (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/event/compensation/StateEventCompensator;
 }

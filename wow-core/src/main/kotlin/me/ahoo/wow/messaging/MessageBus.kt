@@ -88,16 +88,14 @@ interface LocalMessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : Messag
     fun subscriberCount(namedAggregate: NamedAggregate): Int
 
     /**
-     * Attempts local delivery only while a processing subscriber is routable.
+     * Hands [message] to the local receivers, only while every routed receiver is subscribed and open for processing.
      *
-     * The conservative default disables local suppression. Implementations may
-     * return `true` only after every targeted local receiver has acquired its
-     * processing admission; sink acceptance or subscriber count alone is not
-     * sufficient.
-     *
-     * @return `true` only when local delivery remains valid after emission.
+     * Completes as soon as the message entered the local sink ([LocalHandoff.accepted]) or could not
+     * ([LocalHandoff.REFUSED]: no routable receiver, a full or closed sink); it never waits for a receiver's demand.
+     * [LocalHandoff.admission] then tells whether every routed receiver admitted it. The conservative default refuses,
+     * which disables local-first routing.
      */
-    fun sendIfSubscribed(message: M): Mono<Boolean> = Mono.just(false)
+    fun handOff(message: M): Mono<LocalHandoff> = Mono.just(LocalHandoff.REFUSED)
 }
 
 /**

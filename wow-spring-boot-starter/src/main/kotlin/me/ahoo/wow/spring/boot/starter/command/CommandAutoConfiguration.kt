@@ -24,9 +24,11 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.propagation.MessagePropagators
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -35,6 +37,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -100,4 +103,11 @@ class CommandAutoConfiguration {
             messagePropagator = messagePropagators.getIfAvailable { MessagePropagators.DEFAULT },
         )
     }
+
+    @Bean
+    @ConditionalOnBean(LocalFirstCommandBus::class)
+    @Order(WowRuntimeComponentOrder.LOCAL_FIRST_COPIES)
+    fun localFirstCommandBusDistributedCopies(
+        bus: LocalFirstCommandBus
+    ): LocalFirstDistributedCopies = bus.distributedCopies
 }

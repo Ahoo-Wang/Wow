@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.state
 
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 /**
@@ -28,4 +29,6 @@ class LocalFirstStateEventBus(
     override val distributedBus: DistributedStateEventBus,
     override val localBus: LocalStateEventBus = InMemoryStateEventBus()
 ) : StateEventBus,
-    LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>>
+    LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>> {
+    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies("LocalFirstStateEventBus")
+}

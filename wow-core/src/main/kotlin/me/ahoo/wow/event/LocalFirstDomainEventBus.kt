@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 /**
@@ -36,4 +37,8 @@ class LocalFirstDomainEventBus(
     override val distributedBus: DistributedDomainEventBus,
     override val localBus: LocalDomainEventBus = InMemoryDomainEventBus()
 ) : DomainEventBus,
-    LocalFirstMessageBus<DomainEventStream, EventStreamExchange>
+    LocalFirstMessageBus<DomainEventStream, EventStreamExchange> {
+    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies(
+        "LocalFirstDomainEventBus"
+    )
+}

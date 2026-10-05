@@ -33,13 +33,13 @@ Since 9.3.0 `receiver` is the only entry and every bus implements it; 9.2's `rec
 
 Since 9.3.0 every distributed bus is a `TransportMessageBus` over a `Transport` (`me.ahoo.wow.messaging.transport`, a `@WowSpi`). A transport only moves strings: `send(TransportMessage)` publishes a topic, key, payload and timestamp, and `open(group, topics)` returns a `TransportReceiver` with the records, readiness, processing admission and close. `TransportMessageBus` does the rest once for every backend: topic names (memoised per aggregate), JSON encoding, decoding, the key and topic checks, the decode-failure policy (`TransportDecodeFailureHandler`) and one exchange type per message kind (`TransportServerCommandExchange`, `TransportEventStreamExchange`, `TransportStateEventExchange`). `TransportCommandBus`, `TransportDomainEventBus` and `TransportStateEventBus` are the three buses; `KafkaTransport`, `RedisStreamTransport` and `InMemoryTransport` are the built-in transports. The Kafka and Redis buses are these buses over their transport, so topics, keys, JSON and consumer groups are the 9.2 ones.
 
-`LocalCommandBus` additionally exposes subscriber count and `sendIfSubscribed`. The latter may return `true` only when target local receivers have obtained processing admission and this delivery remains valid; sink acceptance or subscriber count alone is insufficient. `DistributedCommandBus` keeps the same send/receive contract, with persistence, consumer groups, and acknowledgement supplied by its backend.
+`LocalCommandBus` additionally exposes subscriber count and `handOff`. A hand-off is accepted when the message entered the local sink of every routed processing-open receiver; its admission result is `true` only when those receivers have obtained processing admission for this delivery; sink acceptance or subscriber count alone does not suppress the distributed copy. `DistributedCommandBus` keeps the same send/receive contract, with persistence, consumer groups, and acknowledgement supplied by its backend.
 
 ## InMemory
 
 `InMemoryCommandBus` creates an MPSC unicast sink per `NamedAggregate`: concurrent senders can write while one consuming chain owns commands for each named aggregate. A message becomes read-only before emission and is converted to `SimpleServerCommandExchange`.
 
-Ordinary `send` logs at debug and completes when there is no subscriber, so it proves only that the in-process sink send ended, not that a processor exists. The runtime-owned receiver tracks connection and processing-open state. `sendIfSubscribed` allocates a receipt per delivery and reports success only after all target receivers accept runtime admission.
+Ordinary `send` logs at debug and completes when there is no subscriber, so it proves only that the in-process sink send ended, not that a processor exists. The runtime-owned receiver tracks connection and processing-open state. `handOff` allocates a receipt per delivery; its admission reports success only after all target receivers accept runtime admission.
 
 This implementation is suitable for single-process execution and tests; it provides no cross-process durability.
 
@@ -67,12 +67,25 @@ Redis and Kafka have different send-completion conditions; neither means the agg
 
 `LocalFirstCommandBus` combines one local and one distributed bus. For a local aggregate whose Header does not explicitly disable local-first, it does not merely choose one route; it creates a marked dual-copy flow:
 
-1. Copy the command, mark it `local_first=true`, and call `localBus.sendIfSubscribed`.
-2. The receipt returns `true` only after runtime-owned local receivers are processing-open and confirm that delivery remains valid.
-3. Copy the original command again and send it through the distributed bus; the distributed copy's `local_first` value equals the local delivery result.
+1. Copy the command, mark it `local_first=true`, and hand it to the local bus (`localBus.handOff`). The hand-off is accepted when the message enters the local sink of every routed runtime-owned receiver, all of them subscribed and processing-open; it never waits for a receiver to pull the message.
+2. Each routed receiver confirms admission when its dispatcher pulls the message, or rejects it (for example when it closes); the hand-off's admission completes when they all decided.
+3. Copy the original command again for the distributed bus; its `local_first` value is the admission result.
 4. The merged receiver filters and acknowledges a distributed copy marked “handled locally.” If local admission closes or fails, the distributed copy remains eligible for processing.
 
-The distributed copy therefore provides fallback and an observable record. `local_first=true` is an admission-confirmed suppression marker, not a guess based on subscriber count. The original and both copies have independent mutable Headers so the routes cannot rewrite one another.
+When `send` completes (since 9.3.0):
+
+| Case | `send` completes | Distributed copy |
+| --- | --- | --- |
+| Handed off | at once, when the message entered the local sink | sent asynchronously once the receivers decided: `local_first=true` if all admitted it, `false` if it was rejected first |
+| Refused: no routable receiver, a full or closed local sink | when the distributed bus accepted the copy, or fails with it | `local_first=false`, sent before `send` completes |
+| Local hand-off error | as for refused (the error is logged) | `local_first=false` |
+| Rejected after the hand-off (a receiver closed) | already completed | `local_first=false`, sent asynchronously |
+
+A sender never waits for a local receiver's demand, so handlers that send (a command handler publishing its events, a saga sending commands) cannot block one another however full the dispatchers are. A failed asynchronous copy is logged and counted by the distributed bus's send metrics; on shutdown the runtime waits for the copies in flight after the dispatchers stop and before the transports close, within `shutdownTimeout` (`LocalFirstDistributedCopies`).
+
+**Local-first trades crash durability for latency.** A message handed off but not yet processed exists only in this process: if the process crashes, the message is lost — the copy is not sent yet, or it is marked `local_first=true` and skipped by every other member. This was already true after admission before 9.3.0; the hand-off only widens the window to the time the message waits in the local sink. Disable local-first (`wow.command.bus.local-first.enabled=false`, and likewise for events and state events) where a message must survive a process crash (at-least-once across crashes).
+
+Each aggregate's local route decides a delivery under its own monitor; closing the bus closes every route first, so local-first sends to different aggregates never contend on a bus-wide lock. The distributed copy therefore provides fallback and an observable record. `local_first=true` is an admission-confirmed suppression marker, not a guess based on subscriber count. The original and both copies have independent mutable Headers so the routes cannot rewrite one another.
 
 ## Void
 

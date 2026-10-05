@@ -53,7 +53,7 @@ The `kafka` default is only a property default. The runtime still needs the `kaf
 
 ### LocalFirst Mode
 
-LocalFirst always sends a distributed copy while attempting local admission. The distributed copy is marked locally handled only after every targeted local receiver accepts admission. It remains eligible for distributed processing when no subscriber exists, intake is closed, or local send fails.
+LocalFirst always sends a distributed copy while attempting local admission. The distributed copy is marked locally handled only after every targeted local receiver accepts admission. It remains eligible for distributed processing when no subscriber exists, intake is closed, or local send fails. Since 9.3.0 a send completes as soon as the message entered the local sink (it never waits for a receiver to pull it) and the copy is sent asynchronously; a send that could not be handed off locally still waits for the distributed bus. Local-first trades crash durability for latency: a message handed off but not yet processed is lost if the process crashes, so disable local-first where a message must survive a crash. See [LocalFirst dual-copy admission](../../guide/command/internals/transport.md#localfirst-dual-copy-admission).
 
 #### Behavior and failure boundary
 

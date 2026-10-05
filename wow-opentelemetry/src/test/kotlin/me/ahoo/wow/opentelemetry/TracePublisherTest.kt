@@ -24,6 +24,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
 import org.junit.jupiter.api.Test
@@ -127,7 +128,7 @@ class TracePublisherTest {
         val traceContext = Context.root()
         val message = mockk<CommandMessage<*>>()
         val delegate = mockk<LocalCommandBus> {
-            every { sendIfSubscribed(message) } returns Mono.just(false)
+            every { handOff(message) } returns Mono.just(LocalHandoff.REFUSED)
         }
         val instrumenter = mockk<Instrumenter<CommandMessage<*>, Unit>> {
             every { shouldStart(traceContext, message) } returns true
@@ -136,13 +137,13 @@ class TracePublisherTest {
         }
 
         TracingLocalCommandBus(delegate, instrumenter)
-            .sendIfSubscribed(message)
+            .handOff(message)
             .test()
-            .expectNext(false)
+            .expectNext(LocalHandoff.REFUSED)
             .verifyComplete()
 
         verify(exactly = 1) {
-            delegate.sendIfSubscribed(message)
+            delegate.handOff(message)
             instrumenter.shouldStart(traceContext, message)
             instrumenter.end(traceContext, message, null, null)
         }

@@ -21,6 +21,11 @@ package me.ahoo.wow.spring.boot.starter
  * order for diagnostics and failure handling.
  */
 object WowRuntimeComponentOrder {
+    /**
+     * The local-first buses' asynchronous distributed copies: stopped after every dispatcher (which settles the local
+     * deliveries they wait for) and before the transports' runtime resources.
+     */
+    const val LOCAL_FIRST_COPIES = 50
     const val COMMAND = 100
     const val EVENT = 200
     const val PROJECTION = 300

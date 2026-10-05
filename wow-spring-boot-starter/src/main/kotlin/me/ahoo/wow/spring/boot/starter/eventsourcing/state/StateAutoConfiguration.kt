@@ -20,9 +20,11 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -30,6 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -72,4 +75,11 @@ class StateAutoConfiguration {
     ): LocalFirstStateEventBus {
         return LocalFirstStateEventBus(distributedBus, localBus)
     }
+
+    @Bean
+    @ConditionalOnBean(LocalFirstStateEventBus::class)
+    @Order(WowRuntimeComponentOrder.LOCAL_FIRST_COPIES)
+    fun localFirstStateEventBusDistributedCopies(
+        bus: LocalFirstStateEventBus
+    ): LocalFirstDistributedCopies = bus.distributedCopies
 }

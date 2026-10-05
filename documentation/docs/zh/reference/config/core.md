@@ -53,7 +53,7 @@ wow:
 
 ### LocalFirst 模式
 
-LocalFirst 同时发送分布式副本并尝试本地准入。所有目标本地 Receiver 都确认准入后，分布式副本才标记为本地已处理；没有订阅者、入口关闭或本地发送失败时，分布式副本仍可处理。
+LocalFirst 同时发送分布式副本并尝试本地准入。所有目标本地 Receiver 都确认准入后，分布式副本才标记为本地已处理；没有订阅者、入口关闭或本地发送失败时，分布式副本仍可处理。自 9.3.0 起，消息进入本地 sink 时发送即完成（从不等待 receiver 拉取），副本异步发送；无法本地交付的发送仍等待 distributed bus。local-first 以崩溃持久性换取延迟：已交付但尚未处理的消息在进程崩溃时会丢失，消息必须在崩溃后仍被处理时请关闭 local-first。见 [LocalFirst 双副本准入](../../guide/command/internals/transport.md#localfirst-双副本准入)。
 
 #### 行为与失败边界
 

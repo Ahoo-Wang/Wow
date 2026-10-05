@@ -123,6 +123,31 @@ class MixedVersionClusterTest {
         }
     }
 
+    @Test
+    fun `with local-first on, each version filters the other's locally handled copies`() {
+        newCluster(localFirst = true).use { localFirstCluster ->
+            localFirstCluster.start()
+            val commandTopic = localFirstCluster.awaitTopic(CART_COMMAND)
+            val commandGroup = localFirstCluster.awaitBalancedGroup(commandTopic)
+            localFirstCluster.nodes.forEach { sender ->
+                // The command is handled where it is sent; its marked copy lands on a partition the other version owns.
+                val cartId = localFirstCluster.key("cart-local-first-${sender.name}") {
+                    localFirstCluster.ownerOf(commandTopic, commandGroup, it) === localFirstCluster.other(sender)
+                }
+
+                sender.addCartItem(cartId, waitStage = "PROCESSED").assertSucceeded("PROCESSED")
+                sender.addCartItem(cartId, waitStage = "PROCESSED").assertSucceeded("PROCESSED")
+                localFirstCluster.awaitConsumed(commandTopic, commandGroup)
+
+                // Had the other version processed the copies too, the cart would hold more than two items' worth.
+                localFirstCluster.nodes.forEach { node ->
+                    node.get("/owner/$cartId/cart/state")["items"].single()["quantity"].asInt().assert().isEqualTo(2)
+                    node.get("/cart/$cartId/event/1/100").size().assert().isEqualTo(2)
+                }
+            }
+        }
+    }
+
     private fun ExampleServerNode.addCartItem(cartId: String, waitStage: String): JsonNode =
         command(
             method = "POST",
@@ -210,17 +235,22 @@ class MixedVersionClusterTest {
         @JvmStatic
         @BeforeAll
         fun startCluster() {
+            cluster = newCluster(localFirst = false)
+            cluster.start()
+        }
+
+        private fun newCluster(localFirst: Boolean): MixedVersionCluster {
             val previousImage = System.getenv(PREVIOUS_IMAGE_ENV)?.takeIf { it.isNotBlank() }
             val previousHome = System.getenv(PREVIOUS_HOME_ENV)?.takeIf { it.isNotBlank() }?.let(Path::of)
             check(previousImage != null || previousHome != null) {
                 "Set $PREVIOUS_IMAGE_ENV (released image) or $PREVIOUS_HOME_ENV (an installDist) for the previous node."
             }
-            cluster = MixedVersionCluster(
+            return MixedVersionCluster(
                 previousImage = previousImage,
                 previousHome = previousHome,
                 currentHome = Path.of(System.getenv(CURRENT_HOME_ENV)),
+                localFirst = localFirst,
             )
-            cluster.start()
         }
 
         @JvmStatic

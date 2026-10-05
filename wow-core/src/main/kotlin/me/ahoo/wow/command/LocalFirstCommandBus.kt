@@ -14,6 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 import me.ahoo.wow.messaging.withLocalFirst
 import reactor.core.publisher.Mono
@@ -31,6 +32,8 @@ class LocalFirstCommandBus(
     override val localBus: LocalCommandBus = InMemoryCommandBus()
 ) : CommandBus,
     LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
+    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies("LocalFirstCommandBus")
+
     /**
      * Sends a command message, prioritizing local processing.
      * Void commands are automatically configured to not use local-first behavior.

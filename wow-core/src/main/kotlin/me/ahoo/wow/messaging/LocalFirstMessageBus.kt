@@ -139,17 +139,31 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
         get() = localBus.javaClass.simpleName
 
     /**
+     * The distributed copies sent after a local hand-off, which no sender waits for.
+     */
+    val distributedCopies: LocalFirstDistributedCopies
+
+    /**
      * Sends a message using local-first routing strategy.
      *
-     * If local-first routing is enabled, the bus attempts local delivery to
-     * processing-open receivers. The distributed copy is marked locally
-     * handled only after every targeted receiver confirms runtime admission;
-     * otherwise it remains eligible for distributed processing.
+     * When local-first applies, the message is handed to the local receivers ([LocalMessageBus.handOff]) and a
+     * distributed copy is always sent. When the send completes:
+     * - **handed off** (the message entered the local sink of every routed, processing-open receiver): at once. The
+     *   copy is sent asynchronously once the receivers decided: marked locally handled (`local_first=true`) when every
+     *   receiver admitted it, eligible for distributed processing (`local_first=false`) when the delivery was
+     *   rejected first (a receiver closed). Its failure is logged and counted by the distributed bus's metrics; it
+     *   never reaches the sender ([distributedCopies]).
+     * - **refused** (no routable receiver, a full or closed local sink) or **local error**: the copy, eligible for
+     *   distributed processing, is the delivery, and the send completes when the distributed bus accepted it, or
+     *   fails with it.
+     *
+     * A sender never waits for a local receiver's demand, so handlers that send (a command handler publishing events,
+     * a saga sending commands) cannot block one another. A message handed off but not yet processed is lost if the
+     * process crashes: local-first trades that durability for latency.
      *
      * @param message The message to send
-     * @return A Mono that completes when sending is done
+     * @return A Mono that completes as described above
      */
-    @Suppress("ReturnCount")
     override fun send(message: M): Mono<Void> {
         if (!message.shouldLocalFirst()) {
             return distributedBus.send(message)
@@ -160,21 +174,38 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
             @Suppress("UNCHECKED_CAST")
             val localMessage = message.copy() as M
             localMessage.withLocalFirst()
-            localBus.sendIfSubscribed(localMessage).materialize().flatMap {
-                val locallyDelivered = it.hasValue() && it.get() == true
-                if (it.hasError()) {
-                    val error = it.throwable!!
+            @Suppress("UNCHECKED_CAST")
+            val distributedMessage = message.copy() as M
+            localBus.handOff(localMessage)
+                .onErrorResume { error ->
                     log.error(error) {
-                        "[$localBusName] Failed to send local message[${message.id}], " +
+                        "[$localBusName] Failed to hand off local message[${message.id}], " +
                             "LocalFirst mode temporarily disabled."
                     }
+                    Mono.just(LocalHandoff.REFUSED)
                 }
-                @Suppress("UNCHECKED_CAST")
-                val distributedMessage = message.copy() as M
-                distributedMessage.withLocalFirst(locallyDelivered)
-                distributedBus.send(distributedMessage)
-            }
+                .flatMap { handoff ->
+                    if (handoff.accepted) {
+                        sendCopyAfterAdmission(distributedMessage, handoff.admission)
+                        Mono.empty()
+                    } else {
+                        distributedMessage.withLocalFirst(false)
+                        distributedBus.send(distributedMessage)
+                    }
+                }
         }
+    }
+
+    private fun sendCopyAfterAdmission(copy: M, admission: Mono<Boolean>) {
+        distributedCopies.send(
+            admission
+                .onErrorReturn(false)
+                .defaultIfEmpty(false)
+                .flatMap { admitted ->
+                    copy.withLocalFirst(admitted)
+                    distributedBus.send(copy)
+                },
+        ) { "message[${copy.id}] (via $localBusName)" }
     }
 
     /**

@@ -21,8 +21,10 @@ import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.event.NoOpDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -30,6 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -79,4 +82,11 @@ class EventAutoConfiguration {
     ): LocalFirstDomainEventBus {
         return LocalFirstDomainEventBus(distributedBus, localBus)
     }
+
+    @Bean
+    @ConditionalOnBean(LocalFirstDomainEventBus::class)
+    @Order(WowRuntimeComponentOrder.LOCAL_FIRST_COPIES)
+    fun localFirstDomainEventBusDistributedCopies(
+        bus: LocalFirstDomainEventBus
+    ): LocalFirstDistributedCopies = bus.distributedCopies
 }
