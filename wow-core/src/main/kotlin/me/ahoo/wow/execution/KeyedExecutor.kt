@@ -14,9 +14,11 @@
 package me.ahoo.wow.execution
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.reactor.asCoroutineDispatcher
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
+import kotlinx.coroutines.asCoroutineDispatcher
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The execution resource every dispatcher of one [me.ahoo.wow.runtime.WowRuntime] shares (design X7): one set of
@@ -47,18 +49,31 @@ class KeyedExecutor(
         require(maxInFlight > 0) { "maxInFlight must be positive." }
     }
 
-    /** The workers; threads start on first use. */
-    internal val scheduler: Scheduler = Schedulers.newParallel(name, workers, true).apply { init() }
+    private val threadId = AtomicInteger()
+
+    /**
+     * The workers: daemon threads, started on demand up to [workers]. A mailbox is submitted as a plain [Runnable]
+     * (one queue node per run, no future), and a task submitted after [close] is rejected.
+     */
+    internal val executor: ThreadPoolExecutor = ThreadPoolExecutor(
+        workers,
+        workers,
+        0L,
+        TimeUnit.MILLISECONDS,
+        LinkedBlockingQueue(),
+    ) { runnable ->
+        Thread(runnable, "$name-${threadId.incrementAndGet()}").apply { isDaemon = true }
+    }
 
     /** The workers as a coroutine dispatcher, for `suspend` and `Flow` message functions. */
-    val coroutineDispatcher: CoroutineDispatcher = scheduler.asCoroutineDispatcher()
+    val coroutineDispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
 
     val isDisposed: Boolean
-        get() = scheduler.isDisposed
+        get() = executor.isShutdown
 
-    /** Stops the workers; a message scheduled afterwards is rejected. Idempotent. */
+    /** Stops the workers once their queued runs finish; a run submitted afterwards is rejected. Idempotent. */
     override fun close() {
-        scheduler.dispose()
+        executor.shutdown()
     }
 
     override fun toString(): String = "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight)"

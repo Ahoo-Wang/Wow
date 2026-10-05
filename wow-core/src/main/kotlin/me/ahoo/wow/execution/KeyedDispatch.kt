@@ -21,11 +21,14 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Operators
 import reactor.util.context.Context
+import reactor.util.context.ContextView
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import java.util.function.Function
 
 /**
@@ -35,7 +38,7 @@ import java.util.function.Function
 internal object KeyedExecutorContext {
     val COROUTINE_DISPATCHER_KEY: Any = CoroutineDispatcher::class
 
-    fun coroutineDispatcherOf(context: reactor.util.context.ContextView): CoroutineDispatcher? =
+    fun coroutineDispatcherOf(context: ContextView): CoroutineDispatcher? =
         context.getOrDefault<CoroutineDispatcher>(COROUTINE_DISPATCHER_KEY, null)
 }
 
@@ -70,18 +73,18 @@ private class KeyedDispatchSubscriber<T : Any>(
     private val actual: CoreSubscriber<in Void>,
     private val executor: KeyedExecutor,
     private val keyOf: (T) -> Any,
-    private val handler: (T) -> Mono<Void>,
+    val handler: (T) -> Mono<Void>,
 ) : CoreSubscriber<T>, Subscription {
     private val maxInFlight = executor.maxInFlight
     private val replenishThreshold = maxOf(1, maxInFlight - (maxInFlight shr 2))
-    private val mailboxes = ConcurrentHashMap<Any, Mailbox>()
-    private val mailboxFactory = Function<Any, Mailbox> { Mailbox(it) }
+    val mailboxes = ConcurrentHashMap<Any, Mailbox<T>>()
+    private val mailboxFactory = Function<Any, Mailbox<T>> { Mailbox(it, this) }
     private val inFlight = AtomicInteger()
     private val finishedSinceRequest = AtomicInteger()
     private val terminated = AtomicBoolean()
     private val failure = AtomicReference<Throwable?>()
-    private val context: Context = actual.currentContext()
-    private val handlerContext: Context =
+    val context: Context = actual.currentContext()
+    val handlerContext: Context =
         context.put(KeyedExecutorContext.COROUTINE_DISPATCHER_KEY, executor.coroutineDispatcher)
     private lateinit var upstream: Subscription
 
@@ -89,7 +92,8 @@ private class KeyedDispatchSubscriber<T : Any>(
     private var done = false
 
     @Volatile
-    private var cancelled = false
+    var cancelled = false
+        private set
 
     override fun currentContext(): Context = context
 
@@ -117,16 +121,10 @@ private class KeyedDispatchSubscriber<T : Any>(
         inFlight.incrementAndGet()
         while (true) {
             val mailbox = mailboxes.computeIfAbsent(key, mailboxFactory)
-            val start = synchronized(mailbox) {
-                if (mailbox.removed) {
-                    null
-                } else {
-                    mailbox.queue.addLast(element)
-                    mailbox.queue.size == 1
-                }
-            } ?: continue
-            if (start) {
-                schedule(mailbox, element)
+            when (mailbox.offer(element)) {
+                Mailbox.Offer.REMOVED -> continue
+                Mailbox.Offer.STARTED -> schedule(mailbox)
+                Mailbox.Offer.QUEUED -> Unit
             }
             return
         }
@@ -160,75 +158,22 @@ private class KeyedDispatchSubscriber<T : Any>(
         cancelMailboxes()
     }
 
-    private fun schedule(mailbox: Mailbox, element: T) {
+    /** Runs [mailbox]'s head on a worker. */
+    fun schedule(mailbox: Mailbox<T>) {
         try {
-            executor.scheduler.schedule { run(mailbox, element) }
+            executor.executor.execute(mailbox)
         } catch (rejected: RejectedExecutionException) {
             fail(rejected)
-            var discarded: T? = element
-            while (discarded != null) {
-                Operators.onDiscard(discarded, context)
-                discarded = finish(mailbox)
-            }
+            mailbox.discardAll()
         }
     }
 
-    /** Runs [first] and then, while they complete synchronously, the mailbox's next elements, up to a fair budget. */
-    private fun run(mailbox: Mailbox, first: T) {
-        var element = first
-        var budget = INLINE_BUDGET
-        while (true) {
-            if (cancelled) {
-                Operators.onDiscard(element, context)
-                element = finish(mailbox) ?: return
-                continue
-            }
-            val inner = Inner(mailbox)
-            synchronized(mailbox) { mailbox.current = inner }
-            val publisher = try {
-                handler(element)
-            } catch (error: Throwable) {
-                Exceptions.throwIfFatal(error)
-                Mono.error(error)
-            }
-            publisher.subscribe(inner)
-            if (cancelled) {
-                inner.cancel()
-            }
-            if (!inner.continueInline()) {
-                return
-            }
-            val next = finish(mailbox) ?: return
-            budget--
-            if (budget == 0) {
-                schedule(mailbox, next)
-                return
-            }
-            element = next
-        }
+    fun discard(element: T) {
+        Operators.onDiscard(element, context)
     }
 
-    /** Called when [mailbox]'s head finishes asynchronously. */
-    private fun finishedAsync(mailbox: Mailbox) {
-        val next = finish(mailbox) ?: return
-        schedule(mailbox, next)
-    }
-
-    /**
-     * Removes [mailbox]'s finished head and accounts for it; returns the next element to run, or `null` when the
-     * mailbox is empty (it is then removed, so a later element with its key opens a fresh one).
-     */
-    private fun finish(mailbox: Mailbox): T? {
-        val next = synchronized(mailbox) {
-            mailbox.current = null
-            mailbox.queue.removeFirst()
-            mailbox.queue.firstOrNull().also {
-                if (it == null) {
-                    mailbox.removed = true
-                    mailboxes.remove(mailbox.key, mailbox)
-                }
-            }
-        }
+    /** Accounts for one finished (or discarded) element: replenishes demand, completes when the source is done. */
+    fun finished() {
         val remaining = inFlight.decrementAndGet()
         if (remaining == 0 && done) {
             completeIfIdle()
@@ -238,7 +183,6 @@ private class KeyedDispatchSubscriber<T : Any>(
                 upstream.request(requested.toLong())
             }
         }
-        return next
     }
 
     private fun completeIfIdle() {
@@ -247,7 +191,7 @@ private class KeyedDispatchSubscriber<T : Any>(
         }
     }
 
-    private fun fail(error: Throwable) {
+    fun fail(error: Throwable) {
         if (!failure.compareAndSet(null, error)) {
             Operators.onErrorDropped(error, context)
             return
@@ -270,45 +214,139 @@ private class KeyedDispatchSubscriber<T : Any>(
      */
     private fun cancelMailboxes() {
         mailboxes.values.forEach { mailbox ->
-            val (running, queued) = synchronized(mailbox) {
-                val waiting = if (mailbox.queue.size > 1) {
-                    val head = mailbox.queue.removeFirst()
-                    mailbox.queue.toList().also {
-                        inFlight.addAndGet(-it.size)
-                        mailbox.queue.clear()
-                        mailbox.queue.addLast(head)
-                    }
-                } else {
-                    emptyList()
-                }
-                mailbox.current to waiting
-            }
-            queued.forEach { Operators.onDiscard(it, context) }
-            running?.cancel()
+            val queued = mailbox.drainQueued()
+            inFlight.addAndGet(-queued.size)
+            queued.forEach(::discard)
+            mailbox.cancelRunning()
         }
     }
 
-    private inner class Mailbox(val key: Any) {
-        /** Unfinished elements; the head is running (or scheduled to run). Guarded by this mailbox. */
-        val queue = ArrayDeque<T>(2)
-
-        /** Set once the mailbox is empty and has left [mailboxes]. Guarded by this mailbox. */
-        var removed = false
-
-        /** The running head's subscriber. Guarded by this mailbox. */
-        var current: Inner? = null
+    private companion object {
+        const val INLINE_BUDGET = 64
     }
 
-    private inner class Inner(private val mailbox: Mailbox) : CoreSubscriber<Void> {
-        private val subscription = AtomicReference<Subscription?>()
+    /**
+     * The elements of one key. The head runs (or is scheduled to run); the rest wait in [queue], created only when a
+     * key has more than one unfinished element. A mailbox is its own [Runnable] (it runs its head on a worker) and its
+     * own subscriber of the head's handler, so a run allocates nothing per element.
+     */
+    @Suppress("TooManyFunctions")
+    class Mailbox<T : Any>(
+        private val key: Any,
+        private val owner: KeyedDispatchSubscriber<T>,
+    ) : Runnable, CoreSubscriber<Void> {
+        enum class Offer { STARTED, QUEUED, REMOVED }
 
-        /** [SUBSCRIBING] until `subscribe` returns; then [COMPLETED_INLINE] or [ASYNC]. */
-        private val state = AtomicInteger(SUBSCRIBING)
+        /** Guarded by this mailbox. */
+        private var head: T? = null
 
-        override fun currentContext(): Context = handlerContext
+        /** Guarded by this mailbox. */
+        private var queue: ArrayDeque<T>? = null
+
+        /** Set once the mailbox is empty and has left [KeyedDispatchSubscriber.mailboxes]. Guarded by this mailbox. */
+        private var removed = false
+
+        /** [SUBSCRIBING] while the head's handler is being subscribed; then [COMPLETED_INLINE] or [ASYNC]. */
+        @Volatile
+        @JvmField
+        var phase: Int = SUBSCRIBING
+
+        /** The running head's subscription, or [CANCELLED]. */
+        @Volatile
+        @JvmField
+        var subscription: Subscription? = null
+
+        fun offer(element: T): Offer =
+            synchronized(this) {
+                when {
+                    removed -> Offer.REMOVED
+                    head == null -> {
+                        head = element
+                        Offer.STARTED
+                    }
+
+                    else -> {
+                        (queue ?: ArrayDeque<T>(INITIAL_QUEUE_CAPACITY).also { queue = it }).addLast(element)
+                        Offer.QUEUED
+                    }
+                }
+            }
+
+        /** Runs the head, then — while handlers complete synchronously — the next elements, up to a fair budget. */
+        override fun run() {
+            var budget = INLINE_BUDGET
+            while (true) {
+                val element = synchronized(this) { head } ?: return
+                if (owner.cancelled) {
+                    owner.discard(element)
+                    if (!advance()) {
+                        return
+                    }
+                    continue
+                }
+                phase = SUBSCRIBING
+                subscription = null
+                val publisher = try {
+                    owner.handler(element)
+                } catch (error: Throwable) {
+                    Exceptions.throwIfFatal(error)
+                    Mono.error(error)
+                }
+                publisher.subscribe(this)
+                if (owner.cancelled) {
+                    cancelRunning()
+                }
+                if (PHASE.compareAndSet(this, SUBSCRIBING, ASYNC)) {
+                    return
+                }
+                if (!advance()) {
+                    return
+                }
+                budget--
+                if (budget == 0) {
+                    owner.schedule(this)
+                    return
+                }
+            }
+        }
+
+        /** Finishes the head; returns whether a next element became the head (else the mailbox is removed). */
+        private fun advance(): Boolean {
+            val hasNext = synchronized(this) {
+                val next = queue?.removeFirstOrNull()
+                head = next
+                if (next == null) {
+                    removed = true
+                    owner.mailboxes.remove(key, this)
+                }
+                next != null
+            }
+            owner.finished()
+            return hasNext
+        }
+
+        /** Removes the waiting elements (not the head) and returns them. */
+        fun drainQueued(): List<T> =
+            synchronized(this) {
+                queue?.toList()?.also { queue?.clear() } ?: emptyList()
+            }
+
+        /** Discards the head and every waiting element, finishing each (the executor rejected the run). */
+        fun discardAll() {
+            do {
+                val element = synchronized(this) { head } ?: return
+                owner.discard(element)
+            } while (advance())
+        }
+
+        fun cancelRunning() {
+            SUBSCRIPTION.getAndSet(this, CANCELLED)?.cancel()
+        }
+
+        override fun currentContext(): Context = owner.handlerContext
 
         override fun onSubscribe(s: Subscription) {
-            if (subscription.compareAndSet(null, s)) {
+            if (SUBSCRIPTION.compareAndSet(this, null, s)) {
                 s.request(Long.MAX_VALUE)
             } else {
                 s.cancel()
@@ -318,29 +356,35 @@ private class KeyedDispatchSubscriber<T : Any>(
         override fun onNext(t: Void) = Unit
 
         override fun onError(error: Throwable) {
-            fail(error)
+            owner.fail(error)
             onComplete()
         }
 
         override fun onComplete() {
-            if (!state.compareAndSet(SUBSCRIBING, COMPLETED_INLINE)) {
-                finishedAsync(mailbox)
+            if (PHASE.compareAndSet(this, SUBSCRIBING, COMPLETED_INLINE)) {
+                return
+            }
+            if (advance()) {
+                owner.schedule(this)
             }
         }
 
-        /** Whether the handler completed while being subscribed, so the caller continues with the next element. */
-        fun continueInline(): Boolean = !state.compareAndSet(SUBSCRIBING, ASYNC)
+        private companion object {
+            const val SUBSCRIBING = 0
+            const val COMPLETED_INLINE = 1
+            const val ASYNC = 2
+            const val INITIAL_QUEUE_CAPACITY = 4
+            val CANCELLED: Subscription = Operators.emptySubscription()
+            val PHASE: AtomicIntegerFieldUpdater<Mailbox<*>> =
+                AtomicIntegerFieldUpdater.newUpdater(Mailbox::class.java, "phase")
 
-        fun cancel() {
-            subscription.getAndSet(CANCELLED)?.cancel()
+            @Suppress("UNCHECKED_CAST")
+            val SUBSCRIPTION: AtomicReferenceFieldUpdater<Mailbox<*>, Subscription?> =
+                AtomicReferenceFieldUpdater.newUpdater(
+                    Mailbox::class.java as Class<Mailbox<*>>,
+                    Subscription::class.java,
+                    "subscription",
+                ) as AtomicReferenceFieldUpdater<Mailbox<*>, Subscription?>
         }
-    }
-
-    private companion object {
-        const val INLINE_BUDGET = 64
-        const val SUBSCRIBING = 0
-        const val COMPLETED_INLINE = 1
-        const val ASYNC = 2
-        val CANCELLED: Subscription = Operators.emptySubscription()
     }
 }
