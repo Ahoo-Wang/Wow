@@ -50,7 +50,7 @@ abstract class AbstractQueryRequestScope : QueryRequestScope {
     }
 
     protected open fun ServerRequest.resolveOwnerId(aggregateMetadata: AggregateMetadata<*, *>): String? {
-        return identityBinding(aggregateMetadata).ownerId(this)
+        return identityBinding(aggregateMetadata).readOwnerId(this)
     }
 
     /** The space headers of the route: `Wow-Space-Id`, then its space header aliases. */

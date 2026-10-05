@@ -29,25 +29,28 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import me.ahoo.wow.webflux.route.identity.RouteIdentity
 import me.ahoo.wow.webflux.route.identity.RouteIdentityBinding
-import me.ahoo.wow.webflux.route.identity.RouteIdentitySource
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.time.Duration
 import java.util.*
 
 private const val IDENTITY_DEPRECATION =
-    "Scheduled for removal in 10.0.0. The route's RouteIdentityBinding decides each identity fact; " +
-        "handlers read it through ServerRequest.identity(…)."
+    "Scheduled for removal in 10.0.0. Use CommandBuilderExtractor (DefaultCommandBuilderExtractor) for commands " +
+        "or QueryRequestScope (DefaultQueryRequestScope) for queries: they read each identity fact where the route " +
+        "states it, header aliases included."
 
 /**
  * The tenant the request states for [aggregateMetadata]: its static tenant, else the `{tenantId}` path variable when
- * the route declares it (blank → 400), else `Command-Tenant-Id`. A header contradicting the static or path tenant is
- * rejected (400) since 9.3.0.
+ * the route declares it (blank → 400), else `Command-Tenant-Id`. Since 9.3.0 a header contradicting the path tenant
+ * is rejected (400).
  */
 @Deprecated(IDENTITY_DEPRECATION)
 fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? =
     RouteIdentity.of(this).binding(aggregateMetadata).tenantId(this)
 
-/** The owner the request states: the `{ownerId}` path variable when the route declares it (blank → 400), else `Command-Owner-Id`. */
+/**
+ * The owner the request states: the `{ownerId}` path variable when the route declares it (blank → 400), else
+ * `Command-Owner-Id`.
+ */
 @Deprecated(IDENTITY_DEPRECATION)
 fun ServerRequest.getOwnerId(): String? = RouteIdentity.of(this).bindingOf(OwnerPolicy.NEVER).ownerId(this)
 
@@ -72,27 +75,29 @@ fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *
 @Deprecated(IDENTITY_DEPRECATION)
 fun ServerRequest.getAggregateId(): String? = RouteIdentity.of(this).bindingOf(OwnerPolicy.NEVER).aggregateId(this)
 
+/** As in 9.2: for [OwnerPolicy.AGGREGATE_ID], [ownerId] if given, else [getAggregateId]. */
+@Suppress("DEPRECATION")
 @Deprecated(IDENTITY_DEPRECATION)
 fun ServerRequest.getAggregateId(owner: OwnerPolicy, ownerId: String?): String? {
-    val binding = RouteIdentity.of(this).bindingOf(owner)
-    if (owner == OwnerPolicy.AGGREGATE_ID && binding.aggregateId.source == RouteIdentitySource.OWNER) {
-        return ownerId ?: RouteIdentity.of(this).bindingOf(OwnerPolicy.NEVER).aggregateId(this)
+    if (owner == OwnerPolicy.AGGREGATE_ID) {
+        return ownerId ?: getAggregateId()
     }
-    return binding.aggregateId(this)
+    return getAggregateId()
 }
 
+/** As in 9.2: for [OwnerPolicy.AGGREGATE_ID], [getOwnerId], else [getAggregateId]. */
+@Suppress("DEPRECATION")
 @Deprecated(IDENTITY_DEPRECATION)
-fun ServerRequest.getAggregateId(owner: OwnerPolicy): String? =
-    RouteIdentity.of(this).bindingOf(owner).aggregateId(this)
+fun ServerRequest.getAggregateId(owner: OwnerPolicy): String? = getAggregateId(owner, getOwnerId())
 
 // compat(wow<9.3): the AggregateRoute.Owner overloads, for code compiled against 9.2.
 @Suppress("DEPRECATION")
-@Deprecated("Scheduled for removal in 10.0.0. Use getAggregateId(OwnerPolicy, String?).")
+@Deprecated(IDENTITY_DEPRECATION)
 fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? =
     getAggregateId(OwnerPolicy.valueOf(owner.name), ownerId)
 
 @Suppress("DEPRECATION")
-@Deprecated("Scheduled for removal in 10.0.0. Use getAggregateId(OwnerPolicy).")
+@Deprecated(IDENTITY_DEPRECATION)
 fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? =
     getAggregateId(OwnerPolicy.valueOf(owner.name))
 

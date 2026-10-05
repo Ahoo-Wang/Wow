@@ -89,7 +89,7 @@ Each route decides, once, when the router is built, where it takes each identity
 
 | Fact | Source, first that applies |
 | --- | --- |
-| Tenant | the static tenant → `{tenantId}` → `Command-Tenant-Id` |
+| Tenant | the static tenant (a tenant header is ignored) → `{tenantId}` → `Command-Tenant-Id` |
 | Owner | `{ownerId}` → `{id}` when the owner is the aggregate ID (`OwnerPolicy.AGGREGATE_ID`) → `Command-Owner-Id` |
 | Aggregate ID | owner is the aggregate ID: `{ownerId}` → `{id}` → `Command-Owner-Id` → `Command-Aggregate-Id`; otherwise `{id}` → `Command-Aggregate-Id` |
 | Space | spaced aggregate only: `Wow-Space-Id` → header aliases (CoSec's `CoSec-Space-Id`) |
@@ -98,7 +98,9 @@ Each route decides, once, when the router is built, where it takes each identity
 
 A blank header counts as absent. For a command, the body's `@TenantId` / `@OwnerId` / `@AggregateId` still comes first, as for any `CommandGateway` caller.
 
-Since 9.3.0, a request that contradicts the tenant or owner its route fixes is rejected with `400` and error code `IllegalArgument`: a `Command-Tenant-Id` header that differs from the static tenant or the `{tenantId}` segment, a `Command-Owner-Id` header that differs from the `{ownerId}` segment (or from `{id}` of an aggregate owned by its ID), and a command body whose `@TenantId` or `@OwnerId` differs from either. Before, the body silently won and the header was ignored. The same value, or no value, is accepted; where the route fixes nothing, the body still wins over a header. On an aggregate owned by its ID, a route that states `{id}` but not `{ownerId}` now takes the aggregate and its owner from the path; before 9.3.0 a `Command-Owner-Id` header replaced both.
+Since 9.3.0, a request that contradicts the tenant or owner its route fixes is rejected with `400` and error code `IllegalArgument`: a `Command-Tenant-Id` header that differs from the `{tenantId}` segment, a `Command-Owner-Id` header that differs from the `{ownerId}` segment (or from `{id}` of an aggregate owned by its ID), and a command body whose `@TenantId` differs from the static tenant or the `{tenantId}` segment, or whose `@OwnerId` differs from the owner segment. Before, the body silently won and the header was ignored. A tenant header sent to an aggregate with a static tenant is still ignored. The same value, or no value, is accepted; where the route fixes nothing, the body still wins over a header.
+
+On an aggregate owned by its ID, a command on a route that states `{id}` but not `{ownerId}` now takes the aggregate and its owner from the path; before 9.3.0 a `Command-Owner-Id` header replaced both. A read on such a route (an event stream load, say) does not filter by that derived owner, since the ID already selects the aggregate and one created in-process may store a blank owner; a `Command-Owner-Id` that agrees with `{id}` still narrows it, as before.
 
 ### Tenant Resources
 

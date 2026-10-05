@@ -55,7 +55,7 @@ class CoSecAutoConfigurationTest {
                     .hasSingleBean(IdentityHeaderAliases::class.java)
                     .doesNotHaveBean(CoSecCommandBuilderExtractor::class.java)
                     .doesNotHaveBean(CoSecQueryRequestScope::class.java)
-                context.getBean(IdentityHeaderAliases::class.java).assert().isEqualTo(CoSecIdentityHeaders.ALIASES)
+                context.getBean(IdentityHeaderAliases::class.java).assert().isSameAs(CoSecIdentityHeaders.ALIASES)
             }
     }
 }

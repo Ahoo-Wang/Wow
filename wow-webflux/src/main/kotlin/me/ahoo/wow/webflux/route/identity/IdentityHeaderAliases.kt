@@ -24,14 +24,18 @@ package me.ahoo.wow.webflux.route.identity
  * @property spaceId headers read, in order, when `Wow-Space-Id` gives no space.
  * @property requestId headers read, in order, when `Command-Request-Id` gives no request ID.
  */
-data class IdentityHeaderAliases(
+class IdentityHeaderAliases(
     val spaceId: List<String> = emptyList(),
     val requestId: List<String> = emptyList(),
 ) {
+    fun isEmpty(): Boolean = spaceId.isEmpty() && requestId.isEmpty()
+
     operator fun plus(other: IdentityHeaderAliases): IdentityHeaderAliases = IdentityHeaderAliases(
         spaceId = (spaceId + other.spaceId).distinct(),
         requestId = (requestId + other.requestId).distinct(),
     )
+
+    override fun toString(): String = "IdentityHeaderAliases(spaceId=$spaceId, requestId=$requestId)"
 
     companion object {
         @JvmField

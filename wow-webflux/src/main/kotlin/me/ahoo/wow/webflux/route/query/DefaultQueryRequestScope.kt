@@ -13,4 +13,24 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
+import me.ahoo.wow.webflux.route.identity.RouteIdentity
+import org.springframework.web.reactive.function.server.ServerRequest
+
 object DefaultQueryRequestScope : AbstractQueryRequestScope()
+
+/**
+ * [delegate] with [identityHeaderAliases] (CoSec's, say) applied also to a request whose handler was invoked outside
+ * the router; a request the router dispatched already carries its route's aliases. Since 9.3.0.
+ */
+class IdentityHeaderAliasesQueryRequestScope(
+    private val delegate: QueryRequestScope,
+    private val identityHeaderAliases: IdentityHeaderAliases,
+) : QueryRequestScope {
+    override fun resolve(aggregateMetadata: AggregateMetadata<*, *>, request: ServerRequest): QueryScope {
+        RouteIdentity.withAliases(request, identityHeaderAliases)
+        return delegate.resolve(aggregateMetadata, request)
+    }
+}

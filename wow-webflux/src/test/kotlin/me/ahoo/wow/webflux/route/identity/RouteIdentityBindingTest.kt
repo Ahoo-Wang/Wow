@@ -86,7 +86,9 @@ class RouteIdentityBindingTest {
         binding.tenantId.assert()
             .isEqualTo(FactBinding(PATH, MessageRecords.TENANT_ID, listOf(CommandComponent.Header.TENANT_ID)))
         binding.spaceId.assert().isEqualTo(FactBinding(HEADER, headers = listOf(CommonComponent.Header.SPACE_ID)))
-        bindingOf("POST", "/owner/{ownerId}/cart/add_cart_item").tenantId.source.assert().isEqualTo(STATIC)
+        // A static tenant ignores the tenant header, as in 9.2: no header to check against it.
+        bindingOf("POST", "/owner/{ownerId}/cart/add_cart_item").tenantId.assert()
+            .isEqualTo(FactBinding(STATIC, Cart::class.java.aggregateRouteMetadata().aggregateMetadata.staticTenantId))
     }
 
     @Test
@@ -121,12 +123,15 @@ class RouteIdentityBindingTest {
 
     @Test
     fun `aliases merge in order without duplicates`() {
-        IdentityHeaderAliases.merge(
+        val merged = IdentityHeaderAliases.merge(
             listOf(
                 IdentityHeaderAliases(spaceId = listOf("A")),
                 IdentityHeaderAliases(spaceId = listOf("B", "A"), requestId = listOf("R")),
             )
-        ).assert().isEqualTo(IdentityHeaderAliases(spaceId = listOf("A", "B"), requestId = listOf("R")))
+        )
+        merged.spaceId.assert().containsExactly("A", "B")
+        merged.requestId.assert().containsExactly("R")
+        IdentityHeaderAliases.NONE.isEmpty().assert().isTrue()
     }
 
     /**
@@ -144,12 +149,15 @@ class RouteIdentityBindingTest {
         val withoutHeader = MockServerRequest.builder().pathVariable(MessageRecords.ID, "cart-1").build()
         binding.aggregateId(withoutHeader).assert().isEqualTo("cart-1")
         binding.ownerId(withoutHeader).assert().isEqualTo("cart-1")
+        // A read does not filter by an owner derived from the ID: an in-process cart may store a blank owner.
+        binding.readOwnerId(withoutHeader).assert().isNull()
 
         val agreeing = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, "cart-1")
             .header(CommandComponent.Header.OWNER_ID, "cart-1")
             .build()
         binding.aggregateId(agreeing).assert().isEqualTo("cart-1")
+        binding.readOwnerId(agreeing).assert().isEqualTo("cart-1")
     }
 
     @Test

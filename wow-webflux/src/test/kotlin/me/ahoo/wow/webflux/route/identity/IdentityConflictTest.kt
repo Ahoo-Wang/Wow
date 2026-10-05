@@ -20,6 +20,9 @@ import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.OwnerId
 import me.ahoo.wow.api.annotation.TenantId
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
@@ -40,7 +43,10 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.queryScope
+import me.ahoo.wow.query.querySelection
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -68,6 +74,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RouterFunctions
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.net.URI
@@ -212,9 +219,39 @@ class IdentityConflictTest {
         every { entryPolicy } returns QueryEntryPolicy.DEFAULT
         every { count(any()) } returns Mono.just(1L)
     }
+
+    /**
+     * One stored event of `cart-a` whose owner is blank, as for a cart created in-process (`CommandGateway` or a saga
+     * do not apply owner = aggregate ID). The stub returns it unless the query filters by another owner.
+     */
     private val countEventGateway = mockk<EventStreamQueryGateway> {
         every { entryPolicy } returns QueryEntryPolicy.DEFAULT
         every { count(any()) } returns Mono.just(1L)
+        every { dynamicList(any()) } returns Flux.deferContextual { context ->
+            val owners = (context.queryScope().leaves() + context.querySelection().leaves())
+                .filterIsInstance<OwnerIdFilter>()
+            if (owners.any { it.value != BLANK_OWNER }) {
+                Flux.empty()
+            } else {
+                Flux.just(JsonSerializer.createObjectNode().put("aggregateId", "cart-a").put("ownerId", BLANK_OWNER))
+            }
+        }
+    }
+
+    private fun FilterExpression.leaves(): List<FilterExpression> =
+        if (this is AndFilter) operands.flatMap { it.leaves() } else listOf(this)
+
+    /**
+     * A read of an aggregate owned by its ID, on a route that states `{id}` only, does not filter by the owner it
+     * derives from `{id}`: a stream created in-process (blank owner) is still returned, as in 9.2.
+     */
+    @Test
+    fun `a read does not filter by the owner derived from the id`() {
+        client.get().uri("/cart/cart-a/event/1/10")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java)
+            .value { it.assert().contains("\"aggregateId\":\"cart-a\"") }
     }
 
     private val client: WebTestClient = run {
@@ -294,14 +331,14 @@ class IdentityConflictTest {
     }
 
     @Test
-    fun `a header contradicting the static tenant is rejected`() {
+    fun `a tenant header is ignored on a static tenant route, as in 9_2`() {
         client.post().uri("/cart/snapshot/count")
             .header(CommandComponent.Header.TENANT_ID, VICTIM)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"op":"MATCH_ALL"}""")
             .exchange()
-            .expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectStatus().isOk
+            .expectBody(String::class.java).isEqualTo("1")
     }
 
     @ParameterizedTest
@@ -320,6 +357,7 @@ class IdentityConflictTest {
     }
 
     private companion object {
+        const val BLANK_OWNER = ""
         const val VICTIM = "victim"
     }
 }

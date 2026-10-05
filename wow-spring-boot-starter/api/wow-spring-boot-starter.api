@@ -1515,6 +1515,7 @@ public class me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration {
 	public fun batchExecutionPolicy (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;)Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;
 	public fun commandBuilderExtractor ()Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;
 	public fun commandMessageExtractor (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor;
+	public fun commandMessageExtractor (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor;
 	public fun commandRequestExtendHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestExtendHeaderAppender;
 	public fun commandRequestRemoteIpHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestRemoteIpHeaderAppender;
 	public fun commandRequestUserAgentHeaderAppender ()Lme/ahoo/wow/webflux/route/command/appender/CommandRequestUserAgentHeaderAppender;
@@ -1528,6 +1529,7 @@ public class me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration {
 	public fun httpQueryGuard (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;)Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;
 	public fun pointReadAdmission (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/state/PointReadAdmission;
 	public fun queryRequestScope ()Lme/ahoo/wow/webflux/route/query/QueryRequestScope;
+	public fun queryRequestScope (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/query/QueryRequestScope;
 	public fun queryRouteModule (Lorg/springframework/beans/factory/BeanFactory;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)Lme/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule;
 	public fun routeHandlerFunctionRegistrar (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;
 	public fun snapshotRouteModule (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/SnapshotRouteModule;

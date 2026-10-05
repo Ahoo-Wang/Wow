@@ -48,7 +48,7 @@ class LoadSnapshotHandlerFunction(
         val identity = request.identity(aggregateRouteMetadata)
         val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
         val id = requireNotNull(identity.aggregateId())
-        val ownerId = identity.ownerId()
+        val ownerId = identity.readOwnerId()
         val selection = filter {
             tenantId(tenantId)
             id(id)

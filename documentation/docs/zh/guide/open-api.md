@@ -89,7 +89,7 @@ Swagger UI 是 Springdoc 应用特性，不属于路由合同本身。匹配的 
 
 | 事实 | 来源（取第一个适用的） |
 | --- | --- |
-| 租户 | 静态租户 → `{tenantId}` → `Command-Tenant-Id` |
+| 租户 | 静态租户（忽略租户请求头） → `{tenantId}` → `Command-Tenant-Id` |
 | 拥有者 | `{ownerId}` → 拥有者即聚合 ID（`OwnerPolicy.AGGREGATE_ID`）时的 `{id}` → `Command-Owner-Id` |
 | 聚合 ID | 拥有者即聚合 ID：`{ownerId}` → `{id}` → `Command-Owner-Id` → `Command-Aggregate-Id`；否则 `{id}` → `Command-Aggregate-Id` |
 | Space | 仅 spaced 聚合：`Wow-Space-Id` → 请求头别名（CoSec 的 `CoSec-Space-Id`） |
@@ -98,7 +98,9 @@ Swagger UI 是 Springdoc 应用特性，不属于路由合同本身。匹配的 
 
 空白请求头视为没有。命令体的 `@TenantId` / `@OwnerId` / `@AggregateId` 仍然优先，与任何 `CommandGateway` 调用方一样。
 
-自 9.3.0 起，与路由已确定的租户或拥有者相矛盾的请求返回 `400`，错误码 `IllegalArgument`：`Command-Tenant-Id` 与静态租户或 `{tenantId}` 路径段不同；`Command-Owner-Id` 与 `{ownerId}` 路径段（或拥有者即聚合 ID 时的 `{id}`）不同；命令体的 `@TenantId` 或 `@OwnerId` 与二者不同。此前请求体会悄悄胜出，请求头被忽略。值相同或不给值都可以；路由没有确定的事实，仍是请求体优先于请求头。拥有者即聚合 ID 的聚合，路由只写了 `{id}`、没写 `{ownerId}` 时，聚合和拥有者现在都取自路径；9.3.0 之前 `Command-Owner-Id` 请求头会把二者都替换掉。
+自 9.3.0 起，与路由已确定的租户或拥有者相矛盾的请求返回 `400`，错误码 `IllegalArgument`：`Command-Tenant-Id` 与 `{tenantId}` 路径段不同；`Command-Owner-Id` 与 `{ownerId}` 路径段（或拥有者即聚合 ID 时的 `{id}`）不同；命令体的 `@TenantId` 与静态租户或 `{tenantId}` 路径段不同，或 `@OwnerId` 与拥有者路径段不同。此前请求体会悄悄胜出，请求头被忽略。发给带静态租户聚合的租户请求头仍被忽略。值相同或不给值都可以；路由没有确定的事实，仍是请求体优先于请求头。
+
+拥有者即聚合 ID 的聚合，路由只写了 `{id}`、没写 `{ownerId}` 时，命令的聚合和拥有者现在都取自路径；9.3.0 之前 `Command-Owner-Id` 请求头会把二者都替换掉。这类路由上的读取（例如加载事件流）不按这个推导出的拥有者过滤：ID 已经确定了聚合，而进程内创建的聚合可能存的是空白拥有者；与 `{id}` 一致的 `Command-Owner-Id` 仍会像以前一样收窄结果。
 
 ### 租户资源
 

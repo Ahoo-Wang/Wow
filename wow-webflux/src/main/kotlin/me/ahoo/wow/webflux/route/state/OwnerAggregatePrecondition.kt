@@ -25,11 +25,11 @@ internal class OwnerAggregatePrecondition(
     private val owner: OwnerPolicy,
     private val requestOwnerId: () -> String?,
 ) {
-    constructor(identity: RequestIdentity, owner: OwnerPolicy) : this(owner, { identity.ownerId() })
+    constructor(identity: RequestIdentity, owner: OwnerPolicy) : this(owner, { identity.readOwnerId() })
 
     /** The request's owner as its route states it. */
     constructor(request: ServerRequest, owner: OwnerPolicy) : this(owner, {
-        request.identity(owner).ownerId()
+        request.identity(owner).readOwnerId()
     })
 
     fun <S : Any> check(stateAggregate: StateAggregate<S>) {

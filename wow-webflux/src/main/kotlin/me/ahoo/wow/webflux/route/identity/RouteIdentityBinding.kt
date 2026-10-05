@@ -28,6 +28,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.web.reactive.function.server.ServerRequest
+import java.util.concurrent.ConcurrentHashMap
 
 /** Where a route takes one identity fact from. */
 @InternalWowApi
@@ -56,13 +57,17 @@ enum class RouteIdentitySource {
  * ([PATH][RouteIdentitySource.PATH]).
  * @property headers the headers read in order ([HEADER][RouteIdentitySource.HEADER], and the fallback of
  * [OWNER][RouteIdentitySource.OWNER]); for a fact the route fixes ([STATIC][RouteIdentitySource.STATIC],
- * [PATH][RouteIdentitySource.PATH]), the header that must not contradict it.
+ * [PATH][RouteIdentitySource.PATH]), the header that must not contradict it (none for a static tenant: as in 9.2, a
+ * tenant header is ignored there).
+ * @property derived whether the value is derived from another fact: the owner of an aggregate owned by its ID, taken
+ * from `{id}`. It decides a command's owner, and a header may not contradict it, but a read does not filter by it.
  */
 @InternalWowApi
 data class FactBinding(
     val source: RouteIdentitySource,
     val value: String? = null,
     val headers: List<String> = emptyList(),
+    val derived: Boolean = false,
 ) {
     @InternalWowApi
     companion object {
@@ -78,14 +83,15 @@ data class FactBinding(
  *
  * | Fact | Source |
  * |---|---|
- * | tenant | static tenant → `{tenantId}` → `Command-Tenant-Id` |
+ * | tenant | static tenant (the header is ignored) → `{tenantId}` → `Command-Tenant-Id` |
  * | owner | `{ownerId}` → `{id}` when the owner is the aggregate ID → `Command-Owner-Id` |
  * | aggregate ID | owner is the aggregate ID: `{ownerId}` → `{id}` → owner header → `Command-Aggregate-Id`; otherwise `{id}` → `Command-Aggregate-Id` |
  * | space | spaced aggregate only: `Wow-Space-Id` → space aliases |
  * | request ID | `Command-Request-Id` → request ID aliases |
  *
  * A declared path variable is authoritative: blank is rejected (400), and a header (or a command body, see
- * [RequestIdentity]) contradicting a tenant or owner the route fixes is rejected (400, V3).
+ * [RequestIdentity]) contradicting a tenant or owner the path fixes is rejected (400, V3). A command body contradicting
+ * the static tenant is rejected too; a tenant header there is ignored, as before 9.3.0.
  */
 @InternalWowApi
 data class RouteIdentityBinding(
@@ -108,6 +114,19 @@ data class RouteIdentityBinding(
 
     fun ownerId(request: ServerRequest, body: String? = null): String? =
         resolve(IdentityFact.OWNER_ID, ownerId, request, body)
+
+    /**
+     * The owner a read filters by: [ownerId], except that an owner [derived][FactBinding.derived] from `{id}` is not
+     * used (the aggregate ID already pins the row, and an aggregate created in-process may store a blank owner); a
+     * `Command-Owner-Id` that agrees with it still applies, as in 9.2.
+     */
+    fun readOwnerId(request: ServerRequest): String? {
+        val ownerId = ownerId(request)
+        if (this.ownerId.derived) {
+            return request.firstHeader(this.ownerId.headers)
+        }
+        return ownerId
+    }
 
     fun aggregateId(request: ServerRequest): String? {
         if (aggregateId.source == RouteIdentitySource.OWNER) {
@@ -186,7 +205,8 @@ data class RouteIdentityBinding(
         private fun List<String>.headerBinding(): FactBinding = FactBinding(RouteIdentitySource.HEADER, headers = this)
 
         private fun tenantBinding(pathVariables: Set<String>, staticTenantId: String?): FactBinding = when {
-            !staticTenantId.isNullOrBlank() -> FactBinding(RouteIdentitySource.STATIC, staticTenantId, TENANT_HEADERS)
+            // A tenant header is ignored here, as in 9.2; a contradicting command body is still rejected.
+            !staticTenantId.isNullOrBlank() -> FactBinding(RouteIdentitySource.STATIC, staticTenantId)
             MessageRecords.TENANT_ID in pathVariables ->
                 FactBinding(RouteIdentitySource.PATH, MessageRecords.TENANT_ID, TENANT_HEADERS)
 
@@ -198,7 +218,7 @@ data class RouteIdentityBinding(
                 FactBinding(RouteIdentitySource.PATH, MessageRecords.OWNER_ID, OWNER_HEADERS)
             // The owner is the aggregate ID, which the path states.
             ownerIsAggregateId && MessageRecords.ID in pathVariables ->
-                FactBinding(RouteIdentitySource.PATH, MessageRecords.ID, OWNER_HEADERS)
+                FactBinding(RouteIdentitySource.PATH, MessageRecords.ID, OWNER_HEADERS, derived = true)
 
             else -> FactBinding(RouteIdentitySource.HEADER, headers = OWNER_HEADERS)
         }
@@ -251,19 +271,34 @@ class RouteIdentity(
         RouteIdentityBinding.of(pathVariables, it, aliases)
     }
 
+    /** Bindings for other aggregates (the command facade), one per aggregate policy, computed once. */
+    private val bindings = ConcurrentHashMap<BindingKey, RouteIdentityBinding>()
+
+    private data class BindingKey(val staticTenantId: String?, val ownerPolicy: OwnerPolicy, val spaced: Boolean)
+
     fun binding(aggregateRouteMetadata: AggregateRouteMetadata<*>): RouteIdentityBinding {
         if (routeBinding != null && this.aggregateRouteMetadata === aggregateRouteMetadata) {
             return routeBinding
         }
-        return RouteIdentityBinding.of(pathVariables, aggregateRouteMetadata, aliases)
+        return binding(
+            aggregateRouteMetadata.aggregateMetadata.staticTenantId,
+            aggregateRouteMetadata.ownerPolicy,
+            aggregateRouteMetadata.spaced
+        )
     }
 
     fun binding(aggregateMetadata: AggregateMetadata<*, *>): RouteIdentityBinding {
-        if (routeBinding != null && this.aggregateRouteMetadata?.aggregateMetadata == aggregateMetadata) {
+        val routeAggregate = this.aggregateRouteMetadata?.aggregateMetadata
+        if (routeBinding != null && (routeAggregate === aggregateMetadata || routeAggregate == aggregateMetadata)) {
             return routeBinding
         }
-        return RouteIdentityBinding.of(pathVariables, aggregateMetadata, aliases)
+        return binding(aggregateMetadata.staticTenantId, aggregateMetadata.owner, aggregateMetadata.spaced)
     }
+
+    private fun binding(staticTenantId: String?, ownerPolicy: OwnerPolicy, spaced: Boolean): RouteIdentityBinding =
+        bindings.computeIfAbsent(BindingKey(staticTenantId, ownerPolicy, spaced)) {
+            RouteIdentityBinding.of(pathVariables, it.staticTenantId, it.ownerPolicy, it.spaced, aliases)
+        }
 
     @InternalWowApi
     companion object {
@@ -290,6 +325,21 @@ class RouteIdentity(
         fun of(request: ServerRequest): RouteIdentity =
             request.attribute(ATTRIBUTE).orElse(null) as? RouteIdentity
                 ?: RouteIdentity(request.pathVariables().keys.intersect(RouteIdentityBinding.IDENTITY_PATH_VARIABLES))
+
+        /**
+         * Gives [request] a route identity with [aliases] when its handler was invoked outside a materialized router
+         * (a downstream module calling a command handler directly, say), so the header aliases still apply; a request
+         * routed by the router keeps the identity its route was materialized with.
+         */
+        fun withAliases(request: ServerRequest, aliases: IdentityHeaderAliases) {
+            if (aliases.isEmpty() || request.attribute(ATTRIBUTE).isPresent) {
+                return
+            }
+            request.attributes()[ATTRIBUTE] = RouteIdentity(
+                request.pathVariables().keys.intersect(RouteIdentityBinding.IDENTITY_PATH_VARIABLES),
+                aliases
+            )
+        }
     }
 }
 
@@ -306,6 +356,8 @@ class RequestIdentity(val request: ServerRequest, val binding: RouteIdentityBind
     fun tenantId(body: String? = null): String? = binding.tenantId(request, body)
 
     fun ownerId(body: String? = null): String? = binding.ownerId(request, body)
+
+    fun readOwnerId(): String? = binding.readOwnerId(request)
 
     fun aggregateId(): String? = binding.aggregateId(request)
 

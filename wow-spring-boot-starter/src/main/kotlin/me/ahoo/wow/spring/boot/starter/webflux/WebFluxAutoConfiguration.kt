@@ -69,6 +69,7 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.IdentityHeaderAliasesQueryRequestScope
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.springframework.beans.factory.BeanFactory
@@ -185,6 +186,22 @@ class WebFluxAutoConfiguration {
     fun commandMessageExtractor(
         commandMessageFactory: CommandMessageFactory,
         commandBuilderExtractor: CommandBuilderExtractor,
+        commandRequestHeaderAppenderObjectProvider: ObjectProvider<CommandRequestHeaderAppender>,
+        identityHeaderAliases: ObjectProvider<IdentityHeaderAliases>,
+    ): CommandMessageExtractor {
+        return DefaultCommandMessageExtractor(
+            commandMessageFactory,
+            commandBuilderExtractor,
+            commandRequestHeaderAppenderObjectProvider.toList<CommandRequestHeaderAppender>(),
+            identityHeaderAliases.merged(),
+        )
+    }
+
+    // compat(wow<9.3): the factory method before identity header aliases; no longer a bean.
+    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores identity header aliases.")
+    fun commandMessageExtractor(
+        commandMessageFactory: CommandMessageFactory,
+        commandBuilderExtractor: CommandBuilderExtractor,
         commandRequestHeaderAppenderObjectProvider: ObjectProvider<CommandRequestHeaderAppender>
     ): CommandMessageExtractor {
         return DefaultCommandMessageExtractor(
@@ -194,8 +211,22 @@ class WebFluxAutoConfiguration {
         )
     }
 
+    /**
+     * [DefaultQueryRequestScope], applying the identity header aliases also to a query handler invoked outside the
+     * router (the router hands its own routes their aliases).
+     */
     @Bean
     @ConditionalOnMissingBean
+    fun queryRequestScope(identityHeaderAliases: ObjectProvider<IdentityHeaderAliases>): QueryRequestScope {
+        val aliases = identityHeaderAliases.merged()
+        if (aliases.isEmpty()) {
+            return DefaultQueryRequestScope
+        }
+        return IdentityHeaderAliasesQueryRequestScope(DefaultQueryRequestScope, aliases)
+    }
+
+    // compat(wow<9.3): the factory method before identity header aliases; no longer a bean.
+    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores identity header aliases.")
     fun queryRequestScope(): QueryRequestScope {
         return DefaultQueryRequestScope
     }
@@ -395,7 +426,7 @@ class WebFluxAutoConfiguration {
         return RouterFunctionBuilder(
             routerSpecs = routerSpecs,
             routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar,
-            identityHeaderAliases = IdentityHeaderAliases.merge(identityHeaderAliases.orderedStream().toList()),
+            identityHeaderAliases = identityHeaderAliases.merged(),
         ).build()
     }
 
@@ -411,6 +442,9 @@ class WebFluxAutoConfiguration {
         ).build()
     }
 }
+
+private fun ObjectProvider<IdentityHeaderAliases>.merged(): IdentityHeaderAliases =
+    IdentityHeaderAliases.merge(orderedStream().toList())
 
 private fun List<BiScriptAggregateExclusion>.toAggregateFilter(): Predicate<NamedAggregate> =
     Predicate { namedAggregate -> none { it.excludes(namedAggregate) } }

@@ -47,7 +47,7 @@ class LoadEventStreamHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val identity = request.identity(aggregateMetadata)
         val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val ownerId = identity.ownerId()
+        val ownerId = identity.readOwnerId()
         val id = request.pathVariable(MessageRecords.ID)
         val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
         val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)
