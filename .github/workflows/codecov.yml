@@ -37,8 +37,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      # The layer reports reuse the test runs of the full report. Pull requests upload `local` and `contract`
+      # (local-test.yml, contract-test.yml); main uploads every layer here too, so no flag stays at 0% on main.
       - name: Build Code Coverage Report
-        run: ./gradlew codeCoverageReport --stacktrace
+        run: ./gradlew codeCoverageReport :code-coverage-report:contractCoverageReport :code-coverage-report:integrationCoverageReport --stacktrace
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2.24.0
@@ -62,3 +64,25 @@ jobs:
           verbose: true
           disable_search: true
           files: ./test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+
+      - name: Upload contract coverage
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: contract
+          name: contract-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/contractCoverageReport/contractCoverageReport.xml
+
+      - name: Upload integration coverage
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml

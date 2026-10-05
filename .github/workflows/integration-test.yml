@@ -64,7 +64,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # Coverage is reported by local-test.yml (pull requests: changed code must be covered by local tests)
-      # and codecov.yml (main: every layer). A integration-only upload never reached main and showed 0%.
+      # Pull requests are held to coverage by tests that need no containers (local-test.yml, contract-test.yml);
+      # codecov.yml uploads the integration layer from main.
       - name: Run integration tests
         run: ./gradlew allIntegrationTest --stacktrace

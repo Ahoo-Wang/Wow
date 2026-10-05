@@ -36,6 +36,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  id-token: write
 env:
   CI: GITHUB_ACTIONS
 
@@ -58,7 +59,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # Coverage is reported by local-test.yml (pull requests: changed code must be covered by local tests)
-      # and codecov.yml (main: every layer). A contract-only upload never reached main and showed 0%.
-      - name: Run contract tests
-        run: ./gradlew allContractTest --stacktrace
+      - name: Run contract tests with coverage
+        run: ./gradlew allContractTest :code-coverage-report:contractCoverageReport --stacktrace
+
+      - name: Upload contract coverage
+        uses: codecov/codecov-action@v7
+        if: success()
+        with:
+          use_oidc: true
+          flags: contract
+          name: contract-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/contractCoverageReport/contractCoverageReport.xml
