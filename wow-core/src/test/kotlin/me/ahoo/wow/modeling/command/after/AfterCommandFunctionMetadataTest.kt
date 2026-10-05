@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.annotation.CreateCmd
 import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.MockDefaultAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.UpdateCmd
-import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunctionMetadata
 import org.junit.jupiter.api.Test
 
@@ -54,17 +53,11 @@ class AfterCommandFunctionMetadataTest {
     }
 
     @Test
-    fun `metadata reads order annotation and creates executable after command function`() {
+    fun `metadata reads order annotation`() {
         val metadata = MockAfterCommandAggregate::firstAfterCommand
             .toMonoFunctionMetadata<MockAfterCommandAggregate, Any>()
             .toAfterCommandFunctionMetadata()
-        val commandRoot = MockAfterCommandAggregate("aggregate-1")
-
-        val function = metadata.toAfterCommandFunction(commandRoot)
 
         metadata.order.value.assert().isEqualTo(ORDER_FIRST)
-        function.metadata.assert().isSameAs(metadata)
-        function.processor.assert().isSameAs(commandRoot)
-        function.order.value.assert().isEqualTo(ORDER_FIRST)
     }
 }

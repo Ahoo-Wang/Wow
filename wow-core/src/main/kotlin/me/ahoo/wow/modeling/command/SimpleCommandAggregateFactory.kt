@@ -54,7 +54,7 @@ class SimpleCommandAggregateFactory(
             state = stateAggregate,
             commandRoot = commandRoot as C,
             eventStore = eventStore,
-            metadata = metadata.command,
+            model = metadata.model,
         )
     }
 }

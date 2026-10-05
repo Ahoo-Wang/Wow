@@ -177,7 +177,7 @@ class SimpleCommandAggregateProcessingTest {
             state = metadata.toStateAggregate(stateRoot, version = 0),
             commandRoot = stateRoot,
             eventStore = InMemoryEventStore(),
-            metadata = metadata.command,
+            model = metadata.model,
         )
         val create = Create("aggregate-1", "created").toCommandMessage(namedAggregate = metadata, spaceId = "space-1")
         create.spaceId.assert().isEqualTo("space-1")
@@ -223,7 +223,7 @@ class SimpleCommandAggregateProcessingTest {
             state = metadata.toStateAggregate(stateRoot, version = 1, spaceId = "space-x"),
             commandRoot = stateRoot,
             eventStore = InMemoryEventStore(),
-            metadata = metadata.command,
+            model = metadata.model,
         )
         val change = ChangeState("aggregate-1", "changed").toCommandMessage() as SimpleCommandMessage<ChangeState>
 
@@ -315,7 +315,7 @@ class SimpleCommandAggregateProcessingTest {
             state = stateAggregate,
             commandRoot = stateRoot,
             eventStore = InMemoryEventStore(),
-            metadata = aggregateMetadata.command,
+            model = aggregateMetadata.model,
         )
 
         StepVerifier.create(
@@ -369,7 +369,7 @@ class SimpleCommandAggregateProcessingTest {
             state = stateAggregate,
             commandRoot = stateRoot,
             eventStore = eventStore,
-            metadata = metadata.command,
+            model = metadata.model,
         )
     }
 }
