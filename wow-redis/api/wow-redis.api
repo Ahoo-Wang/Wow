@@ -1,3 +1,8 @@
+public final class me/ahoo/wow/redis/RedisRecoverableExceptionProvider : me/ahoo/wow/exception/RecoverableExceptionProvider {
+	public fun <init> ()V
+	public fun register (Lme/ahoo/wow/exception/RecoverableExceptionRegistrar;)V
+}
+
 public abstract interface class me/ahoo/wow/redis/bus/AggregateTopicConverter {
 	public abstract fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
 }
@@ -32,13 +37,13 @@ public abstract interface class me/ahoo/wow/redis/bus/EventStreamTopicConverter 
 }
 
 public final class me/ahoo/wow/redis/bus/RedisCommandBus : me/ahoo/wow/messaging/transport/TransportCommandBus {
-	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/CommandTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;)V
-	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/CommandTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/CommandTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/CommandTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/redis/bus/RedisDomainEventBus : me/ahoo/wow/messaging/transport/TransportDomainEventBus {
-	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/EventStreamTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;)V
-	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/EventStreamTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/EventStreamTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/EventStreamTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public abstract interface class me/ahoo/wow/redis/bus/RedisMessageBusObservation {
@@ -167,8 +172,8 @@ public final class me/ahoo/wow/redis/bus/RedisRecordDecodeFailureReason : java/l
 }
 
 public final class me/ahoo/wow/redis/bus/RedisStateEventBus : me/ahoo/wow/messaging/transport/TransportStateEventBus {
-	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/StateEventTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;)V
-	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/StateEventTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/StateEventTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/redis/bus/StateEventTopicConverter;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/redis/bus/RedisStreamRecoveryOptions {
@@ -224,8 +229,8 @@ public final class me/ahoo/wow/redis/bus/RedisStreamRetentionOptions$Companion {
 }
 
 public final class me/ahoo/wow/redis/bus/RedisStreamTransport : me/ahoo/wow/messaging/transport/Transport {
-	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;)V
-	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Ljava/time/Duration;Lme/ahoo/wow/redis/bus/RedisStreamRecoveryOptions;Lme/ahoo/wow/redis/bus/RedisMessageBusObserver;Lme/ahoo/wow/redis/bus/RedisStreamRetentionOptions;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun open (Ljava/lang/String;Ljava/util/Set;)Lme/ahoo/wow/messaging/transport/TransportReceiver;

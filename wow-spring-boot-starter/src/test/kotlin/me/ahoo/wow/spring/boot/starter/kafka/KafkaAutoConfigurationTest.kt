@@ -19,6 +19,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.kafka.KafkaReceiverPolicy
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import org.junit.jupiter.api.Test
@@ -79,7 +80,10 @@ internal class KafkaAutoConfigurationTest {
                 val policy = context.getBean(KafkaReceiverPolicy::class.java)
                 policy.prefetchBatches.assert().isEqualTo(2)
                 policy.maxDeferredCommits.assert().isEqualTo(10)
-                val retrySpec = policy.retrySpec as RetryBackoffSpec
+                val retrySpec = context.getBean(
+                    KafkaAutoConfiguration.KAFKA_TRANSPORT_FAILURE_POLICY,
+                    TransportFailurePolicy::class.java,
+                ).receiveRetry as RetryBackoffSpec
                 retrySpec.maxAttempts.assert().isEqualTo(5)
                 retrySpec.minBackoff.assert().isEqualTo(Duration.ofSeconds(1))
                 context.getBean(TransportDecodeFailureHandler::class.java)

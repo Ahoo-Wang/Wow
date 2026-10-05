@@ -83,11 +83,13 @@ MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.infra.b
 
 ## Redis
 
-配置类：`RedisProperties`、`RedisStreamRecoveryProperties`、`RedisStreamRetentionProperties`；所需 capability：`redis-support`。
+配置类：`RedisProperties`、`RedisStreamRecoveryProperties`、`RedisStreamRetentionProperties`、`RedisStreamReceiverProperties`；所需 capability：`redis-support`。
 
 | 属性 | 类型 | 默认值 | 含义 |
 | --- | --- | --- | --- |
 | `wow.redis.enabled` | Boolean | `true` | 启用 Redis 自动配置 |
+| `wow.redis.message-bus.receiver.retry-attempts` | Long | `3` | 一次连续接收失败的最大重试次数（自 9.3.0 起；之前 Redis 接收错误不重试） |
+| `wow.redis.message-bus.receiver.retry-backoff` | Duration | `10s` | 接收重试的最小退避 |
 | `wow.redis.message-bus.recovery.enabled` | Boolean | `true` | 恢复 Redis Streams consumer group 中遗留的 pending 消息 |
 | `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | pending 消息可被 claim 前的最小 idle 时间 |
 | `wow.redis.message-bus.recovery.interval` | Duration | `30s` | recovery sweep 间隔 |

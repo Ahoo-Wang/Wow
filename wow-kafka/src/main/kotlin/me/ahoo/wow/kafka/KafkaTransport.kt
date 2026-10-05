@@ -16,6 +16,7 @@ package me.ahoo.wow.kafka
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.messaging.transport.Transport
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.messaging.transport.TransportMessage
 import me.ahoo.wow.messaging.transport.TransportReceiver
 import me.ahoo.wow.messaging.transport.TransportRecord
@@ -83,7 +84,7 @@ internal fun <K, V> ReceiverOptions<K, V>.withCommitBeforePause(
  * A record's key, timestamp and value are the [TransportMessage]'s, with no headers. [open] subscribes the consumer
  * [group] to the topics and completes readiness only after every assigned partition's position has been committed
  * as the group's offset ([anchorAssignedPartitions]), so the first assignment never skips records published after
- * readiness. Receive errors are retried with [KafkaReceiverPolicy.retrySpec].
+ * readiness. Receive errors are retried with [failurePolicy].
  */
 @WowSpi
 open class KafkaTransport(
@@ -91,6 +92,7 @@ open class KafkaTransport(
     private val receiverOptions: ReceiverOptions<String, String>,
     private val receiverOptionsCustomizer: ReceiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
     private val receiverPolicy: KafkaReceiverPolicy = KafkaReceiverPolicy(),
+    private val failurePolicy: TransportFailurePolicy = TransportFailurePolicy.DEFAULT,
 ) : Transport {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -199,10 +201,10 @@ open class KafkaTransport(
                 .subscription(topics)
             val customizedOptions = (contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options)
                 .withCommitBeforePause(::logCommitBatchSizeCapped)
-            createReceiver(readinessReceiverOptions(customizedOptions, onAssigned))
-                .receive(receiverPolicy.prefetchBatches)
-                .retryWhen(receiverPolicy.retrySpec)
-                .map<TransportRecord>(::KafkaTransportRecord)
+            failurePolicy.retryReceive(
+                createReceiver(readinessReceiverOptions(customizedOptions, onAssigned))
+                    .receive(receiverPolicy.prefetchBatches),
+            ).map<TransportRecord>(::KafkaTransportRecord)
         }
     }
 

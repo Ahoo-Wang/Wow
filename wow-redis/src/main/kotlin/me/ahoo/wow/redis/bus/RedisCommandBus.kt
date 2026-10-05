@@ -15,6 +15,7 @@ package me.ahoo.wow.redis.bus
 
 import me.ahoo.wow.messaging.transport.TopicNaming
 import me.ahoo.wow.messaging.transport.TransportCommandBus
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import java.time.Duration
 
@@ -29,6 +30,7 @@ class RedisCommandBus(
     recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
     retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
+    failurePolicy: TransportFailurePolicy = TransportFailurePolicy.DEFAULT,
 ) : TransportCommandBus(
     transport = RedisStreamTransport(
         redisTemplate = redisTemplate,
@@ -36,6 +38,7 @@ class RedisCommandBus(
         recoveryOptions = recoveryOptions,
         messageBusObserver = messageBusObserver,
         retentionOptions = retentionOptions,
+        failurePolicy = failurePolicy,
     ),
     topicNaming = TopicNaming(topicConverter::convert),
     decodeFailureHandler = RedisRecordDecodeFailureHandler(messageBusObserver),

@@ -73,6 +73,10 @@ The default command Stream is `${contextAlias}.${aggregateName}:command`; domain
 
 The subscription receiver group becomes the Redis consumer group. `BUSYGROUP` during concurrent group creation is normal; permission, wrong-type, and connectivity errors still fail.
 
+### Receive retry
+
+Since 9.3.0 a failed receive stream is subscribed again with the core `TransportFailurePolicy`, the same default as Kafka: 3 consecutive retries from a `10s` backoff (`wow.redis.message-bus.receiver.retry-attempts` / `retry-backoff`, bean `redisTransportFailurePolicy`). The new subscription joins the group as a new consumer; recovery claims what the old one left pending. Only once the retries are exhausted does the error reach the dispatcher, which stops the runtime. Before 9.3.0 any Redis receive error, a failover blip included, stopped the runtime at once. Lost connections and command timeouts (`RedisConnectionFailureException`, `QueryTimeoutException` and their Lettuce causes) are also registered as `RECOVERABLE` (`RedisRecoverableExceptionProvider`), so `RetryableFilter` and the event-store append resolution retry them.
+
 ### Pending-message recovery
 
 Recovery periodically scans entries idle beyond the threshold and claims them after confirming the original consumer is inactive. It handles only PEL entries left unacknowledged before process termination/cancellation or a transport/decode failure and still present in the Stream; it never recovers trimmed, deleted, or unpersisted data.
@@ -93,7 +97,7 @@ Each subscription start joins its group under a new consumer name, so restarts l
 
 ## Event Bus
 
-Domain and state events share the Streams pipeline and explicit acknowledgment semantics. A `RECOVERABLE` failure is first retried in-process by `RetryableFilter`; after exhaustion, an enabled compensation filter can record later compensation, the default `LogResumeErrorHandler` logs and resumes, and `AbstractAggregateEventDispatcher.finallyAck` acknowledges the original exchange after success or error. Ordinary business-handler failures therefore do not depend on Redis PEL recovery for redelivery. Only paths that end before acknowledgment—process termination/cancellation, transport, decode, and similar failures—may be delivered again by Redis recovery. Handlers should still be idempotent for those unacknowledged paths and explicit compensation.
+Domain and state events share the Streams pipeline and explicit acknowledgment semantics. A `RECOVERABLE` failure is first retried in-process by `RetryableFilter`; after exhaustion, the enabled compensation module records it for later compensation, the default `LogResumeErrorHandler` logs and resumes, and `AbstractAggregateEventDispatcher.finallyAck` acknowledges the original exchange after success or error. Ordinary business-handler failures therefore do not depend on Redis PEL recovery for redelivery, unless `wow.event.ack-on-unrecorded-failure=false` or the compensation record fails (see [Failure Recording](../event/dispatch.md#failure-recording)). Only paths that end before acknowledgment—process termination/cancellation, transport, decode, and similar failures—may be delivered again by Redis recovery. Handlers should still be idempotent for those unacknowledged paths and explicit compensation.
 
 ### Domain Event Stream
 

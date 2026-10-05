@@ -99,6 +99,9 @@ Configuration class: `EventProperties`; prefix: `wow.event`.
 | --- | --- | --- |
 | `wow.event.bus.type` | `BusType` | `kafka` |
 | `wow.event.bus.local-first.enabled` | Boolean | `true` |
+| `wow.event.ack-on-unrecorded-failure` | Boolean | `true` |
+
+`ack-on-unrecorded-failure` (since 9.3.0) decides what happens to an event whose processing (Processor, Saga, Projection) failed when no failure recorder records it, that is, without the compensation module: `true` logs and acknowledges it, as before 9.3.0; `false` leaves it unacknowledged so the bus delivers it again (at-least-once; on Kafka this pauses the receiver, see [Failure Recording](../../guide/event/dispatch.md#failure-recording)). A failure the compensation module could not record is never acknowledged, whatever this switch says.
 
 Domain events are sent to this bus after the EventStore append succeeds. Its acknowledgement covers only the selected adapter's send boundary; it does not prove projection, processor, or saga completion.
 

@@ -4,11 +4,10 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
-import me.ahoo.wow.compensation.core.DomainEventCompensationFilter
-import me.ahoo.wow.compensation.core.StateEventCompensationFilter
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
+import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -30,8 +29,7 @@ class CompensationAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(EventCompensateSupporter::class.java)
-                    .hasSingleBean(DomainEventCompensationFilter::class.java)
-                    .hasSingleBean(StateEventCompensationFilter::class.java)
+                    .hasSingleBean(FailureRecorder::class.java)
                     .hasSingleBean(CompensationEventProcessor::class.java)
             }
     }

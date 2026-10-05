@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.kafka
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.kafka.KafkaReceiverPolicy
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -74,8 +75,8 @@ class KafkaProperties(
 class KafkaReceiverProperties(
     @DefaultValue("1") var prefetchBatches: Int = KafkaReceiverPolicy.DEFAULT_PREFETCH_BATCHES,
     @DefaultValue("500") var maxDeferredCommits: Int = KafkaReceiverPolicy.DEFAULT_MAX_DEFERRED_COMMITS,
-    @DefaultValue("3") var retryAttempts: Long = KafkaReceiverPolicy.DEFAULT_RETRY_ATTEMPTS,
-    @DefaultValue("10s") var retryBackoff: Duration = KafkaReceiverPolicy.DEFAULT_RETRY_BACKOFF,
+    @DefaultValue("3") var retryAttempts: Long = TransportFailurePolicy.DEFAULT_RECEIVE_RETRY_ATTEMPTS,
+    @DefaultValue("10s") var retryBackoff: Duration = TransportFailurePolicy.DEFAULT_RECEIVE_RETRY_BACKOFF,
     @DefaultValue("FAIL")
     var decodeFailureStrategy: KafkaRecordDecodeFailureStrategy = KafkaRecordDecodeFailureStrategy.FAIL,
 ) {
@@ -83,12 +84,13 @@ class KafkaReceiverProperties(
         return KafkaReceiverPolicy(
             prefetchBatches = prefetchBatches,
             maxDeferredCommits = maxDeferredCommits,
-            retrySpec = KafkaReceiverPolicy.defaultRetrySpec(
-                maxAttempts = retryAttempts,
-                minBackoff = retryBackoff,
-            ),
         )
     }
+
+    fun toFailurePolicy(): TransportFailurePolicy =
+        TransportFailurePolicy(
+            TransportFailurePolicy.receiveRetry(maxAttempts = retryAttempts, minBackoff = retryBackoff)
+        )
 }
 
 enum class KafkaRecordDecodeFailureStrategy {

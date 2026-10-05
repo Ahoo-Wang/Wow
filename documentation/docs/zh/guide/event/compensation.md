@@ -35,28 +35,28 @@ ExecutionFailed -> 自动调度或人工准备 -> 原事件 + 原目标函数重
 | 层 | 触发与持续时间 | 策略来源 | 是否留下持久记录 |
 | --- | --- | --- | --- |
 | `RetryableFilter` | Processor、Saga 与 Projection 当前调用中的可恢复异常 | 运行时全局异常分类；默认重试 3 次，最小退避 2 秒 | 否 |
-| `EventCompensationFilter` | 内层处理链最终仍失败 | 函数 `@Retry` 或服务端默认重试规格 | 是 |
+| `CompensationFailureRecorder` | 函数处理链最终仍失败 | 函数 `@Retry` 或服务端默认重试规格 | 是 |
 
-在包含 `RetryableFilter` 的 Processor、Saga 与 Projection 链中，补偿过滤器包在即时重试过滤器外层，所以持久补偿只接收即时重试耗尽后的错误。Snapshot 链处理 `StateEventExchange`，没有注册当前唯一面向 `DomainEventExchange` 的 `RetryableFilter`；`StateEventCompensationFilter` 直接包裹 `SnapshotFunctionFilter`，因此 Snapshot 首次失败即可进入持久补偿。`@Retry` 的 `recoverable`、`unrecoverable`、`maxRetries`、`minBackoff` 与 `executionTimeout` 属于持久补偿，不会改写即时重试策略。`@Retry(enabled = false)` 只禁止失败分支创建 `ExecutionFailed` 或发送 `ApplyExecutionFailed`；已有补偿执行成功时仍会写回 `ApplyExecutionSuccess`。
+自 9.3.0 起，补偿模块是事件 Handler 的 `FailureRecorder`（见[失败记录](./dispatch.md#失败记录)），不再是 Filter：Handler 在整条函数链（Processor、Saga 与 Projection 中包括 `RetryableFilter`）终止后才调用它，所以持久补偿只接收即时重试耗尽后的错误。Snapshot 链处理 `StateEventExchange`，没有注册当前唯一面向 `DomainEventExchange` 的 `RetryableFilter`，因此 Snapshot 首次失败即可进入持久补偿。`@Retry` 的 `recoverable`、`unrecoverable`、`maxRetries`、`minBackoff` 与 `executionTimeout` 属于持久补偿，不会改写即时重试策略。`@Retry(enabled = false)` 只禁止失败分支创建 `ExecutionFailed` 或发送 `ApplyExecutionFailed`；已有补偿执行成功时仍会写回 `ApplyExecutionSuccess`。
 
 完整属性、默认值和 YAML 见[事件补偿配置参考](../../reference/config/compensation.md)。
 
 ## 失败记录创建
 
-`EventCompensationFilter` 只处理已经匹配到目标函数的 exchange。首次失败没有补偿 ID 时，它发送 `CreateExecutionFailed`，记录：
+`CompensationFailureRecorder` 只处理已经匹配到目标函数的 exchange。首次失败没有补偿 ID 时，它发送 `CreateExecutionFailed`，记录：
 
 - 原事件 ID、聚合身份与版本；
 - 目标函数的 context、processor、名称和 `FunctionKind`；
 - 错误代码、消息、绑定错误与堆栈；
 - 执行时间、重试规格与恢复性分类。
 
-没有函数信息时，错误原样传播，不创建记录。显式 `@Retry(enabled = false)` 时，失败也原样传播：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界。若补偿命令发送失败，会先重试（3 次，退避从 1 秒到最多 10 秒；只重试发送，不重新执行处理函数）。仍然失败时，这次失败既没有被处理也没有被记录：原处理错误仍向外传播，最后一次发送错误作为 suppressed 异常附在其上（只附一次，重投时再次抛出的共享异常不会不断累积），并且原 exchange 不被确认，由支持重投的总线再次投递。同一事件流的其他函数仍会执行。重投的含义取决于总线：
+没有函数信息时不创建记录（`FAILURE_UNRECORDED`）。显式 `@Retry(enabled = false)` 时，失败被放弃记录（`FAILURE_WAIVED`，照常确认）：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界。若补偿命令发送失败，会先重试（3 次，退避从 1 秒到最多 10 秒；只重试发送，不重新执行处理函数）。仍然失败时，这次失败既没有被处理也没有被记录（`RECORDING_FAILED`）：原处理错误仍交给错误边界，最后一次发送错误作为 suppressed 异常附在其上（只附一次，重投时再次抛出的共享异常不会不断累积），并且原 exchange 不被确认，由支持重投的总线再次投递。同一事件流的其他函数仍会执行。重投的含义取决于总线：
 
 - Redis Streams：条目保持 pending，被重新认领并重投。
 - Kafka：一个 Wow 接收端就是一个消费者，覆盖其 dispatcher 的全部聚合 topic。提交停在该 offset；再确认 `max-deferred-commits` 条之后，整个接收端（所有订阅的聚合与分区）停止拉取，直到重启或再均衡从该 offset 重投；此后该消费者的每次再均衡都要为这条未确认记录等满 `maxDelayRebalance`（默认 60 秒）。
 - 内存总线与本地已处理（local-first）的消息：不会重投。
 
-9.2.2 及以前，发送错误会取代原错误，且 exchange 仍被确认。Snapshot 链中 `SnapshotFunctionFilter` 在失败到达 `StateEventCompensationFilter` 之前已经确认状态事件，因此那里的 exchange 已被确认。
+9.2.2 及以前，发送错误会取代原错误，且 exchange 仍被确认。Snapshot 链中 `SnapshotFunctionFilter` 在失败被记录之前已经确认状态事件，因此那里的 exchange 已被确认。补偿命令体与 9.2 逐字节一致（黄金测试 `ExecutionFailedWireGoldenTest`）。
 
 重放 exchange 的 header 已带有 `compensationId`。再次失败发送 `ApplyExecutionFailed`，成功则发送 `ApplyExecutionSuccess`，两者都写回同一个 `ExecutionFailed` 聚合。
 

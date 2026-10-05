@@ -1,0 +1,1 @@
+{"id":"0TrExecution01","error":{"errorCode":"IllegalState","errorMsg":"projection store rejected the write","stackTrace":"java.lang.IllegalStateException: projection store rejected the write\n\tat me.ahoo.example.OrderProjector.onOrderCreated(OrderProjector.kt:42)\n","succeeded":false},"executeAt":0,"recoverable":"UNKNOWN"}

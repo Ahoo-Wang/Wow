@@ -30,6 +30,7 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
@@ -90,9 +91,18 @@ class EventDispatcherAutoConfiguration {
     @Bean
     fun eventDispatcherHandler(
         @Qualifier("eventDispatcherFilterChain") chain: FilterChain<DomainEventExchange<*>>,
-        @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<*>>
+        @Qualifier("eventProcessorErrorHandler") eventProcessorErrorHandler: ErrorHandler<DomainEventExchange<*>>,
+        failureRecorder: ObjectProvider<FailureRecorder>,
+        eventProperties: ObjectProvider<EventProperties>,
+        metrics: ObjectProvider<WowMetrics>,
     ): DomainEventHandler {
-        return DefaultDomainEventHandler(chain, eventProcessorErrorHandler)
+        return DefaultDomainEventHandler(
+            chain = chain,
+            errorHandler = eventProcessorErrorHandler,
+            failureRecorder = failureRecorder.orNone(),
+            ackOnUnrecordedFailure = eventProperties.ackOnUnrecordedFailure(),
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
+        )
     }
 
     @Bean

@@ -194,6 +194,17 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
 | `DefaultRouteContributors.all()` 中的 `GenerateBIScriptRouteContributor` | `wow-bi` 存在时由 Starter 注册的 `RouteContributor` bean；该路由只通过 Starter 提供 |
 
+### 失败策略：接收重试与失败记录（9.3.0）
+
+- 接收重试统一由核心的 `TransportFailurePolicy` 定义。Redis Streams 现在像 Kafka 一样重试失败的接收流（连续 3 次，退避从 `10s` 起，`wow.redis.message-bus.receiver.retry-*`），不再在第一次错误时停止运行时。`KafkaReceiverPolicy.retrySpec`、`DEFAULT_RETRY_ATTEMPTS`、`DEFAULT_RETRY_BACKOFF` 与 `defaultRetrySpec(...)` 已删除：构造 `TransportFailurePolicy(TransportFailurePolicy.receiveRetry(attempts, backoff))`，作为 `failurePolicy` 传给 `KafkaTransport` 或 Kafka/Redis 总线，或覆盖 `kafkaTransportFailurePolicy` / `redisTransportFailurePolicy` Bean。`wow.kafka.receiver.retry-*` 配置不变。
+- Kafka 的 `RetriableException` 与 Redis 的连接失败、超时注册为 `RECOVERABLE`，`RetryableFilter` 与事件存储追加结果判定会重试它们。因此投影或 Saga 中的非幂等写（如 Redis `INCR`）在写入其实已成功的超时之后，可能在进程内再执行一次；投递本就是至少一次，这类写应保持幂等。
+- Redis 在启动时不可用时，Redis 接收器的就绪改为在重试策略耗尽后才失败（默认约 70 秒），而不是立即失败。
+- 进程内重试耗尽的失败，其补偿记录（`ExecutionFailed`）改为携带原因的错误码、消息、堆栈与 `recoverable`（9.2 记录的是 `IllegalState` "Retries exhausted: n/n" 与 `UNKNOWN`）。因此原因被声明为不可恢复（如 `@Retry(unrecoverable = …)`）时不再自动补偿。
+- 删除未被使用的 `me.ahoo.wow.messaging.handler.retryStrategy(...)`；改用 Reactor 的 `Retry.backoff`。
+- 补偿模块以 `FailureRecorder`（`CompensationFailureRecorder`）记录事件处理失败，不再使用 Filter：删除 `DomainEventCompensationFilter`、`StateEventCompensationFilter` 与 `EventCompensationFilter`，`domainEventCompensationFilter` / `stateEventCompensationFilter` Bean 由 `compensationFailureRecorder` 取代。它发送的命令与 9.2 逐字节一致。记录改为在 wait 通知器发出信号之后写入（见[失败记录](./event/dispatch.md#失败记录)）。
+- 新增 `wow.event.ack-on-unrecorded-failure`（默认 `true`，行为不变）：设为 `false` 时，没有记录器记录的失败不确认，等待重投。
+- `DefaultDomainEventHandler`、`DefaultProjectionHandler`、`DefaultStatelessSagaHandler` 与 `DefaultSnapshotHandler` 继承 `FailureRecordingHandler`，新增可选参数 `failureRecorder`（除 Snapshot 外还有 `ackOnUnrecordedFailure`）。
+
 ### Mongo 所有权保护
 
 参见 [v6 → v8：Mongo 所有权保护](./migration/v6-to-v8.md#mongo-所有权保护)。

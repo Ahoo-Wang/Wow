@@ -69,6 +69,20 @@ class WowMetrics(
         }
     }
 
+    /**
+     * Counts one [outcome] of the processing of an event by a function (`wow.processing.outcomes`, tagged with
+     * [descriptor] and `outcome`).
+     */
+    fun processingOutcome(descriptor: MetricDescriptor, outcome: String) {
+        val registry = meterRegistry ?: return
+        recordSafely {
+            registry.counter(
+                WowMetricNames.PROCESSING_OUTCOMES,
+                descriptor.baseTags().and(MetricDescriptor.OUTCOME_TAG, outcome),
+            ).increment()
+        }
+    }
+
     companion object {
         val NONE = WowMetrics()
     }

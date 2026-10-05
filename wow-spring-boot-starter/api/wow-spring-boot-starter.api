@@ -381,9 +381,8 @@ public final class me/ahoo/wow/spring/boot/starter/command/ServerCommandWaitEndp
 public class me/ahoo/wow/spring/boot/starter/compensation/CompensationAutoConfiguration {
 	public fun <init> ()V
 	public fun compensationEventProcessor (Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;)Lme/ahoo/wow/compensation/core/CompensationEventProcessor;
-	public fun domainEventCompensationFilter (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/compensation/core/DomainEventCompensationFilter;
+	public fun compensationFailureRecorder (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/processing/failure/FailureRecorder;
 	public fun eventCompensateSupporter (Lme/ahoo/wow/event/compensation/DomainEventCompensator;Lme/ahoo/wow/event/compensation/StateEventCompensator;)Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;
-	public fun stateEventCompensationFilter (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/compensation/core/StateEventCompensationFilter;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/compensation/CompensationProperties : me/ahoo/wow/api/naming/EnabledCapable {
@@ -557,7 +556,7 @@ public class me/ahoo/wow/spring/boot/starter/event/EventDispatcherAutoConfigurat
 	public fun domainEventHandlerRegistrar ()Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;
 	public fun eventDispatcherFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun eventDispatcherFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventFunctionFilter;
-	public fun eventDispatcherHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
+	public fun eventDispatcherHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
 	public fun eventDispatcherRetryableFilter ()Lme/ahoo/wow/messaging/handler/RetryableFilter;
 	public fun eventProcessorAutoRegistrar (Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/event/EventProcessorAutoRegistrar;
 	public fun eventProcessorErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
@@ -569,13 +568,20 @@ public final class me/ahoo/wow/spring/boot/starter/event/EventProperties {
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/event/EventProperties$Companion;
 	public static final field PREFIX Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
-	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;Z)V
+	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/BusProperties;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAckOnUnrecordedFailure ()Z
 	public final fun getBus ()Lme/ahoo/wow/spring/boot/starter/BusProperties;
+	public final fun setAckOnUnrecordedFailure (Z)V
 	public final fun setBus (Lme/ahoo/wow/spring/boot/starter/BusProperties;)V
 }
 
 public final class me/ahoo/wow/spring/boot/starter/event/EventProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/event/EventPropertiesKt {
+	public static final fun ackOnUnrecordedFailure (Lorg/springframework/beans/factory/ObjectProvider;)Z
+	public static final fun orNone (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/processing/failure/FailureRecorder;
 }
 
 public class me/ahoo/wow/spring/boot/starter/eventsourcing/EventSourcingAutoConfiguration {
@@ -814,7 +820,7 @@ public class me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotAuto
 	public fun snapshotDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotDispatcher;
 	public fun snapshotFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun snapshotFunctionFilter (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotFunctionFilter;
-	public fun snapshotHandler (Lme/ahoo/wow/filter/FilterChain;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
+	public fun snapshotHandler (Lme/ahoo/wow/filter/FilterChain;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
 	public fun versionOffsetSnapshotStrategy (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
 }
 
@@ -933,19 +939,25 @@ public final class me/ahoo/wow/spring/boot/starter/kafka/ConditionalOnKafkaEnabl
 }
 
 public class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration$Companion;
+	public static final field KAFKA_TRANSPORT_FAILURE_POLICY Ljava/lang/String;
 	public fun <init> (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties;)V
 	public fun defaultCommandTopicConverter ()Lme/ahoo/wow/kafka/CommandTopicConverter;
 	public fun defaultEventStreamTopicConverter ()Lme/ahoo/wow/kafka/EventStreamTopicConverter;
-	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/command/DistributedCommandBus;
 	public fun kafkaCommandBusRuntimeResource (Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/runtime/RuntimeResource;
-	public fun kafkaDomainEventBus (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun kafkaDomainEventBus (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/event/DistributedDomainEventBus;
 	public fun kafkaDomainEventBusRuntimeResource (Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun kafkaReceiverPolicy ()Lme/ahoo/wow/kafka/KafkaReceiverPolicy;
 	public fun kafkaRecordDecodeFailureHandler ()Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;
-	public fun kafkaStateEventBus (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun kafkaStateEventBus (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
 	public fun kafkaStateEventBusRuntimeResource (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/runtime/RuntimeResource;
+	public fun kafkaTransportFailurePolicy ()Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;
 	public fun receiverOptionsCustomizer ()Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;
 	public fun stateEventTopicConverter ()Lme/ahoo/wow/kafka/StateEventTopicConverter;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties : me/ahoo/wow/api/naming/EnabledCapable {
@@ -989,6 +1001,7 @@ public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties
 	public final fun setPrefetchBatches (I)V
 	public final fun setRetryAttempts (J)V
 	public final fun setRetryBackoff (Ljava/time/Duration;)V
+	public final fun toFailurePolicy ()Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;
 	public final fun toPolicy ()Lme/ahoo/wow/kafka/KafkaReceiverPolicy;
 }
 
@@ -1291,7 +1304,7 @@ public class me/ahoo/wow/spring/boot/starter/projection/ProjectionDispatcherAuto
 	public fun projectionErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
 	public fun projectionFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun projectionFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/projection/ProjectionFunctionFilter;
-	public fun projectionHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/projection/ProjectionHandler;
+	public fun projectionHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/projection/ProjectionHandler;
 	public fun projectionHandlerRegistrar ()Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;
 	public fun projectionProcessorAutoRegistrar (Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/projection/ProjectionProcessorAutoRegistrar;
 }
@@ -1468,10 +1481,16 @@ public class me/ahoo/wow/spring/boot/starter/redis/RedisEventSourcingAutoConfigu
 }
 
 public class me/ahoo/wow/spring/boot/starter/redis/RedisMessageBusAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/redis/RedisMessageBusAutoConfiguration$Companion;
+	public static final field REDIS_TRANSPORT_FAILURE_POLICY Ljava/lang/String;
 	public fun <init> ()V
-	public fun redisCommandBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRetentionProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/DistributedCommandBus;
-	public fun redisDomainEventBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRetentionProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/event/DistributedDomainEventBus;
-	public fun redisStateEventBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRetentionProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun redisCommandBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRetentionProperties;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun redisDomainEventBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRetentionProperties;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun redisStateEventBus (Lorg/springframework/data/redis/core/ReactiveStringRedisTemplate;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties;Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamRetentionProperties;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun redisTransportFailurePolicy (Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamReceiverProperties;)Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisMessageBusAutoConfiguration$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/starter/redis/RedisProperties : me/ahoo/wow/api/naming/EnabledCapable {
@@ -1485,6 +1504,22 @@ public final class me/ahoo/wow/spring/boot/starter/redis/RedisProperties : me/ah
 }
 
 public final class me/ahoo/wow/spring/boot/starter/redis/RedisProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisStreamReceiverProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/redis/RedisStreamReceiverProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (JLjava/time/Duration;)V
+	public synthetic fun <init> (JLjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getRetryAttempts ()J
+	public final fun getRetryBackoff ()Ljava/time/Duration;
+	public final fun setRetryAttempts (J)V
+	public final fun setRetryBackoff (Ljava/time/Duration;)V
+	public final fun toFailurePolicy ()Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/redis/RedisStreamReceiverProperties$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/starter/redis/RedisStreamRecoveryProperties {
@@ -1535,7 +1570,7 @@ public class me/ahoo/wow/spring/boot/starter/saga/StatelessSagaAutoConfiguration
 	public fun statelessSagaErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
 	public fun statelessSagaFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
 	public fun statelessSagaFunctionFilter (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionFilter;
-	public fun statelessSagaHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
+	public fun statelessSagaHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
 	public fun statelessSagaHandlerRegistrar (Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;
 	public fun statelessSagaProcessorAutoRegistrar (Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/saga/StatelessSagaProcessorAutoRegistrar;
 }

@@ -7,22 +7,14 @@ public final class me/ahoo/wow/compensation/core/CompensationEventProcessor {
 public final class me/ahoo/wow/compensation/core/CompensationEventProcessor$Companion {
 }
 
-public final class me/ahoo/wow/compensation/core/CompensationFilterKt {
+public final class me/ahoo/wow/compensation/core/CompensationFailureRecorder : me/ahoo/wow/processing/failure/FailureRecorder {
+	public fun <init> (Lme/ahoo/wow/command/CommandBus;Lreactor/util/retry/Retry;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/CommandBus;Lreactor/util/retry/Retry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun recordFailure (Lme/ahoo/wow/event/EventExchange;Ljava/lang/Throwable;)Lreactor/core/publisher/Mono;
+	public fun recordSuccess (Lme/ahoo/wow/event/EventExchange;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/compensation/core/CompensationFailureRecorderKt {
 	public static final fun getRetry (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/api/annotation/Retry;
-}
-
-public final class me/ahoo/wow/compensation/core/DomainEventCompensationFilter : me/ahoo/wow/compensation/core/EventCompensationFilter {
-	public fun <init> (Lme/ahoo/wow/command/CommandBus;)V
-}
-
-public abstract class me/ahoo/wow/compensation/core/EventCompensationFilter : me/ahoo/wow/messaging/handler/ExchangeFilter {
-	public fun <init> (Lme/ahoo/wow/command/CommandBus;)V
-	public synthetic fun filter (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-	public fun filter (Lme/ahoo/wow/event/EventExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-	public synthetic fun filter (Lme/ahoo/wow/messaging/handler/MessageExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/compensation/core/StateEventCompensationFilter : me/ahoo/wow/compensation/core/EventCompensationFilter {
-	public fun <init> (Lme/ahoo/wow/command/CommandBus;)V
 }
 

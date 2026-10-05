@@ -45,15 +45,15 @@ public abstract interface class me/ahoo/wow/kafka/EventStreamTopicConverter : me
 }
 
 public final class me/ahoo/wow/kafka/KafkaCommandBus : me/ahoo/wow/messaging/transport/TransportCommandBus {
-	public fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
-	public synthetic fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
 	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/kafka/KafkaDomainEventBus : me/ahoo/wow/messaging/transport/TransportDomainEventBus {
-	public fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
-	public synthetic fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
 	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -62,32 +62,32 @@ public final class me/ahoo/wow/kafka/KafkaReceiverPolicy {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaReceiverPolicy$Companion;
 	public static final field DEFAULT_MAX_DEFERRED_COMMITS I
 	public static final field DEFAULT_PREFETCH_BATCHES I
-	public static final field DEFAULT_RETRY_ATTEMPTS J
 	public fun <init> ()V
-	public fun <init> (IILreactor/util/retry/Retry;)V
-	public synthetic fun <init> (IILreactor/util/retry/Retry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (II)V
+	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getMaxDeferredCommits ()I
 	public final fun getPrefetchBatches ()I
-	public final fun getRetrySpec ()Lreactor/util/retry/Retry;
 }
 
 public final class me/ahoo/wow/kafka/KafkaReceiverPolicy$Companion {
-	public final fun defaultRetrySpec (JLjava/time/Duration;)Lreactor/util/retry/Retry;
-	public static synthetic fun defaultRetrySpec$default (Lme/ahoo/wow/kafka/KafkaReceiverPolicy$Companion;JLjava/time/Duration;ILjava/lang/Object;)Lreactor/util/retry/Retry;
-	public final fun getDEFAULT_RETRY_BACKOFF ()Ljava/time/Duration;
+}
+
+public final class me/ahoo/wow/kafka/KafkaRecoverableExceptionProvider : me/ahoo/wow/exception/RecoverableExceptionProvider {
+	public fun <init> ()V
+	public fun register (Lme/ahoo/wow/exception/RecoverableExceptionRegistrar;)V
 }
 
 public final class me/ahoo/wow/kafka/KafkaStateEventBus : me/ahoo/wow/messaging/transport/TransportStateEventBus {
-	public fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
-	public synthetic fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
 	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public class me/ahoo/wow/kafka/KafkaTransport : me/ahoo/wow/messaging/transport/Transport {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaTransport$Companion;
-	public fun <init> (Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;)V
-	public synthetic fun <init> (Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
+	public synthetic fun <init> (Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	protected fun anchorAssignedPartitions (Lorg/apache/kafka/clients/consumer/Consumer;Ljava/util/Map;Lkotlin/jvm/functions/Function1;)V
 	public fun close ()V
 	protected fun createReceiver (Lreactor/kafka/receiver/ReceiverOptions;)Lreactor/kafka/receiver/KafkaReceiver;

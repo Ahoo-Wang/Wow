@@ -99,6 +99,9 @@ wow:
 | --- | --- | --- |
 | `wow.event.bus.type` | `BusType` | `kafka` |
 | `wow.event.bus.local-first.enabled` | Boolean | `true` |
+| `wow.event.ack-on-unrecorded-failure` | Boolean | `true` |
+
+`ack-on-unrecorded-failure`（自 9.3.0 起）决定事件处理（Processor、Saga、Projection）失败且没有失败记录器记录它（即未启用补偿模块）时怎么办：`true` 记录日志后确认，与 9.3.0 之前相同；`false` 不确认，由总线再次投递（至少一次；在 Kafka 上会让接收端暂停，见[失败记录](../../guide/event/dispatch.md#失败记录)）。补偿模块未能记录的失败无论此开关如何都不确认。
 
 领域事件在 EventStore append 成功后发送到该总线。该总线的 ACK 只覆盖所选 Adapter 的发送边界，不证明投影、事件处理器或 Saga 已完成。
 

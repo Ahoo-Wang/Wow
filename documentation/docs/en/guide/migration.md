@@ -201,6 +201,17 @@ The starter fails startup when the context still holds such a bean (an `Exchange
 | `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
 | `GenerateBIScriptRouteContributor` in `DefaultRouteContributors.all()` | a `RouteContributor` bean the Starter registers when `wow-bi` is present; the route is served only through the Starter |
 
+### Failure Policy: Receive Retry and Failure Recording (9.3.0)
+
+- Receive retry is the core `TransportFailurePolicy` for every transport. Redis Streams now retries a failed receive stream like Kafka (3 consecutive retries from `10s`, `wow.redis.message-bus.receiver.retry-*`) instead of stopping the runtime on the first error. `KafkaReceiverPolicy.retrySpec`, `DEFAULT_RETRY_ATTEMPTS`, `DEFAULT_RETRY_BACKOFF` and `defaultRetrySpec(...)` are removed: build `TransportFailurePolicy(TransportFailurePolicy.receiveRetry(attempts, backoff))` and pass it as `failurePolicy` to `KafkaTransport` or a Kafka/Redis bus, or override the `kafkaTransportFailurePolicy` / `redisTransportFailurePolicy` bean. The `wow.kafka.receiver.retry-*` keys are unchanged.
+- Kafka `RetriableException`s and Redis connection failures and timeouts are `RECOVERABLE`, so `RetryableFilter` and the event-store append resolution retry them. A projection or saga that does a non-idempotent write (for example Redis `INCR`) can therefore run it again in-process after a timeout whose write did land; delivery was already at-least-once, keep such writes idempotent.
+- With Redis down at startup, a Redis receiver's readiness now fails only after the retry policy is exhausted (about 70 s with the defaults) instead of at once.
+- A compensation record (`ExecutionFailed`) for a failure whose in-process retries were exhausted now carries the cause's error code, message, stack trace and `recoverable` (9.2 recorded `IllegalState` "Retries exhausted: n/n" and `UNKNOWN`). A cause declared unrecoverable (for example with `@Retry(unrecoverable = …)`) is therefore no longer compensated automatically.
+- The unused `me.ahoo.wow.messaging.handler.retryStrategy(...)` is removed; use Reactor's `Retry.backoff`.
+- The compensation module records event-processing failures as a `FailureRecorder` (`CompensationFailureRecorder`) instead of filters: `DomainEventCompensationFilter`, `StateEventCompensationFilter` and `EventCompensationFilter` are removed, and the `domainEventCompensationFilter` / `stateEventCompensationFilter` beans are replaced by `compensationFailureRecorder`. The commands it sends are byte-identical to 9.2. The record is now written after the wait notifier signals (see [Failure Recording](./event/dispatch.md#failure-recording)).
+- New `wow.event.ack-on-unrecorded-failure` (default `true`, unchanged behaviour): set `false` to leave a failure no recorder recorded unacknowledged for redelivery.
+- `DefaultDomainEventHandler`, `DefaultProjectionHandler`, `DefaultStatelessSagaHandler` and `DefaultSnapshotHandler` extend `FailureRecordingHandler` and take an optional `failureRecorder` (and, except the snapshot one, `ackOnUnrecordedFailure`).
+
 ### Mongo Ownership Guard
 
 See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).

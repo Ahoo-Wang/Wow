@@ -26,7 +26,7 @@ pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard exec vitest run
 ```
 
-`ExecutionFailedSpec` 覆盖 prepare、force prepare、成功、再次失败和规格变更；`CompensationFilterTest` 覆盖过滤器错误边界；Dashboard 测试覆盖队列条件与操作状态。命令成功只证明这些本地 gate，不证明真实消息、存储、通知或部署环境。
+`ExecutionFailedSpec` 覆盖 prepare、force prepare、成功、再次失败和规格变更；`CompensationFailureRecorderTest` 覆盖记录器错误边界，`ExecutionFailedWireGoldenTest` 锁定命令体；Dashboard 测试覆盖队列条件与操作状态。命令成功只证明这些本地 gate，不证明真实消息、存储、通知或部署环境。
 
 ## 本地服务启动、健康与路由验证
 

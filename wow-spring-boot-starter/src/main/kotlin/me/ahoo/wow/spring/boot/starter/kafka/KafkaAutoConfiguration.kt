@@ -29,6 +29,7 @@ import me.ahoo.wow.kafka.NoOpReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.kafka.StateEventTopicConverter
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.messaging.transport.TransportMessageBus
 import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.spring.boot.starter.BusType
@@ -52,6 +53,10 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnClass(KafkaCommandBus::class)
 @EnableConfigurationProperties(KafkaProperties::class)
 class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
+    companion object {
+        /** The receive-retry policy of the Kafka transports, from `wow.kafka.receiver.retry-*`. */
+        const val KAFKA_TRANSPORT_FAILURE_POLICY = "kafkaTransportFailurePolicy"
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -63,6 +68,12 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     @ConditionalOnMissingBean
     fun kafkaReceiverPolicy(): KafkaReceiverPolicy {
         return kafkaProperties.receiver.toPolicy()
+    }
+
+    @Bean(KAFKA_TRANSPORT_FAILURE_POLICY)
+    @ConditionalOnMissingBean(name = [KAFKA_TRANSPORT_FAILURE_POLICY])
+    fun kafkaTransportFailurePolicy(): TransportFailurePolicy {
+        return kafkaProperties.receiver.toFailurePolicy()
     }
 
     @Bean
@@ -91,6 +102,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
         decodeFailureHandler: TransportDecodeFailureHandler,
+        @Qualifier(KAFKA_TRANSPORT_FAILURE_POLICY) failurePolicy: TransportFailurePolicy,
     ): DistributedCommandBus {
         return KafkaCommandBus(
             topicConverter = topicConverter,
@@ -99,6 +111,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
             decodeFailureHandler = decodeFailureHandler,
+            failurePolicy = failurePolicy,
         )
     }
 
@@ -130,6 +143,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
         decodeFailureHandler: TransportDecodeFailureHandler,
+        @Qualifier(KAFKA_TRANSPORT_FAILURE_POLICY) failurePolicy: TransportFailurePolicy,
     ): DistributedDomainEventBus {
         return KafkaDomainEventBus(
             topicConverter = topicConverter,
@@ -138,6 +152,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
             decodeFailureHandler = decodeFailureHandler,
+            failurePolicy = failurePolicy,
         )
     }
 
@@ -169,6 +184,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
         receiverOptionsCustomizer: ReceiverOptionsCustomizer,
         receiverPolicy: KafkaReceiverPolicy,
         decodeFailureHandler: TransportDecodeFailureHandler,
+        @Qualifier(KAFKA_TRANSPORT_FAILURE_POLICY) failurePolicy: TransportFailurePolicy,
     ): DistributedStateEventBus {
         return KafkaStateEventBus(
             topicConverter = topicConverter,
@@ -177,6 +193,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
             decodeFailureHandler = decodeFailureHandler,
+            failurePolicy = failurePolicy,
         )
     }
 

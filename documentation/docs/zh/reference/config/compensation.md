@@ -63,7 +63,7 @@ wow:
 `wow.compensation.enabled=false` 会移除完整的应用侧 `CompensationAutoConfiguration`：
 
 - `EventCompensateSupporter`；
-- `DomainEventCompensationFilter` 与 `StateEventCompensationFilter`；
+- `CompensationFailureRecorder`，即事件 Handler 的 `FailureRecorder`（9.3.0 之前是 `DomainEventCompensationFilter` 与 `StateEventCompensationFilter`）；
 - `CompensationEventProcessor`。
 
 启用 WebFlux 时，事件补偿路由（`PUT …/event/{version}/compensate`）依赖 `EventCompensateSupporter`，因此不会出现在路由和 OpenAPI 文档中；其他路由不变。9.2.2 及以前这种组合会在启动时失败。

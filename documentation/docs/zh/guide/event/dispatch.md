@@ -60,11 +60,13 @@ Spring 启动时，Processor、Saga 和 Projection 的 AutoRegistrar 把已解�
 
 ```text
 Processor / Saga / Projection:
-Notifier -> DomainEventCompensationFilter -> RetryableFilter -> FunctionFilter
+Notifier -> RetryableFilter -> FunctionFilter
 
 Snapshot:
-SnapshotNotifierFilter -> StateEventCompensationFilter -> SnapshotFunctionFilter
+SnapshotNotifierFilter -> SnapshotFunctionFilter
 ```
+
+执行这条链的 Handler 在链终止后记录失败（见[失败记录](#失败记录)）；自 9.3.0 起补偿模块不再加入 Filter。
 
 Filter 从左到右进入、从右到左观察完成或错误。唯一的 `RetryableFilter` bean 面向 `DomainEventExchange`；Snapshot 链收集 `StateEventExchange` Filter，因此没有即时重试层。模块是否启用和自定义 Filter 还会改变实际集合，应以启动日志中的 `Build ... FilterChain` 为当前实例证据。
 
@@ -87,19 +89,23 @@ Filter 从左到右进入、从右到左观察完成或错误。唯一的 `Retry
 
 它没有持久状态，进程退出后不能恢复，也不读取函数 `@Retry` 的持久补偿参数。重试会再次调用同一函数，所以目标副作用必须幂等。
 
-## CompensationFilter 插入点
+## 失败记录
 
-启用补偿模块时，`DomainEventCompensationFilter` 会进入事件处理器、无状态 Saga 与 Projection 的领域/状态事件函数链，位于通知器之后、`RetryableFilter` 之前；`StateEventCompensationFilter` 进入 Snapshot 链，位于 `SnapshotNotifierFilter` 之后并直接包裹 `SnapshotFunctionFilter`：
+自 9.3.0 起，每个函数的事件 Handler（`FailureRecordingHandler`：Processor、Saga、Projection 与 Snapshot）在 Filter 链终止后，通过应用的 `FailureRecorder`（`me.ahoo.wow.processing.failure`，`@WowSpi`）确定处理结果：
 
-- 内层最终失败时，首次执行创建 `ExecutionFailed`，补偿执行更新已有记录；
-- 带补偿 ID 的内层执行成功时，写回 `ApplyExecutionSuccess`；
-- 过滤器处理完记录后，错误仍交给 dispatcher 的 `ErrorHandler`。
+| 结果 | 何时 | 是否确认 |
+| --- | --- | --- |
+| `HANDLED` | 函数成功；随后执行记录器的 `recordSuccess` | 是 |
+| `FAILURE_RECORDED` | 记录器已持久记录失败 | 是 |
+| `FAILURE_WAIVED` | 记录器选择不记录（`@Retry(enabled = false)`） | 是 |
+| `FAILURE_UNRECORDED` | 没有记录失败的记录器（`FailureRecorder.NONE`，未启用补偿模块时的默认值） | 仅当 `wow.event.ack-on-unrecorded-failure` 为 `true`（默认） |
+| `RECORDING_FAILED` | 记录器未能记录 | 否 |
 
-这保证 wait 通知不会在失败记录尚未写回时先宣告成功。Processor、Saga 与 Projection 的持久记录接收内层即时重试后仍未恢复的错误；Snapshot 没有该层，首次函数失败即可进入持久补偿。完整状态机见[事件补偿](./compensation.md)。
+随后处理错误交给组件的 `ErrorHandler`（记录错误作为 suppressed 附在其上）。启用补偿模块时记录器是 `CompensationFailureRecorder`：首次执行失败创建 `ExecutionFailed`，补偿执行失败更新已有记录，带补偿 ID 的执行成功写回 `ApplyExecutionSuccess`。记录发生在通知器发出信号之后，因此 wait 信号不再等待补偿记录（9.3.0 之前补偿过滤器位于通知器之内）：记录与信号最终一致，调用方如需记录，按事件 ID 轮询 `ExecutionFailed`。进程内重试耗尽的失败，无论有无等待计划，都按其原因（最后一次尝试的错误）记录和处理（9.3.0 之前记录的是 `IllegalState` "Retries exhausted" 与 `UNKNOWN`）。启用指标时，每个结果计入 `wow.processing.outcomes`（标签 `component`、`context`、`aggregate`、`message`、`processor`、`outcome`）。Processor、Saga 与 Projection 记录即时重试后仍未恢复的错误；Snapshot 没有该层，首次函数失败即可进入持久补偿。完整状态机见[事件补偿](./compensation.md)。
 
 ## Ack 与失败边界
 
-单个函数错误默认由对应 `Handler` 的 `ErrorHandler` 处理；事件处理器、Saga 与 Projection 的默认值是 `LogResumeErrorHandler`，会记录并恢复。领域事件流或状态事件的函数处理终止后，`AbstractAggregateEventDispatcher` 通过 `finallyAck` 确认原 exchange；Snapshot 的函数 Filter 也对自己的状态事件 exchange 使用 `finallyAck`。这些确认在成功和错误终止时都会执行，再由具体 Bus Adapter 映射到自己的确认动作。唯一的例外是补偿过滤器重试后仍未能记录的函数失败：该函数 exchange 会保留确认，同一事件流的其他函数仍会执行，dispatcher 随后让整个源 exchange 保持未确认。在 Kafka 上这最终会让整个接收端暂停，直到重启或再均衡（见[事件补偿](./compensation.md)）。
+单个函数错误默认由对应 `Handler` 的 `ErrorHandler` 处理；事件处理器、Saga 与 Projection 的默认值是 `LogResumeErrorHandler`，会记录并恢复。领域事件流或状态事件的函数处理终止后，`AbstractAggregateEventDispatcher` 通过 `finallyAck` 确认原 exchange；Snapshot 的函数 Filter 也对自己的状态事件 exchange 使用 `finallyAck`。这些确认在成功和错误终止时都会执行，再由具体 Bus Adapter 映射到自己的确认动作。例外是不确认的处理结果（见[失败记录](#失败记录)）：记录器重试后仍未能记录的失败，或在 `wow.event.ack-on-unrecorded-failure=false` 时没有记录器记录的失败。该函数 exchange 会保留确认，同一事件流的其他函数仍会执行，dispatcher 随后让整个源 exchange 保持未确认。在 Kafka 上这最终会让整个接收端暂停，直到重启或再均衡（见[事件补偿](./compensation.md)）。Snapshot 函数自己确认状态事件，因此 Snapshot 失败会被记录，但从不保留确认。
 
 因此需要分开理解三个边界：
 
@@ -117,7 +123,7 @@ Filter 从左到右进入、从右到左观察完成或错误。唯一的 `Retry
 - [`CompositeEventDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/dispatcher/CompositeEventDispatcher.kt) / [`AbstractAggregateEventDispatcher`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/dispatcher/AbstractAggregateEventDispatcher.kt)
 - [`DomainEventFunctionRegistrar`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar.kt) / [`DomainEventFunctionFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/dispatcher/DomainEventFunctionFilter.kt)
 - [`NotifierFilters`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/NotifierFilters.kt) / [`RetryableFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/handler/RetryableFilter.kt)
-- [`CompensationFilter`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFilter.kt) / [`FilterChainBuilder`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/filter/FilterChainBuilder.kt)
+- [`FailureRecordingHandler`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/processing/failure/FailureRecordingHandler.kt) / [`FailureRecorder`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/processing/failure/FailureRecorder.kt) / [`CompensationFailureRecorder`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/wow-compensation-core/src/main/kotlin/me/ahoo/wow/compensation/core/CompensationFailureRecorder.kt) / [`FilterChainBuilder`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/filter/FilterChainBuilder.kt)
 
 最小框架验证：
 

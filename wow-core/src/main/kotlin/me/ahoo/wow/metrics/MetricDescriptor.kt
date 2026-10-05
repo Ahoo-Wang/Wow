@@ -94,4 +94,5 @@ internal object WowMetricNames {
     const val STREAM_ACTIVE = "wow.stream.active"
     const val STREAM_MESSAGES = "wow.stream.messages"
     const val STREAM_TERMINATIONS = "wow.stream.terminations"
+    const val PROCESSING_OUTCOMES = "wow.processing.outcomes"
 }

@@ -10,6 +10,7 @@ import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.redis.bus.RedisCommandBus
@@ -31,6 +32,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import reactor.util.retry.RetryBackoffSpec
 import java.time.Duration
 
 class RedisMessageBusAutoConfigurationTest {
@@ -41,6 +43,34 @@ class RedisMessageBusAutoConfigurationTest {
         RedisStreamRecoveryProperties().toOptions()
             .assert()
             .isEqualTo(RedisStreamRecoveryOptions.DEFAULT)
+    }
+
+    @Test
+    fun `should bind the receive retry policy with the Kafka defaults`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${CommandProperties.BUS_TYPE}=${BusType.REDIS_NAME}",
+                "${RedisStreamReceiverProperties.PREFIX}.retry-attempts=5",
+                "${RedisStreamReceiverProperties.PREFIX}.retry-backoff=1s",
+            )
+            .withBean(ReactiveStringRedisTemplate::class.java, {
+                mockk<ReactiveStringRedisTemplate> {
+                    every { opsForStream<String, String>() } returns mockk()
+                }
+            })
+            .withUserConfiguration(RedisMessageBusAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                val retry = context.getBean(
+                    RedisMessageBusAutoConfiguration.REDIS_TRANSPORT_FAILURE_POLICY,
+                    TransportFailurePolicy::class.java,
+                ).receiveRetry as RetryBackoffSpec
+                retry.maxAttempts.assert().isEqualTo(5)
+                retry.minBackoff.assert().isEqualTo(Duration.ofSeconds(1))
+            }
+        val defaults = RedisStreamReceiverProperties().toFailurePolicy().receiveRetry as RetryBackoffSpec
+        defaults.maxAttempts.assert().isEqualTo(TransportFailurePolicy.DEFAULT_RECEIVE_RETRY_ATTEMPTS)
+        defaults.minBackoff.assert().isEqualTo(TransportFailurePolicy.DEFAULT_RECEIVE_RETRY_BACKOFF)
     }
 
     @Test
