@@ -23,9 +23,12 @@ import org.junit.jupiter.api.extension.TestExecutionExceptionHandler
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.buffer.DataBuffer
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
+import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction
 import reactor.core.publisher.Flux
+import reactor.netty.http.client.HttpClient
+import reactor.netty.resources.ConnectionProvider
 import java.lang.management.ManagementFactory
 import java.time.Instant
 import java.util.concurrent.TimeoutException
@@ -34,9 +37,18 @@ import java.util.concurrent.TimeoutException
  * A client of the view store's host that reads every response body before the call returns, a status-only check
  * included. A response whose body is never read keeps its pooled connection: when the body arrives after the
  * headers, nothing reads it, so the connection never goes back to the pool.
+ *
+ * Every request opens its own connection. On a reused (keep-alive) connection, Reactor Netty 1.3.7's server can stop
+ * reading: when a request arrives before the previous one's handler has finished, `HttpTrafficHandler` queues it;
+ * once it is answered, `HttpTrafficHandler.resumeRead()` finds queued content and drains it through `run()`, which
+ * returns without `ctx.read()`. With auto-read off nothing reads the connection again, so the next request on it waits
+ * until the client times out (#3867; seen on Linux epoll only). The tests here are about the view store, not about
+ * connection reuse, so they do not reuse connections.
  */
 internal fun viewStoreTestClient(port: String): WebTestClient =
-    WebTestClient.bindToServer().baseUrl("http://localhost:$port").filter(READ_EVERY_BODY).build()
+    WebTestClient.bindToServer(
+        ReactorClientHttpConnector(HttpClient.create(ConnectionProvider.newConnection()))
+    ).baseUrl("http://localhost:$port").filter(READ_EVERY_BODY).build()
 
 private val READ_EVERY_BODY = ExchangeFilterFunction.ofResponseProcessor { response ->
     response.bodyToMono(ByteArray::class.java)
