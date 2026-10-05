@@ -76,7 +76,8 @@ column。
 
 ### HTTP 路由
 
-`wow.bi.script.enabled=true` 时，WebFlux 暴露 `POST /wow/bi/script`。请求体必填；`{}` 表示使用服务端选项
+应用 classpath 上有 `wow-bi`（直接添加，或请求 Starter 的 `bi-support` capability）且
+`wow.bi.script.enabled` 不为 `false` 时，WebFlux 暴露 `POST /wow/bi/script`；仅有 `wow-webflux` 不会带来它。请求体必填；`{}` 表示使用服务端选项
 执行 `DEPLOY`。需要 diagnostics 和 destructive 标记时请求 JSON：
 
 ```bash
@@ -214,4 +215,4 @@ converter 以及其他无法验证的 shape 都保持 opaque，作为 raw 保存
 执行生成 SQL 前先阅读 [BI 部署与恢复](./bi-operations)。
 
 <!-- Sources: wow-bi BiScriptGenerator/Options/PreparationPlanner, renderer package, expansion planner/type package,
-BiDeploymentInspection, and expected_bi_*_script.sql; WebFlux GenerateBIScriptHandlerFunction -->
+BiDeploymentInspection, and expected_bi_*_script.sql; Starter BiAutoConfiguration and GenerateBIScriptHandlerFunction -->

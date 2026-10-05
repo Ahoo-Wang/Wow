@@ -95,6 +95,26 @@ public final class me/ahoo/wow/spring/boot/starter/WowRuntimeSpringLifecycleKt {
 	public static final field WOW_RUNTIME_LIFECYCLE_BEAN_NAME Ljava/lang/String;
 }
 
+public class me/ahoo/wow/spring/boot/starter/bi/BiAutoConfiguration {
+	public fun <init> ()V
+}
+
+public class me/ahoo/wow/spring/boot/starter/bi/BiAutoConfiguration$RouteContractConfiguration {
+	public fun <init> ()V
+	public fun generateBIScriptRouteContributor ()Lme/ahoo/wow/openapi/catalog/RouteContributor;
+}
+
+public class me/ahoo/wow/spring/boot/starter/bi/BiAutoConfiguration$WebFluxConfiguration {
+	public fun <init> ()V
+	public fun generateBIScriptHandlerFunctionFactory (Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun noOpBiDeploymentInspector ()Lme/ahoo/wow/bi/BiDeploymentInspector;
+}
+
+public class me/ahoo/wow/spring/boot/starter/bi/BiAutoConfiguration$WebFluxConfiguration$ClickHouseConfiguration {
+	public fun <init> ()V
+	public fun clickHouseBiDeploymentInspector (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;)Lme/ahoo/wow/bi/ClickHouseBiDeploymentInspector;
+}
+
 public final class me/ahoo/wow/spring/boot/starter/bi/BiClickHouseInspectorProperties {
 	public fun <init> ()V
 	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;ZLjava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;Ljava/time/Duration;II)V
@@ -1126,7 +1146,7 @@ public final class me/ahoo/wow/spring/boot/starter/openapi/ConditionalOnOpenAPIE
 public class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIAutoConfiguration {
 	public fun <init> ()V
 	public fun openAPIComponentContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;
-	public fun routerSpecs (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/openapi/RouterSpecs;
+	public fun routerSpecs (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/openapi/RouterSpecs;
 }
 
 public class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIAutoConfiguration$SpringdocConfiguration {
@@ -1654,16 +1674,6 @@ public class me/ahoo/wow/spring/boot/starter/webflux/WowWebClientAutoConfigurati
 	public fun <init> ()V
 	public fun commandWaitNotifier (Lme/ahoo/wow/command/wait/WaitCoordinator;Lorg/springframework/web/reactive/function/client/WebClient$Builder;Lme/ahoo/wow/webflux/wait/RemoteWaitNotifyPolicy;)Lme/ahoo/wow/command/wait/CommandWaitNotifier;
 	public fun remoteWaitNotifyPolicy ()Lme/ahoo/wow/webflux/wait/RemoteWaitNotifyPolicy;
-}
-
-public class me/ahoo/wow/spring/boot/starter/webflux/bi/BiDeploymentInspectorAutoConfiguration {
-	public fun <init> ()V
-	public fun noOpBiDeploymentInspector ()Lme/ahoo/wow/bi/BiDeploymentInspector;
-}
-
-public class me/ahoo/wow/spring/boot/starter/webflux/bi/BiDeploymentInspectorAutoConfiguration$ClickHouseConfiguration {
-	public fun <init> ()V
-	public fun clickHouseBiDeploymentInspector (Lme/ahoo/wow/spring/boot/starter/bi/BiScriptProperties;)Lme/ahoo/wow/bi/ClickHouseBiDeploymentInspector;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/webflux/route/CommandRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {

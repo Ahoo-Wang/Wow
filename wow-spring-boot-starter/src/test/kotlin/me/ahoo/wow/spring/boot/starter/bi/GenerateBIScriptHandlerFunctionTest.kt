@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.bi
+package me.ahoo.wow.spring.boot.starter.bi
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
@@ -43,7 +43,9 @@ import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
@@ -51,9 +53,7 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
-import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
-import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.testGlobalRouteContract
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -66,7 +66,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -76,6 +75,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class GenerateBIScriptHandlerFunctionTest {
+    @BeforeEach
+    fun registerErrorStatuses() {
+        // The BI auto-configuration registers these; the handler is exercised here without it.
+        BiScriptErrorStatuses.register()
+    }
+
     @Test
     fun `should generate configured BI script through factory`() {
         val options = BiScriptOptions(
@@ -91,7 +96,7 @@ class GenerateBIScriptHandlerFunctionTest {
             NoOpBiDeploymentInspector,
             WebFluxRequestExceptionHandler(),
         ).create(
-            testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+            biScriptRouteContract()
         )
 
         handlerFunction.handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
@@ -590,7 +595,7 @@ class GenerateBIScriptHandlerFunctionTest {
                 exceptionHandler = WebFluxRequestExceptionHandler(),
                 aggregateFilter = { it != excluded },
             )
-            val response = factory.create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT))
+            val response = factory.create(biScriptRouteContract())
                 .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
                 .block()!!
 
@@ -601,32 +606,6 @@ class GenerateBIScriptHandlerFunctionTest {
         } finally {
             unmockkObject(MetadataSearcher)
         }
-    }
-
-    @Test
-    fun `should keep the 9_1 JVM constructors`() {
-        val defaultMarker = Class.forName("kotlin.jvm.internal.DefaultConstructorMarker")
-        GenerateBIScriptHandlerFunctionFactory::class.java.getConstructor(
-            BiScriptOptions::class.java,
-            BiDeploymentInspector::class.java,
-            RequestExceptionHandler::class.java,
-        ).assert().isNotNull()
-        GenerateBIScriptHandlerFunction::class.java.getConstructor(
-            BiScriptOptions::class.java,
-            BiDeploymentInspector::class.java,
-            RequestExceptionHandler::class.java,
-            Scheduler::class.java,
-        ).assert().isNotNull()
-        val synthetic = GenerateBIScriptHandlerFunction::class.java.getDeclaredConstructor(
-            BiScriptOptions::class.java,
-            BiDeploymentInspector::class.java,
-            RequestExceptionHandler::class.java,
-            Scheduler::class.java,
-            Int::class.javaPrimitiveType,
-            defaultMarker,
-        )
-        synthetic.isSynthetic.assert().isTrue()
-        Modifier.isPublic(synthetic.modifiers).assert().isTrue()
     }
 
     @Test
@@ -647,7 +626,7 @@ class GenerateBIScriptHandlerFunctionTest {
                 NoOpBiDeploymentInspector,
                 WebFluxRequestExceptionHandler(),
             )
-            val response = factory.create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT))
+            val response = factory.create(biScriptRouteContract())
                 .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
                 .block()!!
 
@@ -748,3 +727,10 @@ private class ThreadRecordingNamedAggregate(
             return rawAggregateName
         }
 }
+
+private fun biScriptRouteContract(): HttpRouteContract = HttpRouteContract(
+    routeId = "test.route",
+    method = Https.Method.POST,
+    path = "/test",
+    handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
+)

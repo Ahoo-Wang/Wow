@@ -72,6 +72,7 @@ dependencies {
     implementation(project(":wow-view-store-starter"))
     implementation(project(":wow-opentelemetry"))
     implementation(project(":wow-webflux"))
+    implementation(project(":wow-bi"))
     implementation(project(":wow-cosec"))
     implementation(project(":wow-spring-boot-starter"))
     implementation(project(":wow-kafka"))

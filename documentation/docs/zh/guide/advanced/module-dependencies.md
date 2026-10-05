@@ -66,7 +66,6 @@ graph LR
     SCHEMA[wow-schema] --> OPENAPI
     CORE --> WEBFLUX[wow-webflux]
     OPENAPI --> WEBFLUX
-    BI[wow-bi] --> WEBFLUX
     CORE --> OTEL[wow-opentelemetry]
     WEBFLUX --> COSEC[wow-cosec]
 
@@ -76,7 +75,7 @@ graph LR
     ES -. elasticsearch-support .-> STARTER
     WEBFLUX -. webflux-support .-> STARTER
     OTEL -. opentelemetry-support .-> STARTER
-    BI -. "openapi-support (api)" .-> STARTER
+    BI[wow-bi] -. bi-support .-> STARTER
     OPENAPI -. "openapi-support (implementation)" .-> STARTER
     COSEC -. cosec-support .-> STARTER
 ```
@@ -194,15 +193,16 @@ TCK 通过不等于应用拓扑的容量、升级或灾难恢复已经验证；�
 | `redis-support` | `wow-redis` | Reactive Redis Spring Boot starter |
 | `mock-support` | `wow-mock` | 测试用途 |
 | `kafka-support` | `wow-kafka` | Reactor Kafka |
-| `webflux-support` | `wow-bi`（API）、`wow-webflux` | Spring WebFlux 已由 Starter 基础依赖提供 |
+| `webflux-support` | `wow-webflux` | Spring WebFlux 已由 Starter 基础依赖提供 |
 | `elasticsearch-support` | `wow-elasticsearch` | Elasticsearch Spring Boot starter |
 | `opentelemetry-support` | `wow-opentelemetry` | OpenTelemetry instrumentation API |
-| `openapi-support` | `wow-bi`（API）、`wow-openapi`（implementation） | springdoc common |
+| `openapi-support` | `wow-openapi`（implementation） | springdoc common |
 | `cosec-support` | `wow-cosec` | CoSec 集成链路 |
+| `bi-support` | `wow-bi`（API） | ClickHouse client（经 `wow-bi` 引入） |
 
 capability 表示**代码可用**；`wow.*.enabled` 和 Bus/Storage 属性决定**是否装配**；后端健康、Schema、topic、权限和恢复演练决定**是否可运行**。三个层次不能互相替代。
 
-对 `openapi-support`，`openapiSupportApi(project(":wow-bi"))` 向消费者暴露 BI script API，`openapiSupportImplementation(project(":wow-openapi"))` 则在内部提供 OpenAPI 生成；两者都是该 feature variant 的直接项目依赖。
+`wow-webflux` 与 `openapi-support` 都不再引入 `wow-bi`。只有 `wow-bi` 在 classpath 上时才装配 BI 脚本路由（`POST /wow/bi/script`）：请求 `bi-support`（`biSupportApi(project(":wow-bi"))`）或直接添加 `wow-bi`。没有它时，该路由、它的 OpenAPI operation 与 schema 都不存在。
 
 ## 构建配置
 

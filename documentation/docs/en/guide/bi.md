@@ -80,7 +80,8 @@ The switch is server configuration: a `/wow/bi/script` request cannot override i
 
 ### HTTP Route
 
-When `wow.bi.script.enabled=true`, WebFlux exposes `POST /wow/bi/script`. The request body is required; `{}` means
+When `wow-bi` is on the application classpath (add it, or request the Starter's `bi-support` capability) and
+`wow.bi.script.enabled` is not `false`, WebFlux exposes `POST /wow/bi/script`; `wow-webflux` alone does not bring it. The request body is required; `{}` means
 `DEPLOY` with server-side options. Ask for JSON when diagnostics and the destructive flag are needed:
 
 ```bash
@@ -223,4 +224,4 @@ the new mapping.
 See [BI Deployment and Recovery](./bi-operations) before executing generated SQL.
 
 <!-- Sources: wow-bi BiScriptGenerator/Options/PreparationPlanner, renderer package, expansion planner/type package,
-BiDeploymentInspection, and expected_bi_*_script.sql; WebFlux GenerateBIScriptHandlerFunction -->
+BiDeploymentInspection, and expected_bi_*_script.sql; Starter BiAutoConfiguration and GenerateBIScriptHandlerFunction -->

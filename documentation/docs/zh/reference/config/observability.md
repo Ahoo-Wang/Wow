@@ -56,7 +56,7 @@ wow:
 
 ## 商业智能脚本
 
-`wow.bi.script.enabled` 控制 `/wow/bi/script` 操作路由、对应 OpenAPI operation 与 BI inspector 自动配置。
+classpath 上有 `wow-bi` 时，`wow.bi.script.enabled` 控制 `/wow/bi/script` 操作路由、对应 OpenAPI operation 与 BI inspector 自动配置；没有 `wow-bi` 时它们都不存在。
 完整 `wow.bi.script.*` 配置树及其生产归属规则见 [BI 部署与恢复](/zh/guide/bi-operations)。关闭路由不会
 停止已有 ClickHouse consumer，也不会修改 BI 数据。
 

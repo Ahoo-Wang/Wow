@@ -27,11 +27,12 @@ Spring Boot loads Wow entries from `AutoConfiguration.imports`. `@ConditionalOnC
 | `redis-support` | `wow-redis` + reactive Redis starter |
 | `mock-support` | `wow-mock` |
 | `kafka-support` | `wow-kafka` |
-| `webflux-support` | `wow-bi` API + `wow-webflux` |
+| `webflux-support` | `wow-webflux` |
 | `elasticsearch-support` | `wow-elasticsearch` + Spring Data Elasticsearch |
 | `opentelemetry-support` | `wow-opentelemetry` |
-| `openapi-support` | `wow-bi` API + `wow-openapi` + springdoc common |
+| `openapi-support` | `wow-openapi` + springdoc common |
 | `cosec-support` | `wow-cosec` |
+| `bi-support` | `wow-bi` API |
 
 Request the full coordinate, for example `requireCapability("me.ahoo.wow:mongo-support")`. Maven does not resolve Gradle feature variants, so it needs explicit module dependencies.
 

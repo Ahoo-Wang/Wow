@@ -21,6 +21,12 @@ import java.nio.file.Path
 
 class ExampleServerBiConfigurationTest {
     @Test
+    fun `the BI script route should have wow-bi on the classpath`() {
+        // The starter wires the BI script route only when wow-bi is present; wow-webflux no longer brings it.
+        Class.forName("me.ahoo.wow.bi.BiScriptGenerator")
+    }
+
+    @Test
     fun `source and distribution configurations should expose a usable BI script endpoint`() {
         CONFIGURATIONS.forEach { configuration ->
             val properties = YamlPropertySourceLoader()

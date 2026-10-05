@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.global
+package me.ahoo.wow.spring.boot.starter.bi
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -61,24 +61,13 @@ private val ALL_AGGREGATES: Predicate<NamedAggregate> = Predicate { true }
 /**
  * Generates the BI script; [aggregateFilter] picks the local aggregates the script covers.
  */
-class GenerateBIScriptHandlerFunction(
+internal class GenerateBIScriptHandlerFunction(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
-    private val generationScheduler: Scheduler,
-    private val aggregateFilter: Predicate<NamedAggregate>,
+    private val generationScheduler: Scheduler = BI_SCRIPT_GENERATION_SCHEDULER,
+    private val aggregateFilter: Predicate<NamedAggregate> = ALL_AGGREGATES,
 ) : HandlerFunction<ServerResponse> {
-
-    /**
-     * The 9.1.x constructor (and, with its default, the synthetic one Kotlin callers compiled against 9.1.x use):
-     * every local aggregate.
-     */
-    constructor(
-        options: BiScriptOptions,
-        deploymentInspector: BiDeploymentInspector,
-        exceptionHandler: RequestExceptionHandler,
-        generationScheduler: Scheduler = BI_SCRIPT_GENERATION_SCHEDULER,
-    ) : this(options, deploymentInspector, exceptionHandler, generationScheduler, ALL_AGGREGATES)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java).mapRequestBodyDecodingException()
@@ -165,20 +154,13 @@ class GenerateBIScriptHandlerFunction(
 /**
  * Creates the BI script route's handler; [aggregateFilter] picks the local aggregates the script covers.
  */
-class GenerateBIScriptHandlerFunctionFactory(
+internal class GenerateBIScriptHandlerFunctionFactory(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
-    private val aggregateFilter: Predicate<NamedAggregate>,
+    private val aggregateFilter: Predicate<NamedAggregate> = ALL_AGGREGATES,
 ) :
     NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT) {
-
-    /** The 9.1.x constructor: every local aggregate. */
-    constructor(
-        options: BiScriptOptions,
-        deploymentInspector: BiDeploymentInspector,
-        exceptionHandler: RequestExceptionHandler,
-    ) : this(options, deploymentInspector, exceptionHandler, ALL_AGGREGATES)
 
     override fun create(
         contract: HttpRouteContract

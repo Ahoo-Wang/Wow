@@ -11,26 +11,95 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot.starter.webflux.bi
+package me.ahoo.wow.spring.boot.starter.bi
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiDeploymentInspection
+import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.ClickHouseBiDeploymentInspector
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.ObservedBiDeployment
-import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
+import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
+import java.net.URI
 import java.time.Duration
 
-class BiDeploymentInspectorAutoConfigurationTest {
+class BiAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
         .enableWow()
-        .withUserConfiguration(BiDeploymentInspectorAutoConfiguration::class.java)
+        .withBean(RequestExceptionHandler::class.java, { WebFluxRequestExceptionHandler() })
+        .withUserConfiguration(BiAutoConfiguration::class.java)
+
+    @Test
+    fun `should register the BI route contract, its handler and its error statuses`() {
+        ErrorHttpStatusMapping.unregister(BiDeploymentInspectionException.INCONSISTENT_ERROR_CODE)
+        ErrorHttpStatusMapping.unregister(BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE)
+        ErrorHttpStatusMapping.unregister(BiDeploymentInspectionException.TIMEOUT_ERROR_CODE)
+        contextRunner.run { context ->
+            context.assert().hasNotFailed()
+            context.getBean(RouteContributor::class.java).assert().isSameAs(GenerateBIScriptRouteContributor)
+            context.getBean(HttpRouteHandlerFunctionFactory::class.java).handlerKey.assert()
+                .isEqualTo(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+            ErrorHttpStatusMapping.getHttpStatus(BiDeploymentInspectionException.INCONSISTENT_ERROR_CODE).assert()
+                .isEqualTo(HttpStatus.BAD_GATEWAY)
+            ErrorHttpStatusMapping.getHttpStatus(BiDeploymentInspectionException.UNAVAILABLE_ERROR_CODE).assert()
+                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+            ErrorHttpStatusMapping.getHttpStatus(BiDeploymentInspectionException.TIMEOUT_ERROR_CODE).assert()
+                .isEqualTo(HttpStatus.GATEWAY_TIMEOUT)
+        }
+    }
+
+    @Test
+    fun `registered statuses should map BI inspection failures to upstream HTTP statuses`() {
+        BiScriptErrorStatuses.register()
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.POST)
+            .uri(URI.create("/wow/bi/script"))
+            .build()
+        val cases = mapOf(
+            BiDeploymentInspectionException.Inconsistent("inconsistent") to HttpStatus.BAD_GATEWAY,
+            BiDeploymentInspectionException.Unavailable() to HttpStatus.SERVICE_UNAVAILABLE,
+            BiDeploymentInspectionException.Timeout() to HttpStatus.GATEWAY_TIMEOUT,
+        )
+
+        cases.forEach { (error, expectedStatus) ->
+            DefaultWebFluxErrorStrategy.toServerResponse(request, error)
+                .test()
+                .consumeNextWith { response ->
+                    response.statusCode().assert().isEqualTo(expectedStatus)
+                    response.headers().getFirst(ERROR_CODE).assert().isEqualTo(error.errorInfo.errorCode)
+                }
+                .verifyComplete()
+        }
+    }
+
+    @Test
+    fun `should register no BI route when generation is disabled`() {
+        contextRunner
+            .withPropertyValues("${BiScriptProperties.PREFIX}.enabled=false")
+            .run { context ->
+                context.assert().hasNotFailed()
+                    .doesNotHaveBean(RouteContributor::class.java)
+                    .doesNotHaveBean(HttpRouteHandlerFunctionFactory::class.java)
+            }
+    }
 
     @Test
     fun `should use the no-op inspector by default`() {
@@ -46,8 +115,10 @@ class BiDeploymentInspectorAutoConfigurationTest {
             .withClassLoader(FilteredClassLoader("me.ahoo.wow.bi."))
             .run { context ->
                 context.assert().hasNotFailed()
-                    .doesNotHaveBean(BiDeploymentInspectorAutoConfiguration::class.java)
+                    .doesNotHaveBean(BiAutoConfiguration::class.java)
                     .doesNotHaveBean("noOpBiDeploymentInspector")
+                    .doesNotHaveBean(RouteContributor::class.java)
+                    .doesNotHaveBean(HttpRouteHandlerFunctionFactory::class.java)
             }
     }
 

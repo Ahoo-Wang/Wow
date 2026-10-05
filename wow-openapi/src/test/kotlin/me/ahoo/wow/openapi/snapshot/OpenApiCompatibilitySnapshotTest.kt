@@ -21,7 +21,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpParameter
+import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
+import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertContractSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertOpenApiSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.resourcePath
@@ -34,10 +37,27 @@ internal class OpenApiCompatibilitySnapshotTest {
     private val mapper = ObjectMapperFactory.createJson31()
     private val currentContext = MaterializedNamedBoundedContext("example-service")
 
+    /** The example service's routes: the defaults plus the BI script route, which it gets by adding `wow-bi`. */
+    private fun exampleServiceRouterSpecs(): RouterSpecs = RouterSpecs(
+        currentContext,
+        routeContributors = DefaultRouteContributors.all() + GenerateBIScriptRouteContributor,
+    )
+
+    @Test
+    fun `default routes should leave out the BI script route`() {
+        val catalog = RouterSpecs(currentContext).build().toRouteCatalog()
+
+        catalog.routes.map { it.path }.assert().doesNotContain(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+        val openAPI = OpenAPI()
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        openAPI.paths.keys.assert().doesNotContain(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+        openAPI.components.schemas.keys.filter { it.startsWith("wow.openapi.BiScript") }.assert().isEmpty()
+    }
+
     @Test
     fun `generated openapi should match example domain compatibility snapshot`() {
         val openAPI = OpenAPI()
-        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
 
         assertOpenApiSnapshot(
             openAPI = openAPI,
@@ -48,7 +68,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated BI script request schema should retain its OpenAPI 3 point 1 types`() {
         val openAPI = OpenAPI()
-        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
 
         val document = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(openAPI)
         document.path("openapi").asText().assert().isEqualTo("3.1.0")
@@ -99,7 +119,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `every published sort list should state the sort bound`() {
         val openAPI = OpenAPI()
-        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
 
         val schemas = mapper.valueToTree<JsonNode>(openAPI).path("components").path("schemas")
         val sortLists = schemas.properties()
@@ -120,7 +140,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated openapi should publish cursor query contracts`() {
         val openAPI = OpenAPI()
-        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
 
         val document = mapper.valueToTree<JsonNode>(openAPI)
         val paths = document.path("paths")
@@ -152,7 +172,7 @@ internal class OpenApiCompatibilitySnapshotTest {
 
     @Test
     fun `generated route contracts should match example domain compatibility snapshot`() {
-        val routerSpecs = RouterSpecs(currentContext).build()
+        val routerSpecs = exampleServiceRouterSpecs().build()
         val routeShape = routerSpecs.toRouteCatalog().routes.map { route ->
             mapOf(
                 "id" to route.routeId,

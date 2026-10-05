@@ -168,6 +168,16 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `CommandHandler.handle(exchange)` | `CommandHandler.handle(exchange, aggregateMetadata)` |
 | `ServerCommandExchange.setAggregateMetadata` / `getAggregateMetadata` / `setAggregateProcessor` / `getAggregateProcessor` | 处理器以参数接收 metadata |
 
+### BI 脚本路由需要 `wow-bi`（9.3.0）
+
+`wow-webflux` 以及 Starter 的 `webflux-support` / `openapi-support` capability 不再引入 `wow-bi`（及 ClickHouse client）。提供 `POST /wow/bi/script` 的应用需自行添加 `wow-bi`，或请求 Starter 的 `bi-support` capability；它在 classpath 上时，该路由、它的 OpenAPI operation 与 schema、错误码以及 `wow.bi.script.*` 配置都不变。没有它时该路由不存在。BI 路由相关类已移到 Starter：
+
+| 已删除 | 改用 |
+|---|---|
+| `me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction` / `GenerateBIScriptHandlerFunctionFactory` | 由 `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` 装配（内部类） |
+| `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
+| `DefaultRouteContributors.all()` 中的 `GenerateBIScriptRouteContributor` | `wow-bi` 存在时由 Starter 注册的 `RouteContributor` bean；该路由只通过 Starter 提供 |
+
 ### Mongo 所有权保护
 
 参见 [v6 → v8：Mongo 所有权保护](./migration/v6-to-v8.md#mongo-所有权保护)。

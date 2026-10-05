@@ -351,18 +351,6 @@ public final class me/ahoo/wow/webflux/route/event/state/ResendStateEventHandler
 public final class me/ahoo/wow/webflux/route/event/state/ResendStateEventHandler$Companion {
 }
 
-public final class me/ahoo/wow/webflux/route/global/GenerateBIScriptHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
-	public fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiDeploymentInspector;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lreactor/core/scheduler/Scheduler;)V
-	public synthetic fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiDeploymentInspector;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lreactor/core/scheduler/Scheduler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiDeploymentInspector;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lreactor/core/scheduler/Scheduler;Ljava/util/function/Predicate;)V
-	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/webflux/route/global/GenerateBIScriptHandlerFunctionFactory : me/ahoo/wow/webflux/route/NoMetadataRouteHandlerFunctionFactorySupport {
-	public fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiDeploymentInspector;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)V
-	public fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiDeploymentInspector;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Ljava/util/function/Predicate;)V
-}
-
 public final class me/ahoo/wow/webflux/route/global/GetWowMetadataHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
 	public fun <init> ()V
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;

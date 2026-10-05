@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import org.springframework.core.codec.DecodingException
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -33,7 +34,8 @@ internal fun ServerRequest.acceptsEventStream(): Boolean {
     return preferredResponseMediaType(STREAMING_RESPONSE_MEDIA_TYPES) == MediaType.TEXT_EVENT_STREAM
 }
 
-internal fun ServerRequest.preferredResponseMediaType(supportedMediaTypes: List<MediaType>): MediaType {
+@InternalWowApi
+fun ServerRequest.preferredResponseMediaType(supportedMediaTypes: List<MediaType>): MediaType {
     require(supportedMediaTypes.isNotEmpty()) {
         "supportedMediaTypes must not be empty."
     }
@@ -65,7 +67,8 @@ internal fun ServerRequest.preferredResponseMediaType(supportedMediaTypes: List<
         ?: throw NotAcceptableStatusException(supportedMediaTypes)
 }
 
-internal fun <T : Any> Mono<T>.mapRequestBodyDecodingException(): Mono<T> =
+@InternalWowApi
+fun <T : Any> Mono<T>.mapRequestBodyDecodingException(): Mono<T> =
     onErrorMap(DecodingException::class.java) {
         ServerWebInputException("Failed to read HTTP message", null, it)
     }

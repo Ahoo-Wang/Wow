@@ -142,7 +142,7 @@ Global contracts are contributed independently of aggregate routes:
 | `POST` | `/wow/command/send` | Generic command facade used by the API client |
 | `POST` | `/wow/command/wait` | Wait-signal receiving endpoint |
 | `GET` | `/wow/metadata` | Loaded Wow metadata |
-| `POST` | `/wow/bi/script` | BI synchronization script generation |
+| `POST` | `/wow/bi/script` | BI synchronization script generation (only with `wow-bi` on the classpath) |
 | `GET` | `/wow/id/global` | Global ID generation |
 
 Publishing one of these routes does not secure it. Apply the service's authentication, authorization, rate-limit, and network-exposure policy.
@@ -183,7 +183,7 @@ The response is runtime evidence that metadata was loaded. It is not proof that 
 
 ### Generate BI Sync Script
 
-`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for current local aggregates. The route and OpenAPI operation are present by default and are both removed when `wow.bi.script.enabled=false`. Enabling the route does not authorize it.
+`POST /wow/bi/script` generates ClickHouse synchronization and expansion SQL for current local aggregates. The route and OpenAPI operation are present when `wow-bi` is on the classpath (add it, or request the Starter's `bi-support` capability) and `wow.bi.script.enabled` is not `false`; otherwise both are absent. Enabling the route does not authorize it.
 
 The endpoint requires an `application/json` body. `{}` means `DEPLOY` with server options unchanged. Request fields include deployment overrides, `operation`, and `replayFromEarliestConfirmed`; `previousManifest` is not part of the contract. `topology.mode` is required when `topology` is present. `STANDALONE` rejects a cluster object; `CLUSTER` accepts only cluster `name` and `installation` overrides.
 

@@ -86,8 +86,10 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import me.ahoo.wow.spring.boot.starter.bi.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.compensation.CompensationAutoConfiguration
@@ -102,7 +104,6 @@ import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryProperties
 import me.ahoo.wow.spring.boot.starter.query.fixedSchemas
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
-import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.EventRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.GlobalRouteModule
@@ -126,7 +127,6 @@ import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderA
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
-import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
@@ -358,9 +358,9 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
+                BiAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
@@ -422,9 +422,9 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
+                BiAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
@@ -1004,10 +1004,12 @@ internal class WebFluxAutoConfigurationTest {
                 context.getBeanNamesForType(GlobalRouteModule::class.java)
                     .assert()
                     .containsExactly("globalRouteModule")
-                val moduleFactory = context.getBean(GlobalRouteModule::class.java).httpFactories.single {
+                context.getBean(GlobalRouteModule::class.java).httpFactories.map { it.handlerKey }.assert()
+                    .doesNotContain(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                val factoryBean = context.getBeansOfType(HttpRouteHandlerFunctionFactory::class.java).values.single {
                     it.handlerKey == BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT
                 }
-                moduleFactory.assert().isSameAs(context.biScriptRouteFactory())
+                factoryBean.assert().isSameAs(context.biScriptRouteFactory())
 
                 val script = context.generateBiScript()
                 script.assert().contains("-- global --")
@@ -1015,6 +1017,27 @@ internal class WebFluxAutoConfigurationTest {
                     BiScriptGenerator(BiScriptOptions(consumerGroupNamespace = "test"))
                         .generate(MetadataSearcher.localAggregates).script
                 )
+            }
+    }
+
+    @Test
+    fun `should start without wow-bi and leave the BI route out`() {
+        webFluxContextRunner()
+            .withClassLoader(FilteredClassLoader("me.ahoo.wow.bi."))
+            .run { context ->
+                context.assert().hasNotFailed()
+                    .doesNotHaveBean(BiScriptProperties::class.java)
+                context.routeHandlerKeys().assert().doesNotContain(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                    .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
+                    .assert()
+                    .isNull()
+                context.biScriptClient().post()
+                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue("{}")
+                    .exchange()
+                    .expectStatus().isNotFound
             }
     }
 
@@ -1170,9 +1193,9 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
+                BiAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
@@ -1220,9 +1243,9 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
+                BiAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
@@ -1256,9 +1279,9 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
                 WebFluxAutoConfiguration::class.java,
+                BiAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
@@ -1306,14 +1329,17 @@ internal class WebFluxAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
                 AggregateAutoConfiguration::class.java,
                 OpenAPIAutoConfiguration::class.java,
-                BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
             ).let { runner ->
                 if (autoConfigurations.isEmpty()) {
-                    runner.withUserConfiguration(WebFluxAutoConfiguration::class.java)
+                    runner.withUserConfiguration(WebFluxAutoConfiguration::class.java, BiAutoConfiguration::class.java)
                 } else {
                     runner.withConfiguration(
-                        AutoConfigurations.of(WebFluxAutoConfiguration::class.java, *autoConfigurations.toTypedArray()),
+                        AutoConfigurations.of(
+                            WebFluxAutoConfiguration::class.java,
+                            BiAutoConfiguration::class.java,
+                            *autoConfigurations.toTypedArray(),
+                        ),
                     )
                 }
             }

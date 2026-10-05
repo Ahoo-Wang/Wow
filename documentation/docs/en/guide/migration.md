@@ -175,6 +175,16 @@ The command side no longer has a filter chain. `DefaultCommandHandler` runs proc
 | `CommandHandler.handle(exchange)` | `CommandHandler.handle(exchange, aggregateMetadata)` |
 | `ServerCommandExchange.setAggregateMetadata` / `getAggregateMetadata` / `setAggregateProcessor` / `getAggregateProcessor` | The handler receives the metadata as a parameter |
 
+### BI Script Route Needs `wow-bi` (9.3.0)
+
+`wow-webflux` and the Starter's `webflux-support` / `openapi-support` capabilities no longer bring `wow-bi` (and the ClickHouse client). An application that serves `POST /wow/bi/script` adds `wow-bi`, or requests the Starter's `bi-support` capability; with it on the classpath the route, its OpenAPI operation and schemas, its error codes and the `wow.bi.script.*` properties are unchanged. Without it the route is absent. The BI route classes moved to the Starter:
+
+| Removed | Use instead |
+|---|---|
+| `me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction` / `GenerateBIScriptHandlerFunctionFactory` | wired by `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` (internal) |
+| `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
+| `GenerateBIScriptRouteContributor` in `DefaultRouteContributors.all()` | a `RouteContributor` bean the Starter registers when `wow-bi` is present; the route is served only through the Starter |
+
 ### Mongo Ownership Guard
 
 See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).

@@ -2,7 +2,6 @@ dependencies {
     api(project(":wow-core"))
     api(project(":wow-openapi"))
     api(project(":wow-query"))
-    api(project(":wow-bi"))
     implementation("org.springframework:spring-context")
     api("org.springframework:spring-webflux")
     testImplementation("org.springframework:spring-test")

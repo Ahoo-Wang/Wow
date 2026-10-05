@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.bi
+package me.ahoo.wow.spring.boot.starter.bi
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiDeploymentInspection
@@ -27,9 +27,6 @@ import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
 import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.contract.bi.BiScriptUnsupportedTypeStrategy
-import me.ahoo.wow.webflux.route.global.requireAllowedInspectionScope
-import me.ahoo.wow.webflux.route.global.toBiScriptOperation
-import me.ahoo.wow.webflux.route.global.toBiScriptOptions
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 
