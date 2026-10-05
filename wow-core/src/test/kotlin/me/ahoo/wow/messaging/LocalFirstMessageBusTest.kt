@@ -480,7 +480,7 @@ class LocalFirstMessageBusShutdownTest {
             StepVerifier.create(bus.send(LocalFirstTestMessage(id = "admitted")))
                 .verifyComplete()
 
-            dispatcher.handled.get().assert().isOne()
+            awaitHandled(dispatcher)
             distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
         } finally {
             dispatcher.quiesce()
@@ -684,7 +684,7 @@ class LocalFirstMessageBusShutdownTest {
             StepVerifier.create(bus.send(LocalFirstTestMessage(id = "partially-admitted")))
                 .verifyComplete()
 
-            admittedDispatcher.handled.get().assert().isOne()
+            awaitHandled(admittedDispatcher)
             rejectedDispatcher.handled.get().assert().isZero()
             distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
@@ -1188,6 +1188,15 @@ private class ZeroDemandSubscriber<T : Any> : BaseSubscriber<T>() {
     override fun hookOnNext(value: T) {
         received.incrementAndGet()
     }
+}
+
+/** Handling runs on the runtime's keyed executor, after the local delivery receipt: wait for it. */
+private fun awaitHandled(dispatcher: LocalReceiptDispatcher) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+    while (dispatcher.handled.get() == 0 && System.nanoTime() < deadline) {
+        Thread.sleep(1)
+    }
+    dispatcher.handled.get().assert().isOne()
 }
 
 private class LocalReceiptDispatcher(
