@@ -37,8 +37,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # The layer reports reuse the test runs of the full report. Pull requests upload `local` and `contract`
-      # (local-test.yml, contract-test.yml); main uploads every layer here too, so no flag stays at 0% on main.
+      # The layer reports reuse the test runs of the full report. Pull requests upload `local`, `contract`
+      # and `integration` (their workflows); main uploads every layer here too, so no flag stays at 0% on main.
       - name: Build Code Coverage Report
         run: ./gradlew codeCoverageReport :code-coverage-report:contractCoverageReport :code-coverage-report:integrationCoverageReport --stacktrace
 

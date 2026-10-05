@@ -42,6 +42,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  id-token: write
 env:
   CI: GITHUB_ACTIONS
 
@@ -64,7 +65,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # Pull requests are held to coverage by tests that need no containers (local-test.yml, contract-test.yml);
-      # codecov.yml uploads the integration layer from main.
-      - name: Run integration tests
-        run: ./gradlew allIntegrationTest --stacktrace
+      - name: Run integration tests with coverage
+        run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
+
+      - name: Upload integration coverage
+        uses: codecov/codecov-action@v7
+        if: success()
+        with:
+          use_oidc: true
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
