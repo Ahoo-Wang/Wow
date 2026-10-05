@@ -72,7 +72,7 @@ interface EventStore :
 
 ## 确定性状态溯源
 
-相同初始状态和相同的事件流顺序必须得到相同状态。`SimpleStateAggregate.onSourcing` 先检查 `IgnoreSourcing` 初始错误流并直接返回；仅对未忽略的流验证聚合身份与 `expectedNextVersion`，再更新版本、操作者、时间、所有者、空间等元数据，最后按顺序调用已注册的溯源函数。
+相同初始状态和相同的事件流顺序必须得到相同状态。`SimpleStateAggregate.onSourcing` 先检查 `IgnoreSourcing` 初始错误流并直接返回；仅对未忽略的流验证聚合身份与 `expectedNextVersion`，再按顺序调用已注册的溯源函数，全部执行完之后才更新版本、操作者、时间、所有者、空间等元数据（自 9.3.0 起；此前先更新元数据）。
 
 | 条件 | 恢复行为 |
 | --- | --- |
@@ -80,6 +80,7 @@ interface EventStore :
 | 未被忽略的事件流聚合身份不匹配 | 抛出 `IllegalArgumentException` |
 | 未被忽略的事件流版本不是 `expectedNextVersion` | 抛出 `SourcingVersionConflictException` |
 | 找不到事件体的溯源函数 | 事件流仍推进版本，状态业务字段不变 |
+| 溯源函数抛出异常 | 异常向外传播；版本与元数据保持原来的版本，状态对象可能只应用了部分事件流，必须丢弃 |
 
 溯源函数只根据事件更新状态；不要在其中读取当前时间、随机数或外部服务。这样历史重放、快照校验和故障恢复才有同一结果。
 

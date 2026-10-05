@@ -13,23 +13,18 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import kotlinx.coroutines.reactor.mono
 import reactor.core.publisher.Mono
-import java.lang.reflect.InvocationTargetException
-import kotlin.reflect.KFunction
-import kotlin.reflect.full.callSuspend
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 
-class SuspendMonoFunctionAccessor<T, D : Any>(function: KFunction<*>) :
-    AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
-
-    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return mono {
-            try {
-                @Suppress("UNCHECKED_CAST")
-                function.callSuspend(target, *args) as D
-            } catch (invocationTargetException: InvocationTargetException) {
-                throw invocationTargetException.targetException
-            }
+/**
+ * Subscribes this `Mono` on [scheduler] when it is subscribed from a non-blocking thread, so blocking work does not
+ * stall an event loop; elsewhere it runs where it is subscribed.
+ */
+fun <T : Any> Mono<T>.toBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> =
+    Mono.defer {
+        if (Schedulers.isInNonBlockingThread()) {
+            return@defer this.subscribeOn(scheduler)
         }
+        this
     }
-}

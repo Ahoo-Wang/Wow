@@ -22,8 +22,11 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.kernel.AggregateModel
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.appendResolvingOutcome
 import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.reactor.checkpoint
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -66,8 +69,13 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
     override val processorName: String
         get() = PROCESSOR_NAME
 
+    /**
+     * Whether [state] failed to apply a committed event stream. It may then hold part of that stream and its version
+     * is behind the event store, so this aggregate takes no further command; load the state again instead.
+     */
     @Volatile
-    var commandState = CommandState.STORED
+    var discarded: Boolean = false
+        private set
 
     /**
      * Whether a command in [spaceId] addresses another space than this aggregate's: only a spaced aggregate checks,
@@ -81,15 +89,15 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
     }
 
     /**
-     * Processes a command exchange by validating, executing, and persisting the results.
+     * Processes a command exchange: decide, append, then apply (B9).
      *
-     * This method performs comprehensive command processing including:
-     * - Version conflict checking
-     * - Aggregate initialization validation
-     * - Ownership validation
-     * - Command execution with after-functions
-     * - Event sourcing to state
-     * - Event persistence
+     * - Guards: version, existence and creation, ownership, space, deletion.
+     * - Decide: the command function and its after-functions produce the event stream; the state is only read.
+     * - Append: the stream is committed to the event store.
+     * - Apply: only a committed stream is applied to [state]. When applying fails, the command is still reported as
+     *   committed (the events are stored), the failure is logged and this aggregate is [discarded].
+     *
+     * A failure before or during the append leaves [state] at the last committed version, so `@OnError` sees it.
      *
      * @param exchange The server command exchange to process.
      * @return A Mono containing the resulting domain event stream.
@@ -113,6 +121,10 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
             log.debug {
                 "Process $message."
             }
+            check(!discarded) {
+                "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] was discarded " +
+                    "after it failed to apply a committed event stream."
+            }
             if (message.aggregateVersion != null && message.aggregateVersion != version) {
                 return@defer CommandExpectVersionConflictException(
                     command = message,
@@ -129,9 +141,6 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
             if (isForeignSpace(message.spaceId)) {
                 return@defer IllegalAccessSpaceAggregateException(aggregateId).toMono()
             }
-            check(commandState == CommandState.STORED) {
-                "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] is not stored."
-            }
             if (message.body is RecoverAggregate) {
                 check(state.deleted) {
                     "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] is not deleted."
@@ -145,16 +154,35 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
             requireNotNull(commandEntry) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
-            commandEntry.invoke(this, exchange).doOnNext {
-                // Apply emitted events before persistence so the in-memory state stays current.
-                commandState = commandState.onSourcing(state, it)
-            }.flatMap { eventStream ->
-                // A command is complete only after its domain events are persisted.
-                exchange.setAggregateVersion(eventStream.version)
-                commandState.onStore(eventStore, eventStream).doOnNext { commandState = it }
-                    .doOnError { commandState = CommandState.EXPIRED }.thenReturn(eventStream)
+            commandEntry.invoke(this, exchange).flatMap { eventStream ->
+                eventStore.appendResolvingOutcome(eventStream)
+                    .checkpoint {
+                        "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [SimpleCommandAggregate]"
+                    }
+                    .then(Mono.fromCallable { applyCommitted(exchange, eventStream) })
             }
         }
+    }
+
+    /**
+     * Applies [eventStream], which the event store has committed, to [state]. A failure cannot undo the commit, so
+     * the command still succeeds: the failure is logged and this aggregate is [discarded].
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun applyCommitted(exchange: ServerCommandExchange<*>, eventStream: DomainEventStream): DomainEventStream {
+        exchange.setAggregateVersion(eventStream.version)
+        try {
+            state.onSourcing(eventStream)
+        } catch (error: Throwable) {
+            Exceptions.throwIfJvmFatal(error)
+            discarded = true
+            log.error(error) {
+                "Committed DomainEventStream[${eventStream.id}] version[${eventStream.version}] of " +
+                    "[$aggregateId] but failed to apply it to the state: the state instance is discarded. " +
+                    "Loading this aggregate will fail the same way until its sourcing function is fixed."
+            }
+        }
+        return eventStream
     }
 
     /**
@@ -178,5 +206,5 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
         )
     }
 
-    override fun toString(): String = "SimpleCommandAggregate(state=$state, metadata=$metadata, commandState=$commandState)"
+    override fun toString(): String = "SimpleCommandAggregate(state=$state, metadata=$metadata, discarded=$discarded)"
 }

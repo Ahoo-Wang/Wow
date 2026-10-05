@@ -2597,50 +2597,9 @@ public final class me/ahoo/wow/infra/accessor/function/SimpleFunctionAccessor : 
 	public fun toString ()Ljava/lang/String;
 }
 
-public abstract class me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/MonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public fun getFunction ()Lkotlin/reflect/KFunction;
-	public fun getMethod ()Ljava/lang/reflect/Method;
-	public fun getName ()Ljava/lang/String;
-	public fun getTargetType ()Ljava/lang/Class;
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	public synthetic fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	protected final fun invoke1Method (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	protected final fun invokeMethod (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/BlockingMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/MonoFunctionAccessor {
-	public fun <init> (Lme/ahoo/wow/infra/accessor/function/reactive/MonoFunctionAccessor;Lreactor/core/scheduler/Scheduler;)V
-	public synthetic fun <init> (Lme/ahoo/wow/infra/accessor/function/reactive/MonoFunctionAccessor;Lreactor/core/scheduler/Scheduler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun getFunction ()Lkotlin/reflect/KFunction;
-	public fun getMethod ()Ljava/lang/reflect/Method;
-	public fun getName ()Ljava/lang/String;
-	public fun getTargetType ()Ljava/lang/Class;
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	public synthetic fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/BlockingMonoFunctionAccessorKt {
+public final class me/ahoo/wow/infra/accessor/function/reactive/BlockableKt {
 	public static final fun toBlockable (Lreactor/core/publisher/Mono;Lreactor/core/scheduler/Scheduler;)Lreactor/core/publisher/Mono;
 	public static synthetic fun toBlockable$default (Lreactor/core/publisher/Mono;Lreactor/core/scheduler/Scheduler;ILjava/lang/Object;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/FlowMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/FluxMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	public synthetic fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
 }
 
 public abstract interface class me/ahoo/wow/infra/accessor/function/reactive/MonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/ReactiveFunctionAccessor {
@@ -2663,14 +2622,6 @@ public final class me/ahoo/wow/infra/accessor/function/reactive/MonoMethodAccess
 	public final fun create (Lkotlin/reflect/KFunction;)Lme/ahoo/wow/infra/accessor/function/reactive/MonoFunctionAccessor;
 }
 
-public final class me/ahoo/wow/infra/accessor/function/reactive/PublisherMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	public synthetic fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-}
-
 public abstract interface class me/ahoo/wow/infra/accessor/function/reactive/ReactiveFunctionAccessor : me/ahoo/wow/infra/accessor/function/FunctionAccessor {
 }
 
@@ -2680,28 +2631,6 @@ public final class me/ahoo/wow/infra/accessor/function/reactive/ReactiveFunction
 	public static fun getTargetType (Lme/ahoo/wow/infra/accessor/function/reactive/ReactiveFunctionAccessor;)Ljava/lang/Class;
 	public static fun invoke (Lme/ahoo/wow/infra/accessor/function/reactive/ReactiveFunctionAccessor;Ljava/lang/Object;[Ljava/lang/Object;)Lorg/reactivestreams/Publisher;
 	public static fun invoke1 (Lme/ahoo/wow/infra/accessor/function/reactive/ReactiveFunctionAccessor;Ljava/lang/Object;Ljava/lang/Object;)Lorg/reactivestreams/Publisher;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/SimpleMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	public synthetic fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/SuspendMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/infra/accessor/function/reactive/SyncMonoFunctionAccessor : me/ahoo/wow/infra/accessor/function/reactive/AbstractMonoFunctionAccessor {
-	public fun <init> (Lkotlin/reflect/KFunction;)V
-	public synthetic fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke (Ljava/lang/Object;[Ljava/lang/Object;)Lreactor/core/publisher/Mono;
-	public synthetic fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-	public fun invoke1 (Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/infra/accessor/property/PropertyDescriptor {

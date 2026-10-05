@@ -16,6 +16,7 @@ package me.ahoo.wow.annotation
 import me.ahoo.wow.api.Ordered
 import me.ahoo.wow.api.annotation.Order
 import java.lang.reflect.AnnotatedElement
+import java.util.PriorityQueue
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
@@ -71,11 +72,14 @@ private fun <T : Any> T.getOrder(): Order {
 }
 
 /**
- * Sorts an iterable collection based on Order annotations and dependencies.
+ * Sorts the elements by their [Order]: a topological sort of the `before`/`after` constraints, breaking ties by
+ * [Order.value] and then by input order.
  *
- * This extension function sorts the collection by considering both the numeric order value
- * and the before/after dependencies specified in @Order annotations. Items are first sorted
- * by their order value, then repositioned according to their before/after relationships.
+ * - `before = [X::class]` places the element before every element whose class is `X`; `after = [X::class]` after
+ *   every such element. A constraint naming a class that is not in the collection is ignored.
+ * - Among the elements whose constraints are satisfied, the one with the lowest value comes first; equal values keep
+ *   their input order. Without constraints this is a stable sort by value.
+ * - Constraints that form a cycle fail fast with an [IllegalStateException] that names the cycle.
  *
  * Example usage:
  * ```kotlin
@@ -95,71 +99,73 @@ private fun <T : Any> T.getOrder(): Order {
  *
  * @param T the type of elements in the collection
  * @return a new list sorted by order with dependencies resolved
+ * @throws IllegalStateException when the `before`/`after` constraints form a cycle
  * @see Order
  */
 fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {
-    val sortedByOrderList =
-        this
-            .map {
-                val order: Order = it.getOrder()
-                it to order
-            }.sortedBy { it.second.value }
-
-    val sortedList = sortedByOrderList.toMutableList()
-
-    sortedByOrderList.forEach { current ->
-        sortedList.moveToBefore(current)
-        sortedList.moveToAfter(current)
+    val nodes = mapIndexed { index, element -> OrderNode(element, element.getOrder(), element.getKClass(), index) }
+    if (nodes.size < 2) {
+        return nodes.map { it.element }
     }
-    return sortedList.map { it.first }
+    val byClass = nodes.groupBy { it.kClass }
+    // successors[i]: the nodes that must come after node i.
+    val successors = Array(nodes.size) { LinkedHashSet<OrderNode<T>>() }
+    val inDegree = IntArray(nodes.size)
+    fun link(first: OrderNode<T>, second: OrderNode<T>) {
+        if (first !== second && successors[first.index].add(second)) {
+            inDegree[second.index]++
+        }
+    }
+    for (node in nodes) {
+        node.order.before.forEach { target -> byClass[target]?.forEach { link(node, it) } }
+        node.order.after.forEach { target -> byClass[target]?.forEach { link(it, node) } }
+    }
+    val ready = PriorityQueue<OrderNode<T>>(ORDER_NODE_COMPARATOR)
+    nodes.filter { inDegree[it.index] == 0 }.forEach { ready.add(it) }
+    val sorted = ArrayList<T>(nodes.size)
+    while (ready.isNotEmpty()) {
+        val node = ready.poll()
+        sorted.add(node.element)
+        for (successor in successors[node.index]) {
+            if (--inDegree[successor.index] == 0) {
+                ready.add(successor)
+            }
+        }
+    }
+    check(sorted.size == nodes.size) {
+        "@Order before/after constraints form a cycle: " +
+            findCycle(nodes.filter { inDegree[it.index] > 0 }, successors).joinToString(" -> ") { it.kClass.java.name }
+    }
+    return sorted
 }
 
-/**
- * Moves the current item to its correct position relative to items it should come before.
- *
- * This private extension function repositions the current item in the list so that it appears
- * before all items specified in the 'before' array of its Order annotation.
- *
- * @param T the type of elements in the list
- * @param current the item to reposition along with its order configuration
- */
-private fun <T : Any> MutableList<Pair<T, Order>>.moveToBefore(current: Pair<T, Order>) {
-    val beforeValues = current.second.before
-    for (beforeClass in beforeValues) {
-        val beforeIndex = indexOfFirst { it.first.getKClass() == beforeClass }
-        if (beforeIndex == -1) {
-            continue
-        }
-        val currentIndex = indexOf(current)
-        if (currentIndex < beforeIndex) {
-            continue
-        }
-        removeAt(currentIndex)
-        add(beforeIndex, current)
-    }
-}
+private class OrderNode<T : Any>(val element: T, val order: Order, val kClass: KClass<*>, val index: Int)
+
+private val ORDER_NODE_COMPARATOR: Comparator<OrderNode<*>> =
+    compareBy<OrderNode<*>> { it.order.value }.thenBy { it.index }
 
 /**
- * Moves the current item to its correct position relative to items it should come after.
- *
- * This private extension function repositions the current item in the list so that it appears
- * after all items specified in the 'after' array of its Order annotation.
- *
- * @param T the type of elements in the list
- * @param current the item to reposition along with its order configuration
+ * A cycle among [remaining], the nodes a topological sort could not place: each of them has a predecessor among them,
+ * so walking predecessors from any of them must revisit one. Returns the cycle in constraint order, closed.
  */
-private fun <T : Any> MutableList<Pair<T, Order>>.moveToAfter(current: Pair<T, Order>) {
-    val afterValues = current.second.after
-    for (afterClass in afterValues) {
-        val afterIndex = indexOfFirst { it.first.getKClass() == afterClass }
-        if (afterIndex == -1) {
-            continue
+private fun <T : Any> findCycle(
+    remaining: List<OrderNode<T>>,
+    successors: Array<LinkedHashSet<OrderNode<T>>>
+): List<OrderNode<T>> {
+    val remainingSet = remaining.toSet()
+    val predecessor = HashMap<OrderNode<T>, OrderNode<T>>()
+    for (node in remaining) {
+        for (successor in successors[node.index]) {
+            if (successor in remainingSet) {
+                predecessor.putIfAbsent(successor, node)
+            }
         }
-        val currentIndex = indexOf(current)
-        if (currentIndex > afterIndex) {
-            continue
-        }
-        add(afterIndex + 1, current)
-        removeAt(currentIndex)
     }
+    val path = LinkedHashSet<OrderNode<T>>()
+    var current = remaining.first()
+    while (path.add(current)) {
+        current = predecessor.getValue(current)
+    }
+    val cycle = path.toList().dropWhile { it !== current }.reversed()
+    return cycle + cycle.first()
 }

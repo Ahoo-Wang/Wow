@@ -59,6 +59,9 @@
         "modeling_command_on_error_probe_aggregate": {
           "type": "me.ahoo.wow.modeling.command.OnErrorProbeAggregate"
         },
+        "modeling_command_order_probe_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.OrderProbeAggregate"
+        },
         "messaging_aggregate": {
           "scopes": [
             "me.ahoo.wow.messaging"

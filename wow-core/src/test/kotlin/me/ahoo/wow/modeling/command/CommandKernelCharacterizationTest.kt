@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import reactor.core.Exceptions
-import java.lang.reflect.InvocationTargetException
 import java.time.Duration
 
 /**
@@ -230,13 +229,10 @@ class CommandKernelCharacterizationTest {
             characterize(ThrowInsideFlow("id")).assertFailed(IllegalStateException::class.java, "inside-flow")
         }
 
+        /** Changed on purpose by K2 (B10): before it, the error arrived wrapped in an InvocationTargetException. */
         @Test
-        fun `an exception thrown while creating a flow propagates as an InvocationTargetException`() {
-            val outcome = characterize(ThrowFlow("id"))
-            outcome.error.assert().isInstanceOf(InvocationTargetException::class.java)
-            (outcome.error as InvocationTargetException).targetException
-                .assert().isInstanceOf(IllegalStateException::class.java)
-            outcome.storedVersions.assert().isEmpty()
+        fun `an exception thrown while creating a flow propagates unwrapped`() {
+            characterize(ThrowFlow("id")).assertFailed(IllegalStateException::class.java, "flow")
         }
 
         @Test

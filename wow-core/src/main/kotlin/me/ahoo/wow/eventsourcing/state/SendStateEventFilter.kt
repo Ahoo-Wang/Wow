@@ -66,7 +66,8 @@ class SendStateEventFilter(
                 log.warn { "No state." }
                 return@defer next.filter(exchange)
             }
-            if (!state.initialized) {
+            // A state that failed to apply the stream stays at its previous version and is not published (B9).
+            if (!state.initialized || state.version != eventStream.version) {
                 return@defer next.filter(exchange)
             }
             val stateEvent = eventStream.copy().toStateEvent(state)

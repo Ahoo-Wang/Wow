@@ -80,6 +80,22 @@ class SendStateEventFilterTest {
         chain.invocations.assert().isEqualTo(1)
     }
 
+    /** B9: a state that failed to apply the stream stays at the previous version and is not published. */
+    @Test
+    fun `filter continues without sending when the state did not apply the event stream`() {
+        val stateEventBus = RecordingStateEventBus()
+        val chain = RecordingCommandFilterChain()
+        val exchange = commandExchange()
+            .setEventStream(eventStream(aggregateVersion = 1))
+            .setCommandAggregate(commandAggregate(version = 1))
+
+        StepVerifier.create(SendStateEventFilter(stateEventBus).filter(exchange, chain))
+            .verifyComplete()
+
+        stateEventBus.sent.assert().isEmpty()
+        chain.invocations.assert().isEqualTo(1)
+    }
+
     @Test
     fun `filter sends copied state event before continuing when state is initialized`() {
         val calls = mutableListOf<String>()
@@ -115,10 +131,10 @@ class SendStateEventFilterTest {
     private fun commandExchange(): SimpleServerCommandExchange<me.ahoo.wow.test.aggregate.GivenInitialization> =
         SimpleServerCommandExchange(GivenInitializationCommand(aggregateId))
 
-    private fun eventStream() =
+    private fun eventStream(aggregateVersion: Int = 0) =
         MockAggregateCreated("created").toDomainEventStream(
             upstream = GivenInitializationCommand(aggregateId),
-            aggregateVersion = 0,
+            aggregateVersion = aggregateVersion,
         )
 
     private fun commandAggregate(version: Int): CommandAggregate<Any, MockStateAggregate> {

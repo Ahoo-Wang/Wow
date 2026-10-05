@@ -55,3 +55,24 @@ data class IgnoredErrorEvent(
     override val errorCode: String,
     override val errorMsg: String,
 ) : ErrorInfo, IgnoreSourcing
+
+data class SourcedValue(val value: String)
+
+data class SourcingRejected(val reason: String)
+
+/** Sources [SourcedValue] and fails on [SourcingRejected]; tracks the version it is told about. */
+@Suppress("UnusedPrivateMember")
+class FailingSourcingState(val id: String) : me.ahoo.wow.api.modeling.aware.VersionAware {
+    override var version: Int = 0
+    val values: MutableList<String> = mutableListOf()
+
+    /** The aggregate version this state saw while its sourcing functions ran. */
+    val versionsSeen: MutableList<Int> = mutableListOf()
+
+    private fun onSourcing(event: SourcedValue) {
+        versionsSeen += version
+        values += event.value
+    }
+
+    private fun onSourcing(event: SourcingRejected): Unit = throw IllegalStateException(event.reason)
+}
