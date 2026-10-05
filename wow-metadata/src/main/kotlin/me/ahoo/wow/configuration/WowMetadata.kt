@@ -13,7 +13,6 @@
 package me.ahoo.wow.configuration
 
 import me.ahoo.wow.api.naming.DescriptionCapable
-import me.ahoo.wow.serialization.toJsonString
 
 /**
  * Root metadata class containing all bounded context configurations.
@@ -56,7 +55,7 @@ data class WowMetadata(
                 it.key.isNullOrBlank().not()
             }.forEach { (alias, contextNames) ->
                 check(contextNames.size == 1) {
-                    "The alias[$alias] conflicts with the bounded contexts${contextNames.toJsonString()}."
+                    "The alias[$alias] conflicts with the bounded contexts${contextNames.toJsonArray()}."
                 }
             }
     }
@@ -204,6 +203,11 @@ interface NamingScopes {
  */
 interface Merge<T> {
     fun merge(other: T): T
+}
+
+/** These names as a JSON array of strings, as the error messages have always shown them. */
+private fun List<String>.toJsonArray(): String = joinToString(separator = ",", prefix = "[", postfix = "]") { name ->
+    "\"" + name.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
 
 /**

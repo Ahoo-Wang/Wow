@@ -36,6 +36,8 @@ dependencies {
 
 这些是构建输出，不应手工编辑或提交。修改注解/领域类型后重新运行 KSP，让生成结果随源码更新。
 
+输出只取决于源码：`@Generated` 注解不带生成时间，同样的源码两次构建产出相同的文件，构建缓存可以复用。处理器依赖 `wow-metadata`（`wow-metadata.json` 的模型）和 `wow-api`，不依赖 `wow-core` 运行时，处理器的类路径上没有运行时。
+
 ## `META-INF/wow-metadata.json`
 
 资源按 context name 保存：

@@ -18,8 +18,6 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRootMetadata
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveDependencies
 import me.ahoo.wow.compiler.GeneratedFile
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 object AggregatesMetadataResolver {
     const val FILE_NAME = "AggregatesMetadata"
@@ -48,10 +46,8 @@ object AggregatesMetadataResolver {
         codeGenerator.appendLine("import me.ahoo.wow.modeling.annotation.aggregateMetadata")
         codeGenerator.appendLine("import me.ahoo.wow.api.annotation.Generated")
         codeGenerator.appendLine()
-        val generatedDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        codeGenerator.appendLine(
-            "@Generated(\"${GENERATOR_NAME}\", date = \"$generatedDate\")"
-        )
+        // No generation time: the same sources generate the same file, so builds are reproducible and cacheable.
+        codeGenerator.appendLine("@Generated(\"$GENERATOR_NAME\")")
         codeGenerator.appendLine("object $FILE_NAME {")
         aggregateMetadata.forEach {
             codeGenerator.appendLine(

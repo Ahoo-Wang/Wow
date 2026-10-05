@@ -35,6 +35,7 @@ documentation:
   - changed-files:
       - any-glob-to-any-file:
           - 'wow-core/**'
+          - 'wow-metadata/**'
 
 'area: api':
   - changed-files:

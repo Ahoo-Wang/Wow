@@ -942,62 +942,12 @@ public final class me/ahoo/wow/command/wait/chain/WaitingChainTail$Companion {
 	public static synthetic fun toWaitingChainTail$default (Lme/ahoo/wow/command/wait/chain/WaitingChainTail$Companion;Lme/ahoo/wow/command/wait/CommandStage;Lme/ahoo/wow/api/messaging/function/NamedFunctionInfoData;ILjava/lang/Object;)Lme/ahoo/wow/command/wait/chain/WaitingChainTail;
 }
 
-public final class me/ahoo/wow/configuration/Aggregate : me/ahoo/wow/configuration/Merge, me/ahoo/wow/configuration/NamingScopes {
-	public fun <init> ()V
-	public fun <init> (Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)V
-	public synthetic fun <init> (Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/util/Set;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Ljava/util/Set;
-	public final fun component6 ()Ljava/util/Set;
-	public final fun copy (Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;)Lme/ahoo/wow/configuration/Aggregate;
-	public static synthetic fun copy$default (Lme/ahoo/wow/configuration/Aggregate;Ljava/util/Set;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/configuration/Aggregate;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCommands ()Ljava/util/Set;
-	public final fun getEvents ()Ljava/util/Set;
-	public final fun getId ()Ljava/lang/String;
-	public fun getScopes ()Ljava/util/Set;
-	public final fun getTenantId ()Ljava/lang/String;
-	public final fun getType ()Ljava/lang/String;
-	public fun hashCode ()I
-	public synthetic fun merge (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun merge (Lme/ahoo/wow/configuration/Aggregate;)Lme/ahoo/wow/configuration/Aggregate;
-	public fun toString ()Ljava/lang/String;
-}
-
 public abstract interface class me/ahoo/wow/configuration/AggregateSearcher {
 }
 
 public final class me/ahoo/wow/configuration/AggregateSearcherKt {
 	public static final fun toNamedAggregateTypeSearcher (Lme/ahoo/wow/configuration/WowMetadata;)Lme/ahoo/wow/configuration/NamedAggregateTypeSearcher;
 	public static final fun toTypeNamedAggregateSearcher (Lme/ahoo/wow/configuration/WowMetadata;)Lme/ahoo/wow/configuration/TypeNamedAggregateSearcher;
-}
-
-public final class me/ahoo/wow/configuration/BoundedContext : me/ahoo/wow/api/naming/DescriptionCapable, me/ahoo/wow/configuration/Merge, me/ahoo/wow/configuration/NamingScopes {
-	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Map;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/util/Set;
-	public final fun component4 ()Ljava/util/Map;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Map;)Lme/ahoo/wow/configuration/BoundedContext;
-	public static synthetic fun copy$default (Lme/ahoo/wow/configuration/BoundedContext;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/configuration/BoundedContext;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAggregates ()Ljava/util/Map;
-	public final fun getAlias ()Ljava/lang/String;
-	public fun getDescription ()Ljava/lang/String;
-	public fun getScopes ()Ljava/util/Set;
-	public fun hashCode ()I
-	public synthetic fun merge (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun merge (Lme/ahoo/wow/configuration/BoundedContext;)Lme/ahoo/wow/configuration/BoundedContext;
-	public fun toString ()Ljava/lang/String;
-}
-
-public abstract interface class me/ahoo/wow/configuration/Merge {
-	public abstract fun merge (Ljava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/configuration/MetadataSearcher {
@@ -1063,16 +1013,6 @@ public final class me/ahoo/wow/configuration/NamedAggregateTypeSearcher : java/u
 	public fun replaceAll (Ljava/util/function/BiFunction;)V
 	public final fun size ()I
 	public final fun values ()Ljava/util/Collection;
-}
-
-public abstract interface class me/ahoo/wow/configuration/NamingScopes {
-	public abstract fun getScopes ()Ljava/util/Set;
-}
-
-public final class me/ahoo/wow/configuration/ScopeComparator : java/util/Comparator {
-	public static final field INSTANCE Lme/ahoo/wow/configuration/ScopeComparator;
-	public synthetic fun compare (Ljava/lang/Object;Ljava/lang/Object;)I
-	public fun compare (Ljava/lang/String;Ljava/lang/String;)I
 }
 
 public final class me/ahoo/wow/configuration/ScopeContextSearcher : java/util/SortedMap, me/ahoo/wow/configuration/ScopeSearcher {
@@ -1159,16 +1099,6 @@ public final class me/ahoo/wow/configuration/ScopeNamedAggregateSearcher : java/
 	public final fun values ()Ljava/util/Collection;
 }
 
-public abstract interface class me/ahoo/wow/configuration/ScopeSearcher : java/util/SortedMap {
-	public fun requiredSearch (Ljava/lang/String;)Ljava/lang/Object;
-	public fun search (Ljava/lang/String;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/configuration/ScopeSearcher$DefaultImpls {
-	public static fun requiredSearch (Lme/ahoo/wow/configuration/ScopeSearcher;Ljava/lang/String;)Ljava/lang/Object;
-	public static fun search (Lme/ahoo/wow/configuration/ScopeSearcher;Ljava/lang/String;)Ljava/lang/Object;
-}
-
 public final class me/ahoo/wow/configuration/ScopeSearcherKt {
 	public static final fun toScopeContextSearcher (Lme/ahoo/wow/configuration/WowMetadata;)Lme/ahoo/wow/configuration/ScopeContextSearcher;
 	public static final fun toScopeNamedAggregateSearcher (Lme/ahoo/wow/configuration/WowMetadata;)Lme/ahoo/wow/configuration/ScopeNamedAggregateSearcher;
@@ -1214,21 +1144,6 @@ public final class me/ahoo/wow/configuration/TypeNamedAggregateSearcher : java/u
 	public fun replaceAll (Ljava/util/function/BiFunction;)V
 	public final fun size ()I
 	public final fun values ()Ljava/util/Collection;
-}
-
-public final class me/ahoo/wow/configuration/WowMetadata : me/ahoo/wow/configuration/Merge {
-	public fun <init> ()V
-	public fun <init> (Ljava/util/Map;)V
-	public synthetic fun <init> (Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/util/Map;
-	public final fun copy (Ljava/util/Map;)Lme/ahoo/wow/configuration/WowMetadata;
-	public static synthetic fun copy$default (Lme/ahoo/wow/configuration/WowMetadata;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/configuration/WowMetadata;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getContexts ()Ljava/util/Map;
-	public fun hashCode ()I
-	public synthetic fun merge (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun merge (Lme/ahoo/wow/configuration/WowMetadata;)Lme/ahoo/wow/configuration/WowMetadata;
-	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/configuration/WowResource {
@@ -4283,12 +4198,6 @@ public final class me/ahoo/wow/naming/AppendSuffixNamingConverter : me/ahoo/wow/
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/naming/CamelCaseStrategy : me/ahoo/wow/naming/NamingStrategy, me/ahoo/wow/naming/Tokenizer {
-	public static final field INSTANCE Lme/ahoo/wow/naming/CamelCaseStrategy;
-	public fun segment (Ljava/lang/String;)Ljava/util/List;
-	public fun transform (Ljava/util/List;)Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/naming/CompositeNamingConverter : me/ahoo/wow/infra/Decorator, me/ahoo/wow/naming/NamingConverter {
 	public fun <init> (Lme/ahoo/wow/naming/NamingConverter;Lme/ahoo/wow/naming/Tokenizer;Lme/ahoo/wow/naming/NamingStrategy;)V
 	public final fun component1 ()Lme/ahoo/wow/naming/NamingConverter;
@@ -4337,20 +4246,6 @@ public final class me/ahoo/wow/naming/IgnoreSuffixNamingConverter : me/ahoo/wow/
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/naming/KebabCaseStrategy : me/ahoo/wow/naming/NamingStrategy, me/ahoo/wow/naming/Tokenizer {
-	public static final field INSTANCE Lme/ahoo/wow/naming/KebabCaseStrategy;
-	public static final field SEPARATOR Ljava/lang/String;
-	public fun segment (Ljava/lang/String;)Ljava/util/List;
-	public fun transform (Ljava/util/List;)Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/naming/LowerDotCaseStrategy : me/ahoo/wow/naming/NamingStrategy, me/ahoo/wow/naming/Tokenizer {
-	public static final field INSTANCE Lme/ahoo/wow/naming/LowerDotCaseStrategy;
-	public static final field SEPARATOR Ljava/lang/String;
-	public fun segment (Ljava/lang/String;)Ljava/util/List;
-	public fun transform (Ljava/util/List;)Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/naming/MaterializedNamedBoundedContext : me/ahoo/wow/api/naming/Materialized, me/ahoo/wow/api/naming/NamedBoundedContext {
 	public fun <init> (Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -4379,20 +4274,6 @@ public final class me/ahoo/wow/naming/NamingConverter$Companion {
 	public final fun pascalToSnake (Ljava/lang/String;)Ljava/lang/String;
 }
 
-public abstract interface class me/ahoo/wow/naming/NamingStrategy {
-	public abstract fun transform (Ljava/util/List;)Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/naming/NamingStrategyKt {
-	public static final fun getUPPERCASE_SEPARATOR_PATTERN ()Ljava/util/regex/Pattern;
-}
-
-public final class me/ahoo/wow/naming/PascalCaseStrategy : me/ahoo/wow/naming/NamingStrategy, me/ahoo/wow/naming/Tokenizer {
-	public static final field INSTANCE Lme/ahoo/wow/naming/PascalCaseStrategy;
-	public fun segment (Ljava/lang/String;)Ljava/util/List;
-	public fun transform (Ljava/util/List;)Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/naming/SimpleNamingConverter : me/ahoo/wow/naming/NamingConverter {
 	public fun <init> (Lme/ahoo/wow/naming/Tokenizer;Lme/ahoo/wow/naming/NamingStrategy;)V
 	public fun convert (Ljava/lang/String;)Ljava/lang/String;
@@ -4401,17 +4282,6 @@ public final class me/ahoo/wow/naming/SimpleNamingConverter : me/ahoo/wow/naming
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/naming/SnakeCaseStrategy : me/ahoo/wow/naming/NamingStrategy, me/ahoo/wow/naming/Tokenizer {
-	public static final field INSTANCE Lme/ahoo/wow/naming/SnakeCaseStrategy;
-	public static final field SEPARATOR Ljava/lang/String;
-	public fun segment (Ljava/lang/String;)Ljava/util/List;
-	public fun transform (Ljava/util/List;)Ljava/lang/String;
-}
-
-public abstract interface class me/ahoo/wow/naming/Tokenizer {
-	public abstract fun segment (Ljava/lang/String;)Ljava/util/List;
 }
 
 public final class me/ahoo/wow/naming/annotation/PascalToSnakeConverter {

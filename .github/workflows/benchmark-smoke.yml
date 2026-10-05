@@ -24,6 +24,7 @@ on:
       - 'wow-dependencies/**'
       - 'wow-benchmarks/**'
       - 'wow-core/**'
+      - 'wow-metadata/**'
       - 'wow-api/**'
       - 'wow-webflux/**'
       - 'wow-mongo/**'

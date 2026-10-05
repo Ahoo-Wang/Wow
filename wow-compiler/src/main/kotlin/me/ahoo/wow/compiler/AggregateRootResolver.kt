@@ -21,7 +21,6 @@ import com.google.devtools.ksp.symbol.KSFile
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.naming.NamingConverter
 
 object AggregateRootResolver {
     val AGGREGATE_ROOT_NAME = AggregateRoot::class.qualifiedName!!
@@ -29,7 +28,7 @@ object AggregateRootResolver {
     @OptIn(KspExperimental::class)
     fun KSClassDeclaration.toName(): String {
         return getAnnotationsByType(Name::class).firstOrNull()?.value
-            ?: NamingConverter.PASCAL_TO_SNAKE.convert(simpleName.asString())
+            ?: simpleName.asString().pascalToSnake()
     }
 
     fun KSClassDeclaration.resolveAggregateRootMetadata(): AggregateRootMetadata {

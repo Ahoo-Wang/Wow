@@ -1,7 +1,9 @@
 description = "Wow Symbol Processing"
 
 dependencies {
-    implementation(project(":wow-core"))
+    implementation(project(":wow-metadata"))
+    implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
     implementation(libs.ksp.symbol.processing.api)
     testImplementation(libs.kotlin.compile.testing)
     testImplementation(libs.ksp.symbol.processing)

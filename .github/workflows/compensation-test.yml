@@ -24,6 +24,7 @@ on:
       - 'config/**'
       - 'wow-api/**'
       - 'wow-core/**'
+      - 'wow-metadata/**'
       - 'wow-query/**'
       - 'wow-spring/**'
       - 'wow-compiler/**'

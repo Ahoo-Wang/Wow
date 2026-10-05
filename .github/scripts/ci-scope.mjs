@@ -138,7 +138,7 @@ const RULES = [
   // the dependency versions (a Jackson bump can change the JSON): the
   // same-source contract and the mixed-version test.
   [
-    /^(?:wow-(?:api|core|kafka|redis|mongo|webflux|spring|spring-boot-starter)|example\/example-(?:api|domain|server)|gradle)\//,
+    /^(?:wow-(?:api|core|metadata|kafka|redis|mongo|webflux|spring|spring-boot-starter)|example\/example-(?:api|domain|server)|gradle)\//,
     [CONTRACT, MIXED_VERSION],
   ],
   // The mixed-version harness and the container images it shares with the
