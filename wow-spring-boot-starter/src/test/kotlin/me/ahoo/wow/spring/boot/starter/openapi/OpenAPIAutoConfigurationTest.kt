@@ -59,14 +59,18 @@ class OpenAPIAutoConfigurationTest {
             .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
                 context.getBean(RouterSpecs::class.java).toRouteCatalog().routes.assert().isNotEmpty()
-                context.getBean(OpenAPIComponentContext::class.java).responses.assert().isEmpty()
+                val componentContext = context.getBean(OpenAPIComponentContext::class.java)
+                componentContext.responses.assert().isEmpty()
+                componentContext.schemas.assert().isEmpty()
             }
         contextRunner
             .enableWow()
             .withClassLoader(FilteredClassLoader("org.springdoc.core.customizers.OpenApiCustomizer"))
             .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
-                context.getBean(OpenAPIComponentContext::class.java).responses.assert().isEmpty()
+                val componentContext = context.getBean(OpenAPIComponentContext::class.java)
+                componentContext.responses.assert().isEmpty()
+                componentContext.schemas.assert().isEmpty()
             }
     }
 

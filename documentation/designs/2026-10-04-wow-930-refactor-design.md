@@ -151,7 +151,7 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 | Q3 | **BI 类型事实**：先写对齐测试，比较 BI 解析出的属性（名称、类型、可空性）与 `JsonQueryModelSource` 的类型事实；BI 遵守 `@Sensitive`（开关，§8 Q11） | 内部；`@Sensitive` 为可选行为 | `expected_bi_*_script.sql` 逐字节不变（开关关闭时） | S |
 | E1 | **唯一的错误生成器**：SSE 错误帧和批量结果走同一个 `WebFluxErrorStrategy`，意外异常统一为 `InternalServerError` 并隐藏消息；弃用无人调用的 `toResponseEntity`/`toServerResponse` | 行为变化（只影响意外异常的 SSE/批量错误码，§8 Q8） | 错误码黄金表；意外异常的 SSE 测试 | S |
 | E2 | **远程 IP**：用地址字面量代替会阻塞事件循环的反向 DNS；X-Forwarded-For 选择写直白（结果不变） | 行为变化（`remote_ip` 从主机名变为 IP，§8 Q8） | appender 测试；G2 的 appender 基准 | S |
-| E3 | **契约与渲染分离**：贡献者只产出符号化的 schema 引用，OpenAPI 渲染时才注册组件，路由构建不再触碰 swagger。**先测启动耗时**，有收益才做（实测：example 域冷启动 `RouterSpecs.build()` 1083 ms，其中组件生成 635 ms（59%）；合成 100 聚合域 4583 ms，其中 2040 ms（45%）。已做：路由目录不生成 schema，文档提供时才生成；不提供文档时冷启动降到 597 ms / 2954 ms） | 内部 | 两份 OpenAPI/契约快照逐字节不变 | M |
+| E3 | **契约与渲染分离**：贡献者只产出符号化的 schema 引用，OpenAPI 渲染时才注册组件，路由构建不再触碰 swagger。**先测启动耗时**，有收益才做（实测：example 域冷启动 `RouterSpecs.build()` 1083 ms，其中组件生成 635 ms（59%）；合成 100 聚合域 4583 ms，其中 2040 ms（45%）。已做（与上文设想不同，更简单）：贡献者不变；路由目录用一个什么都不生成的组件上下文构建（不生成 schema、不注册组件）；带 schema 的文档目录只在提供 OpenAPI 文档时（Springdoc 存在且 `wow.openapi.enabled` 不为 false）于启动时构建，路由随后复用它。不提供文档时冷启动降到 597 ms / 2954 ms） | 内部 | 两份 OpenAPI/契约快照逐字节不变 | M |
 | E4 | **跨语言契约**：`RouteSuffixes` 一处定义，贡献者与 apiclient 共用；TS 测试改为读契约快照核对 `endpointPaths.ts` 与请求头名，不再正则解析 Kotlin 源文件；在 `RouteIdSpec` 上注明它是 wow-generator 的契约；apiclient 用共享的请求头值对象收拢 14 个重复参数（新方法） | 内部 + API 新增 | 契约快照不变；新 TS 测试 | S |
 | E5 | **KSP**：`wow-compiler` 只依赖元数据模型（§8 Q12），去掉生成代码里的 `LocalDateTime.now()`，构建可复现 | 内部（构建） | KSP 测试；两次构建产物一致 | S |
 
