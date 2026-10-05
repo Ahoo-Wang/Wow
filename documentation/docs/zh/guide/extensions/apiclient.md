@@ -64,7 +64,7 @@ interface CartQueryClient : ReactiveSnapshotQueryApi<CartData>
 
 `ReactiveSnapshotQueryApi<S>` 组合 single、list、paged、count 接口。其继承的 `@PostExchange` 路径都相对 `@HttpExchange`：`snapshot/single`、`snapshot/list`、`snapshot/paged`、`snapshot/count`，以及仅状态变体。
 
-自 9.3.0 起，响应式与同步查询接口以具体返回类型（`Mono<MaterializedSnapshot<S>>`、`List<S>` 等）重新声明了每个查询方法，HTTP 接口代理无需客户端重新声明即可把响应读成客户端的状态类型。9.3.0 之前代理只看到基础接口的泛型 `R`：响应式调用解码失败（`Type definition error: Mono`），同步调用把状态读成 `Map`，除非客户端自己重新声明方法。
+自 9.2.4 起，响应式与同步查询接口以具体返回类型（`Mono<MaterializedSnapshot<S>>`、`List<S>` 等）重新声明了每个查询方法，HTTP 接口代理无需客户端重新声明即可把响应读成客户端的状态类型。9.2.4 之前代理只看到基础接口的泛型 `R`：响应式调用解码失败（`Type definition error: Mono`），同步调用把状态读成 `Map`，除非客户端自己重新声明方法。
 
 `@HttpExchange("cart")` 调用基础无作用域快照查询变体。调用 tenant/owner 作用域变体时，应通过应用自有接口或路由层绑定生成路径并提供所需值。基础路由必须被显式保护；选择作用域客户端路径并不等于授权。不要猜测带 context 前缀的 URL，应检查服务端 OpenAPI。
 
