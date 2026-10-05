@@ -14,6 +14,9 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDatePart
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
@@ -27,6 +30,7 @@ import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExpressionFilter
@@ -148,6 +152,80 @@ class QueryFingerprintTest {
         val otherHaving = secret.copy(having = HavingExpression.Condition("secretAlias", ComparisonOperator.LT, 1.0))
         fingerprintOf(QueryType.AGGREGATION, otherHaving).assert()
             .isNotEqualTo(fingerprintOf(QueryType.AGGREGATION, secret))
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `every aggregation node kind is its own shape`() {
+        val region = QueryField("state.region")
+        val total = AggregationMetric.Count("total")
+        val byRegion = AggregationGroup.Terms(region, "region")
+        fun shapeOf(
+            groupBy: List<AggregationGroup> = emptyList(),
+            metrics: List<AggregationMetric> = listOf(total),
+            having: HavingExpression? = null,
+            elements: List<AggregationElement> = emptyList(),
+        ) = fingerprintOf(
+            QueryType.AGGREGATION,
+            AggregationQuery(groupBy = groupBy, metrics = metrics, having = having, elements = elements),
+        )
+        val dateDiff = AggregationExpression.DateDiff(createTime, QueryField("updateTime"), DateDiffUnit.DAY)
+        val shapes = listOf(
+            shapeOf(),
+            shapeOf(groupBy = listOf(AggregationGroup.Terms(region, "region"))),
+            shapeOf(groupBy = listOf(AggregationGroup.Terms(region, "region", missingKey = "none"))),
+            shapeOf(groupBy = listOf(AggregationGroup.Terms(alias = "days", expression = dateDiff))),
+            shapeOf(groupBy = listOf(AggregationGroup.Histogram(amount, "bucket", interval = 10.0))),
+            shapeOf(
+                groupBy = listOf(AggregationGroup.Histogram(alias = "bucket", interval = 10.0, expression = dateDiff))
+            ),
+            shapeOf(groupBy = listOf(AggregationGroup.DateHistogram(createTime, "month", AggregationDateUnit.MONTH))),
+            shapeOf(
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(createTime, "month", AggregationDateUnit.MONTH, dense = true)
+                ),
+            ),
+            shapeOf(
+                groupBy = listOf(AggregationGroup.DatePart(createTime, "weekday", AggregationDatePart.DAY_OF_WEEK))
+            ),
+            shapeOf(
+                groupBy = listOf(
+                    AggregationGroup.DatePart(createTime, "weekday", AggregationDatePart.DAY_OF_WEEK, dense = true),
+                ),
+            ),
+            shapeOf(metrics = listOf(AggregationMetric.Any(region, "anyRegion"))),
+            shapeOf(metrics = listOf(AggregationMetric.DistinctCount(AggregationExpression.Field(region), "regions"))),
+            shapeOf(metrics = listOf(AggregationMetric.First(amount, "first", orderBy = createTime))),
+            shapeOf(metrics = listOf(AggregationMetric.Last(amount, "last"))),
+            shapeOf(
+                metrics = listOf(
+                    AggregationMetric.Numeric(
+                        AggregationFunction.AVG,
+                        AggregationExpression.Binary(
+                            AggregationExpressionOperator.DIVIDE,
+                            AggregationExpression.Field(amount),
+                            AggregationExpression.Constant(2.0),
+                        ),
+                        "half",
+                    ),
+                ),
+            ),
+            shapeOf(metrics = listOf(AggregationMetric.Numeric(AggregationFunction.MAX, dateDiff, "longest"))),
+            shapeOf(groupBy = listOf(byRegion), having = HavingExpression.IsNull("total")),
+            shapeOf(groupBy = listOf(byRegion), having = HavingExpression.IsNull("total", negated = true)),
+            shapeOf(groupBy = listOf(byRegion), having = HavingExpression.Or(listOf(HavingExpression.IsNull("total")))),
+            shapeOf(elements = listOf(AggregationElement(QueryField("state.items")))),
+        )
+
+        shapes.toSet().assert().hasSize(shapes.size)
+        queryShapeOf(
+            QueryType.AGGREGATION,
+            AggregationQuery(
+                groupBy = listOf(byRegion),
+                metrics = listOf(total),
+                having = HavingExpression.IsNull("total", negated = true),
+            ),
+        ).assert().contains("IS_NOT_NULL")
     }
 
     @Test

@@ -1,9 +1,11 @@
 package me.ahoo.wow.compensation.domain
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.api.RetrySpec
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import reactor.core.publisher.Flux
 
 class DefaultNextRetryAtCalculatorTest {
     companion object {
@@ -30,6 +32,32 @@ class DefaultNextRetryAtCalculatorTest {
     fun `should calculate next retry at given retry count 2`() {
         val nextRetryAt = DefaultNextRetryAtCalculator.nextRetryAt(testRetrySpec.minBackoff, 2, 0)
         nextRetryAt.assert().isEqualTo(testRetrySpec.minBackoff * 1000L * 4)
+    }
+
+    @Test
+    fun `without an explicit time the next retry is computed from now`() {
+        val before = System.currentTimeMillis()
+
+        val nextRetryAt = DefaultNextRetryAtCalculator.nextRetryAt(testRetrySpec.minBackoff, 0)
+        val retryState = DefaultNextRetryAtCalculator.nextRetryState(testRetrySpec, 0)
+
+        nextRetryAt.assert().isGreaterThanOrEqualTo(before + testRetrySpec.minBackoff * 1000L)
+        retryState.retryAt.assert().isGreaterThanOrEqualTo(before)
+        retryState.timeoutAt.assert().isEqualTo(retryState.retryAt + testRetrySpec.executionTimeout * 1000L)
+    }
+
+    @Test
+    fun `finding the next retries asks for ten by default`() {
+        var requested = 0
+        val finder = object : FindNextRetry {
+            override fun findNextRetry(limit: Int): Flux<out IExecutionFailedState> {
+                requested = limit
+                return Flux.empty()
+            }
+        }
+
+        finder.findNextRetry().collectList().block()
+        requested.assert().isEqualTo(10)
     }
 
     @Test
