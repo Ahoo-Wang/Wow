@@ -121,7 +121,7 @@ WOW_MIXED_CURRENT_HOME=$home WOW_MIXED_PREVIOUS_HOME=$home \
 test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
 ```
 
-分层报告分别位于同名 `localCoverageReport`、`contractCoverageReport` 和 `integrationCoverageReport` 目录。PR 工作流以 `local`、`contract`、`integration` flag 分别上传；`main` 或手动触发的 `Codecov` 工作流用 `codeCoverageReport` 上传 `full` flag。
+分层报告分别位于同名 `localCoverageReport`、`contractCoverageReport` 和 `integrationCoverageReport` 目录。PR 上传 `local`、`contract` 与 `integration` flag：变更的 main 代码须覆盖 90%（Codecov patch 状态），每个发布的 Kotlin 模块是一个 Codecov component，按这三个 flag 计算，覆盖率下降不得超过 1%。`main` 或手动触发的 `Codecov` 工作流用 `codeCoverageReport` 上传 `full` flag，并同时上传 `contract` 与 `integration` 层，使它们在 `main` 上也有数据。
 
 `:example-domain`、`:example-transfer-domain` 和 `:wow-compensation-domain` 当前各自配置 `0.8` 的 Jacoco verification 下限。该阈值仅在显式运行对应的 `jacocoTestCoverageVerification` 任务时执行；这些模块的 `check` 与当前 CI 工作流都没有自动挂载 verification task。它是可选择执行的仓库门禁，不是 Wow 对业务应用覆盖率的保证。覆盖率只表示执行过代码，不能替代事件、状态、拒绝和恢复断言。
 
