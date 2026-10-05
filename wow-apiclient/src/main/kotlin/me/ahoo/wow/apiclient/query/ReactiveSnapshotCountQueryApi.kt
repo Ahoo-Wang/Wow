@@ -15,9 +15,14 @@ package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.FilterExpression
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Mono
 
-interface ReactiveSnapshotCountQueryApi : SnapshotCountQueryApi<Mono<Long>>
+interface ReactiveSnapshotCountQueryApi : SnapshotCountQueryApi<Mono<Long>> {
+    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
+    override fun count(@RequestBody filter: FilterExpression): Mono<Long>
+}
 
 fun FilterExpression.count(snapshotQueryApi: ReactiveSnapshotCountQueryApi): Mono<Long> {
     return snapshotQueryApi.count(this)

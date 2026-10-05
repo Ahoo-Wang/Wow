@@ -14,7 +14,10 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Mono
 
 interface ReactiveSnapshotCursorQueryApi<S : Any> :
@@ -22,4 +25,13 @@ interface ReactiveSnapshotCursorQueryApi<S : Any> :
         Mono<CursorPage<MaterializedSnapshot<S>>>,
         Mono<CursorPage<Map<String, Any>>>,
         Mono<CursorPage<S>>,
-        >
+        > {
+    @PostExchange(SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME)
+    override fun cursor(@RequestBody query: ICursorQuery): Mono<CursorPage<MaterializedSnapshot<S>>>
+
+    @PostExchange(SNAPSHOT_CURSOR_QUERY_RESOURCE_NAME)
+    override fun dynamicCursor(@RequestBody query: ICursorQuery): Mono<CursorPage<Map<String, Any>>>
+
+    @PostExchange(SNAPSHOT_CURSOR_QUERY_STATE_RESOURCE_NAME)
+    override fun cursorState(@RequestBody query: ICursorQuery): Mono<CursorPage<S>>
+}

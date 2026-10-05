@@ -16,9 +16,20 @@ package me.ahoo.wow.apiclient.query
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 
 interface SynchronousSnapshotPagedQueryApi<S : Any> :
-    SnapshotPagedQueryApi<PagedList<MaterializedSnapshot<S>>, PagedList<Map<String, Any>>, PagedList<S>>
+    SnapshotPagedQueryApi<PagedList<MaterializedSnapshot<S>>, PagedList<Map<String, Any>>, PagedList<S>> {
+    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
+    override fun paged(@RequestBody pagedQuery: IPagedQuery): PagedList<MaterializedSnapshot<S>>
+
+    @PostExchange(SNAPSHOT_PAGED_QUERY_RESOURCE_NAME)
+    override fun dynamicPaged(@RequestBody pagedQuery: IPagedQuery): PagedList<Map<String, Any>>
+
+    @PostExchange(SNAPSHOT_PAGED_QUERY_STATE_RESOURCE_NAME)
+    override fun pagedState(@RequestBody pagedQuery: IPagedQuery): PagedList<S>
+}
 
 fun <S : Any> IPagedQuery.query(snapshotQueryApi: SynchronousSnapshotPagedQueryApi<S>): PagedList<MaterializedSnapshot<S>> {
     return snapshotQueryApi.paged(this)

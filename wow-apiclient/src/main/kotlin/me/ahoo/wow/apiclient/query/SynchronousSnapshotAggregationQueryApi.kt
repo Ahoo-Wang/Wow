@@ -14,8 +14,13 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.AggregationQuery
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.service.annotation.PostExchange
 
-interface SynchronousSnapshotAggregationQueryApi : SnapshotAggregationQueryApi<List<Map<String, Any?>>>
+interface SynchronousSnapshotAggregationQueryApi : SnapshotAggregationQueryApi<List<Map<String, Any?>>> {
+    @PostExchange(SNAPSHOT_AGGREGATION_RESOURCE_NAME)
+    override fun aggregate(@RequestBody query: AggregationQuery): List<Map<String, Any?>>
+}
 
 fun AggregationQuery.query(snapshotQueryApi: SynchronousSnapshotAggregationQueryApi): List<Map<String, Any?>> {
     return snapshotQueryApi.aggregate(this)
