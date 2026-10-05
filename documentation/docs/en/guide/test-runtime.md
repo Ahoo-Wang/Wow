@@ -121,7 +121,7 @@ The aggregate XML is written to:
 test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
 ```
 
-Layer reports are written under the matching `localCoverageReport`, `contractCoverageReport`, and `integrationCoverageReport` directories. Pull-request workflows upload separate `local`, `contract`, and `integration` flags. The `Codecov` workflow on `main` or manual dispatch uses `codeCoverageReport` to upload the `full` flag.
+Layer reports are written under the matching `localCoverageReport`, `contractCoverageReport`, and `integrationCoverageReport` directories. Pull requests upload only the `local` flag: changed main code must be 90% covered by local tests (Codecov patch status), and each published Kotlin module is a Codecov component whose coverage may not drop by more than 1%. The `Codecov` workflow on `main` or manual dispatch uses `codeCoverageReport` to upload the `full` flag, which includes the contract and integration layers.
 
 `:example-domain`, `:example-transfer-domain`, and `:wow-compensation-domain` currently configure a `0.8` Jacoco verification minimum. The threshold runs only when the corresponding `jacocoTestCoverageVerification` task is invoked explicitly; these modules' `check` tasks and the current CI workflows do not attach a verification task automatically. It is an optional repository gate, not a Wow coverage guarantee for business applications. Coverage shows executed code and cannot replace assertions about events, state, rejection, and recovery.
 
@@ -211,8 +211,8 @@ Follow three rules:
 | Workflow | Current command |
 | --- | --- |
 | `Local Test` | `allLocalTest` + `localCoverageReport` |
-| `Contract Test` | `allContractTest` + `contractCoverageReport` |
-| `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
+| `Contract Test` | `allContractTest` |
+| `Integration Test` | `allIntegrationTest` |
 | `Mixed-Version` | `:example-server:installDist` + `:wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'` with the released image |
 | `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
 | `Codecov` | `codeCoverageReport` |

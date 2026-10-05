@@ -121,7 +121,7 @@ WOW_MIXED_CURRENT_HOME=$home WOW_MIXED_PREVIOUS_HOME=$home \
 test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
 ```
 
-分层报告分别位于同名 `localCoverageReport`、`contractCoverageReport` 和 `integrationCoverageReport` 目录。PR 工作流以 `local`、`contract`、`integration` flag 分别上传；`main` 或手动触发的 `Codecov` 工作流用 `codeCoverageReport` 上传 `full` flag。
+分层报告分别位于同名 `localCoverageReport`、`contractCoverageReport` 和 `integrationCoverageReport` 目录。PR 只上传 `local` flag：变更的 main 代码须被本地测试覆盖 90%（Codecov patch 状态），每个发布的 Kotlin 模块是一个 Codecov component，覆盖率下降不得超过 1%。`main` 或手动触发的 `Codecov` 工作流用 `codeCoverageReport` 上传 `full` flag，其中包含契约与集成测试层。
 
 `:example-domain`、`:example-transfer-domain` 和 `:wow-compensation-domain` 当前各自配置 `0.8` 的 Jacoco verification 下限。该阈值仅在显式运行对应的 `jacocoTestCoverageVerification` 任务时执行；这些模块的 `check` 与当前 CI 工作流都没有自动挂载 verification task。它是可选择执行的仓库门禁，不是 Wow 对业务应用覆盖率的保证。覆盖率只表示执行过代码，不能替代事件、状态、拒绝和恢复断言。
 
@@ -211,8 +211,8 @@ WebFlux suite 不启动真实 Netty server。当前 `benchmarkQuickInfrastructur
 | 工作流 | 当前命令 |
 | --- | --- |
 | `Local Test` | `allLocalTest` + `localCoverageReport` |
-| `Contract Test` | `allContractTest` + `contractCoverageReport` |
-| `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
+| `Contract Test` | `allContractTest` |
+| `Integration Test` | `allIntegrationTest` |
 | `Mixed-Version` | `:example-server:installDist` + 使用已发布镜像运行 `:wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'` |
 | `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
 | `Codecov` | `codeCoverageReport` |

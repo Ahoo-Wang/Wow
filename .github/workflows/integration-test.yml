@@ -42,7 +42,6 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
-  id-token: write
 env:
   CI: GITHUB_ACTIONS
 
@@ -65,17 +64,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run integration tests with coverage
-        run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
-
-      - name: Upload integration coverage
-        uses: codecov/codecov-action@v7
-        if: success()
-        with:
-          use_oidc: true
-          flags: integration
-          name: integration-tests
-          fail_ci_if_error: true
-          verbose: true
-          disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
+      # Coverage is reported by local-test.yml (pull requests: changed code must be covered by local tests)
+      # and codecov.yml (main: every layer). A integration-only upload never reached main and showed 0%.
+      - name: Run integration tests
+        run: ./gradlew allIntegrationTest --stacktrace

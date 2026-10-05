@@ -12,9 +12,10 @@ coverage:
   round: down
   precision: 2
   status:
+    # Changed and new main code must be covered by the tests that run on the pull request (local tests).
     patch:
       default:
-        target: 60%
+        target: 90%
         threshold: 1%
     project:
       default:
@@ -28,15 +29,15 @@ ignore:
   - "test/wow-it/.*"
   - "test/wow-tck/.*"
   - "test/wow-test/.*"
-  - "wow-api/.*"
-  - "wow-apiclient/.*"
   - "example/example-api/.*"
   - "example/transfer/example-transfer-api/.*"
-# One Codecov component per TypeScript package, so a drop in one package isn't
-# hidden by the others under the shared `typescript` flag. Each component gets
-# its own project status against its own previous coverage. Each package also
-# uploads under its own `typescript-<package>` flag, so a pull request that
-# tests only some packages carries the others' coverage forward.
+# One Codecov component per published Kotlin module and per TypeScript package,
+# so a drop in one module or package isn't hidden by the others. Each component
+# gets its own project status against its own previous coverage. Each TypeScript
+# package also uploads under its own `typescript-<package>` flag, so a pull
+# request that tests only some packages carries the others' coverage forward.
+# Test kits (wow-test, wow-tck, wow-mock, wow-it) and examples are ignored above
+# or have no component.
 component_management:
   default_rules:
     statuses:
@@ -44,6 +45,110 @@ component_management:
         target: auto
         threshold: 1%
   individual_components:
+    - component_id: wow-api
+      name: wow-api
+      paths:
+        - wow-api/src/main/**
+    - component_id: wow-metadata
+      name: wow-metadata
+      paths:
+        - wow-metadata/src/main/**
+    - component_id: wow-core
+      name: wow-core
+      paths:
+        - wow-core/src/main/**
+    - component_id: wow-compiler
+      name: wow-compiler
+      paths:
+        - wow-compiler/src/main/**
+    - component_id: wow-spring
+      name: wow-spring
+      paths:
+        - wow-spring/src/main/**
+    - component_id: wow-spring-boot-starter
+      name: wow-spring-boot-starter
+      paths:
+        - wow-spring-boot-starter/src/main/**
+    - component_id: wow-query
+      name: wow-query
+      paths:
+        - wow-query/src/main/**
+    - component_id: wow-schema
+      name: wow-schema
+      paths:
+        - wow-schema/src/main/**
+    - component_id: wow-openapi
+      name: wow-openapi
+      paths:
+        - wow-openapi/src/main/**
+    - component_id: wow-bi
+      name: wow-bi
+      paths:
+        - wow-bi/src/main/**
+    - component_id: wow-models
+      name: wow-models
+      paths:
+        - wow-models/src/main/**
+    - component_id: wow-kafka
+      name: wow-kafka
+      paths:
+        - wow-kafka/src/main/**
+    - component_id: wow-mongo
+      name: wow-mongo
+      paths:
+        - wow-mongo/src/main/**
+    - component_id: wow-redis
+      name: wow-redis
+      paths:
+        - wow-redis/src/main/**
+    - component_id: wow-elasticsearch
+      name: wow-elasticsearch
+      paths:
+        - wow-elasticsearch/src/main/**
+    - component_id: wow-webflux
+      name: wow-webflux
+      paths:
+        - wow-webflux/src/main/**
+    - component_id: wow-opentelemetry
+      name: wow-opentelemetry
+      paths:
+        - wow-opentelemetry/src/main/**
+    - component_id: wow-cosec
+      name: wow-cosec
+      paths:
+        - wow-cosec/src/main/**
+    - component_id: wow-cocache
+      name: wow-cocache
+      paths:
+        - wow-cocache/src/main/**
+    - component_id: wow-apiclient
+      name: wow-apiclient
+      paths:
+        - wow-apiclient/src/main/**
+    - component_id: wow-compensation-api
+      name: wow-compensation-api
+      paths:
+        - compensation/wow-compensation-api/src/main/**
+    - component_id: wow-compensation-core
+      name: wow-compensation-core
+      paths:
+        - compensation/wow-compensation-core/src/main/**
+    - component_id: wow-compensation-domain
+      name: wow-compensation-domain
+      paths:
+        - compensation/wow-compensation-domain/src/main/**
+    - component_id: wow-view-store-api
+      name: wow-view-store-api
+      paths:
+        - view-store/wow-view-store-api/src/main/**
+    - component_id: wow-view-store-domain
+      name: wow-view-store-domain
+      paths:
+        - view-store/wow-view-store-domain/src/main/**
+    - component_id: wow-view-store-starter
+      name: wow-view-store-starter
+      paths:
+        - view-store/wow-view-store-starter/src/main/**
     - component_id: wow-client
       name: wow-client
       paths:
