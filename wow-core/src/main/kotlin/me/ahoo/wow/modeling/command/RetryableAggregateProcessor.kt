@@ -33,7 +33,7 @@ import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.time.Duration
 
-class RetryableAggregateProcessor<C : Any, S : Any>(
+internal class RetryableAggregateProcessor<C : Any, S : Any>(
     override val aggregateId: AggregateId,
     private val aggregateMetadata: AggregateMetadata<C, S>,
     private val aggregateFactory: StateAggregateFactory,

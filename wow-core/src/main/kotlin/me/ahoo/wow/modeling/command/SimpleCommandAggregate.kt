@@ -40,7 +40,7 @@ import reactor.kotlin.core.publisher.toMono
  * @param eventStore The event store for persisting domain events.
  * @param metadata The metadata describing this command aggregate's configuration.
  */
-class SimpleCommandAggregate<C : Any, S : Any>(
+internal class SimpleCommandAggregate<C : Any, S : Any>(
     override val state: StateAggregate<S>,
     override val commandRoot: C,
     private val eventStore: EventStore,
@@ -62,7 +62,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     private val commandFunctionResolver = CommandFunctionResolver(metadata, this)
 
     @Volatile
-    override var commandState = CommandState.STORED
+    var commandState = CommandState.STORED
 
     /**
      * Whether a command in [spaceId] addresses another space than this aggregate's: only a spaced aggregate checks,

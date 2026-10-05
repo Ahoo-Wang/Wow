@@ -27,7 +27,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>>(
+internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>>(
     metrics: WowMetrics,
 ) : MainDispatcher<E>(metrics) {
 

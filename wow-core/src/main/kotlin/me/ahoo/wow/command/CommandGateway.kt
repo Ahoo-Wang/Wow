@@ -14,6 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
@@ -28,8 +29,9 @@ import me.ahoo.wow.id.generateGlobalId
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
+internal const val COMMAND_GATEWAY_PROCESSOR_NAME = "CommandGateway"
 
+@InternalWowApi
 val COMMAND_GATEWAY_FUNCTION =
     FunctionInfoData(
         functionKind = FunctionKind.COMMAND,
@@ -38,7 +40,7 @@ val COMMAND_GATEWAY_FUNCTION =
         name = "send",
     )
 
-fun CommandMessage<*>.commandSentSignal(
+internal fun CommandMessage<*>.commandSentSignal(
     waitCommandId: String,
     error: Throwable? = null
 ): WaitSignal {

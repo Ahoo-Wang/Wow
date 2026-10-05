@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.command
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
@@ -38,11 +39,11 @@ import java.util.concurrent.ConcurrentHashMap
  */
 interface CommandExchange<SOURCE : CommandExchange<SOURCE, C>, C : Any> : MessageExchange<SOURCE, CommandMessage<C>>
 
-const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
-const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
-const val AGGREGATE_METADATA_KEY = "__AGGREGATE_METADATA__"
-const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
-const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
+internal const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
+internal const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
+internal const val AGGREGATE_METADATA_KEY = "__AGGREGATE_METADATA__"
+internal const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
+internal const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
 
 /**
  * Server-side command exchange interface for commands being processed by the server.
@@ -57,9 +58,11 @@ const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
  * @see DomainEventStream
  */
 interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
+    @InternalWowApi
     fun setAggregateMetadata(aggregateMetadata: AggregateMetadata<*, *>): ServerCommandExchange<C> =
         setAttribute(AGGREGATE_METADATA_KEY, aggregateMetadata)
 
+    @InternalWowApi
     fun getAggregateMetadata(): AggregateMetadata<*, *>? = getAttribute(AGGREGATE_METADATA_KEY)
 
     /**
@@ -70,6 +73,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
      * @see AggregateProcessor
      * @see getAggregateProcessor
      */
+    @InternalWowApi
     fun setAggregateProcessor(aggregateProcessor: AggregateProcessor<*>): ServerCommandExchange<C> =
         setAttribute(AGGREGATE_PROCESSOR_KEY, aggregateProcessor)
 
@@ -80,6 +84,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
      * @see AggregateProcessor
      * @see setAggregateProcessor
      */
+    @InternalWowApi
     fun getAggregateProcessor(): AggregateProcessor<C>? = getAttribute(AGGREGATE_PROCESSOR_KEY)
 
     /**
@@ -89,6 +94,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
      * @return this exchange instance for method chaining
      * @see getCommandInvokeResult
      */
+    @InternalWowApi
     fun setCommandInvokeResult(result: Any): ServerCommandExchange<C> = setAttribute(COMMAND_INVOKE_RESULT_KEY, result)
 
     /**
@@ -98,6 +104,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
      * @return the command invocation result, or null if not set
      * @see setCommandInvokeResult
      */
+    @InternalWowApi
     fun <R> getCommandInvokeResult(): R? = getAttribute(COMMAND_INVOKE_RESULT_KEY)
 
     /**
@@ -108,6 +115,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
      * @see DomainEventStream
      * @see getEventStream
      */
+    @InternalWowApi
     fun setEventStream(
         eventStream: DomainEventStream
     ): ServerCommandExchange<C> = setAttribute(EVENT_STREAM_KEY, eventStream)
@@ -128,6 +136,7 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
      * @return this exchange instance for method chaining
      * @see getAggregateVersion
      */
+    @InternalWowApi
     fun setAggregateVersion(
         aggregateVersion: Int
     ): ServerCommandExchange<C> = setAttribute(AGGREGATE_VERSION_KEY, aggregateVersion)

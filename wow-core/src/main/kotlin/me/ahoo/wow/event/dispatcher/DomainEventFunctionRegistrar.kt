@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event.dispatcher
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.annotation.eventProcessorMetadata
 import me.ahoo.wow.infra.Decorator
@@ -35,6 +36,7 @@ import reactor.core.publisher.Mono
  * @see MessageFunction
  * @see Decorator
  */
+@InternalWowApi
 abstract class AbstractEventFunctionRegistrar(
     override val delegate: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMessageFunctionRegistrar()

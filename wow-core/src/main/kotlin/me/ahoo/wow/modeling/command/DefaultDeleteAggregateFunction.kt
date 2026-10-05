@@ -30,7 +30,7 @@ import reactor.kotlin.core.publisher.toMono
  * @param commandAggregate The command aggregate instance this function belongs to.
  * @param afterCommandFunctions List of after-command functions to execute after deletion.
  */
-class DefaultDeleteAggregateFunction<C : Any>(
+internal class DefaultDeleteAggregateFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
 ) : InternalCommandFunction<C>(commandAggregate, afterCommandFunctions) {

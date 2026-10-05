@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
@@ -29,6 +30,7 @@ import reactor.core.publisher.Mono
  *
  * @param C The type of the command aggregate root.
  */
+@WowSpi
 interface AggregateProcessor<C : Any> :
     AggregateIdCapable,
     NamedTypedAggregate<C>,

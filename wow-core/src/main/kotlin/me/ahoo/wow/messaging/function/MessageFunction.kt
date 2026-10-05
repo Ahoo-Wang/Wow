@@ -117,7 +117,7 @@ interface MessageFunction<P : Any, in M : MessageExchange<*, *>, out R> :
  * @param M the type of the message exchange, contravariant
  * @param R the return type of the function
  */
-interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
+internal interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> : MessageFunction<P, M, R> {
     /**
      * The metadata containing information about the function, such as supported types, topics, and accessor details.
      */
@@ -181,7 +181,7 @@ interface MessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, out R> 
  * val function = metadata.toMessageFunction(myProcessor)
  * ```
  */
-fun <P : Any, M : MessageExchange<*, *>, R> FunctionAccessorMetadata<P, R>.toMessageFunction(
+internal fun <P : Any, M : MessageExchange<*, *>, R> FunctionAccessorMetadata<P, R>.toMessageFunction(
     processor: P
 ): MessageFunctionAccessor<P, M, R> =
     if (injectParameterLength == 0) {

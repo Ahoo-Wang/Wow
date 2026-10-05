@@ -15,11 +15,13 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.command.ServerCommandExchange
 
-const val COMMAND_AGGREGATE_KEY = "__COMMAND_AGGREGATE__"
-fun ServerCommandExchange<*>.setCommandAggregate(commandAggregate: CommandAggregate<*, *>): ServerCommandExchange<*> {
+internal const val COMMAND_AGGREGATE_KEY = "__COMMAND_AGGREGATE__"
+internal fun ServerCommandExchange<*>.setCommandAggregate(
+    commandAggregate: CommandAggregate<*, *>
+): ServerCommandExchange<*> {
     return setAttribute(COMMAND_AGGREGATE_KEY, commandAggregate)
 }
 
-fun <C : Any, S : Any> ServerCommandExchange<*>.getCommandAggregate(): CommandAggregate<C, S>? {
+internal fun <C : Any, S : Any> ServerCommandExchange<*>.getCommandAggregate(): CommandAggregate<C, S>? {
     return getAttribute<CommandAggregate<C, S>>(COMMAND_AGGREGATE_KEY)
 }

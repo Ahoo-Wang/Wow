@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono
  *
  * @constructor Creates a new CommandFunction with the specified delegate and configuration.
  */
-class CommandFunction<C : Any>(
+internal class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>

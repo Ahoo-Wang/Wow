@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event.dispatcher
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
@@ -75,6 +76,7 @@ import java.util.concurrent.atomic.AtomicReference
  * @see StateEventDispatcher
  * @see MessageDispatcher
  */
+@InternalWowApi
 open class CompositeEventDispatcher(
     /**
      * The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.

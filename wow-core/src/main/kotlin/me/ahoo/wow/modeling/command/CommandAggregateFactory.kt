@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.command
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 
@@ -21,6 +22,7 @@ import me.ahoo.wow.modeling.state.StateAggregate
  * Implementations of this interface are responsible for instantiating command aggregates
  * with the appropriate metadata and state aggregate.
  */
+@WowSpi
 interface CommandAggregateFactory {
     /**
      * Creates a new command aggregate instance.

@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.messaging.function
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
@@ -37,6 +38,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
  * @param F The type of message function being registered, constrained to implement MessageFunction<*, *, *>
  * @see MessageFunction for the base interface of message functions
  */
+@InternalWowApi
 interface MessageFunctionRegistrar<F : MessageFunction<*, *, *>> {
     /**
      * The immutable set of all currently registered functions.

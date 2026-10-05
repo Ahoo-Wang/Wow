@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.abac.ResourceTagsApplied
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
@@ -55,6 +56,7 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
  * @property tags The ABAC tags associated with the aggregate.
  * @property deleted Indicates whether the aggregate has been deleted. Defaults to false.
  */
+@InternalWowApi
 class SimpleStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
     val metadata: StateAggregateMetadata<S>,

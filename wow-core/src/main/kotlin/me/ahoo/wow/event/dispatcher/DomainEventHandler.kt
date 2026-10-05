@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event.dispatcher
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
@@ -26,6 +27,7 @@ import me.ahoo.wow.filter.LogResumeErrorHandler
  * @see Handler
  * @see me.ahoo.wow.event.DomainEventExchange
  */
+@InternalWowApi
 interface EventHandler : Handler<DomainEventExchange<*>>
 
 /**

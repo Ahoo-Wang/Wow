@@ -112,6 +112,16 @@ EventStore.append
 
 所以 `PROCESSED` 成功表示聚合执行、事件追加、command ack 和 `DomainEventBus.send` 已经完成，`SendStateEventFilter` 也已完成；状态已初始化时，`StateEventBus.send` 尝试已经返回。它不保证 StateEvent 发布成功，也不表示快照、投影、事件处理器或 Saga 已完成。失败信号也不能单独证明事件未追加，必须按[失败与幂等](../reliability.md)检查权威历史。
 
+## API 分层
+
+本页的类型是实现，不是应用 API。自 9.3.0 起，wow-core 在代码中标明这一点：
+
+- `CommandAggregate`、它的父接口 `AggregateProcessor`、`CommandAggregateFactory` 与 `SimpleCommandAggregateFactory` 标注 `@WowSpi`。自行提供命令聚合的代码用 `@OptIn(WowSpi::class)` 选择加入，不加入时编译器给出警告。它们在同一个次版本线内保持二进制签名不变，次版本可以修改它们，并写进发布说明。
+- `AggregateProcessorFactory`、`RetryableAggregateProcessorFactory`、`AggregateProcessorFilter`、`SendDomainEventStreamFilter`、`SimpleStateAggregate`，函数元数据类型（`FunctionAccessorMetadata`、`InjectParameter`、`FirstParameterKind`、`AfterCommandFunctionMetadata`、`MessageFunctionRegistrar`、`SimpleMessageFunctionRegistrar`），事件分发器基类（`CompositeEventDispatcher`、`AbstractEventFunctionRegistrar`、`EventHandler`），`COMMAND_GATEWAY_FUNCTION`，以及 exchange 上处理器、元数据、调用结果的存取方法和事件流、版本的设置方法标注 `@InternalWowApi`：由 Wow 自己的模块装配，任何版本都可能修改。
+- `RetryableAggregateProcessor`、`SimpleCommandAggregate`、`CommandState`、命令函数（`CommandFunction`、`AfterCommandFunction` 以及内置的删除、恢复、资源标签函数）、exchange 属性键、函数访问器以及聚合与状态事件分发器是 `internal`。
+
+应用通过 `CommandGateway` 发送命令，用 `@OnCommand` 函数处理命令，读取 `ServerCommandExchange.getEventStream()`，这些都不需要选择加入。命令函数需要当前状态时，声明 `ReadOnlyStateAggregate<S>` 参数（例如读取 `initialized`），而不是 `CommandAggregate`。
+
 ## 源码入口
 
 - [`DefaultCommandGateway`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt)

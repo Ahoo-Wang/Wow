@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.command.after
 
 import me.ahoo.wow.api.Ordered
 import me.ahoo.wow.api.annotation.AfterCommand
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.toMessageFunction
@@ -33,6 +34,7 @@ import reactor.core.publisher.Mono
  *
  * @constructor Creates metadata by parsing annotations from the function.
  */
+@InternalWowApi
 data class AfterCommandFunctionMetadata<C : Any>(
     val function: FunctionAccessorMetadata<C, Mono<*>>
 ) : Ordered {
@@ -89,7 +91,9 @@ data class AfterCommandFunctionMetadata<C : Any>(
          * @param commandRoot The command aggregate instance to bind the function to.
          * @return The executable after-command function.
          */
-        fun <C : Any> AfterCommandFunctionMetadata<C>.toAfterCommandFunction(commandRoot: C): AfterCommandFunction<C> =
+        internal fun <C : Any> AfterCommandFunctionMetadata<C>.toAfterCommandFunction(
+            commandRoot: C
+        ): AfterCommandFunction<C> =
             AfterCommandFunction(this, function.toMessageFunction(commandRoot))
     }
 }

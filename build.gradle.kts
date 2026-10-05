@@ -62,10 +62,12 @@ val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchma
 // What wow-bom constrains: the published libraries only, never an example, the benchmarks or an incubating module,
 // whose coordinates are not on Maven Central.
 val bomConstrainedProjects = publishProjects - bomProjects
-// Modules whose main code implements or wires a `@WowSpi` (the query backend SPI and its registration). Every other
-// module's main code opts in where it uses one (`@OptIn(WowSpi::class)`) and otherwise gets the compiler's warning,
-// as an application would.
+// Modules whose main code implements or wires a `@WowSpi` (the query backend SPI and its registration, the command
+// aggregate SPI in wow-core and the aggregate test DSL that drives it). Every other module's main code opts in where
+// it uses one (`@OptIn(WowSpi::class)`) and otherwise gets the compiler's warning, as an application would.
 val wowSpiProjects = setOf(
+    project(":wow-core"),
+    project(":wow-test"),
     project(":wow-query"),
     project(":wow-mongo"),
     project(":wow-elasticsearch"),
