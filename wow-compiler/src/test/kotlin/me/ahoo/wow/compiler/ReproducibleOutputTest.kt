@@ -26,6 +26,7 @@ import me.ahoo.wow.naming.NamingConverter
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.io.File
 
@@ -34,8 +35,10 @@ class ReproducibleOutputTest {
     @OptIn(ExperimentalCompilerApi::class)
     @ParameterizedTest
     @MethodSource("processors")
-    fun `generated files do not depend on when they are generated`(provider: SymbolProcessorProvider) {
-        val sources = exampleSources()
+    fun `generated files do not depend on when they are generated`(
+        provider: SymbolProcessorProvider,
+        sources: List<File>,
+    ) {
         val first = generate(sources, provider)
         Thread.sleep(SECOND_BUILD_DELAY_MILLIS)
         val second = generate(sources, provider)
@@ -64,23 +67,28 @@ class ReproducibleOutputTest {
         return generated
     }
 
-    private fun exampleSources(): List<File> =
-        listOf(
-            File("../example/example-api/src/main/kotlin/me/ahoo/wow/example/api"),
-            File("../example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain"),
-        ).flatMap { dir -> dir.walkTopDown().filter { it.isFile }.toList() } +
-            // AggregatesMetadata is generated for the aggregates under a bounded-context marker.
-            File("src/test/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt") +
-            File("src/test/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
-
     companion object {
         private const val SECOND_BUILD_DELAY_MILLIS = 20L
+        private val MOCK_SOURCES = listOf(
+            File("src/test/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt"),
+            File("src/test/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt"),
+        )
 
+        private fun exampleSources(): List<File> =
+            listOf(
+                File("../example/example-api/src/main/kotlin/me/ahoo/wow/example/api"),
+                File("../example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain"),
+            ).flatMap { dir -> dir.walkTopDown().filter { it.isFile }.sortedBy { it.path }.toList() }
+
+        /**
+         * AggregatesMetadata is generated for the first bounded-context marker the processor sees, so it gets the one
+         * mock context alone; the other processors read the example sources too.
+         */
         @JvmStatic
-        fun processors(): List<SymbolProcessorProvider> = listOf(
-            AggregatesMetadataSymbolProcessorProvider(),
-            QuerySymbolProcessorProvider(),
-            MetadataSymbolProcessorProvider(),
+        fun processors(): List<Arguments> = listOf(
+            Arguments.of(AggregatesMetadataSymbolProcessorProvider(), MOCK_SOURCES),
+            Arguments.of(QuerySymbolProcessorProvider(), exampleSources() + MOCK_SOURCES),
+            Arguments.of(MetadataSymbolProcessorProvider(), exampleSources() + MOCK_SOURCES),
         )
     }
 }
