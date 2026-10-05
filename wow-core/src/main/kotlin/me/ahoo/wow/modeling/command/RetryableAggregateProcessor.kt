@@ -38,11 +38,12 @@ internal class RetryableAggregateProcessor<C : Any, S : Any>(
     private val aggregateMetadata: AggregateMetadata<C, S>,
     private val aggregateFactory: StateAggregateFactory,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val commandAggregateFactory: CommandAggregateFactory
+    private val commandAggregateFactory: CommandAggregateFactory,
+    private val maxRetries: Long = DEFAULT_MAX_RETRIES
 ) : AggregateProcessor<C>, NamedTypedAggregate<C> by aggregateMetadata.command {
-    private companion object {
+    companion object {
         private val log = KotlinLogging.logger {}
-        private const val MAX_RETRIES = 3L
+        const val DEFAULT_MAX_RETRIES = 3L
         private val MIN_BACKOFF = Duration.ofMillis(500)
     }
 
@@ -81,32 +82,37 @@ internal class RetryableAggregateProcessor<C : Any, S : Any>(
                     it.process(exchange)
                 }
             }
-            process.onErrorResume { failure ->
-                var firstFailure = true
-                Mono.defer {
-                    if (firstFailure) {
-                        firstFailure = false
-                        // Replay the failure so Reactor preserves the first backoff and the full retry budget.
-                        Mono.error(failure)
-                    } else {
-                        process
-                    }
-                }.retryWhen(
-                    Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
-                        .filter {
-                            it.recoverable == RecoverableType.RECOVERABLE
-                        }.doBeforeRetry {
-                            log.warn(it.failure()) {
-                                "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
-                            }
-                        }
-                )
-            }.onErrorResume { finalError ->
+            val retried = if (maxRetries == 0L) process else retryRecoverable(process)
+            retried.onErrorResume { finalError ->
                 val commandAggregate = errorHandlingAggregate ?: return@onErrorResume Mono.error(finalError)
                 handleFinalError(commandAggregate, exchange, finalError)
             }
         }
     }
+
+    /** Retries [process] on recoverable failures, [maxRetries] times with backoff. */
+    private fun retryRecoverable(process: Mono<DomainEventStream>): Mono<DomainEventStream> =
+        process.onErrorResume { failure ->
+            var firstFailure = true
+            Mono.defer {
+                if (firstFailure) {
+                    firstFailure = false
+                    // Replay the failure so Reactor preserves the first backoff and the full retry budget.
+                    Mono.error(failure)
+                } else {
+                    process
+                }
+            }.retryWhen(
+                Retry.backoff(maxRetries, MIN_BACKOFF)
+                    .filter {
+                        it.recoverable == RecoverableType.RECOVERABLE
+                    }.doBeforeRetry {
+                        log.warn(it.failure()) {
+                            "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
+                        }
+                    }
+            )
+        }
 
     /**
      * Runs the `@OnError` function of [commandAggregate] with the processing failure (unwrapped from a retry

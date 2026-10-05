@@ -310,7 +310,7 @@ class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>
                 fork {
                     whenCommand(
                         ApplyRetrySpec(
-                            id = generateGlobalId(),
+                            id = applyRetrySpec.id,
                             maxRetries = -1,
                             minBackoff = 0,
                             executionTimeout = 0
@@ -322,7 +322,7 @@ class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>
                 fork {
                     whenCommand(
                         ApplyRetrySpec(
-                            id = generateGlobalId(),
+                            id = applyRetrySpec.id,
                             maxRetries = 32,
                             minBackoff = Int.MAX_VALUE,
                             executionTimeout = 0

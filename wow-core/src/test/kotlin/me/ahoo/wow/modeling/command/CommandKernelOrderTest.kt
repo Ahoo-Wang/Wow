@@ -188,9 +188,11 @@ internal object OrderProbe {
     data class OnErrorCall(val stateVersion: Int, val rootVersion: Int, val sourced: List<Any>)
 
     val onErrorCalls: MutableList<OnErrorCall> = mutableListOf()
+    var recoverableFailures: Int = 0
 
     fun reset() {
         onErrorCalls.clear()
+        recoverableFailures = 0
     }
 }
 
@@ -201,6 +203,9 @@ data class CreateOrderProbe(@me.ahoo.wow.api.annotation.AggregateId val id: Stri
 data class CreateFailingSourcing(@me.ahoo.wow.api.annotation.AggregateId val id: String)
 
 data class ChangeOrderProbe(@me.ahoo.wow.api.annotation.AggregateId val id: String)
+
+/** Fails with a recoverable error, counting its calls. */
+data class FailRecoverably(@me.ahoo.wow.api.annotation.AggregateId val id: String)
 
 data class OrderProbeCreated(val id: String)
 
@@ -224,6 +229,12 @@ class OrderProbeAggregate(private val id: String) : VersionAware {
         listOf(OrderProbeCreated(command.id), SourcingFails(command.id))
 
     private fun onCommand(command: ChangeOrderProbe): OrderProbeChanged = OrderProbeChanged(command.id)
+
+    @Suppress("UnusedParameter")
+    private fun onCommand(command: FailRecoverably): OrderProbeChanged {
+        OrderProbe.recoverableFailures++
+        throw java.util.concurrent.TimeoutException("recoverable")
+    }
 
     private fun onSourcing(event: OrderProbeCreated) {
         sourced += event

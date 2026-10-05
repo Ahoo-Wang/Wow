@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.test.aggregate
 
-import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import org.assertj.core.error.MultipleAssertionsError
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -62,15 +59,11 @@ interface ExpectStage<S : Any> : AggregateExpecter<S, ExpectStage<S>> {
  *
  * @param C the type of the command aggregate
  * @param S the type of the aggregate state
- * @param metadata metadata about the aggregate
- * @param commandAggregateFactory factory for creating command aggregates
- * @param serviceProvider provider for service dependencies
+ * @param runtime where the aggregate's history lives; the verified stage continues it
  * @param expectedResultMono reactive stream containing the expected result
  */
 internal class DefaultExpectStage<C : Any, S : Any>(
-    private val metadata: AggregateMetadata<C, S>,
-    private val commandAggregateFactory: CommandAggregateFactory,
-    private val serviceProvider: ServiceProvider,
+    private val runtime: AggregateTestRuntime<C, S>,
     private val expectedResultMono: Mono<ExpectedResult<S>>
 ) : ExpectStage<S> {
     /** List of accumulated expectation functions to be executed during verification. */
@@ -93,9 +86,7 @@ internal class DefaultExpectStage<C : Any, S : Any>(
             .verifyComplete()
         DefaultVerifiedStage(
             verifiedResult = expectedResult,
-            metadata = metadata,
-            commandAggregateFactory = commandAggregateFactory,
-            serviceProvider = serviceProvider
+            runtime = runtime,
         )
     }
 

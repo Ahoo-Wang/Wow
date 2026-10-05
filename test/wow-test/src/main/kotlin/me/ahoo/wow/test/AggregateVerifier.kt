@@ -20,11 +20,11 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
+import me.ahoo.wow.test.aggregate.AggregateTestRuntime
 import me.ahoo.wow.test.aggregate.DefaultGivenStage
 import me.ahoo.wow.test.aggregate.GivenStage
 
@@ -91,14 +91,16 @@ object AggregateVerifier {
     ): GivenStage<S> {
         val metadata: AggregateMetadata<C, S> = aggregateMetadata()
         return DefaultGivenStage(
-            aggregateId = metadata.aggregateId(
-                id = aggregateId,
-                tenantId = tenantId,
+            AggregateTestRuntime(
+                metadata = metadata,
+                aggregateId = metadata.aggregateId(
+                    id = aggregateId,
+                    tenantId = tenantId,
+                ),
+                stateAggregateFactory = stateAggregateFactory,
+                eventStore = eventStore,
+                serviceProvider = serviceProvider,
             ),
-            metadata = metadata,
-            stateAggregateFactory = stateAggregateFactory,
-            commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
-            serviceProvider = serviceProvider,
         )
     }
 
