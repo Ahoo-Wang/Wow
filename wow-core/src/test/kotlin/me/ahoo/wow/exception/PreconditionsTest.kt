@@ -43,4 +43,19 @@ class PreconditionsTest {
         exception.errorMsg.assert().isEqualTo("invalid command")
         exception.bindingErrors.assert().isEqualTo(emptyList<Any>())
     }
+
+    @Test
+    fun `a check called through a reference behaves the same and defaults to an empty message`() {
+        // A function reference calls the compiled function instead of inlining it.
+        val check: (Boolean, String, () -> String) -> Unit = Preconditions::check
+
+        check(true, ErrorCodes.ILLEGAL_STATE) { "unused" }
+        val exception = assertThrows<WowException> {
+            check(false, ErrorCodes.ILLEGAL_STATE) { "referenced" }
+        }
+        exception.errorMsg.assert().isEqualTo("referenced")
+        assertThrows<WowException> {
+            Preconditions.check(false, ErrorCodes.ILLEGAL_STATE)
+        }.errorMsg.assert().isEmpty()
+    }
 }

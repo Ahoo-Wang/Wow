@@ -20,6 +20,7 @@ import me.ahoo.wow.event.FIXTURE_EVENT_REVISION
 import me.ahoo.wow.event.FixtureNamedEvent
 import me.ahoo.wow.event.FixtureRevisedEvent
 import me.ahoo.wow.event.FixtureRoutedEvent
+import me.ahoo.wow.event.metadata.EventMetadata
 import org.junit.jupiter.api.Test
 
 class EventMetadataParserTest {
@@ -55,5 +56,14 @@ class EventMetadataParserTest {
         metadata.assert().isEqualTo(eventMetadata<FixtureNamedEvent>())
         metadata.assert().isNotEqualTo(eventMetadata<FixtureRevisedEvent>())
         metadata.toString().assert().isEqualTo("EventMetadata(eventType=class me.ahoo.wow.event.FixtureNamedEvent)")
+        val sameType = EventMetadata(
+            eventType = FixtureNamedEvent::class.java,
+            namedAggregateGetter = null,
+            name = "another-name",
+            revision = "another-revision",
+        )
+        metadata.assert().isEqualTo(sameType)
+        metadata.hashCode().assert().isEqualTo(sameType.hashCode())
+        metadata.equals("not metadata").assert().isFalse()
     }
 }

@@ -55,6 +55,35 @@ internal class JsonSerializerMapperTest {
         copied.values.assert().isEqualTo(mutableListOf("a", "b"))
     }
 
+    @Test
+    fun `typed readers and converters accept a JavaType and a TypeReference`() {
+        val listType = JsonSerializer.typeFactory.constructCollectionType(List::class.java, MapperDto::class.java)
+        val json = """[{"name":"a"},{"name":"b"}]"""
+        val expected = listOf(MapperDto("a"), MapperDto("b"))
+
+        json.toObject<List<MapperDto>>(listType).assert().isEqualTo(expected)
+        val node = json.toJsonNode<tools.jackson.databind.JsonNode>()
+        node.toObject<List<MapperDto>>(listType).assert().isEqualTo(expected)
+        node.toObject(object : TypeReference<List<MapperDto>>() {}).assert().isEqualTo(expected)
+        node.convert<List<MapperDto>>(listType).assert().isEqualTo(expected)
+        node.convert(object : TypeReference<List<MapperDto>>() {}).assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `pretty json is indented and reads back to the same value`() {
+        val pretty = MapperDto("John").toPrettyJson()
+
+        pretty.assert().contains("\n")
+        pretty.toObject<MapperDto>().assert().isEqualTo(MapperDto("John"))
+    }
+
+    @Test
+    fun `a bean description lists the serialized properties`() {
+        val description = MapperDto::class.java.toBeanDescription()
+
+        description.findProperties().map { it.name }.assert().contains("name")
+    }
+
     private data class MapperDto(val name: String)
     private data class MutableDto(val name: String, val values: MutableList<String>)
 

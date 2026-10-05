@@ -38,6 +38,17 @@ class EventProcessorParserTest {
             setOf(MockAggregateCreated::class.java, MockAggregateChanged::class.java)
         )
     }
+
+    @Test
+    fun `processor metadata is identified by the processor type`() {
+        val metadata = eventProcessorMetadata<FixtureEventProcessor>()
+        val sameType = metadata.copy(name = "renamed", functionRegistry = emptySet())
+
+        metadata.assert().isEqualTo(sameType)
+        metadata.hashCode().assert().isEqualTo(sameType.hashCode())
+        metadata.equals(FixtureEventProcessor::class.java).assert().isFalse()
+        metadata.toString().assert().isEqualTo("ProcessorMetadata(processorType=${FixtureEventProcessor::class.java})")
+    }
 }
 
 private class FixtureEventProcessor {

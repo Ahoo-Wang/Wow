@@ -69,4 +69,19 @@ class NotFoundResourceExceptionTest {
             }
             .verify()
     }
+
+    @Test
+    fun `the helpers default to the not found message and pass present values through`() {
+        NotFoundResourceException().errorMsg.assert().isEqualTo(ErrorCodes.NOT_FOUND_MESSAGE)
+        assertThrows<NotFoundResourceException> { (null as String?).throwNotFoundIfNull() }
+            .errorMsg.assert().isEqualTo(ErrorCodes.NOT_FOUND_MESSAGE)
+        "present".throwNotFoundIfNull().assert().isEqualTo("present")
+        StepVerifier.create(Mono.empty<String>().throwNotFoundIfEmpty())
+            .expectErrorMatches { (it as NotFoundResourceException).errorMsg == ErrorCodes.NOT_FOUND_MESSAGE }
+            .verify()
+        StepVerifier.create(Flux.empty<String>().throwNotFoundIfEmpty())
+            .expectErrorMatches { (it as NotFoundResourceException).errorMsg == ErrorCodes.NOT_FOUND_MESSAGE }
+            .verify()
+        StepVerifier.create(Mono.just("present").throwNotFoundIfEmpty()).expectNext("present").verifyComplete()
+    }
 }

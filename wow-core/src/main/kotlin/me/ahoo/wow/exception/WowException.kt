@@ -165,14 +165,6 @@ private fun Class<out Throwable>.assignableDistanceTo(throwableClass: Class<out 
     if (!isAssignableFrom(throwableClass)) {
         return null
     }
-    var distance = 0
-    var current: Class<*>? = throwableClass
-    while (current != null) {
-        if (current == this) {
-            return distance
-        }
-        distance++
-        current = current.superclass
-    }
-    return null
+    // A Throwable type is a class, so an assignable one is on the superclass chain.
+    return generateSequence<Class<*>>(throwableClass) { it.superclass }.indexOf(this).takeIf { it >= 0 }
 }
