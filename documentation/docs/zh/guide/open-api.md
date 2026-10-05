@@ -53,7 +53,7 @@ implementation("me.ahoo.wow:wow-webflux")
 implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 ```
 
-`OpenAPIAutoConfiguration` 创建 `RouterSpecs`；`WebFluxAutoConfiguration` 把目录物化为 `RouterFunction`；`WowOpenApiCustomizer` 把同一目录合并到 Springdoc。`wow.openapi.enabled=false` 禁用 Springdoc 定制，不会关闭 WebFlux 路由目录本身。
+`OpenAPIAutoConfiguration` 创建 `RouterSpecs`；`WebFluxAutoConfiguration` 把目录物化为 `RouterFunction`；`WowOpenApiCustomizer` 把同一目录合并到 Springdoc。`wow.openapi.enabled=false` 禁用 Springdoc 定制，不会关闭 WebFlux 路由目录本身。构建路由目录时不生成任何 JSON Schema；只有提供文档时（存在 Springdoc 且 `wow.openapi.enabled` 不为 `false`，在启动时）才生成 schema 与组件，不提供文档的服务不承担 schema 生成开销。
 
 包含 Wow 注解的模块仍需应用 KSP 与 `wow-compiler`，并确保生成的 `META-INF/wow-metadata.json` 位于服务运行时 classpath。不要手写或提交生成资源。
 

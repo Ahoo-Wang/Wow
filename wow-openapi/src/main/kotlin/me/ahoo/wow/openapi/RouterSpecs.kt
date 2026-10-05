@@ -28,6 +28,7 @@ import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.catalog.RouteContributors
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.RoutingComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -44,8 +45,23 @@ class RouterSpecs(
     }
 
     private val orderedRouteContributors: List<RouteContributor> = RouteContributors.sort(routeContributors)
+
+    /** The routes built with [componentContext], which generates and registers their components. */
+    private val documentedRouteCatalogLazy: Lazy<RouteCatalog> = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        toRouteCatalog(collectContributedRoutes(componentContext))
+    }
+    private val documentedRouteCatalog: RouteCatalog by documentedRouteCatalogLazy
+
+    /**
+     * What the router dispatches by: the documented routes when they are already built (the routing facts are the
+     * same), otherwise the routes built without generating any schema.
+     */
     private val routeCatalog: RouteCatalog by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        toRouteCatalog(collectContributedRoutes())
+        if (documentedRouteCatalogLazy.isInitialized()) {
+            documentedRouteCatalog
+        } else {
+            toRouteCatalog(collectContributedRoutes(RoutingComponentContext))
+        }
     }
 
     private fun serviceVersion(): String? {
@@ -113,18 +129,34 @@ class RouterSpecs(
 
     fun mergeOpenAPIFromCatalog(openAPI: OpenAPI) {
         prepareOpenAPI(openAPI)
-        val catalog = toRouteCatalog()
+        val catalog = documentedRouteCatalog
         componentContext.finish()
         OpenApiRenderer(componentContext).render(catalog, openAPI)
         componentContext.finish()
         mergeFinishedComponents(openAPI)
     }
 
+    /** Builds the route catalog. No schema is generated: that happens when the OpenAPI document is rendered. */
     fun build(): RouterSpecs {
         toRouteCatalog()
         return this
     }
 
+    /**
+     * Builds the documented contracts now, generating and registering their components, so that the first
+     * [mergeOpenAPIFromCatalog] does not. Call it at startup when the OpenAPI document is served: schema generation
+     * may block (it reads query schemas), so it must not first run on a request thread. Called before [build], the
+     * router reuses these contracts instead of building the routes a second time.
+     */
+    fun buildDocumentation(): RouterSpecs {
+        documentedRouteCatalog
+        return this
+    }
+
+    /**
+     * The route catalog the router dispatches by. Its contracts carry every routing fact; the schemas they embed are
+     * placeholders, since schemas are generated only by [mergeOpenAPIFromCatalog].
+     */
     fun toRouteCatalog(): RouteCatalog {
         return routeCatalog
     }
@@ -133,7 +165,7 @@ class RouterSpecs(
         return RouteCatalogBuilder().addAll(contributedRoutes).build()
     }
 
-    private fun collectContributedRoutes(): List<HttpRouteContract> {
+    private fun collectContributedRoutes(componentContext: OpenAPIComponentContext): List<HttpRouteContract> {
         val builder = RouteCatalogBuilder()
         orderedRouteContributors.filter { it.category == RouteCategory.GLOBAL }.forEach { contributor ->
             builder.addAll(contributor.contributeGlobal(currentContext, componentContext))

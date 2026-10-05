@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.SpecVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -41,6 +42,35 @@ class OpenAPIAutoConfigurationTest {
                     .hasNotFailed()
                     .hasSingleBean(RouterSpecs::class.java)
                     .doesNotHaveBean("wowOpenApiCustomizer")
+            }
+    }
+
+    @Test
+    fun `should generate schemas at startup only when the document is served`() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(OpenAPIComponentContext::class.java).responses.assert().isNotEmpty()
+            }
+        contextRunner
+            .enableWow()
+            .withPropertyValues("wow.openapi.enabled=false")
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(RouterSpecs::class.java).toRouteCatalog().routes.assert().isNotEmpty()
+                val componentContext = context.getBean(OpenAPIComponentContext::class.java)
+                componentContext.responses.assert().isEmpty()
+                componentContext.schemas.assert().isEmpty()
+            }
+        contextRunner
+            .enableWow()
+            .withClassLoader(FilteredClassLoader("org.springdoc.core.customizers.OpenApiCustomizer"))
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                val componentContext = context.getBean(OpenAPIComponentContext::class.java)
+                componentContext.responses.assert().isEmpty()
+                componentContext.schemas.assert().isEmpty()
             }
     }
 
