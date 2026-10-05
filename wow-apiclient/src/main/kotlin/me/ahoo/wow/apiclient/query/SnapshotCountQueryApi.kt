@@ -27,7 +27,10 @@ interface SnapshotCountQueryApi<R> : SnapshotQueryApi {
     @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
     fun count(@RequestBody filter: FilterExpression): R
 
+    /**
+     * Counts with a legacy [condition], sent as the [FilterExpression] it converts to. Not an HTTP exchange of its own:
+     * a proxy runs this body.
+     */
     @Deprecated("Scheduled for removal in 10.0.0. Use count(FilterExpression).")
-    @PostExchange(SNAPSHOT_COUNT_RESOURCE_NAME)
-    fun count(@RequestBody condition: Condition): R = count(condition.toFilterExpression())
+    fun count(condition: Condition): R = count(condition.toFilterExpression())
 }
