@@ -681,10 +681,6 @@ public abstract interface class me/ahoo/wow/command/wait/NullableAggregateVersio
 	public abstract fun getAggregateVersion ()Ljava/lang/Integer;
 }
 
-public final class me/ahoo/wow/command/wait/ProcessedNotifierFilter : me/ahoo/wow/command/wait/AbstractNotifierFilter, me/ahoo/wow/modeling/command/dispatcher/CommandFilter {
-	public fun <init> (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)V
-}
-
 public final class me/ahoo/wow/command/wait/ProjectedNotifierFilter : me/ahoo/wow/command/wait/AbstractNotifierFilter {
 	public fun <init> (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)V
 }
@@ -2033,17 +2029,6 @@ public final class me/ahoo/wow/eventsourcing/state/LocalStateEventBus$DefaultImp
 	public static fun close (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;)V
 	public static fun getTopicKind (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;)Lme/ahoo/wow/api/messaging/TopicKind;
 	public static fun sendIfSubscribed (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/eventsourcing/state/SendStateEventFilter : me/ahoo/wow/modeling/command/dispatcher/CommandFilter {
-	public static final field Companion Lme/ahoo/wow/eventsourcing/state/SendStateEventFilter$Companion;
-	public fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEventBus;)V
-	public synthetic fun filter (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-	public fun filter (Lme/ahoo/wow/command/ServerCommandExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-	public synthetic fun filter (Lme/ahoo/wow/messaging/handler/MessageExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/eventsourcing/state/SendStateEventFilter$Companion {
 }
 
 public final class me/ahoo/wow/eventsourcing/state/SimpleStateEventExchange : me/ahoo/wow/eventsourcing/state/StateEventExchange {
@@ -3837,18 +3822,12 @@ public final class me/ahoo/wow/modeling/command/dispatcher/CommandDispatcher : m
 	public fun receiveMessage (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 }
 
-public abstract interface class me/ahoo/wow/modeling/command/dispatcher/CommandFilter : me/ahoo/wow/messaging/handler/ExchangeFilter {
+public abstract interface class me/ahoo/wow/modeling/command/dispatcher/CommandHandler {
+	public abstract fun handle (Lme/ahoo/wow/command/ServerCommandExchange;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lreactor/core/publisher/Mono;
 }
 
-public abstract interface class me/ahoo/wow/modeling/command/dispatcher/CommandHandler : me/ahoo/wow/filter/Handler {
-}
-
-public final class me/ahoo/wow/modeling/command/dispatcher/DefaultCommandHandler : me/ahoo/wow/filter/AbstractHandler, me/ahoo/wow/modeling/command/dispatcher/CommandHandler {
-	public fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)V
-	public synthetic fun <init> (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter$Companion {
+public abstract interface class me/ahoo/wow/modeling/command/dispatcher/CommandInstrumentation {
+	public abstract fun around (Lme/ahoo/wow/command/ServerCommandExchange;Lreactor/core/publisher/Mono;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/modeling/metadata/AggregateMetadata : me/ahoo/wow/api/modeling/NamedAggregateDecorator, me/ahoo/wow/metadata/Metadata {

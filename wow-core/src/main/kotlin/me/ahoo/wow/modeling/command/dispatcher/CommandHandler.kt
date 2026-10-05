@@ -13,32 +13,125 @@
 
 package me.ahoo.wow.modeling.command.dispatcher
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.annotation.sortedByOrder
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.filter.AbstractHandler
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.thenNotifyAndForget
+import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogResumeErrorHandler
+import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.function.logErrorResume
+import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
+import me.ahoo.wow.modeling.command.AggregateProcessorFactory
+import me.ahoo.wow.modeling.command.getCommandAggregate
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.reactor.checkpoint
+import reactor.core.publisher.Mono
 
 /**
- * Handler interface for processing command exchanges.
- *
- * Implementations of this interface are responsible for handling server command exchanges
- * through a filter chain, providing the main entry point for command processing.
+ * Handles the commands of one aggregate type that a [CommandDispatcher] receives.
  */
-interface CommandHandler : Handler<ServerCommandExchange<*>>
+interface CommandHandler {
+    /**
+     * Handles [exchange], a command for an aggregate described by [aggregateMetadata]. The returned `Mono` completes
+     * once the command has been handled, successfully or not; it does not fail for a command that failed.
+     */
+    fun handle(exchange: ServerCommandExchange<*>, aggregateMetadata: AggregateMetadata<*, *>): Mono<Void>
+}
 
 /**
- * Default implementation of CommandHandler using a filter chain.
+ * The command side's pipeline, in a fixed order (V5: there is no command filter chain):
  *
- * This handler processes commands by passing them through a configured filter chain,
- * with built-in error handling capabilities.
+ * 1. Each [CommandInstrumentation] wraps everything below; the first one is the outermost.
+ * 2. When there is a [commandWaitNotifier], the `PROCESSED` wait signal is reported once everything below completed
+ *    or failed; a failed signal carries the error.
+ * 3. The aggregate processes the command through an [AggregateProcessorFactory] processor. The transport message is
+ *    acknowledged whatever the outcome; a failure skips the publication.
+ * 4. The domain event stream the command committed is sent on [domainEventBus]; a failure propagates.
+ * 5. When the state applied that stream (its version is the stream's), the state event is sent on [stateEventBus]; a
+ *    failure is logged and resumed.
  *
- * @param chain The filter chain to process commands through.
- * @param errorHandler The error handler for handling exceptions during command processing. Defaults to LogResumeErrorHandler.
+ * A failure that reaches the end is recorded on the exchange and given to [errorHandler]. A `null` bus or notifier
+ * skips its step; the Spring wiring passes all of them.
  */
+@InternalWowApi
 class DefaultCommandHandler(
-    chain: FilterChain<ServerCommandExchange<*>>,
-    errorHandler: ErrorHandler<ServerCommandExchange<*>> = LogResumeErrorHandler()
-) : AbstractHandler<ServerCommandExchange<*>>(chain, errorHandler),
-    CommandHandler
+    private val serviceProvider: ServiceProvider,
+    private val aggregateProcessorFactory: AggregateProcessorFactory,
+    private val domainEventBus: DomainEventBus?,
+    private val stateEventBus: StateEventBus?,
+    private val commandWaitNotifier: CommandWaitNotifier?,
+    instrumentations: List<CommandInstrumentation> = emptyList(),
+    private val errorHandler: ErrorHandler<ServerCommandExchange<*>> = LogResumeErrorHandler(),
+) : CommandHandler {
+    private companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
+    /** Innermost first, so wrapping them in turn makes the first one the outermost. */
+    private val instrumentationsInnermostFirst: List<CommandInstrumentation> =
+        instrumentations.sortedByOrder().asReversed()
+
+    override fun handle(exchange: ServerCommandExchange<*>, aggregateMetadata: AggregateMetadata<*, *>): Mono<Void> {
+        var handling = Mono.defer { processThenPublish(exchange, aggregateMetadata) }
+        if (commandWaitNotifier != null) {
+            handling = handling.thenNotifyAndForget(commandWaitNotifier, CommandStage.PROCESSED, exchange)
+        }
+        for (instrumentation in instrumentationsInnermostFirst) {
+            handling = instrumentation.around(exchange, handling)
+        }
+        return handling.onErrorResume {
+            exchange.setError(it)
+            errorHandler.handle(exchange, it)
+        }
+    }
+
+    private fun processThenPublish(
+        exchange: ServerCommandExchange<*>,
+        aggregateMetadata: AggregateMetadata<*, *>
+    ): Mono<Void> {
+        exchange.setServiceProvider(serviceProvider)
+        val aggregateProcessor = aggregateProcessorFactory.create(
+            aggregateId = exchange.message.aggregateId,
+            aggregateMetadata = aggregateMetadata,
+        )
+        var committed: DomainEventStream? = null
+        return aggregateProcessor.process(exchange)
+            .checkpoint {
+                "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [DefaultCommandHandler]"
+            }
+            .doOnNext { committed = it }
+            .finallyAck(exchange)
+            .then(Mono.defer { committed?.let { publish(exchange, it) } ?: Mono.empty() })
+    }
+
+    private fun publish(exchange: ServerCommandExchange<*>, eventStream: DomainEventStream): Mono<Void> {
+        val sendDomainEventStream = domainEventBus?.send(eventStream)
+            ?.checkpoint { "Send Message[${eventStream.id}] [DefaultCommandHandler]" }
+            ?: Mono.empty()
+        return sendDomainEventStream.then(Mono.defer { sendStateEvent(exchange, eventStream) })
+    }
+
+    private fun sendStateEvent(exchange: ServerCommandExchange<*>, eventStream: DomainEventStream): Mono<Void> {
+        val bus = stateEventBus ?: return Mono.empty()
+        val state = exchange.getCommandAggregate<Any, Any>()?.state
+        if (state == null) {
+            log.warn { "No state to send a state event for DomainEventStream[${eventStream.id}]." }
+            return Mono.empty()
+        }
+        // A state that failed to apply the stream stays at its previous version and is not published (B9).
+        if (!state.initialized || state.version != eventStream.version) {
+            return Mono.empty()
+        }
+        return bus.send(eventStream.copy().toStateEvent(state))
+            .checkpoint { "Send Message[${eventStream.id}] StateEvent [DefaultCommandHandler]" }
+            .logErrorResume()
+    }
+}

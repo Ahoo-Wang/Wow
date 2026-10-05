@@ -161,6 +161,20 @@ See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#re
 | `Flux<AggregateId>.toBatchResult(afterId)`, `ResendStateEventHandler.handle(afterId, limit)` | `toBatchResult(afterId, request, exceptionHandler)`, `resend(afterId, limit)` |
 | Non-bean `WebFluxAutoConfiguration.commandMessageExtractor`, `queryRequestScope`, `commandRouterFunction` and `pointReadAdmission` overloads, `CoSecAutoConfiguration.coSecCommandBuilderExtractor` / `coSecQueryRequestScope`, the three-argument `OpenAPIAutoConfiguration.routerSpecs` | the `@Bean` methods of the same name |
 
+### Command Filters Replaced by a Fixed Pipeline (9.3.0)
+
+The command side no longer has a filter chain. `DefaultCommandHandler` runs processing, acknowledgement, domain-event and state-event publication and the `PROCESSED` report in a fixed order (see [Command Processing Pipeline](./command/internals/pipeline.md#bus-to-dispatcher)). An `ExchangeFilter<ServerCommandExchange<*>>` bean is no longer called: move it to the extension point for what it did.
+
+| Removed | Use instead |
+|---|---|
+| `CommandFilter`, or any `ExchangeFilter` with `@FilterType(CommandDispatcher::class)`, used for tracing, metrics or logging | A `CommandInstrumentation` bean; `around(exchange, handling)` wraps each command's handling and must return its outcome unchanged |
+| A command filter that checked or rejected commands | `CommandValidator` / Jakarta validation on the command (checked at the gateway), or a check in the command function |
+| A command filter that reacted to the committed events | An event processor, saga or projection |
+| `TraceAggregateFilter` (OpenTelemetry) | `TraceCommandInstrumentation`, registered by the starter; same span name and attributes |
+| `AggregateProcessorFilter`, `SendDomainEventStreamFilter`, `SendStateEventFilter`, `ProcessedNotifierFilter`, `DefaultCommandHandler(chain, errorHandler)` | `DefaultCommandHandler(serviceProvider, aggregateProcessorFactory, domainEventBus, stateEventBus, commandWaitNotifier, instrumentations, errorHandler)` |
+| `CommandHandler.handle(exchange)` | `CommandHandler.handle(exchange, aggregateMetadata)` |
+| `ServerCommandExchange.setAggregateMetadata` / `getAggregateMetadata` / `setAggregateProcessor` / `getAggregateProcessor` | The handler receives the metadata as a parameter |
+
 ### Mongo Ownership Guard
 
 See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).

@@ -20,11 +20,9 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
-import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.DomainEventBus
@@ -34,7 +32,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
@@ -46,10 +43,8 @@ import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -146,16 +141,18 @@ abstract class CommandDispatcherSpec {
 
     @Test
     fun start() {
-        val chain = FilterChainBuilder<ServerCommandExchange<*>>()
-            .addFilter(AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory))
-            .addFilter(SendDomainEventStreamFilter(domainEventBus))
-            .addFilter(ProcessedNotifierFilter(LocalCommandWaitNotifier(waitCoordinator)))
-            .build()
+        val commandHandler = DefaultCommandHandler(
+            serviceProvider = serviceProvider,
+            aggregateProcessorFactory = aggregateProcessorFactory,
+            domainEventBus = domainEventBus,
+            stateEventBus = null,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
+        )
 
         val commandDispatcher = CommandDispatcher(
             namedAggregates = setOf(aggregateMetadata.materialize()),
             commandBus = commandBus,
-            commandHandler = DefaultCommandHandler(chain).meteredForTck(),
+            commandHandler = commandHandler.meteredForTck(),
         )
 
         val runtime = WowRuntime(listOf(commandDispatcher), Duration.ofSeconds(30), Duration.ZERO)

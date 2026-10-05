@@ -91,7 +91,6 @@ class CommandDispatcherChainScenario private constructor(
         val commandMessage = commandMessages[aggregateIdCycle.getAndIncrement() % commandMessages.size]
         val completionSink = Sinks.empty<Void>()
         val exchange = SimpleServerCommandExchange(commandMessage)
-        exchange.setAggregateMetadata(aggregateMetadata)
         exchange.setAttribute(DISPATCH_CHAIN_COMPLETION_KEY, completionSink)
         return DispatchedExchange(exchange, completionSink)
     }
@@ -183,7 +182,7 @@ private class DispatchChainHandler(
 ) : CommandHandler {
 
     @Suppress("UNCHECKED_CAST")
-    override fun handle(context: ServerCommandExchange<*>): Mono<Void> {
+    override fun handle(context: ServerCommandExchange<*>, aggregateMetadata: AggregateMetadata<*, *>): Mono<Void> {
         if (handlerCost == HandlerCost.SIMULATED) {
             Blackhole.consumeCPU(SIMULATED_CPU_TOKENS)
         }

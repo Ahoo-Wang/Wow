@@ -43,7 +43,7 @@ When an external SDK truly cannot be non-blocking, isolate it at an application-
 | Stage | Proves | Does not prove |
 | --- | --- | --- |
 | `SENT` | CommandBus accepted the send | Aggregate execution |
-| `PROCESSED` | Command filter chain completed, including aggregate decision, EventStore append, and DomainEventBus send | Downstream consumers completed |
+| `PROCESSED` | Command pipeline completed, including aggregate decision, EventStore append, and DomainEventBus send | Downstream consumers completed |
 | `SNAPSHOT` | Snapshot Dispatcher completed this StateEvent | All projections completed; `version_offset` wrote a new snapshot |
 | `PROJECTED` | Target projection completed; without a function target, the last-projection signal arrived | Event processors or sagas completed |
 | `EVENT_HANDLED` | Target event-processing function completed | Saga-derived commands completed |

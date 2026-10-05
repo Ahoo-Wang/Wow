@@ -19,7 +19,7 @@ backend reconciliation, projection-lag checks, or deployment evidence.
 
 ## What the OpenTelemetry module instruments
 
-The Spring starter registers five processing filters and decorates supported infrastructure beans:
+The Spring starter registers a command instrumentation (`TraceCommandInstrumentation`, since 9.3.0; before it the command filter `TraceAggregateFilter`), four event-side processing filters, and decorates supported infrastructure beans:
 
 | Runtime stage | Instrumentation scope | Representative span name |
 |---|---|---|
@@ -38,13 +38,13 @@ Store operations that use `AggregateIdAttributesExtractor` add only the aggregat
 registers no attribute extractor, so the `.waiting` span does not automatically receive these Wow message or
 aggregate attributes. These are trace attributes, not low-cardinality metric tags.
 
-Producer instrumenters inject the OpenTelemetry propagation headers into the Wow message header; consumer filters
-extract them. `TraceMono` and `TraceFlux` restore the OpenTelemetry `Context` for subscription and asynchronous
+Producer instrumenters inject the OpenTelemetry propagation headers into the Wow message header; consumer filters and
+the command instrumentation extract them. `TraceMono` and `TraceFlux` restore the OpenTelemetry `Context` for subscription and asynchronous
 signals, and end the span on completion, error, or cancellation. The wait decorator preserves the command gateway's
 runtime receiver/admission contract.
 
 All instrumenters capture `GlobalOpenTelemetry` when their singleton objects initialize. Initialize the SDK before
-the Wow ApplicationContext creates filters or decorators. The OpenTelemetry Java Agent satisfies this ordering
+the Wow ApplicationContext creates filters, instrumentations or decorators. The OpenTelemetry Java Agent satisfies this ordering
 because it starts before application bootstrap.
 
 ## Correlating Your Own Spans

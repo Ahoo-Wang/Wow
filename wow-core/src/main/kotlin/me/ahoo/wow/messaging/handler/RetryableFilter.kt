@@ -19,7 +19,6 @@ import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import reactor.util.retry.RetryBackoffSpec
@@ -44,7 +43,6 @@ val DEFAULT_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(2
  */
 @Order(
     before = [
-        AggregateProcessorFilter::class,
         DomainEventFunctionFilter::class,
         SnapshotFunctionFilter::class,
     ],

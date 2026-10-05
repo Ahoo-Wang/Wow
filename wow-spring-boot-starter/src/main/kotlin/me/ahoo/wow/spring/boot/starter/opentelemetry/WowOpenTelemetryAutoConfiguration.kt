@@ -12,7 +12,7 @@
  */
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
-import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
+import me.ahoo.wow.opentelemetry.aggregate.TraceCommandInstrumentation
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
@@ -34,8 +34,8 @@ class WowOpenTelemetryAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun traceAggregateFilter(): TraceAggregateFilter {
-        return TraceAggregateFilter
+    fun traceCommandInstrumentation(): TraceCommandInstrumentation {
+        return TraceCommandInstrumentation()
     }
 
     @Bean

@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.AggregateSnapshotStoreRegistry
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.RoutingSnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
+import me.ahoo.wow.opentelemetry.aggregate.TraceCommandInstrumentation
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
@@ -45,7 +45,7 @@ internal class WowOpenTelemetryAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(TraceAggregateFilter::class.java)
+                    .hasSingleBean(TraceCommandInstrumentation::class.java)
                     .hasSingleBean(TraceProjectionFilter::class.java)
                     .hasSingleBean(TraceSnapshotFilter::class.java)
                     .hasSingleBean(TraceStatelessSagaFilter::class.java)
@@ -64,7 +64,7 @@ internal class WowOpenTelemetryAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .doesNotHaveBean(TraceAggregateFilter::class.java)
+                    .doesNotHaveBean(TraceCommandInstrumentation::class.java)
                     .doesNotHaveBean(TraceProjectionFilter::class.java)
                     .doesNotHaveBean(TraceSnapshotFilter::class.java)
                     .doesNotHaveBean(TraceStatelessSagaFilter::class.java)

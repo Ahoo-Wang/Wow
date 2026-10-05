@@ -27,7 +27,6 @@ import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
@@ -117,11 +116,6 @@ class CommandGatewayAutoConfiguration {
     @ConditionalOnMissingClass("me.ahoo.wow.webflux.route.command.CommandHandlerFunction")
     fun commandWaitNotifier(waitCoordinator: WaitCoordinator): CommandWaitNotifier {
         return LocalCommandWaitNotifier(waitCoordinator)
-    }
-
-    @Bean
-    fun processedNotifierFilter(commandWaitNotifier: CommandWaitNotifier): ProcessedNotifierFilter {
-        return ProcessedNotifierFilter(commandWaitNotifier)
     }
 
     @Bean

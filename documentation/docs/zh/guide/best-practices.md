@@ -43,7 +43,7 @@ Wow 提供命令、事件溯源、消息处理和等待阶段，但应用仍拥�
 | Stage | 已证明 | 未证明 |
 | --- | --- | --- |
 | `SENT` | CommandBus 接受发送 | 聚合已执行 |
-| `PROCESSED` | 命令 Filter 链完成，包括聚合决策、EventStore append 与 DomainEventBus send | 下游消费者完成 |
+| `PROCESSED` | 命令管道完成，包括聚合决策、EventStore append 与 DomainEventBus send | 下游消费者完成 |
 | `SNAPSHOT` | Snapshot Dispatcher 完成本次 StateEvent 处理 | 所有投影完成；`version_offset` 一定写了新快照 |
 | `PROJECTED` | 目标投影完成；无函数目标时等待 last projection 信号 | 其他事件处理器或 Saga 完成 |
 | `EVENT_HANDLED` | 目标事件处理函数完成 | Saga 派生命令完成 |

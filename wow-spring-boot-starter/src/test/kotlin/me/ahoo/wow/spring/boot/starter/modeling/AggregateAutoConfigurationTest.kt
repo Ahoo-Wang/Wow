@@ -21,13 +21,10 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -64,9 +61,6 @@ internal class AggregateAutoConfigurationTest {
                     .hasSingleBean(StateAggregateRepository::class.java)
                     .hasSingleBean(CommandAggregateFactory::class.java)
                     .hasSingleBean(AggregateProcessorFactory::class.java)
-                    .hasSingleBean(AggregateProcessorFilter::class.java)
-                    .hasSingleBean(SendDomainEventStreamFilter::class.java)
-                    .hasSingleBean(FilterChain::class.java)
                     .hasSingleBean(CommandHandler::class.java)
                     .hasSingleBean(WowRuntimeLifecycle::class.java)
                 context.getBean(

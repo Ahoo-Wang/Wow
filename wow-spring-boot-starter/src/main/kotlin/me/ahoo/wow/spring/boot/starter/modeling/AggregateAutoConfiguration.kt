@@ -16,26 +16,24 @@ package me.ahoo.wow.spring.boot.starter.modeling
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.CommandInstrumentation
 import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -88,35 +86,6 @@ class AggregateAutoConfiguration {
         )
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    fun aggregateProcessorFilter(
-        serviceProvider: ServiceProvider,
-        aggregateProcessorFactory: AggregateProcessorFactory,
-    ): AggregateProcessorFilter {
-        return AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory)
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    fun sendDomainEventStreamFilter(
-        domainEventBus: DomainEventBus
-    ): SendDomainEventStreamFilter {
-        return SendDomainEventStreamFilter(
-            domainEventBus = domainEventBus,
-        )
-    }
-
-    @Bean
-    fun commandFilterChain(
-        filters: List<ExchangeFilter<ServerCommandExchange<*>>>
-    ): FilterChain<ServerCommandExchange<*>> {
-        return FilterChainBuilder<ServerCommandExchange<*>>()
-            .addFilters(filters)
-            .filterCondition(CommandDispatcher::class)
-            .build()
-    }
-
     @Bean("commandErrorHandler")
     @ConditionalOnMissingBean(name = ["commandErrorHandler"])
     fun commandErrorHandler(): ErrorHandler<ServerCommandExchange<*>> {
@@ -126,11 +95,21 @@ class AggregateAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun commandHandler(
-        commandFilterChain: FilterChain<ServerCommandExchange<*>>,
+        serviceProvider: ServiceProvider,
+        aggregateProcessorFactory: AggregateProcessorFactory,
+        domainEventBus: DomainEventBus,
+        stateEventBus: ObjectProvider<StateEventBus>,
+        commandWaitNotifier: ObjectProvider<CommandWaitNotifier>,
+        instrumentations: ObjectProvider<CommandInstrumentation>,
         @Qualifier("commandErrorHandler") commandErrorHandler: ErrorHandler<ServerCommandExchange<*>>
     ): CommandHandler {
         return DefaultCommandHandler(
-            chain = commandFilterChain,
+            serviceProvider = serviceProvider,
+            aggregateProcessorFactory = aggregateProcessorFactory,
+            domainEventBus = domainEventBus,
+            stateEventBus = stateEventBus.ifAvailable,
+            commandWaitNotifier = commandWaitNotifier.ifAvailable,
+            instrumentations = instrumentations.toList(),
             errorHandler = commandErrorHandler,
         )
     }

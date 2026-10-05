@@ -16,12 +16,10 @@ package me.ahoo.wow.command.wait
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
@@ -31,7 +29,6 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
@@ -56,18 +53,6 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
     ): Mono<Void> = next.filter(exchange)
         .thenNotifyAndForget(commandWaitNotifier, processingStage, exchange)
 }
-
-/**
- * Filter that notifies wait plans when command processing is complete.
- * Intercepts the command dispatcher pipeline to send PROCESSED stage notifications.
- *
- * @param commandWaitNotifier The notifier for sending wait signals.
- */
-@Order(ORDER_FIRST)
-class ProcessedNotifierFilter(
-    commandWaitNotifier: CommandWaitNotifier
-) : CommandFilter,
-    AbstractNotifierFilter<ServerCommandExchange<*>, CommandMessage<*>>(CommandStage.PROCESSED, commandWaitNotifier)
 
 /**
  * Filter that notifies wait plans when aggregate snapshots are generated.

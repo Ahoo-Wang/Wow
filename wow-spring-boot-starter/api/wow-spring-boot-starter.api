@@ -284,7 +284,6 @@ public class me/ahoo/wow/spring/boot/starter/command/CommandGatewayAutoConfigura
 	public fun eventHandledNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/EventHandledNotifierFilter;
 	public fun idempotencyChecker (Lme/ahoo/wow/spring/boot/starter/command/CommandProperties;)Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;
 	public fun noOpIdempotencyCheckerProvider ()Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;
-	public fun processedNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/ProcessedNotifierFilter;
 	public fun projectedNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/ProjectedNotifierFilter;
 	public fun requestIdChecker (Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/RequestIdChecker;
 	public fun sagaHandledNotifierFilter (Lme/ahoo/wow/command/wait/CommandWaitNotifier;)Lme/ahoo/wow/command/wait/SagaHandledNotifierFilter;
@@ -851,7 +850,6 @@ public class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateAutoConfig
 	public fun inMemoryStateEventBus ()Lme/ahoo/wow/eventsourcing/state/StateEventBus;
 	public fun localFirstStateEventBus (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;
 	public fun localStateEventBus ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
-	public fun sendStateEventFilter (Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/eventsourcing/state/SendStateEventFilter;
 	public fun stateEventCompensator (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/event/compensation/StateEventCompensator;
 }
 
@@ -1021,12 +1019,9 @@ public class me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration
 	public fun <init> ()V
 	public fun aggregateDispatcher (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/modeling/command/dispatcher/CommandDispatcher;
 	public fun aggregateProcessorFactory (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/modeling/command/CommandAggregateFactory;)Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;
-	public fun aggregateProcessorFilter (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;)Lme/ahoo/wow/modeling/command/dispatcher/AggregateProcessorFilter;
 	public fun commandAggregateFactory (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/command/CommandAggregateFactory;
 	public fun commandErrorHandler ()Lme/ahoo/wow/filter/ErrorHandler;
-	public fun commandFilterChain (Ljava/util/List;)Lme/ahoo/wow/filter/FilterChain;
-	public fun commandHandler (Lme/ahoo/wow/filter/FilterChain;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
-	public fun sendDomainEventStreamFilter (Lme/ahoo/wow/event/DomainEventBus;)Lme/ahoo/wow/modeling/command/dispatcher/SendDomainEventStreamFilter;
+	public fun commandHandler (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/modeling/command/AggregateProcessorFactory;Lme/ahoo/wow/event/DomainEventBus;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/filter/ErrorHandler;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
 	public fun stateAggregateFactory ()Lme/ahoo/wow/modeling/state/StateAggregateFactory;
 	public fun stateAggregateRepository (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/modeling/state/StateAggregateRepository;
 }
@@ -1175,7 +1170,7 @@ public final class me/ahoo/wow/spring/boot/starter/opentelemetry/TracingBeanPost
 
 public class me/ahoo/wow/spring/boot/starter/opentelemetry/WowOpenTelemetryAutoConfiguration {
 	public fun <init> ()V
-	public fun traceAggregateFilter ()Lme/ahoo/wow/opentelemetry/aggregate/TraceAggregateFilter;
+	public fun traceCommandInstrumentation ()Lme/ahoo/wow/opentelemetry/aggregate/TraceCommandInstrumentation;
 	public fun traceEventProcessorFilter ()Lme/ahoo/wow/opentelemetry/eventprocessor/TraceEventProcessorFilter;
 	public fun traceProjectionFilter ()Lme/ahoo/wow/opentelemetry/projection/TraceProjectionFilter;
 	public fun traceSnapshotFilter ()Lme/ahoo/wow/opentelemetry/snapshot/TraceSnapshotFilter;

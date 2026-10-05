@@ -72,7 +72,7 @@ The distributed copy therefore provides fallback and an observable record. `loca
 
 ## Void
 
-`LocalFirstCommandBus.send` forces `local_first=false` on an `isVoid` command, skips the local-first attempt, and uses distributed send only. `CommandDispatcher` then acknowledges and filters `Void` commands with `filterThenAck`, so they never enter the aggregate Filter chain and cannot produce `PROCESSED` or later stages.
+`LocalFirstCommandBus.send` forces `local_first=false` on an `isVoid` command, skips the local-first attempt, and uses distributed send only. `CommandDispatcher` then acknowledges and filters `Void` commands with `filterThenAck`, so they never enter the command pipeline and cannot produce `PROCESSED` or later stages.
 
 The Gateway accordingly accepts only a wait plan with `supportVoidCommand=true`. The built-in `CommandWait.sent` provides that contract; later-stage plans fail before send. The observable boundary for a Void route is transport acceptance, not aggregate execution.
 

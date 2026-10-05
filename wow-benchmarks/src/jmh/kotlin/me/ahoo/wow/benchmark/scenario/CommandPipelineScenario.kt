@@ -23,7 +23,6 @@ import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.InMemoryDomainEventBus
@@ -33,19 +32,15 @@ import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -58,7 +53,7 @@ class CommandPipelineScenario private constructor(
     val aggregateAndDomainEventHandler: CommandHandler,
     val aggregateDomainAndStateEventHandler: CommandHandler,
     val aggregateDomainStateAndProcessedNotifierHandler: CommandHandler,
-    private val aggregateMetadata: AggregateMetadata<*, *>,
+    val aggregateMetadata: AggregateMetadata<*, *>,
     private val newAggregateCommandFactory: () -> CommandMessage<*>,
 ) {
 
@@ -72,9 +67,7 @@ class CommandPipelineScenario private constructor(
     }
 
     fun <C : Any> createServerExchange(commandMessage: CommandMessage<C>): ServerCommandExchange<C> {
-        val exchange = SimpleServerCommandExchange(commandMessage)
-        exchange.setAggregateMetadata(aggregateMetadata)
-        return exchange
+        return SimpleServerCommandExchange(commandMessage)
     }
 
     companion object {
@@ -106,32 +99,29 @@ class CommandPipelineScenario private constructor(
             return CommandPipelineScenario(
                 aggregateOnlyHandler = createHandler(aggregateProcessorFactory),
                 aggregateOnlyWithoutRetryHandler = createHandler(directAggregateProcessorFactory),
-                aggregateAndDomainEventHandler = createHandler(aggregateProcessorFactory) {
-                    addFilter(SendDomainEventStreamFilter(domainEventBus))
-                },
-                aggregateDomainAndStateEventHandler = createHandler(aggregateProcessorFactory) {
-                    addFilter(SendDomainEventStreamFilter(domainEventBus))
-                    addFilter(SendStateEventFilter(stateEventBus))
-                },
-                aggregateDomainStateAndProcessedNotifierHandler = createHandler(aggregateProcessorFactory) {
-                    addFilter(SendDomainEventStreamFilter(domainEventBus))
-                    addFilter(SendStateEventFilter(stateEventBus))
-                    addFilter(ProcessedNotifierFilter(commandWaitNotifier))
-                },
+                aggregateAndDomainEventHandler = createHandler(aggregateProcessorFactory, domainEventBus),
+                aggregateDomainAndStateEventHandler =
+                    createHandler(aggregateProcessorFactory, domainEventBus, stateEventBus),
+                aggregateDomainStateAndProcessedNotifierHandler =
+                    createHandler(aggregateProcessorFactory, domainEventBus, stateEventBus, commandWaitNotifier),
                 aggregateMetadata = aggregateMetadata,
                 newAggregateCommandFactory = newAggregateCommandFactory,
             )
         }
 
+        /** The production command pipeline, with only the given publication steps. */
         private fun createHandler(
             aggregateProcessorFactory: AggregateProcessorFactory,
-            configure: FilterChainBuilder<ServerCommandExchange<*>>.() -> Unit = {},
-        ): CommandHandler {
-            val chainBuilder = FilterChainBuilder<ServerCommandExchange<*>>()
-                .addFilter(AggregateProcessorFilter(SimpleServiceProvider(), aggregateProcessorFactory))
-            chainBuilder.configure()
-            return DefaultCommandHandler(chainBuilder.build())
-        }
+            domainEventBus: DomainEventBus? = null,
+            stateEventBus: StateEventBus? = null,
+            commandWaitNotifier: CommandWaitNotifier? = null,
+        ): CommandHandler = DefaultCommandHandler(
+            serviceProvider = SimpleServiceProvider(),
+            aggregateProcessorFactory = aggregateProcessorFactory,
+            domainEventBus = domainEventBus,
+            stateEventBus = stateEventBus,
+            commandWaitNotifier = commandWaitNotifier,
+        )
     }
 }
 
