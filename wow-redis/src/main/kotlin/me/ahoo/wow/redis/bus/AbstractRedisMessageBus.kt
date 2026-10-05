@@ -61,7 +61,10 @@ abstract class AbstractRedisMessageBus<M, E>(
     private val retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
 ) : DistributedMessageBus<M, E>
     where M : Message<*, *>, M : AggregateIdCapable, M : NamedAggregate, E : MessageExchange<*, M> {
-    @Deprecated("Binary compatibility with 9.2; pass retentionOptions.", level = DeprecationLevel.HIDDEN)
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use the constructor with retentionOptions.",
+        level = DeprecationLevel.HIDDEN
+    )
     constructor(
         redisTemplate: ReactiveStringRedisTemplate,
         topicConverter: AggregateTopicConverter,
