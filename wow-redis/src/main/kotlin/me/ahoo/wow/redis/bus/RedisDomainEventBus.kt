@@ -26,6 +26,7 @@ class RedisDomainEventBus(
     pollTimeout: Duration = Duration.ofSeconds(2),
     recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
     messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+    retentionOptions: RedisStreamRetentionOptions = RedisStreamRetentionOptions.DEFAULT,
 ) : DistributedDomainEventBus,
     AbstractRedisMessageBus<DomainEventStream, EventStreamExchange>(
         redisTemplate,
@@ -33,7 +34,24 @@ class RedisDomainEventBus(
         pollTimeout,
         recoveryOptions,
         messageBusObserver,
+        retentionOptions,
     ) {
+    @Deprecated("Binary compatibility with 9.2; pass retentionOptions.", level = DeprecationLevel.HIDDEN)
+    constructor(
+        redisTemplate: ReactiveStringRedisTemplate,
+        topicConverter: EventStreamTopicConverter = DefaultEventStreamTopicConverter,
+        pollTimeout: Duration = Duration.ofSeconds(2),
+        recoveryOptions: RedisStreamRecoveryOptions = RedisStreamRecoveryOptions.DEFAULT,
+        messageBusObserver: RedisMessageBusObserver = RedisMessageBusObserver.NOOP,
+    ) : this(
+        redisTemplate,
+        topicConverter,
+        pollTimeout,
+        recoveryOptions,
+        messageBusObserver,
+        RedisStreamRetentionOptions.DEFAULT,
+    )
+
     override val messageType: Class<DomainEventStream>
         get() = DomainEventStream::class.java
 

@@ -83,7 +83,7 @@ All four MongoDB/Elasticsearch Store constructors share `me.ahoo.wow.infra.batch
 
 ## Redis
 
-Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`; required capability: `redis-support`.
+Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`, `RedisStreamRetentionProperties`; required capability: `redis-support`.
 
 | Property | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -92,8 +92,13 @@ Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`; requi
 | `wow.redis.message-bus.recovery.min-idle-time` | Duration | `5m` | Minimum idle time before a pending entry can be claimed |
 | `wow.redis.message-bus.recovery.interval` | Duration | `30s` | Interval between recovery sweeps |
 | `wow.redis.message-bus.recovery.batch-size` | Long | `100` | Pending records per page |
+| `wow.redis.message-bus.retention.max-length` | Long | unset | Trims each stream to about this many entries on every send (`MAXLEN ~`); off by default |
+| `wow.redis.message-bus.retention.max-age` | Duration | unset | Trims entries older than this on every send (`MINID ~`); off by default |
+| `wow.redis.message-bus.retention.approximate` | Boolean | `true` | Trims whole macro nodes (`~`) instead of exactly |
+| `wow.redis.message-bus.retention.reap-idle-consumers` | Boolean | `true` | Deletes idle consumers that have no pending entries when a receiver starts |
+| `wow.redis.message-bus.retention.consumer-idle-timeout` | Duration | `30m` | How long a consumer must be idle before it is deleted |
 
-`min-idle-time` and `interval` must be at least `1ms`; `batch-size` must be positive. Spring Boot owns the connection through `spring.data.redis.*`.
+`min-idle-time` and `interval` must be at least `1ms`; `batch-size` must be positive. Set at most one of `retention.max-length` (positive) and `retention.max-age` (at least `1ms`). Spring Boot owns the connection through `spring.data.redis.*`.
 
 ```yaml
 spring:

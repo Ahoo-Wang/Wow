@@ -75,6 +75,16 @@ The subscription receiver group becomes the Redis consumer group. `BUSYGROUP` du
 
 Recovery periodically scans entries idle beyond the threshold and claims them after confirming the original consumer is inactive. It handles only PEL entries left unacknowledged before process termination/cancellation or a transport/decode failure and still present in the Stream; it never recovers trimmed, deleted, or unpersisted data.
 
+### Stream retention and idle consumers
+
+Streams are not trimmed by default: an entry stays until it is deleted by hand, so a lagging consumer group or a new group replaying from the start still finds it. To bound memory, set one of these:
+- `wow.redis.message-bus.retention.max-length`: every send trims the stream to about that many entries (`XADD … MAXLEN ~`).
+- `wow.redis.message-bus.retention.max-age`: every send trims entries older than that age (`XADD … MINID ~`, computed from the sender's clock).
+
+Trimming applies to every consumer group. An entry that a lagging group has not read yet is lost to that group, and recovery cannot bring it back, so size the limit to the slowest group's worst lag.
+
+Each subscription start joins its group under a new consumer name, so restarts leave old consumers behind. When a receiver starts, it deletes the consumers of its group that have nothing pending and have been idle for `consumer-idle-timeout` (default `30m`). The check and the delete run in one script, so no pending entry is lost. A live consumer polls every few seconds and is never that idle; if one is deleted anyway, its next read re-creates it. Set `reap-idle-consumers=false` to keep every consumer.
+
 ## Event Bus
 
 Domain and state events share the Streams pipeline and explicit acknowledgment semantics. A `RECOVERABLE` failure is first retried in-process by `RetryableFilter`; after exhaustion, an enabled compensation filter can record later compensation, the default `LogResumeErrorHandler` logs and resumes, and `AbstractAggregateEventDispatcher.finallyAck` acknowledges the original exchange after success or error. Ordinary business-handler failures therefore do not depend on Redis PEL recovery for redelivery. Only paths that end before acknowledgment—process termination/cancellation, transport, decode, and similar failures—may be delivered again by Redis recovery. Handlers should still be idempotent for those unacknowledged paths and explicit compensation.

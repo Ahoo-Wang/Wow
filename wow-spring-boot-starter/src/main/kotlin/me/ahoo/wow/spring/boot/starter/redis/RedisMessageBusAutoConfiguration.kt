@@ -50,7 +50,7 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 @ConditionalOnWowEnabled
 @ConditionalOnRedisEnabled
 @ConditionalOnClass(RedisCommandBus::class)
-@EnableConfigurationProperties(RedisStreamRecoveryProperties::class)
+@EnableConfigurationProperties(RedisStreamRecoveryProperties::class, RedisStreamRetentionProperties::class)
 class RedisMessageBusAutoConfiguration {
 
     @Bean
@@ -62,12 +62,14 @@ class RedisMessageBusAutoConfiguration {
     fun redisCommandBus(
         redisTemplate: ReactiveStringRedisTemplate,
         recoveryProperties: RedisStreamRecoveryProperties,
+        retentionProperties: RedisStreamRetentionProperties,
         observers: ObjectProvider<RedisMessageBusObserver>,
     ): DistributedCommandBus {
         return RedisCommandBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
             messageBusObserver = observers.toObserver(),
+            retentionOptions = retentionProperties.toOptions(),
         )
     }
 
@@ -80,12 +82,14 @@ class RedisMessageBusAutoConfiguration {
     fun redisDomainEventBus(
         redisTemplate: ReactiveStringRedisTemplate,
         recoveryProperties: RedisStreamRecoveryProperties,
+        retentionProperties: RedisStreamRetentionProperties,
         observers: ObjectProvider<RedisMessageBusObserver>,
     ): DistributedDomainEventBus {
         return RedisDomainEventBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
             messageBusObserver = observers.toObserver(),
+            retentionOptions = retentionProperties.toOptions(),
         )
     }
 
@@ -98,12 +102,14 @@ class RedisMessageBusAutoConfiguration {
     fun redisStateEventBus(
         redisTemplate: ReactiveStringRedisTemplate,
         recoveryProperties: RedisStreamRecoveryProperties,
+        retentionProperties: RedisStreamRetentionProperties,
         observers: ObjectProvider<RedisMessageBusObserver>,
     ): DistributedStateEventBus {
         return RedisStateEventBus(
             redisTemplate = redisTemplate,
             recoveryOptions = recoveryProperties.toOptions(),
             messageBusObserver = observers.toObserver(),
+            retentionOptions = retentionProperties.toOptions(),
         )
     }
 

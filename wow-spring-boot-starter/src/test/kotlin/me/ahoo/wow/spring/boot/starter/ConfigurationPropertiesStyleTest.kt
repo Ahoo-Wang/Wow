@@ -43,6 +43,7 @@ import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.query.QueryProperties
 import me.ahoo.wow.spring.boot.starter.redis.RedisProperties
 import me.ahoo.wow.spring.boot.starter.redis.RedisStreamRecoveryProperties
+import me.ahoo.wow.spring.boot.starter.redis.RedisStreamRetentionProperties
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -72,6 +73,7 @@ class ConfigurationPropertiesStyleTest {
         PrepareProperties::class.java,
         RedisProperties::class.java,
         RedisStreamRecoveryProperties::class.java,
+        RedisStreamRetentionProperties::class.java,
         WebFluxProperties::class.java,
         QueryProperties::class.java,
     )

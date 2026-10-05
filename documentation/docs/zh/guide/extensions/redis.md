@@ -75,6 +75,16 @@ subscription 的 receiver group 成为 Redis consumer group。group 创建时的
 
 recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consumer 不活跃后 claim。它只处理 ack 前因进程终止/取消、transport 或 decode 等路径遗留且仍在 Stream 中的 PEL entry，不恢复被 trim、删除或未持久化的数据。
 
+### Stream 保留与空闲 consumer
+
+默认不裁剪 Stream：条目一直保留到手动删除，落后的消费者组或从头重放的新组仍能读到它。要限制内存，可设置以下之一：
+- `wow.redis.message-bus.retention.max-length`：每次发送时把 Stream 裁剪到约这么多条（`XADD … MAXLEN ~`）。
+- `wow.redis.message-bus.retention.max-age`：每次发送时裁剪早于这个时长的条目（`XADD … MINID ~`，按发送方时钟计算）。
+
+裁剪对所有消费者组生效。落后的组尚未读到的条目会对它丢失，recovery 也补不回来，所以上限要按最慢的组的最坏延迟来定。
+
+每次订阅启动都以新的 consumer 名加入组，重启会留下旧 consumer。接收器启动时，会删除本组中没有待处理条目、且空闲达到 `consumer-idle-timeout`（默认 `30m`）的 consumer。检查和删除在同一个脚本里执行，不会丢失待处理条目。活跃的 consumer 每隔几秒就会轮询，不会空闲这么久；即使被删，下一次读取也会重新创建它。设置 `reap-idle-consumers=false` 可保留所有 consumer。
+
 ## 事件总线
 
 领域事件与状态事件复用相同 Streams 管线和显式 acknowledge 语义。`RECOVERABLE` 失败先由进程内 `RetryableFilter` 重试；耗尽后，已启用的 compensation filter 可记录后续补偿，默认 `LogResumeErrorHandler` 记录并恢复，而 `AbstractAggregateEventDispatcher.finallyAck` 在成功或错误后都会确认原 exchange。因此普通业务 handler 失败不依赖 Redis PEL recovery 重投；只有确认前终止/取消、transport、decode 等未确认路径才可能由 Redis redelivery/recovery 重新交付。处理器仍应保持幂等以覆盖这些未确认路径和显式补偿。
