@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.RuntimeResources
 import me.ahoo.wow.runtime.WowRuntime
 import org.aopalliance.intercept.MethodInterceptor
 import org.junit.jupiter.api.Test
@@ -47,7 +48,7 @@ class WowRuntimeProxyTest {
             .enableWow()
             .withBean("proxiedRuntimeComponent", RuntimeComponent::class.java, { proxy })
             .run { context ->
-                context.getBean(WowRuntime::class.java).components.single()
+                context.getBean(WowRuntime::class.java).components.filterNot { it is RuntimeResources }.single()
                     .assert()
                     .isSameAs(proxy)
                 target.prepareCount.get().assert().isOne()

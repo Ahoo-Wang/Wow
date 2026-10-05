@@ -17,13 +17,19 @@ import com.mongodb.MongoWriteException
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.runtime.RuntimeResource
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-internal interface MongoEventStreamAppender : AutoCloseable {
+internal interface MongoEventStreamAppender : AutoCloseable, RuntimeResource {
     fun append(eventStream: DomainEventStream): Mono<Void>
 
     override fun close() = Unit
+
+    /** A direct writer has nothing to flush. */
+    override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
 }
 
 internal class DirectMongoEventStreamAppender(

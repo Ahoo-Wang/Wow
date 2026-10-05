@@ -62,6 +62,11 @@ internal class BatchMongoEventStreamAppender(
         }
     }
 
+    /** Flushes the accepted writes; the runtime calls it after its dispatchers stop. */
+    override fun stopGracefully(): Mono<Void> = coordinator.stopGracefully()
+
+    override fun forceStop() = coordinator.forceStop()
+
     override fun close() {
         coordinator.close(closeTimeout)
     }

@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.runtime.RuntimeResource
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -54,6 +55,13 @@ class ElasticsearchSnapshotStore(
             indexNaming = indexNaming,
         )
     }
+
+    /**
+     * The batch writer of this store's snapshots, flushed by the runtime after its dispatchers stop
+     * ([me.ahoo.wow.runtime.RuntimeResources]); [RuntimeResource.NONE] when the store writes directly.
+     */
+    val runtimeResource: RuntimeResource
+        get() = if (batchOptions == null) RuntimeResource.NONE else saver
 
     companion object {
         private const val NOT_FOUND_CODE = 404

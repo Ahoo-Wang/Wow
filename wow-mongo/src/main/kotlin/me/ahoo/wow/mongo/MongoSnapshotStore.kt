@@ -25,6 +25,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -45,6 +46,13 @@ class MongoSnapshotStore(
     } else {
         DirectMongoSnapshotSaver(database)
     }
+
+    /**
+     * The batch writer of this store's snapshots, flushed by the runtime after its dispatchers stop
+     * ([me.ahoo.wow.runtime.RuntimeResources]); [RuntimeResource.NONE] when the store writes directly.
+     */
+    val runtimeResource: RuntimeResource
+        get() = if (batchOptions == null) RuntimeResource.NONE else saver
 
     companion object {
         const val NAME = "mongo"

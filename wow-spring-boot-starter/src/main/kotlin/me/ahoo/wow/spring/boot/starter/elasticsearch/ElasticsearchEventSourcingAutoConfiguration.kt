@@ -31,6 +31,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.query.QueryBackendProvider
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
@@ -40,6 +41,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBindin
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.queryBackendProviderName
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.runtimeResourceOf
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -146,6 +148,13 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     }
 
     @Bean
+    @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
+    fun elasticsearchEventStoreRuntimeResource(
+        @Qualifier("elasticsearchEventStore")
+        elasticsearchEventStore: EventStore
+    ): RuntimeResource = runtimeResourceOf(elasticsearchEventStore, ElasticsearchEventStore::runtimeResource)
+
+    @Bean
     fun indexTemplateInitializer(elasticsearchOperations: ReactiveElasticsearchOperations): IndexTemplateInitializer {
         return IndexTemplateInitializer(elasticsearchOperations, indexNaming)
     }
@@ -220,6 +229,14 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     ): SnapshotStoreBinding {
         return SnapshotStoreBinding.storage(StorageType.ELASTICSEARCH, snapshotStore)
     }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
+    fun elasticsearchSnapshotStoreRuntimeResource(
+        @Qualifier("elasticsearchSnapshotStore")
+        elasticsearchSnapshotStore: SnapshotStore
+    ): RuntimeResource = runtimeResourceOf(elasticsearchSnapshotStore, ElasticsearchSnapshotStore::runtimeResource)
 
     @Bean
     @ConditionalOnSnapshotEnabled

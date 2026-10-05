@@ -26,6 +26,7 @@ import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -46,6 +47,13 @@ class MongoEventStore(
     } else {
         DirectMongoEventStreamAppender(database)
     }
+
+    /**
+     * The batch writer of this store's event streams, flushed by the runtime after its dispatchers stop
+     * ([me.ahoo.wow.runtime.RuntimeResources]); [RuntimeResource.NONE] when the store writes directly.
+     */
+    val runtimeResource: RuntimeResource
+        get() = if (batchOptions == null) RuntimeResource.NONE else appender
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> =
         appender.append(eventStream)

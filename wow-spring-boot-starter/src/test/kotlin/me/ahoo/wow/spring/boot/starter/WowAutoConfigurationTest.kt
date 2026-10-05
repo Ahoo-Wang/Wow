@@ -17,9 +17,15 @@ import jakarta.annotation.PreDestroy
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
+import me.ahoo.wow.infra.batch.BatchCoordinator
+import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
+import me.ahoo.wow.runtime.RuntimeResource
+import me.ahoo.wow.runtime.RuntimeResources
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.spring.WOW_RUNTIME_PHASE
 import me.ahoo.wow.spring.WowRuntimeLifecycle
@@ -242,7 +248,7 @@ internal class WowAutoConfigurationTest {
             .withBean("laterComponent", RuntimeComponent::class.java, { later })
             .withBean("firstComponent", RuntimeComponent::class.java, { first })
             .run { context ->
-                context.getBean(WowRuntime::class.java).components
+                context.getBean(WowRuntime::class.java).components.withoutResources()
                     .assert()
                     .containsExactly(first, later)
                 calls.assert().containsExactly(
@@ -261,6 +267,73 @@ internal class WowAutoConfigurationTest {
             "stop:later",
             "stop:first",
         )
+    }
+
+    @Test
+    fun `a slow batch writer flushes after the dispatchers, within the runtime deadline`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val dispatcher = RecordingRuntimeComponent("dispatcher", 10, calls)
+        val writes = CopyOnWriteArrayList<String>()
+        val writer = BatchCoordinator<String>(
+            name = "slow-writer",
+            options = BatchOptions(maxSize = 16, maxDelay = Duration.ofSeconds(10)),
+            writer = BatchWriter { items ->
+                Mono.delay(Duration.ofMillis(300))
+                    .doOnSubscribe { calls.add("flush:writer") }
+                    .then(
+                        Mono.fromCallable {
+                            writes.addAll(items)
+                            items.map { BatchItemResult.Success }
+                        }
+                    )
+            },
+        )
+        val resource = object : RuntimeResource {
+            override fun stopGracefully(): Mono<Void> = writer.stopGracefully()
+
+            override fun forceStop() = writer.forceStop()
+        }
+        lateinit var accepted: Mono<Void>
+
+        contextRunner
+            .enableWow()
+            .withPropertyValues("wow.shutdown-timeout=5s", "wow.shutdown-quiet-period=0s")
+            .withBean("dispatcher", RuntimeComponent::class.java, { dispatcher })
+            .withBean("slowWriter", RuntimeResource::class.java, { resource })
+            .run { context ->
+                context.getBean(WowRuntime::class.java).components.first()
+                    .assert().isInstanceOf(RuntimeResources::class.java)
+                // Accepted, but the 10s window holds it: only the shutdown flush writes it.
+                accepted = writer.submit("item").cache().also { it.subscribe() }
+            }
+
+        writes.assert().containsExactly("item")
+        accepted.block(Duration.ofSeconds(1))
+        calls.assert().containsSubsequence("stop:dispatcher", "flush:writer")
+    }
+
+    @Test
+    fun `a batch writer that outlives the runtime deadline is force stopped`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val dispatcher = RecordingRuntimeComponent("dispatcher", 10, calls)
+        val resource = object : RuntimeResource {
+            override fun stopGracefully(): Mono<Void> = Mono.never<Void>().doOnSubscribe { calls.add("flush:writer") }
+
+            override fun forceStop() {
+                calls.add("force:writer")
+            }
+        }
+        val started = System.nanoTime()
+
+        contextRunner
+            .enableWow()
+            .withPropertyValues("wow.shutdown-timeout=300ms", "wow.shutdown-quiet-period=0s")
+            .withBean("dispatcher", RuntimeComponent::class.java, { dispatcher })
+            .withBean("slowWriter", RuntimeResource::class.java, { resource })
+            .run { }
+
+        Duration.ofNanos(System.nanoTime() - started).assert().isLessThan(Duration.ofSeconds(5))
+        calls.assert().containsSubsequence("stop:dispatcher", "flush:writer", "force:writer")
     }
 
     @Test
@@ -328,7 +401,7 @@ internal class WowAutoConfigurationTest {
                     RuntimeComponent::class.java,
                 )
 
-                context.getBean(WowRuntime::class.java).components
+                context.getBean(WowRuntime::class.java).components.withoutResources()
                     .assert()
                     .containsExactly(priority, factoryOrdered, unordered)
             }
@@ -348,7 +421,7 @@ internal class WowAutoConfigurationTest {
                     .enableWow()
                     .withBean("childComponent", RuntimeComponent::class.java, { childComponent })
                     .run { child ->
-                        child.getBean(WOW_RUNTIME_BEAN_NAME, WowRuntime::class.java).components
+                        child.getBean(WOW_RUNTIME_BEAN_NAME, WowRuntime::class.java).components.withoutResources()
                             .assert()
                             .containsExactly(childComponent)
                         parentComponent.startCount.get().assert().isOne()
@@ -375,7 +448,7 @@ internal class WowAutoConfigurationTest {
                     RuntimeComponent::class.java,
                 ) as CloseableRuntimeComponent
 
-                context.getBean(WowRuntime::class.java).components
+                context.getBean(WowRuntime::class.java).components.withoutResources()
                     .assert()
                     .containsExactly(component)
             }
@@ -397,7 +470,7 @@ internal class WowAutoConfigurationTest {
             .enableWow()
             .run { context ->
                 context.startupFailure.assert().isNull()
-                context.getBean(WowRuntime::class.java).components
+                context.getBean(WowRuntime::class.java).components.withoutResources()
                     .assert()
                     .containsExactly(component)
             }
@@ -820,3 +893,6 @@ private fun Throwable.causeMessages(): List<String> =
 @Suppress("UNCHECKED_CAST")
 private fun DefaultLifecycleProcessor.phaseTimeouts(): Map<Int, Long> =
     ReflectionTestUtils.getField(this, "timeoutsForShutdownPhases") as Map<Int, Long>
+
+/** The runtime's components without the [RuntimeResources] component the starter registers first. */
+private fun List<RuntimeComponent>.withoutResources(): List<RuntimeComponent> = filterNot { it is RuntimeResources }

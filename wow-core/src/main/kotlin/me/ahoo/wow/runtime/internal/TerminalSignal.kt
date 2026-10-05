@@ -21,22 +21,9 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.Operators
 import reactor.util.context.Context
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.Semaphore
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-
-/**
- * Process-wide bounded delivery boundary for lifecycle terminal subscribers.
- */
-internal object TerminalSignal {
-    val dispatcher: TerminalSignalDispatcher =
-        newTerminalSignalDispatcher("wow-terminal-signal")
-}
 
 /**
  * Reserves terminal-delivery capacity when a subscriber is installed.
@@ -65,7 +52,7 @@ internal interface TerminalSignalPermit : Disposable {
  * terminal signal or explicitly cancels.
  */
 internal fun Mono<Void>.publishTerminalSignal(
-    dispatcher: TerminalSignalDispatcher = TerminalSignal.dispatcher,
+    dispatcher: TerminalSignalDispatcher = DefaultRuntimeExecutionResources.terminationDispatcher,
 ): Mono<Void> =
     TerminalSignalMono(this, dispatcher)
 
@@ -230,18 +217,41 @@ private class TerminalSignalCallbackSubscriber(
 }
 
 /**
- * Creates a bounded daemon dispatcher whose logical queue is limited by
- * admission permits rather than by terminal-time rejection.
+ * Creates a bounded daemon dispatcher with its own threads, whose logical
+ * queue is limited by admission permits rather than by terminal-time rejection.
  */
 internal fun newTerminalSignalDispatcher(
     threadNamePrefix: String,
     threadCap: Int = TERMINAL_SIGNAL_THREAD_CAP,
     queuedTaskCapacity: Int = TERMINAL_SIGNAL_QUEUE_CAPACITY,
+): TerminalSignalDispatcher {
+    require(threadCap > 0) {
+        "threadCap must be positive."
+    }
+    require(queuedTaskCapacity >= 0) {
+        "queuedTaskCapacity must not be negative."
+    }
+    return newTerminalSignalDispatcher(
+        RuntimeLifecyclePool(threadNamePrefix, threadCap)
+            .lane(threadNamePrefix, threadCap, queuedTaskCapacity),
+        threadCap,
+        queuedTaskCapacity,
+    )
+}
+
+/**
+ * Creates a bounded dispatcher on [lane], which must run [threadCap] tasks at
+ * once and queue [queuedTaskCapacity] more: admission permits never exceed
+ * what the lane accepts. Disposing the dispatcher disposes the lane.
+ */
+internal fun newTerminalSignalDispatcher(
+    lane: RuntimeLifecycleLane,
+    threadCap: Int,
+    queuedTaskCapacity: Int,
 ): TerminalSignalDispatcher =
     BoundedTerminalSignalDispatcher(
-        threadNamePrefix = threadNamePrefix,
-        threadCap = threadCap,
-        queuedTaskCapacity = queuedTaskCapacity,
+        lane = lane,
+        capacity = Math.addExact(threadCap, queuedTaskCapacity),
     )
 
 internal object ImmediateTerminalSignalDispatcher : TerminalSignalDispatcher {
@@ -276,36 +286,13 @@ internal object ImmediateTerminalSignalDispatcher : TerminalSignalDispatcher {
 }
 
 private class BoundedTerminalSignalDispatcher(
-    threadNamePrefix: String,
-    threadCap: Int,
-    queuedTaskCapacity: Int,
+    private val lane: RuntimeLifecycleLane,
+    capacity: Int,
 ) : TerminalSignalDispatcher {
     private val lifecycleMonitor = Any()
     private val disposed = AtomicBoolean()
-    private val permits: Semaphore
-    private val executor: ScheduledThreadPoolExecutor
+    private val permits = Semaphore(capacity, true)
     private val activePermits = mutableSetOf<Permit>()
-
-    init {
-        require(threadCap > 0) {
-            "threadCap must be positive."
-        }
-        require(queuedTaskCapacity >= 0) {
-            "queuedTaskCapacity must not be negative."
-        }
-        val capacity = Math.addExact(threadCap, queuedTaskCapacity)
-        permits = Semaphore(capacity, true)
-        executor = ScheduledThreadPoolExecutor(
-            threadCap,
-            TerminalSignalThreadFactory(threadNamePrefix),
-        ).apply {
-            removeOnCancelPolicy = true
-            setKeepAliveTime(TERMINAL_SIGNAL_THREAD_TTL_SECONDS, TimeUnit.SECONDS)
-            allowCoreThreadTimeOut(true)
-            setExecuteExistingDelayedTasksAfterShutdownPolicy(false)
-            setContinueExistingPeriodicTasksAfterShutdownPolicy(false)
-        }
-    }
 
     override fun tryAcquire(): TerminalSignalPermit? =
         synchronized(lifecycleMonitor) {
@@ -332,7 +319,7 @@ private class BoundedTerminalSignalDispatcher(
                 }
             }
         } finally {
-            executor.shutdownNow()
+            lane.dispose()
         }
     }
 
@@ -341,7 +328,7 @@ private class BoundedTerminalSignalDispatcher(
     private inner class Permit : TerminalSignalPermit {
         private val monitor = Any()
         private var state = TerminalSignalPermitState.ACTIVE
-        private var future: ScheduledFuture<*>? = null
+        private var queued: Runnable? = null
         private var dispatcherDisposed = false
         private var dispatcherDisposalAction: Runnable? = null
 
@@ -353,15 +340,13 @@ private class BoundedTerminalSignalDispatcher(
                 }
                 state = TerminalSignalPermitState.DISPATCHED
                 try {
-                    future = executor.schedule(
-                        { runDispatched(action) },
-                        0,
-                        TimeUnit.NANOSECONDS,
-                    )
+                    val task = Runnable { runDispatched(action) }
+                    queued = task
+                    lane.execute(task)
                     return true
                 } catch (error: Throwable) {
                     state = TerminalSignalPermitState.RELEASED
-                    future = null
+                    queued = null
                     dispatcherDisposalAction = null
                     error
                 }
@@ -386,7 +371,7 @@ private class BoundedTerminalSignalDispatcher(
         }
 
         override fun dispose() {
-            var cancelledFuture: ScheduledFuture<*>? = null
+            var cancelledTask: Runnable? = null
             var shouldReleasePermit = false
             synchronized(monitor) {
                 dispatcherDisposalAction = null
@@ -398,8 +383,8 @@ private class BoundedTerminalSignalDispatcher(
 
                     TerminalSignalPermitState.DISPATCHED -> {
                         state = TerminalSignalPermitState.RELEASED
-                        cancelledFuture = future
-                        future = null
+                        cancelledTask = queued
+                        queued = null
                         shouldReleasePermit = true
                     }
 
@@ -411,7 +396,7 @@ private class BoundedTerminalSignalDispatcher(
                     -> Unit
                 }
             }
-            cancelledFuture?.cancel(false)
+            cancelledTask?.let(lane::cancel)
             if (shouldReleasePermit) {
                 releasePermit(this)
             }
@@ -426,6 +411,7 @@ private class BoundedTerminalSignalDispatcher(
         private fun runDispatched(action: Runnable) {
             val shouldRun = synchronized(monitor) {
                 if (state == TerminalSignalPermitState.DISPATCHED) {
+                    queued = null
                     state = TerminalSignalPermitState.RUNNING
                     true
                 } else {
@@ -440,7 +426,6 @@ private class BoundedTerminalSignalDispatcher(
             } finally {
                 synchronized(monitor) {
                     state = TerminalSignalPermitState.RELEASED
-                    future = null
                     dispatcherDisposalAction = null
                 }
                 releasePermit(this)
@@ -448,7 +433,7 @@ private class BoundedTerminalSignalDispatcher(
         }
 
         fun invalidateFromDispatcher() {
-            var cancelledFuture: ScheduledFuture<*>? = null
+            var cancelledTask: Runnable? = null
             var shouldReleasePermit = false
             val disposalAction = synchronized(monitor) {
                 dispatcherDisposed = true
@@ -462,8 +447,8 @@ private class BoundedTerminalSignalDispatcher(
 
                     TerminalSignalPermitState.DISPATCHED -> {
                         state = TerminalSignalPermitState.RELEASED
-                        cancelledFuture = future
-                        future = null
+                        cancelledTask = queued
+                        queued = null
                         shouldReleasePermit = true
                     }
 
@@ -476,7 +461,7 @@ private class BoundedTerminalSignalDispatcher(
                 }
                 action
             }
-            cancelledFuture?.cancel(false)
+            cancelledTask?.let(lane::cancel)
             if (shouldReleasePermit) {
                 releasePermit(this)
             }
@@ -502,20 +487,5 @@ private enum class TerminalSignalPermitState {
     RELEASED,
 }
 
-private class TerminalSignalThreadFactory(
-    private val threadNamePrefix: String,
-) : ThreadFactory {
-    private val threadId = AtomicInteger()
-
-    override fun newThread(runnable: Runnable): Thread =
-        Thread(
-            runnable,
-            "$threadNamePrefix-${threadId.incrementAndGet()}",
-        ).apply {
-            isDaemon = true
-        }
-}
-
 private const val TERMINAL_SIGNAL_THREAD_CAP: Int = 8
 private const val TERMINAL_SIGNAL_QUEUE_CAPACITY: Int = 256
-private const val TERMINAL_SIGNAL_THREAD_TTL_SECONDS: Long = 60

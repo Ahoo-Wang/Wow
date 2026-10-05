@@ -407,6 +407,7 @@ public class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventSou
 	public synthetic fun <init> (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchQueryProperties;Lorg/springframework/beans/factory/ObjectProvider;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun elasticsearchEventStore (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer;Lme/ahoo/wow/elasticsearch/ElasticsearchEventStreamIndexInitializer;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventStore;
 	public fun elasticsearchEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public fun elasticsearchEventStoreRuntimeResource (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun elasticsearchEventStreamIndexInitializer (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;)Lme/ahoo/wow/elasticsearch/ElasticsearchEventStreamIndexInitializer;
 	public fun elasticsearchEventStreamQueryBackendFactory (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;)Lme/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackendFactory;
 	public static synthetic fun elasticsearchEventStreamQueryBackendFactory$default (Lme/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventSourcingAutoConfiguration;Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver;ILjava/lang/Object;)Lme/ahoo/wow/elasticsearch/query/event/ElasticsearchEventStreamQueryBackendFactory;
@@ -418,6 +419,7 @@ public class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventSou
 	public fun elasticsearchSnapshotQueryBackendProvider (Lme/ahoo/wow/elasticsearch/query/snapshot/ElasticsearchSnapshotQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
 	public fun elasticsearchSnapshotStore (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer;Lme/ahoo/wow/elasticsearch/ElasticsearchSnapshotIndexInitializer;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshotStore;
 	public fun elasticsearchSnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+	public fun elasticsearchSnapshotStoreRuntimeResource (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun indexTemplateInitializer (Lorg/springframework/data/elasticsearch/core/ReactiveElasticsearchOperations;)Lme/ahoo/wow/elasticsearch/IndexTemplateInitializer;
 	public fun jackson3JsonpMapper ()Lco/elastic/clients/json/jackson/Jackson3JsonpMapper;
 	public fun rest5ClientOptions ()Lco/elastic/clients/transport/rest5_client/Rest5ClientOptions;
@@ -914,10 +916,13 @@ public class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration {
 	public fun defaultCommandTopicConverter ()Lme/ahoo/wow/kafka/CommandTopicConverter;
 	public fun defaultEventStreamTopicConverter ()Lme/ahoo/wow/kafka/EventStreamTopicConverter;
 	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun kafkaCommandBusRuntimeResource (Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun kafkaDomainEventBus (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun kafkaDomainEventBusRuntimeResource (Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun kafkaReceiverPolicy ()Lme/ahoo/wow/kafka/KafkaReceiverPolicy;
 	public fun kafkaRecordDecodeFailureHandler ()Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;
 	public fun kafkaStateEventBus (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun kafkaStateEventBusRuntimeResource (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun receiverOptionsCustomizer ()Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;
 	public fun stateEventTopicConverter ()Lme/ahoo/wow/kafka/StateEventTopicConverter;
 }
@@ -1039,6 +1044,7 @@ public class me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfigu
 	public fun <init> (Lme/ahoo/wow/spring/boot/starter/mongo/MongoProperties;Lme/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties;Lme/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatchProperties;)V
 	public fun mongoEventStore (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/mongo/MongoEventStore;
 	public fun mongoEventStoreBinding (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/EventStoreBinding;
+	public fun mongoEventStoreRuntimeResource (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun mongoEventStreamQueryBackendFactory (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackendFactory;
 	public fun mongoEventStreamQueryBackendProvider (Lme/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
 	public fun mongoPrepareKeyFactory (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Lme/ahoo/wow/infra/prepare/PrepareKeyFactory;
@@ -1046,6 +1052,7 @@ public class me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfigu
 	public fun mongoSnapshotQueryBackendProvider (Lme/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackendFactory;)Lme/ahoo/wow/query/QueryBackendProvider;
 	public fun mongoSnapshotStore (Lcom/mongodb/reactivestreams/client/MongoClient;Lorg/springframework/boot/mongodb/autoconfigure/MongoProperties;Lme/ahoo/wow/api/naming/NamedBoundedContext;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/mongo/MongoSnapshotStore;
 	public fun mongoSnapshotStoreBinding (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/spring/boot/starter/eventsourcing/routing/SnapshotStoreBinding;
+	public fun mongoSnapshotStoreRuntimeResource (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/runtime/RuntimeResource;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties {

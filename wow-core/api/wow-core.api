@@ -2792,6 +2792,7 @@ public final class me/ahoo/wow/infra/batch/BatchCoordinator : me/ahoo/wow/infra/
 	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/infra/batch/BatchWriter;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public final fun close (Ljava/time/Duration;)V
+	public final fun forceStop ()V
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
 	public fun stop ()V
@@ -4350,6 +4351,27 @@ public final class me/ahoo/wow/runtime/RuntimeComponent$DefaultImpls {
 public abstract interface class me/ahoo/wow/runtime/RuntimeContext {
 	public abstract fun reportFailure (Ljava/lang/Throwable;)V
 	public abstract fun tryAcquire ()Lme/ahoo/wow/runtime/RuntimeActivity;
+}
+
+public abstract interface class me/ahoo/wow/runtime/RuntimeResource {
+	public static final field Companion Lme/ahoo/wow/runtime/RuntimeResource$Companion;
+	public static final field NONE Lme/ahoo/wow/runtime/RuntimeResource;
+	public abstract fun forceStop ()V
+	public abstract fun stopGracefully ()Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/runtime/RuntimeResource$Companion {
+}
+
+public final class me/ahoo/wow/runtime/RuntimeResources : me/ahoo/wow/runtime/RuntimeComponent {
+	public fun <init> (Ljava/lang/Iterable;)V
+	public fun <init> (Lkotlin/jvm/functions/Function0;)V
+	public fun forceStop ()V
+	public final fun getResolved ()Ljava/util/List;
+	public fun prepare (Lme/ahoo/wow/runtime/RuntimeContext;)Lreactor/core/publisher/Mono;
+	public fun quiesce ()V
+	public fun start ()V
+	public fun stopGracefully ()Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/runtime/WowRuntime : me/ahoo/wow/infra/lifecycle/GracefullyStoppable {

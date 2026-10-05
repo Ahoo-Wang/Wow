@@ -91,6 +91,7 @@ public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventSto
 	public fun close ()V
 	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
 	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
 	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
 }
@@ -108,6 +109,7 @@ public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchSnapshot
 	public fun close ()V
 	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
 	public fun getName ()Ljava/lang/String;
+	public final fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
 	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
 	public fun save (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lreactor/core/publisher/Mono;

@@ -159,6 +159,14 @@ class BatchCoordinator<T : Any>(
         return Mono.fromFuture(termination, true).then()
     }
 
+    /**
+     * Closes admission and fails every accepted item that is not written yet with [BatchClosedException], without
+     * waiting. A coordinator that already closed is not affected.
+     */
+    fun forceStop() {
+        failLifecycle(BatchClosedException(name))
+    }
+
     override fun close() {
         close(DEFAULT_CLOSE_TIMEOUT)
     }

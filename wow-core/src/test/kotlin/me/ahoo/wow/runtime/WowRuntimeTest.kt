@@ -88,6 +88,32 @@ class WowRuntimeTest {
     }
 
     @Test
+    fun `the shutdown deadline runs on the execution resources' timer`() {
+        val component = RecordingLifecycle(
+            name = "component",
+            calls = mutableListOf(),
+            stopGate = Sinks.empty(),
+        )
+        val deadlineScheduler = ControllableDeadlineScheduler()
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofMillis(20),
+            shutdownQuietPeriod = Duration.ZERO,
+            executionResources = object : RuntimeExecutionResources by DefaultRuntimeExecutionResources {
+                override val deadlineScheduler: Scheduler = deadlineScheduler
+            },
+        )
+        runtime.start().block()
+        val termination = runtime.stopGracefully().materialize().toFuture()
+
+        deadlineScheduler.runScheduled()
+
+        Exceptions.unwrap(checkNotNull(termination.get(1, TimeUnit.SECONDS)?.throwable))
+            .assert()
+            .isInstanceOf(TimeoutException::class.java)
+    }
+
+    @Test
     fun `synchronous stop waits for the runtime deadline owner`() {
         val stopSubscribed = CountDownLatch(1)
         val component = RecordingLifecycle(

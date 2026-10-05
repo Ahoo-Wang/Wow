@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackendFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendProvider
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -42,6 +43,7 @@ import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.runtimeResourceOf
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -104,6 +106,13 @@ class MongoEventSourcingAutoConfiguration(
     ): EventStoreBinding {
         return EventStoreBinding.storage(StorageType.MONGO, eventStore)
     }
+
+    @Bean
+    @ConditionalOnEventStoreStorage(StorageType.MONGO)
+    fun mongoEventStoreRuntimeResource(
+        @Qualifier("mongoEventStore")
+        mongoEventStore: EventStore
+    ): RuntimeResource = runtimeResourceOf(mongoEventStore, MongoEventStore::runtimeResource)
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.MONGO)
@@ -172,6 +181,14 @@ class MongoEventSourcingAutoConfiguration(
     ): SnapshotStoreBinding {
         return SnapshotStoreBinding.storage(StorageType.MONGO, snapshotStore)
     }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    fun mongoSnapshotStoreRuntimeResource(
+        @Qualifier("mongoSnapshotStore")
+        mongoSnapshotStore: SnapshotStore
+    ): RuntimeResource = runtimeResourceOf(mongoSnapshotStore, MongoSnapshotStore::runtimeResource)
 
     @Bean
     @ConditionalOnSnapshotEnabled

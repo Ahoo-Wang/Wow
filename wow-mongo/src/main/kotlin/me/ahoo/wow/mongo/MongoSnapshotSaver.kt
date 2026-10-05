@@ -18,6 +18,7 @@ import com.mongodb.client.model.UpdateOptions
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
+import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import reactor.core.publisher.Mono
@@ -47,10 +48,15 @@ internal fun <S : Any> Snapshot<S>.toMongoSnapshotWrite(): MongoSnapshotWrite {
     )
 }
 
-internal interface MongoSnapshotSaver : AutoCloseable {
+internal interface MongoSnapshotSaver : AutoCloseable, RuntimeResource {
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
 
     override fun close() = Unit
+
+    /** A direct writer has nothing to flush. */
+    override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+    override fun forceStop() = Unit
 }
 
 internal class DirectMongoSnapshotSaver(
