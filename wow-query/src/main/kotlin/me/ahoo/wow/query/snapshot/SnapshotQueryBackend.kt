@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.query.QueryBackend
 
+@WowSpi
 interface SnapshotQueryBackend : QueryBackend, Named

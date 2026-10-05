@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
@@ -37,6 +38,7 @@ import me.ahoo.wow.api.query.spec.spec
  * What depends on one request (a value within the field's domain, a relative-time configuration, a dynamic key) is
  * still checked by admission.
  */
+@InternalWowApi
 class QueryFieldCapabilities internal constructor(
     value: QueryValueSchema,
     /** The capabilities storage grants the field. */

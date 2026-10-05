@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
@@ -57,6 +58,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
 
+@InternalWowApi
 class FilterNormalizer(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val defaultZoneId: ZoneId = ZoneId.systemDefault(),

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryEntryPolicy
@@ -27,6 +28,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
+@OptIn(WowSpi::class) // Binds each aggregate's gateway to its routed query backend.
 class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
     companion object {
         /** Bean name for the event stream observer shared by aggregate gateways; also used for custom overrides. */

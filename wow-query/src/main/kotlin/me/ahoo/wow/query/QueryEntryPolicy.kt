@@ -57,7 +57,7 @@ data class QueryEntryPolicy(
     }
 
     /** Rejects the query when [requireAuthenticatedScope] applies and [authenticated] misses the required scope. */
-    fun requireScope(entry: QueryEntry, authenticated: FilterExpression, profile: QueryModelProfile?) {
+    internal fun requireScope(entry: QueryEntry, authenticated: FilterExpression, profile: QueryModelProfile?) {
         if (!requireAuthenticatedScope || entry != QueryEntry.HTTP || profile == null) {
             return
         }

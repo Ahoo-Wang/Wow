@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
@@ -41,6 +42,7 @@ import tools.jackson.databind.node.POJONode
 import java.util.concurrent.TimeUnit
 
 /** Operations on primitive arrays use one member layer, without flattening the definition. */
+@WowSpi
 fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
     QueryValueKind.ARRAY -> checkNotNull(items).alternativesOrSelf()
     QueryValueKind.UNION -> alternatives.flatMap { it.operationValues() }
@@ -48,6 +50,7 @@ fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
 }
 
 /** Flattens nested unions into their non-union alternatives; any other value is its own single alternative. */
+@WowSpi
 fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
     if (kind == QueryValueKind.UNION) alternatives.flatMap { it.alternativesOrSelf() } else listOf(this)
 
@@ -63,6 +66,7 @@ internal val Temporal?.encodesInstant: Boolean
     get() = this == Temporal.Date || this is Temporal.Epoch
 
 /** Whether any alternative of this value is an array, so storage may flatten it into multiple values. */
+@WowSpi
 fun QueryValueSchema.hasArrayBranch(): Boolean = alternativesOrSelf().any { it.kind == QueryValueKind.ARRAY }
 
 internal fun QueryValueSchema.accepts(values: Iterable<JsonNode>): Boolean {

@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.query.snapshot
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.RoutingQueryBackendFactory
 
+@WowSpi
 class RoutingSnapshotQueryBackendFactory(
     defaultFactory: SnapshotQueryBackendFactory,
     routes: Map<NamedAggregate, SnapshotQueryBackendFactory>,

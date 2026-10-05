@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -29,6 +30,7 @@ import java.util.Collections
  * orders them (BSON values for MongoDB, `hit.sort()` values for Elasticsearch). Only the backend that produced it
  * interprets the values.
  */
+@WowSpi
 class CursorPosition(values: List<Any?>) {
     val values: List<Any?> = Collections.unmodifiableList(ArrayList(values))
 
@@ -41,6 +43,7 @@ class CursorPosition(values: List<Any?>) {
  * The backend half of a cursor token: native position values to bytes and back. [decode] throws on any payload it
  * did not produce for a sort of [size] fields; the core reports every such failure as the invalid cursor error.
  */
+@WowSpi
 interface CursorPositionCodec {
     fun encode(position: CursorPosition): ByteArray
 

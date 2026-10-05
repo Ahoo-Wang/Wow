@@ -53,6 +53,12 @@ val rows = catalog.schema(namedAggregate, QueryModel.SNAPSHOT).flatMapMany { sch
 
 This example's `MatchAllFilter` does not restrict deletion state. The Backend, `FilterNormalizer`, and compiler do not append `ACTIVE`. A low-level Snapshot caller that needs active records must explicitly use `DeletionFilter(DeletionState.ACTIVE)`. This example supplies neither authorization nor masking and does not replace an application Gateway.
 
+## API tiers
+
+Since 9.3.0 the backend SPI is marked `@WowSpi`: `QueryBackend` and its snapshot and event-stream forms, `AdmittedQuery`, `ResolvedField`, the windows and `BackendPage`, `CursorPosition` and `CursorPositionCodec`, the backend factories and `QueryBackendProvider`, the storage adapter types (`QueryStorageAdapter`, `QueryStorageFacts`, `StorageSupport`, `QueryStorageFamily`, `QueryFieldBinding`, `QueryValueSchema`, `LogicalQuerySchema`, `QueryPathTemplate`, `QueryModelProfile` and their parts) and the `BackendQueries` functions (`single`, `list`, `paged`, `cursor`, `aggregate`). Code that implements a storage or calls a backend directly opts in with `@OptIn(WowSpi::class)`, or for a whole module with the compiler option `-opt-in=me.ahoo.wow.api.annotation.WowSpi`; without it the compiler warns. The SPI keeps its binary signatures within a minor line, and a minor release may change it in its release notes. Applications that inject gateways, write policies and filters or declare schemas never need the opt-in.
+
+Admission and schema compilation internals are not part of either tier: `QueryOperation` and `UnavailableQueryModelSchemaProvider` are `internal`, and `FilterNormalizer`, `DefaultQueryModelSchemaProvider`, `QueryFieldSchema` (with `QueryModelSchema.field`) and `QueryFieldCapabilities` are `@InternalWowApi`. Build schema providers through `QuerySchemaCatalog` and its `QueryModelCompiler`.
+
 ## Native numeric semantics
 
 Numeric comparisons use the storage precision of their binding; `EXACT_MATCH` does not mean arbitrary-precision source equality. Scalar field metrics retain native aggregation; array/union fields and arithmetic leaves follow the [one numeric contribution per record](./aggregation-query.md#numeric-contributions) contract. The Backend does not scan source to reconstruct array pairing, and runtime output must obey the logical numeric model.

@@ -14,6 +14,7 @@
 package me.ahoo.wow.viewstore.starter
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.modeling.getContextAliasPrefix
@@ -128,6 +129,7 @@ class ViewStoreAutoConfiguration {
      * query backend for views; otherwise none (Wow's fallback backend answers every query with an error, which would
      * take the configured system views down with it), with one warning.
      */
+    @OptIn(WowSpi::class) // Asks the views' query backend binding whether its storage is available.
     @Suppress("UNCHECKED_CAST")
     @Bean
     @ConditionalOnMissingBean

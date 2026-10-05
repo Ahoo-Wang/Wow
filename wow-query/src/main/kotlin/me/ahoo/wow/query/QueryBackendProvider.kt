@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 
@@ -25,6 +26,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
  * when a storage's snapshot and event-stream backends are configured independently; two providers of one name must
  * not supply the same read model.
  */
+@WowSpi
 interface QueryBackendProvider {
     /** The storage or binding name routes refer to, for example `mongo` or `elasticsearch`. */
     val name: String
@@ -48,6 +50,7 @@ interface QueryBackendProvider {
     }
 }
 
+@WowSpi
 data class SimpleQueryBackendProvider(
     override val name: String,
     override val snapshot: SnapshotQueryBackendFactory? = null,
@@ -60,6 +63,7 @@ data class SimpleQueryBackendProvider(
 }
 
 /** Every provider's read models by name; rejects two providers that supply one read model under one name. */
+@WowSpi
 class QueryBackendProviders(providers: List<QueryBackendProvider>) {
     val snapshots: Map<String, SnapshotQueryBackendFactory> = index(providers, "snapshot") { it.snapshot }
     val eventStreams: Map<String, EventStreamQueryBackendFactory> = index(providers, "event-stream") { it.eventStream }

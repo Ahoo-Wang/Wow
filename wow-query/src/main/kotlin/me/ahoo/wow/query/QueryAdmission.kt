@@ -73,7 +73,7 @@ class QueryAdmission(
     private val policies = policies.sortedByOrder()
 
     /** Admits [query] for [operation] against the one schema [schema] emits, under the subscriber's entry and scope. */
-    fun <Q : RewritableFilter<Q>> admit(
+    internal fun <Q : RewritableFilter<Q>> admit(
         operation: QueryOperation<Q>,
         query: Q,
         schema: Mono<QueryModelSchema>,
@@ -332,7 +332,7 @@ class QueryAdmission(
  * One gateway operation as [QueryAdmission] runs it: its [queryType], the entry budget of step 0 and the finishing
  * steps 4 to 6.
  */
-class QueryOperation<Q : RewritableFilter<Q>> private constructor(
+internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
     val queryType: QueryType,
     private val budget: QueryBudget.(Q, FilterExpression) -> Unit,
     private val finish: (Q, QueryModelSchema, QueryEntry, Collection<FilterExpression>) -> AdmittedQuery<Q>,

@@ -53,6 +53,12 @@ val rows = catalog.schema(namedAggregate, QueryModel.SNAPSHOT).flatMapMany { sch
 
 这段代码的 `MatchAllFilter` 不限定删除状态；Backend、`FilterNormalizer` 与 Compiler 不会替它追加 `ACTIVE`。Snapshot 低层调用者如只需未删除数据，应显式传入 `DeletionFilter(DeletionState.ACTIVE)`。这段代码没有授权或脱敏，不能替代业务 Gateway。
 
+## API 分层
+
+自 9.3.0 起，后端 SPI 标注 `@WowSpi`：`QueryBackend` 及其快照、事件流形式，`AdmittedQuery`、`ResolvedField`，窗口与 `BackendPage`，`CursorPosition` 与 `CursorPositionCodec`，后端 Factory 与 `QueryBackendProvider`，存储适配器相关类型（`QueryStorageAdapter`、`QueryStorageFacts`、`StorageSupport`、`QueryStorageFamily`、`QueryFieldBinding`、`QueryValueSchema`、`LogicalQuerySchema`、`QueryPathTemplate`、`QueryModelProfile` 及其组成部分），以及 `BackendQueries` 中的函数（`single`、`list`、`paged`、`cursor`、`aggregate`）。实现存储或直接调用后端的代码用 `@OptIn(WowSpi::class)` 选择加入，整个模块可用编译器选项 `-opt-in=me.ahoo.wow.api.annotation.WowSpi`；不加入时编译器给出警告。SPI 在同一个次版本线内保持二进制签名不变，次版本可以修改它，并写进发布说明。注入 Gateway、编写策略与过滤器、声明 Schema 的应用不需要选择加入。
+
+准入与 Schema 编译的内部实现不属于任何一层：`QueryOperation`、`UnavailableQueryModelSchemaProvider` 为 `internal`；`FilterNormalizer`、`DefaultQueryModelSchemaProvider`、`QueryFieldSchema`（连同 `QueryModelSchema.field`）与 `QueryFieldCapabilities` 标注 `@InternalWowApi`。Schema Provider 请通过 `QuerySchemaCatalog` 及其 `QueryModelCompiler` 获得。
+
 ## 数值原生语义
 
 数值比较使用 binding 对应的存储精度，不能以 source 任意精度相等解释 `EXACT_MATCH`。标量字段指标保留原生聚合；数组/联合字段和算术字段叶子遵循[每记录一个数值贡献](./aggregation-query.md#numeric-contributions)的合同。Backend 不通过扫描 source 重建数组配对，runtime 输出也须符合逻辑数值模型。

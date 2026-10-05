@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -28,6 +29,7 @@ import java.util.IdentityHashMap
  * instance, and [field] / [systemField] answer that node's [ResolvedField] by identity: backends read resolutions
  * instead of looking fields up. Later admission facts are added as further properties.
  */
+@WowSpi
 class AdmittedQuery<out Q : Any> internal constructor(
     val query: Q,
     /** The schema admission checked [query] against; the core reads its records and masks, backends never do. */

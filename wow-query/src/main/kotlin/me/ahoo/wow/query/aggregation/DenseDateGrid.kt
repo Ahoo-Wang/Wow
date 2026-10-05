@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.aggregation
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationDateUnit
 import java.time.DayOfWeek
 import java.time.Instant
@@ -39,6 +40,7 @@ import java.util.stream.LongStream
  * e.g. Australia/Lord_Howe (+10:00 at the 1970 anchor, +10:30 later) truncates 495264.5 elapsed
  * hours to 495264 and lands on local :30, off the wall-clock hour grid.
  */
+@WowSpi
 class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
     private val stepUnit: TemporalUnit = when (unit) {
         AggregationDateUnit.YEAR -> ChronoUnit.YEARS

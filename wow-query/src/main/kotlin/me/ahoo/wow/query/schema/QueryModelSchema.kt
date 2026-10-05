@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
@@ -27,6 +29,7 @@ private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
 
 private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
 
+@WowSpi
 data class QueryStorageType(val value: String) {
     init { require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) }
 }
@@ -36,6 +39,7 @@ data class QueryStorageType(val value: String) {
  * in whose elements storage indexes as separate documents, such as an Elasticsearch `nested` mapping, so a backend
  * addresses the field through it; `null` when there is none.
  */
+@WowSpi
 class QueryFieldBinding(
     val physicalField: QueryField,
     storageTypes: Set<QueryStorageType>?,
@@ -53,6 +57,7 @@ class QueryFieldBinding(
 }
 
 /** A logical definition is shared unchanged with every native binding snapshot. */
+@WowSpi
 class LogicalQuerySchema(
     val root: QueryValueSchema,
     val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
@@ -228,6 +233,7 @@ class QueryModelSchema(
     val hasAliases: Boolean
         get() = definition.aliases.isNotEmpty()
 
+    @InternalWowApi
     fun field(field: QueryField): QueryFieldSchema? =
         if (staticFields.containsKey(field)) staticFields[field] else dynamicField(field)
 
@@ -316,6 +322,7 @@ class QueryModelSchema(
  * One resolved field of a [QueryModelSchema] with its capability facts. Facts that depend only on the field and its
  * schema are computed once per instance; static fields are resolved once per schema.
  */
+@InternalWowApi
 class QueryFieldSchema internal constructor(
     private val schema: QueryModelSchema,
     val logicalField: QueryField,

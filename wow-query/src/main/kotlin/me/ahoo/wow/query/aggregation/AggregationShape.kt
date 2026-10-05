@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.aggregation
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -33,6 +34,7 @@ import tools.jackson.databind.node.ObjectNode
  */
 
 /** The sole dense date histogram, or `null`: dense requires DATE_HISTOGRAM to be the only group. */
+@WowSpi
 val AggregationQuery.denseGroup: AggregationGroup.DateHistogram?
     get() = (groupBy.singleOrNull() as? AggregationGroup.DateHistogram)?.takeIf { it.dense }
 
@@ -44,6 +46,7 @@ private val AggregationQuery.denseDatePart: AggregationGroup.DatePart?
     get() = (groupBy.singleOrNull() as? AggregationGroup.DatePart)?.takeIf { it.dense }
 
 /** Whether the effective sort orders groups by a metric, which only a complete set of groups can answer. */
+@WowSpi
 val AggregationQuery.metricSorted: Boolean
     get() {
         val metrics = metrics.mapTo(hashSetOf(), AggregationMetric::alias)

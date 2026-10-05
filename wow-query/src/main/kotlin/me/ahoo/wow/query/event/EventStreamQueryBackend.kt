@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.event
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.QueryBackend
 
+@WowSpi
 interface EventStreamQueryBackend : QueryBackend

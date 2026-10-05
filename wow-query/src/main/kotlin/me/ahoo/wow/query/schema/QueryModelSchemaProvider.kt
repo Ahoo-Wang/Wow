@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.forInProcessQuery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -31,7 +32,7 @@ interface QueryModelSchemaProvider {
  * The schema provider of an aggregate model that has no query backend: every load fails with [message].
  * [QuerySchemaCatalog] skips it, since there is nothing to load or revalidate.
  */
-class UnavailableQueryModelSchemaProvider(
+internal class UnavailableQueryModelSchemaProvider(
     private val message: String,
 ) : QueryModelSchemaProvider {
     override fun schema(): Mono<QueryModelSchema> =
@@ -49,6 +50,7 @@ class UnavailableQueryModelSchemaProvider(
  * storage that is never written is not asked again on every query, and the first load after that compiles the
  * storage again. Once the storage exists its schema is the one published, at most `provisionalTtl` after it does.
  */
+@InternalWowApi
 class DefaultQueryModelSchemaProvider(
     private val context: QuerySchemaContext,
     sources: List<QuerySchemaSource>,
