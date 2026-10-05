@@ -21,9 +21,8 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.QueryScopeProvenance
-import me.ahoo.wow.webflux.route.command.getOwnerId
-import me.ahoo.wow.webflux.route.command.getSpaceId
-import me.ahoo.wow.webflux.route.command.getTenantId
+import me.ahoo.wow.webflux.route.identity.RouteIdentity
+import me.ahoo.wow.webflux.route.identity.RouteIdentityBinding
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
@@ -36,8 +35,9 @@ fun interface QueryRequestScope {
 }
 
 /**
- * Resolves the tenant, owner and space of a request. Values read from the request itself (path variables, headers)
- * are [declared][QueryScopeProvenance.DECLARED]; an aggregate's static tenant is a server fact and
+ * Resolves the tenant, owner and space of a request, each from where the route's [RouteIdentityBinding] says (static
+ * tenant, path variable, header and its aliases). Values read from the request itself (path variables, headers) are
+ * [declared][QueryScopeProvenance.DECLARED]; an aggregate's static tenant is a server fact and
  * [authenticated][QueryScopeProvenance.AUTHENTICATED]. Override the `*Provenance` functions when a trusted
  * component (an authenticating gateway that owns these headers, say) vouches for them.
  *
@@ -46,15 +46,16 @@ fun interface QueryRequestScope {
  */
 abstract class AbstractQueryRequestScope : QueryRequestScope {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
-        return getTenantId(aggregateMetadata)
+        return identityBinding(aggregateMetadata).tenantId(this)
     }
 
     protected open fun ServerRequest.resolveOwnerId(aggregateMetadata: AggregateMetadata<*, *>): String? {
-        return getOwnerId()
+        return identityBinding(aggregateMetadata).readOwnerId(this)
     }
 
+    /** The space headers of the route: `Wow-Space-Id`, then its space header aliases. */
     protected open fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
-        return getSpaceId()
+        return identityBinding(aggregateMetadata).spaceIdHeader(this)
     }
 
     protected open fun ServerRequest.tenantIdProvenance(
@@ -80,6 +81,8 @@ abstract class AbstractQueryRequestScope : QueryRequestScope {
         aggregateMetadata: AggregateMetadata<*, *>,
         request: ServerRequest,
     ): QueryScope {
+        // A blank identity path segment is reported first, whatever else the request contradicts.
+        request.identityBinding(aggregateMetadata).requirePathVariables(request)
         val parts = listOfNotNull(
             request.resolveTenantId(aggregateMetadata).nonBlank()?.let {
                 request.tenantIdProvenance(aggregateMetadata, it) to TenantIdFilter(it)
@@ -96,6 +99,9 @@ abstract class AbstractQueryRequestScope : QueryRequestScope {
             declared = parts.scopeOf(QueryScopeProvenance.DECLARED),
         )
     }
+
+    private fun ServerRequest.identityBinding(aggregateMetadata: AggregateMetadata<*, *>): RouteIdentityBinding =
+        RouteIdentity.of(this).binding(aggregateMetadata)
 
     private fun ServerRequest.resolveSpaceIdIfSpaced(aggregateMetadata: AggregateMetadata<*, *>): String? =
         if (aggregateMetadata.spaced) resolveSpaceId(aggregateMetadata) else null

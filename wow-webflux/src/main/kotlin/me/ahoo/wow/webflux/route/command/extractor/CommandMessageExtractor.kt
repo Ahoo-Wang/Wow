@@ -19,6 +19,8 @@ import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
+import me.ahoo.wow.webflux.route.identity.RouteIdentity
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
@@ -35,11 +37,27 @@ class DefaultCommandMessageExtractor(
     private val commandBuilderExtractor: CommandBuilderExtractor,
     private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf()
 ) : CommandMessageExtractor {
+    private var identityHeaderAliases: IdentityHeaderAliases = IdentityHeaderAliases.NONE
+
+    /**
+     * With [identityHeaderAliases] (CoSec's, say) applied also to a request whose handler was invoked outside the
+     * router, such as a downstream module calling `CommandHandler` directly. Since 9.3.0.
+     */
+    constructor(
+        commandMessageFactory: CommandMessageFactory,
+        commandBuilderExtractor: CommandBuilderExtractor,
+        commandRequestHeaderAppends: List<CommandRequestHeaderAppender>,
+        identityHeaderAliases: IdentityHeaderAliases,
+    ) : this(commandMessageFactory, commandBuilderExtractor, commandRequestHeaderAppends) {
+        this.identityHeaderAliases = identityHeaderAliases
+    }
+
     override fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,
         request: ServerRequest
     ): Mono<CommandMessage<Any>> {
+        RouteIdentity.withAliases(request, identityHeaderAliases)
         return commandBuilderExtractor.extract(aggregateRouteMetadata, commandBody, request).flatMap { commandBuilder ->
             val operator = commandBuilder.header.operator
             commandRequestHeaderAppends.forEach {

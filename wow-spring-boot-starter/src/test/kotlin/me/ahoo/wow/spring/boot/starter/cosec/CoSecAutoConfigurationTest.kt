@@ -16,9 +16,11 @@ package me.ahoo.wow.spring.boot.starter.cosec
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
+import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
 import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -37,6 +39,11 @@ class CoSecAutoConfigurationTest {
             .before.toList().assert().contains(WebFluxAutoConfiguration::class)
     }
 
+    /**
+     * Since 9.3.0 CoSec contributes `CoSec-Space-Id` / `CoSec-Request-Id` as identity header aliases, read by the
+     * default command builder extractor and query request scope, instead of overriding those two SPIs.
+     */
+    @Suppress("DEPRECATION")
     @Test
     fun `should load context with cosec beans`() {
         contextRunner
@@ -45,8 +52,10 @@ class CoSecAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(CoSecCommandRequestHeaderAppender::class.java)
-                    .hasSingleBean(CoSecCommandBuilderExtractor::class.java)
-                    .hasSingleBean(CoSecQueryRequestScope::class.java)
+                    .hasSingleBean(IdentityHeaderAliases::class.java)
+                    .doesNotHaveBean(CoSecCommandBuilderExtractor::class.java)
+                    .doesNotHaveBean(CoSecQueryRequestScope::class.java)
+                context.getBean(IdentityHeaderAliases::class.java).assert().isSameAs(CoSecIdentityHeaders.ALIASES)
             }
     }
 }

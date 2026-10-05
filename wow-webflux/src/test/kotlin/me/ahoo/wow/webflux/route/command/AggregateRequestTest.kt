@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
@@ -18,6 +20,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.ChainWaitTarget
@@ -299,19 +302,48 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun `a declared path variable wins over the header`() {
+    fun `a declared path variable wins over a header that agrees or is absent`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
             .pathVariable(MessageRecords.ID, "id-a")
-            .header(CommandComponent.Header.TENANT_ID, "victim")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-a")
+            // The aggregate ID is not a fact a header may contradict: the path wins, the header is ignored.
             .header(CommandComponent.Header.AGGREGATE_ID, "victim")
             .build()
 
         request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-a")
         request.getOwnerId().assert().isEqualTo("owner-a")
         request.getAggregateId().assert().isEqualTo("id-a")
+    }
+
+    /** The deprecated reader keeps 9.2's rule: for an aggregate owned by its ID, the owner header wins over `{id}`. */
+    @Test
+    fun `the deprecated owner-policy aggregate id reader keeps 9_2 behaviour`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, "a")
+            .header(CommandComponent.Header.OWNER_ID, "b")
+            .build()
+        request.getAggregateId(OwnerPolicy.AGGREGATE_ID).assert().isEqualTo("b")
+        request.getAggregateId(OwnerPolicy.AGGREGATE_ID, "c").assert().isEqualTo("c")
+        request.getAggregateId(OwnerPolicy.ALWAYS).assert().isEqualTo("a")
+    }
+
+    @Test
+    fun `a header contradicting a declared tenant or owner path variable is rejected`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
+            .pathVariable(MessageRecords.OWNER_ID, "owner-a")
+            .header(CommandComponent.Header.TENANT_ID, "victim")
+            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .build()
+
+        assertThrownBy<IllegalArgumentException> {
+            request.getTenantId(MOCK_AGGREGATE_METADATA)
+        }.hasMessage("Conflicting tenantId: the route fixes [tenant-a], but the request header gives [victim].")
+        assertThrownBy<IllegalArgumentException> {
+            request.getOwnerId()
+        }.hasMessage("Conflicting ownerId: the route fixes [owner-a], but the request header gives [victim].")
     }
 
     @Test

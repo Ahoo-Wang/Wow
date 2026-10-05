@@ -39,7 +39,7 @@ data class CreateOrder(
 
 `CommandMetadataParser` 从命令类型生成名称、目标聚合、聚合 ID、租户、owner、期望版本及创建、允许创建和 Void 标记。目标聚合可由命令自身实现 `NamedAggregate`，也可通过 `@AggregateName` 指定；`@AggregateId` 指定目标 ID，未标注时约定名为 `id` 的属性会被采用。
 
-`@TenantId`、`@OwnerId` 与 `@AggregateVersion` 分别提供对应元数据；`@StaticAggregateId` 和 `@StaticTenantId` 提供静态值。若命令和调用参数都不能解析出目标聚合，构造 `CommandMessage` 会失败。
+`@TenantId`、`@OwnerId` 与 `@AggregateVersion` 分别提供对应元数据；`@StaticAggregateId` 和 `@StaticTenantId` 提供静态值。命令自身携带的值优先于调用方传入的值。经 HTTP 发送时，自 9.3.0 起，与路由已确定的租户或拥有者矛盾的 `@TenantId`、`@OwnerId` 返回 `400`（见[请求身份](../open-api.md#请求身份)）。若命令和调用参数都不能解析出目标聚合，构造 `CommandMessage` 会失败。
 
 ## 命令处理函数
 

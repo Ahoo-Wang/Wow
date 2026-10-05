@@ -83,7 +83,7 @@ queryGateway.dynamicList(query)
 
 调用方范围的每一部分都有来源：`AUTHENTICATED`（来自凭证，或由受信组件担保）或 `DECLARED`（请求自报，即路径变量或请求头）。两者都限制查询，只有已认证的范围构成安全边界。
 
-- `QueryRequestScope` 返回 `QueryScope(authenticated, declared)`。`DefaultQueryRequestScope` 把聚合的静态租户记为已认证，从请求读取的一切记为自报；`CoSecQueryRequestScope` 相同。
+- `QueryRequestScope` 返回 `QueryScope(authenticated, declared)`。`DefaultQueryRequestScope` 把聚合的静态租户记为已认证，从请求读取的一切记为自报。它按路由的身份绑定读取每个值（见[请求身份](../open-api.md#请求身份)），包括 CoSec 的 `CoSec-Space-Id` 这类请求头别名；自 9.3.0 起，与路由的 `{tenantId}` 或 `{ownerId}` 矛盾的请求头返回 `400`（带静态租户的聚合仍忽略租户请求头）。
 - 当某个值由受信组件掌控（例如会剥离客户端自带租户请求头的认证网关），继承 `AbstractQueryRequestScope` 并覆盖 `tenantIdProvenance`、`ownerIdProvenance` 或 `spaceIdProvenance`，返回 `AUTHENTICATED`。
 - 进程内调用方用 `withQueryScope(QueryScope(authenticated = TenantIdFilter(tenantId)))` 写入已认证范围；`withQueryScope(filter)` 记为自报。
 - `wow.query.require-authenticated-scope=true` 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询：返回 `403`，错误码 `IllegalAccessQueryScope`，发生在任何后端 I/O 之前。自报的租户仍会过滤查询，但不满足这项检查。开关默认关闭，保持旧行为，即信任自报范围。

@@ -14,6 +14,7 @@
 package me.ahoo.wow.cosec.extractor
 
 import me.ahoo.wow.command.factory.CommandBuilder
+import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
@@ -24,9 +25,14 @@ import reactor.core.publisher.Mono
  * [DefaultCommandBuilderExtractor] plus CoSec's request headers: `CoSec-Request-Id` fills an absent request id, and,
  * for a [spaced][AggregateRouteMetadata.spaced] aggregate only, `CoSec-Space-Id` fills an absent space.
  */
+@Deprecated(
+    "Scheduled for removal in 10.0.0. CoSec contributes its headers as identity header aliases " +
+        "(CoSecIdentityHeaders.ALIASES): the router applies them to every route it materializes, and the " +
+        "CommandMessageExtractor bean to a command handler invoked outside the router."
+)
 object CoSecCommandBuilderExtractor : CommandBuilderExtractor {
-    const val REQUEST_ID_KEY = "CoSec-Request-Id"
-    const val SPACE_ID_KEY = "CoSec-Space-Id"
+    const val REQUEST_ID_KEY = CoSecIdentityHeaders.REQUEST_ID
+    const val SPACE_ID_KEY = CoSecIdentityHeaders.SPACE_ID
     override fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,

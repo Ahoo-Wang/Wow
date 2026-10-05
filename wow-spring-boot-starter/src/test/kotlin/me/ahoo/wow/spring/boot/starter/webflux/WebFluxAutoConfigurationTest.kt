@@ -20,10 +20,12 @@ import io.mockk.verify
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiDeploymentInspectionException
@@ -37,8 +39,7 @@ import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
-import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
+import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.StateEventCompensator
@@ -48,9 +49,11 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.Https
@@ -67,6 +70,7 @@ import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -106,6 +110,7 @@ import me.ahoo.wow.spring.boot.starter.webflux.route.QueryRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.SnapshotRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.StateRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.WebFluxRouteModule
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.test.SagaVerifier
@@ -114,16 +119,21 @@ import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
+import me.ahoo.wow.webflux.route.command.CommandHandler
+import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
+import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.IdentityHeaderAliasesQueryRequestScope
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.junit.jupiter.api.Test
@@ -155,6 +165,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
+import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.stream.Stream
 
@@ -809,31 +820,81 @@ internal class WebFluxAutoConfigurationTest {
             }
     }
 
+    /**
+     * Since 9.3.0 CoSec no longer replaces the command builder extractor and the query request scope: it contributes
+     * its headers as identity header aliases, which the WebFlux defaults read through the router.
+     */
     @Test
-    fun `cosec beans replace the WebFlux defaults when both are auto-configured`() {
+    fun `cosec keeps the WebFlux defaults and contributes identity header aliases`() {
         webFluxContextRunner(autoConfigurations = listOf(CoSecAutoConfiguration::class.java))
             .run { context ->
                 context.assert().hasNotFailed()
-                context.getBean(CommandBuilderExtractor::class.java).assert().isSameAs(CoSecCommandBuilderExtractor)
-                context.getBean(QueryRequestScope::class.java).assert().isSameAs(CoSecQueryRequestScope)
+                context.getBean(CommandBuilderExtractor::class.java).assert().isSameAs(DefaultCommandBuilderExtractor)
+                context.getBean(QueryRequestScope::class.java).assert()
+                    .isInstanceOf(IdentityHeaderAliasesQueryRequestScope::class.java)
+                context.getBean(IdentityHeaderAliases::class.java).assert().isSameAs(CoSecIdentityHeaders.ALIASES)
             }
     }
 
     /**
-     * The hazard the explicit ordering removes: processed after WebFlux, CoSec's beans sit beside WebFlux's
-     * `@ConditionalOnMissingBean` defaults instead of replacing them, and injection by parameter name then picks
-     * the default `commandBuilderExtractor`, silently dropping CoSec's.
+     * The view store (and any module) calls `CommandHandler` and the request scope outside the router, with the
+     * `CommandMessageExtractor` / `QueryRequestScope` beans. CoSec's headers still apply there, as the CoSec extractor
+     * and scope beans applied them in 9.2.
      */
     @Test
-    fun `cosec processed after WebFlux sits beside the WebFlux defaults`() {
+    fun `cosec aliases apply to handlers invoked outside the router`() {
+        webFluxContextRunner(autoConfigurations = listOf(CoSecAutoConfiguration::class.java))
+            .run { context ->
+                context.assert().hasNotFailed()
+                val request = MockServerRequest.builder()
+                    .header(CoSecIdentityHeaders.REQUEST_ID, "cosec-request")
+                    .header(CoSecIdentityHeaders.SPACE_ID, "cosec-space")
+                    .build()
+                val command = CommandHandler(
+                    commandGateway = mockk<CommandGateway>(relaxed = true) {
+                        every { sendAndWait(any<CommandMessage<Any>>(), any()) } answers {
+                            Mono.error(
+                                IllegalStateException(
+                                    firstArg<CommandMessage<Any>>().let {
+                                        "${it.requestId}|${it.spaceId}"
+                                    }
+                                )
+                            )
+                        }
+                    },
+                    commandMessageExtractor = context.getBean(CommandMessageExtractor::class.java),
+                    commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
+                ).handle(
+                    request,
+                    MockCreateAggregate(id = "order-a", data = "data"),
+                    Order::class.java.aggregateRouteMetadata()
+                )
+                StepVerifier.create(command)
+                    .expectErrorMessage("cosec-request|cosec-space")
+                    .verify()
+
+                // A fresh request: the command above already gave `request` a route identity.
+                val queryRequest = MockServerRequest.builder()
+                    .header(CoSecIdentityHeaders.SPACE_ID, "cosec-space")
+                    .build()
+                context.getBean(QueryRequestScope::class.java)
+                    .resolve(aggregateMetadata<Order, OrderState>(), queryRequest)
+                    .assert().isEqualTo(QueryScope(declared = SpaceIdFilter("cosec-space")))
+            }
+    }
+
+    /** With nothing left to back off, the order CoSec is processed in no longer matters. */
+    @Test
+    fun `cosec processed after WebFlux gives the same beans`() {
         webFluxContextRunner()
             .withUserConfiguration(CoSecAutoConfiguration::class.java)
             .run { context ->
                 context.assert().hasNotFailed()
                 context.getBeansOfType(CommandBuilderExtractor::class.java).values.assert()
-                    .containsExactlyInAnyOrder(DefaultCommandBuilderExtractor, CoSecCommandBuilderExtractor)
-                context.getBeansOfType(QueryRequestScope::class.java).values.assert()
-                    .containsExactlyInAnyOrder(DefaultQueryRequestScope, CoSecQueryRequestScope)
+                    .containsExactly(DefaultCommandBuilderExtractor)
+                context.getBeansOfType(QueryRequestScope::class.java).values.single().assert()
+                    .isInstanceOf(IdentityHeaderAliasesQueryRequestScope::class.java)
+                context.getBean(IdentityHeaderAliases::class.java).assert().isSameAs(CoSecIdentityHeaders.ALIASES)
             }
     }
 

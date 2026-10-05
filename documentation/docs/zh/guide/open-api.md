@@ -81,7 +81,26 @@ Swagger UI 是 Springdoc 应用特性，不属于路由合同本身。匹配的 
 
 默认路由从 resource name 开始。Wow 不会在本地路径前自动添加限界上下文 alias。客户端代码不应根据命名约定拼接路径，应检查生成 OpenAPI。
 
-路由声明了 `{tenantId}`、`{ownerId}` 或 `{id}` 时，取值只来自路径段：该路由不读取 `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` 请求头；路径段解码后为空白（如 `%20`）时返回 `400`，错误码 `IllegalArgument`，不会退回请求头，也不会当作默认租户。未声明该变量的路由仍读取请求头（静态租户始终生效）。
+路由声明了 `{tenantId}`、`{ownerId}` 或 `{id}` 时，取值只来自路径段：不会改读 `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` 请求头；路径段解码后为空白（如 `%20`）时返回 `400`，错误码 `IllegalArgument`，不会退回请求头，也不会当作默认租户。未声明该变量的路由仍读取请求头（静态租户始终生效）。
+
+### 请求身份
+
+每条路由在构建路由器时一次性决定每个身份事实从哪里取：看它的契约声明了哪些路径变量，以及聚合的静态租户、拥有者策略和 space。命令、查询、单点读取、快照重建和事件补偿读的是同一个绑定，所有路由遵循同一套规则：
+
+| 事实 | 来源（取第一个适用的） |
+| --- | --- |
+| 租户 | 静态租户（忽略租户请求头） → `{tenantId}` → `Command-Tenant-Id` |
+| 拥有者 | `{ownerId}` → 拥有者即聚合 ID（`OwnerPolicy.AGGREGATE_ID`）时的 `{id}` → `Command-Owner-Id` |
+| 聚合 ID | 拥有者即聚合 ID：`{ownerId}` → `{id}` → `Command-Owner-Id` → `Command-Aggregate-Id`；否则 `{id}` → `Command-Aggregate-Id` |
+| Space | 仅 spaced 聚合：`Wow-Space-Id` → 请求头别名（CoSec 的 `CoSec-Space-Id`） |
+| 请求 ID | `Command-Request-Id` → 请求头别名（CoSec 的 `CoSec-Request-Id`） |
+| 操作人 | 已认证的 Principal |
+
+空白请求头视为没有。命令体的 `@TenantId` / `@OwnerId` / `@AggregateId` 仍然优先，与任何 `CommandGateway` 调用方一样。
+
+自 9.3.0 起，与路由已确定的租户或拥有者相矛盾的请求返回 `400`，错误码 `IllegalArgument`：`Command-Tenant-Id` 与 `{tenantId}` 路径段不同；`Command-Owner-Id` 与 `{ownerId}` 路径段（或拥有者即聚合 ID 时的 `{id}`）不同；命令体的 `@TenantId` 与静态租户或 `{tenantId}` 路径段不同，或 `@OwnerId` 与拥有者路径段不同。此前请求体会悄悄胜出，请求头被忽略。发给带静态租户聚合的租户请求头仍被忽略。值相同或不给值都可以；路由没有确定的事实，仍是请求体优先于请求头。
+
+拥有者即聚合 ID 的聚合，路由只写了 `{id}`、没写 `{ownerId}` 时，命令的聚合和拥有者现在都取自路径；9.3.0 之前 `Command-Owner-Id` 请求头会把二者都替换掉。这类路由上的读取（例如加载事件流）不按这个推导出的拥有者过滤：ID 已经确定了聚合，而进程内创建的聚合可能存的是空白拥有者；与 `{id}` 一致的 `Command-Owner-Id` 仍会像以前一样收窄结果。
 
 ### 租户资源
 

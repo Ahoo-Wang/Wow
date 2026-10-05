@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
@@ -25,9 +26,7 @@ import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
-import me.ahoo.wow.webflux.route.command.getAggregateId
-import me.ahoo.wow.webflux.route.command.getOwnerId
-import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.identity.identity
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.query.withQueryContext
@@ -46,9 +45,10 @@ class LoadSnapshotHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.ownerPolicy))
-        val ownerId = request.getOwnerId()
+        val identity = request.identity(aggregateRouteMetadata)
+        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+        val id = requireNotNull(identity.aggregateId())
+        val ownerId = identity.readOwnerId()
         val selection = filter {
             tenantId(tenantId)
             id(id)

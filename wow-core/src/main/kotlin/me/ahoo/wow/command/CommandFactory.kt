@@ -27,6 +27,10 @@ import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.id.generateId
+import me.ahoo.wow.identity.IdentityFact
+import me.ahoo.wow.identity.IdentityHint
+import me.ahoo.wow.identity.IdentityResolver
+import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.ensureTraceId
@@ -82,21 +86,27 @@ fun <C : Any> C.toCommandMessage(
     requireNotNull(commandNamedAggregate) {
         "The command[$javaClass] must be associated with a named aggregate!"
     }
-    val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId
-    val commandAggregateId =
-        if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank().not()) {
-            commandOwnerId
-        } else {
-            metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
-        }
-
-    val finalOwnerId =
-        if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank()) {
-            commandAggregateId
-        } else {
-            commandOwnerId
-        }
-    val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId.orDefaultTenantId()
+    // The identity rule lives in IdentityResolver; here the body's values come first, then the caller's arguments.
+    val commandOwnerId = IdentityResolver.resolve(
+        IdentityFact.OWNER_ID,
+        IdentityHint.of(IdentitySource.BODY, metadata.ownerIdGetter?.get(this)),
+        IdentityHint.of(IdentitySource.HEADER, ownerId),
+    )
+    val (commandAggregateId, finalOwnerId) = IdentityResolver.resolveAggregateIdAndOwner(
+        ownerIsAggregateId = ownerIdSameAsAggregateId,
+        ownerId = commandOwnerId,
+        aggregateId = IdentityResolver.resolve(
+            IdentityFact.AGGREGATE_ID,
+            IdentityHint.of(IdentitySource.BODY, metadata.aggregateIdGetter?.get(this)),
+            IdentityHint.of(IdentitySource.HEADER, aggregateId),
+        ),
+        generateAggregateId = { commandNamedAggregate.generateId() },
+    )
+    val commandTenantId = IdentityResolver.resolve(
+        IdentityFact.TENANT_ID,
+        IdentityHint.of(IdentitySource.BODY, metadata.tenantIdGetter?.get(this)),
+        IdentityHint.of(IdentitySource.HEADER, tenantId),
+    ).orDefaultTenantId()
 
     val targetAggregateId = commandNamedAggregate.aggregateId(id = commandAggregateId, tenantId = commandTenantId)
     val expectedAggregateVersion =

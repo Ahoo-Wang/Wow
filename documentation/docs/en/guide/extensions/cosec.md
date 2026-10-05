@@ -13,7 +13,7 @@ The module does not authenticate a request, verify header authenticity, authoriz
 
 ## How It Works
 
-Four behaviors form the integration: `CoSecCommandRequestHeaderAppender` extracts app/device, `CoSecCommandBuilderExtractor` supplements request/space, service-loaded `CoSecMessagePropagator` propagates app/device, and `CoSecQueryRequestScope` resolves query space. Wow owns context transport only; the security stack owns trusted identity and policy decisions.
+Three behaviors form the integration: `CoSecCommandRequestHeaderAppender` extracts app/device, `CoSecIdentityHeaders.ALIASES` adds `CoSec-Request-Id` and `CoSec-Space-Id` as identity header aliases that every WebFlux route reads for commands and queries alike, and service-loaded `CoSecMessagePropagator` propagates app/device. Since 9.3.0 the aliases replace the two SPI overrides, `CoSecCommandBuilderExtractor` and `CoSecQueryRequestScope`: they are deprecated, no longer registered as beans, and still work when an application registers them itself. Wow owns context transport only; the security stack owns trusted identity and policy decisions.
 
 ## Installation
 
@@ -39,8 +39,8 @@ Minimum runtime setup is the capability plus the application's authentication/au
 |---|---|
 | `CoSec-App-Id` | command header `app_id` |
 | `CoSec-Device-Id` | command header `device_id` |
-| `CoSec-Request-Id` | `CommandBuilder.requestIdIfAbsent` |
-| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` and query-space fallback, for a spaced aggregate only |
+| `CoSec-Request-Id` | command request ID after `Command-Request-Id` |
+| `CoSec-Space-Id` | command space and query space after `Wow-Space-Id`, for a spaced aggregate only |
 
 Existing standard Wow request/space values win through `IfAbsent` and rewrite precedence; CoSec headers only supplement them. Missing headers produce no context and do not fail by themselves.
 

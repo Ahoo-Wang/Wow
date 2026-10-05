@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.event
 
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
@@ -24,8 +25,7 @@ import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.command.getOwnerId
-import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.identity.identity
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
@@ -45,8 +45,9 @@ class LoadEventStreamHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val ownerId = request.getOwnerId()
+        val identity = request.identity(aggregateMetadata)
+        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+        val ownerId = identity.readOwnerId()
         val id = request.pathVariable(MessageRecords.ID)
         val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
         val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)

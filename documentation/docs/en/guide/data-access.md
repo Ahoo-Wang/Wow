@@ -86,7 +86,7 @@ data class CreateCart(
 )
 ```
 
-Do not trust a client-supplied `userId` merely because it carries `@OwnerId`; compare or replace it using the authenticated principal at the application boundary.
+Do not trust a client-supplied `userId` merely because it carries `@OwnerId`; compare or replace it using the authenticated principal at the application boundary. Since 9.3.0, on a route that states `{ownerId}`, a body owner that differs from the path is rejected with `400` (see [Request Identity](./open-api.md#request-identity)); on other routes the body value is still the owner.
 
 ### Ownership Routing Policy
 

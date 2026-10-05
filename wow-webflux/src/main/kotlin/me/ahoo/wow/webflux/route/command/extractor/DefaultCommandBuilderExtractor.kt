@@ -15,26 +15,33 @@ package me.ahoo.wow.webflux.route.command.extractor
 
 import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.command.CommandOperator.withOperator
+import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
-import me.ahoo.wow.infra.ifNotBlank
+import me.ahoo.wow.identity.IdentityFact
+import me.ahoo.wow.identity.IdentityHint
+import me.ahoo.wow.identity.IdentityResolver
+import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.messaging.withLocalFirst
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getLocalFirst
-import me.ahoo.wow.webflux.route.command.getOwnerId
-import me.ahoo.wow.webflux.route.command.getSpaceId
-import me.ahoo.wow.webflux.route.command.getTenantId
+import me.ahoo.wow.webflux.route.identity.identity
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 /**
- * Builds a command from its route's request: identity and scope from path variables and headers. The space
- * (`Wow-Space-Id`) is taken only for a [spaced][AggregateRouteMetadata.spaced] aggregate; any other aggregate's
- * command carries the default space whatever the request sends.
+ * Builds a command from its route's request. Each identity fact comes from where the route's
+ * [RouteIdentityBinding][me.ahoo.wow.webflux.route.identity.RouteIdentityBinding] says (path variable, static tenant,
+ * header), decided by [IdentityResolver]; the space (`Wow-Space-Id`, then any space header alias) is taken only for a
+ * [spaced][AggregateRouteMetadata.spaced] aggregate, so any other aggregate's command carries the default space
+ * whatever the request sends.
+ *
+ * Since 9.3.0 (V3), a command body whose `@TenantId` or `@OwnerId` contradicts the tenant or owner the route fixes
+ * (static tenant, `{tenantId}`, `{ownerId}`, or `{id}` of an aggregate owned by its ID) is rejected with an
+ * [IllegalArgumentException] (`IllegalArgument`, 400), as is a `Command-Tenant-Id` / `Command-Owner-Id` header that
+ * does.
  */
 object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
     override fun extract(
@@ -43,12 +50,14 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
         request: ServerRequest
     ): Mono<CommandBuilder> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
-        val tenantId = request.getTenantId(aggregateMetadata)
-        val ownerId = request.getOwnerId()
-        val spaceId = request.getSpaceId(aggregateRouteMetadata)
-        val aggregateId = request.getAggregateId(aggregateRouteMetadata.ownerPolicy, ownerId)
+        val identity = request.identity(aggregateRouteMetadata)
+        val commandMetadata = commandBody.javaClass.commandMetadata()
+        val tenantId = identity.tenantId(body = commandMetadata.tenantIdGetter?.get(commandBody))
+        val ownerId = identity.ownerId(body = commandMetadata.ownerIdGetter?.get(commandBody))
+        val spaceId = identity.spaceId()
+        val aggregateId = identity.aggregateId()
         val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
-        val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
+        val requestId = identity.requestId()
         val commandBuilder = commandBody.commandBuilder()
             .aggregateId(aggregateId)
             .tenantId(tenantId)
@@ -63,10 +72,16 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
                 header.withLocalFirst(it)
             }
         }
-        return request.principal().map {
-            commandBuilder.header { header ->
-                header.withOperator(it.name)
+        return request.principal().map { principal ->
+            IdentityResolver.resolve(
+                IdentityFact.OPERATOR,
+                IdentityHint.of(IdentitySource.AUTH, principal.name)
+            )?.let { operator ->
+                commandBuilder.header { header ->
+                    header.withOperator(operator)
+                }
             }
+            commandBuilder
         }.switchIfEmpty(commandBuilder.toMono())
     }
 }

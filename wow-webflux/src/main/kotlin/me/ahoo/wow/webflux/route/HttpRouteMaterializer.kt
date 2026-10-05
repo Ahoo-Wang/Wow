@@ -13,10 +13,15 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
+import me.ahoo.wow.webflux.route.identity.RouteIdentity
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RequestPredicate
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Mono
 
 internal data class HttpRouteBinding(
     val predicate: RequestPredicate,
@@ -25,13 +30,29 @@ internal data class HttpRouteBinding(
 
 internal class HttpRouteMaterializer(
     private val routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
-    private val predicateFactory: HttpRoutePredicateFactory = HttpRoutePredicateFactory()
+    private val predicateFactory: HttpRoutePredicateFactory = HttpRoutePredicateFactory(),
+    private val identityHeaderAliases: IdentityHeaderAliases = IdentityHeaderAliases.NONE,
 ) {
     fun materialize(contract: HttpRouteContract): HttpRouteBinding {
         val factory = routeHandlerFunctionRegistrar.requireHttpFactory(contract)
+        val handlerFunction = factory.create(contract)
+        // Where each identity fact comes from is decided here, once per route, from its contract.
+        val routeIdentity = RouteIdentity.of(contract, identityHeaderAliases)
         return HttpRouteBinding(
             predicate = predicateFactory.create(contract),
-            handlerFunction = factory.create(contract)
+            handlerFunction = RouteIdentityHandlerFunction(handlerFunction, routeIdentity)
         )
+    }
+}
+
+/** [delegate], given the identity binding of its route on every request. */
+@InternalWowApi
+class RouteIdentityHandlerFunction(
+    val delegate: HandlerFunction<ServerResponse>,
+    private val routeIdentity: RouteIdentity,
+) : HandlerFunction<ServerResponse> {
+    override fun handle(request: ServerRequest): Mono<ServerResponse> {
+        request.attributes()[RouteIdentity.ATTRIBUTE] = routeIdentity
+        return delegate.handle(request)
     }
 }

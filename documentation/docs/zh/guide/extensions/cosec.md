@@ -13,7 +13,7 @@ description: 在 Wow WebFlux 命令与查询中提取并传播 CoSec 上下文�
 
 ## 工作原理
 
-四个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device，`CoSecCommandBuilderExtractor` 补充 request/space，service-loaded `CoSecMessagePropagator` 传播 app/device，`CoSecQueryRequestScope` 为查询解析 space。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
+三个行为构成完整集成：`CoSecCommandRequestHeaderAppender` 提取 app/device；`CoSecIdentityHeaders.ALIASES` 把 `CoSec-Request-Id`、`CoSec-Space-Id` 登记为身份请求头别名，每条 WebFlux 路由的命令与查询都会读取；service-loaded `CoSecMessagePropagator` 传播 app/device。自 9.3.0 起，别名取代了两个 SPI 覆盖 `CoSecCommandBuilderExtractor` 与 `CoSecQueryRequestScope`：它们已弃用，不再注册为 bean，应用自行注册时仍可用。Wow 只拥有上下文搬运；安全框架拥有可信身份与策略决定。
 
 ## 安装
 
@@ -39,8 +39,8 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 |---|---|
 | `CoSec-App-Id` | 命令 header `app_id` |
 | `CoSec-Device-Id` | 命令 header `device_id` |
-| `CoSec-Request-Id` | `CommandBuilder.requestIdIfAbsent` |
-| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` 与查询 space fallback，仅对 spaced 聚合生效 |
+| `CoSec-Request-Id` | 在 `Command-Request-Id` 之后作为命令的请求 ID |
+| `CoSec-Space-Id` | 在 `Wow-Space-Id` 之后作为命令与查询的 space，仅对 spaced 聚合生效 |
 
 标准 Wow request/space 值已存在时，`IfAbsent`/rewrite 优先保留 Wow 值；CoSec header 只补充。缺失 header 不产生上下文，也不会自行失败。
 

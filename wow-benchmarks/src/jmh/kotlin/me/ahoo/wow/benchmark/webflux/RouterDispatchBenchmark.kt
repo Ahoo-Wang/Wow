@@ -19,6 +19,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
+import me.ahoo.wow.webflux.route.RouteIdentityHandlerFunction
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -112,7 +113,10 @@ open class RouterDispatchBenchmark {
     }
 
     private fun route(serverRequest: ServerRequest): HandlerFunction<ServerResponse>? =
-        routerFunction.route(serverRequest).block()
+        routerFunction.route(serverRequest).block()?.let {
+            // The router gives each handler its route's identity binding (I2); compare the handler itself.
+            (it as? RouteIdentityHandlerFunction)?.delegate ?: it
+        }
 
     /**
      * The first route in [order] whose concrete request is dispatched to that route's own handler (an earlier,

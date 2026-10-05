@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.cosec.query
 
-import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.SPACE_ID_KEY
+import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders.SPACE_ID
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.webflux.route.command.getSpaceId
@@ -24,12 +24,18 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * The request scope with CoSec's space: `Wow-Space-Id`, else `CoSec-Space-Id`. As for every
  * [AbstractQueryRequestScope], the space applies only to a spaced aggregate.
  */
+@Deprecated(
+    "Scheduled for removal in 10.0.0. CoSec contributes CoSec-Space-Id as a space header alias " +
+        "(CoSecIdentityHeaders.ALIASES): the router applies it to every route it materializes, and the " +
+        "QueryRequestScope bean to a query handler invoked outside the router."
+)
 object CoSecQueryRequestScope : AbstractQueryRequestScope() {
 
+    @Suppress("DEPRECATION")
     override fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         getSpaceId().ifNotBlank {
             return it
         }
-        return this.headers().firstHeader(SPACE_ID_KEY)
+        return this.headers().firstHeader(SPACE_ID)
     }
 }
