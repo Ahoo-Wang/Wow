@@ -20,6 +20,8 @@ import ch.qos.logback.core.read.ListAppender
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -68,6 +70,21 @@ class WebFluxRequestExceptionHandlerTest {
 
         warnings.assert().hasSize(1)
         warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    @Test
+    fun `a failed batch task is logged with its cause`() {
+        val cause = RuntimeException("driver detail")
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler().handleInBody(
+                MockServerRequest.builder().build(),
+                BatchTaskException(MOCK_AGGREGATE_METADATA.aggregateId("id1"), cause),
+            ).errorCode.assert().isEqualTo(BatchTaskException.ERROR_CODE)
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().level.assert().isEqualTo(Level.WARN)
+        warnings.single().throwableProxy.cause.message.assert().isEqualTo("driver detail")
     }
 
     @Test

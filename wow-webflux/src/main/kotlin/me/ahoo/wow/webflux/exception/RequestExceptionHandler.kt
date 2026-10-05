@@ -105,6 +105,8 @@ class WebFluxRequestExceptionHandler(
  * - a 4xx whose code is `IllegalState` is too: the server reached a state it did not expect (a backend timeout, a
  *   broken invariant), not a request it refused, so it is logged at `WARN` with its stack trace, although the answer
  *   stays a 400 (the status of existing routes is part of the v9 REST contract);
+ * - so is a `BatchTaskError`: a task of a batch failed, and its message only names the aggregate; the cause (the
+ *   handler's or the store's exception) is in the stack trace, logged at `WARN`;
  * - any other 4xx is the request's: one `WARN` line with the message, no stack trace.
  */
 internal fun KLogger.requestFailure(
@@ -115,11 +117,14 @@ internal fun KLogger.requestFailure(
 ) {
     when {
         status.is5xxServerError -> error(throwable) { request }
-        status.is4xxClientError && errorCode != ErrorCodes.ILLEGAL_STATE ->
+        status.is4xxClientError && errorCode !in CODES_LOGGED_WITH_STACK ->
             warn { "$request - ${throwable.singleLineMessage()}" }
 
         else -> warn(throwable) { request }
     }
 }
+
+/** The 4xx error codes that are the server's failure, not the request's, so their stack trace is logged. */
+private val CODES_LOGGED_WITH_STACK = setOf(ErrorCodes.ILLEGAL_STATE, BatchTaskException.ERROR_CODE)
 
 internal fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')

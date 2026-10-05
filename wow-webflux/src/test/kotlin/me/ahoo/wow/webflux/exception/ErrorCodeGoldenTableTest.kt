@@ -14,10 +14,14 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.command.CommandValidationException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.NotFoundResourceException
+import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toObject
@@ -50,6 +54,7 @@ class ErrorCodeGoldenTableTest {
         val errorCode: String,
         val status: HttpStatus,
         val errorMsg: String,
+        val bindingErrors: List<BindingError> = emptyList(),
     ) {
         override fun toString(): String = "${failure.javaClass.simpleName} -> $errorCode $status"
     }
@@ -91,7 +96,8 @@ class ErrorCodeGoldenTableTest {
             .toBatchResult("(0)", request, handler)
             .test()
             .consumeNextWith {
-                ErrorInfo.of(it.errorCode, it.errorMsg).assert().isEqualTo(row.errorInfo())
+                // A batch result carries no binding errors.
+                ErrorInfo.of(it.errorCode, it.errorMsg).assert().isEqualTo(ErrorInfo.of(row.errorCode, row.errorMsg))
             }
             .verifyComplete()
     }
@@ -101,12 +107,9 @@ class ErrorCodeGoldenTableTest {
         private val request = MockServerRequest.builder().build()
         private const val UNEXPECTED = "Unexpected server error"
 
-        private fun Row.errorInfo(): ErrorInfo = ErrorInfo.of(errorCode, errorMsg)
+        private fun Row.errorInfo(): ErrorInfo = ErrorInfo.of(errorCode, errorMsg, bindingErrors)
 
-        private fun String.toErrorInfo(): ErrorInfo {
-            val errorInfo = toObject<Map<String, Any?>>()
-            return ErrorInfo.of(errorInfo["errorCode"] as String, errorInfo["errorMsg"] as String?)
-        }
+        private fun String.toErrorInfo(): ErrorInfo = toObject<DefaultErrorInfo>()
 
         @JvmStatic
         fun rows(): List<Row> {
@@ -114,7 +117,21 @@ class ErrorCodeGoldenTableTest {
                 MOCK_AGGREGATE_METADATA.aggregateId("id1"),
                 RuntimeException("driver detail")
             )
+            val bindingErrors = listOf(BindingError("quantity", "must be positive"))
             return listOf(
+                Row(
+                    WowException("OrderNotPaid", "order not paid"),
+                    "OrderNotPaid",
+                    HttpStatus.BAD_REQUEST,
+                    "order not paid"
+                ),
+                Row(
+                    CommandValidationException(Any(), "invalid command", bindingErrors),
+                    ErrorCodes.COMMAND_VALIDATION,
+                    HttpStatus.BAD_REQUEST,
+                    "invalid command",
+                    bindingErrors
+                ),
                 Row(
                     IllegalArgumentException("bad argument"),
                     ErrorCodes.ILLEGAL_ARGUMENT,
