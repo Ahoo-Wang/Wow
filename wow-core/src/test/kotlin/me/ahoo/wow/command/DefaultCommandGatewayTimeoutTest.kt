@@ -41,6 +41,7 @@ import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -80,6 +81,29 @@ class DefaultCommandGatewayTimeoutTest {
             timer.dispose()
         }
     }
+
+    @Test
+    fun `send and wait after close fails because no deadline can be scheduled`() {
+        val gateway = commandGateway(waitCoordinator = DefaultWaitCoordinator())
+        gateway.close()
+
+        StepVerifier.create(
+            gateway.sendAndWait(TestCommandMessage(id = "after-close"), CommandWait.processed("after-close")),
+        )
+            .expectErrorMatches(::isRejected)
+            .verify(Duration.ofSeconds(1))
+        StepVerifier.create(
+            gateway.sendAndWaitStream(
+                TestCommandMessage(id = "after-close-stream"),
+                CommandWait.processed("after-close-stream"),
+            ),
+        )
+            .expectErrorMatches(::isRejected)
+            .verify(Duration.ofSeconds(1))
+    }
+
+    private fun isRejected(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.any { it is RejectedExecutionException }
 
     @Test
     fun `global single scheduler work does not delay command timeout`() {

@@ -52,6 +52,10 @@ Derive the stable value from a business-operation identity or create and persist
 
 The check runs twice: at the gateway, and on the node that processes the command, before the aggregate's handler runs, against that node's `EventStore` (since 9.3.0). A node without an `EventStore`, such as a gateway-only service, uses `NoopRequestIdExistenceChecker`, which answers "absent": the gateway lets the command through and the processing node makes the decision, so a resent command is rejected there without its handler running again. Before 9.3.0 the no-op checker answered "exists", so a Bloom-filter false positive on a gateway-only service rejected a legitimate command.
 
+The processing node consults the `EventStore` only when its own Bloom filter has seen the request ID, so it rejects a resend without running the handler only within that filter's window. After a restart, a consumer rebalance, a TTL rotation of the filter, or a resend that lands on another node (local-first included), the filter has not seen it: the handler runs again and the `EventStore` append rejects the duplicate, as in 9.2. Each processing node keeps its own Bloom filter per aggregate type, built from `wow.command.idempotency.*` (a custom `AggregateIdempotencyCheckerProvider` bean replaces only the gateway's), so a monolith that is both gateway and processor holds two filters per aggregate type. On a Bloom hit, a store without a request-ID index answers by scanning the aggregate's stream.
+
+During a rolling upgrade, upgrade the processing nodes before the gateway-only services: a 9.3 gateway-only service lets a Bloom hit through, and a 9.2 processing node does not check request IDs before the handler, so a duplicate would run its handler again until the append rejects it.
+
 Two kinds of command leave nothing in the event store to find:
 
 - A `@VoidCommand` is not processed by an aggregate, so only the gateway's Bloom filter sees its request ID, and only within its TTL; a gateway without an `EventStore` no longer rejects its resends (since 9.3.0). Treat void commands as at-least-once and make their consumers idempotent.

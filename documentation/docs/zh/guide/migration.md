@@ -173,7 +173,8 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 ### 命令网关与 request-ID 检查（9.3.0）
 
 - 处理命令的节点在处理函数执行之前，会对照自己的 `EventStore` 再查一次 request ID。没有 `EventStore` 的节点所用的 `NoopRequestIdExistenceChecker` 现在回答“不存在”，不再回答“已存在”。因此只做网关的服务不再因布隆过滤器误判而拒绝命令，原样重发的命令改由处理节点拒绝；这样的网关也不再拒绝重发的 `@VoidCommand`，见[失败与幂等](./command/reliability.md#快速预检与权威确认)。
-- `DefaultCommandGateway.close()` 不再关闭传给它的 `CommandBus`。手工构建网关的代码自己关闭总线；Spring 会关闭总线 Bean。
+- 先升级处理节点，再升级只做网关的服务；处理节点只在布隆过滤器窗口内能不执行处理函数就拒绝重发，窗口之外由 `EventStore` 追加拒绝，与 9.2 相同。
+- `DefaultCommandGateway.close()` 不再关闭传给它的 `CommandBus`。`close()` 之后网关无法再调度截止时间：`sendAndWait*` 以 `RejectedExecutionException` 失败。手工构建网关的代码自己关闭总线；Spring 会关闭总线 Bean。
 - `sendAndWait` / `sendAndWaitStream` 发送的是 Header 带等待键的消息副本，调用方的消息不被修改。从传入的消息读回等待键的代码，改为从接收到的消息读取。
 
 ### BI 脚本路由需要 `wow-bi`（9.3.0）

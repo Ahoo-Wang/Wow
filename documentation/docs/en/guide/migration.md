@@ -180,7 +180,8 @@ The starter fails startup when the context still holds such a bean (an `Exchange
 ### Command Gateway and Request-ID Check (9.3.0)
 
 - The request ID is checked again on the node that processes the command, before the handler runs, against its `EventStore`. `NoopRequestIdExistenceChecker`, used by a node without an `EventStore`, now answers "absent" instead of "exists". A gateway-only service therefore no longer rejects a command on a Bloom-filter false positive, and a resent command is rejected by the processing node instead. A resent `@VoidCommand` is no longer rejected by such a gateway; see [Failures and Idempotency](./command/reliability.md#fast-precheck-and-authoritative-confirmation).
-- `DefaultCommandGateway.close()` no longer closes the `CommandBus` it was given. Code that builds a gateway by hand closes its bus itself; Spring closes the bus bean.
+- Upgrade processing nodes before gateway-only services, and note that the processing node rejects a resend without re-running the handler only within its Bloom-filter window; outside it the `EventStore` append rejects it, as in 9.2.
+- `DefaultCommandGateway.close()` no longer closes the `CommandBus` it was given. After `close()` the gateway cannot schedule deadlines: `sendAndWait*` fails with `RejectedExecutionException`. Code that builds a gateway by hand closes its bus itself; Spring closes the bus bean.
 - `sendAndWait` / `sendAndWaitStream` send a copy of the message with the wait keys in its Header; the caller's message is not modified. Code that read wait keys back from the message it passed must read them from the received message instead.
 
 ### BI Script Route Needs `wow-bi` (9.3.0)
