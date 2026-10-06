@@ -288,7 +288,7 @@ class CommandAggregateOnErrorTest {
         }
 
         @Test
-        fun `on error runs once with the last loaded aggregate when the final attempt fails before loading`() {
+        fun `on error is skipped when the last loaded aggregate applied unstored events and cannot be reloaded`() {
             val loadFailure = IllegalStateException("state unavailable")
             val eventStore = FailingEventStore(appendFailures = List(2) { TimeoutException("timeout") })
             val exchange = exchange(ProbeCreate(AGGREGATE_ID))
@@ -300,11 +300,9 @@ class CommandAggregateOnErrorTest {
                 .expectErrorMatches { it === loadFailure }
                 .verify()
 
-            val call = OnErrorProbe.calls.single()
-            call.error.assert().isSameAs(loadFailure)
-            call.exchangeError.assert().isSameAs(loadFailure)
-            call.eventStream.assert().isNull()
-            exchange.getCommandAggregate<Any, Any>().assert().isInstanceOf(SimpleCommandAggregate::class.java)
+            // The first attempt applied events its append did not store; @OnError would need the committed state.
+            OnErrorProbe.calls.assert().isEmpty()
+            exchange.getError().assert().isSameAs(loadFailure)
         }
 
         @Test

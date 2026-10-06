@@ -47,16 +47,17 @@ internal class CommandAdmission(
 
     /**
      * Registers the wait handle of an admitted command and builds the message to send: a copy of [command] whose
-     * header also carries the wait headers of [waitPlan].
+     * header also carries the wait headers of [waitPlan]. The message is built first, so a failure to build it
+     * leaves no wait handle registered.
      */
     fun <H : WaitHandle> registerWait(
         command: CommandMessage<*>,
         waitPlan: WaitPlan,
         register: (WaitPlan) -> H,
     ): AdmittedWait<H> {
-        val handle = register(waitPlan)
         val message = command.copy()
         waitPlan.propagate(commandWaitEndpoint, message.header)
+        val handle = register(waitPlan)
         return AdmittedWait(message, handle)
     }
 

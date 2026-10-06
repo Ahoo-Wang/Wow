@@ -23,6 +23,8 @@ An event stream is the aggregate's consistency history. Snapshots, projections, 
 
 Working state in memory is not authoritative before `EventStore.append` succeeds. A later failure while sending messages, taking a snapshot, or projecting does not undo event history that was already appended.
 
+A command decides, applies, then appends, as one atomic unit (since 9.3.0): its events are sourced into the state before they are stored, so a persisted event is always loadable, and a state instance that applied events which were then not stored is discarded, so in-memory state never diverges from the store. A sourcing or append failure fails the command with nothing stored or published, and `@OnError` sees the committed state. See [Decide, apply, then append](../command/internals/pipeline.md#decide-apply-then-append).
+
 ## DomainEvent and DomainEventStream
 
 `DomainEvent<T>` represents an immutable domain fact. One command execution produces one non-empty event stream; its events belong to one aggregate, are ordered by increasing version, and the stream has a one-to-one relationship with `commandId`.
@@ -80,7 +82,7 @@ The same initial state and the same ordered event streams must produce the same 
 | A non-ignored stream's aggregate identity differs | Throws `IllegalArgumentException` |
 | A non-ignored stream version is not `expectedNextVersion` | Throws `SourcingVersionConflictException` |
 | No sourcing function exists for an event body | The stream still advances the version; business state does not change |
-| A sourcing function throws | The exception propagates; version and metadata stay at the previous version, and the state object, which may hold part of the stream, must be discarded |
+| A sourcing function throws | The exception propagates; version and metadata stay at the previous version, and the state object, which may hold part of the stream, must be discarded. In command processing the stream is then not appended |
 
 Sourcing functions update state only from events; do not read the current time, randomness, or external services. That gives replay, snapshot validation, and failure recovery the same result.
 

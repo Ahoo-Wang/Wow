@@ -182,10 +182,13 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 上下文里仍有这样的 Bean（`ExchangeFilter<ServerCommandExchange<*>>`，或带 `@FilterType(CommandDispatcher::class)` 的 `ExchangeFilter`）时，starter 启动失败，错误信息给出 Bean 名称和上述替代方式，而不是静默忽略它。
 
+命令仍与 9.2 一样先决定、再应用事件、再追加，现在三者是一个原子单元（见[决定、应用、再追加](./command/internals/pipeline.md#决定、应用、再追加)）。失败命令的两个结果有变化：`@OnError` 在已提交的状态上执行（9.2 给它的是已应用未存储事件的状态），`CommandResult` / 等待信号报告已提交的 `aggregateVersion` N（9.2 报告未存储的 N+1）。
+
 ### 命令网关与 request-ID 检查（9.3.0）
 
 - 处理命令的节点在处理函数执行之前，会对照自己的 `EventStore` 再查一次 request ID。没有 `EventStore` 的节点所用的 `NoopRequestIdExistenceChecker` 现在回答“不存在”，不再回答“已存在”。因此只做网关的服务不再因布隆过滤器误判而拒绝命令，原样重发的命令改由处理节点拒绝；这样的网关也不再拒绝重发的 `@VoidCommand`，见[失败与幂等](./command/reliability.md#快速预检与权威确认)。
 - 先升级处理节点，再升级只做网关的服务；处理节点只在布隆过滤器窗口内能不执行处理函数就拒绝重发，窗口之外由 `EventStore` 追加拒绝，与 9.2 相同。
+- 用创建聚合时的请求 ID 重发的创建命令，在任何情况下都报告 `DuplicateRequestId`，包括超出请求 ID 窗口时（9.3.0 修复：9.2 在那里报告 `DuplicateAggregateId`，但这个请求是重放）。HTTP 状态仍是 400；9.2/9.3 混部集群在所有节点升级到 9.3 前，两种错误码都可能出现。使用其他请求 ID 的创建仍是 `DuplicateAggregateId`。
 - `DefaultCommandGateway.close()` 不再关闭传给它的 `CommandBus`。`close()` 之后网关无法再调度截止时间：`sendAndWait*` 以 `RejectedExecutionException` 失败。手工构建网关的代码自己关闭总线；Spring 会关闭总线 Bean。
 - `sendAndWait` / `sendAndWaitStream` 发送的是 Header 带等待键的消息副本，调用方的消息不被修改。从传入的消息读回等待键的代码，改为从接收到的消息读取。
 

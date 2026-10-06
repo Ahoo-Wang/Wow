@@ -120,12 +120,15 @@ class AggregateDslKernelTest {
     }
 
     @Test
-    fun `a sourcing function that cannot apply the committed events fails the step`() {
+    fun `a sourcing function that cannot apply the events fails the step and stores nothing`() {
         verifier.whenCommand(CreateFailingSourcing(AGGREGATE_ID))
             .expectErrorType(IllegalStateException::class)
+            // The step reports the stored state, never the instance that applied the unstored events.
+            .expectStateAggregate { version.assert().isEqualTo(0) }
+            .expectState { sourced.assert().isEmpty() }
             .verify()
 
-        storedVersions().assert().isEqualTo(listOf(1))
+        storedVersions().assert().isEmpty()
     }
 
     @Test
