@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit
  * so every scenario provably crosses versions in both directions instead of depending on chance.
  *
  * It runs only when `WOW_MIXED_CURRENT_HOME` names the build under test (`example-server` `installDist`) and either
- * `WOW_MIXED_PREVIOUS_IMAGE` names the released image (CI: `ahoowang/wow-example-server:9.2.3`) or
+ * `WOW_MIXED_PREVIOUS_IMAGE` names the released image (CI: `ahoowang/wow-example-server:9.2.4`) or
  * `WOW_MIXED_PREVIOUS_HOME` names another `installDist` (a local dry run of the harness without pulling the image).
  * The `Mixed-Version` workflow sets them; `allIntegrationTest` skips it.
  */
