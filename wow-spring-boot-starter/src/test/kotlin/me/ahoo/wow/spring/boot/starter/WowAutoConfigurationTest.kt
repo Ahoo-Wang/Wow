@@ -120,11 +120,13 @@ internal class WowAutoConfigurationTest {
             .withPropertyValues(
                 "wow.dispatch.workers=3",
                 "wow.dispatch.max-in-flight=32",
+                "wow.dispatch.throughput=8",
             )
             .run { context ->
                 val keyedExecutor = context.getBean(WowRuntime::class.java).keyedExecutor
                 keyedExecutor.workers.assert().isEqualTo(3)
                 keyedExecutor.maxInFlight.assert().isEqualTo(32)
+                keyedExecutor.throughput.assert().isEqualTo(8)
             }
     }
 

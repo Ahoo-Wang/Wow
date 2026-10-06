@@ -39,15 +39,19 @@ import java.util.concurrent.atomic.AtomicInteger
  * @param workers the number of worker threads; defaults to the available processors.
  * @param maxInFlight the most messages one dispatcher holds unfinished (running or queued in a mailbox).
  * @param name the worker thread name prefix.
+ * @param throughput the most messages of one aggregate a worker runs in one turn (while they complete synchronously)
+ * before it moves on to other aggregates, so one hot aggregate cannot starve the others.
  */
 class KeyedExecutor(
     val workers: Int = DEFAULT_WORKERS,
     val maxInFlight: Int = DEFAULT_MAX_IN_FLIGHT,
     val name: String = DEFAULT_NAME,
+    val throughput: Int = DEFAULT_THROUGHPUT,
 ) : AutoCloseable {
     init {
         require(workers > 0) { "workers must be positive." }
         require(maxInFlight > 0) { "maxInFlight must be positive." }
+        require(throughput > 0) { "throughput must be positive." }
     }
 
     private val threadId = AtomicInteger()
@@ -79,7 +83,8 @@ class KeyedExecutor(
         executor.shutdown()
     }
 
-    override fun toString(): String = "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight)"
+    override fun toString(): String =
+        "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight, throughput=$throughput)"
 
     companion object {
         const val DEFAULT_NAME: String = "wow-dispatch"
@@ -89,6 +94,9 @@ class KeyedExecutor(
 
         /** Matches the upstream demand of the `groupBy` pipeline this executor replaces. */
         const val DEFAULT_MAX_IN_FLIGHT: Int = 256
+
+        /** Messages of one aggregate per turn; a turn also ends when a handler does not complete synchronously. */
+        const val DEFAULT_THROUGHPUT: Int = 16
 
         /**
          * The executor of a [me.ahoo.wow.runtime.RuntimeContext] that does not bring its own (a dispatcher prepared

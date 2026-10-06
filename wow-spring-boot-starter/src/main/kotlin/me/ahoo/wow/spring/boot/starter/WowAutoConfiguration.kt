@@ -183,6 +183,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             keyedExecutor = KeyedExecutor(
                 workers = wowProperties.dispatch.workers,
                 maxInFlight = wowProperties.dispatch.maxInFlight,
+                throughput = wowProperties.dispatch.throughput,
             ),
         )
     }

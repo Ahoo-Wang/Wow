@@ -370,10 +370,79 @@ class KeyedDispatchTest {
         }
     }
 
+    /**
+     * The ready-queue protocol under contention: completions arrive concurrently from many threads while drainers
+     * start and exit. Every element must run (no lost wake-up), never two of one key at once, and no mailbox may be
+     * scheduled twice (that fails the dispatch).
+     */
+    @Test
+    fun `ready queue loses no wake-up and never schedules a mailbox twice under concurrent completions`() {
+        val contended = KeyedExecutor(workers = 3, maxInFlight = 64, name = "keyed-dispatch-ready", throughput = 2)
+        try {
+            repeat(5) { round ->
+                val keys = 37
+                val total = 5_000
+                val active = ConcurrentHashMap<Int, AtomicInteger>()
+                val overlap = AtomicBoolean()
+                val handled = AtomicInteger()
+                val dispatched = Flux.range(0, total).dispatchKeyed(contended, { it % keys }) { value ->
+                    Mono.defer {
+                        if (active.computeIfAbsent(value % keys) { AtomicInteger() }.incrementAndGet() != 1) {
+                            overlap.set(true)
+                        }
+                        val completion = when (value % 3) {
+                            0 -> Mono.empty()
+                            1 -> Mono.delay(Duration.ofNanos(1)).then()
+                            else -> Mono.empty<Void>().subscribeOn(reactor.core.scheduler.Schedulers.parallel())
+                        }
+                        completion.doOnTerminate {
+                            active.getValue(value % keys).decrementAndGet()
+                            handled.incrementAndGet()
+                        }
+                    }
+                }
+
+                StepVerifier.create(dispatched).expectComplete().verify(Duration.ofSeconds(30))
+                handled.get().assert().describedAs("round $round").isEqualTo(total)
+                overlap.get().assert().describedAs("round $round").isFalse()
+            }
+        } finally {
+            contended.close()
+        }
+    }
+
+    @Test
+    fun `a hot key yields its worker after throughput elements so other keys are not starved`() {
+        val oneWorker = KeyedExecutor(workers = 1, name = "keyed-dispatch-fair", throughput = 4)
+        try {
+            val order = CopyOnWriteArrayList<String>()
+            val emitted = CountDownLatch(1)
+            val source = Flux.range(0, 100).map { "hot-$it" }
+                .concatWith(Flux.just("cold"))
+                .doOnComplete { emitted.countDown() }
+            val dispatched = source.dispatchKeyed(oneWorker, { it.substringBefore('-') }) { element ->
+                Mono.fromRunnable {
+                    // The first hot element holds the only worker until every element is queued.
+                    if (element == "hot-0") {
+                        emitted.await(5, TimeUnit.SECONDS)
+                    }
+                    order += element
+                }
+            }
+
+            StepVerifier.create(dispatched).expectComplete().verify(Duration.ofSeconds(10))
+            order.indexOf("cold").assert().isEqualTo(4)
+            order.filter { it.startsWith("hot") }.assert().isEqualTo((0 until 100).map { "hot-$it" })
+        } finally {
+            oneWorker.close()
+        }
+    }
+
     @Test
     fun `executor validates its configuration`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { KeyedExecutor(workers = 0) }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { KeyedExecutor(maxInFlight = 0) }
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { KeyedExecutor(throughput = 0) }
         KeyedExecutor.shared.assert().isSameAs(KeyedExecutor.shared)
         executor.toString().assert().contains("keyed-dispatch-test")
     }

@@ -39,4 +39,5 @@ class WowProperties(
 class DispatchProperties(
     var workers: Int = KeyedExecutor.DEFAULT_WORKERS,
     var maxInFlight: Int = KeyedExecutor.DEFAULT_MAX_IN_FLIGHT,
+    var throughput: Int = KeyedExecutor.DEFAULT_THROUGHPUT,
 )
