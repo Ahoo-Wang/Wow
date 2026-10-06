@@ -24,6 +24,7 @@ outline: deep
 | `wow.kafka.properties` | Map\<String, String\> | `{}` | 生产者与消费者公共 Kafka 属性 |
 | `wow.kafka.producer` | Map\<String, String\> | `{}` | 生产者覆盖；优先级高于公共属性 |
 | `wow.kafka.consumer` | Map\<String, String\> | `{}` | 消费者覆盖；优先级高于公共属性 |
+| `wow.kafka.close-timeout` | Duration | 未设置时取 `wow.shutdown-timeout` | 关闭 producer 时等待缓冲记录刷出的最长时间（9.3.0 起）；不能为负 |
 | `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka 预取的 poll 批次数 |
 | `wow.kafka.receiver.max-deferred-commits` | Int | `500` | 为乱序完成保留的已确认 offset 数；达到该数量时立即提交 |
 | `wow.kafka.receiver.retry-attempts` | Long | `3` | 一次连续 receive failure burst 的最大尝试次数 |

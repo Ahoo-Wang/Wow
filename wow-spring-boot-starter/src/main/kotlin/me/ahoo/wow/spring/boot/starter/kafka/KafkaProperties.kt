@@ -51,6 +51,12 @@ class KafkaProperties(
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"
     }
 
+    init {
+        closeTimeout?.let {
+            require(!it.isNegative) { "$PREFIX.close-timeout must not be negative: $it." }
+        }
+    }
+
     fun bootstrapServersToString(): String {
         return bootstrapServers.joinToString(",")
     }

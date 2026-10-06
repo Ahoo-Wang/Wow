@@ -17,14 +17,17 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.kafka.KafkaReceiverPolicy
+import me.ahoo.wow.kafka.KafkaTransport
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.messaging.transport.TransportDecodeFailureHandler
 import me.ahoo.wow.messaging.transport.TransportFailurePolicy
+import me.ahoo.wow.messaging.transport.TransportMessageBus
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import reactor.kafka.sender.SenderOptions
 import reactor.util.retry.RetryBackoffSpec
 import java.time.Duration
 
@@ -73,6 +76,55 @@ internal class KafkaAutoConfigurationTest {
         properties.buildSenderOptions(Duration.ofSeconds(60)).closeTimeout().assert()
             .isEqualTo(Duration.ofSeconds(5))
         properties.buildSenderOptions().closeTimeout().assert().isEqualTo(Duration.ofSeconds(5))
+    }
+
+    @Test
+    fun `the buses' producers close within the shutdown timeout by default`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("${KafkaProperties.PREFIX}.bootstrap-servers=kafka", "wow.shutdown-timeout=13s")
+            .withUserConfiguration(KafkaAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(CommandBus::class.java).senderCloseTimeout().assert().isEqualTo(Duration.ofSeconds(13))
+                context.getBean(DomainEventBus::class.java).senderCloseTimeout().assert()
+                    .isEqualTo(Duration.ofSeconds(13))
+            }
+    }
+
+    @Test
+    fun `a configured close timeout wins over the shutdown timeout`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${KafkaProperties.PREFIX}.bootstrap-servers=kafka",
+                "${KafkaProperties.PREFIX}.close-timeout=4s",
+                "wow.shutdown-timeout=13s",
+            )
+            .withUserConfiguration(KafkaAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(CommandBus::class.java).senderCloseTimeout().assert().isEqualTo(Duration.ofSeconds(4))
+            }
+    }
+
+    @Test
+    fun `a negative close timeout fails startup`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${KafkaProperties.PREFIX}.bootstrap-servers=kafka",
+                "${KafkaProperties.PREFIX}.close-timeout=-1s",
+            )
+            .withUserConfiguration(KafkaAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasFailed()
+            }
+    }
+
+    /** The close timeout of the producer options the bus's [KafkaTransport] was built with. */
+    private fun Any.senderCloseTimeout(): Duration {
+        val transport = (this as TransportMessageBus<*, *>).transport as KafkaTransport
+        val field = KafkaTransport::class.java.getDeclaredField("senderOptions").apply { isAccessible = true }
+        return (field.get(transport) as SenderOptions<*, *>).closeTimeout()
     }
 
     @Test

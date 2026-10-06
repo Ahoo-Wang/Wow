@@ -165,6 +165,23 @@ class IdentityConflictTest {
             .verify()
     }
 
+    /** A blank body `@TenantId` is a value: it contradicts `{tenantId}` and the static tenant. */
+    @Test
+    fun `a blank body tenant contradicting the path or static tenant is rejected`() {
+        extract(orderRoute, IdentityCommand(id = "order-a", tenantId = " "), orderRequest().build())
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalArgumentException::class.java)
+                    .hasMessage("Conflicting tenantId: the route fixes [tenant-a], but the command body gives [ ].")
+            }
+            .verify()
+        val cartRequest = MockServerRequest.builder().pathVariable(MessageRecords.ID, "cart-a").build()
+        extract(cartRoute, IdentityCommand(id = "cart-a", tenantId = " "), cartRequest)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
     @Test
     fun `a body agreeing with the path is fine`() {
         extract(

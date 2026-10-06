@@ -24,6 +24,7 @@ Configuration classes: `KafkaProperties`, `KafkaReceiverProperties`; required ca
 | `wow.kafka.properties` | Map\<String, String\> | `{}` | Common Kafka producer and consumer properties |
 | `wow.kafka.producer` | Map\<String, String\> | `{}` | Producer overrides; higher precedence than common properties |
 | `wow.kafka.consumer` | Map\<String, String\> | `{}` | Consumer overrides; higher precedence than common properties |
+| `wow.kafka.close-timeout` | Duration | `wow.shutdown-timeout` when unset | Longest a producer close waits to flush buffered records (since 9.3.0); must not be negative |
 | `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka poll batches to prefetch |
 | `wow.kafka.receiver.max-deferred-commits` | Int | `500` | Acknowledged offsets retained for out-of-order completion; a commit starts when this many are waiting |
 | `wow.kafka.receiver.retry-attempts` | Long | `3` | Maximum retries for one consecutive receive-failure burst (`TransportFailurePolicy`) |
