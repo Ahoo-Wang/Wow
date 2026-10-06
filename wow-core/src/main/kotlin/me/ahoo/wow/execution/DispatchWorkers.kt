@@ -24,7 +24,7 @@ import java.util.concurrent.locks.LockSupport
 
 /**
  * The worker threads of a [KeyedExecutor]: each worker has its own lock-free FIFO queue, and a task goes to the worker
- * its affinity selects (a mailbox always to the same one, like a 9.2 `publishOn` group to its scheduler thread). A
+ * its affinity selects (a mailbox always to the same one, chosen by [nextAffinity] when the mailbox is created). A
  * busy worker picks up newly queued tasks without being woken; an idle worker is unparked only by the submission that
  * finds it parked. There is no shared queue: no lock, and no cascade of wake-ups between workers.
  */

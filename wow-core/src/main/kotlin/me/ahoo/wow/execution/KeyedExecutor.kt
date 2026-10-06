@@ -21,7 +21,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
  * [workers] threads, sized by CPU cores rather than by the number of aggregate types or dispatchers.
  *
  * A dispatcher keeps one mailbox per aggregate ID. A mailbox runs its messages one at a time, in arrival order, on the
- * worker it was given when it was created (round robin, like the worker of a 9.2 `publishOn` group); different
+ * worker it was given when it was created (a running worker with nothing queued, else a parked one); different
  * mailboxes run in parallel. Each worker has its own FIFO queue, so a mailbox that has run [throughput] messages goes
  * behind the other mailboxes of its worker. A handler that waits (I/O, a retry backoff) holds no worker and delays
  * only its own mailbox. Each dispatcher accepts at most [maxInFlight] messages it has not finished, and requests more
