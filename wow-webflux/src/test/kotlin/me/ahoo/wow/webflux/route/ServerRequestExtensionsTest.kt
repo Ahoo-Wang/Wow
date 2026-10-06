@@ -14,12 +14,20 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.core.codec.DecodingException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.web.server.NotAcceptableStatusException
+import org.springframework.web.server.ServerWebInputException
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.exc.InvalidDefinitionException
+import tools.jackson.databind.exc.MismatchedInputException
 
 class ServerRequestExtensionsTest {
     @Test
@@ -76,6 +84,52 @@ class ServerRequestExtensionsTest {
         assertThrows<NotAcceptableStatusException> {
             request("*/*;q=1, application/json;q=0, text/event-stream;q=0").acceptsEventStream()
         }
+    }
+
+    @Test
+    fun `a decoder failure is a bad request`() {
+        val decoding = DecodingException("JSON decoding error: bad")
+        Mono.error<Any>(decoding).mapRequestBodyDecodingException()
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(ServerWebInputException::class.java)
+                it.cause.assert().isSameAs(decoding)
+            }.verify()
+    }
+
+    @Test
+    fun `a binding failure is a bad request worded as the decoder words it`() {
+        val mismatched = MismatchedInputException.from(null as JsonParser?, String::class.java, "missing value")
+        Mono.error<Any>(mismatched).mapRequestBodyDecodingException()
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(ServerWebInputException::class.java)
+                it.cause.assert().isInstanceOf(DecodingException::class.java)
+                    .hasMessage("JSON decoding error: missing value")
+                it.cause?.cause.assert().isSameAs(mismatched)
+            }.verify()
+    }
+
+    @Test
+    fun `a type the server cannot bind is not the request's fault`() {
+        val definition = InvalidDefinitionException.from(
+            null as JsonParser?,
+            "no creator",
+            JsonSerializer.constructType(String::class.java)
+        )
+        Mono.error<Any>(definition).mapRequestBodyDecodingException()
+            .test()
+            .expectErrorSatisfies { it.assert().isSameAs(definition) }
+            .verify()
+    }
+
+    @Test
+    fun `any other failure is not mapped`() {
+        val failure = IllegalStateException("store down")
+        Mono.error<Any>(failure).mapRequestBodyDecodingException()
+            .test()
+            .expectErrorSatisfies { it.assert().isSameAs(failure) }
+            .verify()
     }
 
     private fun request(accept: String): MockServerRequest {
