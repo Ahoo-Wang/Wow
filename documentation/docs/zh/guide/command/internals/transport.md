@@ -67,25 +67,30 @@ Redis 与 Kafka 的发送完成条件不同，二者都不等于聚合已经处�
 
 `LocalFirstCommandBus` 组合一个 local bus 和一个 distributed bus。对本地聚合且 Header 未显式禁用 local-first 的命令，它不会在两条路径中二选一，而是建立受标记约束的双副本流程：
 
-1. 复制命令，标记 `local_first=true`，交给本地总线（`localBus.handOff`）。只有所有路由到的 runtime-owned receiver 都已订阅且 processing-open、消息进入它们的本地 sink 时，交付才被接受；交付从不等待 receiver 拉取消息。
-2. 每个路由到的 receiver 在其 dispatcher 拉取消息时确认准入，或拒绝（例如关闭时）；全部决定后交付的准入结果完成。
-3. 再复制原命令发往 distributed bus；其 `local_first` 值等于准入结果。
-4. 合并接收端过滤并 ack 已标记为“本地已处理”的 distributed 副本；本地准入失败、关闭或异常时，该副本保持可处理。
+1. 把 distributed 副本放入该聚合的副本队列（`LocalFirstDistributedCopies`，按聚合 ID 排队）。
+2. 复制命令，标记 `local_first=true`，交给本地总线（`localBus.handOff`）。只有所有路由到的 runtime-owned receiver 都已订阅且 processing-open、消息进入它们的本地 sink 时，交付才被接受；交付从不等待 receiver 拉取消息。
+3. 每个路由到的 receiver 在其 dispatcher 拉取消息时确认准入，或拒绝（关闭时；路由关闭会拒绝其全部待定准入）。
+4. 轮到它时（同一聚合的所有更早副本都已发送之后），副本以 `local_first` = 准入结果发出（交付被拒绝时为 `false`）。
+5. 合并接收端过滤并 ack 已标记为“本地已处理”的 distributed 副本；本地准入失败、关闭或异常时，该副本保持可处理。
 
 `send` 何时完成（自 9.3.0 起）：
 
 | 情况 | `send` 完成时机 | distributed 副本 |
 | --- | --- | --- |
-| 已交付 | 消息进入本地 sink 时立即完成 | receiver 全部决定后异步发送：全部准入为 `local_first=true`，先被拒绝为 `false` |
-| 被拒绝交付：没有可路由的 receiver、本地 sink 已满或已关闭 | distributed bus 接受副本时完成，失败则随之失败 | `local_first=false`，在 `send` 完成前发送 |
+| 已交付 | 消息进入本地 sink 时立即完成 | receiver 全部决定后轮到时发送：全部准入为 `local_first=true`，先被拒绝为 `false` |
+| 被拒绝交付：没有可路由的 receiver、路由已关闭 | 其副本轮到并发送后完成，失败则随之失败 | `local_first=false` |
 | 本地交付异常 | 同上（记录错误日志） | `local_first=false` |
-| 交付后被拒绝（receiver 关闭） | 已完成 | `local_first=false`，异步发送 |
+| 交付后被拒绝（receiver 关闭） | 已完成 | `local_first=false`，轮到时发送 |
 
-发送方从不等待本地 receiver 的需求，因此会发送消息的处理器（命令处理器发布事件、Saga 发送命令）无论 dispatcher 多满都不会互相阻塞。异步副本发送失败会记录日志，并由 distributed bus 的发送指标计数；关停时，运行时在 dispatcher 停止之后、传输关闭之前，于 `shutdownTimeout` 内等待在途副本（`LocalFirstDistributedCopies`）。
+**顺序。** 无论已交付与被拒绝的发送如何交错，同一聚合的消息都按发送顺序到达 distributed bus，与 9.2 相同：副本只在该聚合所有更早副本发送之后才发送。被拒绝的发送不会等待本地 receiver 的需求，因为路由先关闭才会拒绝，而关闭会拒绝其待定准入。
 
-**local-first 以崩溃持久性换取延迟。** 已交付但尚未处理的消息只存在于本进程：进程崩溃时该消息会丢失——副本还未发送，或已标记 `local_first=true` 被其他成员跳过。9.3.0 之前准入之后本就如此；交付只把窗口扩大到消息在本地 sink 中等待的时间。消息必须在进程崩溃后仍被处理（跨崩溃的至少一次）时，请关闭 local-first（`wow.command.bus.local-first.enabled=false`，事件与状态事件同理）。
+**不等待需求，本地 sink 无界。** 发送方从不等待本地 receiver 拉取消息，因此会发送消息的处理器（命令处理器发布事件、Saga 发送命令）无论 dispatcher 多满都不会互相阻塞。命令、领域事件与状态事件的本地 sink 均为无界，交付不会因消费者慢而被拒绝；代价是进程内积压增长。积压可在指标 `wow.local_first.backlog`（按聚合类型统计待发送副本数）上观察，达到 `wow.<command|event|eventsourcing.state>.bus.local-first.backlog-high-water-mark`（默认 10000）时记录警告。
 
-每个聚合的本地路由在自己的监视器下决定投递；关闭总线时先关闭所有路由，因此不同聚合的 local-first 发送不再争用整条总线的锁。distributed 副本承担回退和可观察记录，`local_first=true` 是经过准入确认的抑制标记，不是仅凭 subscriber count 的猜测。原消息与两个副本使用独立可变 Header，避免两条路径互相改写。
+**失败与关停。** 已交付消息的副本发送失败会记录日志，并由 distributed bus 的发送指标计数；与 9.2 不同（9.2 中发送随之失败），它不再体现在命令结果中。关停时，运行时在 dispatcher 停止之后、传输关闭之前，于 `shutdownTimeout` 内发送队列中的副本；超时后仍在队列中的副本被取消，其他服务永远收不到这些消息。
+
+**local-first 以崩溃持久性换取延迟。** 已交付但尚未处理的消息只存在于本进程：进程崩溃时会丢失。已在本地处理、但崩溃时副本尚未发出的消息，其他服务永远看不到。9.2 中准入之后本就如此；交付只把窗口扩大到消息在本地 sink 中等待的时间。消息必须在进程崩溃后仍被处理（跨崩溃的至少一次）时，请关闭 local-first（`wow.command.bus.local-first.enabled=false`，事件与状态事件同理）。
+
+每个聚合的本地路由在自己的监视器下决定投递；关闭总线时先关闭所有路由，因此不同聚合的 local-first 发送不再争用整条总线的锁。`local_first=true` 是经过准入确认的抑制标记，不是仅凭 subscriber count 的猜测。原消息与两个副本使用独立可变 Header，避免两条路径互相改写。
 
 ## Void
 

@@ -17,10 +17,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.modeling.materialize
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -139,26 +141,27 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
         get() = localBus.javaClass.simpleName
 
     /**
-     * The distributed copies sent after a local hand-off, which no sender waits for.
+     * The distributed copies, sent in send order per aggregate.
      */
     val distributedCopies: LocalFirstDistributedCopies
 
     /**
      * Sends a message using local-first routing strategy.
      *
-     * When local-first applies, the message is handed to the local receivers ([LocalMessageBus.handOff]) and a
-     * distributed copy is always sent. When the send completes:
+     * When local-first applies, the message is handed to the local receivers ([LocalMessageBus.handOff]) and its
+     * distributed copy is queued in [distributedCopies], which sends an aggregate's copies in send order. When the
+     * send completes:
      * - **handed off** (the message entered the local sink of every routed, processing-open receiver): at once. The
-     *   copy is sent asynchronously once the receivers decided: marked locally handled (`local_first=true`) when every
-     *   receiver admitted it, eligible for distributed processing (`local_first=false`) when the delivery was
-     *   rejected first (a receiver closed). Its failure is logged and counted by the distributed bus's metrics; it
-     *   never reaches the sender ([distributedCopies]).
-     * - **refused** (no routable receiver, a full or closed local sink) or **local error**: the copy, eligible for
-     *   distributed processing, is the delivery, and the send completes when the distributed bus accepted it, or
-     *   fails with it.
+     *   copy goes out in its turn once the receivers decided: marked locally handled (`local_first=true`) when every
+     *   receiver admitted it, eligible for distributed processing (`local_first=false`) when the delivery was rejected
+     *   first (a receiver closed). Its failure is logged and counted by the distributed bus's metrics; it never reaches
+     *   the sender.
+     * - **refused** (no routable receiver, a closed route) or **local error**: the copy, eligible for distributed
+     *   processing, is the delivery; the send completes when it was sent in its turn, or fails with it.
      *
      * A sender never waits for a local receiver's demand, so handlers that send (a command handler publishing events,
-     * a saga sending commands) cannot block one another. A message handed off but not yet processed is lost if the
+     * a saga sending commands) cannot block one another: closing a route rejects its pending admissions, so a refused
+     * copy never waits behind one that waits for demand. A message handed off but not yet processed is lost if the
      * process crashes: local-first trades that durability for latency.
      *
      * @param message The message to send
@@ -170,12 +173,22 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
         }
 
         // A local delivery attempt owns a fresh immutable message identity.
-        return Mono.defer {
+        return Mono.deferContextual { context ->
             @Suppress("UNCHECKED_CAST")
             val localMessage = message.copy() as M
             localMessage.withLocalFirst()
             @Suppress("UNCHECKED_CAST")
             val distributedMessage = message.copy() as M
+            // Queued before the hand-off, so the copies of one aggregate keep the send order.
+            val copy = distributedCopies.enqueue(
+                key = (message as? AggregateIdCapable)?.aggregateId ?: message.materialize(),
+                namedAggregate = message,
+                context = context,
+                description = { "message[${message.id}] (via $localBusName)" },
+            ) { admitted ->
+                distributedMessage.withLocalFirst(admitted)
+                distributedBus.send(distributedMessage)
+            }
             localBus.handOff(localMessage)
                 .onErrorResume { error ->
                     log.error(error) {
@@ -184,28 +197,13 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
                     }
                     Mono.just(LocalHandoff.REFUSED)
                 }
+                .doOnNext(copy::decide)
+                // A sender cancelled before it learnt the result: the copy is not suppressed (at most a duplicate).
+                .doFinally { copy.decide(LocalHandoff.REFUSED) }
                 .flatMap { handoff ->
-                    if (handoff.accepted) {
-                        sendCopyAfterAdmission(distributedMessage, handoff.admission)
-                        Mono.empty()
-                    } else {
-                        distributedMessage.withLocalFirst(false)
-                        distributedBus.send(distributedMessage)
-                    }
+                    if (handoff.accepted) Mono.empty() else copy.sent
                 }
         }
-    }
-
-    private fun sendCopyAfterAdmission(copy: M, admission: Mono<Boolean>) {
-        distributedCopies.send(
-            admission
-                .onErrorReturn(false)
-                .defaultIfEmpty(false)
-                .flatMap { admitted ->
-                    copy.withLocalFirst(admitted)
-                    distributedBus.send(copy)
-                },
-        ) { "message[${copy.id}] (via $localBusName)" }
     }
 
     /**

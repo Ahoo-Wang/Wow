@@ -26,14 +26,15 @@ import reactor.core.publisher.Mono
  *
  * @param distributedBus The distributed command bus for fallback processing.
  * @param localBus The local command bus for primary processing. Defaults to InMemoryCommandBus.
+ * @param distributedCopies The distributed copies, sent in send order per aggregate.
  */
 class LocalFirstCommandBus(
     override val distributedBus: DistributedCommandBus,
-    override val localBus: LocalCommandBus = InMemoryCommandBus()
+    override val localBus: LocalCommandBus = InMemoryCommandBus(),
+    override val distributedCopies: LocalFirstDistributedCopies =
+        LocalFirstDistributedCopies("LocalFirstCommandBus"),
 ) : CommandBus,
     LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
-    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies("LocalFirstCommandBus")
-
     /**
      * Sends a command message, prioritizing local processing.
      * Void commands are automatically configured to not use local-first behavior.

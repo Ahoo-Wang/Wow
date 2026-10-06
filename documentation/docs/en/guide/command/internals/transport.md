@@ -67,25 +67,30 @@ Redis and Kafka have different send-completion conditions; neither means the agg
 
 `LocalFirstCommandBus` combines one local and one distributed bus. For a local aggregate whose Header does not explicitly disable local-first, it does not merely choose one route; it creates a marked dual-copy flow:
 
-1. Copy the command, mark it `local_first=true`, and hand it to the local bus (`localBus.handOff`). The hand-off is accepted when the message enters the local sink of every routed runtime-owned receiver, all of them subscribed and processing-open; it never waits for a receiver to pull the message.
-2. Each routed receiver confirms admission when its dispatcher pulls the message, or rejects it (for example when it closes); the hand-off's admission completes when they all decided.
-3. Copy the original command again for the distributed bus; its `local_first` value is the admission result.
-4. The merged receiver filters and acknowledges a distributed copy marked “handled locally.” If local admission closes or fails, the distributed copy remains eligible for processing.
+1. Queue the distributed copy in the aggregate's copy queue (`LocalFirstDistributedCopies`, keyed by aggregate ID).
+2. Copy the command, mark it `local_first=true`, and hand it to the local bus (`localBus.handOff`). The hand-off is accepted when the message enters the local sink of every routed runtime-owned receiver, all of them subscribed and processing-open; it never waits for a receiver to pull the message.
+3. Each routed receiver confirms admission when its dispatcher pulls the message, or rejects it (when it closes, a closing route rejects every pending admission).
+4. In its turn — after every earlier copy of the same aggregate was sent — the copy goes out with `local_first` = the admission result (`false` for a refused hand-off).
+5. The merged receiver filters and acknowledges a distributed copy marked “handled locally.” If local admission closes or fails, the distributed copy remains eligible for processing.
 
 When `send` completes (since 9.3.0):
 
 | Case | `send` completes | Distributed copy |
 | --- | --- | --- |
-| Handed off | at once, when the message entered the local sink | sent asynchronously once the receivers decided: `local_first=true` if all admitted it, `false` if it was rejected first |
-| Refused: no routable receiver, a full or closed local sink | when the distributed bus accepted the copy, or fails with it | `local_first=false`, sent before `send` completes |
+| Handed off | at once, when the message entered the local sink | in its turn, once the receivers decided: `local_first=true` if all admitted it, `false` if it was rejected first |
+| Refused: no routable receiver, a closed route | when its copy was sent in its turn, or fails with it | `local_first=false` |
 | Local hand-off error | as for refused (the error is logged) | `local_first=false` |
-| Rejected after the hand-off (a receiver closed) | already completed | `local_first=false`, sent asynchronously |
+| Rejected after the hand-off (a receiver closed) | already completed | `local_first=false`, in its turn |
 
-A sender never waits for a local receiver's demand, so handlers that send (a command handler publishing its events, a saga sending commands) cannot block one another however full the dispatchers are. A failed asynchronous copy is logged and counted by the distributed bus's send metrics; on shutdown the runtime waits for the copies in flight after the dispatchers stop and before the transports close, within `shutdownTimeout` (`LocalFirstDistributedCopies`).
+**Ordering.** An aggregate's messages reach the distributed bus in the order they were sent, as in 9.2, whatever mix of handed-off and refused sends: a copy is sent only after every earlier copy of that aggregate. A refused send never waits for a local receiver's demand, because a route closes before it refuses and closing rejects its pending admissions.
 
-**Local-first trades crash durability for latency.** A message handed off but not yet processed exists only in this process: if the process crashes, the message is lost — the copy is not sent yet, or it is marked `local_first=true` and skipped by every other member. This was already true after admission before 9.3.0; the hand-off only widens the window to the time the message waits in the local sink. Disable local-first (`wow.command.bus.local-first.enabled=false`, and likewise for events and state events) where a message must survive a process crash (at-least-once across crashes).
+**No waiting on demand, unbounded local sinks.** A sender never waits for a local receiver to pull its message, so handlers that send (a command handler publishing its events, a saga sending commands) cannot block one another however full the dispatchers are. The local sinks of commands, domain events and state events are unbounded, so a hand-off is never refused because a consumer is slow; instead the in-process backlog grows. It is visible on the gauge `wow.local_first.backlog` (per aggregate type, the copies waiting to be sent), and reaching `wow.<command|event|eventsourcing.state>.bus.local-first.backlog-high-water-mark` (default 10000) logs a warning.
 
-Each aggregate's local route decides a delivery under its own monitor; closing the bus closes every route first, so local-first sends to different aggregates never contend on a bus-wide lock. The distributed copy therefore provides fallback and an observable record. `local_first=true` is an admission-confirmed suppression marker, not a guess based on subscriber count. The original and both copies have independent mutable Headers so the routes cannot rewrite one another.
+**Failures and shutdown.** A failed copy of a handed-off message is logged and counted by the distributed bus's send metrics; unlike 9.2, where the send failed with it, it no longer reaches the command result. On shutdown the runtime sends the queued copies after the dispatchers stop and before the transports close, within `shutdownTimeout`; copies still queued past it are cancelled, and other services never receive those messages.
+
+**Local-first trades crash durability for latency.** A message handed off but not yet processed exists only in this process: if the process crashes, it is lost. A message processed locally whose copy was not sent yet when the process crashed is never seen by other services. 9.2 already lost a message after admission; the hand-off widens the window to the time the message waits in the local sink. Disable local-first (`wow.command.bus.local-first.enabled=false`, and likewise for events and state events) where a message must survive a process crash (at-least-once across crashes).
+
+Each aggregate's local route decides a delivery under its own monitor; closing the bus closes every route first, so local-first sends to different aggregates never contend on a bus-wide lock. `local_first=true` is an admission-confirmed suppression marker, not a guess based on subscriber count. The original and both copies have independent mutable Headers so the routes cannot rewrite one another.
 
 ## Void
 

@@ -67,6 +67,8 @@ sealed interface ExampleServerNode : AutoCloseable {
         "--wow.eventsourcing.store.storage=mongo",
         "--wow.eventsourcing.snapshot.storage=mongo",
         "--logging.level.me.ahoo.wow=info",
+        // The handlers' operation counters, which tell the local-first scenario which node processed a message.
+        "--management.endpoints.web.exposure.include=health,metrics",
     )
 
     companion object {

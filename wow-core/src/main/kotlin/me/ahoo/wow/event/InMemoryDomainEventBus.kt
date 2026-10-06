@@ -25,7 +25,7 @@ import reactor.core.publisher.Sinks.Many
  * testing or single-process applications. It uses reactive sinks to handle
  * event publishing and subscription within the same JVM instance.
  *
- * @property sinkSupplier Function to create reactive sinks for each named aggregate (default: multicast sink with buffer)
+ * @property sinkSupplier Function to create reactive sinks for each named aggregate (default: multicast sink with an unbounded buffer)
  *
  * @constructor Creates a new InMemoryDomainEventBus with the specified sink supplier
  *
@@ -35,7 +35,7 @@ import reactor.core.publisher.Sinks.Many
  */
 class InMemoryDomainEventBus(
     override val sinkSupplier: (NamedAggregate) -> Many<DomainEventStream> = {
-        Sinks.unsafe().many().multicast().onBackpressureBuffer<DomainEventStream>().concurrent()
+        Sinks.unsafe().many().multicast().onBackpressureBuffer<DomainEventStream>(Int.MAX_VALUE).concurrent()
     }
 ) : InMemoryMessageBus<DomainEventStream, EventStreamExchange>(),
     LocalDomainEventBus {

@@ -43,9 +43,11 @@ public final class me/ahoo/wow/spring/boot/starter/ConditionalOnWowEnabled$Compa
 
 public final class me/ahoo/wow/spring/boot/starter/LocalFirstProperties : me/ahoo/wow/api/naming/EnabledCapable {
 	public fun <init> ()V
-	public fun <init> (Z)V
-	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZI)V
+	public synthetic fun <init> (ZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBacklogHighWaterMark ()I
 	public fun getEnabled ()Z
+	public final fun setBacklogHighWaterMark (I)V
 	public fun setEnabled (Z)V
 }
 
@@ -292,14 +294,19 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties
 }
 
 public class me/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration$Companion;
+	public static final field LOCAL_FIRST_COPIES Ljava/lang/String;
 	public fun <init> ()V
 	public fun commandMessageFactory (Ljakarta/validation/Validator;Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/factory/CommandMessageFactory;
 	public fun commandOptionsExtractorRegistry (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/command/factory/CommandBuilderRewriterRegistry;
 	public fun inMemoryCommandBus ()Lme/ahoo/wow/command/LocalCommandBus;
 	public fun localCommandBus ()Lme/ahoo/wow/command/LocalCommandBus;
-	public fun localFirstCommandBus (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/command/LocalFirstCommandBus;
-	public fun localFirstCommandBusDistributedCopies (Lme/ahoo/wow/command/LocalFirstCommandBus;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
+	public fun localFirstCommandBus (Lme/ahoo/wow/command/LocalCommandBus;Lme/ahoo/wow/command/DistributedCommandBus;Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;)Lme/ahoo/wow/command/LocalFirstCommandBus;
+	public fun localFirstCommandBusDistributedCopies (Lme/ahoo/wow/spring/boot/starter/command/CommandProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
 	public fun noOpValidator ()Ljakarta/validation/Validator;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration$Companion {
 }
 
 public class me/ahoo/wow/spring/boot/starter/command/CommandGatewayAutoConfiguration {
@@ -544,13 +551,18 @@ public abstract interface annotation class me/ahoo/wow/spring/boot/starter/event
 }
 
 public class me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration$Companion;
+	public static final field LOCAL_FIRST_COPIES Ljava/lang/String;
 	public fun <init> ()V
 	public fun domainEventCompensator (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/DomainEventBus;)Lme/ahoo/wow/event/compensation/DomainEventCompensator;
 	public fun inMemoryDomainEventBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
 	public fun localDomainEventBus ()Lme/ahoo/wow/event/LocalDomainEventBus;
-	public fun localFirstDomainEventBus (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/event/LocalFirstDomainEventBus;
-	public fun localFirstDomainEventBusDistributedCopies (Lme/ahoo/wow/event/LocalFirstDomainEventBus;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
+	public fun localFirstDomainEventBus (Lme/ahoo/wow/event/LocalDomainEventBus;Lme/ahoo/wow/event/DistributedDomainEventBus;Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;)Lme/ahoo/wow/event/LocalFirstDomainEventBus;
+	public fun localFirstDomainEventBusDistributedCopies (Lme/ahoo/wow/spring/boot/starter/event/EventProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
 	public fun ooOpDomainEventBus ()Lme/ahoo/wow/event/DomainEventBus;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration$Companion {
 }
 
 public class me/ahoo/wow/spring/boot/starter/event/EventDispatcherAutoConfiguration {
@@ -880,12 +892,17 @@ public abstract interface annotation class me/ahoo/wow/spring/boot/starter/event
 }
 
 public class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/eventsourcing/state/StateAutoConfiguration$Companion;
+	public static final field LOCAL_FIRST_COPIES Ljava/lang/String;
 	public fun <init> ()V
 	public fun inMemoryStateEventBus ()Lme/ahoo/wow/eventsourcing/state/StateEventBus;
-	public fun localFirstStateEventBus (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;
-	public fun localFirstStateEventBusDistributedCopies (Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
+	public fun localFirstStateEventBus (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;)Lme/ahoo/wow/eventsourcing/state/LocalFirstStateEventBus;
+	public fun localFirstStateEventBusDistributedCopies (Lme/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;
 	public fun localStateEventBus ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
 	public fun stateEventCompensator (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/state/StateEventBus;)Lme/ahoo/wow/event/compensation/StateEventCompensator;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateAutoConfiguration$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties {

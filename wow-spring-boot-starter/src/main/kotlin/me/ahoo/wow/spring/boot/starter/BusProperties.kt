@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.api.naming.EnabledCapable
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.spring.boot.starter.BusType.Companion.KAFKA_NAME
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 import org.springframework.boot.context.properties.bind.DefaultValue
@@ -28,7 +29,15 @@ class BusProperties(
     }
 }
 
-class LocalFirstProperties(@DefaultValue("true") override var enabled: Boolean = true) : EnabledCapable
+class LocalFirstProperties(
+    @DefaultValue("true") override var enabled: Boolean = true,
+    /**
+     * Distributed copies waiting to be sent, per aggregate type, at which a warning is logged: a local consumer falls
+     * behind and the in-process backlog grows. Copies are never refused.
+     */
+    @DefaultValue("10000")
+    var backlogHighWaterMark: Int = LocalFirstDistributedCopies.DEFAULT_BACKLOG_HIGH_WATER_MARK,
+) : EnabledCapable
 
 enum class BusType {
     KAFKA,

@@ -686,7 +686,42 @@ class LocalFirstMessageBusShutdownTest {
     }
 
     @Test
-    fun `a full local sink falls back to the distributed copy before the send completes`() {
+    fun `an aggregate's handed-off and refused messages reach the distributed bus in send order`() {
+        val localBus = MpscLocalBus()
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "ordered", runtimeOwned = true),
+        )
+        // Pulls nothing: the handed-off messages wait in the sink until the route closes and rejects them.
+        val subscriber = ZeroDemandSubscriber<LocalFirstTestExchange>()
+        receiver.messages.subscribe(subscriber)
+
+        try {
+            receiver.openProcessing()
+            bus.send(LocalFirstTestMessage(id = "1")).block(Duration.ofSeconds(1))
+            bus.send(LocalFirstTestMessage(id = "2")).block(Duration.ofSeconds(1))
+            distributedBus.sent.assert().isEmpty()
+
+            receiver.closeProcessing()
+            // Refused now; its copy goes out after the earlier ones, and only then does the send complete.
+            bus.send(LocalFirstTestMessage(id = "3")).block(Duration.ofSeconds(1))
+            bus.send(LocalFirstTestMessage(id = "4")).block(Duration.ofSeconds(1))
+
+            distributedBus.awaitSent(4).map { it.id to it.isLocalFirst() }.assert().containsExactly(
+                "1" to false,
+                "2" to false,
+                "3" to false,
+                "4" to false,
+            )
+        } finally {
+            subscriber.dispose()
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `a local sink that does not take the message falls back to the distributed copy before the send completes`() {
         val localBus = FullSinkLocalBus()
         val distributedBus = RecordingDistributedBus()
         val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
