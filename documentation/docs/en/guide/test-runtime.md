@@ -196,6 +196,19 @@ A threshold crossing from `benchmarkCompare` is only a regression or improvement
 
 `updateBenchmarkBaseline` accepts only a clean manifest produced from the current clean `HEAD`. Do not update a baseline from a dirty worktree, different service configuration, or missing manifest.
 
+### A/B in CI
+
+`Benchmark A/B` (`.github/workflows/benchmark-ab.yml`) compares two refs on GitHub runners instead of a local machine. Dispatch it with a base ref (default `main`), a head ref, an include regex or a list of them, and a profile:
+
+```bash
+gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
+  -f include=CommandIdComponentBenchmark -f profile=quick
+```
+
+It builds the JMH jar of each ref once, then runs one job per benchmark class (`split=method` for one per method). Inside a job, base and head forks alternate on the same runner (base-head, head-base, …), so runner and drift variance cancel. `quick` runs 3 forks per side (2 × 2 s warmup, 3 × 2 s measurement); `gate` runs 8 forks per side (3 × 3 s warmup, 5 × 3 s measurement). Every fork runs with `-prof gc`. Optional inputs override `@Param` values (`name=v1,v2;…`), thread counts, the noise threshold (default 3%) and a pull request number to comment on. Benchmarks under `benchmark.infrastructure` need Redis, MongoDB, Elasticsearch or Kafka and are skipped.
+
+The report in the run summary lists base and head score ± error (pooled over every fork of that side, JMH's 99.9% interval), Δ%, B/op and GC ms per iteration. A row is flagged `faster` or `slower` only when the two intervals do not overlap and |Δ| reaches the threshold; overlapping intervals are noise. The `benchmark-ab` label on a pull request runs the quick profile for the JMH classes that pull request changed, head against its merge base, and comments the report.
+
 ## Read Historical Reports Correctly
 
 Reports under `wow-benchmarks/results/reports/` are bound to the source, run specification, machine, JVM, and service configuration that produced them. They are qualified historical evidence or investigation starting points, not universal promises across versions, machines, or stores.
@@ -215,6 +228,7 @@ Follow three rules:
 | `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
 | `Mixed-Version` | `:example-server:installDist` + `:wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'` with the released image |
 | `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
+| `Benchmark A/B` (dispatch or `benchmark-ab` label) | `:wow-benchmarks:jmhJar` per ref, then the JMH jar with interleaved forks |
 | `Codecov` | `codeCoverageReport` |
 
 Choose these layers locally according to change risk. CI is fresh evidence in another environment; local validation, CI validation, application release, and production verification remain separate completion conditions.

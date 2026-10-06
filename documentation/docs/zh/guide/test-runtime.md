@@ -196,6 +196,19 @@ WebFlux suite 不启动真实 Netty server。当前 `benchmarkQuickInfrastructur
 
 `updateBenchmarkBaseline` 只接受当前 clean `HEAD` 产生的 clean manifest。不要在脏工作树、不同服务配置或缺少 manifest 时更新基线。
 
+### 在 CI 中做 A/B
+
+`Benchmark A/B`（`.github/workflows/benchmark-ab.yml`）在 GitHub runner 上比较两个 ref，不占用本地机器。手动触发时给出 base ref（默认 `main`）、head ref、一个或多个 include 正则，以及 profile：
+
+```bash
+gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
+  -f include=CommandIdComponentBenchmark -f profile=quick
+```
+
+它为每个 ref 只构建一次 JMH jar，然后每个基准类一个 job（`split=method` 则每个方法一个）。同一 job 内 base 与 head 的 fork 在同一台 runner 上交替运行（base-head、head-base……），抵消 runner 差异与漂移。`quick` 每侧 3 个 fork（预热 2 × 2 s，测量 3 × 2 s）；`gate` 每侧 8 个 fork（预热 3 × 3 s，测量 5 × 3 s）。每个 fork 都带 `-prof gc`。可选输入可覆盖 `@Param`（`name=v1,v2;…`）、线程数、噪声阈值（默认 3%），并可给出要评论的 PR 编号。`benchmark.infrastructure` 下的基准需要 Redis、MongoDB、Elasticsearch 或 Kafka，会被跳过。
+
+运行摘要中的报告列出 base 与 head 的 score ± error（合并该侧所有 fork，JMH 的 99.9% 区间）、Δ%、B/op 与每次迭代的 GC 毫秒数。只有两个区间不重叠且 |Δ| 达到阈值时才标记 `faster` 或 `slower`；区间重叠即为噪声。给 PR 加 `benchmark-ab` 标签会以 quick profile 运行该 PR 改动的 JMH 类（head 对比其 merge base），并把报告评论到 PR。
+
 ## 如何读取历史报告
 
 `wow-benchmarks/results/reports/` 中的报告绑定于生成它们的源码、运行规格、机器、JVM 和服务配置。它们可以作为限定条件下的历史证据或调查起点，但不是跨版本、跨机器、跨存储的普适承诺。
@@ -215,6 +228,7 @@ WebFlux suite 不启动真实 Netty server。当前 `benchmarkQuickInfrastructur
 | `Integration Test` | `allIntegrationTest` + `integrationCoverageReport` |
 | `Mixed-Version` | `:example-server:installDist` + 使用已发布镜像运行 `:wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest'` |
 | `Benchmark Smoke` | `:wow-benchmarks:test` + `:wow-benchmarks:benchmarkSmoke` |
+| `Benchmark A/B`（手动触发或 `benchmark-ab` 标签） | 每个 ref 运行 `:wow-benchmarks:jmhJar`，再用 JMH jar 交替运行 fork |
 | `Codecov` | `codeCoverageReport` |
 
 本地验证应按变更风险选择这些层。CI 只是另一环境中的新证据；本地通过、CI 通过、应用发布和生产验证仍是不同完成条件。
