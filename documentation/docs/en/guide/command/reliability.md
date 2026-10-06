@@ -54,6 +54,10 @@ The check runs twice: at the gateway, and on the node that processes the command
 
 The processing node consults the `EventStore` only when its own Bloom filter has seen the request ID, so it rejects a resend without running the handler only within that filter's window. After a restart, a consumer rebalance, a TTL rotation of the filter, or a resend that lands on another node (local-first included), the filter has not seen it: the handler runs again and the `EventStore` append rejects the duplicate, as in 9.2. Each processing node keeps its own Bloom filter per aggregate type, built from `wow.command.idempotency.*` (a custom `AggregateIdempotencyCheckerProvider` bean replaces only the gateway's), so a monolith that is both gateway and processor holds two filters per aggregate type. On a Bloom hit, a store without a request-ID index answers by scanning the aggregate's stream.
 
+A caller waiting only for `SENT` on a gateway-only service therefore sees a resent command succeed (since 9.3.0): the gateway sends it, and the rejection happens later on the processing node. Wait for `PROCESSED` to see the `DuplicateRequestId`.
+
+The processing-node check is wired by the Spring starter. Outside Spring it runs only when the `DefaultCommandHandler` is given a `RequestIdChecker`; without one, the node has no check before the handler and the `EventStore` append is its only duplicate check.
+
 During a rolling upgrade, upgrade the processing nodes before the gateway-only services: a 9.3 gateway-only service lets a Bloom hit through, and a 9.2 processing node does not check request IDs before the handler, so a duplicate would run its handler again until the append rejects it.
 
 Two kinds of command leave nothing in the event store to find:

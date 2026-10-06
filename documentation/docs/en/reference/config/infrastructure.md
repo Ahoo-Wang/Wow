@@ -41,7 +41,7 @@ wow:
       decode-failure-strategy: fail
 ```
 
-`fail` terminates the current receive path and enters receiver retry for an invalid record. `acknowledge` acknowledges and skips it. The latter abandons that record and is appropriate only with an isolation, audit, and operator-recovery path. Wow creates bus clients; the application platform still owns topics/partitions, ACLs, retention, consumer lag, backups, and offset recovery.
+`fail` leaves an invalid record uncommitted and fails the receive stream, which stops the runtime; it is not retried. `acknowledge` acknowledges and skips it. The latter abandons that record and is appropriate only with an isolation, audit, and operator-recovery path. Wow creates bus clients; the application platform still owns topics/partitions, ACLs, retention, consumer lag, backups, and offset recovery.
 
 ## MongoDB
 

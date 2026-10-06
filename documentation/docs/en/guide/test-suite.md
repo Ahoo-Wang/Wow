@@ -78,6 +78,9 @@ What a specification sees therefore matches production; before 9.3.0 the DSL dif
 | The next step's state | the previous step's instance | loaded from the stores (a new instance) |
 | A sourcing function that cannot apply the events | the command failed | the command fails and nothing is stored, as in production; the step reports the stored state |
 | `givenState` | the given object ran the command | a copy loaded from its snapshot; the given object is not changed |
+| A failed command (an append conflict, for example) | `domainEventStream` held the stream the command produced | `domainEventStream` is `null`: nothing was committed |
+| `givenState`, then `whenCommand` without an owner | the command had no owner | the command takes the stage's `givenOwnerId`, as after given events |
+| A custom `eventStore` passed to `aggregateVerifier` | saw only the command's append | also sees `last` and `append` for the given events, and `load` for every state the DSL loads again |
 
 ## Aggregate Specifications: Assert Event and State Together
 

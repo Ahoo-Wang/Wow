@@ -27,7 +27,7 @@ outline: deep
 | `wow.kafka.close-timeout` | Duration | 未设置时取 `wow.shutdown-timeout` | 关闭 producer 时等待缓冲记录刷出的最长时间（9.3.0 起）；不能为负 |
 | `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka 预取的 poll 批次数 |
 | `wow.kafka.receiver.max-deferred-commits` | Int | `500` | 为乱序完成保留的已确认 offset 数；达到该数量时立即提交 |
-| `wow.kafka.receiver.retry-attempts` | Long | `3` | 一次连续 receive failure burst 的最大尝试次数 |
+| `wow.kafka.receiver.retry-attempts` | Long | `3` | 一次连续接收失败的最大重试次数（`TransportFailurePolicy`） |
 | `wow.kafka.receiver.retry-backoff` | Duration | `10s` | 接收重试的最小退避 |
 | `wow.kafka.receiver.decode-failure-strategy` | Enum | `fail` | `fail` 或 `acknowledge` |
 
@@ -41,7 +41,7 @@ wow:
       decode-failure-strategy: fail
 ```
 
-`fail` 让无效记录终止当前接收并进入 receiver retry；`acknowledge` 确认并跳过无效记录。后者会放弃该记录，只有在已有隔离、审计和人工恢复路径时才应使用。Wow 创建 Bus 客户端，但 topic/partition、ACL、retention、consumer lag、备份和位点恢复仍由应用平台负责。
+`fail` 让无效记录保持未提交并使接收流失败，运行时随之停止，不会重试；`acknowledge` 确认并跳过无效记录。后者会放弃该记录，只有在已有隔离、审计和人工恢复路径时才应使用。Wow 创建 Bus 客户端，但 topic/partition、ACL、retention、consumer lag、备份和位点恢复仍由应用平台负责。
 
 ## MongoDB
 

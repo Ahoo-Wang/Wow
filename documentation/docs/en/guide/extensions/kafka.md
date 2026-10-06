@@ -98,11 +98,11 @@ Kafka's `RetriableException` and its subclasses (timeouts, leader changes, unava
 
 ### Decode Failure Policy
 
-The strategy selects the `TransportDecodeFailureHandler` bean (`TransportDecodeFailureHandler.FAIL` or `.ACKNOWLEDGE`; until 9.2 the bean type was `KafkaRecordDecodeFailureHandler`). A record fails to decode when its value is not the bus's message JSON, or its key or topic does not match the decoded message. `FAIL` is the default: a malformed record terminates the current receive stream and enters retry. `ACKNOWLEDGE` acknowledges and skips the record, which can cause unrecoverable data loss. Use it only with a dead-letter, audit, and replay procedure.
+The strategy selects the `TransportDecodeFailureHandler` bean (`TransportDecodeFailureHandler.FAIL` or `.ACKNOWLEDGE`; until 9.2 the bean type was `KafkaRecordDecodeFailureHandler`). A record fails to decode when its value is not the bus's message JSON, or its key or topic does not match the decoded message. `FAIL` is the default: a malformed record is not retried (decoding happens after the receive retry); it stays uncommitted and the receive stream fails, which stops the runtime until the record is dealt with. `ACKNOWLEDGE` acknowledges and skips the record, which can cause unrecoverable data loss. Use it only with a dead-letter, audit, and replay procedure.
 
 ## Topic Naming Rules
 
-Default names are `${topic-prefix}${contextAlias}.${aggregateName}.command|event|state`. Applications can provide `CommandTopicConverter`, `EventStreamTopicConverter`, or `StateEventTopicConverter`. These converters do not create topics or manage partition count, replication, or retention.
+Default names are `${topic-prefix}${contextAlias}.${aggregateName}.command|event|state`. Applications can provide `CommandTopicConverter`, `EventStreamTopicConverter`, or `StateEventTopicConverter`. These converters do not create topics or manage partition count, replication, or retention. Since 9.3.0 a bus calls its converter once per bounded context and aggregate name and reuses the name, so a converter must return the same topic for the same aggregate.
 
 ## Partition Strategy
 

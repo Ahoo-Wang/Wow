@@ -32,7 +32,12 @@ class RedisStreamRetentionProperties(
     var maxAge: Duration? = null,
     /** Trim whole macro nodes (`~`), which is much cheaper than exact trimming. */
     var approximate: Boolean = true,
+    /**
+     * Delete, when a receiver starts, the consumers of its group that have been idle for [consumerIdleTimeout] and
+     * have no pending entries; the check and the delete run atomically in one script, so no message is lost.
+     */
     var reapIdleConsumers: Boolean = true,
+    /** How long a consumer must be idle before [reapIdleConsumers] deletes it. */
     var consumerIdleTimeout: Duration = RedisStreamRetentionOptions.DEFAULT_CONSUMER_IDLE_TIMEOUT,
 ) {
     fun toOptions(): RedisStreamRetentionOptions {

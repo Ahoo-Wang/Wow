@@ -202,7 +202,7 @@ A command still decides, applies its events, then appends them, as in 9.2, now a
 ### Header Propagation and Recoverable Exceptions Are Beans (9.3.0)
 
 - `MessagePropagatorProvider` is removed. Use an injected `MessagePropagators` (the Spring bean, or `MessagePropagators.DEFAULT` outside Spring); `import ...MessagePropagatorProvider.propagate` becomes `import me.ahoo.wow.messaging.propagation.propagate`. A `MessagePropagator` can now also be a bean; a bean wins over a ServiceLoader propagator of the same class, and Wow's `@Order` (not Spring's) orders them.
-- `RecoverableExceptionRegistrar` is now the interface `RecoverableExceptionProvider`s register into; the static object is removed. Use `RecoverableExceptionRegistry.DEFAULT` or the `recoverableExceptionRegistry` bean (`register`, `unregister`, `getRecoverableType`). A `RecoverableExceptionProvider` can now also be a bean.
+- `RecoverableExceptionRegistrar` is now the interface `RecoverableExceptionProvider`s register into; its 9.2 static calls remain as deprecated companion functions (see the deprecation table above). Use `RecoverableExceptionRegistry.DEFAULT` or the `recoverableExceptionRegistry` bean (`register`, `unregister`, `getRecoverableType`). A `RecoverableExceptionProvider` can now also be a bean.
 - `wow.messaging.propagation.request` is read from the Spring environment and applies to the runtime's injected `MessagePropagators` only; `MessagePropagators.DEFAULT` ignores it, and outside Spring the `-D` system property is no longer read.
 - A chain wait's tail reaches only the commands of the Saga function the chain waits for, and a chain plan must wait on the command it is sent with (`waitCommandId` = command ID), otherwise `sendAndWait` fails with `IllegalArgumentException`. See [Command Wait Runtime](./command/internals/wait-runtime.md).
 
@@ -215,6 +215,29 @@ A command still decides, applies its events, then appends them, as in 9.2, now a
 | `me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction` / `GenerateBIScriptHandlerFunctionFactory` | wired by `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` (internal) |
 | `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
 | `GenerateBIScriptRouteContributor` in `DefaultRouteContributors.all()` | a `RouteContributor` bean the Starter registers when `wow-bi` is present; the route is served only through the Starter |
+
+### Transport SPI: Kafka and Redis Bus Internals Removed (9.3.0)
+
+Every distributed bus is now a core `TransportMessageBus` over a `Transport` (see [Transport SPI](./command/internals/transport.md#transport-spi)). The per-backend bus base classes, exchanges and decode handlers were an extension-point SPI and are removed, not deprecated; topics, keys, JSON and consumer groups are unchanged.
+
+| Removed | Use instead |
+|---|---|
+| `AbstractKafkaBus`, `AbstractRedisMessageBus` | `KafkaTransport` / `RedisStreamTransport` under the core `TransportCommandBus`, `TransportDomainEventBus`, `TransportStateEventBus`; the `Kafka*Bus` / `Redis*Bus` constructors are unchanged apart from the decode handler below |
+| `KafkaServerCommandExchange`, `KafkaEventStreamExchange`, `KafkaStateEventExchange`, `RedisServerCommandExchange`, `RedisEventStreamExchange`, `RedisStateEventExchange` | `TransportServerCommandExchange`, `TransportEventStreamExchange`, `TransportStateEventExchange` |
+| `KafkaRecordDecodeFailureHandler`, `KafkaRecordDecodeFailure`, `KafkaRecordDecodeException` | `TransportDecodeFailureHandler`, `TransportDecodeFailure`, `TransportDecodeException` |
+| `FailKafkaRecordDecodeFailureHandler`, `AcknowledgeKafkaRecordDecodeFailureHandler` | `TransportDecodeFailureHandler.FAIL`, `TransportDecodeFailureHandler.ACKNOWLEDGE` |
+| `Kafka*Bus(…, recordDecodeFailureHandler = …)` | `decodeFailureHandler: TransportDecodeFailureHandler` |
+| `MainDispatcher.receiveMessage` (and its overrides in the command, event and snapshot dispatchers) | implement `createMessageReceiver(subscription)`, for example `bus.receiver(subscription.copy(runtimeOwned = true))` |
+| Starter `kafkaRecordDecodeFailureHandler()` returning `KafkaRecordDecodeFailureHandler` | the same bean method, returning `TransportDecodeFailureHandler`; an application bean of the old type becomes a `TransportDecodeFailureHandler` bean (`wow.kafka.receiver.decode-failure-strategy` is unchanged) |
+
+### Sagas, Waits, Ordering and the Test DSL (9.3.0)
+
+- Saga command IDs are derived from the event: a command that names no aggregate gets an aggregate ID derived from the event, the Saga function, its index and the target type, and a returned `CommandMessage` without its own request ID gets `<event ID>-<index>-<producer hash>` (bodies and builders keep `<event ID>-<index>`). A retried Saga create therefore targets the aggregate the first attempt created and is rejected as `DuplicateRequestId`; the Saga skips that send, so no compensation record is written for it. See [requestId and Context Propagation](./event/saga.md#requestid-and-context-propagation).
+- A chain-wait SSE stream (`sendAndWaitStream` with a chain target) no longer carries the tail signals of unrelated Sagas reacting to the same event: only the commands of the Saga function the chain waits for carry the tail. See [Command Wait Runtime](./command/internals/wait-runtime.md).
+- On a gateway-only service (no `EventStore`), resending a command with a request ID the gateway's Bloom filter has seen now succeeds at the `SENT` stage: the gateway lets it through and the processing node rejects it (`DuplicateRequestId`) without running the handler. A caller that waits only for `SENT` no longer sees the duplicate; wait for `PROCESSED` to see it. See [Failures and Idempotency](./command/reliability.md#fast-precheck-and-authoritative-confirmation).
+- Outside Spring, the processing-node request-ID check runs only when the `DefaultCommandHandler` is given a `RequestIdChecker`; a gateway-only setup built by hand that does not wire one has no check before the handler, and the `EventStore` append is the only duplicate check (as in 9.2 for that node).
+- `@Order` is resolved by a topological sort of the `before`/`after` constraints (lowest `value` first among the elements that are ready, then declaration order), for every ordered list: filter chains, after-command functions, event upgraders, ID generators, error-info converters, query admission and message propagators. The result can differ from 9.2's even where 9.2's order already met every constraint, and a cycle in the constraints now fails startup with an `IllegalStateException` naming it.
+- The aggregate test DSL runs the production pipeline and kernel; the assertions that change are listed in [the test suite's table](./test-suite.md#the-same-pipeline-as-production).
 
 ### Failure Policy: Receive Retry and Failure Recording (9.3.0)
 

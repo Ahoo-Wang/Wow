@@ -98,11 +98,11 @@ wow:
 
 ### 解码失败策略
 
-该策略决定 `TransportDecodeFailureHandler` Bean（`TransportDecodeFailureHandler.FAIL` 或 `.ACKNOWLEDGE`；9.2 及以前的 Bean 类型是 `KafkaRecordDecodeFailureHandler`）。value 不是该总线的消息 JSON，或 key、topic 与解码出的消息不一致，都算解码失败。默认 `FAIL`：坏 record 终止当前接收流并进入重试。`ACKNOWLEDGE` 会确认并跳过坏 record，可能造成不可恢复的数据丢失，只应在有死信、审计和重放方案时启用。
+该策略决定 `TransportDecodeFailureHandler` Bean（`TransportDecodeFailureHandler.FAIL` 或 `.ACKNOWLEDGE`；9.2 及以前的 Bean 类型是 `KafkaRecordDecodeFailureHandler`）。value 不是该总线的消息 JSON，或 key、topic 与解码出的消息不一致，都算解码失败。默认 `FAIL`：坏 record 不会重试（解码发生在接收重试之后），它保持未提交，接收流失败，运行时随之停止，直到处理掉该 record。`ACKNOWLEDGE` 会确认并跳过坏 record，可能造成不可恢复的数据丢失，只应在有死信、审计和重放方案时启用。
 
 ## 主题命名规则
 
-默认名称为 `${topic-prefix}${contextAlias}.${aggregateName}.command|event|state`。应用可提供 `CommandTopicConverter`、`EventStreamTopicConverter` 或 `StateEventTopicConverter` 覆盖命名；主题创建、分区数、复制因子与保留策略不由这些转换器管理。
+默认名称为 `${topic-prefix}${contextAlias}.${aggregateName}.command|event|state`。应用可提供 `CommandTopicConverter`、`EventStreamTopicConverter` 或 `StateEventTopicConverter` 覆盖命名；主题创建、分区数、复制因子与保留策略不由这些转换器管理。自 9.3.0 起，总线对每个限界上下文与聚合名只调用一次转换器并复用结果，因此转换器对同一聚合必须返回同一主题。
 
 ## 分区策略
 

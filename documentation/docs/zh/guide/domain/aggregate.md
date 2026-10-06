@@ -71,7 +71,7 @@ class Order(private val state: OrderState)
 应用启动失败，错误信息写明聚合（两份资源冲突时还写明两个资源的 URL）；Wow KSP 处理器让编译失败，错误信息里写明聚合。下面两种在 9.2 能启动的情形不再可行：
 
 - api 模块里 `@BoundedContext.Aggregate(tenantId = "a")`，domain 模块里聚合带 `@StaticTenantId("b")`：启动失败；
-- 聚合只写了 `@StaticTenantId`（默认租户），而同一模块的限界上下文声明了另一个租户：编译失败。处理器还会把非默认的策略记录到生成的 `META-INF/wow-metadata.json`（`"spaced": true`、`"owner": "ALWAYS"`）；9.2 节点忽略这些字段，`GET /wow/metadata` 也不返回它们。
+- 聚合只写了 `@StaticTenantId`（默认租户），而同一模块的限界上下文声明了另一个租户：编译失败。处理器还会把非默认的策略记录到生成的 `META-INF/wow-metadata.json`（`"spaced": true`、`"owner": "ALWAYS"`）；9.2 节点忽略这些字段，`GET /wow/metadata` 也不返回它们。它们仅供参考：运行时从注解读取策略，修改这些键不会改变任何行为。
 
 ### 从 `@AggregateRoute(spaced, owner)` 迁移
 
