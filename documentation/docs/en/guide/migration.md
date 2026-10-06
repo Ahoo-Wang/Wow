@@ -63,15 +63,15 @@ binary after a new storage-format write is not a rollback.
 
 ## Upgrading from 9.2 to 9.3.0
 
-9.3.0 reworks the write side, the transports and the API tiers. REST routes and bodies, the stored formats, the message JSON and the Kafka topics and consumer groups do not change, so 9.2.x and 9.3.0 nodes can share one cluster during a rolling upgrade. The Kotlin API does change: 9.3.0 keeps **no binary-compatibility shims** (declarations kept only so that 9.2 bytecode links), and application-facing APIs it replaces keep **one `@Deprecated` cycle** and are removed in 10.0.0, as listed in [compatibility debt](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md). Extension-point SPI that only backend, transport or framework implementers touch changes without a deprecation cycle. The [9.3.0 release notes](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.3.0) list every change with its pull request.
+9.3.0 reworks the write side, the transports and the API tiers. REST routes and bodies, the stored formats, the message JSON and the Kafka topics and consumer groups do not change, so 9.2.x and 9.3.0 nodes can share one cluster during a rolling upgrade. The Kotlin API does change: 9.3.0 keeps **no binary-compatibility shims** (declarations kept only so that 9.2 bytecode links), and application-facing APIs it replaces keep **one `@Deprecated` cycle** and are removed in 10.0.0, as listed in [compatibility debt](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md). Extension-point SPI that only backend, transport or framework implementers touch changes without a deprecation cycle. The 9.3.0 release notes, on the [releases page](https://github.com/Ahoo-Wang/Wow/releases) once 9.3.0 is published, list every change with its pull request.
 
-The sections below are ordered by how likely an application is to meet them: every application reads the first four; the later ones concern custom extensions.
+The sections below are ordered by how likely an application is to meet them: every application reads the first four, an application with REST clients also reads the fifth, and the later ones mostly concern custom extensions.
 
 <!--
 Placeholders for 9.3.0 work not merged when this section was written. Add a section here, in order of likelihood, when one lands; delete the line when it moves to a later release.
-- X7 (shared keyed executor, per-context receivers; #3969, #3975): may move to 9.4. Would deprecate AggregateSchedulerSupplier and the parallelism settings, add wow.dispatch.*, and needs a rolling-upgrade note.
+- X7 (shared keyed executor, per-context receivers; #3969, #3975): add its entries (see #3969's Breaking section) and a rolling-upgrade note when it lands.
 - X4 (hot path: meter caching).
-- B8 (shutdown under sustained ingress).
+- B8 (shutdown under sustained ingress; command-chain design 2026-09-28, item B8).
 -->
 
 ### Before You Upgrade
@@ -109,6 +109,7 @@ These application-facing calls still compile in 9.3, deprecated, and are removed
 | Deprecated | Use instead |
 |---|---|
 | `@AggregateRoute(spaced = …, owner = …)`, `AggregateRoute.Owner` | `@Spaced`, `@AggregateOwner(OwnerPolicy.…)` (next section) |
+| `AggregateRouteMetadata.owner` and its `AggregateRoute.Owner` primary constructor | `ownerPolicy` and the `OwnerPolicy` constructor |
 | Calling `bus.receive(subscription)` | `receiver(subscription).openedMessages()` |
 | `ServerRequest.getTenantId(aggregateMetadata)`, `getTenantIdOrDefault(aggregateMetadata)` | `identity(aggregateMetadata).tenantId()` (`?: TenantId.DEFAULT_TENANT_ID`) |
 | `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()` (for an aggregate owned by its ID, it falls back to `{id}`) |
@@ -134,10 +135,10 @@ The aggregate test DSL (`AggregateSpec`, `aggregateVerifier`) runs each command 
 
 ### Requests Clients Can See
 
-- **Contradictory identity is rejected.** A command body `@TenantId` / `@OwnerId`, or a `Command-Tenant-Id` / `Command-Owner-Id` header, that differs from the tenant or owner the route fixes (static tenant, `{tenantId}`, `{ownerId}`, or `{id}` of an aggregate owned by its ID) answers `400 IllegalArgument`; a tenant header against a static tenant is still ignored. A client or gateway that sends one global `Command-Owner-Id` or `Command-Tenant-Id` on every request must drop it where the path states the fact. See [Request Identity](./open-api.md#request-identity), which also covers the owner taken from `{id}` and percent-encoded IDs.
+- **Contradictory identity is rejected.** A command body `@TenantId` / `@OwnerId`, or a `Command-Tenant-Id` / `Command-Owner-Id` header, that differs from the tenant or owner the route fixes (static tenant, `{tenantId}`, `{ownerId}`, or `{id}` of an aggregate owned by its ID) answers `400 IllegalArgument`; a tenant header against a static tenant is still ignored. A client or gateway that sends one global `Command-Owner-Id` or `Command-Tenant-Id` on every request must drop it where the path states the fact. A blank body `@OwnerId` counts as no value only on an aggregate owned by its ID, whose owner comes from `{id}`; against `{ownerId}`, and a blank `@TenantId` against the static tenant or `{tenantId}`, it is a contradiction. See [Request Identity](./open-api.md#request-identity), which also covers the owner taken from `{id}` and percent-encoded IDs.
 - A blank `{id}` on the event-load, compensate, regenerate and tracing routes answers 400, like every other route; a blank `CoSec-Space-Id` / `CoSec-Request-Id` counts as absent.
 - An SSE error event or batch result for an unexpected exception is `InternalServerError` with "Unexpected server error", as on JSON routes, instead of `BadRequest` with the exception's message. See [Error Handling](./extensions/webflux.md#error-handling).
-- A command whose append failed reports the committed `aggregateVersion` N in its `CommandResult` and wait signal, not the unstored N+1.
+- A command whose append failed reports the committed `aggregateVersion` N in its `CommandResult` and wait signal, not the unstored N+1. After a version conflict, the state `@OnError` sees can be newer than N (N+k), while the result still reports N.
 - A create resent with the request ID that created the aggregate is `DuplicateRequestId`, also outside the request-ID window (a 9.2 bug: it reported `DuplicateAggregateId` there, although the request is a replay). The HTTP status stays 400. A create with another request ID is still `DuplicateAggregateId`.
 
 ### Command Filters Replaced by a Fixed Pipeline
@@ -159,9 +160,9 @@ The command side no longer has a filter chain. `DefaultCommandHandler` runs proc
 
 A command still decides, applies its events, then appends them, as in 9.2, now as one atomic unit (see [Decide, apply, then append](./command/internals/pipeline.md#decide-apply-then-append)):
 
-- When a sourcing function throws or the append fails, the command fails and nothing is stored or published; an instance that applied events which were not stored is discarded, never reused.
-- `@OnError` runs on the committed state, reloaded when the failed attempt applied unstored events (9.2 gave it the state with those events applied). If the reload fails, `@OnError` is skipped and the original error is returned with the load error suppressed.
-- The `CommandResult` / wait signal of a failed append reports the committed `aggregateVersion` N.
+- 9.2.3 already applied the events before appending them; the failure path is what changes. When a sourcing function throws or the append fails, the command fails, nothing is stored or published and no `StateEvent` is sent; the half-applied instance is discarded, never reused, and the version stays N.
+- `@OnError` runs on the committed state, reloaded when the failed attempt applied unstored events; a create gets a new aggregate from the factory (9.2 gave it the state with those events applied). If the reload fails, `@OnError` is skipped, an ERROR is logged, and the original error is returned with the load error suppressed.
+- The `CommandResult` / wait signal of a failed append reports the committed `aggregateVersion` N. After a version conflict the reloaded state `@OnError` sees can be newer (N+k).
 - `VersionAware.version` is set after every sourcing function of the stream ran: a sourcing function that reads `this.version` sees the previous version.
 
 Each aggregate type is compiled once at startup:
@@ -199,7 +200,8 @@ Each aggregate type is compiled once at startup:
 
 ### Local-First Delivery
 
-- A local-first send completes when the message is handed off to the local receivers, not when the local dispatcher admitted it, and no longer waits for its distributed copy. The copy is sent asynchronously, in send order per aggregate, with the same `local_first` marker as 9.2. A failed copy is logged and counted, and no longer fails the send. See [LocalFirst dual-copy admission](./command/internals/transport.md#localfirst-dual-copy-admission).
+- A local-first send completes when the message is handed off to the local receivers, not when the local dispatcher admitted it, and no longer waits for its distributed copy. The copy is sent asynchronously, in send order per aggregate, with the same `local_first` marker as 9.2. For a handed-off send, a failed copy is logged and counted, and no longer fails the send; a refused send (no routable receiver, a closed route, a hand-off error) still waits for its copy and fails with it. See [LocalFirst dual-copy admission](./command/internals/transport.md#localfirst-dual-copy-admission).
+- A sender cancelled before the local hand-off result still has its copy sent exactly once, carrying the true local decision: no duplicate, no loss. A hand-off result that does not arrive within `handOffTimeout` (30 s) counts as a refusal and the copy goes out unmarked, so another member may process the message a second time.
 - Local sinks for domain and state events are unbounded: a slow local consumer grows the backlog (gauge `wow.local_first.backlog`, a warning at `wow.{command,event,eventsourcing.state}.bus.local-first.backlog-high-water-mark`, default 10000) instead of being bypassed.
 - Queued copies are sent within `wow.shutdown-timeout` and cancelled after it. A handed-off message that was not yet processed is lost if the process crashes; disable local-first where a message must survive a crash. There is no ordering guarantee across topics or buses.
 - `LocalMessageBus.sendIfSubscribed(message): Mono<Boolean>` is replaced by `handOff(message): Mono<LocalHandoff>`, and `LocalFirstMessageBus` has an abstract `distributedCopies: LocalFirstDistributedCopies`, which the three built-in local-first buses take as a constructor parameter. The Starter registers one `localFirst{Command,DomainEvent,StateEvent}BusDistributedCopies` bean per bus, as a runtime component. A `LocalFirstDistributedCopies` created outside the runtime is not awaited at shutdown unless it is registered as a runtime component.

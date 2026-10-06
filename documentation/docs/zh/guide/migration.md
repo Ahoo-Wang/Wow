@@ -61,15 +61,15 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.2 升级到 9.3.0
 
-9.3.0 重做了写侧、传输与 API 分层。REST 路由与请求体、存储格式、消息 JSON、Kafka 主题与消费组都不变，所以滚动升级期间 9.2.x 与 9.3.0 节点可以共用一个集群。Kotlin API 有变化：9.3.0 **不保留二进制兼容垫片**（只为让 9.2 字节码继续链接而保留的声明），被替换的面向应用的 API 保留**一个 `@Deprecated` 周期**，10.0.0 删除，清单见[兼容性债务](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。只有后端、传输或框架实现者才会接触的扩展点 SPI 直接修改，不经弃用。[9.3.0 发布说明](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.3.0)逐条列出每项变化及其 PR。
+9.3.0 重做了写侧、传输与 API 分层。REST 路由与请求体、存储格式、消息 JSON、Kafka 主题与消费组都不变，所以滚动升级期间 9.2.x 与 9.3.0 节点可以共用一个集群。Kotlin API 有变化：9.3.0 **不保留二进制兼容垫片**（只为让 9.2 字节码继续链接而保留的声明），被替换的面向应用的 API 保留**一个 `@Deprecated` 周期**，10.0.0 删除，清单见[兼容性债务](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。只有后端、传输或框架实现者才会接触的扩展点 SPI 直接修改，不经弃用。9.3.0 发布说明（9.3.0 发布后见 [Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
 
-下面各节按应用遇到的可能性排序：前四节每个应用都要看，后面的只涉及自定义扩展。
+下面各节按应用遇到的可能性排序：前四节每个应用都要看，有 REST 客户端的应用还要看第五节，后面的主要涉及自定义扩展。
 
 <!--
 本节写作时尚未合并的 9.3.0 工作的占位。合并后按可能性在这里加一节；推迟到之后的版本就删掉对应的行。
-- X7（共享 KeyedExecutor、按上下文接收；#3969、#3975）：可能推迟到 9.4。会弃用 AggregateSchedulerSupplier 与并行度配置、新增 wow.dispatch.*，并需要滚动升级说明。
+- X7（共享 KeyedExecutor、按上下文接收；#3969、#3975）：合并后加上它的条目（见 #3969 的 Breaking 一节）与滚动升级说明。
 - X4（热路径：计量器缓存）。
-- B8（持续流入下的停机）。
+- B8（持续流入下的停机；命令链路设计 2026-09-28，B8 条）。
 -->
 
 ### 升级之前
@@ -107,6 +107,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 已弃用 | 改用 |
 |---|---|
 | `@AggregateRoute(spaced = …, owner = …)`、`AggregateRoute.Owner` | `@Spaced`、`@AggregateOwner(OwnerPolicy.…)`（见下一节） |
+| `AggregateRouteMetadata.owner` 及其接收 `AggregateRoute.Owner` 的主构造函数 | `ownerPolicy` 与接收 `OwnerPolicy` 的构造函数 |
 | 调用 `bus.receive(subscription)` | `receiver(subscription).openedMessages()` |
 | `ServerRequest.getTenantId(aggregateMetadata)`、`getTenantIdOrDefault(aggregateMetadata)` | `identity(aggregateMetadata).tenantId()`（`?: TenantId.DEFAULT_TENANT_ID`） |
 | `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()`（以聚合 ID 为所有者的聚合会退回 `{id}`） |
@@ -132,10 +133,10 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ### 客户端可见的请求变化
 
-- **拒绝自相矛盾的身份。** 命令体中的 `@TenantId` / `@OwnerId`，或请求头 `Command-Tenant-Id` / `Command-Owner-Id`，与路由确定的租户或所有者（静态租户、`{tenantId}`、`{ownerId}`，或以聚合 ID 为所有者的聚合的 `{id}`）不同时，返回 `400 IllegalArgument`；对静态租户发送的租户请求头仍被忽略。在每个请求上都发送同一个全局 `Command-Owner-Id` 或 `Command-Tenant-Id` 的客户端或网关，须在路径已给出该值时去掉这个请求头。见[请求身份](./open-api.md#请求身份)，那里还说明了从 `{id}` 取得所有者与百分号编码 ID 的情况。
+- **拒绝自相矛盾的身份。** 命令体中的 `@TenantId` / `@OwnerId`，或请求头 `Command-Tenant-Id` / `Command-Owner-Id`，与路由确定的租户或所有者（静态租户、`{tenantId}`、`{ownerId}`，或以聚合 ID 为所有者的聚合的 `{id}`）不同时，返回 `400 IllegalArgument`；对静态租户发送的租户请求头仍被忽略。在每个请求上都发送同一个全局 `Command-Owner-Id` 或 `Command-Tenant-Id` 的客户端或网关，须在路径已给出该值时去掉这个请求头。命令体中空白的 `@OwnerId` 只在以聚合 ID 为所有者、所有者来自 `{id}` 的聚合上视为没有值；对 `{ownerId}`，以及空白的 `@TenantId` 对静态租户或 `{tenantId}`，都算矛盾。见[请求身份](./open-api.md#请求身份)，那里还说明了从 `{id}` 取得所有者与百分号编码 ID 的情况。
 - 事件加载、补偿、重新生成快照与追踪路由上空白的 `{id}` 与其他路由一样返回 400；空白的 `CoSec-Space-Id` / `CoSec-Request-Id` 视为不存在。
 - SSE 错误事件或批量结果中的意外异常与 JSON 路由一样，是 `InternalServerError` 加 "Unexpected server error"，不再是带异常消息的 `BadRequest`。见[错误处理](./extensions/webflux.md#错误处理)。
-- 追加失败的命令，其 `CommandResult` 与等待信号报告已提交的 `aggregateVersion` N，不再是未存储的 N+1。
+- 追加失败的命令，其 `CommandResult` 与等待信号报告已提交的 `aggregateVersion` N，不再是未存储的 N+1。版本冲突之后，`@OnError` 看到的状态可能比 N 新（N+k），而结果仍报告 N。
 - 用创建聚合时的请求 ID 重发的创建命令，在任何情况下都报告 `DuplicateRequestId`，包括超出请求 ID 窗口时（9.2 的缺陷：它在那里报告 `DuplicateAggregateId`，但这个请求是重放）。HTTP 状态仍是 400。使用其他请求 ID 的创建仍是 `DuplicateAggregateId`。
 
 ### 命令过滤器改为固定管道
@@ -157,9 +158,9 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 命令仍与 9.2 一样先决定、再应用事件、再追加，现在三者是一个原子单元（见[决定、应用、再追加](./command/internals/pipeline.md#决定、应用、再追加)）：
 
-- 溯源函数抛出异常或追加失败时，命令失败，不存储也不发布任何内容；应用了未存储事件的实例被丢弃，绝不复用。
-- `@OnError` 在已提交的状态上执行：失败的尝试应用了未存储的事件时，先重新加载聚合（9.2 给它的是已应用这些事件的状态）。重新加载也失败时跳过 `@OnError`，返回原始错误，并把加载错误作为 suppressed 附上。
-- 追加失败时，`CommandResult` / 等待信号报告已提交的 `aggregateVersion` N。
+- 9.2.3 已经是先应用事件再追加；变化在失败路径上。溯源函数抛出异常或追加失败时，命令失败，不存储也不发布任何内容，不发送 `StateEvent`；应用了一半的实例被丢弃、绝不复用，版本停在 N。
+- `@OnError` 在已提交的状态上执行：失败的尝试应用了未存储的事件时，先重新加载聚合，创建命令则由工厂新建聚合（9.2 给它的是已应用这些事件的状态）。重新加载也失败时跳过 `@OnError`，记录 ERROR 日志，返回原始错误，并把加载错误作为 suppressed 附上。
+- 追加失败时，`CommandResult` / 等待信号报告已提交的 `aggregateVersion` N。版本冲突之后，`@OnError` 重新加载的状态可能更新（N+k）。
 - `VersionAware.version` 在事件流的全部溯源函数执行完之后才设置：读取 `this.version` 的溯源函数看到的是之前的版本。
 
 每个聚合类型在启动时编译一次：
@@ -197,7 +198,8 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ### 本地优先投递
 
-- 本地优先的发送在消息交给本地接收者时即完成，不再等待本地分发器准入，也不再等待它的分布式副本。副本异步发送，同一聚合内保持发送顺序，`local_first` 标记的含义与 9.2 相同。副本发送失败会记日志并计数，不再让这次发送失败。见[LocalFirst 双副本准入](./command/internals/transport.md#localfirst-双副本准入)。
+- 本地优先的发送在消息交给本地接收者时即完成，不再等待本地分发器准入，也不再等待它的分布式副本。副本异步发送，同一聚合内保持发送顺序，`local_first` 标记的含义与 9.2 相同。对已交出的发送，副本发送失败会记日志并计数，不再让这次发送失败；被拒绝的发送（没有可路由的接收者、路由已关闭、交出出错）仍等待自己的副本，并随它失败。见[LocalFirst 双副本准入](./command/internals/transport.md#localfirst-双副本准入)。
+- 在本地交出结果到达之前取消的发送方，其副本仍只发送一次，并带上真实的本地决定：不重复、不丢失。交出结果在 `handOffTimeout`（30 秒）内没有到达时按拒绝处理，副本不带标记发出，其他成员可能再处理一次该消息。
 - 领域事件与状态事件的本地 sink 不再有上限：本地消费者变慢时积压增长（指标 `wow.local_first.backlog`，达到 `wow.{command,event,eventsourcing.state}.bus.local-first.backlog-high-water-mark` 时记 WARN，默认 10000），而不是绕过本地投递。
 - 排队的副本在 `wow.shutdown-timeout` 内发出，超时后取消。已交出但尚未处理的消息在进程崩溃时会丢失；消息必须在崩溃后保留的场景请关闭本地优先。不保证跨主题或跨总线的顺序。
 - `LocalMessageBus.sendIfSubscribed(message): Mono<Boolean>` 改为 `handOff(message): Mono<LocalHandoff>`；`LocalFirstMessageBus` 新增抽象属性 `distributedCopies: LocalFirstDistributedCopies`，三个内置的本地优先总线以构造参数接收它。Starter 为每个总线注册一个 `localFirst{Command,DomainEvent,StateEvent}BusDistributedCopies` Bean，作为运行时组件。在运行时之外创建的 `LocalFirstDistributedCopies` 不注册为运行时组件时，停机时不会等待它。
