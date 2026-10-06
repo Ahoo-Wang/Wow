@@ -34,6 +34,7 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -71,6 +72,7 @@ open class MixedWorkloadDispatchBenchmark {
     private val completions = ConcurrentHashMap<String, Sinks.Empty<Void>>()
     private val running = AtomicBoolean()
     private val backgroundHandled = AtomicLong()
+    private val loadGenerator = Schedulers.newSingle("mixed-load-generator", true)
 
     @Setup(Level.Iteration)
     fun setup() {
@@ -108,7 +110,8 @@ open class MixedWorkloadDispatchBenchmark {
                 { completions.remove(command.id) },
                 {
                     backgroundHandled.incrementAndGet()
-                    sendLoop(aggregateId)
+                    // Send the next one from the load generator, not from the dispatcher thread that completed this one.
+                    loadGenerator.schedule { sendLoop(aggregateId) }
                 },
             )
     }
@@ -119,6 +122,11 @@ open class MixedWorkloadDispatchBenchmark {
         runtime.stopGracefully().block(Duration.ofSeconds(30))
         commandBus.close()
         completions.clear()
+    }
+
+    @TearDown(Level.Trial)
+    fun closeLoadGenerator() {
+        loadGenerator.dispose()
     }
 
     @Benchmark

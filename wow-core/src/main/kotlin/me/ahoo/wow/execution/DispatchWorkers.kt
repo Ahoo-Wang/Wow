@@ -56,8 +56,27 @@ internal class DispatchWorkers(
         execute(task, nextWorker.getAndIncrement())
     }
 
-    /** A worker index for a new mailbox: round robin, like the worker a 9.2 `publishOn` group was given. */
-    fun nextAffinity(): Int = nextWorker.getAndIncrement()
+    /**
+     * A worker index for a new mailbox. Waking a parked worker costs more than a short wait behind a running one, so
+     * starting from the next worker in turn it picks the first running worker with an empty queue, else the first
+     * parked one, else the next in turn.
+     */
+    fun nextAffinity(): Int {
+        val start = Math.floorMod(nextWorker.getAndIncrement(), workers.size)
+        var parked = -1
+        for (offset in workers.indices) {
+            val index = (start + offset) % workers.size
+            val worker = workers[index]
+            if (worker.idle == 0) {
+                if (worker.hasNoQueuedTask()) {
+                    return index
+                }
+            } else if (parked < 0) {
+                parked = index
+            }
+        }
+        return if (parked >= 0) parked else start
+    }
 
     /** Lets every worker finish its queued tasks and exit; later submissions are rejected. Idempotent. */
     fun close() {
@@ -76,6 +95,8 @@ internal class DispatchWorkers(
         init {
             isDaemon = true
         }
+
+        fun hasNoQueuedTask(): Boolean = queue.isEmpty()
 
         fun submit(task: Runnable) {
             queue.offer(task)
