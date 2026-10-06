@@ -100,7 +100,7 @@ The facade accepts only the commands that have an aggregate command route here: 
 
 ### Body Errors
 
-A body that does not bind to the command (a missing required field, a field of the wrong type, malformed JSON) answers `400` with error code `IllegalArgument` on every command route, with a `body` entry in `bindingErrors` saying why. Routes with path or header variables and the facade answer the same (before 9.2.5 they answered `500` for a missing field or a wrong type).
+A body that does not bind to the command (a missing required field, a field of the wrong type, malformed JSON) answers `400` with error code `IllegalArgument` on every command route, with a `body` entry in `bindingErrors` saying why. Routes with path or header variables and the facade answer the same (before 9.3.0 they answered `500` for a missing field or a wrong type).
 
 ### Extension Headers
 
