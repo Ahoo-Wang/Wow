@@ -215,6 +215,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingDistributedCommand
 	public fun getDelegate ()Lme/ahoo/wow/command/DistributedCommandBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
@@ -228,6 +229,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingDistributedEventBu
 	public fun getDelegate ()Lme/ahoo/wow/event/DistributedDomainEventBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
@@ -241,6 +243,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingDistributedStateEv
 	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
@@ -254,6 +257,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalCommandBus : 
 	public fun getDelegate ()Lme/ahoo/wow/command/LocalCommandBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
@@ -270,6 +274,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalEventBus : me
 	public fun getDelegate ()Lme/ahoo/wow/event/LocalDomainEventBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
@@ -286,6 +291,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalStateEventBus
 	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
@@ -303,6 +309,7 @@ public abstract interface class me/ahoo/wow/opentelemetry/messaging/TracingMessa
 
 public final class me/ahoo/wow/opentelemetry/messaging/TracingMessageBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;)V
+	public static fun receive (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public static fun receiver (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public static fun send (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 }
@@ -383,6 +390,7 @@ public final class me/ahoo/wow/opentelemetry/wait/TracingCommandGateway : me/aho
 	public fun getDelegate ()Lme/ahoo/wow/command/CommandGateway;
 	public fun getEnforcesCommandWaitTimeout ()Z
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;

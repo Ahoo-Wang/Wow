@@ -146,7 +146,7 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 9.2 Aggregate Policies On `@AggregateRoute`
 
-- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property.
+- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property, and the deprecated `ServerRequest.getAggregateId(AggregateRoute.Owner…)` overloads (entry "Wow 9.2 Request Identity Readers").
 - **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregatePolicyResolver.kt`, `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/metadata/AggregateRouteMetadata.kt`
 - **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`.
 - **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute` and the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes); `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
@@ -157,6 +157,27 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/Responses.kt`
 - **Replacement**: `WebFluxErrorStrategy.toServerResponse` (or the `RequestExceptionHandler` bean).
 - **Removal in v10**: delete the two functions. Callers move to the replacement; nothing on the wire changes.
+
+### Wow 9.2 Request Identity Readers
+
+- **Kept compatible**: 9.2 read a request's tenant, owner, space and aggregate ID through eight `ServerRequest` extensions: `getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId` (two overloads) and `getAggregateId` (three overloads, two of them taking `AggregateRoute.Owner`). 9.3 decides every identity fact from the route's binding, so they are deprecated and delegate to it: same rules as the built-in handlers, V3 conflict checks and header aliases included. The ones without aggregate metadata read as for an aggregate with no static tenant and `OwnerPolicy.NEVER`; `getSpaceId()` reads the space header whatever the aggregate. Each now rejects a blank identity path variable the route declares (400), whichever fact it reads: `getTenantId` on a route with a blank `{id}`, for example.
+- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt`
+- **Replacement**: `ServerRequest.identity(aggregateMetadata)` (or `identity(aggregateRouteMetadata)`) from `me.ahoo.wow.webflux.route.identity`, which returns a `RequestIdentity`: `tenantId()`, `ownerId()`, `aggregateId()`, `spaceId()`, `requestId()`.
+- **Removal in v10**: delete the eight extensions. Code still calling them stops compiling; the migration guide maps each to its `RequestIdentity` reader.
+
+### Wow 9.2 `MessageBus.receive`
+
+- **Kept compatible**: 9.2 code that reads a bus as a plain stream with `bus.receive(subscription)`, from Kotlin or Java. 9.3 keeps one entry a bus implements, the abstract `receiver`; `receive` stays a deprecated default member that returns the receiver's messages with processing opened on subscription. Because `receiver` has no default, the two can never default onto each other. A bus that implemented only `receive` must implement `receiver`: that is an SPI change, listed in the migration guide. `DefaultMethodContract` (`test/wow-tck`) skips deprecated defaults, so a decorator need not forward `receive`.
+- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt`, `test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/architecture/DefaultMethodContract.kt`
+- **Replacement**: `receiver(subscription).openedMessages()`.
+- **Removal in v10**: delete `receive` from `MessageBus` and the deprecated-default filter from `DefaultMethodContract`. Callers stop compiling and use the replacement.
+
+### Wow 9.2 Static `RecoverableExceptionRegistrar`
+
+- **Kept compatible**: in 9.2 `RecoverableExceptionRegistrar` was the process's registry object, so applications called `RecoverableExceptionRegistrar.register(…)`, `unregister(…)` and `getRecoverableType(…)`. 9.3 turned it into the interface providers register into, with `RecoverableExceptionRegistry.DEFAULT` as the process's registry; the interface's companion keeps the three calls, deprecated, delegating to `DEFAULT`. Kotlin source compiles unchanged; Java callers now write `RecoverableExceptionRegistrar.Companion.register(…)` (9.2's object exposed `INSTANCE`), so Java code is better moved to the replacement directly.
+- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/exception/RecoverableExceptionRegistrar.kt`
+- **Replacement**: `RecoverableExceptionRegistry.DEFAULT.register` / `unregister` / `getRecoverableType`, or a `RecoverableExceptionProvider` (`META-INF/services` or a Spring bean).
+- **Removal in v10**: delete the companion object. Callers stop compiling and use the replacement.
 
 ## Held Until v10
 

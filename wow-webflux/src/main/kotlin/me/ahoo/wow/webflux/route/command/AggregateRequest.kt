@@ -13,17 +13,86 @@
 
 package me.ahoo.wow.webflux.route.command
 
+import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.infra.ifNotBlank
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.acceptsEventStream
+import me.ahoo.wow.webflux.route.identity.identity
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.time.Duration
 import java.util.*
+
+// compat(wow<9.3): the 9.2 request identity readers, kept for one deprecation cycle; see docs/compat-debt.md.
+private const val IDENTITY_DEPRECATION =
+    "Scheduled for removal in 10.0.0. Read identity through the route with ServerRequest.identity(aggregateMetadata) " +
+        "(me.ahoo.wow.webflux.route.identity), which applies the route's rules and header aliases."
+
+/**
+ * The tenant the request states for [aggregateMetadata]: its static tenant, else the `{tenantId}` path variable when
+ * the route declares it (blank → 400), else `Command-Tenant-Id`. Since 9.3.0 a header contradicting the path tenant
+ * is rejected (400).
+ */
+@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).tenantId()"))
+fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? =
+    identity(aggregateMetadata).tenantId()
+
+@Deprecated(
+    IDENTITY_DEPRECATION,
+    ReplaceWith(
+        "identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID",
+        "me.ahoo.wow.api.modeling.TenantId"
+    )
+)
+fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *>): String =
+    identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
+
+/**
+ * The owner the request states: the `{ownerId}` path variable when the route declares it (blank → 400), else
+ * `Command-Owner-Id`.
+ */
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getOwnerId(): String? = identity(OwnerPolicy.NEVER).ownerId()
+
+/** The `Wow-Space-Id` header (or a space alias), whatever the aggregate. */
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getSpaceId(): SpaceId? = identity(OwnerPolicy.NEVER).spaceIdHeader()
+
+/**
+ * The space this request states for the aggregate of [aggregateRouteMetadata]: the `Wow-Space-Id` header when the
+ * aggregate is [spaced][AggregateRouteMetadata.spaced], otherwise `null` whatever the request sends.
+ */
+@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateRouteMetadata).spaceId()"))
+fun ServerRequest.getSpaceId(aggregateRouteMetadata: AggregateRouteMetadata<*>): SpaceId? =
+    identity(aggregateRouteMetadata).spaceId()
+
+/** The `{id}` path variable when the route declares it (blank → 400), else `Command-Aggregate-Id`. */
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getAggregateId(): String? = identity(OwnerPolicy.NEVER).aggregateId()
+
+/** As in 9.2: for [AggregateRoute.Owner.AGGREGATE_ID], [ownerId] if given, else [getAggregateId]. */
+@Suppress("DEPRECATION")
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? {
+    if (owner == AggregateRoute.Owner.AGGREGATE_ID) {
+        return ownerId ?: getAggregateId()
+    }
+    return getAggregateId()
+}
+
+/** As in 9.2: for [AggregateRoute.Owner.AGGREGATE_ID], [getOwnerId] if given, else [getAggregateId]. */
+@Suppress("DEPRECATION")
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? = getAggregateId(owner, getOwnerId())
 
 fun ServerRequest.getLocalFirst(): Boolean? {
     headers().firstHeader(CommandComponent.Header.LOCAL_FIRST).ifNotBlank<String> {

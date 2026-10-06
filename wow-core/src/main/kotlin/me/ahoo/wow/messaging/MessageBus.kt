@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.handler.MessageExchange
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -52,6 +53,20 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      * local-first delivery receipts.
      */
     fun receiver(subscription: MessageSubscription): MessageReceiver<E>
+
+    // compat(wow<9.3): the 9.2 receive entry, kept for one deprecation cycle; see docs/compat-debt.md.
+    /**
+     * The messages of [subscription] as a plain stream: the [receiver]'s messages with processing opened on
+     * subscription, so a transport that gates consumption on [MessageReceiver.openProcessing] reads at once.
+     *
+     * Only a caller's entry: a bus implements [receiver], which is abstract, so the two cannot default onto each
+     * other.
+     */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use receiver(subscription), the single receive entry.",
+        ReplaceWith("receiver(subscription).openedMessages()"),
+    )
+    fun receive(subscription: MessageSubscription): Flux<E> = receiver(subscription).openedMessages()
 }
 
 /**

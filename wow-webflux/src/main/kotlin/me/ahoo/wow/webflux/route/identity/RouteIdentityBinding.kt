@@ -357,33 +357,56 @@ class RouteIdentity(
 }
 
 /**
- * The identity of one request to one aggregate's route. Creating it rejects a blank identity path variable the route
- * declares, before any fact is read, so a blank segment is reported as such whatever else the request contradicts.
+ * The identity of one request to one aggregate's route: each fact (tenant, owner, aggregate ID, space, request ID) read
+ * where the route states it, by the same rules as the built-in command and query handlers (see
+ * [RouteIdentityBinding]), header aliases included. A custom handler reads identity through it, with
+ * [ServerRequest.identity].
+ *
+ * Creating it rejects a blank identity path variable the route declares (400), before any fact is read, so a blank
+ * segment is reported as such whatever else the request contradicts. A header contradicting a tenant or owner the
+ * path fixes is rejected (400) when that fact is read.
  */
-@InternalWowApi
-class RequestIdentity(val request: ServerRequest, val binding: RouteIdentityBinding) {
+class RequestIdentity internal constructor(
+    val request: ServerRequest,
+    private val binding: RouteIdentityBinding
+) {
     init {
         binding.requirePathVariables(request)
     }
 
+    /**
+     * The tenant: the aggregate's static tenant, else `{tenantId}`, else `Command-Tenant-Id`. A non-null [body] (the
+     * command body's tenant) is only checked: it may not contradict a tenant the route fixes.
+     */
     fun tenantId(body: String? = null): String? = binding.tenantId(request, body)
 
+    /**
+     * The owner: `{ownerId}`, else `{id}` when the owner is the aggregate ID, else `Command-Owner-Id`. A non-null
+     * [body] is only checked against an owner the route fixes.
+     */
     fun ownerId(body: String? = null): String? = binding.ownerId(request, body)
 
+    /** The owner a read filters by: [ownerId], except that an owner derived from `{id}` is not a filter. */
     fun readOwnerId(): String? = binding.readOwnerId(request)
 
+    /** The aggregate ID: from the owner when the owner is the aggregate ID, else `{id}`, else `Command-Aggregate-Id`. */
     fun aggregateId(): String? = binding.aggregateId(request)
 
+    /** The space: `Wow-Space-Id` (or a space alias) when the aggregate is spaced, otherwise `null`. */
     fun spaceId(): String? = binding.spaceId(request)
 
+    /** The request ID: `Command-Request-Id` or a request ID alias; a blank header counts as absent. */
     fun requestId(): String? = binding.requestId(request)
+
+    /** The `Wow-Space-Id` header (or a space alias), whatever the aggregate's space policy. */
+    internal fun spaceIdHeader(): String? = binding.spaceIdHeader(request)
 }
 
-@InternalWowApi
+/** The identity this request states for the aggregate of [aggregateRouteMetadata]. */
 fun ServerRequest.identity(aggregateRouteMetadata: AggregateRouteMetadata<*>): RequestIdentity =
     RequestIdentity(this, RouteIdentity.of(this).binding(aggregateRouteMetadata))
 
-@InternalWowApi
+/** The identity this request states for the aggregate of [aggregateMetadata]. */
 fun ServerRequest.identity(aggregateMetadata: AggregateMetadata<*, *>): RequestIdentity =
     RequestIdentity(this, RouteIdentity.of(this).binding(aggregateMetadata))
 

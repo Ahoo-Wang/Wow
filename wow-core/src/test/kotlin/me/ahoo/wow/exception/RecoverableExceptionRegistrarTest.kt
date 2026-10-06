@@ -44,6 +44,27 @@ class RecoverableExceptionRegistrarTest {
         RegisteredRecoverableSubclassException::class.java.recoverable.assert().isEqualTo(RecoverableType.UNKNOWN)
     }
 
+    /** The 9.2 static calls, kept deprecated for one cycle, reach the process's registry. */
+    @Suppress("DEPRECATION")
+    @Test
+    fun `deprecated static calls delegate to the default registry`() {
+        RecoverableExceptionRegistrar.unregister(RegisteredRecoverableException::class.java)
+        try {
+            RecoverableExceptionRegistrar.register(
+                RegisteredRecoverableException::class.java,
+                RecoverableType.UNRECOVERABLE,
+            )
+            RecoverableExceptionRegistry.DEFAULT.getRecoverableType(RegisteredRecoverableException::class.java)
+                .assert().isEqualTo(RecoverableType.UNRECOVERABLE)
+            RecoverableExceptionRegistrar.getRecoverableType(RegisteredRecoverableSubclassException::class.java)
+                .assert().isEqualTo(RecoverableType.UNRECOVERABLE)
+        } finally {
+            RecoverableExceptionRegistrar.unregister(RegisteredRecoverableException::class.java)
+        }
+
+        RecoverableExceptionRegistrar.getRecoverableType(RegisteredRecoverableException::class.java).assert().isNull()
+    }
+
     @Test
     fun `should expose default recoverable classifications`() {
         MarkerRecoverableException().recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)

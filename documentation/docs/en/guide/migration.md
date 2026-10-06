@@ -147,19 +147,31 @@ See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#re
 
 ### Compatibility Shims Removed (9.3.0)
 
-9.3.0 removes declarations that only kept older bytecode or 9.2 extension code linking. Recompile libraries built against 9.2 or earlier before upgrading; source that already compiled without deprecation warnings needs no change.
+9.3.0 removes declarations that only kept older bytecode or 9.2 extension code linking. Recompile libraries built against 9.2 or earlier before upgrading; source that uses the APIs listed below must migrate.
 
 | Removed | Use instead |
 |---|---|
-| `MessageBus.receive(subscription)` | `receiver(subscription).openedMessages()`; a bus implements `receiver`, which is now abstract |
+| Overriding `MessageBus.receive(subscription)` in a bus | implement `receiver(subscription)`, which is now abstract |
 | `MessageBus.runtimeReceiver(subscription)` | `receiver(subscription.copy(runtimeOwned = true))` |
 | `MessageSubscription` constructors and `copy` without `runtimeOwned` (JVM only) | the constructors and `copy` with `runtimeOwned` (it defaults to `false`) |
 | Redis bus constructors without `retentionOptions` (JVM only) | the primary constructors (`retentionOptions` defaults to `RedisStreamRetentionOptions.DEFAULT`) |
 | 9.1 constructors of `BindingError`, `AggregationGroup.Terms` and `AggregationGroup.Histogram` (JVM only) | the primary constructors |
-| `ServerRequest.getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId`, `getAggregateId` (all overloads) | `DefaultCommandBuilderExtractor` / `DefaultQueryRequestScope`, or `RouteIdentity.of(request).binding(…)` |
 | `CoSecCommandBuilderExtractor`, `CoSecQueryRequestScope` | `CoSecIdentityHeaders.ALIASES`, registered by `CoSecAutoConfiguration` |
 | `Flux<AggregateId>.toBatchResult(afterId)`, `ResendStateEventHandler.handle(afterId, limit)` | `toBatchResult(afterId, request, exceptionHandler)`, `resend(afterId, limit)` |
 | Non-bean `WebFluxAutoConfiguration.commandMessageExtractor`, `queryRequestScope`, `commandRouterFunction` and `pointReadAdmission` overloads, `CoSecAutoConfiguration.coSecCommandBuilderExtractor` / `coSecQueryRequestScope`, the three-argument `OpenAPIAutoConfiguration.routerSpecs` | the `@Bean` methods of the same name |
+
+These application-facing calls still compile in 9.3, deprecated, and are removed in 10.0.0:
+
+| Deprecated | Use instead |
+|---|---|
+| Calling `bus.receive(subscription)` | `receiver(subscription).openedMessages()` |
+| `ServerRequest.getTenantId(aggregateMetadata)`, `getTenantIdOrDefault(aggregateMetadata)` | `identity(aggregateMetadata).tenantId()` (`?: TenantId.DEFAULT_TENANT_ID`) |
+| `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()` (for an aggregate owned by its ID, it falls back to `{id}`) |
+| `ServerRequest.getSpaceId()`, `getSpaceId(aggregateRouteMetadata)` | `identity(aggregateMetadata).spaceId()` (`null` for an aggregate that is not spaced) |
+| `ServerRequest.getAggregateId()` and its two `AggregateRoute.Owner` overloads | `identity(aggregateMetadata).aggregateId()` (the aggregate's owner policy applies) |
+| `RecoverableExceptionRegistrar.register`, `unregister`, `getRecoverableType` (static calls; from Java through `.Companion`) | the same methods of `RecoverableExceptionRegistry.DEFAULT`, or a `RecoverableExceptionProvider` |
+
+`identity(…)` is `me.ahoo.wow.webflux.route.identity.identity`; the `RequestIdentity` it returns reads each fact by the route's rules, header aliases included, exactly as the built-in command and query handlers do.
 
 ### Command Filters Replaced by a Fixed Pipeline (9.3.0)
 
