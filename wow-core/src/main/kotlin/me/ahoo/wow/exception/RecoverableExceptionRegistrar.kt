@@ -51,11 +51,11 @@ interface RecoverableExceptionRegistrar {
      */
     fun unregister(throwableClass: Class<out Throwable>)
 
+    // compat(wow<9.3): the 9.2 static registrar calls, kept for one deprecation cycle; see docs/compat-debt.md.
     /**
      * The 9.2 static entry points: before 9.3.0 `RecoverableExceptionRegistrar` was the process's registry object.
      * They delegate to [RecoverableExceptionRegistry.DEFAULT], the registry [Class.recoverable] reads.
      */
-    // compat(wow<9.3): the 9.2 static registrar calls, kept for one deprecation cycle; see docs/compat-debt.md.
     companion object {
         private const val DEPRECATION = "Scheduled for removal in 10.0.0. Use RecoverableExceptionRegistry.DEFAULT, " +
             "or register a RecoverableExceptionProvider."

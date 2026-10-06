@@ -25,6 +25,7 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.allSuperclasses
 import kotlin.reflect.full.declaredMembers
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.superclasses
 import kotlin.reflect.jvm.jvmErasure
@@ -53,6 +54,9 @@ object DefaultMethodContract {
      * An interface that itself extends [Decorator] (a decorator mixin such as `TracingMessageBus`) is part of the
      * implementation, not of the SPI: its default members count as overrides, and its own defaults are not checked.
      *
+     * A deprecated default is skipped: it is a compatibility adapter onto its replacement member (for example
+     * `MessageBus.receive` onto `receiver`), so a decorator that forwards the replacement forwards it too.
+     *
      * Kotlin reflection is used on purpose: the compiler emits a JVM bridge for each inherited default
      * (`invokespecial Interface.member`), so Java reflection cannot tell an override from an inherited default.
      *
@@ -73,6 +77,8 @@ object DefaultMethodContract {
             .asSequence()
             .flatMap { spi -> spi.declaredMembers.asSequence() }
             .filter { !it.isAbstract && it.visibility == KVisibility.PUBLIC && it.name !in ignoredMembers }
+            // compat(wow<9.3): skips MessageBus.receive, the deprecated adapter onto receiver; see docs/compat-debt.md.
+            .filter { it.findAnnotation<Deprecated>() == null }
             .filter { default -> overridden.none { it.overrides(default) } }
             .map { "${type.simpleName}.${it.signature()}" }
             .distinct()

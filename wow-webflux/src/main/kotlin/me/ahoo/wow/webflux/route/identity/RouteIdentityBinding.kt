@@ -368,7 +368,7 @@ class RouteIdentity(
  */
 class RequestIdentity internal constructor(
     val request: ServerRequest,
-    @InternalWowApi val binding: RouteIdentityBinding
+    private val binding: RouteIdentityBinding
 ) {
     init {
         binding.requirePathVariables(request)
@@ -397,6 +397,9 @@ class RequestIdentity internal constructor(
 
     /** The request ID: `Command-Request-Id` or a request ID alias; a blank header counts as absent. */
     fun requestId(): String? = binding.requestId(request)
+
+    /** The `Wow-Space-Id` header (or a space alias), whatever the aggregate's space policy. */
+    internal fun spaceIdHeader(): String? = binding.spaceIdHeader(request)
 }
 
 /** The identity this request states for the aggregate of [aggregateRouteMetadata]. */

@@ -20,7 +20,6 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.AggregateRoute
-import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.ChainWaitTarget
@@ -162,8 +161,7 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.TENANT_ID, tenantId)
             .build()
-        // We can't easily mock AggregateMetadata, so just test the header path
-        request.headers().firstHeader(CommandComponent.Header.TENANT_ID).assert().isEqualTo(tenantId)
+        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo(tenantId)
     }
 
     @Test
@@ -232,8 +230,7 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, tenantId)
             .build()
-        // We can't easily mock AggregateMetadata, so just test the path variable path
-        request.pathVariables()[MessageRecords.TENANT_ID].assert().isEqualTo(tenantId)
+        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo(tenantId)
     }
 
     @Test
@@ -297,10 +294,11 @@ class AggregateRequestTest {
         assertThrownBy<IllegalArgumentException> { request.getTenantId(MOCK_AGGREGATE_METADATA) }
             .hasMessage("Path variable [tenantId] must not be blank.")
         assertThrownBy<IllegalArgumentException> { request.getTenantIdOrDefault(MOCK_AGGREGATE_METADATA) }
+        // Every reader rejects any blank identity path variable the route declares, before reading its own fact.
         assertThrownBy<IllegalArgumentException> { request.getOwnerId() }
-            .hasMessage("Path variable [ownerId] must not be blank.")
+            .hasMessage("Path variable [tenantId] must not be blank.")
         assertThrownBy<IllegalArgumentException> { request.getAggregateId() }
-            .hasMessage("Path variable [id] must not be blank.")
+            .hasMessage("Path variable [tenantId] must not be blank.")
         assertThrownBy<IllegalArgumentException> { request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID) }
         assertThrownBy<IllegalArgumentException> { request.getAggregateId(AggregateRoute.Owner.NEVER, null) }
     }
@@ -328,9 +326,10 @@ class AggregateRequestTest {
             .pathVariable(MessageRecords.ID, "a")
             .header(CommandComponent.Header.OWNER_ID, "b")
             .build()
-        request.getAggregateId(OwnerPolicy.AGGREGATE_ID).assert().isEqualTo("b")
-        request.getAggregateId(OwnerPolicy.AGGREGATE_ID, "c").assert().isEqualTo("c")
-        request.getAggregateId(OwnerPolicy.ALWAYS).assert().isEqualTo("a")
+        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID).assert().isEqualTo("b")
+        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, "c").assert().isEqualTo("c")
+        request.getAggregateId(AggregateRoute.Owner.ALWAYS).assert().isEqualTo("a")
+        request.getAggregateId(AggregateRoute.Owner.ALWAYS, "c").assert().isEqualTo("a")
     }
 
     @Test

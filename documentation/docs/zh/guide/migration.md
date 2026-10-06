@@ -157,12 +157,12 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 | 已弃用 | 改用 |
 |---|---|
-| 调用 `bus.receive(subscription)`（现在是扩展函数，不再是 `MessageBus` 成员） | `receiver(subscription).openedMessages()` |
+| 调用 `bus.receive(subscription)` | `receiver(subscription).openedMessages()` |
 | `ServerRequest.getTenantId(aggregateMetadata)`、`getTenantIdOrDefault(aggregateMetadata)` | `identity(aggregateMetadata).tenantId()`（`?: TenantId.DEFAULT_TENANT_ID`） |
-| `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()` |
+| `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()`（以聚合 ID 为所有者的聚合会退回 `{id}`） |
 | `ServerRequest.getSpaceId()`、`getSpaceId(aggregateRouteMetadata)` | `identity(aggregateMetadata).spaceId()`（非空间化聚合为 `null`） |
-| `ServerRequest.getAggregateId()` 及其 `OwnerPolicy` / `AggregateRoute.Owner` 重载 | `identity(aggregateMetadata).aggregateId()`（按聚合的所有者策略） |
-| `RecoverableExceptionRegistrar.register`、`unregister`、`getRecoverableType`（静态调用） | `RecoverableExceptionRegistry.DEFAULT` 的同名方法，或 `RecoverableExceptionProvider` |
+| `ServerRequest.getAggregateId()` 及其两个 `AggregateRoute.Owner` 重载 | `identity(aggregateMetadata).aggregateId()`（按聚合的所有者策略） |
+| `RecoverableExceptionRegistrar.register`、`unregister`、`getRecoverableType`（静态调用；Java 经 `.Companion` 调用） | `RecoverableExceptionRegistry.DEFAULT` 的同名方法，或 `RecoverableExceptionProvider` |
 
 `identity(…)` 即 `me.ahoo.wow.webflux.route.identity.identity`；它返回的 `RequestIdentity` 按路由的规则读取每个身份字段（含请求头别名），与内置命令、查询处理器完全一致。
 

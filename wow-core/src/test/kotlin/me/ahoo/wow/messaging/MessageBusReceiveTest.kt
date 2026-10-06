@@ -13,17 +13,18 @@
 
 package me.ahoo.wow.messaging
 
-import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicInteger
 
-/** The 9.2 `receive` entry, kept as a deprecated extension for one cycle. */
+/** The 9.2 `receive` entry, kept as a deprecated default member for one cycle. */
 class MessageBusReceiveTest {
 
     @Suppress("DEPRECATION")
@@ -32,11 +33,14 @@ class MessageBusReceiveTest {
         val exchange = mockk<ServerCommandExchange<*>>()
         val admissions = AtomicInteger()
         val subscription = mockk<MessageSubscription>()
-        val bus = mockk<CommandBus> {
-            every { receiver(subscription) } returns MessageReceiver(
-                messages = Flux.just(exchange),
-                processingAdmission = { admissions.incrementAndGet() },
-            )
+        val bus = object : CommandBus {
+            override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
+
+            override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
+                MessageReceiver(
+                    messages = Flux.just(exchange),
+                    processingAdmission = { admissions.incrementAndGet() },
+                )
         }
 
         val messages = bus.receive(subscription)

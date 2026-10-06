@@ -53,23 +53,21 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      * local-first delivery receipts.
      */
     fun receiver(subscription: MessageSubscription): MessageReceiver<E>
-}
 
-/**
- * The messages of [subscription] as a plain stream: the [receiver][MessageBus.receiver]'s messages with processing
- * opened on subscription, so a transport that gates consumption on [MessageReceiver.openProcessing] reads at once.
- *
- * It was a `MessageBus` member before 9.3.0. It is an extension now, so a bus implements only
- * [receiver][MessageBus.receiver] and the two entries can no longer default onto each other.
- */
-// compat(wow<9.3): the 9.2 receive entry, kept for one deprecation cycle; see docs/compat-debt.md.
-@Deprecated(
-    "Scheduled for removal in 10.0.0. Use receiver(subscription), the single receive entry.",
-    ReplaceWith("receiver(subscription).openedMessages()"),
-)
-fun <M : Message<*, *>, E : MessageExchange<*, M>> MessageBus<M, E>.receive(
-    subscription: MessageSubscription
-): Flux<E> = receiver(subscription).openedMessages()
+    // compat(wow<9.3): the 9.2 receive entry, kept for one deprecation cycle; see docs/compat-debt.md.
+    /**
+     * The messages of [subscription] as a plain stream: the [receiver]'s messages with processing opened on
+     * subscription, so a transport that gates consumption on [MessageReceiver.openProcessing] reads at once.
+     *
+     * Only a caller's entry: a bus implements [receiver], which is abstract, so the two cannot default onto each
+     * other.
+     */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use receiver(subscription), the single receive entry.",
+        ReplaceWith("receiver(subscription).openedMessages()"),
+    )
+    fun receive(subscription: MessageSubscription): Flux<E> = receiver(subscription).openedMessages()
+}
 
 /**
  * A local message bus that operates within a single JVM instance.

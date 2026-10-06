@@ -164,12 +164,12 @@ These application-facing calls still compile in 9.3, deprecated, and are removed
 
 | Deprecated | Use instead |
 |---|---|
-| Calling `bus.receive(subscription)` (now an extension, no longer a `MessageBus` member) | `receiver(subscription).openedMessages()` |
+| Calling `bus.receive(subscription)` | `receiver(subscription).openedMessages()` |
 | `ServerRequest.getTenantId(aggregateMetadata)`, `getTenantIdOrDefault(aggregateMetadata)` | `identity(aggregateMetadata).tenantId()` (`?: TenantId.DEFAULT_TENANT_ID`) |
-| `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()` |
+| `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()` (for an aggregate owned by its ID, it falls back to `{id}`) |
 | `ServerRequest.getSpaceId()`, `getSpaceId(aggregateRouteMetadata)` | `identity(aggregateMetadata).spaceId()` (`null` for an aggregate that is not spaced) |
-| `ServerRequest.getAggregateId()` and its `OwnerPolicy` / `AggregateRoute.Owner` overloads | `identity(aggregateMetadata).aggregateId()` (the aggregate's owner policy applies) |
-| `RecoverableExceptionRegistrar.register`, `unregister`, `getRecoverableType` (static calls) | the same methods of `RecoverableExceptionRegistry.DEFAULT`, or a `RecoverableExceptionProvider` |
+| `ServerRequest.getAggregateId()` and its two `AggregateRoute.Owner` overloads | `identity(aggregateMetadata).aggregateId()` (the aggregate's owner policy applies) |
+| `RecoverableExceptionRegistrar.register`, `unregister`, `getRecoverableType` (static calls; from Java through `.Companion`) | the same methods of `RecoverableExceptionRegistry.DEFAULT`, or a `RecoverableExceptionProvider` |
 
 `identity(…)` is `me.ahoo.wow.webflux.route.identity.identity`; the `RequestIdentity` it returns reads each fact by the route's rules, header aliases included, exactly as the built-in command and query handlers do.
 

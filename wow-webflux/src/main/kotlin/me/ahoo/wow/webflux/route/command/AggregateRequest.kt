@@ -27,8 +27,6 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.acceptsEventStream
-import me.ahoo.wow.webflux.route.identity.RouteIdentity
-import me.ahoo.wow.webflux.route.identity.RouteIdentityBinding
 import me.ahoo.wow.webflux.route.identity.identity
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.time.Duration
@@ -62,12 +60,12 @@ fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *
  * The owner the request states: the `{ownerId}` path variable when the route declares it (blank → 400), else
  * `Command-Owner-Id`.
  */
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).ownerId()"))
-fun ServerRequest.getOwnerId(): String? = bindingOf(OwnerPolicy.NEVER).ownerId(this)
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getOwnerId(): String? = identity(OwnerPolicy.NEVER).ownerId()
 
 /** The `Wow-Space-Id` header (or a space alias), whatever the aggregate. */
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).spaceId()"))
-fun ServerRequest.getSpaceId(): SpaceId? = bindingOf(OwnerPolicy.NEVER).spaceIdHeader(this)
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getSpaceId(): SpaceId? = identity(OwnerPolicy.NEVER).spaceIdHeader()
 
 /**
  * The space this request states for the aggregate of [aggregateRouteMetadata]: the `Wow-Space-Id` header when the
@@ -78,46 +76,23 @@ fun ServerRequest.getSpaceId(aggregateRouteMetadata: AggregateRouteMetadata<*>):
     identity(aggregateRouteMetadata).spaceId()
 
 /** The `{id}` path variable when the route declares it (blank → 400), else `Command-Aggregate-Id`. */
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).aggregateId()"))
-fun ServerRequest.getAggregateId(): String? = bindingOf(OwnerPolicy.NEVER).aggregateId(this)
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getAggregateId(): String? = identity(OwnerPolicy.NEVER).aggregateId()
 
-/** As in 9.2: for [OwnerPolicy.AGGREGATE_ID], [ownerId] if given, else [getAggregateId]. */
+/** As in 9.2: for [AggregateRoute.Owner.AGGREGATE_ID], [ownerId] if given, else [getAggregateId]. */
 @Suppress("DEPRECATION")
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).aggregateId()"))
-fun ServerRequest.getAggregateId(owner: OwnerPolicy, ownerId: String?): String? {
-    if (owner == OwnerPolicy.AGGREGATE_ID) {
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? {
+    if (owner == AggregateRoute.Owner.AGGREGATE_ID) {
         return ownerId ?: getAggregateId()
     }
     return getAggregateId()
 }
 
-/** As in 9.2: for [OwnerPolicy.AGGREGATE_ID], [getOwnerId], else [getAggregateId]. */
+/** As in 9.2: for [AggregateRoute.Owner.AGGREGATE_ID], [getOwnerId] if given, else [getAggregateId]. */
 @Suppress("DEPRECATION")
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).aggregateId()"))
-fun ServerRequest.getAggregateId(owner: OwnerPolicy): String? = getAggregateId(owner, getOwnerId())
-
-/** As [getAggregateId] with an [OwnerPolicy]: the 9.2 `AggregateRoute.Owner` overload. */
-@Suppress("DEPRECATION")
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).aggregateId()"))
-fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? =
-    getAggregateId(OwnerPolicy.valueOf(owner.name), ownerId)
-
-/** As [getAggregateId] with an [OwnerPolicy]: the 9.2 `AggregateRoute.Owner` overload. */
-@Suppress("DEPRECATION")
-@Deprecated(IDENTITY_DEPRECATION, ReplaceWith("identity(aggregateMetadata).aggregateId()"))
-fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? =
-    getAggregateId(OwnerPolicy.valueOf(owner.name))
-
-private fun ServerRequest.bindingOf(owner: OwnerPolicy): RouteIdentityBinding {
-    val routeIdentity = RouteIdentity.of(this)
-    return RouteIdentityBinding.of(
-        routeIdentity.pathVariables,
-        staticTenantId = null,
-        ownerPolicy = owner,
-        spaced = true,
-        aliases = routeIdentity.aliases
-    )
-}
+@Deprecated(IDENTITY_DEPRECATION)
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? = getAggregateId(owner, getOwnerId())
 
 fun ServerRequest.getLocalFirst(): Boolean? {
     headers().firstHeader(CommandComponent.Header.LOCAL_FIRST).ifNotBlank<String> {

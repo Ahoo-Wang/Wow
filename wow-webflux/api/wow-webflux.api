@@ -193,8 +193,6 @@ public final class me/ahoo/wow/webflux/route/command/AggregateRequestKt {
 	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
 	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;)Ljava/lang/String;
 	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;Ljava/lang/String;)Ljava/lang/String;
-	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/annotation/OwnerPolicy;)Ljava/lang/String;
-	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/annotation/OwnerPolicy;Ljava/lang/String;)Ljava/lang/String;
 	public static final fun getLocalFirst (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/Boolean;
 	public static final fun getOwnerId (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
 	public static final fun getSpaceId (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
