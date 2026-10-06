@@ -136,3 +136,14 @@ catalog:
   '@vitest/ui': ^4.1.11
   world-atlas: ^2.0.2
   yaml: ^2.9.1
+
+# Security overrides for dependencies whose latest parent still resolves a
+# vulnerable version. Drop each once its parent moves past it.
+overrides:
+  # vitepress 1.6.4 (latest stable) pins vite ^5.4.14; vite 5 has no patch for
+  # GHSA-4w7w-66w2-5vf9, GHSA-fx2h-pf6j-xcff, GHSA-v6wh-96g9-6wx3, and its
+  # esbuild ^0.21 range keeps GHSA-67mh-4wv8-2f99. Docs dev server only.
+  'vitepress>vite': ^6.4.4
+  '@vitejs/plugin-vue>vite': ^6.4.4
+  # mermaid (11.x and 12.x) pins katex ^0.16.47; GHSA-238p-pmpm-9mq7 is fixed in 0.18.2.
+  'mermaid>katex': ^0.18.2

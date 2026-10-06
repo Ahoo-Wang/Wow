@@ -99,10 +99,26 @@ snapshots:
     withFloorOverrides(YAML, lockfile),
     `${YAML}\noverrides:\n  '@ahoo-wang/fetcher': '5.1.5'\n  '@ahoo-wang/fetcher-cosec': '5.1.5'\n  '@ahoo-wang/fetcher-openapi': '5.1.5'\n  '@ahoo-wang/fetcher-storage': '5.1.5'\n`,
   );
-  assert.throws(
-    () => withFloorOverrides(`${YAML}overrides:\n  foo: 1.0.0\n`),
-    /already declares overrides/,
+  // The workspace's own overrides are kept and the floor merged into them.
+  assert.equal(
+    withFloorOverrides(`${YAML}\noverrides:\n  # pin\n  'a>vite': ^6.4.4\n`),
+    `${YAML}\noverrides:\n  '@ahoo-wang/fetcher': '5.1.5'\n  '@ahoo-wang/fetcher-openapi': '5.1.5'\n  # pin\n  'a>vite': ^6.4.4\n`,
   );
+  assert.throws(
+    () =>
+      withFloorOverrides(
+        `${YAML}\noverrides:\n  '@ahoo-wang/fetcher': 6.0.0\n`,
+      ),
+    /the floor job owns those/,
+  );
+});
+
+test('the floor merges into the workspace overrides', () => {
+  const pinned = withFloorOverrides(workspace);
+  assert.equal(pinned.match(/^overrides:$/gm).length, 1);
+  const block = pinned.split(/^overrides:$/m)[1];
+  for (const name of Object.keys(devFetchers(workspace)))
+    assert.ok(block.includes(`'${name}': '${fetcherFloor(workspace)}'`), name);
 });
 
 test('the workspace develops above the floor and the consumer check can pin it', () => {
