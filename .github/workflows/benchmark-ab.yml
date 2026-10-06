@@ -1,0 +1,378 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# A/B JMH comparison of two refs. The JMH jar of each ref is built once; every
+# benchmark class (or method) then runs in its own job, where base and head
+# forks alternate on the same runner so runner-to-runner variance cancels.
+# The report job pools the forks per side and writes the comparison table to
+# the run summary (and to the pull request, when one is given).
+#
+# The `benchmark-ab` label on a pull request runs the quick profile for the
+# JMH benchmark classes that pull request changed, head against its merge base.
+# Steps: .github/scripts/benchmark-ab.mjs.
+name: Benchmark A/B
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base ref (branch, tag or SHA)
+        default: main
+        required: true
+      head:
+        description: Head ref (branch, tag or SHA)
+        required: true
+      include:
+        description: JMH include regex, or several separated by commas or spaces (e.g. CommandIdComponentBenchmark)
+        required: true
+      exclude:
+        description: JMH exclude regex (optional)
+        default: ''
+      profile:
+        description: quick (3 forks per side) or gate (8 forks per side, longer iterations)
+        type: choice
+        options:
+          - quick
+          - gate
+        default: quick
+      params:
+        description: '@Param overrides, `name=v1,v2` separated by `;` (optional)'
+        default: ''
+      threads:
+        description: Thread counts, comma separated (optional; the benchmark's own by default)
+        default: ''
+      split:
+        description: One job per benchmark class or per method
+        type: choice
+        options:
+          - class
+          - method
+        default: class
+      threshold:
+        description: Noise threshold in percent; smaller |Δ| is never flagged
+        default: '3'
+      pr:
+        description: Pull request number to comment the report on (optional)
+        default: ''
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+env:
+  CI: GITHUB_ACTIONS
+
+jobs:
+  resolve:
+    name: Resolve
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'benchmark-ab'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.inputs.outputs.run }}
+      base-ref: ${{ steps.refs.outputs.base-ref }}
+      head-ref: ${{ steps.refs.outputs.head-ref }}
+      base-sha: ${{ steps.refs.outputs.base-sha }}
+      head-sha: ${{ steps.refs.outputs.head-sha }}
+      shas: ${{ steps.refs.outputs.shas }}
+      pr: ${{ steps.refs.outputs.pr }}
+      profile: ${{ steps.refs.outputs.profile }}
+      patterns: ${{ steps.inputs.outputs.patterns }}
+      exclude: ${{ steps.inputs.outputs.exclude }}
+      split: ${{ steps.inputs.outputs.split }}
+      threshold: ${{ steps.inputs.outputs.threshold }}
+      rounds: ${{ steps.inputs.outputs.rounds }}
+      jmh-args: ${{ steps.inputs.outputs.jmh-args }}
+      threads: ${{ steps.inputs.outputs.threads }}
+      jvm-args: ${{ steps.inputs.outputs.jvm-args }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+      - name: Resolve refs
+        id: refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_BASE: ${{ inputs.base }}
+          INPUT_HEAD: ${{ inputs.head }}
+          INPUT_PR: ${{ inputs.pr }}
+          INPUT_PROFILE: ${{ inputs.profile }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          sha() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
+          }
+          if [ "$EVENT" = pull_request ]; then
+            base_sha=$(gh api "repos/$GITHUB_REPOSITORY/compare/$PR_BASE_SHA...$PR_HEAD_SHA" --jq .merge_base_commit.sha)
+            head_sha=$PR_HEAD_SHA
+            base_ref="merge base"
+            head_ref="#$PR_NUMBER"
+            pr=$PR_NUMBER
+            profile=quick
+            gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only > "$RUNNER_TEMP/changed.txt"
+            echo "changed=$RUNNER_TEMP/changed.txt" >> "$GITHUB_OUTPUT"
+          else
+            base_sha=$(sha "$INPUT_BASE")
+            head_sha=$(sha "$INPUT_HEAD")
+            base_ref=$INPUT_BASE
+            head_ref=$INPUT_HEAD
+            pr=$INPUT_PR
+            profile=$INPUT_PROFILE
+          fi
+          if [ -n "$pr" ] && ! [[ "$pr" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::pr must be a pull request number: $pr"
+            exit 1
+          fi
+          {
+            echo "base-sha=$base_sha"
+            echo "head-sha=$head_sha"
+            echo "base-ref=$base_ref"
+            echo "head-ref=$head_ref"
+            echo "pr=$pr"
+            echo "profile=$profile"
+            echo "shas=$(jq -cn --arg base "$base_sha" --arg head "$head_sha" '[$base, $head] | unique')"
+          } | tee -a "$GITHUB_OUTPUT"
+      - name: Resolve inputs
+        id: inputs
+        env:
+          INCLUDE: ${{ inputs.include }}
+          EXCLUDE: ${{ inputs.exclude }}
+          PROFILE: ${{ steps.refs.outputs.profile }}
+          PARAMS: ${{ inputs.params }}
+          THREADS: ${{ inputs.threads }}
+          SPLIT: ${{ inputs.split }}
+          THRESHOLD: ${{ inputs.threshold }}
+          CHANGED_FILES: ${{ steps.refs.outputs.changed }}
+        run: node .github/scripts/benchmark-ab.mjs inputs
+
+  # One JMH jar per distinct commit (an A/A run builds once), plus the list of
+  # the benchmarks it has that the include patterns select.
+  build:
+    name: Build ${{ matrix.sha }}
+    needs: resolve
+    if: needs.resolve.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        sha: ${{ fromJSON(needs.resolve.outputs.shas) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build the JMH jar
+        run: ./gradlew :wow-benchmarks:jmhJar --stacktrace
+
+      - name: List the selected benchmarks
+        env:
+          PATTERNS: ${{ needs.resolve.outputs.patterns }}
+          EXCLUDE: ${{ needs.resolve.outputs.exclude }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jar" "$RUNNER_TEMP/list"
+          jars=(wow-benchmarks/build/libs/wow-benchmarks-*-jmh.jar)
+          cp "${jars[0]}" "$RUNNER_TEMP/jar/benchmarks.jar"
+          mapfile -t patterns < <(jq -r '.[]' <<< "$PATTERNS")
+          exclude=()
+          if [ -n "$EXCLUDE" ]; then exclude=(-e "$EXCLUDE"); fi
+          java -jar "$RUNNER_TEMP/jar/benchmarks.jar" -l "${patterns[@]}" "${exclude[@]}" | tee "$RUNNER_TEMP/list/list.txt"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jmh-jar-${{ matrix.sha }}
+          path: ${{ runner.temp }}/jar
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jmh-list-${{ matrix.sha }}
+          path: ${{ runner.temp }}/list
+          retention-days: 3
+          if-no-files-found: error
+
+  plan:
+    name: Plan
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+      - uses: actions/download-artifact@v7
+        with:
+          name: jmh-list-${{ needs.resolve.outputs.base-sha }}
+          path: ${{ runner.temp }}/base
+      - uses: actions/download-artifact@v7
+        with:
+          name: jmh-list-${{ needs.resolve.outputs.head-sha }}
+          path: ${{ runner.temp }}/head
+      - name: Plan one job per benchmark ${{ needs.resolve.outputs.split }}
+        id: plan
+        env:
+          BASE_LIST: ${{ runner.temp }}/base/list.txt
+          HEAD_LIST: ${{ runner.temp }}/head/list.txt
+          SPLIT: ${{ needs.resolve.outputs.split }}
+        run: node .github/scripts/benchmark-ab.mjs plan
+
+  run:
+    name: ${{ matrix.label }}
+    needs: [resolve, plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ needs.resolve.outputs.profile == 'gate' && 300 || 90 }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: jmh-jar-${{ needs.resolve.outputs.base-sha }}
+          path: ${{ runner.temp }}/base
+      - uses: actions/download-artifact@v7
+        with:
+          name: jmh-jar-${{ needs.resolve.outputs.head-sha }}
+          path: ${{ runner.temp }}/head
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Each round runs one fork of each side, alternating which goes first
+      # (base-head, head-base, ...), so the two sides share the runner and any
+      # drift over the job.
+      - name: Run base and head forks interleaved
+        env:
+          REGEX: ${{ matrix.regex }}
+          LABEL: ${{ matrix.label }}
+          EXCLUDE: ${{ needs.resolve.outputs.exclude }}
+          ROUNDS: ${{ needs.resolve.outputs.rounds }}
+          JMH_ARGS: ${{ needs.resolve.outputs.jmh-args }}
+          THREADS: ${{ needs.resolve.outputs.threads }}
+          JVM_ARGS: ${{ needs.resolve.outputs.jvm-args }}
+        run: |
+          mapfile -t jmh_args < <(jq -r '.[]' <<< "$JMH_ARGS")
+          mapfile -t threads < <(jq -r '.[]' <<< "$THREADS")
+          exclude=()
+          if [ -n "$EXCLUDE" ]; then exclude=(-e "$EXCLUDE"); fi
+          mkdir -p results
+          start=$(date +%s)
+          for thread in "${threads[@]}"; do
+            thread_args=()
+            if [ "$thread" != default ]; then thread_args=(-t "$thread"); fi
+            for ((round = 1; round <= ROUNDS; round++)); do
+              if ((round % 2)); then order=(base head); else order=(head base); fi
+              for side in "${order[@]}"; do
+                echo "::group::$side, round $round of $ROUNDS, threads $thread"
+                java -jar "$RUNNER_TEMP/$side/benchmarks.jar" "$REGEX" "${exclude[@]}" \
+                  -f 1 "${jmh_args[@]}" "${thread_args[@]}" -prof gc -foe true \
+                  -jvmArgs "$JVM_ARGS" -rf json -rff "results/$side-t$thread-r$round.json"
+                echo "::endgroup::"
+              done
+            done
+          done
+          jq -n --arg label "$LABEL" --argjson seconds "$(($(date +%s) - start))" \
+            '{label: $label, seconds: $seconds}' > results/meta.json
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ab-result-${{ matrix.id }}
+          path: results
+          retention-days: 14
+          if-no-files-found: ignore
+
+  report:
+    name: Report
+    needs: [resolve, plan, run]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: ab-result-*
+          path: ${{ runner.temp }}/results
+      - name: Write the report
+        env:
+          RESULTS_DIR: ${{ runner.temp }}/results
+          PROFILE: ${{ needs.resolve.outputs.profile }}
+          BASE_REF: ${{ needs.resolve.outputs.base-ref }}
+          BASE_SHA: ${{ needs.resolve.outputs.base-sha }}
+          HEAD_REF: ${{ needs.resolve.outputs.head-ref }}
+          HEAD_SHA: ${{ needs.resolve.outputs.head-sha }}
+          ROUNDS: ${{ needs.resolve.outputs.rounds }}
+          THRESHOLD: ${{ needs.resolve.outputs.threshold }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_RESULT: ${{ needs.run.result }}
+        run: |
+          mkdir -p "$RESULTS_DIR"
+          node .github/scripts/benchmark-ab.mjs report > "$RUNNER_TEMP/benchmark-ab.md"
+          cat "$RUNNER_TEMP/benchmark-ab.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-ab-report
+          path: ${{ runner.temp }}/benchmark-ab.md
+          retention-days: 30
+      # A fork's pull request gets a read-only token: the summary still has it.
+      - name: Comment on the pull request
+        if: needs.resolve.outputs.pr != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.resolve.outputs.pr }}
+        run: |
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/benchmark-ab.md" ||
+            echo "::warning::Could not comment on #$PR; the report is in the run summary."
