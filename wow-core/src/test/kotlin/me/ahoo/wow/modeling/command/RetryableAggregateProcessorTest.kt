@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.SimpleServerCommandExchange
@@ -25,7 +26,9 @@ import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.NotFoundResourceException
+import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
@@ -87,7 +90,8 @@ class RetryableAggregateProcessorTest {
         StepVerifier.create(result)
             .expectError(DuplicateRequestIdException::class.java)
             .verify()
-        created.get().assert().isEqualTo(2)
+        // The attempt applied the create before its append failed, so `onError` runs on a state created again.
+        created.get().assert().isEqualTo(3)
     }
 
     @Test
@@ -121,6 +125,34 @@ class RetryableAggregateProcessorTest {
             )
         )
             .expectError(DuplicateAggregateIdException::class.java)
+            .verify()
+    }
+
+    /**
+     * A create resent with its request ID after the request-ID window (no Bloom filter remembers it, so every
+     * pre-check passes) conflicts on the aggregate's first version: it is reported as the replay it is,
+     * `DuplicateRequestId`, everywhere (REST error code included). 9.2 reported `DuplicateAggregateId` there, a bug the
+     * 9.3.0 release notes list as fixed. A create with another request ID is still `DuplicateAggregateId`.
+     */
+    @Test
+    fun `a create resent outside the request id window is a duplicate request`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
+        val create = MockCreateAggregate("aggregate-1", "created").toCommandMessage()
+        fun process(command: CommandMessage<*>) = processor(aggregateId, eventStore).process(
+            SimpleServerCommandExchange(command).setServiceProvider(SimpleServiceProvider())
+        )
+        StepVerifier.create(process(create)).expectNextCount(1).verifyComplete()
+
+        StepVerifier.create(process(create))
+            .expectErrorSatisfies {
+                it.toErrorInfo().errorCode.assert().isEqualTo(ErrorCodes.DUPLICATE_REQUEST_ID)
+            }
+            .verify()
+        StepVerifier.create(process(MockCreateAggregate("aggregate-1", "other").toCommandMessage()))
+            .expectErrorSatisfies {
+                it.toErrorInfo().errorCode.assert().isEqualTo(ErrorCodes.DUPLICATE_AGGREGATE_ID)
+            }
             .verify()
     }
 

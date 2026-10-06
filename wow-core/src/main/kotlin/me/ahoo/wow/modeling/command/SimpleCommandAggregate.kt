@@ -73,8 +73,9 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
         get() = PROCESSOR_NAME
 
     /**
-     * Whether [state] failed to apply a committed event stream. It may then hold part of that stream and its version
-     * is behind the event store, so this aggregate takes no further command; load the state again instead.
+     * Whether [state] holds events the event store does not: a sourcing function threw part-way through a stream, or
+     * the stream was applied and then not appended. The in-memory state then differs from the store, so this instance
+     * takes no further command and `@OnError` runs on a reloaded aggregate instead (see [RetryableAggregateProcessor]).
      */
     @Volatile
     var discarded: Boolean = false
@@ -92,15 +93,17 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
     }
 
     /**
-     * Processes a command exchange: decide, append, then apply (B9).
+     * Processes a command exchange: decide, apply, append, as one atomic unit.
      *
      * - Guards: version, existence and creation, ownership, space, deletion.
      * - Decide: the command function and its after-functions produce the event stream; the state is only read.
-     * - Append: the stream is committed to the event store.
-     * - Apply: only a committed stream is applied to [state]. When applying fails, the command is still reported as
-     *   committed (the events are stored), the failure is logged and this aggregate is [discarded].
+     * - Apply: the stream is sourced into [state], so an event that cannot be loaded is never stored.
+     * - Append: the stream is committed to the event store; only then does the exchange take its version.
      *
-     * A failure before or during the append leaves [state] at the last committed version, so `@OnError` sees it.
+     * When the apply or the append fails, nothing is stored or published and the command fails. An instance that
+     * applied events which were not stored is [discarded], never reused. Called directly (not through
+     * [RetryableAggregateProcessor], which reloads the committed state for it), `@OnError` runs on this instance: on a
+     * discarded one it sees the unstored events. Only tests and hand-built processors call it that way.
      *
      * @param exchange The server command exchange to process.
      * @return A Mono containing the resulting domain event stream.
@@ -125,8 +128,8 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
                 "Process $message."
             }
             check(!discarded) {
-                "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] was discarded " +
-                    "after it failed to apply a committed event stream."
+                "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] was discarded: " +
+                    "it holds events the event store does not."
             }
             if (message.aggregateVersion != null && message.aggregateVersion != version) {
                 return@defer CommandExpectVersionConflictException(
@@ -158,35 +161,49 @@ internal class SimpleCommandAggregate<C : Any, S : Any>(
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
             commandEntry.invoke(this, exchange, messagePropagator).flatMap { eventStream ->
-                eventStore.appendResolvingOutcome(eventStream)
-                    .checkpoint {
-                        "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [SimpleCommandAggregate]"
-                    }
-                    .then(Mono.fromCallable { applyCommitted(exchange, eventStream) })
+                applyThenAppend(exchange, eventStream)
             }
         }
     }
 
     /**
-     * Applies [eventStream], which the event store has committed, to [state]. A failure cannot undo the commit, so
-     * the command still succeeds: the failure is logged and this aggregate is [discarded].
+     * Applies [eventStream] to [state], then appends it. A failure of either marks this instance [discarded] when the
+     * state already holds events the store does not; the exchange takes the stream's version only once it is stored.
      */
     @Suppress("TooGenericExceptionCaught")
-    private fun applyCommitted(exchange: ServerCommandExchange<*>, eventStream: DomainEventStream): DomainEventStream {
-        exchange.setAggregateVersion(eventStream.version)
+    private fun applyThenAppend(
+        exchange: ServerCommandExchange<*>,
+        eventStream: DomainEventStream
+    ): Mono<DomainEventStream> {
         try {
             state.onSourcing(eventStream)
         } catch (error: Throwable) {
             Exceptions.throwIfJvmFatal(error)
             discarded = true
             log.error(error) {
-                "Committed DomainEventStream[${eventStream.id}] version[${eventStream.version}] of " +
-                    "[$aggregateId] but failed to apply it to the state: the state instance is discarded. " +
-                    "Loading this aggregate will fail the same way until its sourcing function is fixed."
+                "Failed to apply DomainEventStream[${eventStream.id}] version[${eventStream.version}] of " +
+                    "[$aggregateId]: nothing is stored and the state instance is discarded."
             }
+            return error.toMono()
         }
-        return eventStream
+        return eventStore.appendResolvingOutcome(eventStream)
+            .checkpoint {
+                "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [SimpleCommandAggregate]"
+            }
+            .doOnError {
+                // The state holds the stream, the store does not.
+                discarded = true
+            }
+            .then(
+                Mono.fromCallable {
+                    exchange.setAggregateVersion(eventStream.version)
+                    eventStream
+                }
+            )
     }
+
+    /** Whether the aggregate declares an `@OnError` function for [commandType]. */
+    internal fun hasErrorFunction(commandType: Class<*>): Boolean = model.errorFunction(commandType) != null
 
     /**
      * Handles the failure of processing [exchange] with the `@OnError` function registered for the command type.

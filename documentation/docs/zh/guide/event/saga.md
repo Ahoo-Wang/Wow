@@ -80,13 +80,13 @@ class CartSaga {
 
 对命令体或 `CommandBuilder`，框架只补充缺失字段：
 
-- 默认 `requestId` 为 `${domainEvent.id}-${index}`，索引从 `0` 开始；
+- 返回命令体或 `CommandBuilder` 时，默认 `requestId` 为 `${domainEvent.id}-${index}`，索引从 `0` 开始，与 9.2 相同（9.2/9.3 混部集群推导出同一 ID）。它不包含 Saga 本身，因此两个 Saga 为同一事件都返回命令体或 builder 且目标是同一聚合时，请求 ID 相同，第二条命令会被当作重复请求跳过；请为这类命令显式设置 `requestId`（例如带上 Saga 名称），或返回 `CommandMessage`（见下文）；
 - 保留显式 `requestId`；
 - 没有指明聚合的命令（命令体和 builder 上都没有聚合 ID）会得到一个由事件、Saga 函数、命令序号和目标聚合类型推导出的 ID，而不是随机 ID（自 9.3.0 起）。因此再次处理同一事件时，创建命令发往同一聚合 ID、带同一 request ID，被当作重复请求拒绝，而不是创建第二个聚合。推导出的 ID 与目标聚合的 ID 生成器格式相同，时间戳为事件的创建时间；Wow 始终使用 CosId，确定性 Saga ID 适用于基于时间的 CosId 生成器（默认 CosId 与 Snowflake）；号段（segment）与自定义生成器，以及字符串形式依赖当前日期或时区的生成器（日期前缀、友好 ID），仍使用随机 ID。该 ID 在任何 `CommandBuilderRewriter` 执行之前设置，改写器能看到并可以替换它。若重试的创建命令到达的存储先检查版本再检查 request ID，处理节点仍报告 `DuplicateRequestId`（它在已有事件流上找到该 request ID），而不是聚合 ID 重复。两个不同的创建命令推导出的 ID 发生碰撞，才是真正的 `DuplicateAggregateId`：第二个创建命令在处理节点失败并记录日志，不会被补偿记录。推导出的 ID 沿用生成器的机器位与序列位，碰撞要求时间单位相同：默认 CosId（每毫秒 36 位哈希）可以忽略；Snowflake 布局每个时间单位只有 22 位（毫秒）或 32 位（秒），同一毫秒（或秒）内的事件触发大量同一聚合类型的 Saga 创建时可能碰撞；由 Saga 高频创建的聚合请使用默认 CosId 生成器；
 - 缺失的 `tenantId`、`spaceId` 从源事件传播；
 - 设置源事件为 upstream，并传播消息 header。
 
-预构造的 `CommandMessage` 保留自己的消息、聚合 ID 与显式 `requestId`，同时传播源事件 header。它没有设置的 `requestId`（等于消息 ID，即默认值）改为 `${domainEvent.id}-${index}`（自 9.3.0 起）。它的聚合 ID 不做推导，因为无法区分生成的 ID 与指定的 ID：需要推导的聚合 ID 时，请返回命令体或 `CommandBuilder`。
+预构造的 `CommandMessage` 保留自己的消息、聚合 ID 与显式 `requestId`，同时传播源事件 header。它没有设置的 `requestId`（等于消息 ID，即默认值）改为 `${domainEvent.id}-${index}-${producer hash}`（自 9.3.0 起），哈希取自 Saga 函数的上下文、处理器与函数名：两个 Saga 为同一事件返回这样的消息时，请求 ID 不同，第二条不会被当作第一条的重复请求跳过。它的聚合 ID 不做推导，因为无法区分生成的 ID 与指定的 ID：需要推导的聚合 ID 时，请返回命令体或 `CommandBuilder`。
 
 同一事件以相同顺序重投时，默认 request ID 保持稳定，可与[命令网关的幂等检查](../command/reliability.md)协作。它不保证外部副作用幂等，也不能保护不同事件生成的语义重复命令。
 

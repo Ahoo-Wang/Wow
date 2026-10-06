@@ -166,8 +166,36 @@ class SagaCommandIdsTest {
 
         StepVerifier.create(saga.invoke(SimpleDomainEventExchange(event))).expectNextCount(1).verifyComplete()
 
-        sent.single().requestId.assert().isEqualTo("${event.id}-0")
+        sent.single().requestId.assert().isEqualTo(SagaCommandIds.requestId(event, saga, 0))
+            .startsWith("${event.id}-0-")
         sent.single().aggregateId.id.assert().isEqualTo("chosen")
+    }
+
+    /**
+     * Two sagas returning a ready-made command message for the same event: the derived request IDs name the saga
+     * function, so the second command is not swallowed as a duplicate of the first.
+     */
+    @Test
+    fun `two sagas returning command messages for one event get different request IDs`() {
+        val sent = mutableListOf<CommandMessage<*>>()
+        val event = fixtureEvent()
+        val gateway = gateway(RecordingBus(sent))
+        listOf("SagaA", "SagaB").forEach { name ->
+            val saga = StatelessSagaFunction(
+                NamedSagaFunction(name, Mono.just(MockChangeAggregate("chosen", "data").toCommandMessage()), name),
+                gateway,
+                commandMessageFactory(),
+            )
+            StepVerifier.create(saga.invoke(SimpleDomainEventExchange(event))).expectNextCount(1).verifyComplete()
+        }
+
+        sent.map { it.requestId }.distinct().assert().hasSize(2)
+    }
+
+    @Test
+    fun `a body or command builder keeps the 9_2 request ID`() {
+        val event = fixtureEvent()
+        SagaCommandIds.requestId(event, 1).assert().isEqualTo("${event.id}-1")
     }
 
     @Test
@@ -257,9 +285,9 @@ class SagaTarget(val id: String) {
 internal class NamedSagaFunction(
     override val processorName: String,
     private val result: Mono<*>,
+    override val name: String = "onEvent",
 ) : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
     override val contextName: String = "fixture"
-    override val name: String = "onEvent"
     override val processor: Any = processorName
     override val supportedType: Class<*> = MockAggregateCreated::class.java
     override val supportedTopics: Set<NamedAggregate> = emptySet()

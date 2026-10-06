@@ -59,7 +59,7 @@ Prefer historical events for Given. `givenState` is useful when a test explicitl
 
 ### The same pipeline as production
 
-Since 9.3.0 an aggregate specification runs each command through the production command pipeline and kernel: the aggregate processor loads the state from an event store and an in-memory snapshot store, the kernel checks creation, existence, owner, space and deletion, decides, appends, and applies the committed events. The command body is validated first, as the command gateway does. Only one thing differs: a recoverable failure is reported at once instead of being retried.
+Since 9.3.0 an aggregate specification runs each command through the production command pipeline and kernel: the aggregate processor loads the state from an event store and an in-memory snapshot store, the kernel checks creation, existence, owner, space and deletion, then decides, applies and appends the events as one unit: a command whose sourcing function throws fails its step and stores nothing. The command body is validated first, as the command gateway does. Only one thing differs: a recoverable failure is reported at once instead of being retried.
 
 - Given events are appended to the event store (the one passed to `aggregateVerifier`, by default in memory) as one stream at the next version; `givenState` is saved as the snapshot the command starts from. The in-memory snapshot store keeps the snapshot as JSON, so the state the command sees is a JSON round trip of the given one: a field Jackson does not serialize (transient, no accessor, a type it cannot read back) does not reach the command.
 - A command addresses the aggregate its message names: a command whose `@AggregateId` names another aggregate does not see the given history.
@@ -76,7 +76,7 @@ What a specification sees therefore matches production; before 9.3.0 the DSL dif
 | Command for another aggregate ID after a verified step | ran on the verified state | runs on that aggregate: `NotFoundResourceException` when it has no history |
 | Given events | sourced into the state, not stored | stored at their real version, then loaded |
 | The next step's state | the previous step's instance | loaded from the stores (a new instance) |
-| A sourcing function that cannot apply committed events | the command failed | the events are stored and the step reports the sourcing error |
+| A sourcing function that cannot apply the events | the command failed | the command fails and nothing is stored, as in production; the step reports the stored state |
 | `givenState` | the given object ran the command | a copy loaded from its snapshot; the given object is not changed |
 
 ## Aggregate Specifications: Assert Event and State Together

@@ -80,26 +80,32 @@ The outer steps wrap the inner ones, so they observe completion or failure of th
 
 `SimpleCommandAggregate.process` then checks expected version, create permission, owner, space, deleted/recovery state, and command-function availability. It looks the command up in the aggregate's `AggregateModel`, which is compiled once when the aggregate metadata is parsed: the command entries (with the matching after-command functions and the built-in delete, recover and resource-tag handlers), the error functions and the sourcing table that every state aggregate of the type shares. Handlers take the command root or state root as an argument, so nothing is bound per aggregate instance or per command (since 9.3.0). The entry invokes the matching function and ordered after-command functions, flattens their returns into one `DomainEventStream`, and stores it on the exchange. One result adapter, chosen per function when the model compiles, turns every return shape (a value, `Mono`, `Flux`, another `Publisher`, `Flow` or a `suspend` result) into that stream with one exception rule: what the function throws arrives unwrapped, also when a function returning `Flow` throws before returning it (since 9.3.0).
 
-## Decide, append, then apply
+## Decide, apply, then append
 
-The command function only reads the state. Its event stream is appended first and applied to the state only after the append succeeded (since 9.3.0; before it, events were applied first):
+Decide, apply, append — atomic; persisted events are always loadable; in-memory state never diverges from the store (since 9.3.0).
+
+The command function only reads the state. Its event stream is applied to the state, then appended:
 
 ```text
 invoke command (reads state)
   -> build DomainEventStream
+  -> source the events into the state
   -> EventStore.append
-  -> source the committed events into the state
 ```
 
-- **A failure before or during the append** (a guard, the command function, a version conflict, a store error) leaves the state at the last committed version. `@OnError` sees that state, and the exchange's aggregate version stays the committed one.
-- **A sourcing failure after the append** cannot undo the commit, so the command is reported as committed: its events are stored and published, the failure is logged at ERROR, and no `StateEvent` is sent for it. The state instance may hold part of the stream, so it is discarded: that command aggregate refuses further commands. Loading the aggregate later runs the same sourcing function and fails the same way until it is fixed.
+- **A failure before the apply** (a guard, the command function) changes nothing.
+- **A sourcing failure** fails the command: nothing is stored or published, so an event that cannot be loaded is never persisted. The failure is logged at ERROR.
+- **An append failure** (a version conflict, a duplicate request ID, a store error) fails the command: nothing is published and no `StateEvent` is sent.
+- After either failure the state instance may hold events the store does not, so it is discarded: it never takes another command. Each attempt, retries included, loads its own aggregate, and the test DSL reloads the state from its stores after every step, so no later command or reader sees it.
+- `@OnError` always sees committed state. When the failed attempt applied events that were not stored, `@OnError` runs on the aggregate loaded again (only then, and only when the command has an `@OnError` function; a create gets a new aggregate from the state factory instead of a store load). The exchange never keeps the discarded aggregate, so the command error handler, a `CommandInstrumentation` and the test DSL do not see its state either. When that load fails too, `@OnError` is skipped, the original error is reported with the load failure attached as suppressed, and the skip is logged at ERROR. A hand-built processor that calls `CommandAggregate.process` directly runs `@OnError` on the discarded instance instead.
+- The exchange's aggregate version, and so the wait signal and `CommandResult`, become the stream's version only once the append succeeded; a failed command reports the committed version.
 - `StateAggregate.onSourcing` advances the version, event ID, operator, event time and the system metadata (owner, space, deleted, tags) only after every sourcing function of the stream ran; a `VersionAware` state gets the new version at that point too. When a sourcing function throws, all of them stay at the previous version.
 
-The exchange's aggregate version becomes the stream's version once the append succeeded. See [Event Sourcing](../../domain/event-sourcing.md) for the history and recovery contract.
+See [Event Sourcing](../../domain/event-sourcing.md) for the history and recovery contract.
 
 ## Ack/event-send order
 
-`DefaultCommandHandler` applies `finallyAck` to aggregate processing. The exchange transport acknowledgement therefore runs whether aggregate processing completes or fails; only the successful path publishes. It sends the stream the processor returned and waits for `DomainEventBus.send` before continuing. Then, when the state is initialized and has applied this stream (its version is the stream's), it copies the event stream and current state into a `StateEvent` and attempts `StateEventBus.send`.
+`DefaultCommandHandler` applies `finallyAck` to aggregate processing. The exchange transport acknowledgement therefore runs whether aggregate processing completes or fails; only the successful path publishes. It sends the stream the processor returned and waits for `DomainEventBus.send` before continuing. Then, when the state is initialized and has applied this stream (its version is the stream's; a defensive check, as a stored stream is always applied), it copies the event stream and current state into a `StateEvent` and attempts `StateEventBus.send`.
 
 The effective order is:
 

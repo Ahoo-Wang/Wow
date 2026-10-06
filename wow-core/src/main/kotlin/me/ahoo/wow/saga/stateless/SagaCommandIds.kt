@@ -57,6 +57,19 @@ internal object SagaCommandIds {
     fun requestId(event: DomainEvent<*>, index: Int): String = "${event.id}-$index"
 
     /**
+     * The request ID of the [index]-th command [producer] returns for [event] as a ready-made `CommandMessage` without
+     * a request ID of its own (since 9.3.0): `"<event ID>-<index>-<producer hash>"`. Unlike [requestId] (a body or a
+     * `CommandBuilder`, unchanged since 9.2 for mixed clusters) it names the saga function, so two sagas returning a
+     * command for the same event do not share a request ID and the second is not taken for a duplicate. The
+     * producer is its context, processor (the saga's simple class name) and function name, so two saga classes with
+     * the same simple name and function name in one bounded context still share it.
+     */
+    fun requestId(event: DomainEvent<*>, producer: FunctionInfo, index: Int): String {
+        val seed = listOf(producer.contextName, producer.processorName, producer.name).joinToString("|")
+        return "${requestId(event, index)}-${java.lang.Long.toHexString(hash(seed))}"
+    }
+
+    /**
      * The aggregate ID of the [index]-th command [producer] sends for [event] to an aggregate of type [target], or
      * `null` when the target's generator is not time-based.
      */

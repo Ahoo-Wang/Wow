@@ -117,13 +117,17 @@ class StatelessSagaFunction(
 
     /**
      * A command message the saga function built itself keeps its IDs, except a request ID it did not set (equal to
-     * the message ID, the default): that one becomes the derived `"<event ID>-<index>"`, so a retry is a duplicate
-     * request. Its aggregate ID is kept: a generated one cannot be told from a chosen one; return a body or a
+     * the message ID, the default): that one becomes the derived `"<event ID>-<index>-<producer hash>"` (see
+     * [SagaCommandIds.requestId]), so a retry is a duplicate request and another saga's command for the same event is
+     * not. Its aggregate ID is kept: a generated one cannot be told from a chosen one; return a body or a
      * [CommandBuilder] to get a derived aggregate ID.
      */
     private fun CommandMessage<*>.withDerivedRequestId(domainEvent: DomainEvent<*>, index: Int): CommandMessage<*> {
         if (requestId == id && this is SimpleCommandMessage<*>) {
-            return copy(requestId = SagaCommandIds.requestId(domainEvent, index), header = header.copy())
+            return copy(
+                requestId = SagaCommandIds.requestId(domainEvent, this@StatelessSagaFunction, index),
+                header = header.copy()
+            )
         }
         return if (header.isReadOnly) copy() else this
     }

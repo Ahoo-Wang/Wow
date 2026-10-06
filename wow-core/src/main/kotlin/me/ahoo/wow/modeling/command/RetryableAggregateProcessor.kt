@@ -32,6 +32,7 @@ import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.time.Duration
+import java.util.Optional
 
 internal class RetryableAggregateProcessor<C : Any, S : Any>(
     override val aggregateId: AggregateId,
@@ -57,7 +58,8 @@ internal class RetryableAggregateProcessor<C : Any, S : Any>(
      * failure, not what `@OnError` makes of it. The aggregate's `@OnError` function runs once, after the final
      * failure, on the most recently loaded aggregate: the final attempt's, or an earlier attempt's when the final one
      * failed before loading. It does not run when no attempt loaded an aggregate, nor for a [CommandAggregate] that is
-     * not a [SimpleCommandAggregate] (its own `process` handles its errors).
+     * not a [SimpleCommandAggregate] (its own `process` handles its errors). `@OnError` always sees committed state:
+     * when that aggregate applied events that were not stored, it runs on the aggregate loaded again instead.
      */
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val initialState = ExchangeAttemptState.capture(exchange)
@@ -66,13 +68,7 @@ internal class RetryableAggregateProcessor<C : Any, S : Any>(
             var errorHandlingAggregate: SimpleCommandAggregate<C, *>? = null
             val process = Mono.defer {
                 initialState.restore(exchange)
-                if (exchange.message.isCreate) {
-                    aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
-                } else {
-                    stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
-                }
-            }.map {
-                commandAggregateFactory.create(aggregateMetadata, it)
+                loadCommandAggregate(exchange)
             }.flatMap {
                 if (it is SimpleCommandAggregate<C, *>) {
                     errorHandlingAggregate = it
@@ -114,18 +110,73 @@ internal class RetryableAggregateProcessor<C : Any, S : Any>(
             )
         }
 
+    /** A command aggregate on the committed state: a new one for a create command, else the loaded one. */
+    private fun loadCommandAggregate(exchange: ServerCommandExchange<*>): Mono<CommandAggregate<C, *>> {
+        val state = if (exchange.message.isCreate) {
+            aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
+        } else {
+            stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
+        }
+        return state.map { commandAggregateFactory.create(aggregateMetadata, it) }
+    }
+
     /**
-     * Runs the `@OnError` function of [commandAggregate] with the processing failure (unwrapped from a retry
-     * exhaustion). The final error stays [finalError] unless the error function replaced it.
+     * Runs the `@OnError` function with the processing failure (unwrapped from a retry exhaustion), on the committed
+     * state. The final error stays [finalError] unless the error function replaced it.
+     *
+     * When [commandAggregate] is [discarded][SimpleCommandAggregate.discarded] (it applied events that were not
+     * stored), the exchange no longer holds it, so neither the error handler, an instrumentation nor a test sees its
+     * state; and when the command has an `@OnError` function, the aggregate is loaded again for it (a create gets a new
+     * one from the factory). When that load fails, `@OnError` is skipped and [finalError] propagates, with the load
+     * failure attached as suppressed.
      */
     private fun handleFinalError(
         commandAggregate: SimpleCommandAggregate<C, *>,
         exchange: ServerCommandExchange<*>,
         finalError: Throwable
     ): Mono<DomainEventStream> {
+        val failure = if (Exceptions.isRetryExhausted(finalError)) finalError.cause ?: finalError else finalError
+        if (!commandAggregate.discarded) {
+            return runErrorFunction(commandAggregate, exchange, failure, finalError)
+        }
+        // The discarded aggregate holds events the store does not: nothing may observe it.
+        exchange.removeAttribute(COMMAND_AGGREGATE_KEY)
+        if (!commandAggregate.hasErrorFunction(exchange.message.body.javaClass)) {
+            // No user code runs: record the error without loading anything.
+            return commandAggregate.handleError(exchange, failure).onErrorMap {
+                if (it === failure) finalError else it
+            }
+        }
+        return loadCommandAggregate(exchange)
+            .map { Optional.ofNullable(it as? SimpleCommandAggregate<C, *>) }
+            .onErrorResume { loadError ->
+                if (loadError !== failure) {
+                    failure.addSuppressed(loadError)
+                }
+                exchange.setError(failure)
+                log.error(failure) {
+                    "@OnError skipped: committed state could not be loaded for $aggregateId after command " +
+                        "[${exchange.message.id}] failed."
+                }
+                Mono.just(Optional.empty())
+            }
+            .flatMap { reloaded ->
+                if (reloaded.isPresent) {
+                    runErrorFunction(reloaded.get(), exchange, failure, finalError)
+                } else {
+                    Mono.error(finalError)
+                }
+            }
+    }
+
+    private fun runErrorFunction(
+        commandAggregate: SimpleCommandAggregate<C, *>,
+        exchange: ServerCommandExchange<*>,
+        failure: Throwable,
+        finalError: Throwable
+    ): Mono<DomainEventStream> {
         // When the final attempt failed before loading, the exchange holds no aggregate; give @OnError the one it runs on.
         exchange.setCommandAggregate(commandAggregate)
-        val failure = if (Exceptions.isRetryExhausted(finalError)) finalError.cause ?: finalError else finalError
         return commandAggregate.handleError(exchange, failure).onErrorMap {
             if (it === failure) finalError else it
         }
