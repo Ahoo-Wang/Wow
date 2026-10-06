@@ -98,6 +98,10 @@ The current generated OpenAPI declares only `application/json` for this global r
 
 The facade accepts only the commands that have an aggregate command route here: a command registered on an aggregate in this service's metadata (or the default delete, recover and apply-resource-tags commands the aggregate does not override), whose `@AggregateRoute` and `@CommandRoute` are enabled. Any other `Command-Type` answers `404` with error code `NotFound`, as a disabled route does; the type name is matched against the registered classes and never loaded by name.
 
+### Body Errors
+
+A body that does not bind to the command (a missing required field, a field of the wrong type, malformed JSON) answers `400` with error code `IllegalArgument` on every command route, with a `body` entry in `bindingErrors` saying why. Routes with path or header variables and the facade answer the same (before 9.2.5 they answered `500` for a missing field or a wrong type).
+
 ### Extension Headers
 
 Each `Command-Header-<key>` request header is copied into the command message header as `<key>`, on aggregate command routes and on the facade. The prefix matches in any case (HTTP/2 sends header names in lower case). A key the framework reserves answers `400` with error code `IllegalArgument`, and nothing is copied: `command_operator`, `local_first`, `trace_id`, `upstream_id`, `upstream_name`, `user_agent`, `remote_ip`, `traceparent`, `tracestate`, `baggage`, CoSec's `app_id` and `device_id`, and every key starting with `command_wait_` or `compensate.` (compared ignoring case). Use the documented headers instead (`Command-Wait-*`, `Command-Local-First`). The operator is always the authenticated principal, set after every header appender.
