@@ -38,24 +38,26 @@ class EventCompensateHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val id = request.pathVariable(MessageRecords.ID)
-        return request.bodyToMono(CompensationTarget::class.java).mapRequestBodyDecodingException()
-            .flatMap {
-                requireNotNull(it) {
-                    "CompensationTarget is required!"
-                }
-                val version = request.pathVariable(MessageRecords.VERSION).toInt()
-                val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
+        Mono.defer {
+            val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val id = request.pathVariable(MessageRecords.ID)
+            request.bodyToMono(CompensationTarget::class.java).mapRequestBodyDecodingException()
+                .flatMap {
+                    requireNotNull(it) {
+                        "CompensationTarget is required!"
+                    }
+                    val version = request.pathVariable(MessageRecords.VERSION).toInt()
+                    val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
 
-                eventCompensateSupporter.compensate(
-                    aggregateId = aggregateId,
-                    target = it,
-                    version = version
-                )
-            }.toServerResponse(request, exceptionHandler)
-    }
+                    eventCompensateSupporter.compensate(
+                        aggregateId = aggregateId,
+                        target = it,
+                        version = version
+                    )
+                }
+        }.toServerResponse(request, exceptionHandler)
 }
 
 class EventCompensateHandlerFunctionFactory(

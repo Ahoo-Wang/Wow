@@ -204,6 +204,9 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 - 补偿模块以 `FailureRecorder`（`CompensationFailureRecorder`）记录事件处理失败，不再使用 Filter：删除 `DomainEventCompensationFilter`、`StateEventCompensationFilter` 与 `EventCompensationFilter`，`domainEventCompensationFilter` / `stateEventCompensationFilter` Bean 由 `compensationFailureRecorder` 取代。它发送的命令与 9.2 逐字节一致。记录改为在 wait 通知器发出信号之后写入（见[失败记录](./event/dispatch.md#失败记录)）。
 - 新增 `wow.event.ack-on-unrecorded-failure`（默认 `true`，行为不变）：设为 `false` 时，没有记录器记录的失败不确认，等待重投。
 - `DefaultDomainEventHandler`、`DefaultProjectionHandler`、`DefaultStatelessSagaHandler` 与 `DefaultSnapshotHandler` 继承 `FailureRecordingHandler`，新增可选参数 `failureRecorder`（除 Snapshot 外还有 `ackOnUnrecordedFailure`）。
+- 应用提供的 `FailureRecorder` Bean 现在会替代补偿模块的 `compensationFailureRecorder`，不再与它并存。
+- 传输 SPI 删除两个内置实现从未使用的成员：`TransportMessage.headers`（Kafka 从未写入）与 `TransportRecord.nack()`（没有调用方）。自定义传输删除它们即可；未确认的记录仍由 Broker 重投。
+- `KafkaProperties` 新增 `closeTimeout`（`wow.kafka.close-timeout`），`buildSenderOptions(defaultCloseTimeout)` 优先用它，否则用传入的默认值；Starter 传入 `wow.shutdown-timeout`。手动构造 `KafkaAutoConfiguration` 的代码还需传入 `WowProperties`。
 
 ### Mongo 所有权保护
 

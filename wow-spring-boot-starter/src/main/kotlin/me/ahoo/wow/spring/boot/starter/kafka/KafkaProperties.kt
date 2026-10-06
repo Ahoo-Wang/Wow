@@ -40,6 +40,12 @@ class KafkaProperties(
     var producer: Map<String, String> = mapOf(),
     var consumer: Map<String, String> = mapOf(),
     @NestedConfigurationProperty var receiver: KafkaReceiverProperties = KafkaReceiverProperties(),
+    /**
+     * How long closing a producer may wait to flush its buffered records. Unset, the starter uses
+     * `wow.shutdown-timeout`, so a close never outlasts the runtime's shutdown deadline (the Kafka client's own
+     * default waits without bound).
+     */
+    var closeTimeout: Duration? = null,
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}kafka"
@@ -49,7 +55,11 @@ class KafkaProperties(
         return bootstrapServers.joinToString(",")
     }
 
-    fun buildSenderOptions(): SenderOptions<String, String> {
+    /**
+     * The producer options: string serializers, [properties] then [producer], and [closeTimeout], else
+     * [defaultCloseTimeout] when given.
+     */
+    fun buildSenderOptions(defaultCloseTimeout: Duration? = null): SenderOptions<String, String> {
         val senderProperties = buildMap {
             put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServersToString())
             put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
@@ -57,7 +67,9 @@ class KafkaProperties(
             putAll(properties)
             putAll(producer)
         }
-        return SenderOptions.create(senderProperties)
+        val options = SenderOptions.create<String, String>(senderProperties)
+        val timeout = closeTimeout ?: defaultCloseTimeout ?: return options
+        return options.closeTimeout(timeout)
     }
 
     fun buildReceiverOptions(): ReceiverOptions<String, String> {

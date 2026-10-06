@@ -83,22 +83,42 @@ internal class StateExpansionSensitivity(private val session: StateExpansionPlan
         valueType = valueType,
     ).effectiveSensitivityLevel()
 
-    private fun ResolvedType.containsSensitive(visiting: MutableSet<String>): Boolean {
+    /**
+     * Whether a value of this type holds a sensitive property, at any depth. A type already being visited (a cycle)
+     * counts as not sensitive *there*, so an answer reached through such a cut may be incomplete: only "sensitive"
+     * answers and answers that cut no cycle are remembered; the others are worked out again where they are asked.
+     */
+    private fun ResolvedType.containsSensitive(visiting: MutableSet<String>): Boolean =
+        containsSensitive(visiting, CycleCut())
+
+    private class CycleCut(var cut: Boolean = false)
+
+    private fun ResolvedType.containsSensitive(visiting: MutableSet<String>, cycle: CycleCut): Boolean {
         val key = javaType.toCanonical()
         subtrees[key]?.let { return it }
-        if (!visiting.add(key)) return false
-        val sensitive = when {
-            javaType.isMapLikeType -> arguments.getOrNull(1)?.containsSensitive(visiting) ?: false
-            javaType.isCollectionLikeType || javaType.isArrayType ->
-                arguments.firstOrNull()?.containsSensitive(visiting) ?: false
-
-            rawClass.isPrimitive || rawClass.scalarMapping() != null || isUnsupportedPlatformObject(this) -> false
-            else -> runCatching { JsonPropertyTypeResolver.resolve(this) }.getOrDefault(emptyList()).any {
-                it.sensitivityLevel(it.serializedName) != null || it.type.containsSensitive(visiting)
-            }
+        if (!visiting.add(key)) {
+            cycle.cut = true
+            return false
         }
+        val own = CycleCut()
+        val sensitive = childrenContainSensitive(visiting, own)
         visiting.remove(key)
-        subtrees[key] = sensitive
+        if (sensitive || !own.cut) {
+            subtrees[key] = sensitive
+        } else {
+            cycle.cut = true
+        }
         return sensitive
+    }
+
+    private fun ResolvedType.childrenContainSensitive(visiting: MutableSet<String>, cycle: CycleCut): Boolean = when {
+        javaType.isMapLikeType -> arguments.getOrNull(1)?.containsSensitive(visiting, cycle) ?: false
+        javaType.isCollectionLikeType || javaType.isArrayType ->
+            arguments.firstOrNull()?.containsSensitive(visiting, cycle) ?: false
+
+        rawClass.isPrimitive || rawClass.scalarMapping() != null || isUnsupportedPlatformObject(this) -> false
+        else -> runCatching { JsonPropertyTypeResolver.resolve(this) }.getOrDefault(emptyList()).any {
+            it.sensitivityLevel(it.serializedName) != null || it.type.containsSensitive(visiting, cycle)
+        }
     }
 }

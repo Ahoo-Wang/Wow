@@ -34,6 +34,7 @@ import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class LoadEventStreamHandlerFunction(
@@ -44,36 +45,37 @@ class LoadEventStreamHandlerFunction(
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val identity = request.identity(aggregateMetadata)
-        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val ownerId = identity.readOwnerId()
-        val id = request.pathVariable(MessageRecords.ID)
-        val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
-        val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)
-        if (headVersion > tailVersion) {
-            throw QueryRequestException(
-                "headVersion[$headVersion] must not exceed tailVersion[$tailVersion].",
-                QueryErrorCodes.INVALID_REQUEST,
-                BatchComponent.PathVariable.HEAD_VERSION,
-            )
-        }
-        val limit = tailVersion - headVersion + 1
-        val selection = filter {
-            tenantId(tenantId)
-            if (!ownerId.isNullOrBlank()) {
-                ownerId(ownerId)
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
+        Flux.defer {
+            val identity = request.identity(aggregateMetadata)
+            val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val ownerId = identity.readOwnerId()
+            val id = request.pathVariable(MessageRecords.ID)
+            val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
+            val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)
+            if (headVersion > tailVersion) {
+                throw QueryRequestException(
+                    "headVersion[$headVersion] must not exceed tailVersion[$tailVersion].",
+                    QueryErrorCodes.INVALID_REQUEST,
+                    BatchComponent.PathVariable.HEAD_VERSION,
+                )
             }
-            MessageRecords.AGGREGATE_ID eq id
-            MessageRecords.VERSION.between(headVersion, tailVersion)
-        }
-        val listQuery = ListQuery(MatchAllFilter, limit = limit)
-        return guard.of(eventStreamQueryGateway).flux(request) {
-            eventStreamQueryGateway.dynamicList(listQuery)
-        }
-            .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)
-            .toServerResponse(request, exceptionHandler)
-    }
+            val limit = tailVersion - headVersion + 1
+            val selection = filter {
+                tenantId(tenantId)
+                if (!ownerId.isNullOrBlank()) {
+                    ownerId(ownerId)
+                }
+                MessageRecords.AGGREGATE_ID eq id
+                MessageRecords.VERSION.between(headVersion, tailVersion)
+            }
+            val listQuery = ListQuery(MatchAllFilter, limit = limit)
+            guard.of(eventStreamQueryGateway).flux(request) {
+                eventStreamQueryGateway.dynamicList(listQuery)
+            }
+                .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)
+        }.toServerResponse(request, exceptionHandler)
 }
 
 class LoadEventStreamHandlerFunctionFactory(

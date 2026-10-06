@@ -64,6 +64,32 @@ internal class KafkaAutoConfigurationTest {
     }
 
     @Test
+    fun `producer close waits at most the shutdown timeout unless set`() {
+        val properties = KafkaProperties(bootstrapServers = listOf("kafka"))
+
+        properties.buildSenderOptions(Duration.ofSeconds(60)).closeTimeout().assert()
+            .isEqualTo(Duration.ofSeconds(60))
+        properties.closeTimeout = Duration.ofSeconds(5)
+        properties.buildSenderOptions(Duration.ofSeconds(60)).closeTimeout().assert()
+            .isEqualTo(Duration.ofSeconds(5))
+        properties.buildSenderOptions().closeTimeout().assert().isEqualTo(Duration.ofSeconds(5))
+    }
+
+    @Test
+    fun `should bind the producer close timeout`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${KafkaProperties.PREFIX}.bootstrap-servers=kafka",
+                "${KafkaProperties.PREFIX}.close-timeout=7s",
+            )
+            .withUserConfiguration(KafkaAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(KafkaProperties::class.java).closeTimeout.assert().isEqualTo(Duration.ofSeconds(7))
+            }
+    }
+
+    @Test
     fun `should bind receiver safety policy`() {
         contextRunner
             .enableWow()

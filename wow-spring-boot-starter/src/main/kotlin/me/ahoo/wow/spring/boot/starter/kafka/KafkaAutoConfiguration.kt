@@ -34,6 +34,7 @@ import me.ahoo.wow.messaging.transport.TransportMessageBus
 import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
@@ -51,8 +52,11 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 @ConditionalOnKafkaEnabled
 @ConditionalOnClass(KafkaCommandBus::class)
-@EnableConfigurationProperties(KafkaProperties::class)
-class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
+@EnableConfigurationProperties(KafkaProperties::class, WowProperties::class)
+class KafkaAutoConfiguration(
+    private val kafkaProperties: KafkaProperties,
+    private val wowProperties: WowProperties,
+) {
     companion object {
         /** The receive-retry policy of the Kafka transports, from `wow.kafka.receiver.retry-*`. */
         const val KAFKA_TRANSPORT_FAILURE_POLICY = "kafkaTransportFailurePolicy"
@@ -106,7 +110,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     ): DistributedCommandBus {
         return KafkaCommandBus(
             topicConverter = topicConverter,
-            senderOptions = kafkaProperties.buildSenderOptions(),
+            senderOptions = kafkaProperties.buildSenderOptions(wowProperties.shutdownTimeout),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
@@ -147,7 +151,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     ): DistributedDomainEventBus {
         return KafkaDomainEventBus(
             topicConverter = topicConverter,
-            senderOptions = kafkaProperties.buildSenderOptions(),
+            senderOptions = kafkaProperties.buildSenderOptions(wowProperties.shutdownTimeout),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,
@@ -188,7 +192,7 @@ class KafkaAutoConfiguration(private val kafkaProperties: KafkaProperties) {
     ): DistributedStateEventBus {
         return KafkaStateEventBus(
             topicConverter = topicConverter,
-            senderOptions = kafkaProperties.buildSenderOptions(),
+            senderOptions = kafkaProperties.buildSenderOptions(wowProperties.shutdownTimeout),
             receiverOptions = kafkaProperties.buildReceiverOptions(),
             receiverOptionsCustomizer = receiverOptionsCustomizer,
             receiverPolicy = receiverPolicy,

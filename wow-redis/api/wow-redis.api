@@ -246,7 +246,6 @@ public final class me/ahoo/wow/redis/bus/RedisStreamTransport$RedisTransportReco
 	public fun getKeyed ()Z
 	public fun getPayload ()Ljava/lang/String;
 	public fun getTopic ()Ljava/lang/String;
-	public fun nack ()Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/redis/bus/RedisStreamTransportKt {

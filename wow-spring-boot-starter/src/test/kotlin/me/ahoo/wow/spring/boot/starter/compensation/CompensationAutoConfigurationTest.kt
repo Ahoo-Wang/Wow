@@ -33,4 +33,22 @@ class CompensationAutoConfigurationTest {
                     .hasSingleBean(CompensationEventProcessor::class.java)
             }
     }
+
+    @Test
+    fun `an application failure recorder replaces the compensation recorder`() {
+        val recorder = mockk<FailureRecorder>()
+        contextRunner
+            .enableWow()
+            .withBean(CommandGateway::class.java, { mockk() })
+            .withBean(DomainEventCompensator::class.java, { mockk() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(FailureRecorder::class.java, { recorder })
+            .withUserConfiguration(
+                CompensationAutoConfiguration::class.java
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasSingleBean(FailureRecorder::class.java)
+                context.getBean(FailureRecorder::class.java).assert().isSameAs(recorder)
+            }
+    }
 }

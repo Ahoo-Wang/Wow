@@ -37,23 +37,24 @@ abstract class AbstractLoadAggregateHandlerFunction(
     abstract fun getVersion(request: ServerRequest): Int
     abstract fun checkVersion(targetVersion: Int, stateAggregate: StateAggregate<*>)
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val identity = request.identity(aggregateRouteMetadata)
-        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val id = requireNotNull(identity.aggregateId())
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-        val version = getVersion(request)
-        return stateAggregateRepository
-            .load(aggregateId, aggregateMetadata.state, version)
-            .filter {
-                it.initialized && !it.deleted
-            }
-            .flatMap {
-                checkVersion(version, it)
-                OwnerAggregatePrecondition(identity, aggregateRouteMetadata.ownerPolicy).check(it)
-                admission.state(aggregateMetadata, request, it)
-            }
-            .throwNotFoundIfEmpty()
-            .toServerResponse(request, exceptionHandler)
-    }
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
+        Mono.defer {
+            val identity = request.identity(aggregateRouteMetadata)
+            val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val id = requireNotNull(identity.aggregateId())
+            val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+            val version = getVersion(request)
+            stateAggregateRepository
+                .load(aggregateId, aggregateMetadata.state, version)
+                .filter {
+                    it.initialized && !it.deleted
+                }
+                .flatMap {
+                    checkVersion(version, it)
+                    OwnerAggregatePrecondition(identity, aggregateRouteMetadata.ownerPolicy).check(it)
+                    admission.state(aggregateMetadata, request, it)
+                }
+                .throwNotFoundIfEmpty()
+        }.toServerResponse(request, exceptionHandler)
 }

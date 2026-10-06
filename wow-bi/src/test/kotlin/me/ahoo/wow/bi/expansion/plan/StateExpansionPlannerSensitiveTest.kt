@@ -89,6 +89,22 @@ class StateExpansionPlannerSensitiveTest {
         omitted.assert().contains("AS \"name\"")
     }
 
+    /**
+     * `Customer` and `OrderRef` refer to each other. Deciding whether `Customer` holds a sensitive value cuts the cycle
+     * at `OrderRef.customer`; that cut-short answer for `OrderRef` (no) must not be reused for the raw JSON of
+     * `primary.lastOrder`, which holds the customer's phone.
+     */
+    @Test
+    fun `should leave out the raw JSON of a value whose sensitivity is only reachable through a cycle`() {
+        val plan = StateExpansionPlanner(BiScriptOptions(omitSensitiveFields = true))
+            .plan(aggregateMetadata<CyclicSensitiveAggregate, CyclicSensitiveState>())
+
+        plan.selectedPaths().assert().doesNotContain("primary", "primary.lastOrder")
+        plan.views.flatMap { it.columns }.none { it.path.endsWith("phone") }.assert().isTrue()
+        plan.diagnostics.filter { it.code == BiScriptDiagnosticCode.SENSITIVE_FIELD_OMITTED }.map { it.path }
+            .assert().contains("primary.lastOrder")
+    }
+
     private fun StateExpansionPlan.columnPaths(): Set<String> = views.flatMap { it.columns }.map { it.path }.toSet()
 
     /** The paths of the columns a view outputs (a nested object's own column is only a WITH alias). */
@@ -165,3 +181,23 @@ class SensitiveProfile {
 }
 
 private val sensitiveAggregateMetadata = aggregateMetadata<SensitiveAggregate, SensitiveState>()
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+class CyclicSensitiveAggregate(private val state: CyclicSensitiveState)
+
+class CyclicSensitiveState(override val id: String) : Identifier {
+    val primary: CyclicCustomer? = null
+}
+
+class CyclicCustomer {
+    val lastOrder: CyclicOrderRef? = null
+
+    @field:Sensitive(SensitivityLevel.DISPLAY)
+    val phone: String = ""
+}
+
+class CyclicOrderRef {
+    val orderId: String = ""
+    val customer: CyclicCustomer? = null
+}
