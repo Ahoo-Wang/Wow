@@ -43,11 +43,13 @@ public final class me/ahoo/wow/spring/boot/starter/ConditionalOnWowEnabled$Compa
 
 public final class me/ahoo/wow/spring/boot/starter/DispatchProperties {
 	public fun <init> ()V
-	public fun <init> (II)V
-	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (III)V
+	public synthetic fun <init> (IIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getMaxInFlight ()I
+	public final fun getThroughput ()I
 	public final fun getWorkers ()I
 	public final fun setMaxInFlight (I)V
+	public final fun setThroughput (I)V
 	public final fun setWorkers (I)V
 }
 
