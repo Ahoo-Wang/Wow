@@ -91,18 +91,23 @@ export function lockedFetchers(lockfile) {
  * of the lockfile, overridden to the floor.
  */
 export function withFloorOverrides(yaml, lockfile = '') {
-  assert.doesNotMatch(
-    yaml,
-    /^overrides:/m,
-    'The workspace already declares overrides; merge them here instead of replacing them',
-  );
   const floor = fetcherFloor(yaml);
   const names = new Set([
     ...Object.keys(devFetchers(yaml)),
     ...lockedFetchers(lockfile),
   ]);
   const lines = [...names].sort().map(name => `  '${name}': '${floor}'`);
-  return `${yaml.replace(/\n*$/, '\n')}\noverrides:\n${lines.join('\n')}\n`;
+  if (!/^overrides:$/m.test(yaml))
+    return `${yaml.replace(/\n*$/, '\n')}\noverrides:\n${lines.join('\n')}\n`;
+  // Merge into the workspace's own overrides (security pins), which must
+  // leave the fetcher packages to this job.
+  const block = yaml.split(/^overrides:$/m)[1].split(/^\S/m)[0];
+  assert.doesNotMatch(
+    block,
+    /^ {2}'?@ahoo-wang\/fetcher/m,
+    'The workspace overrides a fetcher package; the floor job owns those',
+  );
+  return yaml.replace(/^overrides:$/m, `overrides:\n${lines.join('\n')}`);
 }
 
 /**
