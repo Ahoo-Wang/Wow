@@ -39,24 +39,25 @@ class LoadTimeBasedAggregateHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val identity = request.identity(aggregateRouteMetadata)
-        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val id = requireNotNull(identity.aggregateId())
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-        val tailEventTime = request.pathVariable(MessageRecords.CREATE_TIME).toLong()
-        return stateAggregateRepository
-            .load(aggregateId, aggregateMetadata.state, tailEventTime)
-            .filter {
-                it.initialized && !it.deleted
-            }
-            .flatMap {
-                OwnerAggregatePrecondition(identity, aggregateRouteMetadata.ownerPolicy).check(it)
-                admission.state(aggregateMetadata, request, it)
-            }
-            .throwNotFoundIfEmpty()
-            .toServerResponse(request, exceptionHandler)
-    }
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
+        Mono.defer {
+            val identity = request.identity(aggregateRouteMetadata)
+            val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val id = requireNotNull(identity.aggregateId())
+            val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+            val tailEventTime = request.pathVariable(MessageRecords.CREATE_TIME).toLong()
+            stateAggregateRepository
+                .load(aggregateId, aggregateMetadata.state, tailEventTime)
+                .filter {
+                    it.initialized && !it.deleted
+                }
+                .flatMap {
+                    OwnerAggregatePrecondition(identity, aggregateRouteMetadata.ownerPolicy).check(it)
+                    admission.state(aggregateMetadata, request, it)
+                }
+                .throwNotFoundIfEmpty()
+        }.toServerResponse(request, exceptionHandler)
 }
 
 class LoadTimeBasedAggregateHandlerFunctionFactory(

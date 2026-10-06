@@ -80,7 +80,7 @@ wow:
       - localhost:9092
 ```
 
-`wow.kafka.bootstrap-servers` has no default. Defaults are `enabled=true`, `topic-prefix=wow.`, `receiver.prefetch-batches=1`, `receiver.max-deferred-commits=500`, `receiver.retry-attempts=3`, `receiver.retry-backoff=10s`, and `receiver.decode-failure-strategy=FAIL`.
+`wow.kafka.bootstrap-servers` has no default. Defaults are `enabled=true`, `topic-prefix=wow.`, `receiver.prefetch-batches=1`, `receiver.max-deferred-commits=500`, `receiver.retry-attempts=3`, `receiver.retry-backoff=10s`, and `receiver.decode-failure-strategy=FAIL`. `close-timeout` (since 9.3.0) bounds how long closing a producer waits to flush its buffered records; unset, it is `wow.shutdown-timeout`, so a close never outlasts the runtime's shutdown deadline (the Kafka client alone waits without bound). A `KafkaTransport` built by hand takes the `closeTimeout` of the `SenderOptions` it is given.
 
 ### Bus Type Selection
 

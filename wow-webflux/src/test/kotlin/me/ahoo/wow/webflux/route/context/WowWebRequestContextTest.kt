@@ -19,6 +19,8 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
+import me.ahoo.wow.webflux.route.identity.RouteIdentity
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -60,5 +62,22 @@ class WowWebRequestContextTest {
         context.aggregateId.tenantId.assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
         context.requestId.assert().isNull()
         context.sse.assert().isFalse()
+    }
+
+    /** The request ID is read as the command routes read it: header aliases apply and a blank header is absent. */
+    @Test
+    fun `should read the request id through the route identity`() {
+        val blank = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .header(CommandComponent.Header.REQUEST_ID, " ")
+            .build()
+        WowWebRequestContext.of(blank, MOCK_AGGREGATE_METADATA).requestId.assert().isNull()
+
+        val aliased = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .header("X-Alias-Request-Id", "request-a")
+            .build()
+        RouteIdentity.withAliases(aliased, IdentityHeaderAliases(requestId = listOf("X-Alias-Request-Id")))
+        WowWebRequestContext.of(aliased, MOCK_AGGREGATE_METADATA).requestId.assert().isEqualTo("request-a")
     }
 }

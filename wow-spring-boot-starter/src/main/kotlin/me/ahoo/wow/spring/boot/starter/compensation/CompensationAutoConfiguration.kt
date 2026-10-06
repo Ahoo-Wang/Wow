@@ -21,6 +21,7 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.processing.failure.FailureRecorder
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 
@@ -37,7 +38,9 @@ class CompensationAutoConfiguration {
         return EventCompensateSupporter(domainEventCompensator, stateEventCompensator)
     }
 
+    /** Records failed event processing as compensation events, unless the application provides its own recorder. */
     @Bean
+    @ConditionalOnMissingBean(FailureRecorder::class)
     fun compensationFailureRecorder(commandGateway: CommandGateway): FailureRecorder {
         return CompensationFailureRecorder(commandGateway)
     }

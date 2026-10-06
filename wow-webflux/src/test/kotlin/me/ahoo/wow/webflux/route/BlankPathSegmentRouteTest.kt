@@ -72,7 +72,12 @@ class BlankPathSegmentRouteTest {
     }
     private val stateAggregateRepository = mockk<StateAggregateRepository>()
 
-    private val client: WebTestClient = run {
+    private val client: WebTestClient = client(globalErrors = true)
+
+    /** Without the global exception handler: only the route's own error mapping answers. */
+    private val routeOnlyClient: WebTestClient = client(globalErrors = false)
+
+    private fun client(globalErrors: Boolean): WebTestClient {
         val exceptionHandler = WebFluxRequestExceptionHandler()
         val factories = listOf(
             CommandHandlerFunctionFactory(
@@ -104,8 +109,12 @@ class BlankPathSegmentRouteTest {
                 val binding = materializer.materialize(it)
                 builder.route(binding.predicate, binding.handlerFunction)
             }
-        WebTestClient.bindToRouterFunction(builder.build())
-            .handlerStrategies(HandlerStrategies.builder().exceptionHandler(DefaultGlobalExceptionHandler()).build())
+        val strategies = HandlerStrategies.builder()
+        if (globalErrors) {
+            strategies.exceptionHandler(DefaultGlobalExceptionHandler())
+        }
+        return WebTestClient.bindToRouterFunction(builder.build())
+            .handlerStrategies(strategies.build())
             .build()
     }
 
@@ -141,7 +150,28 @@ class BlankPathSegmentRouteTest {
         method: String,
         path: String,
         variable: String
-    ) {
+    ) = assertRejected(client, method, path, variable)
+
+    /**
+     * The point-read handlers report an identity error as a signal, so the route's own error mapping answers it with
+     * `400 IllegalArgument` even without the global exception handler.
+     */
+    @ParameterizedTest(name = "{0} {1}")
+    @CsvSource(
+        "GET, /tenant/%20/owner/owner-a/sales-order/order-a/state, tenantId",
+        "GET, /owner/%20/cart/state/time/1, ownerId",
+        "GET, /tenant/tenant-a/owner/owner-a/sales-order/%20/snapshot, id",
+        "PUT, /tenant/%20/sales-order/order-a/snapshot, tenantId",
+        "GET, /tenant/%20/sales-order/order-a/event/1/2, tenantId",
+        "PUT, /tenant/%20/sales-order/order-a/1/compensate, tenantId",
+    )
+    fun `a point read reports an identity error through the route's error mapping`(
+        method: String,
+        path: String,
+        variable: String
+    ) = assertRejected(routeOnlyClient, method, path, variable)
+
+    private fun assertRejected(client: WebTestClient, method: String, path: String, variable: String) {
         val result = client.method(HttpMethod.valueOf(method)).uri(URI.create(path))
             .header(CommandComponent.Header.TENANT_ID, VICTIM)
             .header(CommandComponent.Header.OWNER_ID, VICTIM)

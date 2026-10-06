@@ -47,15 +47,16 @@ class RegenerateSnapshotHandlerFunction(
         snapshotStore = snapshotStore,
     )
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val id = request.pathVariable(MessageRecords.ID)
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-        return handler.handle(aggregateId)
-            .throwNotFoundIfEmpty()
-            .then()
-            .toServerResponse(request, exceptionHandler)
-    }
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
+        Mono.defer {
+            val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val id = request.pathVariable(MessageRecords.ID)
+            val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+            handler.handle(aggregateId)
+                .throwNotFoundIfEmpty()
+                .then()
+        }.toServerResponse(request, exceptionHandler)
 }
 
 class RegenerateSnapshotHandlerFunctionFactory(

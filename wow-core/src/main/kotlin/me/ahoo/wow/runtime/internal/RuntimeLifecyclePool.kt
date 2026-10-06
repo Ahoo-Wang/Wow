@@ -155,7 +155,13 @@ internal class RuntimeLifecycleLane(
         var task: Runnable? = first
         try {
             while (task != null) {
-                synchronized(monitor) { running.add(thread) }
+                synchronized(monitor) {
+                    running.add(thread)
+                    // Admitted before disposal, but its thread starts after it: disposal could not interrupt it.
+                    if (disposed) {
+                        thread.interrupt()
+                    }
+                }
                 try {
                     task.run()
                 } catch (error: Throwable) {

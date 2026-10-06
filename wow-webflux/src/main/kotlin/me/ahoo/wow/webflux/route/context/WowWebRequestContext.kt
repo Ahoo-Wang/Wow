@@ -17,7 +17,6 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.command.isSse
 import me.ahoo.wow.webflux.route.identity.identity
@@ -35,13 +34,14 @@ internal data class WowWebRequestContext(
             request: ServerRequest,
             aggregateMetadata: AggregateMetadata<*, *>
         ): WowWebRequestContext {
-            val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val identity = request.identity(aggregateMetadata)
+            val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
             val id = request.pathVariable(MessageRecords.ID)
             return WowWebRequestContext(
                 request = request,
                 aggregateMetadata = aggregateMetadata,
                 aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId),
-                requestId = request.headers().firstHeader(CommandComponent.Header.REQUEST_ID),
+                requestId = identity.requestId(),
                 sse = request.isSse()
             )
         }

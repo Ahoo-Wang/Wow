@@ -44,26 +44,27 @@ class LoadSnapshotHandlerFunction(
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val identity = request.identity(aggregateRouteMetadata)
-        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
-        val id = requireNotNull(identity.aggregateId())
-        val ownerId = identity.readOwnerId()
-        val selection = filter {
-            tenantId(tenantId)
-            id(id)
-            if (!ownerId.isNullOrBlank()) {
-                ownerId(ownerId)
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
+        Mono.defer {
+            val identity = request.identity(aggregateRouteMetadata)
+            val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+            val id = requireNotNull(identity.aggregateId())
+            val ownerId = identity.readOwnerId()
+            val selection = filter {
+                tenantId(tenantId)
+                id(id)
+                if (!ownerId.isNullOrBlank()) {
+                    ownerId(ownerId)
+                }
             }
-        }
-        val singleQuery = SingleQuery(MatchAllFilter)
-        return guard.of(snapshotQueryGateway).mono {
-            snapshotQueryGateway.dynamicSingle(singleQuery)
-        }
-            .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)
-            .throwNotFoundIfEmpty()
-            .toServerResponse(request, exceptionHandler)
-    }
+            val singleQuery = SingleQuery(MatchAllFilter)
+            guard.of(snapshotQueryGateway).mono {
+                snapshotQueryGateway.dynamicSingle(singleQuery)
+            }
+                .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)
+                .throwNotFoundIfEmpty()
+        }.toServerResponse(request, exceptionHandler)
 }
 
 class LoadSnapshotHandlerFunctionFactory(

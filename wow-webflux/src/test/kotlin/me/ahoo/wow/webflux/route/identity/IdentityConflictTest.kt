@@ -136,6 +136,52 @@ class IdentityConflictTest {
             .verify()
     }
 
+    /**
+     * On an aggregate owned by its ID the owner is derived from `{id}`; a blank body `@OwnerId` states no owner there,
+     * as in 9.2, where the blank was replaced with the aggregate ID.
+     */
+    @ParameterizedTest
+    @CsvSource("''", "' '")
+    fun `a blank body owner states no owner when the owner derives from the id`(blank: String) {
+        val request = MockServerRequest.builder().pathVariable(MessageRecords.ID, "cart-a").build()
+        extract(cartRoute, IdentityCommand(id = "cart-a", ownerId = blank), request)
+            .test()
+            .consumeNextWith {
+                it.aggregateId.id.assert().isEqualTo("cart-a")
+                it.ownerId.assert().isEqualTo("cart-a")
+            }
+            .verifyComplete()
+    }
+
+    /** A blank body owner still contradicts an owner the path states with `{ownerId}`. */
+    @Test
+    fun `a blank body owner contradicting the path owner is rejected`() {
+        extract(orderRoute, IdentityCommand(id = "order-a", ownerId = " "), orderRequest().build())
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalArgumentException::class.java)
+                    .hasMessage("Conflicting ownerId: the route fixes [owner-a], but the command body gives [ ].")
+            }
+            .verify()
+    }
+
+    /** A blank body `@TenantId` is a value: it contradicts `{tenantId}` and the static tenant. */
+    @Test
+    fun `a blank body tenant contradicting the path or static tenant is rejected`() {
+        extract(orderRoute, IdentityCommand(id = "order-a", tenantId = " "), orderRequest().build())
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalArgumentException::class.java)
+                    .hasMessage("Conflicting tenantId: the route fixes [tenant-a], but the command body gives [ ].")
+            }
+            .verify()
+        val cartRequest = MockServerRequest.builder().pathVariable(MessageRecords.ID, "cart-a").build()
+        extract(cartRoute, IdentityCommand(id = "cart-a", tenantId = " "), cartRequest)
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
+    }
+
     @Test
     fun `a body agreeing with the path is fine`() {
         extract(

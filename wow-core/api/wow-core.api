@@ -3772,17 +3772,14 @@ public final class me/ahoo/wow/messaging/transport/TransportFailurePolicy$Compan
 }
 
 public final class me/ahoo/wow/messaging/transport/TransportMessage {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()J
-	public final fun component5 ()Ljava/util/Map;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;)Lme/ahoo/wow/messaging/transport/TransportMessage;
-	public static synthetic fun copy$default (Lme/ahoo/wow/messaging/transport/TransportMessage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/messaging/transport/TransportMessage;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/messaging/transport/TransportMessage;
+	public static synthetic fun copy$default (Lme/ahoo/wow/messaging/transport/TransportMessage;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lme/ahoo/wow/messaging/transport/TransportMessage;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getPayload ()Ljava/lang/String;
 	public final fun getTimestamp ()J
@@ -3831,12 +3828,10 @@ public abstract interface class me/ahoo/wow/messaging/transport/TransportRecord 
 	public fun getKeyed ()Z
 	public abstract fun getPayload ()Ljava/lang/String;
 	public abstract fun getTopic ()Ljava/lang/String;
-	public fun nack ()Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/messaging/transport/TransportRecord$DefaultImpls {
 	public static fun getKeyed (Lme/ahoo/wow/messaging/transport/TransportRecord;)Z
-	public static fun nack (Lme/ahoo/wow/messaging/transport/TransportRecord;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/messaging/transport/TransportRecordMismatchException : java/lang/IllegalArgumentException {

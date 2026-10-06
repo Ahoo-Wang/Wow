@@ -107,6 +107,26 @@ class RuntimeLifecyclePoolTest {
         }
     }
 
+    /**
+     * A task the lane admitted before disposal but whose pool thread starts only after it: disposal found no running
+     * thread to interrupt, so the thread interrupts itself when it enters the task.
+     */
+    @Test
+    fun `a task whose thread starts after disposal runs interrupted`() {
+        val deferred = AtomicReference<Runnable>()
+        val lane = RuntimeLifecycleLane("test-lane", 1, 1) { deferred.set(it) }
+        val interrupted = AtomicBoolean()
+        lane.execute { interrupted.set(Thread.currentThread().isInterrupted) }
+
+        lane.dispose()
+        val worker = Thread(deferred.get())
+        worker.start()
+        worker.join(TimeUnit.SECONDS.toMillis(1))
+
+        interrupted.get().assert().isTrue()
+        worker.isInterrupted.assert().isFalse()
+    }
+
     @Test
     fun `disposal interrupts running tasks, drops queued ones and rejects later ones`() {
         val lane = RuntimeLifecyclePool("test-lifecycle", 1).lane("test-lane", 1, 1)

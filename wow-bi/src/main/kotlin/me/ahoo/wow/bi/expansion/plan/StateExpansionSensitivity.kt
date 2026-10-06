@@ -83,22 +83,43 @@ internal class StateExpansionSensitivity(private val session: StateExpansionPlan
         valueType = valueType,
     ).effectiveSensitivityLevel()
 
-    private fun ResolvedType.containsSensitive(visiting: MutableSet<String>): Boolean {
+    /**
+     * Whether a value of this type holds a sensitive property, at any depth. A type already being visited (a cycle)
+     * counts as not sensitive *there*, so an answer reached through such a cut may be incomplete until the walk is
+     * back at the type the cycle points to. Only "sensitive" answers, and answers whose cuts all point back to the
+     * type itself, are remembered; the others are worked out again where they are asked.
+     */
+    private fun ResolvedType.containsSensitive(visiting: MutableSet<String>): Boolean =
+        containsSensitive(visiting, mutableSetOf())
+
+    /** [cutTo] collects the types still being visited that the walk below this frame was cut short at. */
+    private fun ResolvedType.containsSensitive(visiting: MutableSet<String>, cutTo: MutableSet<String>): Boolean {
         val key = javaType.toCanonical()
         subtrees[key]?.let { return it }
-        if (!visiting.add(key)) return false
-        val sensitive = when {
-            javaType.isMapLikeType -> arguments.getOrNull(1)?.containsSensitive(visiting) ?: false
-            javaType.isCollectionLikeType || javaType.isArrayType ->
-                arguments.firstOrNull()?.containsSensitive(visiting) ?: false
-
-            rawClass.isPrimitive || rawClass.scalarMapping() != null || isUnsupportedPlatformObject(this) -> false
-            else -> runCatching { JsonPropertyTypeResolver.resolve(this) }.getOrDefault(emptyList()).any {
-                it.sensitivityLevel(it.serializedName) != null || it.type.containsSensitive(visiting)
-            }
+        if (!visiting.add(key)) {
+            cutTo += key
+            return false
         }
+        val own = mutableSetOf<String>()
+        val sensitive = childrenContainSensitive(visiting, own)
         visiting.remove(key)
-        subtrees[key] = sensitive
+        own -= key
+        if (sensitive || own.isEmpty()) {
+            subtrees[key] = sensitive
+        } else {
+            cutTo += own
+        }
         return sensitive
+    }
+
+    private fun ResolvedType.childrenContainSensitive(visiting: MutableSet<String>, cutTo: MutableSet<String>): Boolean = when {
+        javaType.isMapLikeType -> arguments.getOrNull(1)?.containsSensitive(visiting, cutTo) ?: false
+        javaType.isCollectionLikeType || javaType.isArrayType ->
+            arguments.firstOrNull()?.containsSensitive(visiting, cutTo) ?: false
+
+        rawClass.isPrimitive || rawClass.scalarMapping() != null || isUnsupportedPlatformObject(this) -> false
+        else -> runCatching { JsonPropertyTypeResolver.resolve(this) }.getOrDefault(emptyList()).any {
+            it.sensitivityLevel(it.serializedName) != null || it.type.containsSensitive(visiting, cutTo)
+        }
     }
 }

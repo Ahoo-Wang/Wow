@@ -52,7 +52,8 @@ interface Transport : AutoCloseable {
 
 /**
  * One outbound record. Records with one [key] stay in order; [timestamp] is the message's creation time in epoch
- * milliseconds. A backend writes what it supports: Kafka writes all of it, Redis Streams only [topic] and [payload].
+ * milliseconds. A backend writes what it supports: Kafka writes all of it (the record's partition is its key's),
+ * Redis Streams only [topic] and [payload].
  */
 @WowSpi
 data class TransportMessage(
@@ -60,13 +61,11 @@ data class TransportMessage(
     val key: String,
     val payload: String,
     val timestamp: Long,
-    val headers: Map<String, String> = emptyMap(),
 )
 
 /**
- * One received record. [ack] confirms it to the broker (Kafka offset commit, Redis `XACK`); [nack] gives it up
- * without confirming, so the broker's own redelivery applies (a Kafka offset that is never committed, a Redis entry
- * that stays pending).
+ * One received record. [ack] confirms it to the broker (Kafka offset commit, Redis `XACK`); a record never acknowledged
+ * is left to the broker's own redelivery (a Kafka offset that is never committed, a Redis entry that stays pending).
  */
 @WowSpi
 interface TransportRecord {
@@ -89,8 +88,6 @@ interface TransportRecord {
     val id: String
 
     fun ack(): Mono<Void>
-
-    fun nack(): Mono<Void> = Mono.empty()
 }
 
 /**

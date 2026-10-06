@@ -21,13 +21,13 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 /**
- * What a transport that implements only the required members gets: a keyed record whose negative acknowledgement
- * does nothing, a receiver that is ready at once and has nothing to open or close, and no runtime resource.
+ * What a transport that implements only the required members gets: a keyed record, a receiver that is ready at
+ * once and has nothing to open or close, and no runtime resource.
  */
 class TransportDefaultsTest {
 
     @Test
-    fun `a minimal record is keyed and its nack does nothing`() {
+    fun `a minimal record is keyed`() {
         val record = object : TransportRecord {
             override val topic: String = "topic"
             override val key: String = "key"
@@ -37,7 +37,6 @@ class TransportDefaultsTest {
         }
 
         record.keyed.assert().isTrue()
-        record.nack().test().verifyComplete()
     }
 
     @Test

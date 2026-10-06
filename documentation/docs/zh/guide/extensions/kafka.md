@@ -80,7 +80,7 @@ wow:
       - localhost:9092
 ```
 
-`wow.kafka.bootstrap-servers` 没有默认值。`enabled=true`、`topic-prefix=wow.`、`receiver.prefetch-batches=1`、`receiver.max-deferred-commits=500`、`receiver.retry-attempts=3`、`receiver.retry-backoff=10s`、`receiver.decode-failure-strategy=FAIL`。
+`wow.kafka.bootstrap-servers` 没有默认值。`enabled=true`、`topic-prefix=wow.`、`receiver.prefetch-batches=1`、`receiver.max-deferred-commits=500`、`receiver.retry-attempts=3`、`receiver.retry-backoff=10s`、`receiver.decode-failure-strategy=FAIL`。`close-timeout`（9.3.0 起）限定关闭 producer 时等待缓冲记录刷出的时长；未设置时取 `wow.shutdown-timeout`，因此关闭不会超出运行时的停机期限（Kafka 客户端自身会无限等待）。手动构建的 `KafkaTransport` 使用传入 `SenderOptions` 的 `closeTimeout`。
 
 ### 总线类型选择
 

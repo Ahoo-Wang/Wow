@@ -112,8 +112,14 @@ data class RouteIdentityBinding(
     fun tenantId(request: ServerRequest, body: String? = null): String? =
         resolve(IdentityFact.TENANT_ID, tenantId, request, body)
 
-    fun ownerId(request: ServerRequest, body: String? = null): String? =
-        resolve(IdentityFact.OWNER_ID, ownerId, request, body)
+    /**
+     * The owner. A blank [body] states no owner when the owner is [derived][FactBinding.derived] from `{id}` (as in
+     * 9.2, the command's owner is then its aggregate ID); against an owner the route states itself it is a conflict.
+     */
+    fun ownerId(request: ServerRequest, body: String? = null): String? {
+        val bodyOwner = if (ownerId.derived && body.isNullOrBlank()) null else body
+        return resolve(IdentityFact.OWNER_ID, ownerId, request, bodyOwner)
+    }
 
     /**
      * The owner a read filters by: [ownerId], except that an owner [derived][FactBinding.derived] from `{id}` is not

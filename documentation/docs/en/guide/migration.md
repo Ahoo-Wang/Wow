@@ -223,6 +223,9 @@ The starter fails startup when the context still holds such a bean (an `Exchange
 - The compensation module records event-processing failures as a `FailureRecorder` (`CompensationFailureRecorder`) instead of filters: `DomainEventCompensationFilter`, `StateEventCompensationFilter` and `EventCompensationFilter` are removed, and the `domainEventCompensationFilter` / `stateEventCompensationFilter` beans are replaced by `compensationFailureRecorder`. The commands it sends are byte-identical to 9.2. The record is now written after the wait notifier signals (see [Failure Recording](./event/dispatch.md#failure-recording)).
 - New `wow.event.ack-on-unrecorded-failure` (default `true`, unchanged behaviour): set `false` to leave a failure no recorder recorded unacknowledged for redelivery.
 - `DefaultDomainEventHandler`, `DefaultProjectionHandler`, `DefaultStatelessSagaHandler` and `DefaultSnapshotHandler` extend `FailureRecordingHandler` and take an optional `failureRecorder` (and, except the snapshot one, `ackOnUnrecordedFailure`).
+- An application `FailureRecorder` bean now replaces the compensation module's `compensationFailureRecorder` instead of sitting beside it.
+- The transport SPI drops two members no built-in used: `TransportMessage.headers` (Kafka never wrote them) and `TransportRecord.nack()` (nothing called it). Remove them from a custom transport; a record left unacknowledged is redelivered by the broker as before.
+- `KafkaProperties` takes `closeTimeout` (`wow.kafka.close-timeout`), and `buildSenderOptions(defaultCloseTimeout)` applies it, else the given default; the starter passes `wow.shutdown-timeout`. Code constructing `KafkaAutoConfiguration` by hand passes `WowProperties` too.
 
 ### Mongo Ownership Guard
 

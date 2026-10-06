@@ -941,7 +941,7 @@ public final class me/ahoo/wow/spring/boot/starter/kafka/ConditionalOnKafkaEnabl
 public class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration$Companion;
 	public static final field KAFKA_TRANSPORT_FAILURE_POLICY Ljava/lang/String;
-	public fun <init> (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties;)V
+	public fun <init> (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties;Lme/ahoo/wow/spring/boot/starter/WowProperties;)V
 	public fun defaultCommandTopicConverter ()Lme/ahoo/wow/kafka/CommandTopicConverter;
 	public fun defaultEventStreamTopicConverter ()Lme/ahoo/wow/kafka/EventStreamTopicConverter;
 	public fun kafkaCommandBus (Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)Lme/ahoo/wow/command/DistributedCommandBus;
@@ -963,12 +963,14 @@ public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration$
 public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties : me/ahoo/wow/api/naming/EnabledCapable {
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties$Companion;
 	public static final field PREFIX Ljava/lang/String;
-	public fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;)V
-	public synthetic fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;Ljava/time/Duration;)V
+	public synthetic fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun bootstrapServersToString ()Ljava/lang/String;
 	public final fun buildReceiverOptions ()Lreactor/kafka/receiver/ReceiverOptions;
-	public final fun buildSenderOptions ()Lreactor/kafka/sender/SenderOptions;
+	public final fun buildSenderOptions (Ljava/time/Duration;)Lreactor/kafka/sender/SenderOptions;
+	public static synthetic fun buildSenderOptions$default (Lme/ahoo/wow/spring/boot/starter/kafka/KafkaProperties;Ljava/time/Duration;ILjava/lang/Object;)Lreactor/kafka/sender/SenderOptions;
 	public final fun getBootstrapServers ()Ljava/util/List;
+	public final fun getCloseTimeout ()Ljava/time/Duration;
 	public final fun getConsumer ()Ljava/util/Map;
 	public fun getEnabled ()Z
 	public final fun getProducer ()Ljava/util/Map;
@@ -976,6 +978,7 @@ public final class me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties : me/ah
 	public final fun getReceiver ()Lme/ahoo/wow/spring/boot/starter/kafka/KafkaReceiverProperties;
 	public final fun getTopicPrefix ()Ljava/lang/String;
 	public final fun setBootstrapServers (Ljava/util/List;)V
+	public final fun setCloseTimeout (Ljava/time/Duration;)V
 	public final fun setConsumer (Ljava/util/Map;)V
 	public fun setEnabled (Z)V
 	public final fun setProducer (Ljava/util/Map;)V

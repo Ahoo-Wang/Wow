@@ -156,6 +156,14 @@
           "commands" : [ ],
           "events" : [ ]
         },
+        "cyclic-sensitive" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.CyclicSensitiveAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
         "opaque-root" : {
           "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
           "type" : "me.ahoo.wow.bi.expansion.plan.OpaqueRootAggregate",
