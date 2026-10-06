@@ -2271,8 +2271,15 @@ public abstract interface class me/ahoo/wow/exception/RecoverableExceptionProvid
 }
 
 public abstract interface class me/ahoo/wow/exception/RecoverableExceptionRegistrar {
+	public static final field Companion Lme/ahoo/wow/exception/RecoverableExceptionRegistrar$Companion;
 	public abstract fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
 	public abstract fun unregister (Ljava/lang/Class;)V
+}
+
+public final class me/ahoo/wow/exception/RecoverableExceptionRegistrar$Companion {
+	public final fun getRecoverableType (Ljava/lang/Class;)Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun register (Ljava/lang/Class;Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public final fun unregister (Ljava/lang/Class;)V
 }
 
 public final class me/ahoo/wow/exception/RecoverableExceptionRegistry : me/ahoo/wow/exception/RecoverableExceptionRegistrar {
@@ -3228,6 +3235,10 @@ public abstract interface class me/ahoo/wow/messaging/MessageBus : java/lang/Aut
 
 public final class me/ahoo/wow/messaging/MessageBus$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/messaging/MessageBus;)V
+}
+
+public final class me/ahoo/wow/messaging/MessageBusKt {
+	public static final fun receive (Lme/ahoo/wow/messaging/MessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/messaging/MessageReceiver {

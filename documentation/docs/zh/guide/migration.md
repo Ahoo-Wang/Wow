@@ -140,19 +140,31 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ### 移除兼容垫片（9.3.0）
 
-9.3.0 删除了只为让旧字节码或 9.2 扩展代码继续链接而保留的声明。基于 9.2 及更早版本构建的库须先重新编译再升级；已经没有弃用警告的源码无需改动。
+9.3.0 删除了只为让旧字节码或 9.2 扩展代码继续链接而保留的声明。基于 9.2 及更早版本构建的库须先重新编译再升级；用到下表所列 API 的源码必须迁移。
 
 | 已删除 | 改用 |
 |---|---|
-| `MessageBus.receive(subscription)` | `receiver(subscription).openedMessages()`；总线实现 `receiver`，它现在是抽象方法 |
+| 在总线中覆盖 `MessageBus.receive(subscription)` | 实现 `receiver(subscription)`，它现在是抽象方法 |
 | `MessageBus.runtimeReceiver(subscription)` | `receiver(subscription.copy(runtimeOwned = true))` |
 | 不带 `runtimeOwned` 的 `MessageSubscription` 构造函数与 `copy`（仅 JVM） | 带 `runtimeOwned` 的构造函数与 `copy`（默认 `false`） |
 | 不带 `retentionOptions` 的 Redis 总线构造函数（仅 JVM） | 主构造函数（`retentionOptions` 默认 `RedisStreamRetentionOptions.DEFAULT`） |
 | `BindingError`、`AggregationGroup.Terms`、`AggregationGroup.Histogram` 的 9.1 构造函数（仅 JVM） | 主构造函数 |
-| `ServerRequest.getTenantId`、`getTenantIdOrDefault`、`getOwnerId`、`getSpaceId`、`getAggregateId`（全部重载） | `DefaultCommandBuilderExtractor` / `DefaultQueryRequestScope`，或 `RouteIdentity.of(request).binding(…)` |
 | `CoSecCommandBuilderExtractor`、`CoSecQueryRequestScope` | 由 `CoSecAutoConfiguration` 注册的 `CoSecIdentityHeaders.ALIASES` |
 | `Flux<AggregateId>.toBatchResult(afterId)`、`ResendStateEventHandler.handle(afterId, limit)` | `toBatchResult(afterId, request, exceptionHandler)`、`resend(afterId, limit)` |
 | 非 bean 的 `WebFluxAutoConfiguration.commandMessageExtractor`、`queryRequestScope`、`commandRouterFunction`、`pointReadAdmission` 重载，`CoSecAutoConfiguration.coSecCommandBuilderExtractor` / `coSecQueryRequestScope`，三参数的 `OpenAPIAutoConfiguration.routerSpecs` | 同名的 `@Bean` 方法 |
+
+下列面向应用的调用在 9.3 中仍可编译，但已弃用，10.0.0 删除：
+
+| 已弃用 | 改用 |
+|---|---|
+| 调用 `bus.receive(subscription)`（现在是扩展函数，不再是 `MessageBus` 成员） | `receiver(subscription).openedMessages()` |
+| `ServerRequest.getTenantId(aggregateMetadata)`、`getTenantIdOrDefault(aggregateMetadata)` | `identity(aggregateMetadata).tenantId()`（`?: TenantId.DEFAULT_TENANT_ID`） |
+| `ServerRequest.getOwnerId()` | `identity(aggregateMetadata).ownerId()` |
+| `ServerRequest.getSpaceId()`、`getSpaceId(aggregateRouteMetadata)` | `identity(aggregateMetadata).spaceId()`（非空间化聚合为 `null`） |
+| `ServerRequest.getAggregateId()` 及其 `OwnerPolicy` / `AggregateRoute.Owner` 重载 | `identity(aggregateMetadata).aggregateId()`（按聚合的所有者策略） |
+| `RecoverableExceptionRegistrar.register`、`unregister`、`getRecoverableType`（静态调用） | `RecoverableExceptionRegistry.DEFAULT` 的同名方法，或 `RecoverableExceptionProvider` |
+
+`identity(…)` 即 `me.ahoo.wow.webflux.route.identity.identity`；它返回的 `RequestIdentity` 按路由的规则读取每个身份字段（含请求头别名），与内置命令、查询处理器完全一致。
 
 ### 命令过滤器改为固定管道（9.3.0）
 

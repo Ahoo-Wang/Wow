@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.handler.MessageExchange
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -53,6 +54,22 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
      */
     fun receiver(subscription: MessageSubscription): MessageReceiver<E>
 }
+
+/**
+ * The messages of [subscription] as a plain stream: the [receiver][MessageBus.receiver]'s messages with processing
+ * opened on subscription, so a transport that gates consumption on [MessageReceiver.openProcessing] reads at once.
+ *
+ * It was a `MessageBus` member before 9.3.0. It is an extension now, so a bus implements only
+ * [receiver][MessageBus.receiver] and the two entries can no longer default onto each other.
+ */
+// compat(wow<9.3): the 9.2 receive entry, kept for one deprecation cycle; see docs/compat-debt.md.
+@Deprecated(
+    "Scheduled for removal in 10.0.0. Use receiver(subscription), the single receive entry.",
+    ReplaceWith("receiver(subscription).openedMessages()"),
+)
+fun <M : Message<*, *>, E : MessageExchange<*, M>> MessageBus<M, E>.receive(
+    subscription: MessageSubscription
+): Flux<E> = receiver(subscription).openedMessages()
 
 /**
  * A local message bus that operates within a single JVM instance.
