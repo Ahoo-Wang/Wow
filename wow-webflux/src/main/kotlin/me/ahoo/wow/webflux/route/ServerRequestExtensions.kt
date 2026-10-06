@@ -20,6 +20,8 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.server.NotAcceptableStatusException
 import org.springframework.web.server.ServerWebInputException
 import reactor.core.publisher.Mono
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.exc.InvalidDefinitionException
 
 private val STREAMING_RESPONSE_MEDIA_TYPES = listOf(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
 
@@ -67,11 +69,25 @@ fun ServerRequest.preferredResponseMediaType(supportedMediaTypes: List<MediaType
         ?: throw NotAcceptableStatusException(supportedMediaTypes)
 }
 
+/**
+ * Maps a failure to read the request body as the route's type to `400` ([ServerWebInputException]).
+ *
+ * Spring's decoder reports such a failure as a [DecodingException]. A route that binds the body itself, after reading
+ * it as a JSON tree (a command route with path or header variables, the command facade), gets Jackson's exception
+ * instead; it is wrapped as the decoder wraps it, so the client sees the same error on both kinds of route. An
+ * [InvalidDefinitionException] is the server's (the type cannot be bound at all) and stays unmapped, as in the decoder.
+ */
 @InternalWowApi
 fun <T : Any> Mono<T>.mapRequestBodyDecodingException(): Mono<T> =
-    onErrorMap(DecodingException::class.java) {
-        ServerWebInputException("Failed to read HTTP message", null, it)
+    onErrorMap({ it is DecodingException || it.isRequestBindingFailure() }) {
+        ServerWebInputException("Failed to read HTTP message", null, it.asDecodingException())
     }
+
+private fun Throwable.isRequestBindingFailure(): Boolean =
+    this is JacksonException && this !is InvalidDefinitionException
+
+private fun Throwable.asDecodingException(): Throwable =
+    if (this is JacksonException) DecodingException("JSON decoding error: $originalMessage", this) else this
 
 private fun MediaType.accepts(responseMediaType: MediaType): Boolean =
     isCompatibleWith(responseMediaType) ||

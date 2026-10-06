@@ -98,6 +98,15 @@ class CommandFacadeAdmissionTest {
             .expectStatus().isOk
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = ["""{"id":"mock-1"}""", """{"id":"mock-1","data":{"nested":true}}"""])
+    fun `a body that does not bind to the command is a 400`(body: String) {
+        client(SagaVerifier.defaultCommandGateway())
+            .send(MockCreateAggregate::class.java.name, body)
+            .expectStatus().isBadRequest
+            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+    }
+
     @Test
     fun `a class that is not a registered command is never loaded`() {
         val response = client().send(FacadeClassLoadProbe::class.java.name)
