@@ -61,8 +61,9 @@ interface CommandHandler {
  * 4. The aggregate processes the command through an [AggregateProcessorFactory] processor. The transport message is
  *    acknowledged whatever the outcome; a failure skips the publication.
  * 5. The domain event stream the command committed is sent on [domainEventBus]; a failure propagates.
- * 6. When the state applied that stream (its version is the stream's), the state event is sent on [stateEventBus]; a
- *    failure is logged and resumed.
+ * 6. The state event is sent on [stateEventBus]; a failure is logged and resumed. A stored stream is always applied
+ *    (the kernel applies before it appends), so the check that the state's version is the stream's is only
+ *    defensive.
  *
  * A failure that reaches the end is recorded on the exchange and given to [errorHandler]. A `null` bus or notifier
  * skips its step; the Spring wiring passes all of them.
@@ -146,7 +147,7 @@ class DefaultCommandHandler(
             log.warn { "No state to send a state event for DomainEventStream[${eventStream.id}]." }
             return Mono.empty()
         }
-        // A state that failed to apply the stream stays at its previous version and is not published (B9).
+        // Defensive only: the kernel applies a stream before appending it, so a stored stream is always applied.
         if (!state.initialized || state.version != eventStream.version) {
             return Mono.empty()
         }

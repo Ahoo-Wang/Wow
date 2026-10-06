@@ -150,23 +150,33 @@ internal class RetryableAggregateProcessor<C : Any, S : Any>(
         return loadCommandAggregate(exchange)
             .map { Optional.ofNullable(it as? SimpleCommandAggregate<C, *>) }
             .onErrorResume { loadError ->
-                if (loadError !== failure) {
-                    failure.addSuppressed(loadError)
-                }
-                exchange.setError(failure)
-                log.error(failure) {
-                    "@OnError skipped: committed state could not be loaded for $aggregateId after command " +
-                        "[${exchange.message.id}] failed."
-                }
-                Mono.just(Optional.empty())
+                skipErrorFunction(exchange, failure, loadError)
+                Mono.error(finalError)
             }
             .flatMap { reloaded ->
                 if (reloaded.isPresent) {
-                    runErrorFunction(reloaded.get(), exchange, failure, finalError)
-                } else {
-                    Mono.error(finalError)
+                    return@flatMap runErrorFunction(reloaded.get(), exchange, failure, finalError)
                 }
+                // Loaded, but by a custom CommandAggregateFactory: no `@OnError` can run on it.
+                skipErrorFunction(
+                    exchange,
+                    failure,
+                    IllegalStateException("The reloaded aggregate is not a SimpleCommandAggregate.")
+                )
+                Mono.error(finalError)
             }
+    }
+
+    /** `@OnError` cannot run on committed state: record the original error and say so at ERROR. */
+    private fun skipErrorFunction(exchange: ServerCommandExchange<*>, failure: Throwable, cause: Throwable) {
+        if (cause !== failure) {
+            failure.addSuppressed(cause)
+        }
+        exchange.setError(failure)
+        log.error(failure) {
+            "@OnError skipped: committed state could not be loaded for $aggregateId after command " +
+                "[${exchange.message.id}] failed."
+        }
     }
 
     private fun runErrorFunction(

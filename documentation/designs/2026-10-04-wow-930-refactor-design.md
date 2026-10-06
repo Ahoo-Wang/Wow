@@ -125,14 +125,14 @@ wow-compiler       只依赖元数据模型，生成结果可复现
 | WP | 内容 | 兼容类别 | 证明 | 规模 |
 |---|---|---|---|---|
 | K1 | **编译一次**：启动时构建 `AggregateModel`（命令表含父类型与接口匹配、共享溯源表、after 列表、预解析的注入参数）；调用器无状态，接收者作为参数；重复处理器打 WARN（V7） | 内部（T1 之后） | 聚合与 TCK 测试；空结果语义的特征测试；JMH 每命令分配量必须下降 | L |
-| K2 | **内核顺序**：决定 → 追加 → 应用（B9）；用户溯源函数执行完再推进版本；失败的状态实例丢弃；删除 `CommandFilter`（V5，发布说明给出到新扩展点的映射）；测试 DSL 驱动同一个内核（V6，发布说明逐条列出断言差异） | 内部 + API 破坏（V5、V6） | B9 特征测试；TCK `CommandDispatcherSpec`；wow-test 自身测试 | L |
+| K2 | **内核顺序**：决定 → 应用 → 追加，三者原子（B9，2026-10-06 用户决定，见 §8 Q14）；用户溯源函数执行完再推进版本；失败的状态实例丢弃；删除 `CommandFilter`（V5，发布说明给出到新扩展点的映射）；测试 DSL 驱动同一个内核（V6，发布说明逐条列出断言差异） | 内部 + API 破坏（V5、V6） | B9 特征测试；TCK `CommandDispatcherSpec`；wow-test 自身测试 | L |
 | K3 | **准入与网关**：网关只做门面；准入一条链（校验 → 去重 → 等待登记）；消息头在构建时写完、之后不再修改；一套截止时间实现；SENT 信号只在一处发出；等待信号在锁外发出（B23）；等待头只传播到发起链路（B6，存储内容按 §8 Q6）；请求头传播与可恢复异常注册改为注入的 bean，ServiceLoader 作为默认贡献者，系统属性改为配置 | 内部（请求头键集合由 G1 黄金样本锁定） | 等待测试、SSE 黄金测试、请求头键集合测试 | L |
 
 ### 第 5 阶段：传输与执行
 
 | WP | 内容 | 兼容类别 | 证明 | 规模 |
 |---|---|---|---|---|
-| X1 | **Transport SPI**：Kafka、Redis、内存实现 `Transport`；通用 `TransportMessageBus` 负责编解码、校验、就绪、交换；现有 `Kafka*Bus`/`Redis*Bus` 保留为薄门面（构造器不变），各自的交换类合并为核心的 `TransportExchange`；主题名按聚合缓存；Kafka 发送去掉关联 sink | 内部 + API 弃用（交换类） | `MessageBusSpec` 等在三种实现上运行；混部测试（G1）：同主题、同键、同 JSON、同消费组 | L |
+| X1 | **Transport SPI**：Kafka、Redis、内存实现 `Transport`；通用 `TransportMessageBus` 负责编解码、校验、就绪、交换；现有 `Kafka*Bus`/`Redis*Bus` 保留为薄门面（构造器除解码处理器外不变），各自的交换类合并为核心的 `Transport*Exchange`；主题名按（限界上下文, 聚合名）缓存；Kafka 发送去掉关联 sink | 内部 + API 破坏（总线基类、交换类与 Kafka 解码处理器属于扩展点 SPI，按 9.3 规则直接删除，不经弃用；迁移指南给出逐项替换） | `MessageBusSpec` 等在三种实现上运行；混部测试（G1）：同主题、同键、同 JSON、同消费组 | L |
 | X2 | **失败策略统一**：`TransportFailurePolicy` 在核心定义一次接收重试（解码失败策略已由 X1 的 `TransportDecodeFailureHandler` 统一），Redis 获得与 Kafka 相同的默认重试；Redis、Kafka 注册各自的可恢复异常；删除未使用的 `retryStrategy`（直接删除，不弃用）；`FailureRecorder` + `ProcessingOutcome`：失败既未处理也未记录时可选择不确认（默认行为见 §8 Q7），补偿模块改为实现记录器，不再按类名排序过滤器 | 行为变化（Redis、Kafka 的瞬时故障会重试）+ API 新增 | 暂停 Redis 容器 5 秒，分发器存活；补偿命令的线上载荷与 9.2 逐字节一致 | M |
 | X3 | **生命周期**：批量写入器、Kafka 发送器以 `RuntimeComponent` 纳入运行时，在同一个 `shutdownTimeout` 内于分发器之后停止；5 个生命周期线程池并为 2 个，全部归 `RuntimeExecutionResources` | 内部 | `WowRuntimeTest`（时限）、批量关闭测试、Spring 关停测试 | M |
 | X4 | **热路径**：计量器缓存（名称与标签不变）；以 G2 的数据为准，再决定是否去掉双重原子守卫、属性表逐函数复制等 | 内部 | 计量器快照测试；G2 前后对比 | M |
@@ -167,7 +167,16 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 
 ### 文档与发布
 
-每个 WP 在同一个 PR 里更新受影响的文档（中英文）。第 6 阶段之后：9.3.0 发布说明（Breaking：T1、T2、K2 的 V5/V6、Q1 依赖变化；Behaviour changes：S1–S3、I2 的 V3、X2、X5、E1、E2）、迁移指南（`@AggregateRoute.spaced/owner` → 新声明、`CommandFilter` → 新扩展点、BI 依赖）、compat-debt 新条目，然后按发布手册走 `9.3.0-rc.0` → 补偿控制台端到端验证 → `9.3.0`。
+每个 WP 在同一个 PR 里更新受影响的文档（中英文）。
+
+9.3.0 发布说明还须写进（整体评审第 1 轮，2026-10-06）：
+
+- **Fixes**：用原请求 ID 重发的创建命令在请求 ID 窗口之外也返回 `DuplicateRequestId`（9.2 返回 `DuplicateAggregateId`，属缺陷；HTTP 400 不变；混部集群在全部升级前两种错误码都可能出现，§8 Q16）。
+- **Behaviour changes**：失败追加的 `CommandResult.aggregateVersion` 是已提交的版本 N（9.2 为未持久化的 N+1，§8 Q20）；`@OnError` 总是看到已提交的状态（§8 Q15）；Saga 返回的 `CommandMessage` 的默认请求 ID 带上 producer（§8 Q17）。
+- **Breaking**：webflux 路由处理函数外面多了一层 `RouteIdentityHandlerFunction` 包装（按 `HandlerFunction` 类型判断具体处理器的代码受影响）；apiclient 的网关接口新增抽象方法 `send(URI, Map, Any)`，手写实现须补上（CoApi 生成的代理不受影响）。
+- **E5（#3949）**：生成代码上的 `@Generated` 不再带日期（重复构建产物逐字节一致）；wow-compiler 的 POM 不再传递依赖 wow-core，原来经由它拿到 wow-core 的工程须自己声明。
+
+第 6 阶段之后：9.3.0 发布说明（Breaking：T1、T2、K2 的 V5/V6、Q1 依赖变化；Behaviour changes：S1–S3、I2 的 V3、X2、X5、E1、E2）、迁移指南（`@AggregateRoute.spaced/owner` → 新声明、`CommandFilter` → 新扩展点、BI 依赖）、compat-debt 新条目，然后按发布手册走 `9.3.0-rc.0` → 补偿控制台端到端验证 → `9.3.0`。
 
 ## 6. 不做什么
 
@@ -209,6 +218,18 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 | Q11 | Q1：需要 BI 脚本路由的 HTTP 应用改为自己加 `wow-bi`；Q3：BI 遵守 `@Sensitive` | 前者**同意**（REST 行为在加上依赖后不变，发布说明写清）。后者**加开关、默认关闭**，生成的建表语句默认不变 |
 | Q12 | 两处模块边界：KSP 改依赖一个只有元数据模型的小模块（同包名，wow-core `api` 依赖它，不破坏 ABI）；路由契约拆出 wow-openapi | 前者**新增 `wow-metadata` 模块**。后者**不拆**，先在 wow-openapi 内分 contract/render 两层（E3），等有数据再说 |
 | Q13 | SPI 的标注方式 | 全仓统一两个标注：`@InternalWowApi`（已有，错误级 opt-in）标内部；新增 `@WowSpi`（警告级 opt-in）标供后端、传输实现者使用的 SPI |
+
+2026-10-06 整体评审第 1 轮，用户决定：
+
+| # | 问题 | 决定 |
+|---|---|---|
+| Q14 | 命令内核的顺序 | **决定 → 应用 → 追加，三者是一个原子单元**（「soucing 完成后才可以落库」）：已持久化的事件总能加载；内存状态绝不偏离存储。溯源或追加失败时命令失败，不存储、不发布、不发 `StateEvent`，版本停在 N；应用了未存储事件的实例丢弃，绝不复用。取代 K2 原先的「决定 → 追加 → 应用」（#3982） |
+| Q15 | 失败命令的 `@OnError` 看到什么状态 | **重新加载的已提交状态**（创建命令由工厂新建聚合）：失败路径上（实例应用了未存储的事件、且命令有 `@OnError` 时）重新加载聚合，在其上执行 `@OnError`；重新加载也失败时跳过 `@OnError`，返回原始错误，加载错误作为 suppressed 附上并记 ERROR。成功路径不变（#3982） |
+| Q16 | 重发的创建命令的错误码 | **任何情况下都是 `DuplicateRequestId`**：这个请求是重放，9.2 在请求 ID 窗口外返回的 `DuplicateAggregateId` 是缺陷。不回退；HTTP 400 不变；作为 Fix 写进发布说明（#3982） |
+| Q17 | Saga 返回的 `CommandMessage` 的默认请求 ID | **带上 producer**：`<事件 ID>-<序号>-<producer 哈希>`，两个 Saga 对同一事件不再共用请求 ID。命令体与 `CommandBuilder` 路径与 9.2 逐字节一致（混部），其已有的冲突写进 saga.md（#3982） |
+| Q18 | X5 本地优先的取消竞态 | **方案 ③**：分布式副本等待真正的本地决定再发送，不重复、不丢失。随 #3976 落地（#3976 合并前 main 尚无此行为） |
+| Q19 | X5 跨主题/总线的顺序 | **不保证跨主题或跨总线的顺序**，只写进文档（#3976） |
+| Q20 | 兼容边界：失败追加的 `CommandResult.aggregateVersion` | **接受**：报告命令做决定时的已提交版本 N（9.2 报告未持久化的 N+1）；`@OnError` 重新加载的状态在版本冲突时可能更新（N+k）。REST 可见，写进发布说明的 Behaviour changes |
 
 ## 9. 与已有设计的关系
 

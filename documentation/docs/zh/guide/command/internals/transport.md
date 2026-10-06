@@ -31,7 +31,7 @@ flowchart TB
 
 ## 传输 SPI
 
-自 9.3.0 起，每个分布式总线都是建在 `Transport`（`me.ahoo.wow.messaging.transport`，`@WowSpi`）之上的 `TransportMessageBus`。传输只搬运字符串：`send(TransportMessage)` 发布主题、键、载荷和时间戳，`open(group, topics)` 返回带记录、就绪信号、处理准入与关闭的 `TransportReceiver`。其余工作由 `TransportMessageBus` 为所有后端统一完成：主题命名（按聚合缓存）、JSON 编码、解码、键与主题校验、解码失败策略（`TransportDecodeFailureHandler`），以及每种消息一个交换类型（`TransportServerCommandExchange`、`TransportEventStreamExchange`、`TransportStateEventExchange`）。`TransportCommandBus`、`TransportDomainEventBus`、`TransportStateEventBus` 是三种总线；内置传输有 `KafkaTransport`、`RedisStreamTransport` 和 `InMemoryTransport`。Kafka 与 Redis 总线就是这些总线加上各自的传输，所以主题、键、JSON 与消费组都与 9.2 相同。
+自 9.3.0 起，每个分布式总线都是建在 `Transport`（`me.ahoo.wow.messaging.transport`，`@WowSpi`）之上的 `TransportMessageBus`。传输只搬运字符串：`send(TransportMessage)` 发布主题、键、载荷和时间戳，`open(group, topics)` 返回带记录、就绪信号、处理准入与关闭的 `TransportReceiver`。其余工作由 `TransportMessageBus` 为所有后端统一完成：主题命名（按限界上下文与聚合名缓存）、JSON 编码、解码、键与主题校验、解码失败策略（`TransportDecodeFailureHandler`），以及每种消息一个交换类型（`TransportServerCommandExchange`、`TransportEventStreamExchange`、`TransportStateEventExchange`）。`TransportCommandBus`、`TransportDomainEventBus`、`TransportStateEventBus` 是三种总线；内置传输有 `KafkaTransport`、`RedisStreamTransport` 和 `InMemoryTransport`。Kafka 与 Redis 总线就是这些总线加上各自的传输，所以主题、键、JSON 与消费组都与 9.2 相同。
 
 `LocalCommandBus` 额外暴露订阅者数量和 `sendIfSubscribed`。后者只有在目标本地 receiver 已取得处理准入并确认本次投递仍有效时才能返回 `true`；sink 接受或订阅数本身不够。`DistributedCommandBus` 保留同一发送/接收合同，由后端定义持久化、消费组和 ack 机制。
 

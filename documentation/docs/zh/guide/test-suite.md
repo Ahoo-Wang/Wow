@@ -78,6 +78,9 @@ import me.ahoo.test.asserts.assert
 | 下一步的状态 | 上一步的同一个实例 | 从存储加载（新实例） |
 | 溯源函数无法应用事件 | 命令失败 | 与生产环境一样命令失败、什么都不存储；这一步报告已存储的状态 |
 | `givenState` | 给定的对象直接执行命令 | 从快照加载的副本执行；给定的对象不变 |
+| 失败的命令（例如追加冲突） | `domainEventStream` 是命令产出的事件流 | `domainEventStream` 为 `null`：什么都没有提交 |
+| `givenState` 后不带所有者的 `whenCommand` | 命令没有所有者 | 命令取该阶段的 `givenOwnerId`，与给定事件之后相同 |
+| 传给 `aggregateVerifier` 的自定义 `eventStore` | 只看到命令的追加 | 还会看到给定事件的 `last` 与 `append`，以及 DSL 每次重新加载状态时的 `load` |
 
 ## 聚合规格：事件与状态一起断言
 

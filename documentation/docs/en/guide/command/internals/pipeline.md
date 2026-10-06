@@ -82,9 +82,7 @@ The outer steps wrap the inner ones, so they observe completion or failure of th
 
 ## Decide, apply, then append
 
-Decide, apply, append — atomic; persisted events are always loadable; in-memory state never diverges from the store (since 9.3.0).
-
-The command function only reads the state. Its event stream is applied to the state, then appended:
+The command function only reads the state. Its event stream is applied to the state, then appended, as one atomic unit (since 9.3.0): persisted events are always loadable, and in-memory state never diverges from the store.
 
 ```text
 invoke command (reads state)
@@ -98,7 +96,7 @@ invoke command (reads state)
 - **An append failure** (a version conflict, a duplicate request ID, a store error) fails the command: nothing is published and no `StateEvent` is sent.
 - After either failure the state instance may hold events the store does not, so it is discarded: it never takes another command. Each attempt, retries included, loads its own aggregate, and the test DSL reloads the state from its stores after every step, so no later command or reader sees it.
 - `@OnError` always sees committed state. When the failed attempt applied events that were not stored, `@OnError` runs on the aggregate loaded again (only then, and only when the command has an `@OnError` function; a create gets a new aggregate from the state factory instead of a store load). The exchange never keeps the discarded aggregate, so the command error handler, a `CommandInstrumentation` and the test DSL do not see its state either. When that load fails too, `@OnError` is skipped, the original error is reported with the load failure attached as suppressed, and the skip is logged at ERROR. A hand-built processor that calls `CommandAggregate.process` directly runs `@OnError` on the discarded instance instead.
-- The exchange's aggregate version, and so the wait signal and `CommandResult`, become the stream's version only once the append succeeded; a failed command reports the committed version.
+- The exchange's aggregate version, and so the wait signal and `CommandResult`, become the stream's version only once the append succeeded; a failed command reports the version it was decided on (N). `@OnError` sees the committed state as loaded again, which after a version conflict is the store's newer version, not N.
 - `StateAggregate.onSourcing` advances the version, event ID, operator, event time and the system metadata (owner, space, deleted, tags) only after every sourcing function of the stream ran; a `VersionAware` state gets the new version at that point too. When a sourcing function throws, all of them stay at the previous version.
 
 See [Event Sourcing](../../domain/event-sourcing.md) for the history and recovery contract.

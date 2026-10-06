@@ -54,6 +54,10 @@ flowchart TB
 
 处理节点只有在自己的布隆过滤器见过该 request ID 时才查询 `EventStore`，因此只在过滤器的窗口内能不执行处理函数就拒绝重发。重启、消费者再平衡、过滤器按 TTL 轮换之后，或重发落到另一个节点（包括本地优先）时，过滤器没见过它：处理函数会再次执行，由 `EventStore` 追加拒绝重复，与 9.2 相同。每个处理节点按聚合类型各有一个布隆过滤器，按 `wow.command.idempotency.*` 构建（自定义的 `AggregateIdempotencyCheckerProvider` Bean 只替换网关的那个），所以既做网关又做处理的单体应用每个聚合类型有两个过滤器。布隆命中时，没有 request ID 索引的存储会扫描该聚合的事件流来回答。
 
+因此在只做网关的服务上只等待 `SENT` 的调用方，会看到重发的命令成功（自 9.3.0 起）：网关把它发出，拒绝发生在之后的处理节点上。要看到 `DuplicateRequestId`，请等待 `PROCESSED`。
+
+处理节点的检查由 Spring Starter 接入。在 Spring 之外，只有给 `DefaultCommandHandler` 传入 `RequestIdChecker` 时才会执行；没有传入时，该节点在处理函数之前没有检查，唯一的重复检查是 `EventStore` 追加。
+
 滚动升级时，先升级处理节点，再升级只做网关的服务：9.3 的网关服务会放行布隆命中，而 9.2 的处理节点不在处理函数之前检查 request ID，重复命令会再次执行处理函数，直到追加时被拒绝。
 
 有两类命令在事件存储里留不下可查的记录：

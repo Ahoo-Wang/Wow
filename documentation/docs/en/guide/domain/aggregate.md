@@ -71,7 +71,7 @@ In a hierarchy the nearest class that declares a policy decides, so `@Spaced(fal
 The application fails at startup, naming the aggregate (and, for two resources, both resource URLs), and the Wow KSP processor fails the compilation with the aggregate named in the error. Two cases that booted on 9.2 stop:
 
 - an api module whose `@BoundedContext.Aggregate(tenantId = "a")` and a domain module whose aggregate carries `@StaticTenantId("b")`: the startup fails;
-- a bare `@StaticTenantId` (the default tenant) on an aggregate whose bounded context in the same module names another tenant: the compilation fails. The processor also records a non-default policy in the generated `META-INF/wow-metadata.json` (`"spaced": true`, `"owner": "ALWAYS"`); 9.2 nodes ignore these fields and `GET /wow/metadata` does not return them.
+- a bare `@StaticTenantId` (the default tenant) on an aggregate whose bounded context in the same module names another tenant: the compilation fails. The processor also records a non-default policy in the generated `META-INF/wow-metadata.json` (`"spaced": true`, `"owner": "ALWAYS"`); 9.2 nodes ignore these fields and `GET /wow/metadata` does not return them. They are informational: the runtime reads the policies from the annotations, so editing these keys changes nothing.
 
 ### Migrating from `@AggregateRoute(spaced, owner)`
 

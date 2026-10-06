@@ -195,7 +195,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 ### 请求头传播与可恢复异常改为 Bean（9.3.0）
 
 - `MessagePropagatorProvider` 已删除。改用注入的 `MessagePropagators`（Spring Bean，Spring 之外用 `MessagePropagators.DEFAULT`）；`import ...MessagePropagatorProvider.propagate` 改为 `import me.ahoo.wow.messaging.propagation.propagate`。`MessagePropagator` 现在也可以是 Bean；同一类的 Bean 优先于 ServiceLoader 的实现，排序按 Wow 的 `@Order`（不是 Spring 的）。
-- `RecoverableExceptionRegistrar` 现在是 `RecoverableExceptionProvider` 注册时使用的接口，静态对象已删除。改用 `RecoverableExceptionRegistry.DEFAULT` 或 `recoverableExceptionRegistry` Bean（`register`、`unregister`、`getRecoverableType`）。`RecoverableExceptionProvider` 现在也可以是 Bean。
+- `RecoverableExceptionRegistrar` 现在是 `RecoverableExceptionProvider` 注册时使用的接口，9.2 的静态调用作为已弃用的伴生对象函数保留（见上面的弃用表）。改用 `RecoverableExceptionRegistry.DEFAULT` 或 `recoverableExceptionRegistry` Bean（`register`、`unregister`、`getRecoverableType`）。`RecoverableExceptionProvider` 现在也可以是 Bean。
 - `wow.messaging.propagation.request` 从 Spring 环境读取，只作用于运行时注入的 `MessagePropagators`；`MessagePropagators.DEFAULT` 忽略它，在 Spring 之外也不再读取 `-D` 系统属性。
 - chain 等待的 tail 只传给 chain 所等待的那个 Saga 函数发出的命令；chain 计划必须等待随它发送的命令（`waitCommandId` 等于命令 ID），否则 `sendAndWait` 以 `IllegalArgumentException` 失败。见[命令等待运行时](./command/internals/wait-runtime.md)。
 
@@ -208,6 +208,29 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction` / `GenerateBIScriptHandlerFunctionFactory` | 由 `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` 装配（内部类） |
 | `me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration` | `me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration` |
 | `DefaultRouteContributors.all()` 中的 `GenerateBIScriptRouteContributor` | `wow-bi` 存在时由 Starter 注册的 `RouteContributor` bean；该路由只通过 Starter 提供 |
+
+### 传输 SPI：删除 Kafka 与 Redis 总线内部类型（9.3.0）
+
+所有分布式总线现在都是建在 `Transport` 上的核心 `TransportMessageBus`（见[传输 SPI](./command/internals/transport.md#传输-spi)）。各后端的总线基类、交换类型与解码处理器属于扩展点 SPI，直接删除，不经弃用；主题、键、JSON 与消费组都不变。
+
+| 已删除 | 改用 |
+|---|---|
+| `AbstractKafkaBus`、`AbstractRedisMessageBus` | 核心 `TransportCommandBus`、`TransportDomainEventBus`、`TransportStateEventBus` 加上 `KafkaTransport` / `RedisStreamTransport`；`Kafka*Bus` / `Redis*Bus` 构造函数除下面的解码处理器外不变 |
+| `KafkaServerCommandExchange`、`KafkaEventStreamExchange`、`KafkaStateEventExchange`、`RedisServerCommandExchange`、`RedisEventStreamExchange`、`RedisStateEventExchange` | `TransportServerCommandExchange`、`TransportEventStreamExchange`、`TransportStateEventExchange` |
+| `KafkaRecordDecodeFailureHandler`、`KafkaRecordDecodeFailure`、`KafkaRecordDecodeException` | `TransportDecodeFailureHandler`、`TransportDecodeFailure`、`TransportDecodeException` |
+| `FailKafkaRecordDecodeFailureHandler`、`AcknowledgeKafkaRecordDecodeFailureHandler` | `TransportDecodeFailureHandler.FAIL`、`TransportDecodeFailureHandler.ACKNOWLEDGE` |
+| `Kafka*Bus(…, recordDecodeFailureHandler = …)` | `decodeFailureHandler: TransportDecodeFailureHandler` |
+| `MainDispatcher.receiveMessage`（及命令、事件、快照分发器中的覆盖） | 实现 `createMessageReceiver(subscription)`，例如 `bus.receiver(subscription.copy(runtimeOwned = true))` |
+| Starter 中返回 `KafkaRecordDecodeFailureHandler` 的 `kafkaRecordDecodeFailureHandler()` | 同名 Bean 方法，返回 `TransportDecodeFailureHandler`；应用中旧类型的 Bean 改为 `TransportDecodeFailureHandler` Bean（`wow.kafka.receiver.decode-failure-strategy` 不变） |
+
+### Saga、等待、排序与测试 DSL（9.3.0）
+
+- Saga 命令的 ID 从事件推导：没有指定聚合的命令体或 `CommandBuilder` 得到由事件、Saga 函数、序号与目标类型推导的聚合 ID（仅当目标的 ID 生成器是基于时间的 CosId 或 Snowflake 生成器时；其他生成器以及返回的 `CommandMessage` 保留自己的聚合 ID）；返回的 `CommandMessage` 没有自己的请求 ID 时得到 `<事件 ID>-<序号>-<producer 哈希>`（命令体与 builder 仍是 `<事件 ID>-<序号>`）。因此重试的 Saga 创建命令指向第一次尝试创建的聚合，以 `DuplicateRequestId` 被拒绝；Saga 跳过这次发送，不会为它写补偿记录。见[requestId 与上下文传播](./event/saga.md#requestid-与上下文传播)。
+- 链式等待的 SSE 流（以链式目标调用 `sendAndWaitStream`）不再携带对同一事件作出反应的其他 Saga 的尾部信号：只有被等待的 Saga 函数的命令携带尾部信息。见[命令等待运行时](./command/internals/wait-runtime.md)。
+- 只做网关的服务（没有 `EventStore`）上，用网关 Bloom 过滤器见过的请求 ID 重发命令，现在在 `SENT` 阶段成功：网关放行，由处理节点拒绝（`DuplicateRequestId`），处理函数不会再次执行。只等待 `SENT` 的调用方不再看到重复；要看到它，请等待 `PROCESSED`。见[失败与幂等](./command/reliability.md#快速预检与权威确认)。
+- 在 Spring 之外，只有给 `DefaultCommandHandler` 传入 `RequestIdChecker` 时，处理节点才会做请求 ID 检查；手工搭建、没有接入它的网关服务在处理函数之前没有检查，唯一的重复检查是 `EventStore` 追加（该节点与 9.2 相同）。
+- `@Order` 按 `before`/`after` 约束做拓扑排序（就绪的元素中 `value` 小的在前，其次按声明顺序），适用于所有有序列表：过滤器链、after-command 函数、事件升级器、ID 生成器、错误信息转换器、查询准入与消息传播器。即使 9.2 的顺序已满足所有约束，结果也可能与 9.2 不同；约束中出现环时启动失败，抛出指明该环的 `IllegalStateException`。
+- 聚合测试 DSL 运行生产环境的管道与内核；断言上的差异列在[测试套件的表格](./test-suite.md#与生产相同的管道)中。
 
 ### 失败策略：接收重试与失败记录（9.3.0）
 

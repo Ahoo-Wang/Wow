@@ -36,7 +36,7 @@ sequenceDiagram
 - 回调地址：`command_wait_endpoint`；
 - 目标：阶段、可选函数身份，或 chain 及其 tail 描述。
 
-先注册再发送可避免本地快速处理在 handle 可见前返回信号。Header 会由 `WaitPlanMessagePropagator` 沿相关消息继续传播。所有目标都会从命令传播到它提交的事件流，事件存储保留这些键。只有 chain 目标会越过事件，而且只传给 chain 所等待的那个 Saga 函数发出的命令，这些命令带上 tail 信息（自 9.3.0 起；此前从该事件派生的每条命令都带 tail，包括无关 Saga 的命令）。chain 等待必须等待随它发送的那条命令：`waitCommandId` 是别的命令 ID 的 chain 计划会被网关拒绝。
+先注册再发送可避免本地快速处理在 handle 可见前返回信号。Header 会由 `WaitPlanMessagePropagator` 沿相关消息继续传播。所有目标都会从命令传播到它提交的事件流，事件存储保留这些键。只有 chain 目标会越过事件，而且只传给 chain 所等待的那个 Saga 函数发出的命令，这些命令带上 tail 信息（自 9.3.0 起；此前从该事件派生的每条命令都带 tail，包括无关 Saga 的命令）。因此链式等待的 SSE 流只携带该 Saga 的尾部信号；9.3.0 之前它还会推送对同一事件作出反应的其他 Saga 的尾部信号。chain 等待必须等待随它发送的那条命令：`waitCommandId` 是别的命令 ID 的 chain 计划会被网关拒绝。
 
 处理器通过 `Header.extractWaitPlan` 重建 `ExtractedWaitPlan`。缺少关联 ID、endpoint 或可解析 target 时，等待通知保持 no-op；Header 不是调用端本地对象的远程引用。
 
