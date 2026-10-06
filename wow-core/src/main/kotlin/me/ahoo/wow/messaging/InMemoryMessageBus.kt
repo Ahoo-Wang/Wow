@@ -53,6 +53,13 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     abstract val sinkSupplier: (NamedAggregate) -> Sinks.Many<M>
 
     /**
+     * Whether [send] skips a sink without subscribers instead of emitting into it. A multicast sink with an unbounded
+     * buffer keeps everything emitted before its first subscriber, so a bus with such sinks sets this to drop a
+     * message nobody in this process receives, as a bounded buffer refused it (`FAIL_ZERO_SUBSCRIBER`).
+     */
+    protected open val skipsSinksWithoutSubscribers: Boolean = false
+
+    /**
      * Map of sinks keyed by materialized named aggregates.
      */
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
@@ -167,6 +174,12 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             if (sink == null) {
                 log.debug {
                     "Send [$message], but the message bus is closing."
+                }
+                return@fromRunnable
+            }
+            if (skipsSinksWithoutSubscribers && sink.currentSubscriberCount() == 0) {
+                log.debug {
+                    "Send [$message], but no subscribers."
                 }
                 return@fromRunnable
             }

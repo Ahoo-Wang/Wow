@@ -17,11 +17,20 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Subscription
 import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Sinks
+import reactor.kotlin.test.test
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * The local sinks of the event buses never refuse a message because a consumer is slow: a local-first hand-off is
@@ -52,5 +61,32 @@ class InMemoryLocalSinkCapacityTest {
     @Test
     fun `the state event sink buffers whatever a stalled consumer has not pulled`() {
         assertUnbounded(InMemoryStateEventBus().sinkSupplier(aggregate)) { mockk<StateEvent<*>>() }
+    }
+
+    @Test
+    fun `events sent while nobody in this process subscribes are not retained`() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("no-subscriber")
+        val eventStream = MockAggregateCreated("created").toDomainEventStream(
+            upstream = GivenInitializationCommand(aggregateId),
+            aggregateVersion = 0,
+        )
+        val stateEvent = eventStream.toStateEvent(MockStateAggregate(aggregateId.id))
+        val domainSink = AtomicReference<Sinks.Many<DomainEventStream>>()
+        val stateSink = AtomicReference<Sinks.Many<StateEvent<*>>>()
+        val domainBus = InMemoryDomainEventBus { aggregate ->
+            InMemoryDomainEventBus().sinkSupplier(aggregate).also(domainSink::set)
+        }
+        val stateBus = InMemoryStateEventBus { aggregate ->
+            InMemoryStateEventBus().sinkSupplier(aggregate).also(stateSink::set)
+        }
+
+        repeat(1_000) {
+            domainBus.send(eventStream.copy()).test().verifyComplete()
+            stateBus.send(stateEvent.copy()).test().verifyComplete()
+        }
+
+        // An unbounded multicast buffer keeps what was emitted before its first subscriber: nothing may be waiting.
+        domainSink.get().asFlux().take(Duration.ofMillis(50)).count().test().expectNext(0).verifyComplete()
+        stateSink.get().asFlux().take(Duration.ofMillis(50)).count().test().expectNext(0).verifyComplete()
     }
 }

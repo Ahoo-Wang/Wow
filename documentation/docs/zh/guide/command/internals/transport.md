@@ -90,7 +90,7 @@ Redis 与 Kafka 的发送完成条件不同，二者都不等于聚合已经处�
 
 **副本上下文。** 排队的副本只保留发送所需的发送方 Reactor 上下文——指标来源，以及引入 `wow-opentelemetry` 时的 trace 上下文（`LocalFirstContextCapture` 的实现）——从不保留整个上下文（其中可能有 Web 请求）。
 
-**不等待需求，本地 sink 无界。** 发送方从不等待本地 receiver 拉取消息，因此会发送消息的处理器（命令处理器发布事件、Saga 发送命令）无论 dispatcher 多满都不会互相阻塞。命令、领域事件与状态事件的本地 sink 均为无界，交付不会因消费者慢而被拒绝；代价是进程内积压增长。积压可在指标 `wow.local_first.backlog`（按聚合类型统计待发送副本数）上观察，达到 `wow.<command|event|eventsourcing.state>.bus.local-first.backlog-high-water-mark`（默认 10000）时记录警告。
+**不等待需求，本地 sink 无界。** 发送方从不等待本地 receiver 拉取消息，因此会发送消息的处理器（命令处理器发布事件、Saga 发送命令）无论 dispatcher 多满都不会互相阻塞。命令、领域事件与状态事件的本地 sink 均为无界，交付不会因消费者慢而被拒绝；代价是进程内积压增长。积压可在指标 `wow.local_first.backlog`（按聚合类型统计待发送副本数）上观察，达到 `wow.<command|event|eventsourcing.state>.bus.local-first.backlog-high-water-mark`（默认 10000）时记录警告。缓冲只为已订阅的 receiver 保留消息：本进程中没有任何订阅者时，发往内存事件总线的该聚合事件不会被保留（与 9.2 相同，当时有界缓冲会拒绝它）。
 
 **失败与关停。** 已交付消息的副本发送失败会记录日志，并由 distributed bus 的发送指标计数；与 9.2 不同（9.2 中发送随之失败），它不再体现在命令结果中。关停时，运行时在 dispatcher 停止之后、传输关闭之前，于 `shutdownTimeout` 内发送队列中的副本；超时后仍在队列中的副本被取消，其他服务永远收不到这些消息。只有注册到运行时的副本队列（Spring Boot starter 的 `localFirst*BusDistributedCopies` bean）会被等待：在运行时之外创建的 `LocalFirstDistributedCopies` 不会被等待，除非把它注册为运行时组件或自行停止它。
 

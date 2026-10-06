@@ -31,6 +31,10 @@ class InMemoryStateEventBus(
     }
 ) : InMemoryMessageBus<StateEvent<*>, StateEventExchange<*>>(),
     LocalStateEventBus {
+    // The sink buffer is unbounded (a slow local consumer never refuses a hand-off), so a sink without subscribers
+    // would keep every message sent to it.
+    override val skipsSinksWithoutSubscribers: Boolean = true
+
     /**
      * Creates a StateEventExchange from a StateEvent message.
      * Wraps the state event in a SimpleStateEventExchange for processing.

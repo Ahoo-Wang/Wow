@@ -3196,6 +3196,7 @@ public abstract class me/ahoo/wow/messaging/InMemoryMessageBus : me/ahoo/wow/mes
 	public fun close ()V
 	public abstract fun createExchange (Lme/ahoo/wow/api/messaging/Message;)Lme/ahoo/wow/messaging/handler/MessageExchange;
 	public abstract fun getSinkSupplier ()Lkotlin/jvm/functions/Function1;
+	protected fun getSkipsSinksWithoutSubscribers ()Z
 	public fun handOff (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;

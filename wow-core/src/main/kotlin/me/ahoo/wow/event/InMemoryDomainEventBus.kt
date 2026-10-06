@@ -39,6 +39,10 @@ class InMemoryDomainEventBus(
     }
 ) : InMemoryMessageBus<DomainEventStream, EventStreamExchange>(),
     LocalDomainEventBus {
+    // The sink buffer is unbounded (a slow local consumer never refuses a hand-off), so a sink without subscribers
+    // would keep every message sent to it.
+    override val skipsSinksWithoutSubscribers: Boolean = true
+
     /**
      * Creates an EventStreamExchange from a DomainEventStream.
      *
