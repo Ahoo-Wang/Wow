@@ -183,6 +183,35 @@ class KeyedDispatchTest {
         }
     }
 
+    /**
+     * Long-running elements hold part of the in-flight window. Demand must still flow for the others: replenishing
+     * only after three quarters of the window finished would stall them until the slow ones complete.
+     */
+    @Test
+    fun `slow elements holding half the window do not stall the others`() {
+        val window = KeyedExecutor(workers = 2, maxInFlight = 16, name = "keyed-dispatch-window")
+        try {
+            val release = Sinks.empty<Void>()
+            val fastDone = CountDownLatch(100)
+            val source = Flux.range(0, 8).map { "slow-$it" }.concatWith(Flux.range(0, 100).map { "fast-$it" })
+            val subscription = source.dispatchKeyed(window, { it }) { element ->
+                if (element.startsWith("slow")) {
+                    release.asMono()
+                } else {
+                    Mono.fromRunnable { fastDone.countDown() }
+                }
+            }.subscribe()
+            try {
+                fastDone.await(5, TimeUnit.SECONDS).assert().isTrue()
+            } finally {
+                release.tryEmitEmpty()
+                subscription.dispose()
+            }
+        } finally {
+            window.close()
+        }
+    }
+
     @Test
     fun `completion waits for every accepted element`() {
         val finished = AtomicInteger()
@@ -371,12 +400,12 @@ class KeyedDispatchTest {
     }
 
     /**
-     * The ready-queue protocol under contention: completions arrive concurrently from many threads while drainers
+     * The mailbox scheduling protocol under contention: completions arrive concurrently from many threads while drainers
      * start and exit. Every element must run (no lost wake-up), never two of one key at once, and no mailbox may be
      * scheduled twice (that fails the dispatch).
      */
     @Test
-    fun `ready queue loses no wake-up and never schedules a mailbox twice under concurrent completions`() {
+    fun `mailbox scheduling loses no wake-up and never schedules a mailbox twice under concurrent completions`() {
         val contended = KeyedExecutor(workers = 3, maxInFlight = 64, name = "keyed-dispatch-ready", throughput = 2)
         try {
             repeat(5) { round ->

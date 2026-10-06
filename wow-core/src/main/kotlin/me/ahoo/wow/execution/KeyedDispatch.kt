@@ -23,7 +23,6 @@ import reactor.core.publisher.Operators
 import reactor.util.context.Context
 import reactor.util.context.ContextView
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -77,7 +76,13 @@ private class KeyedDispatchSubscriber<T : Any>(
     val handler: (T) -> Mono<Void>,
 ) : CoreSubscriber<T>, Subscription {
     private val maxInFlight = executor.maxInFlight
-    private val replenishThreshold = maxOf(1, maxInFlight - (maxInFlight shr 2))
+
+    /**
+     * Demand is replenished in small batches: messages that stay unfinished for long (a slow aggregate's I/O) hold
+     * part of the window, so waiting for three quarters of it to finish (Reactor's usual low tide) would stall the
+     * other aggregates' messages in the transport for as long as the slow ones take.
+     */
+    private val replenishThreshold = maxOf(1, maxInFlight shr REPLENISH_SHIFT)
     val mailboxes = ConcurrentHashMap<Any, Mailbox<T>>()
     private val mailboxFactory = Function<Any, Mailbox<T>> { Mailbox(it, this) }
     private val inFlight = AtomicInteger()
@@ -159,87 +164,31 @@ private class KeyedDispatchSubscriber<T : Any>(
         cancelMailboxes()
     }
 
-    /**
-     * Mailboxes ready to run their head, each at most once ([Mailbox.markScheduled]). At most [maxDrainers] drainers
-     * (one per worker) take them in turn, so a steady flow is picked up by running drainers instead of waking a worker
-     * per message, the way `publishOn` batched its drains. A mailbox runs at most [KeyedExecutor.throughput]
-     * synchronously completing elements per turn and then goes back to the tail; a drainer runs at most
-     * [DRAINER_BATCH] turns and then yields its worker to the other dispatchers' drainers. Drainers never wait: a
-     * handler that does not complete synchronously ends its mailbox's turn.
-     */
-    private val ready = ConcurrentLinkedQueue<Mailbox<T>>()
-    private val maxDrainers = executor.workers
-    private val drainers = AtomicInteger()
-    private val drainer = Runnable(::drain)
+    fun nextAffinity(): Int = executor.dispatchWorkers.nextAffinity()
+
+    private companion object {
+        /** Replenish once 1/16 of the in-flight window has finished. */
+        const val REPLENISH_SHIFT = 4
+    }
+
+    /** Synchronously completing elements one mailbox runs per turn before it yields its worker. */
     val throughput = executor.throughput
 
-    /** Makes [mailbox]'s head runnable on a worker. */
+    /**
+     * Makes [mailbox]'s head runnable on a worker. Only the holder of the mailbox's run right calls this, so a
+     * mailbox is queued at most once; [Mailbox.markScheduled] asserts it.
+     */
     fun schedule(mailbox: Mailbox<T>) {
         if (!mailbox.markScheduled()) {
             fail(IllegalStateException("Mailbox[${mailbox.key}] was scheduled twice."))
             return
         }
-        ready.offer(mailbox)
-        startDrainer()
-    }
-
-    private fun startDrainer() {
-        while (true) {
-            val running = drainers.get()
-            if (running >= maxDrainers) {
-                return
-            }
-            if (drainers.compareAndSet(running, running + 1)) {
-                break
-            }
-        }
-        submitDrainer()
-    }
-
-    /** Submits a drainer already counted in [drainers]. */
-    private fun submitDrainer() {
         try {
-            executor.executor.execute(drainer)
+            executor.dispatchWorkers.execute(mailbox, mailbox.affinity)
         } catch (rejected: RejectedExecutionException) {
-            drainers.decrementAndGet()
+            mailbox.clearScheduled()
             fail(rejected)
-            while (true) {
-                val mailbox = ready.poll() ?: return
-                mailbox.clearScheduled()
-                mailbox.discardAll()
-            }
-        }
-    }
-
-    private fun drain() {
-        var turns = 0
-        while (true) {
-            val mailbox = ready.poll()
-            if (mailbox != null) {
-                mailbox.clearScheduled()
-                mailbox.run()
-                turns++
-                if (turns >= DRAINER_BATCH && !ready.isEmpty()) {
-                    // Yield the worker: this drainer goes to the back of the pool's queue.
-                    submitDrainer()
-                    return
-                }
-                continue
-            }
-            drainers.decrementAndGet()
-            // A mailbox offered after the poll above and before the decrement found every drainer busy: take it.
-            if (ready.isEmpty()) {
-                return
-            }
-            while (true) {
-                val running = drainers.get()
-                if (running >= maxDrainers) {
-                    return
-                }
-                if (drainers.compareAndSet(running, running + 1)) {
-                    break
-                }
-            }
+            mailbox.discardAll()
         }
     }
 
@@ -296,14 +245,10 @@ private class KeyedDispatchSubscriber<T : Any>(
         }
     }
 
-    private companion object {
-        const val DRAINER_BATCH = 64
-    }
-
     /**
      * The elements of one key. The head runs (or is scheduled to run); the rest wait in [queue], created only when a
      * key has more than one unfinished element. Only the holder of the run right — whoever made the head runnable —
-     * runs or schedules it, so at most one element of a key is active. A mailbox is its own [Runnable] (a drainer runs
+     * runs or schedules it, so at most one element of a key is active. A mailbox is its own [Runnable] (its worker runs
      * its turn) and its own subscriber of the head's handler, so a turn allocates nothing per element.
      */
     @Suppress("TooManyFunctions")
@@ -311,6 +256,9 @@ private class KeyedDispatchSubscriber<T : Any>(
         val key: Any,
         private val owner: KeyedDispatchSubscriber<T>,
     ) : Runnable, CoreSubscriber<Void> {
+        /** The worker this mailbox runs on for as long as it exists. */
+        val affinity: Int = owner.nextAffinity()
+
         enum class Offer { STARTED, QUEUED, REMOVED }
 
         /** Guarded by this mailbox. */
@@ -327,7 +275,7 @@ private class KeyedDispatchSubscriber<T : Any>(
         @JvmField
         var phase: Int = SUBSCRIBING
 
-        /** 1 while the mailbox waits in the ready queue: it is there at most once. */
+        /** 1 while the mailbox waits in its worker's queue: it is there at most once. */
         @Volatile
         @JvmField
         var scheduled: Int = 0
@@ -361,6 +309,7 @@ private class KeyedDispatchSubscriber<T : Any>(
 
         /** Runs the head, then — while handlers complete synchronously — the next elements, up to a fair budget. */
         override fun run() {
+            clearScheduled()
             var budget = owner.throughput
             while (true) {
                 val element = synchronized(this) { head } ?: return

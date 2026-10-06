@@ -15,18 +15,15 @@ package me.ahoo.wow.execution
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
-import reactor.core.scheduler.NonBlocking
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The execution resource every dispatcher of one [me.ahoo.wow.runtime.WowRuntime] shares (design X7): one set of
  * [workers] threads, sized by CPU cores rather than by the number of aggregate types or dispatchers.
  *
- * A dispatcher keeps one mailbox per aggregate ID. A mailbox runs its messages one at a time, in arrival order, on any
- * worker; different mailboxes run in parallel. A handler that waits (I/O, a retry backoff) holds no worker and delays
+ * A dispatcher keeps one mailbox per aggregate ID. A mailbox runs its messages one at a time, in arrival order, on the
+ * worker it was given when it was created (round robin, like the worker of a 9.2 `publishOn` group); different
+ * mailboxes run in parallel. Each worker has its own FIFO queue, so a mailbox that has run [throughput] messages goes
+ * behind the other mailboxes of its worker. A handler that waits (I/O, a retry backoff) holds no worker and delays
  * only its own mailbox. Each dispatcher accepts at most [maxInFlight] messages it has not finished, and requests more
  * from its transport only as they finish, so a slow dispatcher backpressures its source instead of buffering.
  *
@@ -54,33 +51,22 @@ class KeyedExecutor(
         require(throughput > 0) { "throughput must be positive." }
     }
 
-    private val threadId = AtomicInteger()
-
     /**
-     * The workers: daemon threads, started on demand up to [workers]. They are Reactor [NonBlocking] threads, like the
+     * The workers: daemon threads that Reactor treats as [NonBlocking][reactor.core.scheduler.NonBlocking], like the
      * `Schedulers.newParallel` threads they replace: `block()` on them fails fast, and a `@Blocking` message function
-     * moves to `boundedElastic` instead of holding a shared worker. A mailbox is submitted as a plain [Runnable]
-     * (one queue node per run, no future), and a task submitted after [close] is rejected.
+     * moves to `boundedElastic` instead of holding a shared worker. A task submitted after [close] is rejected.
      */
-    internal val executor: ThreadPoolExecutor = ThreadPoolExecutor(
-        workers,
-        workers,
-        0L,
-        TimeUnit.MILLISECONDS,
-        LinkedBlockingQueue(),
-    ) { runnable ->
-        DispatchThread(runnable, "$name-${threadId.incrementAndGet()}")
-    }
+    internal val dispatchWorkers: DispatchWorkers = DispatchWorkers(workers, name)
 
     /** The workers as a coroutine dispatcher, for `suspend` and `Flow` message functions. */
-    val coroutineDispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
+    val coroutineDispatcher: CoroutineDispatcher = dispatchWorkers.asCoroutineDispatcher()
 
     val isDisposed: Boolean
-        get() = executor.isShutdown
+        get() = dispatchWorkers.closed
 
     /** Stops the workers once their queued runs finish; a run submitted afterwards is rejected. Idempotent. */
     override fun close() {
-        executor.shutdown()
+        dispatchWorkers.close()
     }
 
     override fun toString(): String =
@@ -106,12 +92,5 @@ class KeyedExecutor(
         val shared: KeyedExecutor by lazy {
             KeyedExecutor(name = "$DEFAULT_NAME-shared")
         }
-    }
-}
-
-/** A dispatch worker: a daemon thread Reactor treats as non-blocking. */
-private class DispatchThread(runnable: Runnable, name: String) : Thread(runnable, name), NonBlocking {
-    init {
-        isDaemon = true
     }
 }

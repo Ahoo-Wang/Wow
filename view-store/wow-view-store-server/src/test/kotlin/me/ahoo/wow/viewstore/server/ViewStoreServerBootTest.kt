@@ -84,10 +84,26 @@ class ViewStoreServerBootTest {
 
     @Test
     fun `serves the generated and the custom routes in its OpenAPI`() {
-        val paths = openApiClient.get().uri("/v3/api-docs").exchange()
-            .expectStatus().isOk
-            .expectBody(JsonNode::class.java).returnResult().responseBody!!
-            .get("paths").propertyNames().toList()
+        // Diagnostic for a CI-only stall of this first request: dump every thread if it has not answered in time.
+        val dump = Thread {
+            try {
+                Thread.sleep(STALL_DUMP_AFTER.toMillis())
+                println(threadDump())
+            } catch (_: InterruptedException) {
+                // Answered in time.
+            }
+        }.apply {
+            isDaemon = true
+            start()
+        }
+        val paths = try {
+            openApiClient.get().uri("/v3/api-docs").exchange()
+                .expectStatus().isOk
+                .expectBody(JsonNode::class.java).returnResult().responseBody!!
+                .get("paths").propertyNames().toList()
+        } finally {
+            dump.interrupt()
+        }
         val scope = "/view-store/tenant/{tenantId}/owner/{ownerId}"
         paths.assert().contains(
             "$scope/view",
@@ -189,3 +205,22 @@ class ViewStoreServerBootTest {
 
 private const val OPENAPI_BUFFER_BYTES = 16 * 1024 * 1024
 private val OPENAPI_RESPONSE_TIMEOUT: Duration = Duration.ofMinutes(1)
+
+private val STALL_DUMP_AFTER: Duration = Duration.ofSeconds(20)
+
+private fun threadDump(): String =
+    java.lang.management.ManagementFactory.getThreadMXBean().dumpAllThreads(true, true).joinToString(
+        separator = "",
+        prefix = "==== Thread dump: /v3/api-docs has not answered in $STALL_DUMP_AFTER ====\n",
+    ) { info ->
+        buildString {
+            append('"').append(info.threadName).append("\" ").append(info.threadState)
+            info.lockName?.let { append(" on ").append(it) }
+            info.lockOwnerName?.let { append(" owned by \"").append(it).append('"') }
+            append('\n')
+            info.stackTrace.take(STACK_DEPTH).forEach { append("    at ").append(it).append('\n') }
+            append('\n')
+        }
+    }
+
+private const val STACK_DEPTH = 40

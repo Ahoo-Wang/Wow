@@ -18,9 +18,10 @@ transport receiver
 ```
 
 - **One worker set per runtime.** The thread count depends on the hardware, not on the number of aggregate types or dispatchers. 20 aggregate types on 16 cores use 16 dispatch threads, not 20 × 16 per dispatcher kind.
-- **One mailbox per aggregate ID.** Messages of one aggregate ID run one at a time, in the order the dispatcher received them. Messages of different aggregate IDs run in parallel. A mailbox exists only while it has messages.
+- **One mailbox per aggregate ID.** Messages of one aggregate ID run one at a time, in the order the dispatcher received them. Messages of different aggregate IDs run in parallel. A mailbox exists only while it has messages, and runs on the worker it was given when it was created (round robin over the workers, like the worker a 9.2 `publishOn` group was given). Each worker has its own lock-free FIFO queue; a busy worker takes the next mailbox without being woken.
+- **Fair turns.** A mailbox runs at most `throughput` messages in one turn while they complete synchronously, then goes behind the other mailboxes of its worker, so a hot aggregate cannot starve the others.
 - **Waiting holds no worker.** A handler that waits — non-blocking I/O, or the command retry backoff after a version conflict — releases its worker and delays only its own mailbox. In 9.2 a conflicting aggregate blocked every aggregate hashed to the same group for up to the whole backoff.
-- **Bounded in-flight messages.** Each dispatcher holds at most `max-in-flight` messages it has not finished (running or queued in a mailbox). It requests more from its transport only as messages finish, so a slow dispatcher backpressures the transport (Kafka pauses fetching, a local-first sender waits for local admission) instead of buffering without limit.
+- **Bounded in-flight messages.** Each dispatcher holds at most `max-in-flight` messages it has not finished (running or queued in a mailbox). It requests more from its transport as messages finish, in small batches (1/16 of the window), so messages that stay unfinished for long — a slow aggregate's I/O — do not hold back the others, so a slow dispatcher backpressures the transport (Kafka pauses fetching, a local-first sender waits for local admission) instead of buffering without limit.
 - **Coroutines resume on the workers.** A `suspend` or `Flow` message function called by a dispatcher runs its coroutine on the executor's workers instead of `Dispatchers.Default`. The mailbox does not start the aggregate's next message before the function returns, so per-aggregate serialization holds across suspension points. Called outside a dispatcher (for example from a test), such a function still runs on `Dispatchers.Default`.
 
 ## Configuration
@@ -29,6 +30,7 @@ transport receiver
 | --- | --- | --- |
 | `wow.dispatch.workers` | available processors | Worker threads shared by all dispatchers of the runtime |
 | `wow.dispatch.max-in-flight` | `256` | Unfinished messages one dispatcher holds before it stops requesting more |
+| `wow.dispatch.throughput` | `16` | Messages of one aggregate a worker runs in one turn before moving to other aggregates |
 
 Without Spring, pass the executor to the runtime, which owns it and closes it once every component has stopped:
 

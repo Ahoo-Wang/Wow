@@ -20,6 +20,7 @@ Configuration class: `WowProperties`; prefix: `wow`.
 | `wow.shutdown-quiet-period` | Duration | `1s` | Continuous idle interval required before intake closes; new activity restarts it |
 | `wow.dispatch.workers` | Int | available processors | Worker threads of the runtime's [`KeyedExecutor`](../../guide/advanced/keyed-executor.md), shared by every dispatcher (since 9.3.0) |
 | `wow.dispatch.max-in-flight` | Int | `256` | Unfinished messages one dispatcher holds before it stops requesting more from its transport (since 9.3.0) |
+| `wow.dispatch.throughput` | Int | `16` | Messages of one aggregate a dispatch worker runs in one turn before moving to other aggregates (since 9.3.0) |
 
 `shutdown-timeout` must be positive. `shutdown-quiet-period` must be non-negative and shorter than `shutdown-timeout`. Both must fit exactly in a signed 64-bit nanosecond value.
 
