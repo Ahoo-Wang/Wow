@@ -141,9 +141,11 @@ callbacks. A receiver supports exactly one message subscriber.
 receipt protocol (`confirmLocalDelivery`/`rejectLocalDelivery`). Since 9.3.0 `receiver()` is abstract and
 `runtimeReceiver()` and `receive()` are removed: a bus that implemented `receive()` implements `receiver()` instead, and
 one that gave runtime receivers special behaviour in `runtimeReceiver()` moves it into `receiver()` for runtime-owned
-subscriptions. A caller of `receive()` reads `receiver(subscription).openedMessages()`. The conservative default
-`LocalMessageBus.sendIfSubscribed()` is `false`. Subscriber count or sink acceptance alone cannot prove that every
-targeted receiver acquired processing admission.
+subscriptions. A caller of `receive()` reads `receiver(subscription).openedMessages()`. Since 9.3.0
+`LocalMessageBus.sendIfSubscribed()` is replaced by `handOff()`, which returns a `LocalHandoff`: whether the message
+entered the local sink, and a separate admission result; its conservative default refuses. A local bus implementation
+completes the hand-off without waiting for a receiver's demand and resolves the admission only when every targeted
+receiver acquired processing admission (or rejected it).
 
 Transport checks:
 

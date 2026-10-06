@@ -14,6 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 import me.ahoo.wow.messaging.withLocalFirst
 import reactor.core.publisher.Mono
@@ -25,10 +26,13 @@ import reactor.core.publisher.Mono
  *
  * @param distributedBus The distributed command bus for fallback processing.
  * @param localBus The local command bus for primary processing. Defaults to InMemoryCommandBus.
+ * @param distributedCopies The distributed copies, sent in send order per aggregate.
  */
 class LocalFirstCommandBus(
     override val distributedBus: DistributedCommandBus,
-    override val localBus: LocalCommandBus = InMemoryCommandBus()
+    override val localBus: LocalCommandBus = InMemoryCommandBus(),
+    override val distributedCopies: LocalFirstDistributedCopies =
+        LocalFirstDistributedCopies("LocalFirstCommandBus"),
 ) : CommandBus,
     LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
     /**

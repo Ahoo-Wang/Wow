@@ -18,6 +18,7 @@ import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.ConsumerGroupDescription
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.utils.Utils
 import org.testcontainers.containers.KafkaContainer
@@ -32,11 +33,13 @@ import java.util.concurrent.TimeUnit
  * A released example server and the build under test sharing one MongoDB and one Kafka, as in a rolling upgrade.
  *
  * Both nodes run the same service name, so they join the same consumer groups and split every topic's partitions.
+ * With [localFirst] both nodes route local aggregates locally first and publish the marked distributed copies.
  */
 class MixedVersionCluster(
     previousImage: String?,
     previousHome: Path?,
     currentHome: Path,
+    localFirst: Boolean = false,
 ) : AutoCloseable {
     private val network: Network = Network.newNetwork()
     private val mongo: MongoDBContainer = MongoDBContainer(DockerImageName.parse(ContainerImages.MONGO))
@@ -60,11 +63,11 @@ class MixedVersionCluster(
         admin = Admin.create(mapOf(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers))
         createTopics()
         previous = if (previousImage != null) {
-            ImageNode(PREVIOUS, previousImage, network, machineId = 1)
+            ImageNode(PREVIOUS, previousImage, network, machineId = 1, localFirst = localFirst)
         } else {
-            ProcessNode(PREVIOUS, checkNotNull(previousHome), 1, mongoUri(), kafka.bootstrapServers)
+            ProcessNode(PREVIOUS, checkNotNull(previousHome), 1, mongoUri(), kafka.bootstrapServers, localFirst)
         }
-        current = ProcessNode(CURRENT, currentHome, 2, mongoUri(), kafka.bootstrapServers)
+        current = ProcessNode(CURRENT, currentHome, 2, mongoUri(), kafka.bootstrapServers, localFirst)
     }
 
     val nodes: List<ExampleServerNode>
@@ -146,6 +149,29 @@ class MixedVersionCluster(
             .map { "$prefix-$it" }
             .firstOrNull(predicate)
             ?: error("No key with prefix [$prefix] satisfies the routing the test needs.")
+
+    /** Waits until [group] has committed every record of [topic] that exists now, i.e. consumed and acknowledged it. */
+    fun awaitConsumed(topic: String, group: String) {
+        val partitions = admin.describeTopics(listOf(topic)).allTopicNames()
+            .get(ADMIN_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue(topic).partitions()
+            .map { TopicPartition(topic, it.partition()) }
+        val ends = admin.listOffsets(partitions.associateWith { OffsetSpec.latest() }).all()
+            .get(ADMIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .mapValues { it.value.offset() }
+        val deadline = System.nanoTime() + BALANCE_TIMEOUT.toNanos()
+        var committed: Map<TopicPartition, Long> = emptyMap()
+        while (System.nanoTime() < deadline) {
+            committed = admin.listConsumerGroupOffsets(group).partitionsToOffsetAndMetadata()
+                .get(ADMIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .filterKeys { it.topic() == topic }
+                .mapValues { it.value?.offset() ?: 0L }
+            if (ends.all { (partition, end) -> (committed[partition] ?: 0L) >= end }) {
+                return
+            }
+            TimeUnit.MILLISECONDS.sleep(500)
+        }
+        error("[$group] did not consume [$topic]: committed $committed, end $ends")
+    }
 
     fun groupsOf(topic: String): List<ConsumerGroupDescription> {
         val groupIds = admin.listConsumerGroups().all().get(ADMIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)

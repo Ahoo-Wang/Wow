@@ -19,6 +19,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import reactor.core.publisher.Mono
@@ -77,9 +78,9 @@ internal class MetricLocalStateEventBus(
     source: String,
 ) : MetricStateEventBus<LocalStateEventBus>(delegate, metrics, source),
     LocalStateEventBus {
-    override fun sendIfSubscribed(message: StateEvent<*>): Mono<Boolean> =
+    override fun handOff(message: StateEvent<*>): Mono<LocalHandoff> =
         metrics.operation(
-            delegate.sendIfSubscribed(message),
+            delegate.handOff(message),
             messageDescriptor(message, "send_if_subscribed"),
         )
 

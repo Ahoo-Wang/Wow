@@ -137,9 +137,10 @@ subscriber。
 `rejectLocalDelivery`）。自 9.3.0 起 `receiver()` 是抽象方法，`runtimeReceiver()` 与 `receive()` 已删除：
 实现 `receive()` 的总线改为实现 `receiver()`；曾在 `runtimeReceiver()` 中为运行时 receiver 提供特殊行为的总线，
 要把它移到 `receiver()` 中按 runtime-owned 订阅处理。调用 `receive()` 的代码改读
-`receiver(subscription).openedMessages()`。`LocalMessageBus.sendIfSubscribed()` 的保守
-默认值是 `false`。subscriber count 或 sink acceptance 都不能证明每个目标 receiver 已获取 processing
-admission。
+`receiver(subscription).openedMessages()`。自 9.3.0 起
+`LocalMessageBus.sendIfSubscribed()` 由 `handOff()` 取代，它返回 `LocalHandoff`：消息是否进入本地 sink，以及单独的
+准入结果；保守默认值是拒绝。本地总线实现应在不等待 receiver 需求的情况下完成交付，并仅在每个目标 receiver 都已获取
+processing admission（或拒绝）时给出准入结果。
 
 Transport 检查：
 

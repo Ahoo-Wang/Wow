@@ -53,6 +53,13 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     abstract val sinkSupplier: (NamedAggregate) -> Sinks.Many<M>
 
     /**
+     * Whether [send] skips a sink without subscribers instead of emitting into it. A multicast sink with an unbounded
+     * buffer keeps everything emitted before its first subscriber, so a bus with such sinks sets this to drop a
+     * message nobody in this process receives, as a bounded buffer refused it (`FAIL_ZERO_SUBSCRIBER`).
+     */
+    protected open val skipsSinksWithoutSubscribers: Boolean = false
+
+    /**
      * Map of sinks keyed by materialized named aggregates.
      */
     private val sinks: MutableMap<NamedAggregate, Sinks.Many<M>> = ConcurrentHashMap()
@@ -106,34 +113,28 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return (sink.currentSubscriberCount() - unavailable).coerceAtLeast(0)
     }
 
+    /**
+     * Hands [message] to the routed runtime receivers of its aggregate: accepted once the sink took it, refused when
+     * no receiver is routable or open, or the sink did not take it (full, closed, no subscriber). The admission
+     * completes when every routed receiver admitted the message, or `false` when the delivery was rejected first.
+     */
     @Suppress("TooGenericExceptionCaught")
-    override fun sendIfSubscribed(message: M): Mono<Boolean> =
+    override fun handOff(message: M): Mono<LocalHandoff> =
         Mono.defer {
             val materialized = message.materialize()
             val messageWritable = !message.header.isReadOnly
+            if (closing) {
+                return@defer Mono.just(LocalHandoff.REFUSED)
+            }
+            // The aggregate's route decides under its own monitor; close() closes every route before it detaches
+            // the sinks, so no delivery is created on a sink being closed.
             val route = routingStates.computeIfAbsent(materialized) { LocalDeliveryRoute() }
-            val delivery = synchronized(lifecycleLock) {
-                if (closing) {
-                    null
-                } else {
-                    val sink = sinks[materialized]
-                    if (sink == null) {
-                        null
-                    } else {
-                        route.tryCreateDelivery(
-                            message = message,
-                            physicalSubscribers = sink.currentSubscriberCount(),
-                            messageWritable = messageWritable,
-                        )?.let { receipt ->
-                            sink to receipt
-                        }
-                    }
-                }
-            }
-            if (delivery == null) {
-                return@defer Mono.just(false)
-            }
-            val (sink, pendingDelivery) = delivery
+            val (sink, pendingDelivery) = route.tryCreateDelivery(
+                message = message,
+                messageWritable = messageWritable,
+                sinkLookup = { sinks[materialized] },
+                physicalSubscribers = { it.currentSubscriberCount() },
+            ) ?: return@defer Mono.just(LocalHandoff.REFUSED)
             val emitResult = try {
                 message.withReadOnly()
                 sink.tryEmitNext(message)
@@ -141,21 +142,20 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 route.reject(pendingDelivery)
                 throw error
             }
-            when {
-                emitResult == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER -> {
-                    route.reject(pendingDelivery)
-                }
-
-                emitResult.isSuccess -> Unit
-                else -> {
-                    route.reject(pendingDelivery)
-                    emitResult.orThrow()
-                }
+            if (!emitResult.isSuccess) {
+                // Zero subscribers, a full buffer or a terminated sink: the distributed copy takes over.
+                log.debug { "Local hand-off of [${message.id}] refused by the sink: [$emitResult]." }
+                route.reject(pendingDelivery)
+                return@defer Mono.just(LocalHandoff.REFUSED)
             }
-            pendingDelivery.receipt.signal()
-                .doFinally {
-                    route.remove(pendingDelivery)
-                }
+            Mono.just(
+                LocalHandoff.accepted(
+                    pendingDelivery.receipt.signal()
+                        .doFinally {
+                            route.remove(pendingDelivery)
+                        },
+                ),
+            )
         }
 
     /**
@@ -174,6 +174,12 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             if (sink == null) {
                 log.debug {
                     "Send [$message], but the message bus is closing."
+                }
+                return@fromRunnable
+            }
+            if (skipsSinksWithoutSubscribers && sink.currentSubscriberCount() == 0) {
+                log.debug {
+                    "Send [$message], but no subscribers."
                 }
                 return@fromRunnable
             }
@@ -201,7 +207,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      *
      * Merges the messages of the sinks of the subscription's named aggregates and converts them to message
      * exchanges. A [runtime-owned][MessageSubscription.runtimeOwned] receiver also takes part in local-first delivery
-     * receipts: [sendIfSubscribed] suppresses the distributed copy only while every such receiver has opened
+     * receipts: [handOff] suppresses the distributed copy only while every such receiver has opened
      * processing, and each delivered exchange carries a ticket the receiver confirms or rejects. Any other receiver
      * only observes the messages.
      *
@@ -376,7 +382,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             }
             closing = true
             sinks.entries.map { entry -> entry.key to entry.value } to
-                routingStates.values.flatMap { it.drain() }
+                routingStates.values.flatMap { it.close() }
         }
         rejectedDeliveries.rejectAll()
         val settledSinks = mutableListOf<Pair<NamedAggregate, Sinks.Many<M>>>()
@@ -497,6 +503,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             detachedSinks.forEach { (aggregate, many) ->
                 sinks.remove(aggregate, many)
             }
+            // The closed sinks are gone, so a reopened route only ever finds a new one.
+            routingStates.values.forEach { it.reopen() }
             closing = false
         }
     }

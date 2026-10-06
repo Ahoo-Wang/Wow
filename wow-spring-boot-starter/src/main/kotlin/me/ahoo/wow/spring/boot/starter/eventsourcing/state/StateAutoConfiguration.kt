@@ -20,9 +20,14 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalFirstStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -30,6 +35,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -68,8 +74,31 @@ class StateAutoConfiguration {
     @ConditionalOnStateEventLocalFirstEnabled
     fun localFirstStateEventBus(
         localBus: LocalStateEventBus,
-        distributedBus: DistributedStateEventBus
+        distributedBus: DistributedStateEventBus,
+        @Qualifier(LOCAL_FIRST_COPIES) distributedCopies: LocalFirstDistributedCopies,
     ): LocalFirstStateEventBus {
-        return LocalFirstStateEventBus(distributedBus, localBus)
+        return LocalFirstStateEventBus(distributedBus, localBus, distributedCopies)
+    }
+
+    /**
+     * The distributed copies of [LocalFirstStateEventBus], its own bean so a decorated bus never hides it: a runtime component
+     * stopped after the dispatchers and before the transports.
+     */
+    @Bean(LOCAL_FIRST_COPIES)
+    @ConditionalOnBean(value = [DistributedStateEventBus::class])
+    @ConditionalOnStateEventLocalFirstEnabled
+    @Order(WowRuntimeComponentOrder.LOCAL_FIRST_COPIES)
+    fun localFirstStateEventBusDistributedCopies(
+        stateProperties: StateProperties,
+        metrics: ObjectProvider<WowMetrics>,
+    ): LocalFirstDistributedCopies =
+        LocalFirstDistributedCopies(
+            name = "LocalFirstStateEventBus",
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
+            backlogHighWaterMark = stateProperties.bus.localFirst.backlogHighWaterMark,
+        )
+
+    companion object {
+        const val LOCAL_FIRST_COPIES = "localFirstStateEventBusDistributedCopies"
     }
 }

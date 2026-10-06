@@ -21,8 +21,13 @@ import me.ahoo.wow.event.LocalFirstDomainEventBus
 import me.ahoo.wow.event.NoOpDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -30,6 +35,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -75,8 +81,31 @@ class EventAutoConfiguration {
     @ConditionalOnEventLocalFirstEnabled
     fun localFirstDomainEventBus(
         localBus: LocalDomainEventBus,
-        distributedBus: DistributedDomainEventBus
+        distributedBus: DistributedDomainEventBus,
+        @Qualifier(LOCAL_FIRST_COPIES) distributedCopies: LocalFirstDistributedCopies,
     ): LocalFirstDomainEventBus {
-        return LocalFirstDomainEventBus(distributedBus, localBus)
+        return LocalFirstDomainEventBus(distributedBus, localBus, distributedCopies)
+    }
+
+    /**
+     * The distributed copies of [LocalFirstDomainEventBus], its own bean so a decorated bus never hides it: a runtime component
+     * stopped after the dispatchers and before the transports.
+     */
+    @Bean(LOCAL_FIRST_COPIES)
+    @ConditionalOnBean(value = [DistributedDomainEventBus::class])
+    @ConditionalOnEventLocalFirstEnabled
+    @Order(WowRuntimeComponentOrder.LOCAL_FIRST_COPIES)
+    fun localFirstDomainEventBusDistributedCopies(
+        eventProperties: EventProperties,
+        metrics: ObjectProvider<WowMetrics>,
+    ): LocalFirstDistributedCopies =
+        LocalFirstDistributedCopies(
+            name = "LocalFirstDomainEventBus",
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
+            backlogHighWaterMark = eventProperties.bus.localFirst.backlogHighWaterMark,
+        )
+
+    companion object {
+        const val LOCAL_FIRST_COPIES = "localFirstDomainEventBusDistributedCopies"
     }
 }

@@ -24,10 +24,14 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.propagation.MessagePropagators
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.WowRuntimeComponentOrder
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -35,6 +39,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
@@ -64,9 +69,10 @@ class CommandAutoConfiguration {
     @ConditionalOnCommandLocalFirstEnabled
     fun localFirstCommandBus(
         localBus: LocalCommandBus,
-        distributedBus: DistributedCommandBus
+        distributedBus: DistributedCommandBus,
+        @Qualifier(LOCAL_FIRST_COPIES) distributedCopies: LocalFirstDistributedCopies,
     ): LocalFirstCommandBus {
-        return LocalFirstCommandBus(distributedBus, localBus)
+        return LocalFirstCommandBus(distributedBus, localBus, distributedCopies)
     }
 
     @Bean
@@ -99,5 +105,27 @@ class CommandAutoConfiguration {
             commandBuilderRewriterRegistry = commandBuilderRewriterRegistry,
             messagePropagator = messagePropagators.getIfAvailable { MessagePropagators.DEFAULT },
         )
+    }
+
+    /**
+     * The distributed copies of [LocalFirstCommandBus], its own bean so a decorated bus never hides it: a runtime component
+     * stopped after the dispatchers and before the transports.
+     */
+    @Bean(LOCAL_FIRST_COPIES)
+    @ConditionalOnBean(value = [DistributedCommandBus::class])
+    @ConditionalOnCommandLocalFirstEnabled
+    @Order(WowRuntimeComponentOrder.LOCAL_FIRST_COPIES)
+    fun localFirstCommandBusDistributedCopies(
+        commandProperties: CommandProperties,
+        metrics: ObjectProvider<WowMetrics>,
+    ): LocalFirstDistributedCopies =
+        LocalFirstDistributedCopies(
+            name = "LocalFirstCommandBus",
+            metrics = metrics.getIfAvailable { WowMetrics.NONE },
+            backlogHighWaterMark = commandProperties.bus.localFirst.backlogHighWaterMark,
+        )
+
+    companion object {
+        const val LOCAL_FIRST_COPIES = "localFirstCommandBusDistributedCopies"
     }
 }

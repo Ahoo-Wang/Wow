@@ -21,6 +21,7 @@ import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.TestCommandMessage
+import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -172,8 +173,8 @@ class MetricCommandBusTest {
         val delegate = RecordingLocalCommandBus(localDelivery = false)
         val commandBus = MetricLocalCommandBus(delegate, metrics, "commandBus")
 
-        StepVerifier.create(commandBus.sendIfSubscribed(command))
-            .expectNext(false)
+        StepVerifier.create(commandBus.handOff(command))
+            .expectNext(LocalHandoff.REFUSED)
             .verifyComplete()
 
         delegate.localDeliveryAttempts.single().assert().isSameAs(command)
@@ -213,10 +214,10 @@ private class RecordingLocalCommandBus(
             sent += message
         }
 
-    override fun sendIfSubscribed(message: CommandMessage<*>): Mono<Boolean> =
+    override fun handOff(message: CommandMessage<*>): Mono<LocalHandoff> =
         Mono.fromSupplier {
             localDeliveryAttempts += message
-            localDelivery
+            if (localDelivery) LocalHandoff.accepted(Mono.just(true)) else LocalHandoff.REFUSED
         }
 
     override fun receiver(

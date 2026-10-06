@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 /**
@@ -24,6 +25,7 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
  *
  * @property distributedBus The distributed event bus for cross-service communication
  * @property localBus The local event bus for in-process handling (default: InMemoryDomainEventBus)
+ * @property distributedCopies The distributed copies, sent in send order per aggregate.
  *
  * @constructor Creates a new LocalFirstDomainEventBus with the specified buses
  *
@@ -34,6 +36,8 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
  */
 class LocalFirstDomainEventBus(
     override val distributedBus: DistributedDomainEventBus,
-    override val localBus: LocalDomainEventBus = InMemoryDomainEventBus()
+    override val localBus: LocalDomainEventBus = InMemoryDomainEventBus(),
+    override val distributedCopies: LocalFirstDistributedCopies =
+        LocalFirstDistributedCopies("LocalFirstDomainEventBus"),
 ) : DomainEventBus,
     LocalFirstMessageBus<DomainEventStream, EventStreamExchange>

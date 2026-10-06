@@ -23,6 +23,7 @@ import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilderRewriter
 import me.ahoo.wow.command.factory.CommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.CommandMessageFactory
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MockChangeAggregate
@@ -65,6 +66,10 @@ internal class CommandAutoConfigurationTest {
                 context.assert()
                     .hasSingleBean(LocalCommandBus::class.java)
                     .hasSingleBean(LocalFirstCommandBus::class.java)
+                    .hasSingleBean(LocalFirstDistributedCopies::class.java)
+                // The runtime stops the asynchronous distributed copies after the dispatchers, before the transports.
+                context.getBean(LocalFirstDistributedCopies::class.java).assert()
+                    .isSameAs(context.getBean(LocalFirstCommandBus::class.java).distributedCopies)
             }
     }
 }

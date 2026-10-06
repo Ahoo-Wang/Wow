@@ -23,14 +23,18 @@ import reactor.core.publisher.Sinks.Many
  * Uses Reactor Sinks for message broadcasting within the same JVM instance.
  * Messages are not persisted and are lost when the application restarts.
  *
- * @param sinkSupplier Supplier for creating sinks for each named aggregate (default: multicast sink with backpressure buffer).
+ * @param sinkSupplier Supplier for creating sinks for each named aggregate (default: multicast sink with an unbounded buffer).
  */
 class InMemoryStateEventBus(
     override val sinkSupplier: (NamedAggregate) -> Many<StateEvent<*>> = {
-        Sinks.unsafe().many().multicast().onBackpressureBuffer<StateEvent<*>>().concurrent()
+        Sinks.unsafe().many().multicast().onBackpressureBuffer<StateEvent<*>>(Int.MAX_VALUE).concurrent()
     }
 ) : InMemoryMessageBus<StateEvent<*>, StateEventExchange<*>>(),
     LocalStateEventBus {
+    // The sink buffer is unbounded (a slow local consumer never refuses a hand-off), so a sink without subscribers
+    // would keep every message sent to it.
+    override val skipsSinksWithoutSubscribers: Boolean = true
+
     /**
      * Creates a StateEventExchange from a StateEvent message.
      * Wraps the state event in a SimpleStateEventExchange for processing.

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.state
 
+import me.ahoo.wow.messaging.LocalFirstDistributedCopies
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
 /**
@@ -23,9 +24,13 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
  *
  * @param distributedBus The distributed state event bus for cross-instance messaging.
  * @param localBus The local state event bus for same-instance messaging (default: InMemoryStateEventBus).
+ * @param distributedCopies The distributed copies, sent in send order per aggregate.
  */
 class LocalFirstStateEventBus(
     override val distributedBus: DistributedStateEventBus,
-    override val localBus: LocalStateEventBus = InMemoryStateEventBus()
+    override val localBus: LocalStateEventBus = InMemoryStateEventBus(),
+    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies(
+        "LocalFirstStateEventBus"
+    ),
 ) : StateEventBus,
     LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>>

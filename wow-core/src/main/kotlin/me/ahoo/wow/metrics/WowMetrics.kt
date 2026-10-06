@@ -14,6 +14,7 @@
 package me.ahoo.wow.metrics
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import org.reactivestreams.Publisher
@@ -80,6 +81,19 @@ class WowMetrics(
                 WowMetricNames.PROCESSING_OUTCOMES,
                 descriptor.baseTags().and(MetricDescriptor.OUTCOME_TAG, outcome),
             ).increment()
+        }
+    }
+
+    /**
+     * Registers the gauge [name] tagged with [descriptor], reading [value]; it holds a strong reference to [value].
+     */
+    fun gauge(name: String, descriptor: MetricDescriptor, value: () -> Number) {
+        val registry = meterRegistry ?: return
+        recordSafely {
+            Gauge.builder(name) { value().toDouble() }
+                .tags(descriptor.baseTags())
+                .strongReference(true)
+                .register(registry)
         }
     }
 

@@ -117,26 +117,41 @@ internal class LocalDeliveryTicket(
     }
 }
 
+/**
+ * The local routing state of one aggregate: its routing subscriptions and pending deliveries, under its own monitor,
+ * so local-first sends to different aggregates never contend. [close] stops new deliveries (the bus is closing) until
+ * [reopen].
+ */
 internal class LocalDeliveryRoute<M : Message<*, *>> {
     private val monitor = Any()
     private val subscriptions = mutableMapOf<LocalDeliveryRouteTarget, Boolean>()
     private val pendingDeliveries = IdentityHashMap<M, PendingLocalDelivery<M>>()
+    private var closed = false
 
     fun unavailableSubscriptions(): Int =
         synchronized(monitor) {
             subscriptions.count { !it.value }
         }
 
-    fun tryCreateDelivery(
+    /**
+     * A pending delivery of [message] to every routing subscription, with the sink [sinkLookup] finds, or `null` when
+     * the route is closed, has no sink, or not every subscription is open and physically subscribed.
+     */
+    fun <S : Any> tryCreateDelivery(
         message: M,
-        physicalSubscribers: Int,
         messageWritable: Boolean,
-    ): PendingLocalDelivery<M>? =
+        sinkLookup: () -> S?,
+        physicalSubscribers: (S) -> Int,
+    ): Pair<S, PendingLocalDelivery<M>>? =
         synchronized(monitor) {
-            if (!canCreateDelivery(message, physicalSubscribers, messageWritable)) {
+            if (closed) {
                 return@synchronized null
             }
-            PendingLocalDelivery(
+            val sink = sinkLookup() ?: return@synchronized null
+            if (!canCreateDelivery(message, physicalSubscribers(sink), messageWritable)) {
+                return@synchronized null
+            }
+            sink to PendingLocalDelivery(
                 message = message,
                 receipt = LocalDeliveryReceipt(subscriptions.keys),
             ).also {
@@ -213,10 +228,19 @@ internal class LocalDeliveryRoute<M : Message<*, *>> {
         delivery.receipt.reject()
     }
 
-    fun drain(): List<PendingLocalDelivery<M>> =
+    /** Stops new deliveries and hands back the pending ones. */
+    fun close(): List<PendingLocalDelivery<M>> =
         synchronized(monitor) {
+            closed = true
             drainPending()
         }
+
+    /** Accepts new deliveries again, once the bus that closed this route has finished closing. */
+    fun reopen() {
+        synchronized(monitor) {
+            closed = false
+        }
+    }
 
     private fun drainPending(): List<PendingLocalDelivery<M>> {
         if (pendingDeliveries.isEmpty()) {

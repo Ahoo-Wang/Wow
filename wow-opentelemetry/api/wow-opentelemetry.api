@@ -43,6 +43,11 @@ public final class me/ahoo/wow/opentelemetry/TraceFlux : reactor/core/publisher/
 	public fun subscribe (Lreactor/core/CoreSubscriber;)V
 }
 
+public final class me/ahoo/wow/opentelemetry/TraceLocalFirstContextCapture : me/ahoo/wow/messaging/LocalFirstContextCapture {
+	public fun <init> ()V
+	public fun capture (Lreactor/util/context/ContextView;)Lreactor/util/context/Context;
+}
+
 public final class me/ahoo/wow/opentelemetry/TraceMono : reactor/core/publisher/Mono {
 	public fun <init> (Lio/opentelemetry/context/Context;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Ljava/lang/Object;Lreactor/core/publisher/Mono;)V
 	public fun subscribe (Lreactor/core/CoreSubscriber;)V
@@ -257,12 +262,12 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalCommandBus : 
 	public fun getDelegate ()Lme/ahoo/wow/command/LocalCommandBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun handOff (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public synthetic fun handOff (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
-	public fun sendIfSubscribed (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
-	public synthetic fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
 }
 
@@ -274,12 +279,12 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalEventBus : me
 	public fun getDelegate ()Lme/ahoo/wow/event/LocalDomainEventBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public synthetic fun handOff (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun handOff (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
 	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
-	public synthetic fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
-	public fun sendIfSubscribed (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
 	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
 }
 
@@ -291,12 +296,12 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalStateEventBus
 	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
 	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public synthetic fun handOff (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun handOff (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
 	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 	public fun send (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
-	public synthetic fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
-	public fun sendIfSubscribed (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
 	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
 }
 

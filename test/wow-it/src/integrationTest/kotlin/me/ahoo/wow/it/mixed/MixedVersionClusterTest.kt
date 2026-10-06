@@ -123,6 +123,107 @@ class MixedVersionClusterTest {
         }
     }
 
+    /**
+     * Local-first on both versions: a command, its state events and the events a saga reacts to are processed on the
+     * node that sent them, and the other version must filter their `local_first` copies, not process them a second
+     * time (which the request-ID check would only partly hide). Each node's own `wow.operation` counters tell who
+     * processed what; both 9.2.3 and the current build meter handlers there.
+     */
+    @Test
+    fun `with local-first on, each version filters the other's locally handled copies`() {
+        newCluster(localFirst = true).use { localFirstCluster ->
+            localFirstCluster.start()
+            val commandTopic = localFirstCluster.awaitTopic(CART_COMMAND)
+            val stateTopic = localFirstCluster.awaitTopic(CART_STATE)
+            val orderCommandTopic = localFirstCluster.awaitTopic(ORDER_COMMAND)
+            val orderEventTopic = localFirstCluster.awaitTopic(ORDER_EVENT)
+            val commandGroup = localFirstCluster.awaitBalancedGroup(commandTopic)
+            val snapshotGroup = localFirstCluster.awaitBalancedGroup(stateTopic) {
+                it.contains("snapshot", ignoreCase = true)
+            }
+            val orderCommandGroup = localFirstCluster.awaitBalancedGroup(orderCommandTopic)
+            val sagaGroup = localFirstCluster.awaitBalancedGroup(orderEventTopic) { it.contains("saga", ignoreCase = true) }
+            localFirstCluster.nodes.forEach { sender ->
+                val other = localFirstCluster.other(sender)
+                // Every copy lands on a partition the other version owns.
+                val cartId = localFirstCluster.key("cart-local-first-${sender.name}") {
+                    localFirstCluster.ownerOf(commandTopic, commandGroup, it) === other &&
+                        localFirstCluster.ownerOf(stateTopic, snapshotGroup, it) === other
+                }
+                val orderId = localFirstCluster.key("order-local-first-${sender.name}") {
+                    localFirstCluster.ownerOf(orderCommandTopic, orderCommandGroup, it) === other &&
+                        localFirstCluster.ownerOf(orderEventTopic, sagaGroup, it) === other
+                }
+                val before = localFirstCluster.nodes.associateWith { it.handled() }
+
+                sender.addCartItem(cartId, waitStage = "SNAPSHOT").assertSucceeded("SNAPSHOT")
+                sender.addCartItem(cartId, waitStage = "SNAPSHOT").assertSucceeded("SNAPSHOT")
+                sender.command(
+                    method = "POST",
+                    path = "/tenant/$TENANT/owner/$cartId/sales-order",
+                    body = CREATE_ORDER_FROM_CART,
+                    headers = mapOf("Command-Wait-Stage" to "PROCESSED", "Command-Aggregate-Id" to orderId),
+                ).assertSucceeded("PROCESSED")
+                awaitCondition("cart [$cartId] emptied by the saga on [${sender.name}]") {
+                    sender.get("/owner/$cartId/cart/state")["items"].isEmpty
+                }
+                listOf(commandTopic, stateTopic, orderCommandTopic, orderEventTopic).forEach { topic ->
+                    localFirstCluster.groupsOf(topic).forEach { localFirstCluster.awaitConsumed(topic, it.groupId()) }
+                }
+
+                val senderHandled = sender.handled() - before.getValue(sender)
+                val otherHandled = other.handled() - before.getValue(other)
+                // Two AddCartItem, the saga's RemoveCartItem; their snapshots; CreateOrder; the saga on OrderCreated.
+                senderHandled.cartCommands.assert().isEqualTo(3.0)
+                senderHandled.cartSnapshots.assert().isEqualTo(3.0)
+                senderHandled.orderCommands.assert().isEqualTo(1.0)
+                senderHandled.sagas.assert().isGreaterThanOrEqualTo(1.0)
+                otherHandled.assert().describedAs("[${other.name}] processed locally handled copies").isEqualTo(Handled())
+                localFirstCluster.nodes.forEach { node ->
+                    node.get("/cart/$cartId/event/1/100").size().assert().isEqualTo(3)
+                }
+            }
+        }
+    }
+
+    /** What a node's handlers processed, from its own `wow.operation` timers. */
+    private data class Handled(
+        val cartCommands: Double = 0.0,
+        val cartSnapshots: Double = 0.0,
+        val orderCommands: Double = 0.0,
+        val sagas: Double = 0.0,
+    ) {
+        operator fun minus(other: Handled) = Handled(
+            cartCommands - other.cartCommands,
+            cartSnapshots - other.cartSnapshots,
+            orderCommands - other.orderCommands,
+            sagas - other.sagas,
+        )
+    }
+
+    private fun ExampleServerNode.handled() = Handled(
+        cartCommands = operations("command_handler", "cart"),
+        cartSnapshots = operations("snapshot_handler", "cart"),
+        orderCommands = operations("command_handler", "order"),
+        sagas = operations("stateless_saga_handler", "order"),
+    )
+
+    /** The `wow.operation` count of [component] on [aggregate], `0` while no such operation ran. */
+    private fun ExampleServerNode.operations(component: String, aggregate: String): Double {
+        val request = HttpRequest.newBuilder(
+            URI.create("$baseUrl/actuator/metrics/wow.operation?tag=component:$component&tag=aggregate:$aggregate"),
+        ).timeout(REQUEST_TIMEOUT).header("Accept", "application/json").GET().build()
+        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() == 404) {
+            return 0.0
+        }
+        check(response.statusCode() == 200) {
+            "[$name] ${request.uri()} answered ${response.statusCode()}: ${response.body()}"
+        }
+        return JsonSerializer.readTree(response.body())["measurements"]
+            .first { it["statistic"].asString() == "COUNT" }["value"].asDouble()
+    }
+
     private fun ExampleServerNode.addCartItem(cartId: String, waitStage: String): JsonNode =
         command(
             method = "POST",
@@ -210,17 +311,22 @@ class MixedVersionClusterTest {
         @JvmStatic
         @BeforeAll
         fun startCluster() {
+            cluster = newCluster(localFirst = false)
+            cluster.start()
+        }
+
+        private fun newCluster(localFirst: Boolean): MixedVersionCluster {
             val previousImage = System.getenv(PREVIOUS_IMAGE_ENV)?.takeIf { it.isNotBlank() }
             val previousHome = System.getenv(PREVIOUS_HOME_ENV)?.takeIf { it.isNotBlank() }?.let(Path::of)
             check(previousImage != null || previousHome != null) {
                 "Set $PREVIOUS_IMAGE_ENV (released image) or $PREVIOUS_HOME_ENV (an installDist) for the previous node."
             }
-            cluster = MixedVersionCluster(
+            return MixedVersionCluster(
                 previousImage = previousImage,
                 previousHome = previousHome,
                 currentHome = Path.of(System.getenv(CURRENT_HOME_ENV)),
+                localFirst = localFirst,
             )
-            cluster.start()
         }
 
         @JvmStatic

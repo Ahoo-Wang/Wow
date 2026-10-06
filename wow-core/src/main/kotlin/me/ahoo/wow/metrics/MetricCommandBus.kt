@@ -19,6 +19,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import reactor.core.publisher.Mono
@@ -78,9 +79,9 @@ internal class MetricLocalCommandBus(
     source: String,
 ) : MetricCommandBus<LocalCommandBus>(delegate, metrics, source),
     LocalCommandBus {
-    override fun sendIfSubscribed(message: CommandMessage<*>): Mono<Boolean> =
+    override fun handOff(message: CommandMessage<*>): Mono<LocalHandoff> =
         metrics.operation(
-            delegate.sendIfSubscribed(message),
+            delegate.handOff(message),
             messageDescriptor(message, "send_if_subscribed"),
         )
 
