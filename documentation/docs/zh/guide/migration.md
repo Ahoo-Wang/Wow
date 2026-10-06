@@ -225,7 +225,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ### Saga、等待、排序与测试 DSL（9.3.0）
 
-- Saga 命令的 ID 从事件推导：没有指定聚合的命令得到由事件、Saga 函数、序号与目标类型推导的聚合 ID；返回的 `CommandMessage` 没有自己的请求 ID 时得到 `<事件 ID>-<序号>-<producer 哈希>`（命令体与 builder 仍是 `<事件 ID>-<序号>`）。因此重试的 Saga 创建命令指向第一次尝试创建的聚合，以 `DuplicateRequestId` 被拒绝；Saga 跳过这次发送，不会为它写补偿记录。见[requestId 与上下文传播](./event/saga.md#requestid-与上下文传播)。
+- Saga 命令的 ID 从事件推导：没有指定聚合的命令体或 `CommandBuilder` 得到由事件、Saga 函数、序号与目标类型推导的聚合 ID（仅当目标的 ID 生成器是基于时间的 CosId 或 Snowflake 生成器时；其他生成器以及返回的 `CommandMessage` 保留自己的聚合 ID）；返回的 `CommandMessage` 没有自己的请求 ID 时得到 `<事件 ID>-<序号>-<producer 哈希>`（命令体与 builder 仍是 `<事件 ID>-<序号>`）。因此重试的 Saga 创建命令指向第一次尝试创建的聚合，以 `DuplicateRequestId` 被拒绝；Saga 跳过这次发送，不会为它写补偿记录。见[requestId 与上下文传播](./event/saga.md#requestid-与上下文传播)。
 - 链式等待的 SSE 流（以链式目标调用 `sendAndWaitStream`）不再携带对同一事件作出反应的其他 Saga 的尾部信号：只有被等待的 Saga 函数的命令携带尾部信息。见[命令等待运行时](./command/internals/wait-runtime.md)。
 - 只做网关的服务（没有 `EventStore`）上，用网关 Bloom 过滤器见过的请求 ID 重发命令，现在在 `SENT` 阶段成功：网关放行，由处理节点拒绝（`DuplicateRequestId`），处理函数不会再次执行。只等待 `SENT` 的调用方不再看到重复；要看到它，请等待 `PROCESSED`。见[失败与幂等](./command/reliability.md#快速预检与权威确认)。
 - 在 Spring 之外，只有给 `DefaultCommandHandler` 传入 `RequestIdChecker` 时，处理节点才会做请求 ID 检查；手工搭建、没有接入它的网关服务在处理函数之前没有检查，唯一的重复检查是 `EventStore` 追加（该节点与 9.2 相同）。

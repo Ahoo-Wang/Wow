@@ -30,6 +30,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -85,13 +86,14 @@ class CommandKernelOrderTest {
         eventStore: EventStore,
         command: Any,
         repository: StateAggregateRepository = repository(eventStore),
+        commandAggregateFactory: CommandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
     ): Outcome {
         val processor = RetryableAggregateProcessor(
             aggregateId = aggregateId,
             aggregateMetadata = metadata,
             aggregateFactory = ConstructorStateAggregateFactory,
             stateAggregateRepository = repository,
-            commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
+            commandAggregateFactory = commandAggregateFactory,
             maxRetries = 0,
         )
         val exchange = exchange(command)
@@ -226,6 +228,43 @@ class CommandKernelOrderTest {
         outcome.exchange.getAggregateVersion().assert().isEqualTo(1)
         OrderProbe.onErrorCalls.assert().isEmpty()
     }
+
+    /**
+     * A custom factory whose reloaded aggregate cannot run `@OnError`: skipped the same way as a failed reload, with
+     * the original error, the reason suppressed, and nothing left on the exchange.
+     */
+    @Test
+    fun `on error is skipped when the reloaded aggregate cannot run it`() {
+        val failure = IllegalStateException("append failed")
+        val eventStore = createdThenFailingAppends(failure)
+        OrderProbe.reset()
+        val simple = SimpleCommandAggregateFactory(eventStore)
+        val created = AtomicInteger()
+        val factory = object : CommandAggregateFactory {
+            override fun <C : Any, S : Any> create(
+                metadata: AggregateMetadata<C, S>,
+                stateAggregate: StateAggregate<S>
+            ): CommandAggregate<C, S> {
+                val aggregate = simple.create(metadata, stateAggregate)
+                return if (created.incrementAndGet() == 1) aggregate else ForeignCommandAggregate(aggregate)
+            }
+        }
+
+        val outcome = process(eventStore, ChangeOrderProbe(AGGREGATE_ID), commandAggregateFactory = factory)
+
+        outcome.error.assert().isSameAs(failure)
+        failure.suppressed.map { it.message }.assert().contains(
+            "The reloaded aggregate is not a SimpleCommandAggregate."
+        )
+        outcome.exchange.getError().assert().isSameAs(failure)
+        outcome.exchange.getCommandAggregate<OrderProbeAggregate, OrderProbeAggregate>().assert().isNull()
+        OrderProbe.onErrorCalls.assert().isEmpty()
+    }
+
+    /** A command aggregate that is not a [SimpleCommandAggregate], as a custom factory may return. */
+    private class ForeignCommandAggregate<C : Any, S : Any>(
+        private val delegate: CommandAggregate<C, S>
+    ) : CommandAggregate<C, S> by delegate
 
     /**
      * Called directly, without the processor, `@OnError` runs on the instance itself: after an append failure it

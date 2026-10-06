@@ -174,7 +174,9 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 - **Fixes**：用原请求 ID 重发的创建命令在请求 ID 窗口之外也返回 `DuplicateRequestId`（9.2 返回 `DuplicateAggregateId`，属缺陷；HTTP 400 不变；混部集群在全部升级前两种错误码都可能出现，§8 Q16）。
 - **Behaviour changes**：失败追加的 `CommandResult.aggregateVersion` 是已提交的版本 N（9.2 为未持久化的 N+1，§8 Q20）；`@OnError` 总是看到已提交的状态（§8 Q15）；Saga 返回的 `CommandMessage` 的默认请求 ID 带上 producer（§8 Q17）。
 - **Breaking**：webflux 路由处理函数外面多了一层 `RouteIdentityHandlerFunction` 包装（按 `HandlerFunction` 类型判断具体处理器的代码受影响）；apiclient 的网关接口新增抽象方法 `send(URI, Map, Any)`，手写实现须补上（CoApi 生成的代理不受影响）。
-- **E5（#3949）**：生成代码上的 `@Generated` 不再带日期（重复构建产物逐字节一致）；wow-compiler 的 POM 不再传递依赖 wow-core，原来经由它拿到 wow-core 的工程须自己声明。第 6 阶段之后：9.3.0 发布说明（Breaking：T1、T2、K2 的 V5/V6、Q1 依赖变化；Behaviour changes：S1–S3、I2 的 V3、X2、X5、E1、E2）、迁移指南（`@AggregateRoute.spaced/owner` → 新声明、`CommandFilter` → 新扩展点、BI 依赖）、compat-debt 新条目，然后按发布手册走 `9.3.0-rc.0` → 补偿控制台端到端验证 → `9.3.0`。
+- **E5（#3949）**：生成代码上的 `@Generated` 不再带日期（重复构建产物逐字节一致）；wow-compiler 的 POM 不再传递依赖 wow-core，原来经由它拿到 wow-core 的工程须自己声明。
+
+第 6 阶段之后：9.3.0 发布说明（Breaking：T1、T2、K2 的 V5/V6、Q1 依赖变化；Behaviour changes：S1–S3、I2 的 V3、X2、X5、E1、E2）、迁移指南（`@AggregateRoute.spaced/owner` → 新声明、`CommandFilter` → 新扩展点、BI 依赖）、compat-debt 新条目，然后按发布手册走 `9.3.0-rc.0` → 补偿控制台端到端验证 → `9.3.0`。
 
 ## 6. 不做什么
 
@@ -222,12 +224,12 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 | # | 问题 | 决定 |
 |---|---|---|
 | Q14 | 命令内核的顺序 | **决定 → 应用 → 追加，三者是一个原子单元**（「soucing 完成后才可以落库」）：已持久化的事件总能加载；内存状态绝不偏离存储。溯源或追加失败时命令失败，不存储、不发布、不发 `StateEvent`，版本停在 N；应用了未存储事件的实例丢弃，绝不复用。取代 K2 原先的「决定 → 追加 → 应用」（#3982） |
-| Q15 | 失败命令的 `@OnError` 看到什么状态 | **已提交的状态**：失败路径上（实例应用了未存储的事件、且命令有 `@OnError` 时）从存储重新加载聚合，在其上执行 `@OnError`；重新加载也失败时跳过 `@OnError`，返回原始错误，加载错误作为 suppressed 附上并记 ERROR。成功路径不变（#3982） |
+| Q15 | 失败命令的 `@OnError` 看到什么状态 | **重新加载的已提交状态**（创建命令由工厂新建聚合）：失败路径上（实例应用了未存储的事件、且命令有 `@OnError` 时）重新加载聚合，在其上执行 `@OnError`；重新加载也失败时跳过 `@OnError`，返回原始错误，加载错误作为 suppressed 附上并记 ERROR。成功路径不变（#3982） |
 | Q16 | 重发的创建命令的错误码 | **任何情况下都是 `DuplicateRequestId`**：这个请求是重放，9.2 在请求 ID 窗口外返回的 `DuplicateAggregateId` 是缺陷。不回退；HTTP 400 不变；作为 Fix 写进发布说明（#3982） |
 | Q17 | Saga 返回的 `CommandMessage` 的默认请求 ID | **带上 producer**：`<事件 ID>-<序号>-<producer 哈希>`，两个 Saga 对同一事件不再共用请求 ID。命令体与 `CommandBuilder` 路径与 9.2 逐字节一致（混部），其已有的冲突写进 saga.md（#3982） |
-| Q18 | X5 本地优先的取消竞态 | **方案 ③**：分布式副本等待真正的本地决定再发送，不重复、不丢失（#3976） |
+| Q18 | X5 本地优先的取消竞态 | **方案 ③**：分布式副本等待真正的本地决定再发送，不重复、不丢失。随 #3976 落地（#3976 合并前 main 尚无此行为） |
 | Q19 | X5 跨主题/总线的顺序 | **不保证跨主题或跨总线的顺序**，只写进文档（#3976） |
-| Q20 | 兼容边界：失败追加的 `CommandResult.aggregateVersion` | **接受**：报告已提交的版本 N（9.2 报告未持久化的 N+1）。REST 可见，写进发布说明的 Behaviour changes |
+| Q20 | 兼容边界：失败追加的 `CommandResult.aggregateVersion` | **接受**：报告命令做决定时的已提交版本 N（9.2 报告未持久化的 N+1）；`@OnError` 重新加载的状态在版本冲突时可能更新（N+k）。REST 可见，写进发布说明的 Behaviour changes |
 
 ## 9. 与已有设计的关系
 
