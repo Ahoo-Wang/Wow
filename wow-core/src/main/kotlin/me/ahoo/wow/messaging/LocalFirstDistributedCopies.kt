@@ -29,6 +29,7 @@ import reactor.util.context.ContextView
 import java.time.Duration
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -168,23 +169,49 @@ class LocalFirstDistributedCopies(
             get() = decision.get() != null
 
         /**
-         * Subscribes [handoff] on behalf of this copy, independently of the sender: the copy is decided by the true
-         * local result even when the sender stops waiting (cancels) before it arrives. An error or an empty result
-         * counts as refused. The returned [Mono] replays the result to the sender.
+         * Subscribes [handoff] on behalf of this copy, independently of the sender, in the captured sender context
+         * (trace parent, metrics source): the copy is decided by the true local result even when the sender stops
+         * waiting (cancels) before it arrives. An error or an empty result counts as refused, and so does a result
+         * that does not arrive within the hand-off timeout (the timer is only armed when the result is not
+         * immediate). The returned [Mono] replays the result to the sender.
          */
         fun decideFrom(handoff: Mono<LocalHandoff>): Mono<LocalHandoff> {
             val result = Sinks.one<LocalHandoff>()
-            Mono.defer { handoff }
-                .timeout(handOffTimeout)
+            val settled = AtomicBoolean()
+            val timer = Disposables.swap()
+            fun settle(decided: LocalHandoff) {
+                if (!settled.compareAndSet(false, true)) {
+                    return
+                }
+                timer.dispose()
+                try {
+                    decide(decided)
+                } finally {
+                    result.tryEmitValue(decided)
+                }
+            }
+            val pending = Mono.defer { handoff }
                 .onErrorResume { error ->
-                    log.warn(error) { "[$name] No local hand-off result for ${description()}; send it unmarked." }
+                    log.warn(error) { "[$name] Local hand-off of ${description()} failed; send it unmarked." }
                     Mono.just(LocalHandoff.REFUSED)
                 }
                 .defaultIfEmpty(LocalHandoff.REFUSED)
-                .subscribe { decided ->
-                    decide(decided)
-                    result.tryEmitValue(decided)
-                }
+                .contextWrite(context)
+                .subscribe(::settle)
+            if (!settled.get()) {
+                timer.update(
+                    Mono.delay(handOffTimeout).subscribe {
+                        if (!settled.get()) {
+                            log.warn {
+                                "[$name] No local hand-off result for ${description()} within $handOffTimeout; " +
+                                    "send it unmarked."
+                            }
+                            pending.dispose()
+                            settle(LocalHandoff.REFUSED)
+                        }
+                    },
+                )
+            }
             return result.asMono()
         }
 

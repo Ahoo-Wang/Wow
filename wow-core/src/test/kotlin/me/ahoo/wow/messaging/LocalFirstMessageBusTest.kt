@@ -21,6 +21,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.infra.sink.mpscUnicastManySink
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.metrics.getMetricsSubscriber
+import me.ahoo.wow.metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import org.junit.jupiter.api.Test
@@ -33,7 +35,10 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
+import reactor.kotlin.test.test
 import reactor.test.StepVerifier
+import reactor.util.context.Context
+import reactor.util.context.ContextView
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -42,6 +47,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class LocalFirstMessageBusTest {
 
@@ -211,6 +217,31 @@ class LocalFirstMessageBusTest {
         distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         Thread.sleep(50)
         distributedBus.sent.assert().hasSize(1)
+    }
+
+    @Test
+    fun `the local hand-off runs in the captured sender context`() {
+        val seen = AtomicReference<ContextView>()
+        val localBus = RecordingLocalBus(subscribers = 1).apply {
+            handOffResult = {
+                Mono.deferContextual { context ->
+                    seen.set(context)
+                    Mono.just(LocalHandoff.REFUSED)
+                }
+            }
+        }
+        val bus = RecordingLocalFirstMessageBus(localBus, RecordingDistributedBus())
+
+        Mono.deferContextual { Mono.just(it) }.flux()
+            .concatMap { bus.send(LocalFirstTestMessage(id = "traced")) }
+            .writeMetricsSubscriber("subscriber-1")
+            .contextWrite(Context.of("request", "web-request"))
+            .then()
+            .test()
+            .verifyComplete()
+
+        seen.get().getMetricsSubscriber().assert().isEqualTo("subscriber-1")
+        seen.get().hasKey("request").assert().isFalse()
     }
 
     @Test
