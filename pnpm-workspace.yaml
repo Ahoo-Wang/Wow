@@ -37,12 +37,12 @@ catalogs:
 # One version per external dependency across the workspace. Packages reference
 # these with `catalog:`; internal packages use the `workspace:` protocol.
 catalog:
-  '@ahoo-wang/fetcher': '^6.0.0'
-  '@ahoo-wang/fetcher-cosec': '^6.0.0'
-  '@ahoo-wang/fetcher-decorator': '^6.0.0'
-  '@ahoo-wang/fetcher-eventstream': '^6.0.0'
-  '@ahoo-wang/fetcher-openapi': '^6.0.0'
-  '@ahoo-wang/fetcher-react': '^6.0.0'
+  '@ahoo-wang/fetcher': '^6.0.1'
+  '@ahoo-wang/fetcher-cosec': '^6.0.1'
+  '@ahoo-wang/fetcher-decorator': '^6.0.1'
+  '@ahoo-wang/fetcher-eventstream': '^6.0.1'
+  '@ahoo-wang/fetcher-openapi': '^6.0.1'
+  '@ahoo-wang/fetcher-react': '^6.0.1'
   antd: ^6.6.5
   axe-core: ^4.13.0
   babel-plugin-react-compiler: 1.0.0
