@@ -24,9 +24,15 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.LocalDomainEventBus
+import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
+import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
+import me.ahoo.wow.opentelemetry.messaging.TracingLocalStateEventBus
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.CoreSubscriber
@@ -149,6 +155,43 @@ class TracePublisherTest {
         }
         verify(exactly = 0) {
             delegate.send(message)
+        }
+    }
+
+    @Test
+    fun `local domain and state event hand-offs are traced`() {
+        val traceContext = Context.root()
+        val events = mockk<DomainEventStream>()
+        val eventBus = mockk<LocalDomainEventBus> {
+            every { handOff(events) } returns Mono.just(LocalHandoff.REFUSED)
+        }
+        val eventInstrumenter = mockk<Instrumenter<DomainEventStream, Unit>> {
+            every { shouldStart(traceContext, events) } returns true
+            every { start(traceContext, events) } returns traceContext
+            every { end(traceContext, events, null, null) } just runs
+        }
+        val state = mockk<StateEvent<*>>()
+        val stateBus = mockk<LocalStateEventBus> {
+            every { handOff(state) } returns Mono.just(LocalHandoff.REFUSED)
+        }
+        val stateInstrumenter = mockk<Instrumenter<StateEvent<*>, Unit>> {
+            every { shouldStart(traceContext, state) } returns true
+            every { start(traceContext, state) } returns traceContext
+            every { end(traceContext, state, null, null) } just runs
+        }
+
+        TracingLocalEventBus(eventBus, eventInstrumenter).handOff(events).test()
+            .expectNext(LocalHandoff.REFUSED)
+            .verifyComplete()
+        TracingLocalStateEventBus(stateBus, stateInstrumenter).handOff(state).test()
+            .expectNext(LocalHandoff.REFUSED)
+            .verifyComplete()
+
+        verify(exactly = 1) {
+            eventBus.handOff(events)
+            eventInstrumenter.end(traceContext, events, null, null)
+            stateBus.handOff(state)
+            stateInstrumenter.end(traceContext, state, null, null)
         }
     }
 

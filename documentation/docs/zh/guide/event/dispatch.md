@@ -17,6 +17,8 @@ outline: deep
 
 两者都是 `MessageBus`，但 topic kind、订阅与 transport 确认语义相互独立。发送完成只代表具体 Bus 实现的发送边界，不等于处理函数完成，也不承诺 exactly-once。领域事件何时成为权威历史见[事件溯源](../domain/event-sourcing.md)。
 
+两条总线之间、不同 topic 之间都没有顺序保证。每条总线各自保持同一聚合消息的发送顺序，但在 local-first 下，版本 N 的领域事件可能晚于版本 N 的状态事件到达分布式传输，因为领域事件的 distributed 副本要等所有本地事件 receiver 都作出决定（见 [LocalFirst 双副本准入](../command/internals/transport.md#localfirst-双副本准入)）。消费者不得依赖跨 topic 的顺序，例如假定先看到领域事件、再看到同一版本的状态事件；9.2 同样从未保证消费端的跨 topic 顺序。
+
 ## Composite Dispatcher
 
 `DomainEventDispatcher`、`ProjectionDispatcher` 与 `StatelessSagaDispatcher` 都基于 `CompositeEventDispatcher`。一个 Composite Dispatcher 创建两个子分发器，并共享聚合调度器：

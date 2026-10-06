@@ -43,6 +43,11 @@ public final class me/ahoo/wow/opentelemetry/TraceFlux : reactor/core/publisher/
 	public fun subscribe (Lreactor/core/CoreSubscriber;)V
 }
 
+public final class me/ahoo/wow/opentelemetry/TraceLocalFirstContextCapture : me/ahoo/wow/messaging/LocalFirstContextCapture {
+	public fun <init> ()V
+	public fun capture (Lreactor/util/context/ContextView;)Lreactor/util/context/Context;
+}
+
 public final class me/ahoo/wow/opentelemetry/TraceMono : reactor/core/publisher/Mono {
 	public fun <init> (Lio/opentelemetry/context/Context;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Ljava/lang/Object;Lreactor/core/publisher/Mono;)V
 	public fun subscribe (Lreactor/core/CoreSubscriber;)V

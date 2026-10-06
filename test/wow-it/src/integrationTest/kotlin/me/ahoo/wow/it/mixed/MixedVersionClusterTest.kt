@@ -141,6 +141,7 @@ class MixedVersionClusterTest {
             val snapshotGroup = localFirstCluster.awaitBalancedGroup(stateTopic) {
                 it.contains("snapshot", ignoreCase = true)
             }
+            val orderCommandGroup = localFirstCluster.awaitBalancedGroup(orderCommandTopic)
             val sagaGroup = localFirstCluster.awaitBalancedGroup(orderEventTopic) { it.contains("saga", ignoreCase = true) }
             localFirstCluster.nodes.forEach { sender ->
                 val other = localFirstCluster.other(sender)
@@ -150,7 +151,8 @@ class MixedVersionClusterTest {
                         localFirstCluster.ownerOf(stateTopic, snapshotGroup, it) === other
                 }
                 val orderId = localFirstCluster.key("order-local-first-${sender.name}") {
-                    localFirstCluster.ownerOf(orderEventTopic, sagaGroup, it) === other
+                    localFirstCluster.ownerOf(orderCommandTopic, orderCommandGroup, it) === other &&
+                        localFirstCluster.ownerOf(orderEventTopic, sagaGroup, it) === other
                 }
                 val before = localFirstCluster.nodes.associateWith { it.handled() }
 

@@ -20,7 +20,7 @@ import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
-import reactor.core.Disposable
+import reactor.core.Disposables
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
@@ -46,24 +46,37 @@ import java.util.concurrent.atomic.AtomicReference
  * The backlog — copies not yet sent — is a gauge per aggregate type (`wow.local_first.backlog`); reaching
  * [backlogHighWaterMark] logs a warning. A slow local consumer makes it, and the in-process local sink, grow.
  *
+ * [name] must be unique per meter registry (the starter names one per bus): the gauge of a second instance with the
+ * same name would read the first one's backlog.
+ *
  * As a [RuntimeComponent] stopped after the dispatchers and before the transports' runtime resources, it lets every
  * queued copy be sent within the runtime's shutdown deadline ([stopGracefully]); a force stop cancels the rest, which
- * other services then never receive.
+ * other services then never receive. Only an instance registered with the runtime (the starter registers the ones it
+ * creates) is awaited at shutdown; one created by hand is not, unless it is added to the runtime's components.
  */
 class LocalFirstDistributedCopies(
     private val name: String = "LocalFirstDistributedCopies",
     private val metrics: WowMetrics = WowMetrics.NONE,
     private val backlogHighWaterMark: Int = DEFAULT_BACKLOG_HIGH_WATER_MARK,
+    private val handOffTimeout: Duration = DEFAULT_HAND_OFF_TIMEOUT,
 ) : RuntimeComponent {
     companion object {
         private val log = KotlinLogging.logger {}
         private val DRAIN_POLL_INTERVAL: Duration = Duration.ofMillis(10)
         const val DEFAULT_BACKLOG_HIGH_WATER_MARK: Int = 10_000
+
+        /**
+         * How long a copy waits for the local hand-off result (which a local bus answers at once) before it is sent
+         * unmarked. A hand-off accepted later still processes the message locally: a duplicate, never a stuck queue.
+         * The admission that follows an accepted hand-off has no timeout: closing a route rejects it.
+         */
+        val DEFAULT_HAND_OFF_TIMEOUT: Duration = Duration.ofSeconds(30)
         const val BACKLOG_METRIC = "wow.local_first.backlog"
     }
 
     init {
         require(backlogHighWaterMark > 0) { "backlogHighWaterMark must be greater than 0." }
+        require(!handOffTimeout.isNegative && !handOffTimeout.isZero) { "handOffTimeout must be positive." }
     }
 
     private val lanes = ConcurrentHashMap<Any, Lane>()
@@ -73,6 +86,10 @@ class LocalFirstDistributedCopies(
     /** The copies not yet sent or failed. */
     val pending: Int
         get() = total.get()
+
+    /** The aggregates with a queue; a queue is removed once it is empty. */
+    internal val queues: Int
+        get() = lanes.size
 
     /** The copies of [namedAggregate]'s aggregates not yet sent. */
     fun backlog(namedAggregate: NamedAggregate): Int = backlogs[namedAggregate.materialize()]?.get() ?: 0
@@ -88,7 +105,7 @@ class LocalFirstDistributedCopies(
         description: () -> String,
         send: (admitted: Boolean) -> Mono<Void>,
     ): Copy {
-        val copy = Copy(namedAggregate.materialize(), context, description, send)
+        val copy = Copy(namedAggregate.materialize(), LocalFirstContextCaptures.capture(context), description, send)
         while (true) {
             val lane = lanes.computeIfAbsent(key) { Lane(it) }
             val added = synchronized(lane) {
@@ -132,20 +149,44 @@ class LocalFirstDistributedCopies(
     /** One queued copy; [decide] tells it the local hand-off result. */
     inner class Copy internal constructor(
         internal val namedAggregate: NamedAggregate,
-        private val context: ContextView,
+        private val context: Context,
         private val description: () -> String,
         private val send: (Boolean) -> Mono<Void>,
     ) {
         internal lateinit var lane: Lane
         private val decision = AtomicReference<Mono<Boolean>?>()
         private val done = Sinks.empty<Void>()
-        internal var subscription: Disposable? = null
+
+        // A swap disposed by a force stop disposes the send subscribed after it, so a force stop racing the start
+        // still cancels the send.
+        private val subscription = Disposables.swap()
 
         /** Completes when this copy was sent, or fails with the send error. */
         val sent: Mono<Void> = done.asMono()
 
         internal val decided: Boolean
             get() = decision.get() != null
+
+        /**
+         * Subscribes [handoff] on behalf of this copy, independently of the sender: the copy is decided by the true
+         * local result even when the sender stops waiting (cancels) before it arrives. An error or an empty result
+         * counts as refused. The returned [Mono] replays the result to the sender.
+         */
+        fun decideFrom(handoff: Mono<LocalHandoff>): Mono<LocalHandoff> {
+            val result = Sinks.one<LocalHandoff>()
+            Mono.defer { handoff }
+                .timeout(handOffTimeout)
+                .onErrorResume { error ->
+                    log.warn(error) { "[$name] No local hand-off result for ${description()}; send it unmarked." }
+                    Mono.just(LocalHandoff.REFUSED)
+                }
+                .defaultIfEmpty(LocalHandoff.REFUSED)
+                .subscribe { decided ->
+                    decide(decided)
+                    result.tryEmitValue(decided)
+                }
+            return result.asMono()
+        }
 
         /** The local hand-off result; only the first call counts. */
         fun decide(handoff: LocalHandoff) {
@@ -157,11 +198,11 @@ class LocalFirstDistributedCopies(
 
         internal fun start() {
             val admission = checkNotNull(decision.get())
-            subscription = admission
+            val sending = admission
                 .onErrorReturn(false)
                 .defaultIfEmpty(false)
                 .flatMap(send)
-                .contextWrite(Context.of(context))
+                .contextWrite(context)
                 .doFinally { finish(this) }
                 .subscribe(
                     null,
@@ -174,10 +215,11 @@ class LocalFirstDistributedCopies(
                     },
                     { done.tryEmitEmpty() },
                 )
+            subscription.update(sending)
         }
 
         internal fun cancel() {
-            subscription?.dispose()
+            subscription.dispose()
             done.tryEmitError(CancellationException("The distributed copy of ${description()} was cancelled."))
         }
     }

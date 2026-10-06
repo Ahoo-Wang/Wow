@@ -82,11 +82,17 @@ Redis 与 Kafka 的发送完成条件不同，二者都不等于聚合已经处�
 | 本地交付异常 | 同上（记录错误日志） | `local_first=false` |
 | 交付后被拒绝（receiver 关闭） | 已完成 | `local_first=false`，轮到时发送 |
 
-**顺序。** 无论已交付与被拒绝的发送如何交错，同一聚合的消息都按发送顺序到达 distributed bus，与 9.2 相同：副本只在该聚合所有更早副本发送之后才发送。被拒绝的发送不会等待本地 receiver 的需求，因为路由先关闭才会拒绝，而关闭会拒绝其待定准入。
+**顺序。** 无论已交付与被拒绝的发送如何交错，同一聚合的消息都按发送顺序到达 distributed bus，与 9.2 相同：副本只在该聚合所有更早副本发送之后才发送。因路由关闭而被拒绝的发送不会等待本地 receiver 的需求：关闭在拒绝之前已拒绝该路由的全部待定准入。因本地异常（sink 发射失败或抛出异常）而被拒绝的发送只拒绝它自己的投递；它的副本仍要等待该聚合更早的副本，而这些副本的准入在其 receiver 拉取或关闭时才决定。sink 无界时，这类异常只意味着 sink 已终止或存在缺陷，因此这种等待很少见，最迟在总线关闭时结束。
+
+**跨 topic、跨总线无顺序保证。** 上述顺序只在同一聚合、同一总线的消息之间成立。不同 topic、不同总线之间没有顺序保证：命令、领域事件与状态事件经由各自的总线和各自的副本队列发送。尤其是，版本 N 的领域事件可能晚于版本 N 的状态事件到达分布式传输，因为领域事件的副本要等所有本地事件 receiver 都作出决定。消费者不得依赖跨 topic 的顺序；9.2 同样从未保证消费端的跨 topic 顺序。
+
+**发送方不再等待。** 等待交付结果的是副本而不是发送方。在得到结果之前被取消的发送方（请求超时、客户端断开）只是不再等待：副本仍只发送一次，本地 receiver 准入时标记 `local_first=true`，否则为 `false`，因此取消既不会造成重复，也不会造成丢失。30 秒内未得到的交付结果按拒绝处理（记录日志，副本不带标记发出）；路由关闭时仍待定的准入由关闭拒绝，因此副本不会永远等待。
+
+**副本上下文。** 排队的副本只保留发送所需的发送方 Reactor 上下文——指标来源，以及引入 `wow-opentelemetry` 时的 trace 上下文（`LocalFirstContextCapture` 的实现）——从不保留整个上下文（其中可能有 Web 请求）。
 
 **不等待需求，本地 sink 无界。** 发送方从不等待本地 receiver 拉取消息，因此会发送消息的处理器（命令处理器发布事件、Saga 发送命令）无论 dispatcher 多满都不会互相阻塞。命令、领域事件与状态事件的本地 sink 均为无界，交付不会因消费者慢而被拒绝；代价是进程内积压增长。积压可在指标 `wow.local_first.backlog`（按聚合类型统计待发送副本数）上观察，达到 `wow.<command|event|eventsourcing.state>.bus.local-first.backlog-high-water-mark`（默认 10000）时记录警告。
 
-**失败与关停。** 已交付消息的副本发送失败会记录日志，并由 distributed bus 的发送指标计数；与 9.2 不同（9.2 中发送随之失败），它不再体现在命令结果中。关停时，运行时在 dispatcher 停止之后、传输关闭之前，于 `shutdownTimeout` 内发送队列中的副本；超时后仍在队列中的副本被取消，其他服务永远收不到这些消息。
+**失败与关停。** 已交付消息的副本发送失败会记录日志，并由 distributed bus 的发送指标计数；与 9.2 不同（9.2 中发送随之失败），它不再体现在命令结果中。关停时，运行时在 dispatcher 停止之后、传输关闭之前，于 `shutdownTimeout` 内发送队列中的副本；超时后仍在队列中的副本被取消，其他服务永远收不到这些消息。只有注册到运行时的副本队列（Spring Boot starter 的 `localFirst*BusDistributedCopies` bean）会被等待：在运行时之外创建的 `LocalFirstDistributedCopies` 不会被等待，除非把它注册为运行时组件或自行停止它。
 
 **local-first 以崩溃持久性换取延迟。** 已交付但尚未处理的消息只存在于本进程：进程崩溃时会丢失。已在本地处理、但崩溃时副本尚未发出的消息，其他服务永远看不到。9.2 中准入之后本就如此；交付只把窗口扩大到消息在本地 sink 中等待的时间。消息必须在进程崩溃后仍被处理（跨崩溃的至少一次）时，请关闭 local-first（`wow.command.bus.local-first.enabled=false`，事件与状态事件同理）。
 
@@ -107,8 +113,8 @@ Redis 与 Kafka 的发送完成条件不同，二者都不等于聚合已经处�
 | InMemory | sink 发射完成；无订阅者也可能完成 | 有处理者、聚合执行、持久化 |
 | Kafka | producer send result 成功 | consumer 收到或 ack、聚合执行 |
 | Redis | stream add 完成 | consumer group 已处理或 XACK |
-| LocalFirst | 本地投递尝试结束，distributed send 完成 | 任一副本已完成聚合处理 |
-| Void + LocalFirst | distributed send 完成 | 聚合处理；该路径会被 Dispatcher 过滤 |
+| LocalFirst | 已交付：命令已进入本地 sink，distributed 副本只是已入队。被拒绝：distributed send 完成 | 已交付：distributed send、本地或远端处理；`SENT` 之后进程崩溃会丢失尚未处理的已交付命令，以及尚未发出的副本。被拒绝：聚合处理 |
+| Void + LocalFirst | distributed send 完成（Void 跳过 local-first） | 聚合处理；该路径会被 Dispatcher 过滤 |
 
 `sendAndWaitForSent` 直接根据这个 publisher 合成结果，不依赖回调 Header。需要更强保证时，按[完成语义](../completion.md)选择阶段，而不是重新解释 `SENT`。
 

@@ -16,6 +16,8 @@ package me.ahoo.wow.messaging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.getMetricsSubscriber
+import me.ahoo.wow.metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
@@ -24,10 +26,16 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import reactor.util.context.Context
+import reactor.util.context.ContextView
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -132,19 +140,107 @@ class LocalFirstDistributedCopiesTest {
     }
 
     @Test
-    fun `the copy is sent in the sender's context`() {
+    fun `the copy keeps only the captured parts of the sender's context`() {
         val copies = LocalFirstDistributedCopies()
-        val seen = AtomicReference<String>()
-        val copy = copies.enqueue("aggregate-1", aggregate, Context.of("trace", "parent-1"), { "message[1]" }) {
+        val sender = Mono.deferContextual { Mono.just(it) }.flux()
+            .writeMetricsSubscriber("subscriber-1")
+            .contextWrite(Context.of("request", "web-request"))
+            .blockFirst()!!
+        val seen = AtomicReference<ContextView>()
+        val copy = copies.enqueue("aggregate-1", aggregate, sender, { "message[1]" }) {
             Mono.deferContextual { context ->
-                seen.set(context.get<String>("trace"))
+                seen.set(context)
                 Mono.empty()
             }
         }
 
         copy.decide(LocalHandoff.REFUSED)
 
-        seen.get().assert().isEqualTo("parent-1")
+        seen.get().getMetricsSubscriber().assert().isEqualTo("subscriber-1")
+        seen.get().hasKey("request").assert().isFalse()
+    }
+
+    @Test
+    fun `a hand-off result that never arrives is a refusal after the timeout`() {
+        val copies = LocalFirstDistributedCopies(handOffTimeout = Duration.ofMillis(50))
+        val copy = copies.enqueue("1")
+
+        copy.decideFrom(Mono.never()).test().expectNext(LocalHandoff.REFUSED).verifyComplete()
+        copy.decideFrom(Mono.error(IllegalStateException("late"))).test()
+            .expectNext(LocalHandoff.REFUSED).verifyComplete()
+
+        copy.sent.test().verifyComplete()
+        sent.assert().containsExactly("1" to false)
+    }
+
+    @Test
+    fun `the hand-off timeout must be positive`() {
+        assertThrows<IllegalArgumentException> { LocalFirstDistributedCopies(handOffTimeout = Duration.ZERO) }
+    }
+
+    @Test
+    fun `an aggregate's queue is removed once it is empty`() {
+        val copies = LocalFirstDistributedCopies()
+        val first = copies.enqueue("1", key = "aggregate-1")
+        copies.enqueue("2", key = "aggregate-2").decide(LocalHandoff.REFUSED)
+        copies.queues.assert().isEqualTo(1)
+
+        first.decide(LocalHandoff.REFUSED)
+
+        copies.queues.assert().isZero()
+        // A later copy of the same aggregate gets a fresh queue.
+        copies.enqueue("3", key = "aggregate-1").decide(LocalHandoff.REFUSED)
+        sent.assert().containsExactly("2" to false, "1" to false, "3" to false)
+        copies.queues.assert().isZero()
+    }
+
+    @Test
+    fun `concurrent enqueue, decide and finish neither loses a wake-up nor reorders an aggregate`() {
+        val copies = LocalFirstDistributedCopies()
+        val aggregates = 8
+        val perAggregate = 2_000
+        val received = ConcurrentHashMap<Int, MutableList<Int>>()
+        val finisher = Schedulers.newParallel("copies-finish", 4)
+        val decider = Executors.newFixedThreadPool(4)
+        val senders = Executors.newFixedThreadPool(aggregates)
+        try {
+            val done = CountDownLatch(aggregates)
+            repeat(aggregates) { aggregateIndex ->
+                senders.execute {
+                    repeat(perAggregate) { sequence ->
+                        val description = { "$aggregateIndex-$sequence" }
+                        val copy = copies.enqueue(aggregateIndex, aggregate, Context.empty(), description) {
+                            Mono.fromRunnable<Void> {
+                                received.computeIfAbsent(aggregateIndex) { CopyOnWriteArrayList() } += sequence
+                            }.subscribeOn(finisher)
+                        }
+                        decider.execute {
+                            copy.decide(
+                                if (sequence % 2 == 0) {
+                                    LocalHandoff.REFUSED
+                                } else {
+                                    LocalHandoff.accepted(Mono.just(false).subscribeOn(finisher))
+                                }
+                            )
+                        }
+                    }
+                    done.countDown()
+                }
+            }
+            done.await(30, TimeUnit.SECONDS).assert().isTrue()
+
+            copies.stopGracefully().test().expectComplete().verify(Duration.ofSeconds(30))
+
+            copies.pending.assert().isZero()
+            copies.queues.assert().isZero()
+            repeat(aggregates) { aggregateIndex ->
+                received[aggregateIndex].assert().isEqualTo((0 until perAggregate).toList())
+            }
+        } finally {
+            senders.shutdownNow()
+            decider.shutdownNow()
+            finisher.dispose()
+        }
     }
 
     @Test

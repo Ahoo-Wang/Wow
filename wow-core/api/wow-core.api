@@ -3187,13 +3187,22 @@ public final class me/ahoo/wow/messaging/LocalDeliveryReceiptKt {
 	public static final fun rejectLocalDelivery (Lme/ahoo/wow/messaging/handler/MessageExchange;)V
 }
 
+public abstract interface class me/ahoo/wow/messaging/LocalFirstContextCapture {
+	public abstract fun capture (Lreactor/util/context/ContextView;)Lreactor/util/context/Context;
+}
+
+public final class me/ahoo/wow/messaging/LocalFirstContextCaptures {
+	public static final field INSTANCE Lme/ahoo/wow/messaging/LocalFirstContextCaptures;
+	public final fun capture (Lreactor/util/context/ContextView;)Lreactor/util/context/Context;
+}
+
 public final class me/ahoo/wow/messaging/LocalFirstDistributedCopies : me/ahoo/wow/runtime/RuntimeComponent {
 	public static final field BACKLOG_METRIC Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/messaging/LocalFirstDistributedCopies$Companion;
 	public static final field DEFAULT_BACKLOG_HIGH_WATER_MARK I
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/metrics/WowMetrics;I)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/metrics/WowMetrics;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/metrics/WowMetrics;ILjava/time/Duration;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/metrics/WowMetrics;ILjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun backlog (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
 	public final fun enqueue (Ljava/lang/Object;Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/util/context/ContextView;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies$Copy;
 	public static synthetic fun enqueue$default (Lme/ahoo/wow/messaging/LocalFirstDistributedCopies;Ljava/lang/Object;Lme/ahoo/wow/api/modeling/NamedAggregate;Lreactor/util/context/ContextView;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/messaging/LocalFirstDistributedCopies$Copy;
@@ -3207,10 +3216,12 @@ public final class me/ahoo/wow/messaging/LocalFirstDistributedCopies : me/ahoo/w
 }
 
 public final class me/ahoo/wow/messaging/LocalFirstDistributedCopies$Companion {
+	public final fun getDEFAULT_HAND_OFF_TIMEOUT ()Ljava/time/Duration;
 }
 
 public final class me/ahoo/wow/messaging/LocalFirstDistributedCopies$Copy {
 	public final fun decide (Lme/ahoo/wow/messaging/LocalHandoff;)V
+	public final fun decideFrom (Lreactor/core/publisher/Mono;)Lreactor/core/publisher/Mono;
 	public final fun getSent ()Lreactor/core/publisher/Mono;
 }
 

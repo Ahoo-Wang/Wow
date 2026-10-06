@@ -159,6 +159,11 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
      * - **refused** (no routable receiver, a closed route) or **local error**: the copy, eligible for distributed
      *   processing, is the delivery; the send completes when it was sent in its turn, or fails with it.
      *
+     * The copy, not the sender, waits for the hand-off result: a sender cancelled before the result only stops
+     * waiting, and the copy is still sent once, marked by the true local decision. A hand-off result that does not
+     * arrive within the copies' hand-off timeout counts as a refusal (logged); an admission still pending when the
+     * route closes is rejected by the close. Either way no copy waits forever.
+     *
      * A sender never waits for a local receiver's demand, so handlers that send (a command handler publishing events,
      * a saga sending commands) cannot block one another: closing a route rejects its pending admissions, so a refused
      * copy never waits behind one that waits for demand. A message handed off but not yet processed is lost if the
@@ -189,7 +194,8 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
                 distributedMessage.withLocalFirst(admitted)
                 distributedBus.send(distributedMessage)
             }
-            localBus.handOff(localMessage)
+            // Deferred: a local bus that throws instead of signalling an error refuses too.
+            val handoff = Mono.defer { localBus.handOff(localMessage) }
                 .onErrorResume { error ->
                     log.error(error) {
                         "[$localBusName] Failed to hand off local message[${message.id}], " +
@@ -197,9 +203,9 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
                     }
                     Mono.just(LocalHandoff.REFUSED)
                 }
-                .doOnNext(copy::decide)
-                // A sender cancelled before it learnt the result: the copy is not suppressed (at most a duplicate).
-                .doFinally { copy.decide(LocalHandoff.REFUSED) }
+            // The copy subscribes the hand-off itself: a sender that stops waiting does not cancel the hand-off, and
+            // the copy is always marked by the true local decision (no duplicate, no loss).
+            copy.decideFrom(handoff)
                 .flatMap { handoff ->
                     if (handoff.accepted) Mono.empty() else copy.sent
                 }

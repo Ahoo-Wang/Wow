@@ -14,6 +14,7 @@
 package me.ahoo.wow.metrics
 
 import reactor.core.publisher.Flux
+import reactor.util.context.Context
 import reactor.util.context.ContextView
 import kotlin.jvm.optionals.getOrNull
 
@@ -21,6 +22,10 @@ private object MetricsSubscriberContextKey
 
 internal fun ContextView.getMetricsSubscriber(): String? =
     getOrEmpty<String>(MetricsSubscriberContextKey).getOrNull()
+
+/** The metrics subscriber of [source] alone, for a context carried to asynchronous work. */
+internal fun captureMetricsSubscriber(source: ContextView): Context =
+    source.getMetricsSubscriber()?.let { Context.of(MetricsSubscriberContextKey, it) } ?: Context.empty()
 
 internal fun <T : Any> Flux<T>.writeMetricsSubscriber(subscriber: String): Flux<T> {
     require(subscriber.isNotBlank()) { "subscriber must not be blank." }

@@ -17,6 +17,8 @@ Event dispatch routes committed domain facts to matching functions. It determine
 
 Both implement `MessageBus`, but their topic kinds, subscriptions, and transport acknowledgement semantics are independent. Send completion means only the boundary defined by the concrete Bus implementation. It is not handler completion and does not promise exactly-once processing. See [Event Sourcing](../domain/event-sourcing.md) for the point at which a domain event becomes authoritative history.
 
+There is no ordering guarantee between the two buses, or between topics. Each bus keeps an aggregate's messages in send order, but with local-first a domain event of version N may reach the distributed transport after the state event of version N, because the domain event's distributed copy waits until every local event receiver decided (see [LocalFirst dual-copy admission](../command/internals/transport.md#localfirst-dual-copy-admission)). A consumer must not rely on order across topics, for example on having seen a domain event before the state event of the same version; 9.2 never guaranteed consumer-side order across topics either.
+
 ## Composite Dispatcher
 
 `DomainEventDispatcher`, `ProjectionDispatcher`, and `StatelessSagaDispatcher` are all based on `CompositeEventDispatcher`. One Composite Dispatcher creates two child dispatchers and shares an aggregate scheduler:

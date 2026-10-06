@@ -184,6 +184,64 @@ class LocalFirstMessageBusTest {
     }
 
     @Test
+    fun `a sender cancelled before the hand-off result still gets an accepted copy marked`() {
+        val handoff = Sinks.one<LocalHandoff>()
+        val localBus = RecordingLocalBus(subscribers = 1).apply { handOffResult = { handoff.asMono() } }
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+
+        bus.send(LocalFirstTestMessage(id = "cancelled")).subscribe().dispose()
+        handoff.tryEmitValue(LocalHandoff.accepted(Mono.just(true))).orThrow()
+
+        // The local receiver has it: the copy is marked, so no other member processes it again.
+        distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
+        bus.distributedCopies.pending.assert().isZero()
+    }
+
+    @Test
+    fun `a sender cancelled before the hand-off result still gets a refused copy sent once, unmarked`() {
+        val handoff = Sinks.one<LocalHandoff>()
+        val localBus = RecordingLocalBus(subscribers = 1).apply { handOffResult = { handoff.asMono() } }
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+
+        bus.send(LocalFirstTestMessage(id = "cancelled")).subscribe().dispose()
+        handoff.tryEmitValue(LocalHandoff.REFUSED).orThrow()
+
+        distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
+        Thread.sleep(50)
+        distributedBus.sent.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a hand-off that throws instead of signalling is a refusal`() {
+        val localBus = RecordingLocalBus(subscribers = 1).apply {
+            handOffResult = { throw IllegalStateException("local bus broken") }
+        }
+        val distributedBus = RecordingDistributedBus()
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "thrown"))).verifyComplete()
+
+        distributedBus.sent.single().isLocalFirst().assert().isFalse()
+    }
+
+    @Test
+    fun `a hand-off result that never arrives does not block the aggregate's copies`() {
+        val localBus = RecordingLocalBus(subscribers = 1).apply { handOffResult = { Mono.never() } }
+        val distributedBus = RecordingDistributedBus()
+        val copies = LocalFirstDistributedCopies(handOffTimeout = Duration.ofMillis(100))
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus, copies)
+
+        StepVerifier.create(bus.send(LocalFirstTestMessage(id = "silent")))
+            .expectComplete()
+            .verify(Duration.ofSeconds(5))
+
+        distributedBus.sent.single().isLocalFirst().assert().isFalse()
+        copies.pending.assert().isZero()
+    }
+
+    @Test
     fun `a locally delivered send completes without waiting for its distributed copy`() {
         val localBus = RecordingLocalBus(subscribers = 1)
         val distributedBus = RecordingDistributedBus()
@@ -714,6 +772,8 @@ class LocalFirstMessageBusShutdownTest {
                 "3" to false,
                 "4" to false,
             )
+            // Closing the route rejected the pending admissions: nothing is left queued.
+            bus.distributedCopies.pending.assert().isZero()
         } finally {
             subscriber.dispose()
             bus.close()
@@ -936,9 +996,8 @@ class LocalFirstMessageBusShutdownTest {
 private class RecordingLocalFirstMessageBus(
     override val localBus: LocalMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>,
     override val distributedBus: DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>,
-) : LocalFirstMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
-    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies()
-}
+    override val distributedCopies: LocalFirstDistributedCopies = LocalFirstDistributedCopies(),
+) : LocalFirstMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>
 
 private class MpscLocalBus : InMemoryMessageBus<LocalFirstTestMessage, LocalFirstTestExchange>() {
     override val sinkSupplier: (NamedAggregate) -> Sinks.Many<LocalFirstTestMessage> = {
@@ -1029,8 +1088,11 @@ private class RecordingLocalBus(
             sendResult(message)
         }
 
+    /** When set, the hand-off result instead of the recorded send. */
+    var handOffResult: ((LocalFirstTestMessage) -> Mono<LocalHandoff>)? = null
+
     override fun handOff(message: LocalFirstTestMessage): Mono<LocalHandoff> =
-        if (subscribers == 0) {
+        handOffResult?.invoke(message) ?: if (subscribers == 0) {
             Mono.just(LocalHandoff.REFUSED)
         } else {
             send(message).thenReturn(LocalHandoff.accepted(admission))
