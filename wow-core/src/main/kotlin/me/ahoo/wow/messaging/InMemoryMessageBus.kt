@@ -55,7 +55,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     /**
      * Whether [send] skips a sink without subscribers instead of emitting into it. A multicast sink with an unbounded
      * buffer keeps everything emitted before its first subscriber, so a bus with such sinks sets this to drop a
-     * message nobody in this process receives, as a bounded buffer refused it (`FAIL_ZERO_SUBSCRIBER`).
+     * message nobody in this process receives. (9.2's bounded buffer kept up to 256 events per aggregate until the
+     * first subscriber, then refused more with `FAIL_OVERFLOW`.)
      */
     protected open val skipsSinksWithoutSubscribers: Boolean = false
 

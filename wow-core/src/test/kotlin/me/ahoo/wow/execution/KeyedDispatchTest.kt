@@ -345,6 +345,31 @@ class KeyedDispatchTest {
         blockFailure.get().assert().isInstanceOf(IllegalStateException::class.java)
     }
 
+    /**
+     * A mailbox holds only unfinished elements: once a key's elements finish, the dispatch keeps no reference to them
+     * (nor to anything they carry, such as an aggregate), even while the dispatch itself stays subscribed. The executor
+     * therefore cannot hand a later message an instance an earlier one left behind (#3982).
+     */
+    @Test
+    fun `finished elements are not retained while the dispatch stays subscribed`() {
+        val source = Sinks.many().multicast().directBestEffort<Array<Any>>()
+        val finished = AtomicInteger()
+        val subscription = source.asFlux()
+            .dispatchKeyed(executor, { (it[1] as Int) % 3 }) { Mono.fromRunnable { finished.incrementAndGet() } }
+            .subscribe()
+        try {
+            // Created and emitted in another frame: no local slot of this one keeps an element reachable.
+            val references = emitElements(source)
+            awaitTrue { finished.get() == references.size }
+            awaitTrue {
+                System.gc()
+                references.all { it.get() == null }
+            }
+        } finally {
+            subscription.dispose()
+        }
+    }
+
     @Test
     fun `executor validates its configuration`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { KeyedExecutor(workers = 0) }
@@ -406,6 +431,13 @@ class KeyedDispatchTest {
             singleWorker.close()
         }
     }
+
+    private fun emitElements(source: Sinks.Many<Array<Any>>): List<java.lang.ref.WeakReference<Array<Any>>> =
+        (0 until 20).map { index ->
+            val element = arrayOf<Any>(Any(), index)
+            source.tryEmitNext(element).orThrow()
+            java.lang.ref.WeakReference(element)
+        }
 
     private fun awaitTrue(condition: () -> Boolean) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
