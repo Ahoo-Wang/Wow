@@ -23,6 +23,9 @@ import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.data.redis.connection.ReactiveRedisConnection
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory
 import org.springframework.data.redis.connection.ReactiveStreamCommands
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
@@ -72,6 +75,19 @@ class RedisStreamReadConnectionFactoryTest {
         factory.closeLater().test().verifyComplete()
 
         verify(exactly = 0) { delegate.reactiveConnection }
+    }
+
+    @Test
+    fun `a stream holds its read connection when the factory has no pool`() {
+        // A pooled LettucePoolingClientConfiguration cannot be built here: it needs commons-pool2, which wow-redis
+        // does not depend on.
+        val unpooled = LettuceConnectionFactory(
+            RedisStandaloneConfiguration(),
+            LettuceClientConfiguration.defaultConfiguration(),
+        )
+
+        RedisStreamReadConnectionFactory.holdsReadConnection(unpooled).assert().isTrue()
+        RedisStreamReadConnectionFactory.holdsReadConnection(delegate).assert().isTrue()
     }
 
     @Test

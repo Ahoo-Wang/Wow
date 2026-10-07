@@ -21,6 +21,7 @@ import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import me.ahoo.wow.tck.container.ContainerImages
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.AfterAll
@@ -113,9 +114,80 @@ class RedisStreamConnectionReuseTest {
         opened.assert().isLessThanOrEqualTo(MAX_NEW_CONNECTIONS)
     }
 
-    private fun startReceiving(bus: RedisCommandBus): Sinks.Many<String> {
+    @Test
+    fun `the held connection is closed when receiving stops`() {
+        val bus = RedisCommandBus(redisTemplate = redisTemplate, pollTimeout = Duration.ofMillis(100))
+        val baseline = connectedClients()
+        val received = startReceiving(bus)
+        roundTrip(bus, received)
+        connectedClients().assert().isGreaterThan(baseline)
+
+        receiving!!.dispose()
+
+        awaitConnectedClients(baseline)
+    }
+
+    @Test
+    fun `a receive stream that fails closes its connection before it is retried`() {
+        val bus = RedisCommandBus(
+            redisTemplate = redisTemplate,
+            pollTimeout = Duration.ofMillis(100),
+            failurePolicy = TransportFailurePolicy(TransportFailurePolicy.receiveRetry(minBackoff = Duration.ofMillis(100))),
+        )
+        val baseline = connectedClients()
+        val group = generateGlobalId()
+        val received = startReceiving(bus, group)
+        roundTrip(bus, received)
+        val receivingClients = connectedClients()
+        val topic = DefaultCommandTopicConverter.convert(requiredNamedAggregate<MockCreateAggregate>())
+
+        // XREADGROUP fails with NOGROUP; the retried stream creates the group again and reads on a new connection.
+        val streamOps = redisTemplate.opsForStream<String, String>()
+        streamOps.destroyGroup(topic, group).block(TIMEOUT)
+        // The group is created again at the stream's end, so send only once it is back.
+        val deadline = System.nanoTime() + TIMEOUT.toNanos()
+        while (streamOps.groups(topic).map { it.groupName() }.collectList().block(TIMEOUT)!!.none { it == group }) {
+            check(System.nanoTime() < deadline) { "The retried stream did not create its group again." }
+            Mono.delay(Duration.ofMillis(50)).block()
+        }
+        roundTrip(bus, received)
+
+        awaitConnectedClients(receivingClients)
+        receiving!!.dispose()
+        awaitConnectedClients(baseline)
+    }
+
+    private fun roundTrip(bus: RedisCommandBus, received: Sinks.Many<String>) {
+        val message = createMessage()
+        val acknowledged = received.asFlux().filter { it == message.id }.next().toFuture()
+        bus.send(message).block(TIMEOUT)
+        acknowledged.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+    }
+
+    private fun connectedClients(): Long {
+        val connection: ReactiveRedisConnection = connectionFactory.reactiveConnection
+        try {
+            return connection.serverCommands().info("clients").block(TIMEOUT)!!
+                .getProperty("connected_clients").toLong()
+        } finally {
+            connection.close()
+        }
+    }
+
+    /** Waits until Redis counts [expected] clients: a closed connection leaves the count asynchronously. */
+    private fun awaitConnectedClients(expected: Long) {
+        val deadline = System.nanoTime() + TIMEOUT.toNanos()
+        var clients = connectedClients()
+        while (clients != expected && System.nanoTime() < deadline) {
+            Mono.delay(Duration.ofMillis(50)).block()
+            clients = connectedClients()
+        }
+        clients.assert().isEqualTo(expected)
+    }
+
+    private fun startReceiving(bus: RedisCommandBus, group: String = generateGlobalId()): Sinks.Many<String> {
         val received = Sinks.many().multicast().directBestEffort<String>()
-        val receiver = bus.receiver(MessageSubscription(requiredNamedAggregate<MockCreateAggregate>(), generateGlobalId()))
+        val receiver = bus.receiver(MessageSubscription(requiredNamedAggregate<MockCreateAggregate>(), group))
         receiving = receiver.openedMessages()
             .concatMap { exchange: ServerCommandExchange<*> ->
                 exchange.acknowledge().doFinally { received.tryEmitNext(exchange.message.id) }

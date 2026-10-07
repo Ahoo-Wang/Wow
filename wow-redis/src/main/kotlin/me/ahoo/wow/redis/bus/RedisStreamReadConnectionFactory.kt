@@ -17,6 +17,8 @@ import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.connection.ReactiveRedisClusterConnection
 import org.springframework.data.redis.connection.ReactiveRedisConnection
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
+import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration
 import reactor.core.publisher.Mono
 
 /**
@@ -28,6 +30,10 @@ import reactor.core.publisher.Mono
  * Boot's default) that closes the dedicated TCP connection after every read and opens a new one for the next: one
  * connection per batch under load, every one of them left in `TIME_WAIT`. Here the connection, and with it its
  * dedicated connection, lives as long as the stream; the reads are sequential, so one is enough.
+ *
+ * Used only when the connection factory has no pool ([holdsReadConnection]). A pool already keeps the connections
+ * open between reads, and a connection held for the stream's lifetime would take a pool slot for good: with more
+ * streams than the pool's `max-active` the extra streams could never read.
  */
 internal class RedisStreamReadConnectionFactory(
     private val delegate: ReactiveRedisConnectionFactory,
@@ -42,6 +48,8 @@ internal class RedisStreamReadConnectionFactory(
 
     override fun getReactiveConnection(): ReactiveRedisConnection {
         val opened = synchronized(lock) {
+            // A read that starts after the stream ended (a late poll racing its cancellation) must not reopen a
+            // connection that nothing would close.
             check(!closed) { "The receive stream's connection is closed." }
             connection ?: delegate.reactiveConnection.also { connection = it }
         }
@@ -70,5 +78,15 @@ internal class RedisStreamReadConnectionFactory(
         override fun close() = Unit
 
         override fun closeLater(): Mono<Void> = Mono.empty()
+    }
+
+    companion object {
+        /**
+         * Whether a receive stream should hold one connection for its reads: unless [connectionFactory] is a Lettuce
+         * factory configured with a pool (`LettucePoolingClientConfiguration`), whose pool already keeps the
+         * connections open between reads.
+         */
+        fun holdsReadConnection(connectionFactory: ReactiveRedisConnectionFactory): Boolean =
+            (connectionFactory as? LettuceConnectionFactory)?.clientConfiguration !is LettucePoolingClientConfiguration
     }
 }

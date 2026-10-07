@@ -174,12 +174,18 @@ class RedisStreamTransport(
         group: String
     ): Flux<TransportRecord> {
         val streamOffset = StreamOffset.create(topic, ReadOffset.lastConsumed())
-        // One connection for all of this stream's blocking reads, instead of a new one per read.
-        val liveRecords = Flux.usingWhen(
-            Mono.fromSupplier { RedisStreamReadConnectionFactory(redisTemplate.connectionFactory) },
-            { connectionFactory -> StreamReceiver.create(connectionFactory, options).receive(consumer, streamOffset) },
-            RedisStreamReadConnectionFactory::closeLater,
-        )
+        val connectionFactory = redisTemplate.connectionFactory
+        val liveRecords = if (RedisStreamReadConnectionFactory.holdsReadConnection(connectionFactory)) {
+            // Without a pool: one connection for all of this stream's blocking reads, instead of a new one per read.
+            Flux.usingWhen(
+                Mono.fromSupplier { RedisStreamReadConnectionFactory(connectionFactory) },
+                { readFactory -> StreamReceiver.create(readFactory, options).receive(consumer, streamOffset) },
+                RedisStreamReadConnectionFactory::closeLater,
+            )
+        } else {
+            // With a pool: each read borrows a pooled connection and returns it.
+            StreamReceiver.create(connectionFactory, options).receive(consumer, streamOffset)
+        }
         val records = if (recoveryOptions.enabled) {
             val leaseRegistry = DefaultRedisConsumerLeaseRegistry(redisTemplate, recoveryOptions)
             val leasedLiveRecords = leaseRegistry.withLease(
