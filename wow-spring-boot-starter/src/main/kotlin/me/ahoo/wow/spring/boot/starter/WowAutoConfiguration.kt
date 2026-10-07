@@ -164,6 +164,20 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         return registry
     }
 
+    /**
+     * The runtime's dispatch workers, a bean of its own so the context closes it (`close`, inferred from
+     * [AutoCloseable]) even when the runtime never starts or its bean fails to build: the runtime closes it on every
+     * stop path, and closing it twice is harmless. Its threads start on the first dispatch.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    internal fun wowKeyedExecutor(): KeyedExecutor =
+        KeyedExecutor(
+            workers = wowProperties.dispatch.workers,
+            maxInFlight = wowProperties.dispatch.maxInFlight,
+            throughput = wowProperties.dispatch.throughput,
+        )
+
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
     @ConditionalOnMissingBean(
         name = [WOW_RUNTIME_BEAN_NAME],
@@ -171,6 +185,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     )
     internal fun wowRuntime(
         beanFactory: ConfigurableListableBeanFactory,
+        keyedExecutor: KeyedExecutor,
     ): WowRuntime {
         // First, so it stops last: storage and transport resources flush after every dispatcher has drained.
         val resources = RuntimeResources {
@@ -180,11 +195,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             components = listOf(resources) + beanFactory.localRuntimeComponents(),
             shutdownTimeout = wowProperties.shutdownTimeout,
             shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
-            keyedExecutor = KeyedExecutor(
-                workers = wowProperties.dispatch.workers,
-                maxInFlight = wowProperties.dispatch.maxInFlight,
-                throughput = wowProperties.dispatch.throughput,
-            ),
+            keyedExecutor = keyedExecutor,
         )
     }
 

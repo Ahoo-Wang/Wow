@@ -19,6 +19,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
+import me.ahoo.wow.messaging.dispatcher.toMailboxKey
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
@@ -76,11 +77,11 @@ internal abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, 
     abstract val eventHandler: EventHandler
 
     /**
-     * Events of one aggregate run in order: the mailbox key is the whole `AggregateId`
-     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * Events of one aggregate run in order: the mailbox key is the aggregate ID ([toMailboxKey]:
+     * bounded context, aggregate name and ID, not the tenant, as in 9.2), since one dispatcher serves several aggregates of a context and
      * an ID (for example one derived by a saga) can be shared across aggregate types.
      */
-    override fun E.mailboxKey(): Any = message.aggregateId
+    override fun E.mailboxKey(): Any = message.aggregateId.toMailboxKey()
 
     /**
      * Handles a message exchange by processing all events in the stream.

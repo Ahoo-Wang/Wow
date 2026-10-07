@@ -335,13 +335,19 @@ private class KeyedDispatchSubscriber<T : Any>(
                 val publisher = try {
                     owner.handler(element)
                 } catch (error: Throwable) {
-                    if (Exceptions.isFatal(error)) {
-                        log.error(error) { "Mailbox[$key] is wedged: its handler threw a fatal error." }
-                        throw error
-                    }
-                    Mono.error(error)
+                    Mono.error(containFatal(error))
                 }
-                publisher.subscribe(this)
+                try {
+                    publisher.subscribe(this)
+                } catch (error: Throwable) {
+                    // Thrown out of subscribe (Reactor rethrows JVM-fatal errors): fail the dispatch as a handler error
+                    // does and finish the head here, so neither the mailbox nor its worker is left wedged. The handler
+                    // may not have signalled, so the element is also discarded: the discard hook releases its resources.
+                    owner.fail(containFatal(error))
+                    cancelRunning()
+                    owner.discard(element)
+                    PHASE.compareAndSet(this, SUBSCRIBING, COMPLETED_INLINE)
+                }
                 if (owner.cancelled) {
                     cancelRunning()
                 }
@@ -357,6 +363,19 @@ private class KeyedDispatchSubscriber<T : Any>(
                     return
                 }
             }
+        }
+
+        /**
+         * A fatal error (JVM-fatal, or one Reactor bubbles) is logged and wrapped, so it fails the dispatch as an
+         * ordinary handler error: the runtime's own failure handling rethrows fatal errors, which would leave its
+         * shutdown half done.
+         */
+        private fun containFatal(error: Throwable): Throwable {
+            if (!Exceptions.isFatal(error)) {
+                return error
+            }
+            log.error(error) { "Mailbox[$key] handler threw a fatal error: its dispatch fails." }
+            return IllegalStateException("Mailbox[$key] handler threw a fatal error.", error)
         }
 
         /** Finishes the head; returns whether a next element became the head (else the mailbox is removed). */
@@ -411,7 +430,7 @@ private class KeyedDispatchSubscriber<T : Any>(
         override fun onNext(t: Void) = Unit
 
         override fun onError(error: Throwable) {
-            owner.fail(error)
+            owner.fail(containFatal(error))
             onComplete()
         }
 

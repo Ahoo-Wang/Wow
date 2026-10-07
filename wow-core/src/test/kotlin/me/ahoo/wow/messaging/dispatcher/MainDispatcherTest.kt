@@ -253,6 +253,42 @@ class MainDispatcherTest {
         dispatcher.forceStop()
     }
 
+    @Test
+    fun `prepare runs once`() {
+        val dispatcher = RecordingMainDispatcher()
+        dispatcher.prepare(DefaultRuntimeContext()).block()
+
+        StepVerifier.create(dispatcher.prepare(DefaultRuntimeContext()))
+            .expectError(IllegalStateException::class.java)
+            .verify()
+        dispatcher.forceStop()
+    }
+
+    @Test
+    fun `a dispatcher without aggregates prepares and starts nothing`() {
+        val dispatcher = RecordingMainDispatcher(namedAggregates = emptySet())
+        val runtime = runtime(dispatcher)
+
+        runtime.start().block()
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+
+        dispatcher.receiveCount.get().assert().isZero()
+        dispatcher.createCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `a child quiesce failure fails the runtime stop`() {
+        val failure = IllegalStateException("quiesce")
+        val dispatcher = RecordingMainDispatcher(childQuiesceFailure = failure)
+        val runtime = runtime(dispatcher)
+        runtime.start().block()
+
+        StepVerifier.create(runtime.stopGracefully())
+            .expectErrorSatisfies { error -> error.assert().isSameAs(failure) }
+            .verify()
+        dispatcher.processingCloseCount.get().assert().isEqualTo(2)
+    }
+
     private fun tryStartAfterTerminalStop(dispatcher: RecordingMainDispatcher) {
         try {
             dispatcher.start()
@@ -287,6 +323,7 @@ class MainDispatcherTest {
         private val childStopAction: (() -> Mono<Void>)? = null,
         private val firstChildReportedFailure: Throwable? = null,
         private val suspensionFailure: RuntimeException? = null,
+        private val childQuiesceFailure: RuntimeException? = null,
     ) : MainDispatcher<String>() {
         val receiveCount = AtomicInteger()
         val createCount = AtomicInteger()
@@ -359,6 +396,7 @@ class MainDispatcherTest {
                 override fun quiesce() {
                     closedProcessingCountsObservedByQuiesce += processingCloseCount.get()
                     childIntakeCloseCalls += name
+                    childQuiesceFailure?.let { throw it }
                 }
 
                 override fun stopGracefully(): Mono<Void> =
