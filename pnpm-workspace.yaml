@@ -44,7 +44,7 @@ catalog:
   '@ahoo-wang/fetcher-openapi': '^6.0.1'
   '@ahoo-wang/fetcher-react': '^6.0.1'
   antd: ^6.6.5
-  axe-core: ^4.13.0
+  axe-core: ^4.14.0
   babel-plugin-react-compiler: 1.0.0
   '@babel/core': 7.29.7
   '@babel/plugin-syntax-decorators': 7.29.7
