@@ -17,7 +17,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import tools.jackson.databind.JsonNode
 import java.net.URI
@@ -26,7 +29,10 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Path
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Mixed-version cluster test (design WP G1): the released example server and the build under test share one MongoDB
@@ -42,6 +48,7 @@ import java.util.concurrent.TimeUnit
  * The `Mixed-Version` workflow sets them; `allIntegrationTest` skips it.
  */
 @EnabledIfEnvironmentVariable(named = MixedVersionClusterTest.CURRENT_HOME_ENV, matches = ".+")
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class MixedVersionClusterTest {
 
     @Test
@@ -127,7 +134,7 @@ class MixedVersionClusterTest {
      * Local-first on both versions: a command, its state events and the events a saga reacts to are processed on the
      * node that sent them, and the other version must filter their `local_first` copies, not process them a second
      * time (which the request-ID check would only partly hide). Each node's own `wow.operation` counters tell who
-     * processed what; both 9.2.3 and the current build meter handlers there.
+     * processed what; both the released 9.2.x (9.2.4 in CI) and the current build meter handlers there.
      */
     @Test
     fun `with local-first on, each version filters the other's locally handled copies`() {
@@ -183,6 +190,127 @@ class MixedVersionClusterTest {
                     node.get("/cart/$cartId/event/1/100").size().assert().isEqualTo(3)
                 }
             }
+        }
+    }
+
+    /**
+     * Rolling upgrade (design X7): the build under test consumes each bounded context with one consumer per dispatcher
+     * (all of the context's topics), the released node with one consumer per aggregate topic, in the same consumer
+     * groups. In two phases, one node is stopped (SIGTERM: graceful shutdown with commands in flight, the member leaves
+     * every group) and started again while commands and saga-driven orders flow through the other node: first the node
+     * under test restarts (the released node takes over and gives back), then the released node (the node under test
+     * takes over all partitions with its per-context consumers). Each phase's carts are chosen so both nodes own some of
+     * them before the restart, so both versions process commands.
+     *
+     * Every command must take effect exactly once: the event store's request-ID check turns a redelivery
+     * (at-least-once) into a duplicate-free result, so each cart's quantity and event count equal the commands accepted.
+     * Every order created through `CartSaga` (an event processor group crossing versions) must empty its cart, and the
+     * snapshot dispatchers must catch up to the last version.
+     */
+    @Test
+    @Order(Int.MAX_VALUE)
+    fun `a rolling restart across per-aggregate and per-context consumers loses and duplicates no command`() {
+        val cartCommandTopic = cluster.awaitTopic(CART_COMMAND)
+        val orderCommandTopic = cluster.awaitTopic(ORDER_COMMAND)
+        val orderEventTopic = cluster.awaitTopic(ORDER_EVENT)
+        val commandGroup = cluster.awaitBalancedGroup(cartCommandTopic)
+        cluster.awaitBalancedGroup(orderCommandTopic)
+        val sagaGroup = cluster.awaitBalancedGroup(orderEventTopic) { it.contains("saga", ignoreCase = true) }
+        assertPerContextMembership(commandGroup, cartCommandTopic, orderCommandTopic)
+        assertPerContextMembership(sagaGroup, orderEventTopic)
+
+        rollingPhase(restarted = cluster.current, sender = cluster.previous, commandGroup, cartCommandTopic, "a")
+        rollingPhase(restarted = cluster.previous, sender = cluster.current, commandGroup, cartCommandTopic, "b")
+    }
+
+    /** The node under test runs one consumer per bounded context: the one owning [topics] owns all of them. */
+    private fun assertPerContextMembership(group: String, vararg topics: String) {
+        val members = cluster.memberTopics(group, cluster.current.name)
+        members.single { topics.first() in it }.assert()
+            .describedAs("members of [${cluster.current.name}] in $group: $members")
+            .contains(*topics)
+        println("[$group] ${cluster.previous.name}: ${cluster.memberTopics(group, cluster.previous.name)}")
+        println("[$group] ${cluster.current.name}: $members")
+    }
+
+    private fun rollingPhase(
+        restarted: ExampleServerNode,
+        sender: ExampleServerNode,
+        commandGroup: String,
+        cartCommandTopic: String,
+        phase: String,
+    ) {
+        cluster.awaitBalancedGroup(cartCommandTopic)
+        // Half of the carts are owned by each node before the restart, so both versions process commands.
+        val carts = cluster.nodes.flatMap { owner ->
+            (0 until ROLLING_CARTS / 2).map { index ->
+                cluster.key("cart-rolling-$phase-${owner.name}-$index") {
+                    cluster.ownerOf(cartCommandTopic, commandGroup, it) === owner
+                }
+            }
+        }
+        val sagaCarts = (0 until SAGA_CARTS).map { "cart-rolling-saga-$phase-$it" }
+        sagaCarts.forEach { sender.addCartItem(it, waitStage = "SNAPSHOT").assertSucceeded("SNAPSHOT") }
+
+        val accepted = ConcurrentHashMap<String, AtomicInteger>()
+        val senders = Executors.newFixedThreadPool(2)
+        try {
+            val commands = senders.submit {
+                repeat(ROLLING_ROUNDS) {
+                    carts.forEach { cartId ->
+                        sender.addCartItem(cartId, waitStage = "SENT").assertSucceeded("SENT")
+                        accepted.computeIfAbsent(cartId) { AtomicInteger() }.incrementAndGet()
+                    }
+                }
+            }
+            val orders = senders.submit {
+                sagaCarts.forEach { cartId ->
+                    sender.command(
+                        method = "POST",
+                        path = "/tenant/$TENANT/owner/$cartId/sales-order",
+                        body = CREATE_ORDER_FROM_CART,
+                        headers = mapOf("Command-Wait-Stage" to "SENT"),
+                    ).assertSucceeded("SENT")
+                }
+            }
+            awaitCondition("the first commands of phase [$phase] sent") {
+                accepted.values.sumOf { it.get() } >= carts.size * 2
+            }
+            // SIGTERM with commands in flight: graceful shutdown, the node's members leave every group.
+            restarted.close()
+            awaitCondition("[${restarted.name}] left $commandGroup") {
+                cluster.memberTopics(commandGroup, restarted.name).isEmpty()
+            }
+            restarted.start()
+            commands.get(SENDING_TIMEOUT.toSeconds(), TimeUnit.SECONDS)
+            orders.get(SENDING_TIMEOUT.toSeconds(), TimeUnit.SECONDS)
+        } finally {
+            senders.shutdownNow()
+        }
+        accepted.values.sumOf { it.get() }.assert().isEqualTo(carts.size * ROLLING_ROUNDS)
+
+        carts.forEach { cartId ->
+            val expected = accepted.getValue(cartId).get()
+            awaitCondition("cart [$cartId] has $expected items") {
+                sender.get("/owner/$cartId/cart/state")["items"].single()["quantity"].asInt() >= expected
+            }
+            cluster.nodes.forEach { node ->
+                node.get("/owner/$cartId/cart/state")["items"].single()["quantity"].asInt()
+                    .assert().describedAs("quantity of [$cartId] on [${node.name}]").isEqualTo(expected)
+            }
+            sender.get("/cart/$cartId/event/1/1000").size()
+                .assert().describedAs("event streams of [$cartId]").isEqualTo(expected)
+            awaitCondition("snapshot of [$cartId] at version $expected") {
+                restarted.get("/owner/$cartId/cart/snapshot")["version"].asInt() == expected
+            }
+        }
+        sagaCarts.forEach { cartId ->
+            awaitCondition("cart [$cartId] emptied by CartSaga after phase [$phase]") {
+                cluster.nodes.all { node -> node.get("/owner/$cartId/cart/state")["items"].isEmpty }
+            }
+            // AddCartItem, then exactly one RemoveCartItem from the saga.
+            sender.get("/cart/$cartId/event/1/1000").size()
+                .assert().describedAs("event streams of saga cart [$cartId]").isEqualTo(2)
         }
     }
 
@@ -289,6 +417,10 @@ class MixedVersionClusterTest {
         private const val ORDER_COMMAND = ".order.command"
         private const val ORDER_EVENT = ".order.event"
         private const val TENANT = "mixed-tenant"
+        private const val ROLLING_CARTS = 10
+        private const val ROLLING_ROUNDS = 20
+        private const val SAGA_CARTS = 5
+        private val SENDING_TIMEOUT: Duration = Duration.ofMinutes(5)
         private const val PRODUCT_ID = "product-1"
         private val CREATE_ORDER_FROM_CART = """
             {

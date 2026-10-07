@@ -1208,7 +1208,7 @@ private class LocalReceiptDispatcher(
     processingQuiescence = receiver::closeProcessing,
 ) {
     override val name: String = "local-receipt-dispatcher"
-    override val namedAggregate: NamedAggregate = LocalFirstTestMessage().materialize()
+    override val namedAggregates: Set<NamedAggregate> = setOf(LocalFirstTestMessage().materialize())
     override val messageFlux: Flux<LocalFirstTestExchange> = receiver.messages
     val handled = AtomicInteger()
 
@@ -1233,7 +1233,7 @@ private class ChainedLocalReceiptDispatcher(
     processingQuiescence = receiver::closeProcessing,
 ) {
     override val name: String = "chained-local-receipt-dispatcher"
-    override val namedAggregate: NamedAggregate = LocalFirstTestMessage().materialize()
+    override val namedAggregates: Set<NamedAggregate> = setOf(LocalFirstTestMessage().materialize())
     override val messageFlux: Flux<LocalFirstTestExchange> = receiver.messages
 
     override fun LocalFirstTestExchange.mailboxKey(): Any = 0

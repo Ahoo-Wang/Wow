@@ -44,7 +44,7 @@ flowchart TB
 
 `CommandBus.receiver`（运行时的 `CommandDispatcher` 使用 runtime-owned 订阅）产生 `ServerCommandExchange`。`CommandDispatcher` 先过滤 `isVoid` 消息：这些消息会被确认但不会进入聚合命令链；普通命令继续按 `NamedAggregate` 分派。
 
-每个 `AggregateCommandDispatcher` 持有本聚合的 metadata，随每条命令传给 `CommandHandler`，并在运行时的 [`KeyedExecutor`](../../advanced/keyed-executor.md) 上按 aggregate ID 使用邮箱。同一 ID 的命令按收到的顺序逐条执行，不同 ID 在共享工作线程上并行；这避免同一聚合在本进程内并发执行，但不替代 EventStore 的持久版本约束。
+自 9.3.0 起每个 `AggregateCommandDispatcher` 通过一个接收器服务一个限界上下文的全部聚合。它持有这些聚合的 metadata，把每条命令所属聚合的 metadata 传给 `CommandHandler`，并在运行时的 [`KeyedExecutor`](../../advanced/keyed-executor.md) 上按 aggregate ID 使用邮箱。同一 ID 的命令按收到的顺序逐条执行，不同 ID 在共享工作线程上并行；这避免同一聚合在本进程内并发执行，但不替代 EventStore 的持久版本约束。
 
 `DefaultCommandHandler` 执行一条固定顺序的管道，命令侧不再有过滤器链（自 9.3.0 起；此前是按 `@Order` 排序的 `CommandFilter` Bean）：
 

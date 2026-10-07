@@ -67,7 +67,7 @@ enum class HandlerCost {
  * @author ahoo wang
  */
 class CommandDispatcherChainScenario private constructor(
-    val dispatcher: AggregateCommandDispatcher<*, *>,
+    val dispatcher: AggregateCommandDispatcher,
     val messageSink: Sinks.Many<ServerCommandExchange<*>>,
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val aggregateIdCardinality: Int,
@@ -125,9 +125,8 @@ class CommandDispatcherChainScenario private constructor(
                 )
             }
 
-            @Suppress("UNCHECKED_CAST")
-            val dispatcher = AggregateCommandDispatcher<Any, Any>(
-                aggregateMetadata = aggregateMetadata as AggregateMetadata<Any, Any>,
+            val dispatcher = AggregateCommandDispatcher(
+                aggregateMetadata = listOf(aggregateMetadata),
                 messageFlux = messageSink.asFlux(),
                 commandHandler = handler,
             )

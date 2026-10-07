@@ -61,11 +61,11 @@ class SnapshotDispatcher(
         }
 
     override fun newAggregateDispatcher(
-        namedAggregate: NamedAggregate,
+        namedAggregates: Set<NamedAggregate>,
         messageFlux: Flux<StateEventExchange<*>>
     ): MessageDispatcher {
         return AggregateSnapshotDispatcher(
-            namedAggregate = namedAggregate,
+            namedAggregates = namedAggregates,
             messageFlux = messageFlux,
             snapshotHandler = snapshotHandler,
             metrics = metrics,

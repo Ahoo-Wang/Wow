@@ -75,8 +75,12 @@ internal abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, 
      */
     abstract val eventHandler: EventHandler
 
-    /** Events of one aggregate run in order: the mailbox key is the aggregate ID. */
-    override fun E.mailboxKey(): Any = message.aggregateId.id
+    /**
+     * Events of one aggregate run in order: the mailbox key is the whole `AggregateId`
+     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * an ID (for example one derived by a saga) can be shared across aggregate types.
+     */
+    override fun E.mailboxKey(): Any = message.aggregateId
 
     /**
      * Handles a message exchange by processing all events in the stream.

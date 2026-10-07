@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event.dispatcher
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -23,8 +24,10 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.acknowledgementWithheldBy
 import me.ahoo.wow.messaging.handler.isAcknowledgementWithheld
 import me.ahoo.wow.messaging.handler.withholdAcknowledgement
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -32,6 +35,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -73,11 +77,38 @@ class AggregateEventDispatcherAckTest {
         exchange.ackCount.get().assert().isZero()
     }
 
-    private fun dispatcher(onHandle: (DomainEventExchange<*>) -> Mono<Void>): AggregateEventDispatcher {
+    @Test
+    fun `metrics keep the per-aggregate dispatcher name as processor tag`() {
+        val meterRegistry = SimpleMeterRegistry()
+        val exchange = AckCountingExchange()
+        val dispatcher = dispatcher(
+            messageFlux = Flux.just(exchange),
+            metrics = WowMetrics(meterRegistry),
+        ) { Mono.empty() }
+
+        dispatcher.name.assert().isEqualTo("${MOCK_AGGREGATE_METADATA.contextName}-AggregateEventDispatcher")
+        dispatcher.prepare(DefaultRuntimeContext()).block()
+        dispatcher.start()
+        dispatcher.terminatedSignal.block(Duration.ofSeconds(5))
+
+        meterRegistry.meters
+            .filter { it.id.getTag("component") == "dispatcher" }
+            .mapNotNull { it.id.getTag("processor") }
+            .toSet()
+            .assert().containsExactly("${MOCK_AGGREGATE_METADATA.aggregateName}-AggregateEventDispatcher")
+        meterRegistry.close()
+    }
+
+    private fun dispatcher(
+        messageFlux: Flux<EventStreamExchange> = Flux.empty(),
+        metrics: WowMetrics = WowMetrics.NONE,
+        onHandle: (DomainEventExchange<*>) -> Mono<Void>,
+    ): AggregateEventDispatcher {
         val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
         return AggregateEventDispatcher(
-            namedAggregate = namedAggregate,
-            messageFlux = Flux.empty(),
+            namedAggregates = setOf(namedAggregate),
+            messageFlux = messageFlux,
+            metrics = metrics,
             functionRegistrar = DomainEventFunctionRegistrar().apply {
                 register(CreatedFunction(namedAggregate, WITHHOLDING_FUNCTION))
                 register(CreatedFunction(namedAggregate, SIBLING_FUNCTION))

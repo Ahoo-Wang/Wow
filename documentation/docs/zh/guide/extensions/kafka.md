@@ -136,6 +136,12 @@ record key 是 `aggregateId.id`，Kafka 的分区器据此把同一聚合的 rec
 
 `MessageSubscription.receiverGroup` 成为 Kafka `group.id`。消费者组、分区分配与再均衡由 Kafka 管理；部署前应验证每个运行时实例使用预期 group，并确认不会把两个逻辑处理器误放进同一竞争组。
 
+自 9.3.0 起，每个分发器（命令、领域事件、状态事件、投影、Saga、快照）**每个限界上下文只开一个消费者**，订阅该上下文的全部聚合主题；9.2 及之前是每个聚合主题一个消费者。消费组 ID 不变，仍是分发器名（`<context>.CommandDispatcher` 等）。每个分发器的消费者数与再均衡参与者数都从“聚合类型数”降为“限界上下文数”。
+
+**从 9.2 滚动升级。** 9.2 与 9.3 实例可以加入同一个消费组。Kafka 的组协议携带每个成员自己的订阅，Wow 使用的分配器（Kafka 默认的 `RangeAssignor`，其次 `CooperativeStickyAssignor`）只在订阅了某个主题的成员之间分配该主题的分区。升级期间，9.2 实例按主题的消费者与 9.3 实例按上下文的消费者因此分摊每个主题的分区；每次再均衡（实例离开或加入）都带着已提交的偏移量移交分区。投递仍是至少一次：分区移交时已处理但尚未提交的记录会重新投递给新的所有者。命令由事件存储的请求 ID 检查去重；事件处理器仍需保持幂等。`Mixed-Version` CI 工作流用已发布的 9.2.4 镜像与待测构建加入同一组来验证这一点：在命令与 Saga 驱动的订单持续经由另一成员流转时，依次重启每个成员——先 9.3 成员，再 9.2 成员（不丢命令、不重复应用，每个 Saga 都完成）。按 Kafka 的要求，所有成员的 `partition.assignment.strategy` 应保持一致。
+
+现在一个消费者服务一个上下文的全部主题，所以某个聚合处理慢时，背压（暂停）的是整个上下文的消费者——它的全部主题——而不只是一个主题；`max-deferred-commits` 也由该上下文的全部主题共享。
+
 ## 关键设计决策
 
 这些约束来自当前 `KafkaTransport`、`TransportMessageBus` 与测试，不是通用 Kafka 教程。
@@ -152,7 +158,7 @@ Wow 在 record value 中写入框架 JSON，在 Kafka client 层使用字符串 
 
 exchange 的 `acknowledge()` 提交处理完成的 offset，`max-deferred-commits` 保留乱序完成产生的间隙：提交永远不会越过最早一条未确认的记录。未确认消息可被重新投递，这是预期的 at-least-once 恢复语义。
 
-已确认、待提交的 offset 达到 `max-deferred-commits` 时，Reactor Kafka 会暂停拉取；因此总线在达到这个数量时立即发起一次提交（Reactor Kafka 的 `commitBatchSize`，上限为 `max-deferred-commits`；通过 `ReceiverOptionsCustomizer` 设置的更小值保持不变）。其余情况按 `commitInterval`（默认 5 秒）定期提交。只有在更早的记录仍在处理或提交正在进行时，拉取才会暂停。这个上限按消费者计算：一个 Wow 接收端就是一个消费者，它的 `max-deferred-commits` 统计其订阅的全部 topic 与分区上的已确认 offset。提交触发在 `ReceiverOptionsCustomizer` 之后应用，因此总与最终的 `maxDeferredCommits` 一致；更大的 `commitBatchSize` 会被截到该值，并记录一次 INFO 日志。
+已确认、待提交的 offset 达到 `max-deferred-commits` 时，Reactor Kafka 会暂停拉取；因此总线在达到这个数量时立即发起一次提交（Reactor Kafka 的 `commitBatchSize`，上限为 `max-deferred-commits`；通过 `ReceiverOptionsCustomizer` 设置的更小值保持不变）。其余情况按 `commitInterval`（默认 5 秒）定期提交。只有在更早的记录仍在处理或提交正在进行时，拉取才会暂停。这个上限按消费者计算：一个 Wow 接收端就是一个消费者，它的 `max-deferred-commits` 统计其订阅的全部 topic 与分区上的已确认 offset；自 9.3.0 起一个接收端服务一个限界上下文的全部聚合 topic，所以这个上限由整个上下文共享。提交触发在 `ReceiverOptionsCustomizer` 之后应用，因此总与最终的 `maxDeferredCommits` 一致；更大的 `commitBatchSize` 会被截到该值，并记录一次 INFO 日志。
 
 ::: info 9.2.3 起的变化
 9.2.2 及以前默认 `max-deferred-commits=1` 且没有上述提交触发：每确认一条记录，消费者都要暂停到下一次定期提交，所以接收端大约每个 `commitInterval`（5 秒）只处理一次拉取。现在默认值为 500，即 Kafka 默认的 `max.poll.records`。显式配置过 `max-deferred-commits` 的部署保留原值，但达到该数量后会立即提交，而不再暂停等待。

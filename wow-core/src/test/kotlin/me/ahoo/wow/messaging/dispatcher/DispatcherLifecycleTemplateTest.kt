@@ -118,7 +118,7 @@ class DispatcherLifecycleTemplateTest {
             MessageReceiver(Flux.empty())
 
         override fun newAggregateDispatcher(
-            namedAggregate: NamedAggregate,
+            namedAggregates: Set<NamedAggregate>,
             messageFlux: Flux<String>,
         ): MessageDispatcher = child
     }
@@ -127,7 +127,8 @@ class DispatcherLifecycleTemplateTest {
         children: List<MessageDispatcher>,
     ) : MainDispatcher<String>() {
         private val childrenByAggregate = children.mapIndexed { index, child ->
-            "runtime-template.child-$index".toNamedAggregate().materialize() to child
+            // One bounded context per child: a context gets one child dispatcher.
+            "runtime-template-$index.child".toNamedAggregate().materialize() to child
         }.toMap()
 
         override val name: String = "multi-parent"
@@ -137,9 +138,9 @@ class DispatcherLifecycleTemplateTest {
             MessageReceiver(Flux.empty())
 
         override fun newAggregateDispatcher(
-            namedAggregate: NamedAggregate,
+            namedAggregates: Set<NamedAggregate>,
             messageFlux: Flux<String>,
-        ): MessageDispatcher = checkNotNull(childrenByAggregate[namedAggregate])
+        ): MessageDispatcher = checkNotNull(childrenByAggregate[namedAggregates.single()])
     }
 
     private class RecordingChild(

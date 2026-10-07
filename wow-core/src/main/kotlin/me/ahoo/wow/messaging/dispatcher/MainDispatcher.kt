@@ -19,6 +19,7 @@ import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.metrics.writeMetricsSubscriber
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.addSuppressedIfAbsent
@@ -34,13 +35,14 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Abstract base class for message dispatchers that manage multiple aggregate dispatchers.
  *
- * This class coordinates the dispatching of messages to multiple named aggregates by
- * creating individual dispatchers for each aggregate and managing their lifecycle.
- * It provides a framework for implementing dispatchers that need to handle messages
- * across different aggregates, ensuring proper initialization, starting, and graceful shutdown.
+ * This class coordinates the dispatching of messages to multiple named aggregates. It groups [namedAggregates] by
+ * bounded context and, for each context, opens one receiver subscribed to all of that context's aggregate topics in
+ * consumer group [name], and creates one child dispatcher for it (design X7: one receiver per role and bounded
+ * context, instead of one per aggregate). It manages the children's lifecycle: initialization, starting, and graceful
+ * shutdown.
  *
  * Subclasses must implement the abstract methods to define how messages are received
- * for each aggregate and how individual aggregate dispatchers are created.
+ * for a context's aggregates and how the child dispatcher of a context is created.
  *
  * Example usage:
  * ```
@@ -51,11 +53,11 @@ import java.util.concurrent.atomic.AtomicReference
  *         myMessageBus.receiver(subscription.copy(runtimeOwned = true))
  *
  *     override fun newAggregateDispatcher(
- *         namedAggregate: NamedAggregate,
+ *         namedAggregates: Set<NamedAggregate>,
  *         messageFlux: Flux<MyMessage>
  *     ): MessageDispatcher {
- *         // Implementation to create dispatcher for the aggregate
- *         return MyAggregateDispatcher(namedAggregate, messageFlux)
+ *         // Implementation to create the dispatcher of one bounded context's aggregates
+ *         return MyAggregateDispatcher(namedAggregates, messageFlux)
  *     }
  * }
  *
@@ -86,8 +88,7 @@ abstract class MainDispatcher<T : Any>(
     /**
      * The set of named aggregates that this dispatcher will manage.
      *
-     * Each aggregate in this set will have its own dedicated dispatcher created.
-     * Must be instances of [me.ahoo.wow.modeling.MaterializedNamedAggregate].
+     * The aggregates of each bounded context share one receiver and one child dispatcher.
      */
     abstract val namedAggregates: Set<NamedAggregate>
 
@@ -101,26 +102,19 @@ abstract class MainDispatcher<T : Any>(
     ): MessageReceiver<T>
 
     /**
-     * Creates a new message dispatcher for a specific named aggregate.
+     * Creates the dispatcher of one bounded context's aggregates.
      *
-     * This method is responsible for instantiating a dispatcher that will handle messages
-     * for a single aggregate. The dispatcher should process messages from the provided flux
-     * and manage the aggregate's state or behavior accordingly.
-     *
-     * @param namedAggregate The named aggregate for which the dispatcher is created. Must not be null.
-     * @param messageFlux The flux of messages for the aggregate. May be empty.
-     * @return A new [MessageDispatcher] instance configured for the specified aggregate.
-     *
-     * @throws IllegalArgumentException if the namedAggregate is invalid or if messageFlux is null.
-     * @throws RuntimeException if dispatcher creation fails due to configuration issues.
+     * @param namedAggregates The aggregates of one bounded context, materialized; never empty.
+     * @param messageFlux The messages of all of them, from one receiver.
+     * @return A new [MessageDispatcher] for these aggregates.
      */
     abstract fun newAggregateDispatcher(
-        namedAggregate: NamedAggregate,
+        namedAggregates: Set<NamedAggregate>,
         messageFlux: Flux<T>
     ): MessageDispatcher
 
     /**
-     * Lazily initialized list of aggregate dispatchers, one for each named aggregate.
+     * Lazily initialized list of child dispatchers, one for each bounded context of [namedAggregates].
      *
      * Each dispatcher is created with a message flux that includes receiver group
      * and metrics context. This property is initialized on first access to avoid
@@ -135,15 +129,19 @@ abstract class MainDispatcher<T : Any>(
 
     private val aggregateDispatcherBindingsLazy = lazy {
         namedAggregates
-            .map {
+            .map { it.materialize() }
+            .groupByTo(LinkedHashMap()) { it.contextName }
+            .values
+            .map { contextAggregates ->
+                val aggregates = contextAggregates.toCollection(LinkedHashSet())
                 val subscription = MessageSubscription(
-                    namedAggregate = it,
+                    namedAggregates = aggregates,
                     receiverGroup = name,
                 )
                 val receiver = createMessageReceiver(subscription)
                 AggregateDispatcherBinding(
                     dispatcher = newAggregateDispatcher(
-                        it,
+                        aggregates,
                         receiver.messages.writeMetricsSubscriber(name),
                     ),
                     readiness = receiver.readiness,

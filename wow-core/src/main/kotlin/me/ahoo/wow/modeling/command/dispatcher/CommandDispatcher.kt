@@ -51,12 +51,12 @@ class CommandDispatcher(
         }
 
     override fun newAggregateDispatcher(
-        namedAggregate: NamedAggregate,
+        namedAggregates: Set<NamedAggregate>,
         messageFlux: Flux<ServerCommandExchange<*>>
     ): MessageDispatcher {
-        val aggregateMetadata = namedAggregate
-            .requiredAggregateType<Any>()
-            .aggregateMetadata<Any, Any>()
+        val aggregateMetadata = namedAggregates.map {
+            it.requiredAggregateType<Any>().aggregateMetadata<Any, Any>()
+        }
         return AggregateCommandDispatcher(
             aggregateMetadata = aggregateMetadata,
             messageFlux = messageFlux,

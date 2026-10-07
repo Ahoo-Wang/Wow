@@ -22,11 +22,11 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
- * Dispatcher for handling snapshot operations on state events for a specific aggregate.
+ * Dispatcher for handling snapshot operations on the state events of the aggregates of one bounded context.
  * Routes state event exchanges to the snapshot handler for processing.
  *
- * @param name the name of this dispatcher (default: aggregateName-AggregateSnapshotDispatcher)
- * @param namedAggregate the named aggregate this dispatcher handles
+ * @param namedAggregates the aggregates this dispatcher handles, all of one bounded context
+ * @param name the name of this dispatcher (default: contextName-AggregateSnapshotDispatcher)
  * @param messageFlux the flux of state event exchanges to process
  * @param snapshotHandler the handler responsible for creating and storing snapshots
  * @param messageReadiness completion of asynchronous message-source setup when
@@ -37,9 +37,9 @@ import reactor.core.publisher.Mono
  * @param metrics instance-scoped metrics recorder for dispatcher operations
  */
 class AggregateSnapshotDispatcher(
+    override val namedAggregates: Set<NamedAggregate>,
     override val name: String =
-        "${namedAggregate.aggregateName}-${AggregateSnapshotDispatcher::class.simpleName!!}",
-    override val namedAggregate: NamedAggregate,
+        "${namedAggregates.first().contextName}-${AggregateSnapshotDispatcher::class.simpleName!!}",
     override val messageFlux: Flux<StateEventExchange<*>>,
     private val snapshotHandler: SnapshotHandler,
     messageReadiness: Mono<Void> = Mono.empty(),
@@ -57,7 +57,7 @@ class AggregateSnapshotDispatcher(
      * The context name of the aggregate.
      */
     override val contextName: String
-        get() = namedAggregate.contextName
+        get() = namedAggregates.first().contextName
 
     /**
      * The processor name, set to SNAPSHOT_PROCESSOR_NAME.
@@ -76,6 +76,14 @@ class AggregateSnapshotDispatcher(
         return snapshotHandler.handle(exchange)
     }
 
-    /** State events of one aggregate are snapshotted in order: the mailbox key is the aggregate ID. */
-    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId.id
+    /**
+     * State events of one aggregate are snapshotted in order: the mailbox key is the whole `AggregateId`
+     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * an ID (for example one derived by a saga) can be shared across aggregate types.
+     */
+    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId
+
+    /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
+    override fun metricProcessorName(namedAggregate: NamedAggregate): String =
+        "${namedAggregate.aggregateName}-${AggregateSnapshotDispatcher::class.simpleName!!}"
 }

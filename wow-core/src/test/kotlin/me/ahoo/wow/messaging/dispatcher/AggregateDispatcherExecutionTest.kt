@@ -157,8 +157,8 @@ class AggregateDispatcherExecutionTest {
         override val messageFlux: Flux<ExecutionExchange>,
         private val handle: (ExecutionExchange) -> Mono<Void>,
     ) : AggregateDispatcher<ExecutionExchange>() {
-        override val namedAggregate: NamedAggregate =
-            "wow-core-test.execution_aggregate".toNamedAggregate().materialize()
+        override val namedAggregates: Set<NamedAggregate> =
+            setOf("wow-core-test.execution_aggregate".toNamedAggregate().materialize())
 
         override fun ExecutionExchange.mailboxKey(): Any = aggregateId
 

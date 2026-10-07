@@ -39,7 +39,7 @@ flowchart TB
     EventFilters ~~~ SnapshotPath
 ```
 
-`EventStreamDispatcher` 只保留 `FunctionKind.EVENT`，`StateEventDispatcher` 只保留 `FunctionKind.STATE_EVENT`。各自按注册函数支持的聚合 topic 建立订阅；没有对应函数的聚合不会为该 dispatcher 创建消费路径。
+`EventStreamDispatcher` 只保留 `FunctionKind.EVENT`，`StateEventDispatcher` 只保留 `FunctionKind.STATE_EVENT`。各自订阅注册函数支持的聚合 topic，自 9.3.0 起按这些聚合所属的限界上下文每个上下文一个接收器（一个 Kafka 消费者）；没有对应函数的聚合不会为该 dispatcher 创建消费路径。
 
 一个收到的事件流使用 `concatMap` 逐事件处理。同一事件匹配到的多个函数使用 `flatMap`，因此不能依赖函数之间的执行顺序。按键执行器只提供同一分发器内按聚合 ID 的串行边界，不提供跨 dispatcher、进程或外部系统的全局顺序。
 

@@ -44,7 +44,7 @@ The precheck is not the durable concurrency decision. The processing node checks
 
 `CommandBus.receiver`, with a runtime-owned subscription for the runtime's `CommandDispatcher`, produces `ServerCommandExchange` instances. `CommandDispatcher` first filters `isVoid` messages: it acknowledges them without entering the command pipeline. Ordinary commands are dispatched by `NamedAggregate`.
 
-Each `AggregateCommandDispatcher` holds its aggregate's metadata, passes it to the `CommandHandler` with each command, and keys its mailbox by the aggregate ID on the runtime's [`KeyedExecutor`](../../advanced/keyed-executor.md). Commands for one ID run one at a time in receive order while different IDs run in parallel on shared workers. This prevents concurrent execution for one aggregate inside this process; it does not replace the EventStore's durable version constraint.
+Since 9.3.0 each `AggregateCommandDispatcher` serves the aggregates of one bounded context through one receiver. It holds their metadata, passes each command's own aggregate metadata to the `CommandHandler`, and keys its mailbox by the aggregate ID on the runtime's [`KeyedExecutor`](../../advanced/keyed-executor.md). Commands for one ID run one at a time in receive order while different IDs run in parallel on shared workers. This prevents concurrent execution for one aggregate inside this process; it does not replace the EventStore's durable version constraint.
 
 `DefaultCommandHandler` runs a fixed pipeline; there is no command filter chain (since 9.3.0; before it, `CommandFilter` beans sorted by `@Order`):
 

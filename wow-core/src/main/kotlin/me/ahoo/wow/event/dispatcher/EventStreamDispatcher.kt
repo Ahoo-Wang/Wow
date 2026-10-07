@@ -33,11 +33,11 @@ internal class EventStreamDispatcher(
 ) : AbstractEventDispatcher<EventStreamExchange, DomainEventBus>(metrics) {
 
     override fun newAggregateDispatcher(
-        namedAggregate: NamedAggregate,
+        namedAggregates: Set<NamedAggregate>,
         messageFlux: Flux<EventStreamExchange>
     ): MessageDispatcher {
         return AggregateEventDispatcher(
-            namedAggregate = namedAggregate,
+            namedAggregates = namedAggregates,
             messageFlux = messageFlux,
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,

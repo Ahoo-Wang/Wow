@@ -24,6 +24,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
@@ -156,6 +157,7 @@ class ProcessNode(
         Files.copy(
             installHome.resolve("config/application.yaml"),
             workDir.resolve("config/application.yaml"),
+            StandardCopyOption.REPLACE_EXISTING,
         )
         val command = listOf(installHome.resolve("bin/example-server").toString()) +
             "--server.port=$port" +
@@ -163,7 +165,7 @@ class ProcessNode(
         val builder = ProcessBuilder(command)
             .directory(workDir.toFile())
             .redirectErrorStream(true)
-            .redirectOutput(stdout.toFile())
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(stdout.toFile()))
         builder.environment()["JAVA_OPTS"] = ExampleServerNode.JAVA_OPTS
         // The distribution pins the JMX port; two nodes on one host must not share it.
         builder.environment()["EXAMPLE_SERVER_OPTS"] = "-Dcom.sun.management.jmxremote.port=${freePort()}"
@@ -194,6 +196,7 @@ class ProcessNode(
     override fun logTail(): String =
         if (Files.exists(stdout)) Files.readAllLines(stdout).takeLast(LOG_TAIL_LINES).joinToString("\n") else ""
 
+    /** Stops the process gracefully (SIGTERM, as a rolling upgrade does); [start] runs it again. */
     override fun close() {
         process?.let {
             it.destroy()
@@ -201,6 +204,7 @@ class ProcessNode(
                 it.destroyForcibly()
             }
         }
+        process = null
     }
 
     companion object {

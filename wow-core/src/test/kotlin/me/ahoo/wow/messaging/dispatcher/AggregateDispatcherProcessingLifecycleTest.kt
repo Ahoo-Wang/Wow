@@ -101,7 +101,7 @@ private class ProcessingLifecycleDispatcher(
     processingQuiescence = processingQuiescence,
 ) {
     override val name: String = "processing-lifecycle"
-    override val namedAggregate: NamedAggregate = ProcessingLifecycleMessage().materialize()
+    override val namedAggregates: Set<NamedAggregate> = setOf(ProcessingLifecycleMessage().materialize())
 
     override fun ProcessingLifecycleExchange.mailboxKey(): Any = 0
 
