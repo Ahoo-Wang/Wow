@@ -67,7 +67,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 <!--
 本节写作时尚未合并的 9.3.0 工作的占位。合并后按可能性在这里加一节；推迟到之后的版本就删掉对应的行。
-- X7（共享 KeyedExecutor、按上下文接收；#3969、#3975）：合并后加上它的条目（见 #3969 的 Breaking 一节）与滚动升级说明。
+- X7 2/2（按上下文接收；#3975）：合并后在“分发：每个运行时一个 KeyedExecutor”中加上它的条目与滚动升级说明。
 - X4（热路径：计量器缓存）。
 - B8（持续流入下的停机；命令链路设计 2026-09-28，B8 条）。
 -->
@@ -203,6 +203,17 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 - 领域事件与状态事件的本地 sink 不再有上限：本地消费者变慢时积压增长（指标 `wow.local_first.backlog`，达到 `wow.{command,event,eventsourcing.state}.bus.local-first.backlog-high-water-mark` 时记 WARN，默认 10000），而不是绕过本地投递。
 - 排队的副本在 `wow.shutdown-timeout` 内发出，超时后取消。已交出但尚未处理的消息在进程崩溃时会丢失；消息必须在崩溃后保留的场景请关闭本地优先。不保证跨主题或跨总线的顺序。
 - `LocalMessageBus.sendIfSubscribed(message): Mono<Boolean>` 改为 `handOff(message): Mono<LocalHandoff>`；`LocalFirstMessageBus` 新增抽象属性 `distributedCopies: LocalFirstDistributedCopies`，三个内置的本地优先总线以构造参数接收它。Starter 为每个总线注册一个 `localFirst{Command,DomainEvent,StateEvent}BusDistributedCopies` Bean，作为运行时组件。在运行时之外创建的 `LocalFirstDistributedCopies` 不注册为运行时组件时，停机时不会等待它。
+
+### 分发：每个运行时一个 KeyedExecutor
+
+- 运行时的所有分发器（命令、领域事件、状态事件、投影、无状态 Saga、快照）共享一个 [`KeyedExecutor`](./advanced/keyed-executor.md)，不再为每种聚合类型与分发器各建一个 `Schedulers.newParallel(cores)` 线程池：`wow.dispatch.workers` 个线程（默认等于可用处理器数），每个聚合 ID 一个邮箱，每个接收器最多 `wow.dispatch.max-in-flight`（默认 `256`）条未完成消息，一个聚合每轮最多执行 `wow.dispatch.throughput`（默认 `16`）条消息。按聚合的顺序不变。
+- 删除且无需替代调用：`AggregateSchedulerSupplier`、`DefaultAggregateSchedulerSupplier`、`MessageParallelism`（`DEFAULT_PARALLELISM`、`toGroupKey`）、`ParallelismCapable`、系统属性 `wow.parallelism`，以及 `CommandDispatcher`、`AggregateCommandDispatcher`、`DomainEventDispatcher`、`ProjectionDispatcher`、`StatelessSagaDispatcher`、`SnapshotDispatcher`、`AggregateSnapshotDispatcher`、`CompositeEventDispatcher` 的构造参数 `parallelism`、`scheduler`、`schedulerSupplier`。删掉这些参数与自定义的 `AggregateSchedulerSupplier` Bean；用 `wow.dispatch.workers` 设定线程数，不用 Spring 时用 `WowRuntime(keyedExecutor = KeyedExecutor(workers = …))`。自定义的 `AggregateDispatcher` 改为实现 `T.mailboxKey(): Any`，取代 `parallelism`、`scheduler` 与 `T.toGroupKey()`。
+- 处理函数运行在 `wow-dispatch-N` 线程上，不再是 `<Dispatcher>-<aggregate>-N`：请更新匹配旧线程名的日志格式、线程名断言与线程池指标。工作线程与 9.2 一样是 Reactor 非阻塞线程，处理函数中的 `block()` 会立即失败；阻塞的函数请标注 `@Blocking`。
+- 由分发器调用的 `suspend` 与 `Flow` 消息函数在分发工作线程上恢复，不再是 `Dispatchers.Default`。
+- 等待中的处理函数（I/O、版本冲突后的重试退避）不占线程，只推迟自己的聚合；9.2 中它会推迟哈希到同一组的所有聚合。但未完成窗口由接收器的所有聚合 ID 共享：一个聚合积压约 241 条未完成消息（默认配置）就会让接收器停下，Kafka 上会暂停它的主题。见 [Keyed Executor](./advanced/keyed-executor.md#模型)。
+- 强制停止（`wow.shutdown-timeout` 到期）在返回前丢弃仍在邮箱中排队的消息，与 9.2 释放调度器一致；这些消息不会被确认，Kafka 与 Redis Streams 会重新投递。见[运行时生命周期](./advanced/runtime-lifecycle.md)。
+- 修复（影响 9.2.x）：处理函数在自身完成时以响应式方式发送命令，不再让同组的其他聚合饿死直至命令超时。
+- 性能：9.3.0 的基准门禁比较了这一变更前后的 main。CI（4 核，每侧 8 个交替 fork）中没有变慢的行：本地优先与内存命令发送 7 行更快、5 行在噪声内（[run 37557218922](https://github.com/Ahoo-Wang/Wow/actions/runs/37557218922)），聚合处理在噪声内（[run 37550851420](https://github.com/Ahoo-Wang/Wow/actions/runs/37550851420)）。本地（14 核）在 128 个聚合等待 I/O 时，冷命令快 14–16 倍（单发送线程 4.9k → 71k ops/s，三线程 11.7k → 186k），可持续的命令发送速率最多高 66 %。完整表格见 [#3969](https://github.com/Ahoo-Wang/Wow/pull/3969)。
 
 ### 失败策略：接收重试与失败记录
 

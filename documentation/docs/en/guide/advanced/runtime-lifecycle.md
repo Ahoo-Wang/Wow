@@ -104,6 +104,8 @@ Each new runtime activity restarts the quiet period. After a continuous idle int
 
 Dispatchers own no threads: they run on the runtime's [`KeyedExecutor`](./keyed-executor.md), which the runtime closes after every component has stopped.
 
+A force stop also stops the dispatch work synchronously, as disposing the 9.2 per-aggregate schedulers did: before `forceStop` returns, the runtime force-closes the executor, which discards every message still queued in a mailbox and rejects new deliveries. Those messages are not acknowledged, so a broker transport (Kafka, Redis Streams) redelivers them; an in-memory message is dropped. A handler that is already running is not interrupted, but its mailbox starts no further message. A graceful stop is unchanged: dispatchers drain first and the executor is closed only after every component has stopped; a task submitted while the executor closes runs or is rejected, never left behind.
+
 ## Storage and transport resources
 
 A batch writer (the Mongo and Elasticsearch event-stream appender and snapshot saver with batching enabled) and a Kafka producer hold work the dispatchers already accepted. Each is a `RuntimeResource`:
