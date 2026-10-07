@@ -134,9 +134,9 @@ subscriber。
 
 `receiver()` 是唯一的接收入口。只有 `WowRuntime` 拥有的 dispatcher 才传入 `runtimeOwned = true` 的订阅；普通
 自定义 consumer 保持 `false`，除非它实现同一 local admission receipt protocol（`confirmLocalDelivery`/
-`rejectLocalDelivery`）。自 9.3.0 起 `receiver()` 是抽象方法，`runtimeReceiver()` 与 `receive()` 已删除：
-实现 `receive()` 的总线改为实现 `receiver()`；曾在 `runtimeReceiver()` 中为运行时 receiver 提供特殊行为的总线，
-要把它移到 `receiver()` 中按 runtime-owned 订阅处理。调用 `receive()` 的代码改读
+`rejectLocalDelivery`）。自 9.3.0 起 `receiver()` 是抽象方法，`runtimeReceiver()` 已删除，`receive()` 已弃用（10.0.0 删除）：
+它只是调用方入口，默认读取 `receiver(subscription).openedMessages()`。实现 `receive()` 的总线改为实现 `receiver()`；曾在 `runtimeReceiver()` 中为运行时 receiver 提供特殊行为的总线，
+要把它移到 `receiver()` 中按 runtime-owned 订阅处理。调用 `receive()` 的代码仍可编译（带弃用警告），应改读
 `receiver(subscription).openedMessages()`。自 9.3.0 起
 `LocalMessageBus.sendIfSubscribed()` 由 `handOff()` 取代，它返回 `LocalHandoff`：消息是否进入本地 sink，以及单独的
 准入结果；保守默认值是拒绝。本地总线实现应在不等待 receiver 需求的情况下完成交付，并仅在每个目标 receiver 都已获取
@@ -150,9 +150,6 @@ Transport 检查：
 
 ## 4. 更新相邻扩展
 
-- 自定义 `AggregateSchedulerSupplier` 必须同时支持 graceful 与 force shutdown；force cleanup 同步释放 graceful
-  path 可能拥有的全部 scheduler。（9.3.0 移除了 `AggregateSchedulerSupplier`：分发器在运行时的
-  [`KeyedExecutor`](../advanced/keyed-executor.md) 上执行。）
 - `AutoRegistrar` 是初始化工作（`SmartInitializingSingleton`），不是 runtime lifecycle owner。删除对旧
   launcher phase 的调用或排序依赖。
 - 自定义 store/message-bus decorator 必须保留原 delegate close ownership，避免重复 close。

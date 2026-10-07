@@ -19,7 +19,7 @@ Configuration class: `WowProperties`; prefix: `wow`.
 | `wow.shutdown-timeout` | Duration | `60s` | Shared deadline for quiescing and reverse-order shutdown of the complete `WowRuntime` |
 | `wow.shutdown-quiet-period` | Duration | `1s` | Continuous idle interval required before intake closes; new activity restarts it |
 | `wow.dispatch.workers` | Int | available processors | Worker threads of the runtime's [`KeyedExecutor`](../../guide/advanced/keyed-executor.md), shared by every dispatcher (since 9.3.0) |
-| `wow.dispatch.max-in-flight` | Int | `256` | Unfinished messages one dispatcher holds before it stops requesting more from its transport (since 9.3.0) |
+| `wow.dispatch.max-in-flight` | Int | `256` | Unfinished messages one receiver (one per dispatcher and bounded context) holds before it stops requesting more from its transport (since 9.3.0) |
 | `wow.dispatch.throughput` | Int | `16` | Messages of one aggregate a dispatch worker runs in one turn before moving to other aggregates (since 9.3.0) |
 
 `shutdown-timeout` must be positive. `shutdown-quiet-period` must be non-negative and shorter than `shutdown-timeout`. Both must fit exactly in a signed 64-bit nanosecond value.
@@ -42,6 +42,7 @@ wow:
 | --- | --- | --- | --- |
 | `bus.type` | [`BusType`](#bustype) | `kafka` | Selects the bus implementation for this channel |
 | `bus.local-first.enabled` | Boolean | `true` | Composes LocalFirst when a distributed bus exists |
+| `bus.local-first.backlog-high-water-mark` | Int | `10000` | Copies of one aggregate type waiting to be sent at which a warning is logged (since 9.3.0) |
 
 The `kafka` default is only a property default. The runtime still needs the `kafka-support` capability and `wow.kafka.bootstrap-servers`; it is not evidence that Kafka is usable.
 
@@ -72,6 +73,7 @@ Configuration class: `CommandProperties`; prefix: `wow.command`.
 | --- | --- | --- | --- |
 | `wow.command.bus.type` | `BusType` | `kafka` | Command bus |
 | `wow.command.bus.local-first.enabled` | Boolean | `true` | Command LocalFirst |
+| `wow.command.bus.local-first.backlog-high-water-mark` | Int | `10000` | Command LocalFirst backlog warning |
 | `wow.command.idempotency.enabled` | Boolean | `true` | Enables command idempotency precheck |
 | `wow.command.idempotency.bloom-filter.ttl` | Duration | `1m` | Bloom-filter lifetime |
 | `wow.command.idempotency.bloom-filter.expected-insertions` | Long | `1000000` | Expected insertions |
@@ -102,6 +104,7 @@ Configuration class: `EventProperties`; prefix: `wow.event`.
 | --- | --- | --- |
 | `wow.event.bus.type` | `BusType` | `kafka` |
 | `wow.event.bus.local-first.enabled` | Boolean | `true` |
+| `wow.event.bus.local-first.backlog-high-water-mark` | Int | `10000` |
 | `wow.event.ack-on-unrecorded-failure` | Boolean | `true` |
 
 `ack-on-unrecorded-failure` (since 9.3.0) decides what happens to an event whose processing (Processor, Saga, Projection) failed when no failure recorder records it, that is, without the compensation module: `true` logs and acknowledges it, as before 9.3.0; `false` leaves it unacknowledged so the bus delivers it again (at-least-once; on Kafka this pauses the receiver, see [Failure Recording](../../guide/event/dispatch.md#failure-recording)). A failure the compensation module could not record is never acknowledged, whatever this switch says.
@@ -195,6 +198,7 @@ Configuration class: `StateProperties`; prefix: `wow.eventsourcing.state`.
 | --- | --- | --- |
 | `wow.eventsourcing.state.bus.type` | `BusType` | `kafka` |
 | `wow.eventsourcing.state.bus.local-first.enabled` | Boolean | `true` |
+| `wow.eventsourcing.state.bus.local-first.backlog-high-water-mark` | Int | `10000` |
 
 StateEvents drive snapshot processing. With a distributed implementation, include this channel's lag and failures when diagnosing the `SNAPSHOT` stage.
 

@@ -32,7 +32,7 @@ outline: deep
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `wow.dispatch.workers` | 可用处理器数 | 运行时全部分发器共享的工作线程数 |
-| `wow.dispatch.max-in-flight` | `256` | 单个分发器停止请求新消息前可持有的未完成消息数 |
+| `wow.dispatch.max-in-flight` | `256` | 单个接收器（分发器在一个限界上下文上的接收器）停止请求新消息前可持有的未完成消息数 |
 | `wow.dispatch.throughput` | `16` | 工作线程在转向其他聚合前，一轮执行同一聚合的消息数 |
 
 9.2 的系统属性 `wow.parallelism` 已不再生效；设置了它的运行时启动时会记一条 WARN，提示改用 `wow.dispatch.*`。

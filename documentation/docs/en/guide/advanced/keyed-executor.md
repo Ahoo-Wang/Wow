@@ -32,7 +32,7 @@ transport receiver
 | Property | Default | Meaning |
 | --- | --- | --- |
 | `wow.dispatch.workers` | available processors | Worker threads shared by all dispatchers of the runtime |
-| `wow.dispatch.max-in-flight` | `256` | Unfinished messages one dispatcher holds before it stops requesting more |
+| `wow.dispatch.max-in-flight` | `256` | Unfinished messages one receiver (a dispatcher's receiver of one bounded context) holds before it stops requesting more |
 | `wow.dispatch.throughput` | `16` | Messages of one aggregate a worker runs in one turn before moving to other aggregates |
 
 The 9.2 system property `wow.parallelism` is ignored; a runtime started with it set logs one WARN pointing to `wow.dispatch.*`.

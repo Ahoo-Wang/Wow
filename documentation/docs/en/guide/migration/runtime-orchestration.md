@@ -138,10 +138,12 @@ callbacks. A receiver supports exactly one message subscriber.
 
 `receiver()` is the one receive entry. Only a dispatcher owned by `WowRuntime` passes a subscription with
 `runtimeOwned = true`; ordinary custom consumers leave it `false` unless they implement the same local admission
-receipt protocol (`confirmLocalDelivery`/`rejectLocalDelivery`). Since 9.3.0 `receiver()` is abstract and
-`runtimeReceiver()` and `receive()` are removed: a bus that implemented `receive()` implements `receiver()` instead, and
-one that gave runtime receivers special behaviour in `runtimeReceiver()` moves it into `receiver()` for runtime-owned
-subscriptions. A caller of `receive()` reads `receiver(subscription).openedMessages()`. Since 9.3.0
+receipt protocol (`confirmLocalDelivery`/`rejectLocalDelivery`). Since 9.3.0 `receiver()` is abstract,
+`runtimeReceiver()` is removed, and `receive()` is deprecated (removed in 10.0.0): it is only a caller's entry,
+a default that reads `receiver(subscription).openedMessages()`. A bus that implemented `receive()` implements
+`receiver()` instead, and one that gave runtime receivers special behaviour in `runtimeReceiver()` moves it into
+`receiver()` for runtime-owned subscriptions. A caller of `receive()` still compiles, with a deprecation warning, and
+should read `receiver(subscription).openedMessages()`. Since 9.3.0
 `LocalMessageBus.sendIfSubscribed()` is replaced by `handOff()`, which returns a `LocalHandoff`: whether the message
 entered the local sink, and a separate admission result; its conservative default refuses. A local bus implementation
 completes the hand-off without waiting for a receiver's demand and resolves the admission only when every targeted
@@ -156,9 +158,6 @@ Transport checks:
 
 ## 4. Update Adjacent Extensions
 
-- Custom `AggregateSchedulerSupplier` implementations must support both graceful and force shutdown; force cleanup
-  synchronously disposes every scheduler the graceful path could own. (9.3.0 removes `AggregateSchedulerSupplier`:
-  dispatchers run on the runtime's [`KeyedExecutor`](../advanced/keyed-executor.md).)
 - `AutoRegistrar` is initialization work (`SmartInitializingSingleton`), not a runtime lifecycle owner. Remove calls or
   ordering based on the deleted launcher phase.
 - Custom store/message-bus decorators must preserve original delegate close ownership and avoid closing it twice.
