@@ -62,6 +62,32 @@ class UnboundedMulticastSinkTest {
     }
 
     @Test
+    fun `the queue behaves as a FIFO under any mix of offers and polls, growing and reusing rings`() {
+        listOf(2, 4, 8).forEach { chunkSize ->
+            val queue = ChunkedSpscQueue<Int>(chunkSize)
+            val model = ArrayDeque<Int>()
+            val random = kotlin.random.Random(chunkSize)
+            var next = 0
+            repeat(200_000) {
+                // Bursts of offers outrun the consumer (new rings); bursts of polls drain it (rings reused).
+                if (random.nextInt(100) < if (it % 5_000 < 2_500) 70 else 30) {
+                    queue.offer(next)
+                    model.addLast(next)
+                    next++
+                } else {
+                    queue.poll().assert().describedAs("chunkSize=$chunkSize").isEqualTo(model.removeFirstOrNull())
+                }
+                queue.isEmpty().assert().isEqualTo(model.isEmpty())
+                queue.size.assert().isEqualTo(model.size)
+            }
+            while (model.isNotEmpty()) {
+                queue.poll().assert().isEqualTo(model.removeFirst())
+            }
+            queue.poll().assert().isNull()
+        }
+    }
+
+    @Test
     fun `the chunk size must be a power of two`() {
         assertThrows<IllegalArgumentException> { ChunkedSpscQueue<Int>(chunkSize = 3) }
         assertThrows<IllegalArgumentException> { ChunkedSpscQueue<Int>(chunkSize = 1) }

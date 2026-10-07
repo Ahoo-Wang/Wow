@@ -202,12 +202,17 @@ internal class FusedQueueSource<T : Any> :
 }
 
 /**
- * An unbounded single-producer single-consumer queue of linked fixed-size array chunks (a Lamport queue per chunk).
+ * An unbounded single-producer single-consumer queue: a ring buffer that, instead of refusing a value when full, links
+ * a new ring of the same size and continues there (as Reactor's `SpscLinkedArrayQueue` and JCTools'
+ * `SpscUnboundedArrayQueue` do), without an atomic array.
  *
- * The producer writes a slot with a plain store and then publishes its index with an ordered store; the consumer reads
- * the published index and then the slots below it, so it never sees a slot before its value. A chunk is an array with
- * one extra slot that links the next chunk, written before the first index in the next chunk is published. The
- * consumer clears every slot it takes and the link of a chunk it leaves, so nothing taken is retained.
+ * Indices only grow. The producer writes a slot with a plain store and publishes its index with an ordered store; the
+ * consumer reads the published index and then the slots below it, so it never sees a slot before its value. The
+ * consumer clears every slot it takes and then publishes its own index; the producer reuses a slot only after reading
+ * a consumer index past it, so a slot is never overwritten before it was taken. When the ring is full, the producer
+ * puts the value in a new ring at the same offset, links the new ring from the old one's extra slot and leaves [NEXT]
+ * in the old slot; the consumer follows the link on meeting [NEXT] and drops the old ring. A consumer that keeps up
+ * keeps using one ring: no allocation in the steady state.
  *
  * Successive producers (or consumers) on different threads must be ordered by a happens-before edge, as Reactor's own
  * queues require: a lock around the emissions, the processor's work-in-progress counter around the drains.
@@ -220,70 +225,101 @@ internal class ChunkedSpscQueue<T : Any>(chunkSize: Int = DEFAULT_CHUNK_SIZE) {
         mask = chunkSize - 1
     }
 
-    /** The slot of a chunk that links the next one. */
+    /** The slot of a ring that links the next one. */
     private val link = chunkSize
 
-    private var producerChunk = arrayOfNulls<Any>(chunkSize + 1)
-    private var consumerChunk = producerChunk
+    private var producerRing = arrayOfNulls<Any>(chunkSize + 1)
+    private var consumerRing = producerRing
 
     /** Written by the producer only, published with an ordered store. */
     @Volatile
     @JvmField
     var producerIndex = 0L
 
+    /** Written by the consumer only, published with an ordered store once the taken slot is cleared. */
+    @Volatile
+    @JvmField
+    var consumerIndex = 0L
+
     /** The producer's own copy of [producerIndex]. */
     private var producerPosition = 0L
 
-    /** The next index to take; written by the consumer only (read by [size] as an estimate). */
-    private var consumerPosition = 0L
+    /** The first index the current producer ring holds. */
+    private var ringStart = 0L
 
-    /** The last [producerIndex] the consumer read. */
-    private var producerLimit = 0L
+    /**
+     * The producer writes `index` in place only while `index + 1` is below this bound: the slot after it is then free
+     * too, so a ring is never filled to its last free slot and [NEXT] always has a free slot to go in.
+     */
+    private var producerLimit = mask.toLong()
+
+    /** The consumer's own copy of [consumerIndex], and the last [producerIndex] it read. */
+    private var consumerPosition = 0L
+    private var consumerLimit = 0L
 
     fun offer(value: T): Boolean {
         val index = producerPosition
         val offset = index.toInt() and mask
-        if (offset == 0 && index != 0L) {
-            val next = arrayOfNulls<Any>(link + 1)
-            producerChunk[link] = next
-            producerChunk = next
+        if (index >= producerLimit) {
+            // A slot of this ring is free once the consumer passed it, or if it was never written in this ring.
+            producerLimit = maxOf(ringStart, consumerIndex) + mask
+            if (index >= producerLimit) {
+                // Full: continue in a new ring, linked from this one, and leave NEXT in this (free) slot.
+                val next = arrayOfNulls<Any>(link + 1)
+                next[offset] = value
+                val ring = producerRing
+                ring[link] = next
+                ring[offset] = NEXT
+                producerRing = next
+                ringStart = index
+                producerLimit = index + mask
+                publish(index)
+                return true
+            }
         }
-        producerChunk[offset] = value
+        producerRing[offset] = value
+        publish(index)
+        return true
+    }
+
+    private fun publish(index: Long) {
         producerPosition = index + 1
         PRODUCER_INDEX.lazySet(this, index + 1)
-        return true
     }
 
     fun poll(): T? {
         val index = consumerPosition
-        if (index == producerLimit) {
+        if (index == consumerLimit) {
             val limit = producerIndex
             if (index == limit) {
                 return null
             }
-            producerLimit = limit
+            consumerLimit = limit
         }
         val offset = index.toInt() and mask
-        var chunk = consumerChunk
-        if (offset == 0 && index != 0L) {
+        var ring = consumerRing
+        var value = ring[offset]
+        if (value === NEXT) {
             @Suppress("UNCHECKED_CAST")
-            val next = chunk[link] as Array<Any?>
-            chunk[link] = null
-            chunk = next
-            consumerChunk = next
+            val next = ring[link] as Array<Any?>
+            ring[link] = null
+            ring[offset] = null
+            ring = next
+            consumerRing = next
+            value = ring[offset]
         }
-        @Suppress("UNCHECKED_CAST")
-        val value = chunk[offset] as T
-        chunk[offset] = null
+        ring[offset] = null
         consumerPosition = index + 1
-        return value
+        CONSUMER_INDEX.lazySet(this, index + 1)
+        @Suppress("UNCHECKED_CAST")
+        return value as T
     }
 
     fun isEmpty(): Boolean = consumerPosition == producerIndex
 
     /** An estimate from any thread; exact from the consumer. */
     val size: Int
-        get() = (producerIndex - consumerPosition).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+        get() = (producerIndex - consumerIndex).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
     /** Consumer side: takes and drops everything published. */
     fun clear() {
@@ -295,7 +331,12 @@ internal class ChunkedSpscQueue<T : Any>(chunkSize: Int = DEFAULT_CHUNK_SIZE) {
     companion object {
         const val DEFAULT_CHUNK_SIZE = 256
 
+        /** Left in a full ring's slot: the value is at the same offset of the linked ring. */
+        private val NEXT = Any()
+
         private val PRODUCER_INDEX: AtomicLongFieldUpdater<ChunkedSpscQueue<*>> =
             AtomicLongFieldUpdater.newUpdater(ChunkedSpscQueue::class.java, "producerIndex")
+        private val CONSUMER_INDEX: AtomicLongFieldUpdater<ChunkedSpscQueue<*>> =
+            AtomicLongFieldUpdater.newUpdater(ChunkedSpscQueue::class.java, "consumerIndex")
     }
 }
