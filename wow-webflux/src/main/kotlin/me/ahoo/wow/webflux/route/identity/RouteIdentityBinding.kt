@@ -326,12 +326,27 @@ class RouteIdentity(
         if (routeBinding != null && this.aggregateRouteMetadata === aggregateRouteMetadata) {
             return routeBinding
         }
+        val last = lastBinding
+        if (last != null && last.aggregateRouteMetadata === aggregateRouteMetadata) {
+            return last.binding
+        }
         return binding(
             aggregateRouteMetadata.aggregateMetadata.staticTenantId,
             aggregateRouteMetadata.ownerPolicy,
             aggregateRouteMetadata.spaced
-        )
+        ).also { lastBinding = LastBinding(aggregateRouteMetadata, it) }
     }
+
+    /** The binding of another aggregate last looked up here, by route metadata identity. */
+    private class LastBinding(val aggregateRouteMetadata: AggregateRouteMetadata<*>, val binding: RouteIdentityBinding)
+
+    /**
+     * One entry in front of [bindings]: an unrouted identity (the same one for every request matching the same
+     * identity path variables) is asked for the same aggregate again and again. An immutable holder, so a racing
+     * reader sees either entry whole.
+     */
+    @Volatile
+    private var lastBinding: LastBinding? = null
 
     fun binding(aggregateMetadata: AggregateMetadata<*, *>): RouteIdentityBinding {
         val routeAggregate = this.aggregateRouteMetadata?.aggregateMetadata
@@ -554,7 +569,17 @@ internal class IdentityPathValues(
     }
 
     /** The value of the declared identity path variable [variable]; a blank one is rejected (400). */
-    fun require(variable: String): String = requireNotBlankPathVariable(variable, get(variable))
+    fun require(variable: String): String {
+        val value = when (variable) {
+            MessageRecords.TENANT_ID -> tenantId
+            MessageRecords.OWNER_ID -> ownerId
+            MessageRecords.ID -> id
+            // A binding declares only identity path variables (RouteIdentityBinding.IDENTITY_PATH_VARIABLES): any
+            // other name is a programming error, not a blank segment of the request.
+            else -> error("[$variable] is not an identity path variable.")
+        }
+        return requireNotBlankPathVariable(variable, value)
+    }
 
     companion object {
         fun of(request: ServerRequest): IdentityPathValues {

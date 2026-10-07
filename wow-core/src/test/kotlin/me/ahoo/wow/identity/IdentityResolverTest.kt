@@ -131,6 +131,8 @@ class IdentityResolverTest {
                                     }
                                     val case = "$fact $firstSource=$first $secondSource=$second $thirdSource=$third"
                                     actual.getOrNull().assert().describedAs(case).isEqualTo(expected.getOrNull())
+                                    actual.exceptionOrNull()?.javaClass.assert().describedAs(case)
+                                        .isEqualTo(expected.exceptionOrNull()?.javaClass)
                                     actual.exceptionOrNull()?.message.assert().describedAs(case)
                                         .isEqualTo(expected.exceptionOrNull()?.message)
                                     checked++
