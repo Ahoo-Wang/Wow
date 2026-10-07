@@ -133,9 +133,7 @@ private class OperationMetricsListener<T : Any>(
     }
 
     override fun doFinally(terminationType: SignalType) {
-        val terminal = createSafely {
-            meters.of(descriptor).terminal(terminationType.toMetricOutcome(), error.metricException())
-        } ?: return
+        val terminal = meters.of(descriptor).terminal(terminationType.toMetricOutcome(), error.metricException())
         recordSafely {
             sample.stop(terminal.operation())
         }
