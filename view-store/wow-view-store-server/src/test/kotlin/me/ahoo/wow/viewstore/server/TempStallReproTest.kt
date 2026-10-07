@@ -59,7 +59,7 @@ class TempStallReproTest {
         "logging.level.root=WARN",
     )
 
-    private val httpClient = HttpClient.create().doOnConnected { CLIENT_CHANNELS.add(it.channel()) }
+    private val httpClient = HttpClient.create().compress(true).doOnConnected { CLIENT_CHANNELS.add(it.channel()) }
 
     private fun client(port: String, timeout: Duration) = WebTestClient.bindToServer(ReactorClientHttpConnector(httpClient))
         .baseUrl("http://localhost:$port")
@@ -69,7 +69,7 @@ class TempStallReproTest {
 
     @Test
     fun contexts() {
-        val n = (System.getenv("REPRO_CONTEXTS") ?: "25").toInt()
+        val n = (System.getenv("REPRO_CONTEXTS") ?: "40").toInt()
         for (i in 0 until n) {
             SERVER_CHANNELS.clear()
             CLIENT_CHANNELS.clear()
