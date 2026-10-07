@@ -307,7 +307,7 @@ catalogs:
 overrides:
   vitepress>vite: ^6.4.4
   '@vitejs/plugin-vue>vite': ^6.4.4
-  mermaid>katex: ^0.18.2
+  mermaid>katex: ^0.19.0
 
 patchedDependencies:
   jsdom@29.1.1:
@@ -5317,8 +5317,8 @@ packages:
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
 
-  katex@0.18.10:
-    resolution: {integrity: sha512-/B6p9eY9DX7aHBfpkHdpirDTZ5QH9xTwL9y837PWuzuv41O5jFdqNQwVQEQsimY0/iVNkwBY4+4hMfhQ7d4Dbw==}
+  katex@0.19.0:
+    resolution: {integrity: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==}
     hasBin: true
 
   keyv@5.6.0:
@@ -11241,7 +11241,7 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  katex@0.18.10:
+  katex@0.19.0:
     dependencies:
       commander: 15.0.0
 
@@ -11587,7 +11587,7 @@ snapshots:
       dompurify: 3.4.16
       es-toolkit: 1.51.0
       fastdom: 1.0.12
-      katex: 0.18.10
+      katex: 0.19.0
       khroma: 2.1.0
       marked: 16.4.2
       roughjs: 4.6.6
