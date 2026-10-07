@@ -205,9 +205,9 @@ internal class FusedQueueSource<T : Any> :
  * An unbounded single-producer single-consumer queue of linked fixed-size array chunks (a Lamport queue per chunk).
  *
  * The producer writes a slot with a plain store and then publishes its index with an ordered store; the consumer reads
- * the published index and then the slots below it, so it never sees a slot before its value. A new chunk is linked
- * before the first index in it is published. The consumer clears every slot it takes and drops a chunk once it has
- * passed it, so nothing taken is retained.
+ * the published index and then the slots below it, so it never sees a slot before its value. A chunk is an array with
+ * one extra slot that links the next chunk, written before the first index in the next chunk is published. The
+ * consumer clears every slot it takes and the link of a chunk it leaves, so nothing taken is retained.
  *
  * Successive producers (or consumers) on different threads must be ordered by a happens-before edge, as Reactor's own
  * queues require: a lock around the emissions, the processor's work-in-progress counter around the drains.
@@ -220,12 +220,10 @@ internal class ChunkedSpscQueue<T : Any>(chunkSize: Int = DEFAULT_CHUNK_SIZE) {
         mask = chunkSize - 1
     }
 
-    private class Chunk(size: Int) {
-        val slots = arrayOfNulls<Any>(size)
-        var next: Chunk? = null
-    }
+    /** The slot of a chunk that links the next one. */
+    private val link = chunkSize
 
-    private var producerChunk = Chunk(chunkSize)
+    private var producerChunk = arrayOfNulls<Any>(chunkSize + 1)
     private var consumerChunk = producerChunk
 
     /** Written by the producer only, published with an ordered store. */
@@ -233,27 +231,24 @@ internal class ChunkedSpscQueue<T : Any>(chunkSize: Int = DEFAULT_CHUNK_SIZE) {
     @JvmField
     var producerIndex = 0L
 
-    /** Written by the consumer only, published with an ordered store (for [size]). */
-    @Volatile
-    @JvmField
-    var consumerIndex = 0L
-
     /** The producer's own copy of [producerIndex]. */
     private var producerPosition = 0L
 
-    /** The consumer's own copy of [consumerIndex], and the last [producerIndex] it read. */
+    /** The next index to take; written by the consumer only (read by [size] as an estimate). */
     private var consumerPosition = 0L
+
+    /** The last [producerIndex] the consumer read. */
     private var producerLimit = 0L
 
     fun offer(value: T): Boolean {
         val index = producerPosition
         val offset = index.toInt() and mask
         if (offset == 0 && index != 0L) {
-            val next = Chunk(mask + 1)
-            producerChunk.next = next
+            val next = arrayOfNulls<Any>(link + 1)
+            producerChunk[link] = next
             producerChunk = next
         }
-        producerChunk.slots[offset] = value
+        producerChunk[offset] = value
         producerPosition = index + 1
         PRODUCER_INDEX.lazySet(this, index + 1)
         return true
@@ -262,30 +257,33 @@ internal class ChunkedSpscQueue<T : Any>(chunkSize: Int = DEFAULT_CHUNK_SIZE) {
     fun poll(): T? {
         val index = consumerPosition
         if (index == producerLimit) {
-            producerLimit = producerIndex
-            if (index == producerLimit) {
+            val limit = producerIndex
+            if (index == limit) {
                 return null
             }
+            producerLimit = limit
         }
         val offset = index.toInt() and mask
+        var chunk = consumerChunk
         if (offset == 0 && index != 0L) {
-            consumerChunk = checkNotNull(consumerChunk.next) { "ChunkedSpscQueue chunk was not linked." }
+            @Suppress("UNCHECKED_CAST")
+            val next = chunk[link] as Array<Any?>
+            chunk[link] = null
+            chunk = next
+            consumerChunk = next
         }
-        val slots = consumerChunk.slots
-
         @Suppress("UNCHECKED_CAST")
-        val value = slots[offset] as T
-        slots[offset] = null
+        val value = chunk[offset] as T
+        chunk[offset] = null
         consumerPosition = index + 1
-        CONSUMER_INDEX.lazySet(this, index + 1)
         return value
     }
 
-    fun isEmpty(): Boolean = consumerPosition == producerLimit && consumerPosition == producerIndex
+    fun isEmpty(): Boolean = consumerPosition == producerIndex
 
     /** An estimate from any thread; exact from the consumer. */
     val size: Int
-        get() = (producerIndex - consumerIndex).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+        get() = (producerIndex - consumerPosition).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
     /** Consumer side: takes and drops everything published. */
     fun clear() {
@@ -299,7 +297,5 @@ internal class ChunkedSpscQueue<T : Any>(chunkSize: Int = DEFAULT_CHUNK_SIZE) {
 
         private val PRODUCER_INDEX: AtomicLongFieldUpdater<ChunkedSpscQueue<*>> =
             AtomicLongFieldUpdater.newUpdater(ChunkedSpscQueue::class.java, "producerIndex")
-        private val CONSUMER_INDEX: AtomicLongFieldUpdater<ChunkedSpscQueue<*>> =
-            AtomicLongFieldUpdater.newUpdater(ChunkedSpscQueue::class.java, "consumerIndex")
     }
 }
