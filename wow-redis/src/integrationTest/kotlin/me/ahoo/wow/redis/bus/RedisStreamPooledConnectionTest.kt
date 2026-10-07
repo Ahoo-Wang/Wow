@@ -50,8 +50,8 @@ import java.util.concurrent.TimeUnit
  * With a pooled Lettuce factory (`LettucePoolingClientConfiguration`, which needs commons-pool2) a receive stream asks
  * the factory for a connection per read and gives it back after the read: it keeps no pool slot between reads. While
  * its blocking `XREADGROUP … BLOCK` waits, though, it holds one, and Lettuce's reactive pool does not wait for a free
- * one: with fewer connections than receive streams reading at once, a read fails with "Pool exhausted" (as before
- * 9.3). Hence `max-active` ≥ receive streams + 1, the one for the application's other dedicated connections.
+ * one: when the pool has no connection left for a read, it fails with "Pool exhausted" (as before 9.3). The template's
+ * shared connection takes one pooled connection for good, hence `max-active` ≥ receive streams + 1.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisStreamPooledConnectionTest {
@@ -104,8 +104,9 @@ class RedisStreamPooledConnectionTest {
     }
 
     @Test
-    fun `as many pooled connections as receive streams serve them all`() {
-        val factory = pooledFactory(maxActive = 2, maxWait = Duration.ofSeconds(1))
+    fun `receive streams plus one pooled connections serve them all`() {
+        // One for the template's shared connection, one per blocking read.
+        val factory = pooledFactory(maxActive = 3, maxWait = Duration.ofSeconds(1))
         val bus = RedisCommandBus(
             redisTemplate = ReactiveStringRedisTemplate(factory),
             pollTimeout = Duration.ofMillis(100),
@@ -128,8 +129,8 @@ class RedisStreamPooledConnectionTest {
 
     @Test
     fun `fewer pooled connections than receive streams exhaust the pool`() {
-        // An idle stream blocks in XREADGROUP for its whole poll timeout holding the only connection; the other
-        // stream's read finds the pool exhausted.
+        // max-active 1 < 2 streams + 1: a read that finds no pooled connection left (an idle stream blocks in
+        // XREADGROUP for its whole poll timeout holding one) fails at once.
         val factory = pooledFactory(maxActive = 1, maxWait = Duration.ofMillis(100))
         val bus = RedisCommandBus(
             redisTemplate = ReactiveStringRedisTemplate(factory),
