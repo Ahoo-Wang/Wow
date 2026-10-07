@@ -70,7 +70,6 @@ The sections below are ordered by how likely an application is to meet them: eve
 <!--
 Placeholders for 9.3.0 work not merged when this section was written. Add a section here, in order of likelihood, when one lands; delete the line when it moves to a later release.
 - X4 (hot path: meter caching).
-- B8 (shutdown under sustained ingress; command-chain design 2026-09-28, item B8).
 -->
 
 ### Before You Upgrade
@@ -240,6 +239,7 @@ Each aggregate type is compiled once at startup:
 - Mongo and Elasticsearch batch writers and Kafka senders stop after the dispatchers, within the runtime's one `wow.shutdown-timeout`, instead of being closed by Spring afterwards (up to 30 s per batch writer, one after another). Size `wow.shutdown-timeout` to fit a normal flush. See [Storage and transport resources](./advanced/runtime-lifecycle.md#storage-and-transport-resources).
 - In the default Starter runtime `WowRuntime.components` now starts with a `RuntimeResources` component; a custom runtime should put one first too. Tests that assert the exact component list filter it out.
 - The Kafka producer close is bounded by `wow.kafka.close-timeout`, default `wow.shutdown-timeout`. `KafkaProperties` takes a trailing `closeTimeout`, `buildSenderOptions(defaultCloseTimeout)` applies it, else the given default, and code that constructs `KafkaAutoConfiguration` by hand passes `WowProperties` too.
+- A graceful stop first suspends durable intake: Kafka and Redis Streams receivers stop requesting records, so traffic that keeps arriving no longer holds the runtime past the quiet period until `wow.shutdown-timeout` force-stops it. Records not yet pulled stay uncommitted (Kafka) or unread or pending (Redis) for the group; in-process sends are admitted until global admission closes, as in 9.2. A custom `Transport` whose broker keeps undelivered records sets `TransportReceiver.durable = true`; `MessageReceiver` has a trailing `durableIntakeSuspension` parameter (recompile). See [Sustained traffic](./advanced/runtime-lifecycle.md#sustained-traffic-durable-intake-stops-first).
 
 ### Header Propagation and Recoverable Exceptions Are Beans
 
