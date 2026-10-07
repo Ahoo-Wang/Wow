@@ -26,6 +26,7 @@ import org.springframework.data.redis.connection.ReactiveStreamCommands
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
+import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
@@ -79,15 +80,25 @@ class RedisStreamReadConnectionFactoryTest {
 
     @Test
     fun `a stream holds its read connection when the factory has no pool`() {
-        // A pooled LettucePoolingClientConfiguration cannot be built here: it needs commons-pool2, which wow-redis
-        // does not depend on.
         val unpooled = LettuceConnectionFactory(
             RedisStandaloneConfiguration(),
             LettuceClientConfiguration.defaultConfiguration(),
         )
 
         RedisStreamReadConnectionFactory.holdsReadConnection(unpooled).assert().isTrue()
+        // A wrapped or proxied factory is not recognised as pooled.
         RedisStreamReadConnectionFactory.holdsReadConnection(delegate).assert().isTrue()
+    }
+
+    @Test
+    fun `a stream borrows per read when the Lettuce factory has a pool`() {
+        // LettucePoolingClientConfiguration needs commons-pool2, a test-only dependency of wow-redis.
+        val pooled = LettuceConnectionFactory(
+            RedisStandaloneConfiguration(),
+            LettucePoolingClientConfiguration.defaultConfiguration(),
+        )
+
+        RedisStreamReadConnectionFactory.holdsReadConnection(pooled).assert().isFalse()
     }
 
     @Test

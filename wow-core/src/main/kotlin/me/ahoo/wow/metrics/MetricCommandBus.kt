@@ -44,7 +44,7 @@ internal open class MetricCommandBus<T : CommandBus>(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
         receiver.mapMessages { messages ->
-            metrics.stream(messages, receiveDescriptor(subscription))
+            metrics.stream(messages, receiveDescriptor(subscription), subscription.namedAggregates) { it.message }
         }
 
     protected fun messageDescriptor(

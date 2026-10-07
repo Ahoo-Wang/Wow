@@ -141,6 +141,8 @@ Starter inspects aggregates actually routed to Redis EventStore for the legacy s
 
 Use native Spring Data Redis/Lettuce settings. Wow does not own pool size, command timeout, topology refresh, or duplicate driver validation.
 
+Receive streams need connections of their own: every stream a receiver subscribes to reads with blocking `XREADGROUP … BLOCK`, which cannot use the shared connection. Without a pool each stream keeps one dedicated connection while it receives. With a pool each read borrows one and returns it, so `max-active` must be at least the number of receive streams plus one, or reads fail with `Pool exhausted`; a wrapped or proxied pooled factory is treated as unpooled. See [Infrastructure configuration](../../reference/config/infrastructure.md) for the details.
+
 ## Cluster Configuration
 
 Canonical layout keeps keys for one Lua operation in one slot, but does not configure cluster, resharding, or replicas. Verify scripts, failover, and slot migration on the actual cluster.

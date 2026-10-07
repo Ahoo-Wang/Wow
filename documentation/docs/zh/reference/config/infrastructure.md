@@ -103,7 +103,7 @@ MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.infra.b
 
 `min-idle-time`、`interval` 至少为 `1ms`，`batch-size` 必须大于零。`retention.max-length`（大于零）与 `retention.max-age`（至少 `1m`）最多设置一个；裁剪需要 Redis 7.0 及以上。连接由 Spring Boot 的 `spring.data.redis.*` 属性拥有。
 
-接收器用阻塞的 `XREADGROUP … BLOCK` 读取它订阅的每个 Stream，这类命令不能共用 Lettuce 的多路复用连接。没有 Lettuce 连接池时（Spring Boot 的默认），自 9.3.0 起每个这样的 Stream 在接收期间保持一条专用连接，因此除共享连接外，按每个接收器订阅的每个 Stream 各计一条连接；此前每次读取都会新建并关闭一条 TCP 连接，繁忙的消费者会留下成千上万个 `TIME_WAIT` 套接字，可能耗尽客户端的临时端口。配置了连接池时（`spring.data.redis.lettuce.pool.*` 与 `commons-pool2`），每次读取照旧从池中借用连接并归还：连接池本身就让连接保持打开，Stream 在两次读取之间不占用池中的连接。
+接收器用阻塞的 `XREADGROUP … BLOCK` 读取它订阅的每个 Stream，这类命令不能共用 Lettuce 的多路复用连接。没有 Lettuce 连接池时（Spring Boot 的默认），自 9.3.0 起每个这样的 Stream 在接收期间保持一条专用连接，因此除共享连接外，按每个接收器订阅的每个 Stream 各计一条连接；此前每次读取都会新建并关闭一条 TCP 连接，繁忙的消费者会留下成千上万个 `TIME_WAIT` 套接字，可能耗尽客户端的临时端口。配置了连接池时（`spring.data.redis.lettuce.pool.*` 与 `commons-pool2`），每次读取照旧从池中借用连接并归还：连接池本身就让连接保持打开，Stream 在两次读取之间不占用池中的连接。但阻塞读取期间它会占用一条，而 Lettuce 的响应式连接池不会等待空闲连接：`max-active` 至少要等于接收 Stream 数（订阅的 Stream × 接收器）加一，否则读取会以 `Pool exhausted` 失败，Stream 按接收重试策略重试（9.3.0 之前即如此）。只有配置了连接池的 `LettuceConnectionFactory` 才会被识别为池化：被包装或代理的工厂按无连接池处理，每个 Stream 在接收期间持有它的一条连接，若其背后是连接池，就等于每个 Stream 长期占用一条池连接。
 
 ```yaml
 spring:

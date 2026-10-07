@@ -23,6 +23,9 @@ import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MeterCacheTest {
     private val descriptor = MetricDescriptor(
@@ -186,6 +189,69 @@ class MeterCacheTest {
         cache.size.assert().isZero()
         metrics.operation(Mono.just("third"), descriptor).block()
         registry.get("app.wow.operation").timer().count().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a meter removed before the cache remembers it should not stay cached`() {
+        // The removal runs after the registry handed the meter out and before the cache has remembered it, so the
+        // removal listener finds nothing to drop: the cache must notice by itself.
+        val registry = SimpleMeterRegistry()
+        val cache = MeterCache(registry)
+        cache.of(descriptor)
+        val removed = cache.own { registry.counter("removed.meter").also(registry::remove) }
+
+        cache.size.assert().isZero()
+        registry.find("removed.meter").counter().assert().isNull()
+        cache.own { registry.counter("removed.meter") }.assert().isNotSameAs(removed)
+        registry.get("removed.meter").counter().assert().isNotNull()
+    }
+
+    /**
+     * Recordings race removals of the meters they record into. Once the removals stop, every recording lands in a
+     * registered meter: none is lost into a removed one that the cache still holds.
+     */
+    @Test
+    fun `concurrent recordings racing the removal listener end on registered meters`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = WowMetrics(registry)
+        val recorders = Executors.newFixedThreadPool(4)
+        val stop = AtomicBoolean()
+        try {
+            val recording = (0 until 4).map { worker ->
+                recorders.submit {
+                    val workerDescriptor = descriptor.copy(processor = "processor-${worker % 2}")
+                    while (!stop.get()) {
+                        metrics.operation(Mono.just(worker), workerDescriptor).block()
+                        metrics.processingOutcome(workerDescriptor, "handled")
+                    }
+                }
+            }
+            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(500)
+            while (System.nanoTime() < deadline) {
+                registry.meters.forEach(registry::remove)
+            }
+            stop.set(true)
+            recording.forEach { it.get(5, TimeUnit.SECONDS) }
+
+            registry.clear()
+            repeat(3) {
+                listOf("processor-0", "processor-1").forEach { processor ->
+                    val processorDescriptor = descriptor.copy(processor = processor)
+                    metrics.operation(Mono.just(it), processorDescriptor).block()
+                    metrics.processingOutcome(processorDescriptor, "handled")
+                }
+            }
+
+            listOf("processor-0", "processor-1").forEach { processor ->
+                registry.get(WowMetricNames.OPERATION).tag(MetricDescriptor.PROCESSOR_TAG, processor).timer()
+                    .count().assert().isEqualTo(3)
+                registry.get(WowMetricNames.PROCESSING_OUTCOMES).tag(MetricDescriptor.PROCESSOR_TAG, processor)
+                    .counter().count().assert().isEqualTo(3.0)
+            }
+        } finally {
+            stop.set(true)
+            recorders.shutdownNow()
+        }
     }
 
     @Test
