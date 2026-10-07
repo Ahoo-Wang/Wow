@@ -79,7 +79,7 @@ catalog:
   mingo: ^7.2.4
   playwright: ^1.63.0
   '@playwright/test': ^1.63.0
-  postcss: ^8.5.28
+  postcss: ^8.5.29
   postcss-prefix-selector: ^2.2.1
   prettier: 3.9.9
   publint: ^0.3.25
