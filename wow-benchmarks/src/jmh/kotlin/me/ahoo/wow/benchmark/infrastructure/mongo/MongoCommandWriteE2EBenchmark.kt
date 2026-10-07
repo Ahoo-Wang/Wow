@@ -40,8 +40,8 @@ import java.util.concurrent.atomic.AtomicLong
 @State(Scope.Benchmark)
 @Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class MongoCommandWriteE2EBenchmark {
-    @Param("PARALLEL", "IMMEDIATE")
-    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
+    // A/B base for 9.3.0: pinned to the 9.2 production default so rows pair with 9.3.0, which has no such param.
+    private val schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
 
     @Param("4")
     private var concurrency: Int = 4

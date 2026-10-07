@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger
 @State(Scope.Benchmark)
 @Suppress("VarCouldBeVal") // JMH injects @Param fields via reflection, so they must be `var`.
 open class RedisCommandWriteE2EBenchmark {
-    @Param("PARALLEL", "IMMEDIATE")
-    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
+    // A/B base for 9.3.0: pinned to the 9.2 production default so rows pair with 9.3.0, which has no such param.
+    private val schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
 
     private lateinit var fixture: RedisBenchmarkFixture
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
