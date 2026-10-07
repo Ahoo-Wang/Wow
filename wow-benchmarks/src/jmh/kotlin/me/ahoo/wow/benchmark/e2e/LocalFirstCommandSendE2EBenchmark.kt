@@ -105,6 +105,11 @@ open class LocalFirstCommandSendE2EBenchmark {
                 "Benchmark aggregate must be local for local-first routing."
             }
             scenario.commandGateway.sendAndWaitForProcessed(BenchmarkCommands.commandPathAddCartItem()).block()
+            // Since 9.3 (X5) the distributed copy is sent asynchronously after the local hand-off: wait for it.
+            val copySent = System.nanoTime() + COPY_TIMEOUT_NANOS
+            while (checkNotNull(discardingBus).sent.sum() < 1L && System.nanoTime() < copySent) {
+                Thread.onSpinWait()
+            }
             check(checkNotNull(discardingBus).sent.sum() == 1L) { "Local-first must still send the distributed copy." }
             processed.set(0)
         }
@@ -215,6 +220,9 @@ open class LocalFirstCommandSendE2EBenchmark {
     private companion object {
         /** The unprocessed commands `sendAndWaitSentBounded` allows before its sender waits. */
         const val BOUNDED_BACKLOG = 1024L
+
+        /** How long setup waits for the asynchronous distributed copy of its warm-up command. */
+        const val COPY_TIMEOUT_NANOS = 5_000_000_000L
     }
 }
 
