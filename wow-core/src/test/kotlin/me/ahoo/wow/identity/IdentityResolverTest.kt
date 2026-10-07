@@ -96,6 +96,62 @@ class IdentityResolverTest {
     }
 
     /**
+     * The allocation-free overload the per-request paths use decides exactly as the list form: the same value, or the
+     * same rejection, for every fact and every combination of up to three sources and values.
+     */
+    @Test
+    fun `the source and value overload decides as the hint list does`() {
+        val values = listOf(null, "a", "b")
+        var checked = 0
+        for (fact in IdentityFact.entries) {
+            for (firstSource in IdentitySource.entries) {
+                for (secondSource in IdentitySource.entries) {
+                    for (thirdSource in IdentitySource.entries) {
+                        for (first in values) {
+                            for (second in values) {
+                                for (third in values) {
+                                    val expected = runCatching {
+                                        IdentityResolver.resolve(
+                                            fact,
+                                            hint(firstSource, first),
+                                            hint(secondSource, second),
+                                            hint(thirdSource, third),
+                                        )
+                                    }
+                                    val actual = runCatching {
+                                        IdentityResolver.resolve(
+                                            fact,
+                                            firstSource,
+                                            first,
+                                            secondSource,
+                                            second,
+                                            thirdSource,
+                                            third,
+                                        )
+                                    }
+                                    val case = "$fact $firstSource=$first $secondSource=$second $thirdSource=$third"
+                                    actual.getOrNull().assert().describedAs(case).isEqualTo(expected.getOrNull())
+                                    actual.exceptionOrNull()?.message.assert().describedAs(case)
+                                        .isEqualTo(expected.exceptionOrNull()?.message)
+                                    checked++
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        checked.assert().isEqualTo(IdentityFact.entries.size * 125 * 27)
+    }
+
+    @Test
+    fun `the source and value overload takes one or two hints`() {
+        IdentityResolver.resolve(IdentityFact.OPERATOR, AUTH, "principal").assert().isEqualTo("principal")
+        IdentityResolver.resolve(IdentityFact.OPERATOR, AUTH, null).assert().isNull()
+        IdentityResolver.resolve(IdentityFact.TENANT_ID, BODY, null, HEADER, "header").assert().isEqualTo("header")
+    }
+
+    /**
      * The owner = aggregate ID linkage, against the expression `toCommandMessage` used before the resolver, for every
      * combination of its inputs.
      */

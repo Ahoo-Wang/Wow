@@ -52,10 +52,9 @@ abstract class CacheableMetadataParser {
      * @throws ClassCastException if the cached metadata cannot be cast to the expected type M
      */
     fun <TYPE : Any, M : Metadata> parse(type: Class<TYPE>): M {
+        // A plain read first: a hit (every call after the first) then allocates no mapping function.
         @Suppress("UNCHECKED_CAST")
-        return cache.computeIfAbsent(type) {
-            parseToMetadata(type)
-        } as M
+        return (cache[type] ?: cache.computeIfAbsent(type) { parseToMetadata(type) }) as M
     }
 
     /**

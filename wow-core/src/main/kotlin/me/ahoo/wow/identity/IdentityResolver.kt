@@ -96,14 +96,87 @@ object IdentityResolver {
         }
         if (fixed != null && fact.conflictChecked) {
             hints.firstOrNull { it != null && !it.source.authoritative && it.value != fixed.value }?.let {
-                throw IllegalArgumentException(
-                    "Conflicting ${fact.variable}: the ${fixed.source.describe()} fixes [${fixed.value}], " +
-                        "but the ${it.source.describe()} gives [${it.value}]."
-                )
+                throw conflict(fact, fixed.source, fixed.value, it.source, it.value)
             }
         }
         return winner?.value
     }
+
+    /**
+     * [resolve] for up to three hints, each given as its source and value (a `null` value is no hint), in that order.
+     * The same rule without allocating: the per-request paths (HTTP identity, `toCommandMessage`) use it.
+     */
+    @Suppress("LongParameterList", "CyclomaticComplexMethod")
+    fun resolve(
+        fact: IdentityFact,
+        firstSource: IdentitySource,
+        first: String?,
+        secondSource: IdentitySource = IdentitySource.UPSTREAM,
+        second: String? = null,
+        thirdSource: IdentitySource = IdentitySource.UPSTREAM,
+        third: String? = null,
+    ): String? {
+        var winnerSource: IdentitySource? = null
+        var winner: String? = null
+        var fixedSource: IdentitySource? = null
+        var fixed: String? = null
+        if (first != null) {
+            winnerSource = firstSource
+            winner = first
+            if (firstSource.authoritative) {
+                fixedSource = firstSource
+                fixed = first
+            }
+        }
+        if (second != null) {
+            if (winnerSource == null || secondSource.ordinal < winnerSource.ordinal) {
+                winnerSource = secondSource
+                winner = second
+            }
+            if (secondSource.authoritative && (fixedSource == null || secondSource.ordinal < fixedSource.ordinal)) {
+                fixedSource = secondSource
+                fixed = second
+            }
+        }
+        if (third != null) {
+            if (winnerSource == null || thirdSource.ordinal < winnerSource.ordinal) {
+                winner = third
+            }
+            if (thirdSource.authoritative && (fixedSource == null || thirdSource.ordinal < fixedSource.ordinal)) {
+                fixedSource = thirdSource
+                fixed = third
+            }
+        }
+        if (fixedSource != null && fact.conflictChecked) {
+            checkNotConflicting(fact, fixedSource, fixed!!, firstSource, first)
+            checkNotConflicting(fact, fixedSource, fixed, secondSource, second)
+            checkNotConflicting(fact, fixedSource, fixed, thirdSource, third)
+        }
+        return winner
+    }
+
+    private fun checkNotConflicting(
+        fact: IdentityFact,
+        fixedSource: IdentitySource,
+        fixed: String,
+        source: IdentitySource,
+        value: String?
+    ) {
+        if (value != null && !source.authoritative && value != fixed) {
+            throw conflict(fact, fixedSource, fixed, source, value)
+        }
+    }
+
+    private fun conflict(
+        fact: IdentityFact,
+        fixedSource: IdentitySource,
+        fixed: String,
+        source: IdentitySource,
+        value: String
+    ): IllegalArgumentException = IllegalArgumentException(
+        "Conflicting ${fact.variable}: the ${fixedSource.describe()} fixes [$fixed], " +
+            "but the ${source.describe()} gives [$value]."
+    )
 
     /**
      * The aggregate ID and owner of a command to an aggregate whose owner may be its ID.
@@ -124,15 +197,26 @@ object IdentityResolver {
         aggregateId: String?,
         generateAggregateId: () -> String,
     ): Pair<String, String?> {
-        if (ownerIsAggregateId && !ownerId.isNullOrBlank()) {
-            return ownerId to ownerId
-        }
-        val resolvedAggregateId = aggregateId ?: generateAggregateId()
-        if (ownerIsAggregateId) {
-            return resolvedAggregateId to resolvedAggregateId
-        }
-        return resolvedAggregateId to ownerId
+        val resolvedAggregateId = resolveAggregateId(ownerIsAggregateId, ownerId, aggregateId, generateAggregateId)
+        return resolvedAggregateId to resolveOwnerId(ownerIsAggregateId, ownerId, resolvedAggregateId)
     }
+
+    /** The aggregate ID of [resolveAggregateIdAndOwner], without the pair. */
+    inline fun resolveAggregateId(
+        ownerIsAggregateId: Boolean,
+        ownerId: String?,
+        aggregateId: String?,
+        generateAggregateId: () -> String,
+    ): String {
+        if (ownerIsAggregateId && !ownerId.isNullOrBlank()) {
+            return ownerId
+        }
+        return aggregateId ?: generateAggregateId()
+    }
+
+    /** The owner of [resolveAggregateIdAndOwner], given the aggregate ID [resolveAggregateId] returned. */
+    fun resolveOwnerId(ownerIsAggregateId: Boolean, ownerId: String?, resolvedAggregateId: String): String? =
+        if (ownerIsAggregateId) resolvedAggregateId else ownerId
 
     private fun IdentitySource.describe(): String = when (this) {
         IdentitySource.BODY -> "command body"

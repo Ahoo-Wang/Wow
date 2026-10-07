@@ -19,7 +19,6 @@ import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.identity.IdentityFact
-import me.ahoo.wow.identity.IdentityHint
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.messaging.withLocalFirst
@@ -73,10 +72,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
             }
         }
         return request.principal().map { principal ->
-            IdentityResolver.resolve(
-                IdentityFact.OPERATOR,
-                IdentityHint.of(IdentitySource.AUTH, principal.name)
-            )?.let { operator ->
+            IdentityResolver.resolve(IdentityFact.OPERATOR, IdentitySource.AUTH, principal.name)?.let { operator ->
                 commandBuilder.header { header ->
                     header.withOperator(operator)
                 }

@@ -26,7 +26,6 @@ import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.identity.IdentityFact
-import me.ahoo.wow.identity.IdentityHint
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.infra.Decorator
@@ -95,16 +94,20 @@ class StatelessSagaFunction(
             .tenantId(
                 IdentityResolver.resolve(
                     IdentityFact.TENANT_ID,
-                    IdentityHint.of(IdentitySource.HEADER, commandBuilder.tenantId),
-                    IdentityHint(IdentitySource.UPSTREAM, domainEvent.aggregateId.tenantId),
+                    IdentitySource.HEADER,
+                    commandBuilder.tenantId,
+                    IdentitySource.UPSTREAM,
+                    domainEvent.aggregateId.tenantId,
                 )
             )
             // The command factory drops this space when the target aggregate is not spaced.
             .spaceId(
                 IdentityResolver.resolve(
                     IdentityFact.SPACE_ID,
-                    IdentityHint.of(IdentitySource.HEADER, commandBuilder.spaceId),
-                    IdentityHint(IdentitySource.UPSTREAM, domainEvent.spaceId),
+                    IdentitySource.HEADER,
+                    commandBuilder.spaceId,
+                    IdentitySource.UPSTREAM,
+                    domainEvent.spaceId,
                 )
             )
             .upstream(domainEvent)

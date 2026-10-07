@@ -60,8 +60,7 @@ data class AggregateRouteMetadata<C : Any>(
      * The ownership policy of the routes; parsed as [AggregateMetadata.owner]. Since 9.3.0.
      */
     @Suppress("DEPRECATION")
-    val ownerPolicy: OwnerPolicy
-        get() = OwnerPolicy.valueOf(owner.name)
+    val ownerPolicy: OwnerPolicy = OwnerPolicy.valueOf(owner.name)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
