@@ -101,6 +101,9 @@ class DispatchWorkersTest {
             done.await(5, TimeUnit.SECONDS).assert().isTrue()
             nonBlocking.get().assert().isEqualTo(4)
             threads.assert().hasSize(2)
+            // A worker that has just counted down may still be running with an empty queue, and nextAffinity prefers
+            // such a worker, so both calls could pick it. With both parked, consecutive calls start one worker apart.
+            awaitParked("dispatch-workers-misc", 2)
             (workers.nextAffinity() != workers.nextAffinity()).assert().isTrue()
         } finally {
             workers.close()
@@ -218,5 +221,20 @@ class DispatchWorkersTest {
         drained.await(5, TimeUnit.SECONDS).assert().isTrue()
         ran.get().assert().isEqualTo(10)
         workers.close()
+    }
+}
+
+/** Waits until [count] worker threads named with [prefix] are parked, waiting for a task. */
+private fun awaitParked(prefix: String, count: Int) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+    while (true) {
+        val parked = Thread.getAllStackTraces().keys.count {
+            it.name.startsWith(prefix) && it.state == Thread.State.WAITING
+        }
+        if (parked >= count) {
+            return
+        }
+        check(System.nanoTime() < deadline) { "Only $parked of $count [$prefix] workers parked." }
+        Thread.sleep(1)
     }
 }

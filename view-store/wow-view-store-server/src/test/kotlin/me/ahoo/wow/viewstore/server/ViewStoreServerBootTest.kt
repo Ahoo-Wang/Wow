@@ -32,6 +32,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Flux
 import reactor.netty.Connection
 import reactor.netty.http.client.HttpClient
+import reactor.netty.resources.ConnectionProvider
 import tools.jackson.databind.JsonNode
 import java.io.FileDescriptor
 import java.io.FileOutputStream
@@ -81,9 +82,16 @@ class ViewStoreServerBootTest {
 
     private val client: WebTestClient by lazy {
         val port = applicationContext.environment.getRequiredProperty("local.server.port")
-        // The default connector (`HttpClient.create().compress(true)`), with its connections recorded for the report.
+        // The default connector (`compress(true)`), but every request opens its own connection, which is recorded for
+        // the stall report. On a reused (keep-alive) connection Reactor Netty 1.3.7's server can stop reading
+        // (reactor/reactor-netty#4361, fixed in 1.3.8): when a request arrives before the previous response has
+        // finished (the create command's result completes on a dispatch worker), it is queued; once that queued
+        // request is answered synchronously (the preferences read), the drain returns without requesting another
+        // read, and the next request on the connection, `/v3/api-docs`, is read only when the client gives up and
+        // closes it (on Linux epoll). The view store integration client does the same (#3962).
         val connector = ReactorClientHttpConnector(
-            HttpClient.create().compress(true).doOnConnected { CLIENT_CHANNELS.add(it.channel()) }
+            HttpClient.create(ConnectionProvider.newConnection()).compress(true)
+                .doOnConnected { CLIENT_CHANNELS.add(it.channel()) }
         )
         WebTestClient.bindToServer(connector)
             .baseUrl("http://localhost:$port")
