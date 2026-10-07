@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.server
 
+import io.netty.channel.Channel
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.viewstore.ViewStoreService
@@ -20,15 +21,23 @@ import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.reactor.netty.NettyServerCustomizer
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.http.MediaType
+import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Flux
+import reactor.netty.Connection
+import reactor.netty.http.client.HttpClient
 import tools.jackson.databind.JsonNode
+import java.io.FileDescriptor
+import java.io.FileOutputStream
+import java.io.PrintStream
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * The server boots with its own configuration and serves the view store under `/view-store`. The middleware it runs
@@ -59,6 +68,12 @@ class ViewStoreServerBootTest {
     class NoSharedBoards {
         @Bean
         fun sharedBoardReferences(): SharedBoardReferences = SharedBoardReferences { _, _, _ -> Flux.empty() }
+
+        /** Records the server's connections for the stall report. */
+        @Bean
+        fun recordServerConnections(): NettyServerCustomizer = NettyServerCustomizer { server ->
+            server.doOnConnection { SERVER_CHANNELS.add(it.channel()) }
+        }
     }
 
     @Autowired
@@ -66,7 +81,11 @@ class ViewStoreServerBootTest {
 
     private val client: WebTestClient by lazy {
         val port = applicationContext.environment.getRequiredProperty("local.server.port")
-        WebTestClient.bindToServer()
+        // The default connector (`HttpClient.create().compress(true)`), with its connections recorded for the report.
+        val connector = ReactorClientHttpConnector(
+            HttpClient.create().compress(true).doOnConnected { CLIENT_CHANNELS.add(it.channel()) }
+        )
+        WebTestClient.bindToServer(connector)
             .baseUrl("http://localhost:$port")
             .codecs { it.defaultCodecs().maxInMemorySize(OPENAPI_BUFFER_BYTES) }
             .build()
@@ -84,11 +103,12 @@ class ViewStoreServerBootTest {
 
     @Test
     fun `serves the generated and the custom routes in its OpenAPI`() {
-        // Diagnostic for a CI-only stall of this first request: dump every thread if it has not answered in time.
+        // Diagnostic for a CI-only stall of this request: report the connections and threads if it has not answered in
+        // time. Written to the process's stderr, which Gradle does not capture, so the report reaches the CI log.
         val dump = Thread {
             try {
                 Thread.sleep(STALL_DUMP_AFTER.toMillis())
-                println(threadDump())
+                PrintStream(FileOutputStream(FileDescriptor.err), true).print(stallReport())
             } catch (_: InterruptedException) {
                 // Answered in time.
             }
@@ -208,10 +228,47 @@ private val OPENAPI_RESPONSE_TIMEOUT: Duration = Duration.ofMinutes(1)
 
 private val STALL_DUMP_AFTER: Duration = Duration.ofSeconds(20)
 
+private val SERVER_CHANNELS: MutableSet<Channel> = CopyOnWriteArraySet()
+private val CLIENT_CHANNELS: MutableSet<Channel> = CopyOnWriteArraySet()
+
+/**
+ * The state that tells the candidate causes apart: whether the server channel still reads (`autoRead`, the pending
+ * responses and pipelined requests of reactor-netty's `HttpTrafficHandler`), which request each side is on, and every
+ * thread.
+ */
+private fun stallReport(): String = buildString {
+    append("==== /v3/api-docs has not answered in ").append(STALL_DUMP_AFTER).append(" ====\n")
+    append("-- server connections --\n")
+    SERVER_CHANNELS.forEach { append(describe(it)) }
+    append("-- client connections --\n")
+    CLIENT_CHANNELS.forEach { append(describe(it)) }
+    append("-- threads --\n")
+    append(threadDump())
+    append("==== end of stall report ====\n")
+}
+
+private fun describe(channel: Channel): String = buildString {
+    append(channel).append(" active=").append(channel.isActive).append(" autoRead=")
+        .append(channel.config().isAutoRead).append(" loop=").append(field(channel.eventLoop(), "thread")).append('\n')
+    channel.pipeline().toMap().values.filter { it.javaClass.simpleName == "HttpTrafficHandler" }.forEach { handler ->
+        append("    HttpTrafficHandler")
+        listOf("pendingResponses", "persistentConnection", "pipelined", "overflow", "read", "finalizingResponse")
+            .forEach { append(' ').append(it).append('=').append(field(handler, it)) }
+        append('\n')
+    }
+    append("    operations=").append(Connection.from(channel)).append('\n')
+}
+
+private fun field(target: Any, name: String): Any? = runCatching {
+    generateSequence<Class<*>>(target.javaClass) { it.superclass }
+        .firstNotNullOf { type -> type.declaredFields.firstOrNull { it.name == name } }
+        .apply { isAccessible = true }
+        .get(target)
+}.getOrElse { "<$it>" }
+
 private fun threadDump(): String =
     java.lang.management.ManagementFactory.getThreadMXBean().dumpAllThreads(true, true).joinToString(
         separator = "",
-        prefix = "==== Thread dump: /v3/api-docs has not answered in $STALL_DUMP_AFTER ====\n",
     ) { info ->
         buildString {
             append('"').append(info.threadName).append("\" ").append(info.threadState)
