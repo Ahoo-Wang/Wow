@@ -63,14 +63,19 @@ java -jar wow-benchmarks/build/libs/wow-benchmarks-*-jmh.jar KafkaEventReceiveAc
 
 ### 在 CI 中做 A/B
 
-不想占用本地机器时，用 `Benchmark A/B` 工作流在 GitHub runner 上比较两个 ref：每个 ref 只构建一次 JMH jar，每个基准类一个 job，同一 job 内 base 与 head 的 fork 交替运行，报告写入运行摘要。
+不想占用本地机器时，用 `Benchmark A/B` 工作流在 GitHub runner 上比较两个 ref：每个 ref 只构建一次 JMH jar（按提交缓存），同一 job 内 base 与 head 的 fork 交替运行，每行都有结论（`separated` 或 `noise`）后提前停止，报告写入运行摘要。
 
 ```shell
 gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
   -f include=CommandIdComponentBenchmark -f profile=quick
 ```
 
-profile、参数覆盖、噪声规则与 `benchmark-ab` PR 标签见[框架测试与基准](../documentation/docs/zh/guide/test-runtime.md#在-ci-中做-a-b)。
+| Profile | 每侧 fork | 默认 split | 典型耗时 |
+| --- | --- | --- | --- |
+| `quick` | 最多 3 个 | 每个类一个 job | 单个类约 10–15 分钟 |
+| `gate` | 最多 8 个 | 每个方法与 `@Param` 组合一个 job（`split=params`） | 约 10–25 分钟 |
+
+split、提前停止规则、参数覆盖、噪声规则与 `benchmark-ab` PR 标签见[框架测试与基准](../documentation/docs/zh/guide/test-runtime.md#在-ci-中做-a-b)。
 
 ### 3. 可重现基线
 

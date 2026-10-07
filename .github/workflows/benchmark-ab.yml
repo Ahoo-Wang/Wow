@@ -11,11 +11,13 @@
 # limitations under the License.
 #
 
-# A/B JMH comparison of two refs. The JMH jar of each ref is built once; every
-# benchmark class (or method) then runs in its own job, where base and head
-# forks alternate on the same runner so runner-to-runner variance cancels.
-# The report job pools the forks per side and writes the comparison table to
-# the run summary (and to the pull request, when one is given).
+# A/B JMH comparison of two refs. The JMH jar of each ref is built once (and
+# cached per commit); every benchmark class, method, or method and @Param
+# combination then runs in its own job, where base and head forks alternate on
+# the same runner so runner-to-runner variance cancels. From the second round
+# on a job stops as soon as every row it measures is decided. The report job
+# pools the forks per side and writes the comparison table to the run summary
+# (and to the pull request, when one is given).
 #
 # The `benchmark-ab` label on a pull request runs the quick profile for the
 # JMH benchmark classes that pull request changed, head against its merge base.
@@ -38,7 +40,7 @@ on:
         description: JMH exclude regex (optional)
         default: ''
       profile:
-        description: quick (3 forks per side) or gate (8 forks per side, longer iterations)
+        description: quick (up to 3 forks per side) or gate (up to 8 forks per side, longer iterations)
         type: choice
         options:
           - quick
@@ -51,12 +53,14 @@ on:
         description: Thread counts, comma separated (optional; the benchmark's own by default)
         default: ''
       split:
-        description: One job per benchmark class or per method
+        description: One job per benchmark class, method, or method and @Param combination (auto - class for quick, params for gate)
         type: choice
         options:
+          - auto
           - class
           - method
-        default: class
+          - params
+        default: auto
       threshold:
         description: Noise threshold in percent; smaller |Δ| is never flagged
         default: '3'
@@ -96,6 +100,7 @@ jobs:
       threshold: ${{ steps.inputs.outputs.threshold }}
       rounds: ${{ steps.inputs.outputs.rounds }}
       jmh-args: ${{ steps.inputs.outputs.jmh-args }}
+      params: ${{ steps.inputs.outputs.params }}
       threads: ${{ steps.inputs.outputs.threads }}
       jvm-args: ${{ steps.inputs.outputs.jvm-args }}
     steps:
@@ -167,7 +172,10 @@ jobs:
         run: node .github/scripts/benchmark-ab.mjs inputs
 
   # One JMH jar per distinct commit (an A/A run builds once), plus the list of
-  # the benchmarks it has that the include patterns select.
+  # the benchmarks it has that the include patterns select, with their @Param
+  # values (`-lp`, dispatch overrides applied). The jar is cached by commit and
+  # by the benchmark sources and build files, so a repeat A/B of the same
+  # commits skips the Gradle build.
   build:
     name: Build ${{ matrix.sha }}
     needs: resolve
@@ -190,24 +198,38 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Restore the cached JMH jar
+        id: jar-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/jar
+          key: benchmark-ab-jmh-jar-${{ matrix.sha }}-${{ hashFiles('wow-benchmarks/src/jmh/**', '**/build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+
       - name: Set up Gradle
+        if: steps.jar-cache.outputs.cache-hit != 'true'
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build the JMH jar
-        run: ./gradlew :wow-benchmarks:jmhJar --stacktrace
+        if: steps.jar-cache.outputs.cache-hit != 'true'
+        run: |
+          ./gradlew :wow-benchmarks:jmhJar --stacktrace
+          mkdir -p "$RUNNER_TEMP/jar"
+          jars=(wow-benchmarks/build/libs/wow-benchmarks-*-jmh.jar)
+          cp "${jars[0]}" "$RUNNER_TEMP/jar/benchmarks.jar"
 
       - name: List the selected benchmarks
         env:
           PATTERNS: ${{ needs.resolve.outputs.patterns }}
           EXCLUDE: ${{ needs.resolve.outputs.exclude }}
+          PARAMS: ${{ needs.resolve.outputs.params }}
         run: |
-          mkdir -p "$RUNNER_TEMP/jar" "$RUNNER_TEMP/list"
-          jars=(wow-benchmarks/build/libs/wow-benchmarks-*-jmh.jar)
-          cp "${jars[0]}" "$RUNNER_TEMP/jar/benchmarks.jar"
+          mkdir -p "$RUNNER_TEMP/list"
           mapfile -t patterns < <(jq -r '.[]' <<< "$PATTERNS")
+          param_args=()
+          while IFS= read -r param; do param_args+=(-p "$param"); done < <(jq -r '.[]' <<< "$PARAMS")
           exclude=()
           if [ -n "$EXCLUDE" ]; then exclude=(-e "$EXCLUDE"); fi
-          java -jar "$RUNNER_TEMP/jar/benchmarks.jar" -l "${patterns[@]}" "${exclude[@]}" | tee "$RUNNER_TEMP/list/list.txt"
+          java -jar "$RUNNER_TEMP/jar/benchmarks.jar" -lp "${patterns[@]}" "${exclude[@]}" "${param_args[@]}" | tee "$RUNNER_TEMP/list/list.txt"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -231,6 +253,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      max-parallel: ${{ steps.plan.outputs.max-parallel }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -254,6 +277,7 @@ jobs:
           BASE_LIST: ${{ runner.temp }}/base/list.txt
           HEAD_LIST: ${{ runner.temp }}/head/list.txt
           SPLIT: ${{ needs.resolve.outputs.split }}
+          PARAMS: ${{ needs.resolve.outputs.params }}
         run: node .github/scripts/benchmark-ab.mjs plan
 
   run:
@@ -263,8 +287,17 @@ jobs:
     timeout-minutes: ${{ needs.resolve.outputs.profile == 'gate' && 300 || 90 }}
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(needs.plan.outputs.max-parallel) }}
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
       - uses: actions/download-artifact@v7
         with:
           name: jmh-jar-${{ needs.resolve.outputs.base-sha }}
@@ -282,24 +315,30 @@ jobs:
 
       # Each round runs one fork of each side, alternating which goes first
       # (base-head, head-base, ...), so the two sides share the runner and any
-      # drift over the job.
+      # drift over the job. After each round from the second until the last
+      # but one, `decide` stops the thread count once every row is decided.
       - name: Run base and head forks interleaved
         env:
           REGEX: ${{ matrix.regex }}
           LABEL: ${{ matrix.label }}
+          PARAMS: ${{ matrix.params }}
           EXCLUDE: ${{ needs.resolve.outputs.exclude }}
           ROUNDS: ${{ needs.resolve.outputs.rounds }}
+          THRESHOLD: ${{ needs.resolve.outputs.threshold }}
           JMH_ARGS: ${{ needs.resolve.outputs.jmh-args }}
           THREADS: ${{ needs.resolve.outputs.threads }}
           JVM_ARGS: ${{ needs.resolve.outputs.jvm-args }}
         run: |
           mapfile -t jmh_args < <(jq -r '.[]' <<< "$JMH_ARGS")
           mapfile -t threads < <(jq -r '.[]' <<< "$THREADS")
+          param_args=()
+          while IFS= read -r param; do param_args+=(-p "$param"); done < <(jq -r '.[]' <<< "$PARAMS")
           exclude=()
           if [ -n "$EXCLUDE" ]; then exclude=(-e "$EXCLUDE"); fi
-          mkdir -p results
           start=$(date +%s)
           for thread in "${threads[@]}"; do
+            dir="results/t$thread"
+            mkdir -p "$dir"
             thread_args=()
             if [ "$thread" != default ]; then thread_args=(-t "$thread"); fi
             for ((round = 1; round <= ROUNDS; round++)); do
@@ -307,10 +346,15 @@ jobs:
               for side in "${order[@]}"; do
                 echo "::group::$side, round $round of $ROUNDS, threads $thread"
                 java -jar "$RUNNER_TEMP/$side/benchmarks.jar" "$REGEX" "${exclude[@]}" \
-                  -f 1 "${jmh_args[@]}" "${thread_args[@]}" -prof gc -foe true \
-                  -jvmArgs "$JVM_ARGS" -rf json -rff "results/$side-t$thread-r$round.json"
+                  -f 1 "${jmh_args[@]}" "${param_args[@]}" "${thread_args[@]}" -prof gc -foe true \
+                  -jvmArgs "$JVM_ARGS" -rf json -rff "$dir/$side-r$round.json"
                 echo "::endgroup::"
               done
+              if ((round >= 2 && round < ROUNDS)); then
+                decision=$(node .github/scripts/benchmark-ab.mjs decide "$dir")
+                echo "Threads $thread, after round $round: $decision"
+                if [[ $decision == stop* ]]; then break; fi
+              fi
             done
           done
           jq -n --arg label "$LABEL" --argjson seconds "$(($(date +%s) - start))" \
@@ -333,6 +377,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -358,8 +403,11 @@ jobs:
           THRESHOLD: ${{ needs.resolve.outputs.threshold }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_RESULT: ${{ needs.run.result }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RESULTS_DIR"
+          RUN_STARTED_AT=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at || true)
+          export RUN_STARTED_AT
           node .github/scripts/benchmark-ab.mjs report > "$RUNNER_TEMP/benchmark-ab.md"
           cat "$RUNNER_TEMP/benchmark-ab.md" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7

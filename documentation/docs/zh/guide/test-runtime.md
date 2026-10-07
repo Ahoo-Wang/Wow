@@ -205,9 +205,23 @@ gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
   -f include=CommandIdComponentBenchmark -f profile=quick
 ```
 
-它为每个 ref 只构建一次 JMH jar，然后每个基准类一个 job（`split=method` 则每个方法一个）。同一 job 内 base 与 head 的 fork 在同一台 runner 上交替运行（base-head、head-base……），抵消 runner 差异与漂移。`quick` 每侧 3 个 fork（预热 2 × 2 s，测量 3 × 2 s）；`gate` 每侧 8 个 fork（预热 3 × 3 s，测量 5 × 3 s）。每个 fork 都带 `-prof gc`。可选输入可覆盖 `@Param`（`name=v1,v2;…`）、线程数、噪声阈值（默认 3%），并可给出要评论的 PR 编号。`benchmark.infrastructure` 下的基准需要 Redis、MongoDB、Elasticsearch 或 Kafka，会被跳过。
+它为每个 ref 只构建一次 JMH jar，并按提交与基准源码、构建文件的哈希缓存，同一组提交再次做 A/B 时跳过 Gradle 构建。随后把选中的基准分到矩阵 job 中。同一 job 内 base 与 head 的 fork 在同一台 runner 上交替运行（base-head、head-base……），抵消 runner 差异与漂移。每个 fork 都带 `-prof gc`。可选输入可覆盖 `@Param`（`name=v1,v2;…`）、线程数、噪声阈值（默认 3%），并可给出要评论的 PR 编号。`benchmark.infrastructure` 下的基准需要 Redis、MongoDB、Elasticsearch 或 Kafka，会被跳过。
 
-运行摘要中的报告列出 base 与 head 的 score ± error（合并该侧所有 fork，JMH 的 99.9% 区间）、Δ%、B/op 与每次迭代的 GC 毫秒数。只有两个区间不重叠且 |Δ| 达到阈值时才标记 `faster` 或 `slower`；区间重叠即为噪声。给 PR 加 `benchmark-ab` 标签会以 quick profile 运行该 PR 改动的 JMH 类（head 对比其 merge base），并把报告评论到 PR。
+| Profile | 每侧 fork | 预热、测量 | 默认 split | 典型耗时 |
+| --- | --- | --- | --- | --- |
+| `quick` | 最多 3 个 | 2 × 2 s、3 × 2 s | `class` | 单个类约 10–15 分钟 |
+| `gate` | 最多 8 个 | 3 × 3 s、5 × 3 s | `params` | 约 10–25 分钟，同时最多 16 个 job |
+
+`split` 决定 job 粒度：`class`、`method`，或 `params`（每个方法与 `@Param` 组合一个 job，用 JMH `-p` 固定该组合）。默认值 `auto` 对 `quick` 用 `class`，对 `gate` 用 `params`。过去对含多个方法与参数的类做 gate，所有组合在一个 job 内串行运行（`EventDispatchComponentBenchmark` 约 130 分钟）；按参数拆分后 8 个组合并行，A/A gate 运行约 11 分钟。plan 步骤在运行摘要中列出 job 数，同时最多运行 16 个（GitHub Free 每个账号最多 20 个并发 job），超过 48 个时给出警告，超过 GitHub 矩阵上限 256 个时失败，此时请收窄 include 或固定参数。
+
+job 在其测量的每一行都有结论后提前停止。从第 2 轮到倒数第 2 轮，每轮结束后按目前的迭代计算两侧区间，置信度比报告更严格：把 JMH 99.9% 区间剩下的 0.1% 平均分给 job 可能做的提前检查（Bonferroni；`gate` 6 次，`quick` 1 次）。一行在以下情况视为已有结论：
+
+- **separated**：两个区间不重叠且 |Δ| 达到阈值。报告用的 99.9% 区间更窄，因此报告给出相同结论；
+- **noise**：即使取两个区间的最远端，差值仍小于阈值，更多 fork 也无法显示这么大的变化。阈值为 0% 时不会因噪声停止。
+
+其他情况继续下一轮，直到 profile 的 fork 上限。判定规则本身不变：报告合并每行实际运行的 fork。
+
+运行摘要中的报告列出 base 与 head 的 score ± error（合并该侧所有 fork，JMH 的 99.9% 区间）、Δ%、结论、该行每侧使用的 fork 数及其 job 停止的原因（`separated`、`noise` 或 `max forks`）、B/op、每次迭代的 GC 毫秒数，以及本次运行的总耗时。只有两个区间不重叠且 |Δ| 达到阈值时才标记 `faster` 或 `slower`；区间重叠即为噪声。给 PR 加 `benchmark-ab` 标签会以 quick profile 运行该 PR 改动的 JMH 类（head 对比其 merge base），并把报告评论到 PR。
 
 ## 如何读取历史报告
 
