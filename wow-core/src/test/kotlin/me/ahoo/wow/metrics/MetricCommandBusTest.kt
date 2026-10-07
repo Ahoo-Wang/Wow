@@ -25,6 +25,7 @@ import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -136,21 +137,102 @@ class MetricCommandBusTest {
     }
 
     @Test
-    fun `receive should bound multiple aggregate cardinality`() {
+    fun `receive of a multi-aggregate context keeps per-aggregate tags`() {
         withMeterRegistry { meterRegistry ->
-            val commandBus = metricCommandBus(RecordingLocalCommandBus())
             val inventory = MaterializedNamedAggregate("sales", "Inventory")
             val payment = MaterializedNamedAggregate("sales", "Payment")
+            val commands = listOf(inventory, payment, payment).map { aggregate ->
+                SimpleServerCommandExchange(
+                    TestCommandMessage(aggregateId = aggregate.aggregateId("id-${aggregate.aggregateName}")),
+                )
+            }
+            val commandBus = metricCommandBus(RecordingLocalCommandBus(receiveFlux = Flux.fromIterable(commands)))
 
             commandBus.receiver(MessageSubscription(linkedSetOf(payment, inventory), "handler")).openedMessages()
                 .blockLast()
             commandBus.receiver(MessageSubscription(linkedSetOf(inventory, payment), "handler")).openedMessages()
                 .blockLast()
 
-            meterRegistry.receiveMeterIds()
-                .mapNotNull { it.getTag(MetricDescriptor.AGGREGATE_TAG) }
-                .toSet()
-                .assert().containsExactly(MetricDescriptor.MULTIPLE)
+            val messageIds = meterRegistry.receiveMeterIds()
+            messageIds.map { it.getTag(MetricDescriptor.CONTEXT_TAG) }.toSet().assert().containsExactly("sales")
+            messageIds.mapNotNull { it.getTag(MetricDescriptor.AGGREGATE_TAG) }
+                .assert().containsExactlyInAnyOrder("Inventory", "Payment")
+            meterRegistry.get(WowMetricNames.STREAM_MESSAGES).tags(MetricDescriptor.AGGREGATE_TAG, "Payment")
+                .counter().count().assert().isEqualTo(4.0)
+            meterRegistry.get(WowMetricNames.STREAM_MESSAGES).tags(MetricDescriptor.AGGREGATE_TAG, "Inventory")
+                .counter().count().assert().isEqualTo(2.0)
+            listOf("Inventory", "Payment").forEach { aggregate ->
+                meterRegistry.get(WowMetricNames.STREAM_TERMINATIONS)
+                    .tags(MetricDescriptor.AGGREGATE_TAG, aggregate, MetricDescriptor.CONTEXT_TAG, "sales")
+                    .counter().count().assert().isEqualTo(2.0)
+                meterRegistry.get(WowMetricNames.STREAM_ACTIVE).tags(MetricDescriptor.AGGREGATE_TAG, aggregate)
+                    .longTaskTimer().activeTasks().assert().isZero()
+            }
+            meterRegistry.meters.mapNotNull { it.id.getTag(MetricDescriptor.AGGREGATE_TAG) }
+                .assert().doesNotContain(MetricDescriptor.MULTIPLE)
+        }
+    }
+
+    @Test
+    fun `receive counts a message of an unsubscribed or unnamed aggregate under its own tags`() {
+        withMeterRegistry { meterRegistry ->
+            val inventory = MaterializedNamedAggregate("sales", "Inventory")
+            val payment = MaterializedNamedAggregate("sales", "Payment")
+            val other = MaterializedNamedAggregate("billing", "Invoice")
+            val messages = Flux.just(TestCommandMessage(aggregateId = other.aggregateId("id")))
+            val received = metrics.stream(
+                messages,
+                MetricDescriptor(component = "command_bus", operation = "receive", source = "test"),
+                linkedSetOf(inventory, payment),
+            ) { it }.concatWith(
+                metrics.stream(
+                    Flux.just(TestCommandMessage()),
+                    MetricDescriptor(component = "command_bus", operation = "receive", source = "test"),
+                    linkedSetOf(inventory, payment),
+                ) { null },
+            )
+
+            StepVerifier.create(received).expectNextCount(2).verifyComplete()
+
+            meterRegistry.get(WowMetricNames.STREAM_MESSAGES)
+                .tags(MetricDescriptor.CONTEXT_TAG, "billing", MetricDescriptor.AGGREGATE_TAG, "Invoice")
+                .counter().count().assert().isEqualTo(1.0)
+            meterRegistry.get(WowMetricNames.STREAM_MESSAGES)
+                .tags(
+                    MetricDescriptor.CONTEXT_TAG,
+                    MetricDescriptor.NONE,
+                    MetricDescriptor.AGGREGATE_TAG,
+                    MetricDescriptor.NONE
+                )
+                .counter().count().assert().isEqualTo(1.0)
+        }
+    }
+
+    @Test
+    fun `a failed multi-aggregate receive records an error termination per aggregate`() {
+        withMeterRegistry { meterRegistry ->
+            val inventory = MaterializedNamedAggregate("sales", "Inventory")
+            val payment = MaterializedNamedAggregate("sales", "Payment")
+            val failed = metrics.stream(
+                Flux.error<TestCommandMessage>(IllegalStateException("receive")),
+                MetricDescriptor(component = "command_bus", operation = "receive", source = "test"),
+                linkedSetOf(inventory, payment),
+            ) { it }
+
+            StepVerifier.create(failed).expectError(IllegalStateException::class.java).verify()
+
+            listOf("Inventory", "Payment").forEach { aggregate ->
+                meterRegistry.get(WowMetricNames.STREAM_TERMINATIONS)
+                    .tags(
+                        MetricDescriptor.AGGREGATE_TAG,
+                        aggregate,
+                        MetricDescriptor.OUTCOME_TAG,
+                        "error",
+                        MetricDescriptor.EXCEPTION_TAG,
+                        "IllegalStateException",
+                    )
+                    .counter().count().assert().isEqualTo(1.0)
+            }
         }
     }
 

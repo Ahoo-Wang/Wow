@@ -41,7 +41,7 @@ instrumentation。属性为 `false` 时，最高优先级
 
 五组指标统一使用低基数标签 `component`、`operation`、`context`、`aggregate`、`message`、`processor`、
 `source` 与 `subscriber`。终止指标再增加 `outcome=success|error|cancelled` 和 `exception`；缺失值为
-`none`，多聚合订阅的 aggregate 为 `multiple`。Aggregate ID、request ID、trace ID 属于高基数日志或
+`none`。服务多个聚合的总线接收器（自 9.3.0 起每个限界上下文一个接收器）按聚合记录 `wow.stream.*`，标签为该聚合的 `context` 与 `aggregate`，与此前每个聚合一个接收器时的指标序列相同：每条消息计入它自己的聚合，活跃与终止序列每个聚合各一条。Aggregate ID、request ID、trace ID 属于高基数日志或
 追踪字段，不进入指标标签。
 
 可以把这些标签直接读成运行管线：

@@ -14,9 +14,12 @@
 package me.ahoo.wow.metrics
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
+import io.micrometer.core.instrument.LongTaskTimer
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
+import me.ahoo.wow.api.modeling.NamedAggregate
 import org.reactivestreams.Publisher
 import reactor.core.Exceptions
 import reactor.core.observability.DefaultSignalListener
@@ -69,6 +72,32 @@ class WowMetrics(
                 subscriber = context.getMetricsSubscriber() ?: descriptor.subscriber,
             )
             source.tap(StreamMetricsListenerFactory(cache, resolvedDescriptor))
+        }
+    }
+
+    /**
+     * Measures a receive stream that carries the messages of [aggregates] (one receiver serves a whole bounded
+     * context): every series is tagged with the `context` and `aggregate` of one aggregate, as when each aggregate had
+     * its own receiver. Each message counts under the aggregate [aggregateOf] gives (its own context and aggregate, or
+     * none when it has none); the active and termination series are recorded once per aggregate of [aggregates].
+     * The `context` and `aggregate` of [descriptor] are ignored unless [aggregates] has fewer than two aggregates,
+     * where this is [stream].
+     */
+    internal fun <T : Any> stream(
+        source: Flux<T>,
+        descriptor: MetricDescriptor,
+        aggregates: Set<NamedAggregate>,
+        aggregateOf: (T) -> NamedAggregate?,
+    ): Flux<T> {
+        if (aggregates.size < 2) {
+            return stream(source, descriptor)
+        }
+        val cache = meters ?: return source
+        return Flux.deferContextual { context ->
+            val resolvedDescriptor = descriptor.copy(
+                subscriber = context.getMetricsSubscriber() ?: descriptor.subscriber,
+            )
+            source.tap(AggregateStreamMetricsListenerFactory(cache, resolvedDescriptor, aggregates, aggregateOf))
         }
     }
 
@@ -189,6 +218,81 @@ private class StreamMetricsListener<T : Any>(
                 .terminal(terminationType.toMetricOutcome(), error.metricException())
                 .streamTerminations()
                 .increment()
+        }
+    }
+}
+
+private class AggregateStreamMetricsListenerFactory<T : Any>(
+    private val meters: MeterCache,
+    private val descriptor: MetricDescriptor,
+    private val aggregates: Set<NamedAggregate>,
+    private val aggregateOf: (T) -> NamedAggregate?,
+) : SignalListenerFactory<T, Unit> {
+    override fun initializePublisherState(source: Publisher<out T>) = Unit
+
+    override fun createListener(
+        source: Publisher<out T>,
+        listenerContext: ContextView,
+        publisherContext: Unit,
+    ): SignalListener<T> = AggregateStreamMetricsListener(meters, descriptor, aggregates, aggregateOf)
+}
+
+/**
+ * [StreamMetricsListener] split per aggregate: one active sample and one termination per aggregate of the
+ * subscription, and each message counted under its own aggregate. Message counters are kept per context and
+ * aggregate name (signals of one stream are serial), so counting a message allocates nothing.
+ */
+private class AggregateStreamMetricsListener<T : Any>(
+    private val meters: MeterCache,
+    private val descriptor: MetricDescriptor,
+    aggregates: Set<NamedAggregate>,
+    private val aggregateOf: (T) -> NamedAggregate?,
+) : DefaultSignalListener<T>() {
+    private val aggregateDescriptors: List<MetricDescriptor> = aggregates.map { it.descriptorOf() }
+    private val activeSamples: List<LongTaskTimer.Sample> = aggregateDescriptors.mapNotNull { aggregateDescriptor ->
+        createSafely { meters.of(aggregateDescriptor).streamActive().start() }
+    }
+    private val messages = HashMap<String, HashMap<String, Counter?>>()
+    private var error: Throwable? = null
+
+    init {
+        // Registered at subscription, as each aggregate's own receiver did, so an idle aggregate still has its series.
+        aggregates.forEach(::counterOf)
+    }
+
+    private fun NamedAggregate.descriptorOf(): MetricDescriptor =
+        descriptor.copy(context = contextName, aggregate = aggregateName)
+
+    private fun counterOf(aggregate: NamedAggregate?): Counter? {
+        val contextName = aggregate?.contextName ?: MetricDescriptor.NONE
+        val aggregateName = aggregate?.aggregateName ?: MetricDescriptor.NONE
+        val byAggregate = messages.getOrPut(contextName) { HashMap() }
+        if (byAggregate.containsKey(aggregateName)) {
+            return byAggregate[aggregateName]
+        }
+        val counter = createSafely {
+            meters.of(descriptor.copy(context = contextName, aggregate = aggregateName)).streamMessages()
+        }
+        byAggregate[aggregateName] = counter
+        return counter
+    }
+
+    override fun doOnNext(value: T) {
+        recordSafely { counterOf(aggregateOf(value))?.increment() }
+    }
+
+    override fun doOnError(error: Throwable) {
+        this.error = error
+    }
+
+    override fun doFinally(terminationType: SignalType) {
+        activeSamples.forEach { sample -> recordSafely { sample.stop() } }
+        val outcome = terminationType.toMetricOutcome()
+        val exception = error.metricException()
+        aggregateDescriptors.forEach { aggregateDescriptor ->
+            recordSafely {
+                meters.of(aggregateDescriptor).terminal(outcome, exception).streamTerminations().increment()
+            }
         }
     }
 }

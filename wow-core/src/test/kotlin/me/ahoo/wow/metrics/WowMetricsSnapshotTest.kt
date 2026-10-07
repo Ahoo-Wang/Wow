@@ -21,6 +21,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -93,6 +94,43 @@ class WowMetricsSnapshotTest {
                 val (prefix, count) = line.split(" #")
                 "$prefix #${count.toLong() * 2}"
             },
+        )
+    }
+
+    /**
+     * One receiver serves a bounded context with two aggregates (9.3.0 X7): the series are those two per-aggregate
+     * receivers recorded in 9.2, each tagged with its own context and aggregate, never `multiple`.
+     */
+    @Test
+    fun `a multi-aggregate context receive should record the per-aggregate series`() {
+        val registry = SimpleMeterRegistry()
+        val metrics = WowMetrics(registry)
+        val order = MaterializedNamedAggregate("sales", "order")
+        val cart = MaterializedNamedAggregate("sales", "cart")
+        val contextReceive = eventReceive.copy(
+            context = MetricDescriptor.MULTIPLE,
+            aggregate = MetricDescriptor.MULTIPLE
+        )
+
+        StepVerifier.create(
+            metrics.stream(Flux.just(order, cart, order), contextReceive, linkedSetOf(order, cart)) { it }
+                .writeMetricsSubscriber("projector"),
+        ).expectNextCount(3)
+            .verifyComplete()
+
+        registry.snapshot().assert().containsExactlyElementsOf(
+            listOf("cart" to 1, "order" to 2).flatMap { (aggregate, messages) ->
+                val tags = "aggregate=$aggregate,component=domain_event_bus,context=sales,message=none,operation=receive"
+                listOf(
+                    "COUNTER wow.stream.messages {$tags,processor=none,source=domainEventBus," +
+                        "subscriber=projector} #$messages",
+                    "COUNTER wow.stream.terminations {aggregate=$aggregate,component=domain_event_bus,context=sales," +
+                        "exception=none,message=none,operation=receive,outcome=success,processor=none," +
+                        "source=domainEventBus,subscriber=projector} #1",
+                    "LONG_TASK_TIMER wow.stream.active {$tags,processor=none,source=domainEventBus," +
+                        "subscriber=projector} #0",
+                )
+            }.sorted(),
         )
     }
 

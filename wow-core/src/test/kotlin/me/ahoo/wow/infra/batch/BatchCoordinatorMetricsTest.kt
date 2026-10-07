@@ -264,6 +264,11 @@ class BatchCoordinatorMetricsTest {
             }
             firstLive.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(liveCloseError)
             secondLive.get(1, TimeUnit.SECONDS)!!.throwable.assert().isSameAs(liveCloseError)
+            // The close timer is recorded once the results have drained, after close() has already thrown and
+            // possibly after the items' futures completed: wait for that drain, as stopGracefully() does.
+            StepVerifier.create(liveCoordinator.stopGracefully())
+                .expectErrorMatches { it === liveCloseError }
+                .verify(Duration.ofSeconds(1))
 
             registry.counterCount(
                 "wow.batch.admission.rejected",

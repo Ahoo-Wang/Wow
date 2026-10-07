@@ -141,6 +141,8 @@ Starter 启动时对实际路由到 Redis EventStore 的聚合检测旧 shared r
 
 使用 Spring Data Redis/Lettuce 原生属性。Wow 不拥有 pool size、command timeout 或 topology refresh，也不重复驱动的连接校验。
 
+接收 Stream 需要自己的连接：接收器订阅的每个 Stream 都用阻塞的 `XREADGROUP … BLOCK` 读取，不能使用共享连接。没有连接池时，每个 Stream 在接收期间保持一条专用连接；配置了连接池时，每次读取借用一条并归还，因此 `max-active` 至少要等于接收 Stream 数加一，否则读取会以 `Pool exhausted` 失败；被包装或代理的池化工厂按无连接池处理。详见[基础设施配置](../../reference/config/infrastructure.md)。
+
 ## 集群配置
 
 canonical key layout 保证单个 Lua 操作的 keys 同 slot，但不会配置 cluster、resharding 或 replica。上线前用实际 cluster 验证脚本、failover 和 slot 迁移。

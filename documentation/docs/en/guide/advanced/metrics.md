@@ -42,7 +42,7 @@ Five meter IDs describe finite work and long-lived receive streams:
 
 All five use the bounded identity tags `component`, `operation`, `context`, `aggregate`, `message`, `processor`,
 `source`, and `subscriber`. Terminal meters add `outcome=success|error|cancelled` and `exception`; unavailable values
-are `none`, and a multi-aggregate subscription uses `multiple`. Aggregate IDs, request IDs, and trace IDs are
+are `none`. A bus receiver that serves several aggregates (since 9.3.0 one receiver per bounded context) records its `wow.stream.*` series per aggregate, tagged with that aggregate's `context` and `aggregate`, the same series one receiver per aggregate recorded before: each message counts under its own aggregate, and the active and termination series exist once per aggregate. Aggregate IDs, request IDs, and trace IDs are
 deliberately absent because they are high-cardinality trace or log fields.
 
 Read the tags as a pipeline map:

@@ -44,7 +44,7 @@ internal open class MetricDomainEventBus<T : DomainEventBus>(
         subscription: MessageSubscription,
     ): MessageReceiver<EventStreamExchange> =
         receiver.mapMessages { messages ->
-            metrics.stream(messages, receiveDescriptor(subscription))
+            metrics.stream(messages, receiveDescriptor(subscription), subscription.namedAggregates) { it.message }
         }
 
     protected fun messageDescriptor(

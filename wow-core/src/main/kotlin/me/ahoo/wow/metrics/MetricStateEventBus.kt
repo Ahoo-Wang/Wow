@@ -44,7 +44,7 @@ internal open class MetricStateEventBus<T : StateEventBus>(
         subscription: MessageSubscription,
     ): MessageReceiver<StateEventExchange<*>> =
         receiver.mapMessages { messages ->
-            metrics.stream(messages, receiveDescriptor(subscription))
+            metrics.stream(messages, receiveDescriptor(subscription), subscription.namedAggregates) { it.message }
         }
 
     protected fun messageDescriptor(

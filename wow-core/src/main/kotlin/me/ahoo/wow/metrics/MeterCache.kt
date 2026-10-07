@@ -21,6 +21,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.Timer
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * The meters of one [MeterRegistry], kept per [MetricDescriptor], so a recording on the hot path neither builds
@@ -43,8 +44,12 @@ internal class MeterCache(
     /** The ids (after the registry's filters) of the meters this cache handed out. */
     private val ownedIds = ConcurrentHashMap.newKeySet<Meter.Id>()
 
+    /** Meters removed from the registry so far, any meter: see [own]. */
+    private val removals = AtomicLong()
+
     init {
         registry.config().onMeterRemoved { removed ->
+            removals.incrementAndGet()
             if (ownedIds.remove(removed.id)) {
                 descriptors.clear()
             }
@@ -54,11 +59,28 @@ internal class MeterCache(
     fun of(descriptor: MetricDescriptor): DescriptorMeters =
         descriptors[descriptor] ?: descriptors.computeIfAbsent(descriptor) { DescriptorMeters(this, it) }
 
-    /** Remembers [meter] as handed out by this cache, so its removal drops the cache. */
-    fun <M : Meter> own(meter: M): M {
+    /**
+     * Resolves a meter through the registry ([resolve]) and remembers it as handed out by this cache, so its removal
+     * drops the cache. A removal that runs after [resolve] got the meter but before it is remembered finds no owned
+     * id and drops nothing; so when any meter was removed meanwhile, the meter is looked up once more, and if it is no
+     * longer registered the cache is dropped here and the next recording registers it again. Runs only when a meter
+     * is first resolved, not per recording.
+     */
+    fun <M : Meter> own(resolve: () -> M): M {
+        val removalsBefore = removals.get()
+        val meter = resolve()
         ownedIds.add(meter.id)
+        // Pairs with the listener, which counts the removal before it checks ownedIds: either it sees this id, or
+        // this sees its count.
+        if (removals.get() != removalsBefore && !isRegistered(meter)) {
+            ownedIds.remove(meter.id)
+            descriptors.clear()
+        }
         return meter
     }
+
+    private fun isRegistered(meter: Meter): Boolean =
+        registry.find(meter.id.name).tags(meter.id.tags).meters().any { it === meter }
 
     internal val size: Int
         get() = descriptors.size
@@ -89,19 +111,19 @@ internal class DescriptorMeters(
     }
 
     fun processingOutcome(outcome: String): Counter =
-        processingOutcomes[outcome] ?: cache.own(
+        processingOutcomes[outcome] ?: cache.own {
             registry.counter(
                 WowMetricNames.PROCESSING_OUTCOMES,
                 baseTags.and(MetricDescriptor.OUTCOME_TAG, outcome),
-            ),
-        ).also { processingOutcomes[outcome] = it }
+            )
+        }.also { processingOutcomes[outcome] = it }
 
     fun streamActive(): LongTaskTimer =
-        streamActive ?: cache.own(registry.more().longTaskTimer(WowMetricNames.STREAM_ACTIVE, baseTags))
+        streamActive ?: cache.own { registry.more().longTaskTimer(WowMetricNames.STREAM_ACTIVE, baseTags) }
             .also { streamActive = it }
 
     fun streamMessages(): Counter =
-        streamMessages ?: cache.own(registry.counter(WowMetricNames.STREAM_MESSAGES, baseTags))
+        streamMessages ?: cache.own { registry.counter(WowMetricNames.STREAM_MESSAGES, baseTags) }
             .also { streamMessages = it }
 }
 
@@ -122,13 +144,13 @@ internal class TerminalMeters(
     private var streamTerminations: Counter? = null
 
     fun operation(): Timer =
-        operation ?: cache.own(registry.timer(WowMetricNames.OPERATION, tags)).also { operation = it }
+        operation ?: cache.own { registry.timer(WowMetricNames.OPERATION, tags) }.also { operation = it }
 
     fun operationItems(): DistributionSummary =
-        operationItems ?: cache.own(registry.summary(WowMetricNames.OPERATION_ITEMS, tags))
+        operationItems ?: cache.own { registry.summary(WowMetricNames.OPERATION_ITEMS, tags) }
             .also { operationItems = it }
 
     fun streamTerminations(): Counter =
-        streamTerminations ?: cache.own(registry.counter(WowMetricNames.STREAM_TERMINATIONS, tags))
+        streamTerminations ?: cache.own { registry.counter(WowMetricNames.STREAM_TERMINATIONS, tags) }
             .also { streamTerminations = it }
 }
