@@ -155,17 +155,22 @@ private class StreamMetricsListenerFactory<T : Any>(
         source: Publisher<out T>,
         listenerContext: ContextView,
         publisherContext: Unit,
-    ): SignalListener<T> = StreamMetricsListener(meters.of(descriptor))
+    ): SignalListener<T> = StreamMetricsListener(meters, descriptor)
 }
 
+/**
+ * The active sample and the message counter are resolved once, at subscription; the termination counter is resolved
+ * when the stream ends, so a meter removed while the stream runs is registered again rather than recorded into.
+ */
 private class StreamMetricsListener<T : Any>(
-    private val meters: DescriptorMeters,
+    private val meters: MeterCache,
+    private val descriptor: MetricDescriptor,
 ) : DefaultSignalListener<T>() {
     private val activeSample = createSafely {
-        meters.streamActive().start()
+        meters.of(descriptor).streamActive().start()
     }
     private val messages = createSafely {
-        meters.streamMessages()
+        meters.of(descriptor).streamMessages()
     }
     private var error: Throwable? = null
 
@@ -180,7 +185,8 @@ private class StreamMetricsListener<T : Any>(
     override fun doFinally(terminationType: SignalType) {
         recordSafely { activeSample?.stop() }
         recordSafely {
-            meters.terminal(terminationType.toMetricOutcome(), error.metricException())
+            meters.of(descriptor)
+                .terminal(terminationType.toMetricOutcome(), error.metricException())
                 .streamTerminations()
                 .increment()
         }

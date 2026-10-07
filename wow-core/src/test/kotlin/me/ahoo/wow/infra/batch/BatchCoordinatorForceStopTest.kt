@@ -17,10 +17,12 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 class BatchCoordinatorForceStopTest {
     @Test
@@ -87,5 +89,64 @@ class BatchCoordinatorForceStopTest {
 
         result.get(1, TimeUnit.SECONDS)!!.isOnComplete.assert().isTrue()
         coordinator.close()
+    }
+
+    @Test
+    fun `force stop fails an admission that was in progress when the failure was installed`() {
+        val firstWriteStarted = CountDownLatch(1)
+        val releaseFirstWrite = CountDownLatch(1)
+        // Two items fill the first window. Its write runs inline on the single window thread and blocks it there, so
+        // the lane cancellation that a force stop schedules on that thread cannot run before the test releases it.
+        val coordinator = coordinator { items ->
+            if (1 in items) {
+                firstWriteStarted.countDown()
+                releaseFirstWrite.await(10, TimeUnit.SECONDS)
+            }
+            Mono.just(items.map { BatchItemResult.Success })
+        }
+        try {
+            val first = coordinator.submit(1).materialize().toFuture()
+            val second = coordinator.submit(2).materialize().toFuture()
+            firstWriteStarted.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+            val admissionEntered = CountDownLatch(1)
+            val releaseAdmission = CountDownLatch(1)
+            coordinator.admissionProbe = {
+                admissionEntered.countDown()
+                releaseAdmission.await(10, TimeUnit.SECONDS)
+            }
+            // The admission sees the lifecycle open and then blocks while it holds its lane's admission lock.
+            val inProgress = coordinator.submit(3).materialize()
+                .subscribeOn(Schedulers.boundedElastic())
+                .toFuture()
+            admissionEntered.await(1, TimeUnit.SECONDS).assert().isTrue()
+            coordinator.admissionProbe = null
+
+            val forceStop = thread(name = "force-stop") { coordinator.forceStop() }
+            // With the fence, the force stop waits on the lane lock; without it, it finishes first.
+            awaitBlockedOrTerminated(forceStop)
+            // The failure is installed before the fence: a new submit fails at once instead of queueing on the lane.
+            coordinator.submit(4).subscribeOn(Schedulers.boundedElastic()).test()
+                .expectError(BatchClosedException::class.java)
+                .verify(Duration.ofSeconds(1))
+
+            releaseAdmission.countDown()
+            forceStop.join(1000)
+            forceStop.isAlive.assert().isFalse()
+
+            inProgress.get(1, TimeUnit.SECONDS)!!.throwable.assert().isInstanceOf(BatchClosedException::class.java)
+            first.get(1, TimeUnit.SECONDS)!!.throwable.assert().isInstanceOf(BatchClosedException::class.java)
+            second.get(1, TimeUnit.SECONDS)!!.throwable.assert().isInstanceOf(BatchClosedException::class.java)
+        } finally {
+            releaseFirstWrite.countDown()
+        }
+    }
+
+    private fun awaitBlockedOrTerminated(thread: Thread) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+        while (thread.state != Thread.State.BLOCKED && thread.state != Thread.State.TERMINATED) {
+            check(System.nanoTime() < deadline) { "${thread.name} neither blocked nor finished: ${thread.state}" }
+            Thread.onSpinWait()
+        }
     }
 }

@@ -53,10 +53,36 @@ internal class BatchLane<T : Any>(
             onComplete,
         )
 
-    fun emit(request: BatchRequest<T>): Sinks.EmitResult =
-        requests.tryEmitNext(request)
+    /** Serializes admissions into this lane with its completion; lanes admit independently of each other. */
+    private val admissionLock = Any()
 
-    fun complete(): Sinks.EmitResult = requests.tryEmitComplete()
+    /**
+     * Emits the request [accept] returns while [isOpen], under this lane's admission lock. A rejected emission
+     * discards the request's admission.
+     */
+    fun emitIfOpen(isOpen: () -> Boolean, accept: () -> BatchRequest<T>): Sinks.EmitResult =
+        synchronized(admissionLock) {
+            if (!isOpen()) {
+                return Sinks.EmitResult.FAIL_TERMINATED
+            }
+            val request = accept()
+            requests.tryEmitNext(request).also {
+                if (it.isFailure) {
+                    request.discardAdmission()
+                }
+            }
+        }
+
+    /** Returns once no admission into this lane that started earlier is still in progress. */
+    fun awaitAdmissions() {
+        synchronized(admissionLock) {
+            // Acquiring the lock is the whole point: every earlier admission has released it.
+        }
+    }
+
+    fun complete(): Sinks.EmitResult = synchronized(admissionLock) {
+        requests.tryEmitComplete()
+    }
 
     fun dispose() {
         processor.dispose()

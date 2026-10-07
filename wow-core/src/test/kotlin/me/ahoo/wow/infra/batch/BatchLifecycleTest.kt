@@ -15,7 +15,6 @@ package me.ahoo.wow.infra.batch
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Sinks
 
 class BatchLifecycleTest {
     @Test
@@ -23,15 +22,11 @@ class BatchLifecycleTest {
         val lifecycle = BatchLifecycle("test")
 
         lifecycle.terminalErrorOrClosed().assert().isNull()
-        lifecycle.emitIfOpen { Sinks.EmitResult.OK }
-            .assert()
-            .isEqualTo(Sinks.EmitResult.OK)
+        lifecycle.isOpen().assert().isTrue()
 
         lifecycle.initiateClose().assert().isTrue()
         lifecycle.initiateClose().assert().isFalse()
-        lifecycle.emitIfOpen { Sinks.EmitResult.OK }
-            .assert()
-            .isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
+        lifecycle.isOpen().assert().isFalse()
         lifecycle.terminalErrorOrClosed()
             .assert()
             .isInstanceOf(BatchClosedException::class.java)

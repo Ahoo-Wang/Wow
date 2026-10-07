@@ -64,7 +64,10 @@ class BatchCoordinator<T : Any>(
     private val admission = BatchAdmission<T>(options.maxPendingItems, enabledMetrics)
     private val lifecycle = BatchLifecycle(name)
 
-    // Never acquire this gate while holding the admission/lifecycle gate, or vice versa.
+    // Lock order: a lane's admission lock comes first. A lane that completes or fails synchronously inside an
+    // admission or completion takes the lifecycle lock and the result lock while still holding its admission lock.
+    // The reverse never happens: no lifecycle or result lock holder ever takes a lane admission lock, which is why
+    // the failure fence (BatchLane.awaitAdmissions) runs outside both.
     private val resultLock = Any()
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
@@ -73,6 +76,9 @@ class BatchCoordinator<T : Any>(
     private val batchScheduler = Schedulers.newSingle("$name-batch-window", true)
     private val resultDispatcher: BatchResultDispatcher
     private val lanes: Array<BatchLane<T>>
+
+    /** Test seam: runs inside a lane's admission lock after the lifecycle check, before the request is accepted. */
+    internal var admissionProbe: (() -> Unit)? = null
 
     init {
         resultDispatcher = BatchResultDispatcher(
@@ -133,13 +139,10 @@ class BatchCoordinator<T : Any>(
                 Exceptions.throwIfFatal(error)
                 return@defer Mono.error(error)
             }
-            val emitResult = lifecycle.emitIfOpen {
+            val emitResult = lanes[lane].emitIfOpen(lifecycle::isOpen) {
+                admissionProbe?.invoke()
                 admission.accept(request)
-                lanes[lane].emit(request).also {
-                    if (it.isFailure) {
-                        request.discardAdmission()
-                    }
-                }
+                request
             }
             if (emitResult.isFailure) {
                 request.discardAdmission()
@@ -320,18 +323,13 @@ class BatchCoordinator<T : Any>(
     }
 
     private fun failLifecycle(error: Throwable): Throwable? {
-        var pending = emptyList<BatchRequest<T>>()
-        val transition = synchronized(lifecycle.lock) {
-            lifecycle.fail(error).also { transition ->
-                if (transition is BatchLifecycle.FailureTransition.Installed) {
-                    pending = admission.pendingSnapshot()
-                }
-            }
-        }
-        return when (transition) {
+        return when (val transition = lifecycle.fail(error)) {
             BatchLifecycle.FailureTransition.Closed -> null
             is BatchLifecycle.FailureTransition.Existing -> transition.cause
             is BatchLifecycle.FailureTransition.Installed -> {
+                // An admission that saw the lifecycle open has accepted its request once its lane lock is free.
+                lanes.forEach(BatchLane<T>::awaitAdmissions)
+                val pending = admission.pendingSnapshot()
                 val shutdown = synchronized(resultLock) {
                     try {
                         dispatchPendingFailures(pending, transition.cause)
