@@ -16,12 +16,14 @@ package me.ahoo.wow.execution
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
+import reactor.core.CoreSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Operators
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import reactor.util.context.Context
 import reactor.util.retry.Retry
 import java.time.Duration
 import java.util.Collections
@@ -35,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Consumer
 
 class KeyedDispatchTest {
     private val executor = KeyedExecutor(workers = 4, maxInFlight = 64, name = "keyed-dispatch-test")
@@ -305,6 +308,52 @@ class KeyedDispatchTest {
         val dispatched = Flux.just(1).dispatchKeyed(executor, { it }) { throw failure }
 
         StepVerifier.create(dispatched).expectErrorMatches { it === failure }.verify(Duration.ofSeconds(5))
+    }
+
+    @Test
+    fun `a handler that throws a fatal error wedges its mailbox and its worker rethrows it`() {
+        val wedged = KeyedExecutor(workers = 1, name = "keyed-dispatch-fatal")
+        try {
+            val called = CountDownLatch(1)
+            val dispatched = Flux.just(1).dispatchKeyed(wedged, { it }) {
+                called.countDown()
+                throw LinkageError("fatal")
+            }
+
+            StepVerifier.create(dispatched)
+                .then { called.await(5, TimeUnit.SECONDS).assert().isTrue() }
+                .expectNoEvent(Duration.ofMillis(200))
+                .thenCancel()
+                .verify(Duration.ofSeconds(5))
+        } finally {
+            wedged.close()
+        }
+    }
+
+    @Test
+    fun `a second handler error after the dispatch failed is dropped`() {
+        val handlers = CopyOnWriteArrayList<CoreSubscriber<in Void>>()
+        val dropped = CopyOnWriteArrayList<Throwable>()
+        val first = IllegalStateException("first")
+        val second = IllegalStateException("second")
+        val dispatched = Flux.just(1, 2).dispatchKeyed(executor, { it }) {
+            object : Mono<Void>() {
+                override fun subscribe(actual: CoreSubscriber<in Void>) {
+                    actual.onSubscribe(Operators.emptySubscription())
+                    handlers += actual
+                }
+            }
+        }.contextWrite(Context.of(ON_ERROR_DROPPED_KEY, Consumer<Throwable> { dropped += it }))
+
+        StepVerifier.create(dispatched)
+            .then {
+                awaitTrue { handlers.size == 2 }
+                handlers[0].onError(first)
+                handlers[1].onError(second)
+            }
+            .expectErrorMatches { it === first }
+            .verify(Duration.ofSeconds(5))
+        dropped.assert().containsExactly(second)
     }
 
     @Test
@@ -585,3 +634,6 @@ class KeyedDispatchTest {
         }
     }
 }
+
+/** Reactor's subscriber-context key for a local `onErrorDropped` hook (`Hooks.KEY_ON_ERROR_DROPPED`, not public). */
+private const val ON_ERROR_DROPPED_KEY = "reactor.onErrorDropped.local"

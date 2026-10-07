@@ -167,12 +167,30 @@ class DispatchWorkersTest {
                 }
             })
         }
-        workers.execute { ran.incrementAndGet() }
+        // A failing discard is reported to the calling thread's handler and does not stop the others being discarded.
+        workers.execute(object : Runnable, DispatchWorkers.Discardable {
+            override fun run() {
+                ran.incrementAndGet()
+            }
 
-        workers.forceClose()
+            override fun discard() {
+                throw IllegalStateException("discard failed")
+            }
+        })
+        workers.execute { ran.incrementAndGet() }
+        val reported = CopyOnWriteArrayList<Throwable>()
+        val caller = Thread.currentThread()
+        val previousHandler = caller.uncaughtExceptionHandler
+        caller.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, error -> reported += error }
+        try {
+            workers.forceClose()
+        } finally {
+            caller.uncaughtExceptionHandler = previousHandler
+        }
 
         discarded.assert().hasSize(5)
         discarded.toSet().assert().containsExactly(Thread.currentThread().name)
+        reported.map { it.message }.assert().containsExactly("discard failed")
         workers.forced.assert().isTrue()
         assertThrows<RejectedExecutionException> { workers.execute {} }
         release.countDown()
