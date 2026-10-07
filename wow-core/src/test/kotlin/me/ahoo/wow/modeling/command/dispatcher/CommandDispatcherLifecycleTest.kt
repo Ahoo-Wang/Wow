@@ -15,23 +15,24 @@ package me.ahoo.wow.modeling.command.dispatcher
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.runtime.WowRuntime
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -67,7 +68,6 @@ class CommandDispatcherLifecycleTest {
                     namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
                     commandBus = commandBus,
                     commandHandler = NoOpCommandHandler,
-                    schedulerSupplier = RecordingAggregateSchedulerSupplier(),
                 ),
             ),
             shutdownTimeout = Duration.ofSeconds(1),
@@ -104,12 +104,10 @@ class CommandDispatcherLifecycleTest {
                     processingAdmission = processingAdmissions::incrementAndGet,
                 )
         }
-        val schedulerSupplier = RecordingAggregateSchedulerSupplier()
         val commandDispatcher = CommandDispatcher(
             namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
             commandBus = commandBus,
             commandHandler = NoOpCommandHandler,
-            schedulerSupplier = schedulerSupplier,
         )
         commandDispatcher.prepare(DefaultRuntimeContext()).block()
         subscribed.get().assert().isTrue()
@@ -119,29 +117,60 @@ class CommandDispatcherLifecycleTest {
 
         processingAdmissions.get().assert().isZero()
         cancelled.await(1, TimeUnit.SECONDS).assert().isTrue()
-        schedulerSupplier.stopped.get().assert().isTrue()
     }
 
     @Test
-    fun `stop gracefully stops aggregate scheduler supplier`() {
-        val schedulerSupplier = RecordingAggregateSchedulerSupplier()
+    fun `commands of one aggregate are handled in order on the runtime's keyed executor`() {
+        val aggregateId = "ordered-aggregate"
+        val commands = (0 until 50).map {
+            SimpleServerCommandExchange(
+                MockCreateAggregate(id = aggregateId, data = "$it").toCommandMessage(aggregateId = aggregateId),
+            )
+        }
+        commands.forEach { it.message.aggregateId.id.assert().isEqualTo(aggregateId) }
+        val commandBus = object : CommandBus {
+            override fun send(message: CommandMessage<*>): Mono<Void> = Mono.empty()
+
+            override fun receiver(
+                subscription: MessageSubscription,
+            ): MessageReceiver<ServerCommandExchange<*>> = MessageReceiver(Flux.fromIterable(commands))
+        }
+        val handled = CopyOnWriteArrayList<String>()
+        val threads = CopyOnWriteArrayList<String>()
         val commandDispatcher = CommandDispatcher(
             namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
-            commandBus = NoOpCommandBus,
-            commandHandler = NoOpCommandHandler,
-            schedulerSupplier = schedulerSupplier,
+            commandBus = commandBus,
+            commandHandler = object : CommandHandler {
+                override fun handle(
+                    exchange: ServerCommandExchange<*>,
+                    aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>
+                ): Mono<Void> = Mono.defer {
+                    // The handler is subscribed on a dispatch worker; it may complete on another thread.
+                    threads += Thread.currentThread().name
+                    Mono.delay(Duration.ofNanos(1)).then(
+                        Mono.fromRunnable { handled += (exchange.message.body as MockCreateAggregate).data },
+                    )
+                }
+            },
         )
+        val keyedExecutor = KeyedExecutor(workers = 2, name = "command-dispatch")
         val runtime = WowRuntime(
             components = listOf(commandDispatcher),
-            shutdownTimeout = Duration.ofSeconds(1),
+            shutdownTimeout = Duration.ofSeconds(5),
             shutdownQuietPeriod = Duration.ZERO,
+            keyedExecutor = keyedExecutor,
         )
-
         runtime.start().block()
-        StepVerifier.create(runtime.stopGracefully())
-            .verifyComplete()
-
-        schedulerSupplier.stopped.get().assert().isTrue()
+        try {
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (handled.size < commands.size && System.nanoTime() < deadline) {
+                Thread.sleep(5)
+            }
+            handled.assert().isEqualTo((0 until 50).map { "$it" })
+            threads.forEach { it.assert().startsWith("command-dispatch-") }
+        } finally {
+            StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+        }
     }
 
     private object NoOpCommandBus : CommandBus {
@@ -156,23 +185,5 @@ class CommandDispatcherLifecycleTest {
             exchange: ServerCommandExchange<*>,
             aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>
         ): Mono<Void> = Mono.empty()
-    }
-
-    private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {
-        val stopped = AtomicBoolean()
-        private val scheduler = Schedulers.newSingle("recording-command-dispatcher")
-
-        override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler = scheduler
-
-        override fun stopGracefully(): Mono<Void> =
-            Mono.fromRunnable {
-                stopped.set(true)
-                scheduler.dispose()
-            }
-
-        override fun forceStop() {
-            stopped.set(true)
-            scheduler.dispose()
-        }
     }
 }

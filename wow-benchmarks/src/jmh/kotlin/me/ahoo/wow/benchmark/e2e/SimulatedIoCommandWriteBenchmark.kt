@@ -15,11 +15,10 @@ package me.ahoo.wow.benchmark.e2e
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
-import me.ahoo.wow.benchmark.scenario.SchedulerStrategy
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
-import me.ahoo.wow.benchmark.scenario.toSchedulerSupplier
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.mock.DelayEventStore
+import me.ahoo.wow.execution.KeyedExecutor
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Param
@@ -28,7 +27,6 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
-import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -38,9 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * The `direct` profile uses [InMemoryEventStore] as a pure framework ceiling. The asynchronous
  * profiles all use [DelayEventStore] (including `async-0`) so timer handoff topology remains
- * constant while the injected per-operation delay changes. Combined with [schedulerStrategy],
- * this answers how much I/O latency is needed before the dispatcher's `publishOn` cross-thread
- * handoff becomes negligible relative to total command-write latency.
+ * constant while the injected per-operation delay changes. This answers how much I/O latency
+ * is needed before the dispatcher's handoff to the runtime's [KeyedExecutor] workers (one
+ * mailbox per aggregate ID) becomes negligible relative to total command-write latency.
  *
  * The sweep fills the gap between the two previously measured extremes:
  * - NoopEventStore (0 I/O): cross-thread ~95% of dispatch-chain cost.
@@ -54,9 +52,7 @@ open class SimulatedIoCommandWriteBenchmark {
     @Param("direct", "async-0", "20us", "100us", "500us", "2ms")
     private var ioDelay: String = "direct"
 
-    @Param("PARALLEL", "IMMEDIATE")
-    private var schedulerStrategy: String = SchedulerStrategy.PARALLEL.name
-
+    /** Worker count of the runtime's [KeyedExecutor]: `cpu` (available processors) or a positive number. */
     @Param("cpu")
     private var schedulerPoolSize: String = "cpu"
 
@@ -75,8 +71,7 @@ open class SimulatedIoCommandWriteBenchmark {
         }
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = eventStore,
-            schedulerSupplier = SchedulerStrategy.valueOf(schedulerStrategy)
-                .toSchedulerSupplier(resolveSchedulerPoolSize(schedulerPoolSize)),
+            keyedExecutor = KeyedExecutor(workers = resolveSchedulerPoolSize(schedulerPoolSize)),
         )
     }
 
@@ -87,8 +82,7 @@ open class SimulatedIoCommandWriteBenchmark {
             if (failureCount > 0) {
                 throw IllegalStateException(
                     "Simulated I/O command write recorded $failureCount failure(s) " +
-                        "[ioDelay=$ioDelay, schedulerStrategy=$schedulerStrategy, " +
-                        "schedulerPoolSize=$schedulerPoolSize].",
+                        "[ioDelay=$ioDelay, schedulerPoolSize=$schedulerPoolSize].",
                 )
             }
         } finally {
@@ -119,7 +113,7 @@ open class SimulatedIoCommandWriteBenchmark {
 
         fun resolveSchedulerPoolSize(value: String): Int =
             when (value) {
-                "cpu" -> Schedulers.DEFAULT_POOL_SIZE
+                "cpu" -> KeyedExecutor.DEFAULT_WORKERS
                 else -> value.toInt().also {
                     require(it > 0) {
                         "schedulerPoolSize must be greater than 0."

@@ -18,6 +18,9 @@ outline: deep
 | `wow.context-name` | String? | `null` | 未配置时读取必需的 `spring.application.name` |
 | `wow.shutdown-timeout` | Duration | `60s` | 整个 `WowRuntime` 静默和逆序停止共享的截止时间 |
 | `wow.shutdown-quiet-period` | Duration | `1s` | 停止接收前必须连续保持无活动的时间；新活动会重新计时 |
+| `wow.dispatch.workers` | Int | 可用处理器数 | 运行时 [`KeyedExecutor`](../../guide/advanced/keyed-executor.md) 的工作线程数，全部分发器共享（自 9.3.0 起） |
+| `wow.dispatch.max-in-flight` | Int | `256` | 单个分发器停止向传输请求新消息前可持有的未完成消息数（自 9.3.0 起） |
+| `wow.dispatch.throughput` | Int | `16` | 分发工作线程在转向其他聚合前，一轮执行同一聚合的消息数（自 9.3.0 起） |
 
 `shutdown-timeout` 必须大于零；`shutdown-quiet-period` 必须非负且小于 `shutdown-timeout`。二者还必须能够精确表示为有符号 64 位纳秒值。
 

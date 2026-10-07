@@ -31,7 +31,6 @@ import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -86,7 +85,6 @@ class AggregateEventDispatcherAckTest {
             eventHandler = object : EventHandler {
                 override fun handle(context: DomainEventExchange<*>): Mono<Void> = onHandle(context)
             },
-            scheduler = Schedulers.immediate(),
         )
     }
 

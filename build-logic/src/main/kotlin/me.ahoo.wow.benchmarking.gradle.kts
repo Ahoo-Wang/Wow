@@ -396,7 +396,6 @@ val smokeProfile = BenchmarkRunProfile(
     jvmArgs = smokeBenchmarkJvmArgs,
     parameters = mapOf(
         "scenario" to "ceiling",
-        "schedulerStrategy" to "IMMEDIATE",
     ),
     includeGcProfiler = false,
     includeAsyncProfiler = false,
@@ -1184,7 +1183,6 @@ val quickRefactorProfile = quickProfile.copy(
     parameters = mapOf(
         "eventCount" to "10,500",
         "handlerCost" to "NOOP",
-        "schedulerStrategy" to "PARALLEL",
         "scenario" to "ceiling,in-memory-new-aggregate",
     ),
 )

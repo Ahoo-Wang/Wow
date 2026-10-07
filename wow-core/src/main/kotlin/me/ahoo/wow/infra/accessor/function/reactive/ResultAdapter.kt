@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.mono
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.execution.KeyedExecutorContext
 import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.function.invokeFunction
 import me.ahoo.wow.infra.accessor.function.invokeFunction1
@@ -49,6 +52,10 @@ import kotlin.reflect.jvm.jvmErasure
  * - [MONO]: the returned `Mono` as is; an empty `Mono` completes empty;
  * - [FLUX], [PUBLISHER], [FLOW]: all elements collected into one `List`, which may be empty;
  * - [SUSPEND]: the returned value, `Unit` included; `null` fails with a `NullPointerException`.
+ *
+ * [FLOW] and [SUSPEND] run their coroutine on the dispatcher's keyed executor when called by a message dispatcher
+ * (decision B10: the coroutine resumes on the workers of the aggregate's mailbox, which does not start the aggregate's
+ * next message before it returns), and on `Dispatchers.Default` otherwise.
  */
 internal enum class ResultAdapter {
     SYNC {
@@ -70,11 +77,11 @@ internal enum class ResultAdapter {
     },
     FLOW {
         @Suppress("UNCHECKED_CAST")
-        override fun adapt(call: FunctionCall): Mono<Any> = mono { (call.call() as Flow<Any>).toList() }
+        override fun adapt(call: FunctionCall): Mono<Any> = coroutineMono { (call.call() as Flow<Any>).toList() }
     },
     SUSPEND {
         override fun adapt(call: FunctionCall): Mono<Any> =
-            mono { call.callSuspend() ?: throw NullPointerException("The suspend function returned null.") }
+            coroutineMono { call.callSuspend() ?: throw NullPointerException("The suspend function returned null.") }
     };
 
     abstract fun adapt(call: FunctionCall): Mono<Any>
@@ -96,6 +103,15 @@ internal enum class ResultAdapter {
         }
     }
 }
+
+/**
+ * A `mono` on the subscriber's keyed-executor dispatcher ([KeyedExecutorContext]), or on `Dispatchers.Default` when
+ * the subscriber is not a message dispatcher.
+ */
+private fun coroutineMono(block: suspend CoroutineScope.() -> Any): Mono<Any> =
+    Mono.deferContextual { context ->
+        mono(KeyedExecutorContext.coroutineDispatcherOf(context) ?: Dispatchers.Default, block)
+    }
 
 /** One call of a function with its receiver and arguments, made when the adapted `Mono` is subscribed. */
 internal class FunctionCall(

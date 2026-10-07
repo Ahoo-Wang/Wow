@@ -142,6 +142,21 @@ Minimum migration evidence: custom SPI compilation and runtime classpath, exact 
 
 When the exact V9 target contains `IS_EMPTY_STRING` and `IS_NOT_EMPTY_STRING`, use them only for explicit empty-string intent on exact-match, single-valued String fields. Do not mechanically rewrite V8 `EQ ""` or `NE ""`: first preserve the source contract for null, missing, whitespace, collections, MongoDB, Elasticsearch, and HTTP guard behavior, then prove the chosen V9 expression with contract tests. `isEmptyString()` matches only `""`; `isNotEmptyString()` requires present, non-null, non-empty String semantics. These query-expression changes do not require data conversion unless separate target evidence identifies a mapping or stored-data change.
 
+## Wow 9.2.x to 9.3.0 shared dispatch executor
+
+Use this section when the target has `me.ahoo.wow.execution.KeyedExecutor` and no `AggregateSchedulerSupplier`. The change is in-process only: REST, storage, message JSON, topics and consumer groups are unchanged, so it needs no data conversion.
+
+| 9.2.x | 9.3.0 |
+|---|---|
+| `AggregateSchedulerSupplier` / `DefaultAggregateSchedulerSupplier` bean or argument | Removed; the runtime's `KeyedExecutor` (`wow.dispatch.workers`, default the available processors; without Spring `WowRuntime(keyedExecutor = KeyedExecutor(workers = …))`) |
+| `MessageParallelism` (`DEFAULT_PARALLELISM`, `toGroupKey`), `ParallelismCapable`, `-Dwow.parallelism` | Removed; `wow.dispatch.max-in-flight` (default `256`, unfinished messages per receiver) and `wow.dispatch.throughput` (default `16`, messages per mailbox turn) |
+| `parallelism` / `scheduler` / `schedulerSupplier` parameters of `CommandDispatcher`, `AggregateCommandDispatcher`, `DomainEventDispatcher`, `ProjectionDispatcher`, `StatelessSagaDispatcher`, `SnapshotDispatcher`, `AggregateSnapshotDispatcher`, `CompositeEventDispatcher` | Removed; drop the arguments |
+| Custom `AggregateDispatcher` overriding `parallelism`, `scheduler`, `T.toGroupKey(): Int` | Implement `T.mailboxKey(): Any` (the aggregate ID) |
+| Handler threads `<Dispatcher>-<aggregate>-N` | `wow-dispatch-N`, at most `wow.dispatch.workers` |
+| `suspend` / `Flow` message functions on `Dispatchers.Default` | Resume on the dispatch workers when called by a dispatcher |
+
+Search the application for thread-name matches (log patterns, MDC, alerts, thread-pool metrics, tests asserting thread names), blocking calls in handlers (the workers are Reactor non-blocking threads; mark blocking functions `@Blocking`), and code that sized or tuned the removed schedulers. Behaviour to verify, not to convert: per-aggregate order is unchanged; a waiting handler delays only its own aggregate; the in-flight window is shared by every aggregate ID of a receiver, so one aggregate with about `max-in-flight − max-in-flight / 16` unfinished messages (241 by default) stops that receiver and pauses its Kafka topics; a force stop at the `wow.shutdown-timeout` deadline discards queued mailbox messages unacknowledged, so broker transports redeliver them and in-memory messages are dropped. Evidence: the application's dispatcher tests on the target, a shutdown test under load, and a check that no handler blocks.
+
 ## Runtime and data coupling
 
 Identify every writer, reader, database/namespace, bounded context, aggregate route, ownership marker, stream/topic, snapshot/event format, PrepareKey store, index, and background process. Determine whether source and target versions can safely coexist; assume they cannot unless the pinned contract proves otherwise.

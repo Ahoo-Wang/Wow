@@ -14,6 +14,9 @@
 package me.ahoo.wow.runtime.internal
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.execution.KeyedExecutor
+import me.ahoo.wow.runtime.RuntimeActivity
+import me.ahoo.wow.runtime.RuntimeContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import reactor.core.Disposable
@@ -29,6 +32,24 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class DefaultRuntimeContextTest {
+
+    @Test
+    fun `a context outside a runtime uses the shared keyed executor`() {
+        val custom = object : RuntimeContext {
+            override fun reportFailure(error: Throwable) = Unit
+
+            override fun tryAcquire(): RuntimeActivity? = null
+        }
+
+        custom.keyedExecutor.assert().isSameAs(KeyedExecutor.shared)
+        DefaultRuntimeContext().keyedExecutor.assert().isSameAs(KeyedExecutor.shared)
+        val owned = KeyedExecutor(workers = 1, name = "context-owned")
+        try {
+            DefaultRuntimeContext(keyedExecutor = owned).keyedExecutor.assert().isSameAs(owned)
+        } finally {
+            owned.close()
+        }
+    }
 
     @Test
     fun `quiet period must fit in nanoseconds`() {

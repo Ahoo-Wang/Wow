@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
+import me.ahoo.wow.execution.KeyedExecutor
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
@@ -28,4 +29,15 @@ class WowProperties(
     var contextName: String? = null,
     var shutdownTimeout: Duration = DEFAULT_SHUTDOWN_TIMEOUT,
     var shutdownQuietPeriod: Duration = DEFAULT_SHUTDOWN_QUIET_PERIOD,
+    var dispatch: DispatchProperties = DispatchProperties(),
 ) : EnabledCapable
+
+/**
+ * The runtime's [KeyedExecutor] (`wow.dispatch.*`): the worker threads every dispatcher shares, and how many
+ * unfinished messages one dispatcher holds before it stops requesting more from its transport.
+ */
+class DispatchProperties(
+    var workers: Int = KeyedExecutor.DEFAULT_WORKERS,
+    var maxInFlight: Int = KeyedExecutor.DEFAULT_MAX_IN_FLIGHT,
+    var throughput: Int = KeyedExecutor.DEFAULT_THROUGHPUT,
+)

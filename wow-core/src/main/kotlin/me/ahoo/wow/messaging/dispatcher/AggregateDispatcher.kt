@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.execution.dispatchKeyed
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.LocalDeliveryTicket
@@ -29,11 +30,9 @@ import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
 import me.ahoo.wow.runtime.internal.publishTerminalSignal
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
-import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.SynchronousSink
-import reactor.core.scheduler.Scheduler
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -41,24 +40,23 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Abstract dispatcher for handling message exchanges for a specific aggregate with graceful shutdown support.
  *
- * This dispatcher provides a robust framework for processing message exchanges in parallel,
- * with built-in metrics collection, error handling, and graceful shutdown capabilities.
- * Message exchanges are grouped by key for parallel processing, ensuring ordered execution
- * within each group while allowing concurrent processing across different groups.
+ * Exchanges run on the runtime's [KeyedExecutor][me.ahoo.wow.execution.KeyedExecutor]
+ * ([RuntimeContext.keyedExecutor]): one mailbox per [mailbox key][mailboxKey] (the aggregate ID), so exchanges of one
+ * aggregate run one at a time in arrival order and different aggregates run in parallel on the runtime's shared,
+ * CPU-sized workers. A handler that waits (I/O, a retry backoff) delays only its own mailbox. The dispatcher holds at
+ * most [KeyedExecutor.maxInFlight][me.ahoo.wow.execution.KeyedExecutor.maxInFlight] unfinished exchanges and requests
+ * more from its source as they finish.
  *
  * Key features:
- * - Parallel message processing with configurable parallelism level
+ * - Per-aggregate ordering, cross-aggregate parallelism on shared workers
  * - Metrics collection for monitoring dispatcher performance
  * - Graceful shutdown that waits for active tasks to complete
  * - Error handling through SafeSubscriber integration
- * - Scheduler-based execution for resource management
  *
  * Example usage:
  * ```kotlin
  * class CustomAggregateDispatcher(
  *     private val receiver: MessageReceiver<CommandExchange>,
- *     override val parallelism: Int = 4,
- *     override val scheduler: Scheduler = Schedulers.boundedElastic(),
  * ) : AggregateDispatcher<CommandExchange>(
  *     messageReadiness = receiver.readiness,
  *     processingAdmission = receiver::openProcessing,
@@ -66,9 +64,7 @@ import java.util.concurrent.atomic.AtomicReference
  * ) {
  *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
- *     override fun CommandExchange.toGroupKey(): Int {
- *         return command.aggregateId.hashCode() % parallelism
- *     }
+ *     override fun CommandExchange.mailboxKey(): Any = message.aggregateId.id
  *
  *     override fun handleExchange(exchange: CommandExchange): Mono<Void> {
  *         return commandHandler.handle(exchange)
@@ -112,7 +108,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
 ) :
     SafeSubscriber<Void>(),
     MessageDispatcher,
-    ParallelismCapable,
     NamedAggregateDecorator,
     TerminatedSignalCapable<Void> {
     companion object {
@@ -120,38 +115,10 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     }
 
     /**
-     * The level of parallelism for processing grouped exchanges.
-     *
-     * This value determines how many groups can be processed concurrently.
-     * Each group processes exchanges sequentially, but different groups
-     * can be processed in parallel. A higher parallelism value allows
-     * more concurrent processing but may increase resource consumption.
-     *
-     * Typical values range from 1 (sequential processing) to the number
-     * of available CPU cores or higher for I/O-bound workloads.
-     */
-    abstract override val parallelism: Int
-
-    /**
-     * The scheduler to use for processing message exchanges.
-     *
-     * The scheduler determines the thread pool and execution context
-     * where message processing occurs. Common choices include:
-     * - Schedulers.boundedElastic() for I/O-bound operations
-     * - Schedulers.parallel() for CPU-bound operations
-     * - Custom schedulers for specific resource management needs
-     *
-     * The scheduler is used via publishOn() to ensure message processing
-     * happens on the appropriate threads.
-     */
-    abstract val scheduler: Scheduler
-
-    /**
      * The flux of message exchanges to be processed.
      *
      * This reactive stream provides the source of messages that the dispatcher
-     * will handle. The flux is grouped by key and processed in parallel
-     * according to the configured parallelism level.
+     * will handle. Exchanges are run per [mailbox key][mailboxKey] on the runtime's keyed executor.
      *
      * The flux should emit MessageExchange instances that can be processed
      * by the handleExchange() method implementation.
@@ -234,7 +201,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
      *
      * @throws Exception if subscription fails or initial setup encounters errors
      * @see stopGracefully for graceful shutdown
-     * @see toGroupKey for grouping logic
+     * @see mailboxKey for the ordering key
      */
     final override fun prepare(runtimeContext: RuntimeContext): Mono<Void> =
         Mono.fromRunnable<Void> {
@@ -268,10 +235,11 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
                 admitExchange(runtimeContext, exchange, sink)
             }
             .doOnNext(TrackedExchange<T>::confirmLocalDelivery)
-            .groupBy { trackedExchange -> trackedExchange.groupKey }
-            .flatMap({ grouped ->
-                handleGroupedExchange(grouped)
-            }, parallelism, parallelism)
+            .dispatchKeyed(
+                executor = runtimeContext.keyedExecutor,
+                keyOf = TrackedExchange<T>::mailboxKey,
+                handler = ::handleTrackedExchange,
+            )
             .doOnDiscard(TrackedExchange::class.java) {
                 it.rejectLocalDelivery()
                 it.complete()
@@ -321,7 +289,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
         try {
             trackedExchange = TrackedExchange(
                 exchange = exchange,
-                groupKey = exchange.toGroupKey(),
+                mailboxKey = exchange.mailboxKey(),
                 activity = activity,
                 localDeliveryTicket = exchange.takeLocalDeliveryTicket(),
             )
@@ -356,51 +324,24 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
     }
 
     /**
-     * Converts a message exchange to a grouping key for parallel processing.
-     *
-     * This extension function determines how message exchanges are grouped
-     * for parallel processing. Exchanges with the same key will be processed
-     * sequentially within their group, while different groups can be processed
-     * concurrently based on the parallelism level.
-     *
-     * A good grouping strategy distributes load evenly across groups while
-     * maintaining ordering requirements. Common approaches include:
-     * - Hash-based grouping for even distribution
-     * - Aggregate ID-based grouping for per-aggregate ordering
-     * - Round-robin assignment for simple load balancing
-     *
-     * @receiver The message exchange to group
-     * @return An integer key for grouping exchanges. Should distribute evenly across available groups.
+     * The key of this exchange's mailbox: exchanges with equal keys run one at a time in arrival order; exchanges with
+     * different keys may run in parallel. Dispatchers key by the aggregate ID.
      */
-    abstract fun T.toGroupKey(): Int
+    abstract fun T.mailboxKey(): Any
 
     /**
-     * Handles a grouped flux of message exchanges.
-     *
-     * This private method processes a group of message exchanges that share
-     * the same grouping key. It applies metrics collection, schedules execution
-     * on the configured scheduler, and processes exchanges sequentially within
-     * the group. Task counting is managed for graceful shutdown support.
-     *
-     * Metrics are collected for monitoring dispatcher processing time and
-     * outcomes. Group keys are intentionally excluded from tags to keep label
-     * cardinality bounded.
-     *
-     * @param grouped The grouped flux of message exchanges to process
-     * @return A Mono that completes when all exchanges in the group are handled
+     * Handles one admitted exchange inside its mailbox, measured when metrics are enabled, and releases its runtime
+     * activity when the handling terminates (completes, fails or is cancelled).
      */
-    private fun handleGroupedExchange(grouped: GroupedFlux<Int, TrackedExchange<T>>): Mono<Void> =
-        grouped
-            .publishOn(scheduler)
-            .concatMap { trackedExchange ->
-                val handledExchange = Mono.defer { handleExchange(trackedExchange.exchange) }
-                val measuredExchange = if (metrics.enabled) {
-                    metrics.operation(handledExchange, handleMetricDescriptor)
-                } else {
-                    handledExchange
-                }
-                measuredExchange.doFinally { trackedExchange.complete() }
-            }.then()
+    private fun handleTrackedExchange(trackedExchange: TrackedExchange<T>): Mono<Void> {
+        val handledExchange = Mono.defer { handleExchange(trackedExchange.exchange) }
+        val measuredExchange = if (metrics.enabled) {
+            metrics.operation(handledExchange, handleMetricDescriptor)
+        } else {
+            handledExchange
+        }
+        return measuredExchange.doFinally { trackedExchange.complete() }
+    }
 
     /**
      * Handles a single message exchange.
@@ -563,7 +504,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
 
     private class TrackedExchange<T : MessageExchange<*, *>>(
         val exchange: T,
-        val groupKey: Int,
+        val mailboxKey: Any,
         private val activity: RuntimeActivity,
         private val localDeliveryTicket: LocalDeliveryTicket?,
     ) {

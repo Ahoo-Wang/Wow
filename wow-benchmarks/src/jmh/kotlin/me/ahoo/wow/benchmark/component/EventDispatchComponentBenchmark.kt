@@ -14,7 +14,6 @@
 package me.ahoo.wow.benchmark.component
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
@@ -32,6 +31,7 @@ import me.ahoo.wow.event.dispatcher.DomainEventFunctionRegistrar
 import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.example.api.cart.CartItemAdded
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
@@ -89,7 +89,6 @@ open class EventDispatchComponentBenchmark {
     private lateinit var domainEventBus: DomainEventBus
     private lateinit var stateEventBus: InMemoryStateEventBus
     private lateinit var runtime: WowRuntime
-    private lateinit var schedulerSupplier: BenchmarkAggregateSchedulerSupplier
     private var meterRegistry: SimpleMeterRegistry? = null
     private var discardingBus: DiscardingDistributedDomainEventBus? = null
 
@@ -122,20 +121,20 @@ open class EventDispatchComponentBenchmark {
             .build()
         val eventHandler = MetricDecoratorFactory(wowMetrics)
             .decorate(DefaultDomainEventHandler(chain), "eventDispatcherHandler") as DomainEventHandler
-        schedulerSupplier = BenchmarkAggregateSchedulerSupplier()
         val dispatcher = DomainEventDispatcher(
             name = "benchmark.DomainEventDispatcher",
             domainEventBus = domainEventBus,
             stateEventBus = stateEventBus,
             functionRegistrar = registrar,
             eventHandler = eventHandler,
-            schedulerSupplier = schedulerSupplier,
             metrics = wowMetrics,
         )
+        // The runtime owns its KeyedExecutor (one mailbox per aggregate ID on CPU-sized workers) and closes it on stop.
         runtime = WowRuntime(
             components = listOf(dispatcher),
             shutdownTimeout = Duration.ofSeconds(30),
             shutdownQuietPeriod = Duration.ZERO,
+            keyedExecutor = KeyedExecutor(),
         )
         runtime.start().block()
         val probe = ProducerState().also { it.setup(this) }
@@ -154,7 +153,6 @@ open class EventDispatchComponentBenchmark {
         try {
             runtime.stopGracefully().block(Duration.ofSeconds(30))
         } finally {
-            schedulerSupplier.forceStop()
             domainEventBus.close()
             stateEventBus.close()
             meterRegistry?.close()

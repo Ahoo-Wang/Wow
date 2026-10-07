@@ -13,15 +13,19 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.execution.KeyedExecutor
+import me.ahoo.wow.execution.KeyedExecutorContext
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import reactor.util.context.Context
 
 class MonoFunctionAccessorTest {
     private val fixture = ReactiveAccessorFixture()
@@ -193,6 +197,46 @@ class MonoFunctionAccessorTest {
         (accessor as AdaptedMonoFunctionAccessor<*, *>).blocking.assert().isFalse()
     }
 
+    @Test
+    fun `suspend and Flow functions resume on the keyed executor of the calling dispatcher (B10)`() {
+        val executor = KeyedExecutor(workers = 1, name = "b10-keyed")
+        try {
+            val suspendAccessor = ReactiveAccessorFixture::threadAfterSuspension
+                .toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+            val flowAccessor = ReactiveAccessorFixture::threadsAfterSuspension
+                .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
+            val dispatcherContext = Context.of(
+                KeyedExecutorContext.COROUTINE_DISPATCHER_KEY,
+                executor.coroutineDispatcher
+            )
+
+            StepVerifier.create(
+                suspendAccessor.invoke(fixture)
+                    .contextWrite(dispatcherContext),
+            )
+                .assertNext { it.assert().startsWith("b10-keyed-") }
+                .verifyComplete()
+            StepVerifier.create(
+                flowAccessor.invoke(fixture)
+                    .contextWrite(dispatcherContext),
+            )
+                .assertNext { threads -> threads.forEach { it.assert().startsWith("b10-keyed-") } }
+                .verifyComplete()
+        } finally {
+            executor.close()
+        }
+    }
+
+    @Test
+    fun `suspend functions outside a dispatcher run on the default coroutine dispatcher`() {
+        val accessor = ReactiveAccessorFixture::threadAfterSuspension
+            .toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        StepVerifier.create(accessor.invoke(fixture))
+            .assertNext { it.assert().startsWith("DefaultDispatcher-worker-") }
+            .verifyComplete()
+    }
+
     private fun MonoFunctionAccessor<*, *>.adapter(): ResultAdapter =
         (this as AdaptedMonoFunctionAccessor<*, *>).resultAdapter
 }
@@ -212,6 +256,18 @@ private class ReactiveAccessorFixture {
     fun publisherValues(): Publisher<String> = Flux.just("publisher-1", "publisher-2")
 
     suspend fun suspendValue(): String = suspendResult
+
+    suspend fun threadAfterSuspension(): String {
+        delay(1)
+        return Thread.currentThread().name
+    }
+
+    fun threadsAfterSuspension(): Flow<String> = flow {
+        delay(1)
+        emit(Thread.currentThread().name)
+        delay(1)
+        emit(Thread.currentThread().name)
+    }
 
     fun flowValues(): Flow<String> = flow {
         emit("flow-1")

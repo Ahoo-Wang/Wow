@@ -23,17 +23,11 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Mono
 
 internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>>(
     metrics: WowMetrics,
 ) : MainDispatcher<E>(metrics) {
-
-    /**
-     * The level of parallelism for processing events.
-     */
-    abstract val parallelism: Int
 
     /**
      * The message bus for sending and receiving events.
@@ -49,7 +43,6 @@ internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS :
      * The event handler for processing events.
      */
     abstract val eventHandler: EventHandler
-    abstract val schedulerSupplier: AggregateSchedulerSupplier
 
     override val namedAggregates: Set<NamedAggregate> by lazy {
         functionRegistrar.functions
@@ -61,11 +54,4 @@ internal abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS :
 
     override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<E> =
         messageBus.receiver(subscription.copy(runtimeOwned = true))
-
-    override fun stopManagedGracefully(): Mono<Void> =
-        schedulerSupplier.stopGracefully()
-
-    override fun forceStopManaged() {
-        schedulerSupplier.forceStop()
-    }
 }

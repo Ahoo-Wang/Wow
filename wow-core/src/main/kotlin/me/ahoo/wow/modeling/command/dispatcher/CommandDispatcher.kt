@@ -21,14 +21,10 @@ import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 
 /**
  * Command Dispatcher .
@@ -37,12 +33,9 @@ import reactor.core.publisher.Mono
  */
 class CommandDispatcher(
     override val name: String = CommandDispatcher::class.simpleName!!,
-    val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.localAggregates,
     private val commandBus: CommandBus,
     private val commandHandler: CommandHandler,
-    private val schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("CommandDispatcher"),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MainDispatcher<ServerCommandExchange<*>>(metrics) {
     override fun createMessageReceiver(
@@ -67,17 +60,8 @@ class CommandDispatcher(
         return AggregateCommandDispatcher(
             aggregateMetadata = aggregateMetadata,
             messageFlux = messageFlux,
-            parallelism = parallelism,
             commandHandler = commandHandler,
-            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             metrics = metrics,
         )
-    }
-
-    override fun stopManagedGracefully(): Mono<Void> =
-        schedulerSupplier.stopGracefully()
-
-    override fun forceStopManaged() {
-        schedulerSupplier.forceStop()
     }
 }

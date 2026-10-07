@@ -15,10 +15,7 @@ package me.ahoo.wow.event.dispatcher
 
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
 /**
  * Domain Event Dispatcher responsible for coordinating the processing of domain events.
@@ -29,12 +26,10 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * of events to appropriate handlers.
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`
- * @param parallelism The level of parallelism for processing events (default: DEFAULT_PARALLELISM)
  * @param domainEventBus The domain event bus for publishing and subscribing to domain events
  * @param stateEventBus The state event bus for handling state-related events
  * @param functionRegistrar The registrar for domain event handler functions
  * @param eventHandler The event handler for processing domain events
- * @param schedulerSupplier Supplier for creating schedulers for aggregate processing
  * @param metrics Instance-scoped metrics recorder propagated to child dispatchers
  *
  * @see CompositeEventDispatcher
@@ -48,11 +43,6 @@ class DomainEventDispatcher(
      * The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
      */
     name: String,
-    /**
-     * The level of parallelism for processing events.
-     * @default MessageParallelism.DEFAULT_PARALLELISM
-     */
-    parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     /**
      * The domain event bus for publishing and subscribing to domain events.
      */
@@ -69,20 +59,12 @@ class DomainEventDispatcher(
      * The event handler for processing domain events.
      */
     eventHandler: DomainEventHandler,
-    /**
-     * Supplier for creating schedulers for aggregate processing.
-     * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
-     */
-    schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("EventDispatcher"),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : CompositeEventDispatcher(
     name = name,
-    parallelism = parallelism,
     domainEventBus = domainEventBus,
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
-    schedulerSupplier = schedulerSupplier,
     metrics = metrics,
 )

@@ -157,7 +157,8 @@ Transport checks:
 ## 4. Update Adjacent Extensions
 
 - Custom `AggregateSchedulerSupplier` implementations must support both graceful and force shutdown; force cleanup
-  synchronously disposes every scheduler the graceful path could own.
+  synchronously disposes every scheduler the graceful path could own. (9.3.0 removes `AggregateSchedulerSupplier`:
+  dispatchers run on the runtime's [`KeyedExecutor`](../advanced/keyed-executor.md).)
 - `AutoRegistrar` is initialization work (`SmartInitializingSingleton`), not a runtime lifecycle owner. Remove calls or
   ordering based on the deleted launcher phase.
 - Custom store/message-bus decorators must preserve original delegate close ownership and avoid closing it twice.

@@ -15,34 +15,24 @@ package me.ahoo.wow.modeling.command.dispatcher
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 
 /**
  * Aggregate command dispatcher grouped by named aggregate.
  *
- * This dispatcher manages command processing for a specific named aggregate, ensuring proper
- * parallelism and thread affinity. Each aggregate ID is bound to one worker thread, but one
- * worker can handle multiple aggregate IDs, providing efficient resource utilization.
- *
- * Key characteristics:
- * - One AggregateId binds to one Worker (Thread)
- * - One Worker can be bound by multiple aggregateIds
- * - Workers have aggregate ID affinity for consistent processing
+ * This dispatcher manages command processing for a specific named aggregate. Commands of one aggregate ID run one at
+ * a time in arrival order in that ID's mailbox; different aggregate IDs run in parallel on the runtime's shared
+ * workers ([me.ahoo.wow.execution.KeyedExecutor]).
  *
  * @param C The type of the command aggregate root.
  * @param S The type of the state aggregate.
  * @param name The name of this dispatcher.
  * @property aggregateMetadata The metadata for the aggregate being dispatched.
  * @param messageFlux The flux of command exchanges to process.
- * @param parallelism The level of parallelism for message processing.
  * @param commandHandler The command handler for processing commands.
- * @param scheduler The scheduler for handling messages.
  * @param messageReadiness Completion of asynchronous message-source setup when
  * this dispatcher is registered directly with a runtime.
  * @param processingAdmission Explicit transport-processing gate opened by
@@ -55,9 +45,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
         "${aggregateMetadata.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}",
     val aggregateMetadata: AggregateMetadata<C, S>,
     override val messageFlux: Flux<ServerCommandExchange<*>>,
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val commandHandler: CommandHandler,
-    override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
@@ -80,10 +68,6 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     override fun handleExchange(exchange: ServerCommandExchange<*>): Mono<Void> =
         commandHandler.handle(exchange, aggregateMetadata)
 
-    /**
-     * Generates a group key for the command exchange to ensure proper parallelism and ordering.
-     *
-     * @return The group key for this exchange.
-     */
-    override fun ServerCommandExchange<*>.toGroupKey(): Int = message.toGroupKey(parallelism)
+    /** Commands of one aggregate run in order: the mailbox key is the aggregate ID. */
+    override fun ServerCommandExchange<*>.mailboxKey(): Any = message.aggregateId.id
 }

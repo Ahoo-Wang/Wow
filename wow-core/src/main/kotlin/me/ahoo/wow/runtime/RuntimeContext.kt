@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.runtime
 
+import me.ahoo.wow.execution.KeyedExecutor
+
 /**
  * A single operation admitted by [RuntimeContext].
  *
@@ -43,4 +45,11 @@ interface RuntimeContext {
      * @return an idempotent activity lease, or `null` after runtime admission closes
      */
     fun tryAcquire(): RuntimeActivity?
+
+    /**
+     * The runtime's shared execution resource: dispatchers run their messages on its workers, one mailbox per
+     * aggregate ID. A context outside a [WowRuntime] uses [KeyedExecutor.shared].
+     */
+    val keyedExecutor: KeyedExecutor
+        get() = KeyedExecutor.shared
 }

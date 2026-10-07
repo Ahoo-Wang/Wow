@@ -19,7 +19,6 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
@@ -76,14 +75,8 @@ internal abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, 
      */
     abstract val eventHandler: EventHandler
 
-    /**
-     * Converts the exchange to a group key for parallel processing.
-     *
-     * @return The group key for partitioning events
-     *
-     * @see MessageParallelism.toGroupKey
-     */
-    override fun E.toGroupKey(): Int = message.toGroupKey(parallelism)
+    /** Events of one aggregate run in order: the mailbox key is the aggregate ID. */
+    override fun E.mailboxKey(): Any = message.aggregateId.id
 
     /**
      * Handles a message exchange by processing all events in the stream.

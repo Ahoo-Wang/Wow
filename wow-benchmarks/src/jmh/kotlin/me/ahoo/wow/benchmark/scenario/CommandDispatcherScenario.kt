@@ -14,7 +14,6 @@
 package me.ahoo.wow.benchmark.scenario
 
 import jakarta.validation.Validator
-import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
@@ -23,7 +22,6 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.RequestIdChecker
-import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
@@ -39,6 +37,7 @@ import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -49,7 +48,6 @@ import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.runtime.WowRuntime
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.test.validation.TestValidator
 import java.time.Duration
 
@@ -73,11 +71,11 @@ class CommandDispatcherScenario private constructor(
             snapshotStore: SnapshotStore = InMemorySnapshotStore(),
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
-            schedulerSupplier: AggregateSchedulerSupplier = BenchmarkAggregateSchedulerSupplier(),
+            keyedExecutor: KeyedExecutor = KeyedExecutor(),
             idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider =
                 DefaultAggregateIdempotencyCheckerProvider {
                     BenchmarkIdempotency.bloomFilterChecker()
-            },
+                },
             // The processing node's request-ID check, with its own Bloom filter, as the Spring wiring builds it when
             // command idempotency is enabled; null when it is disabled (K3).
             processingRequestIdChecker: RequestIdChecker? = DefaultRequestIdChecker(
@@ -122,12 +120,12 @@ class CommandDispatcherScenario private constructor(
                 namedAggregates = setOf(namedAggregate),
                 commandBus = gatewayScenario.commandGateway,
                 commandHandler = commandHandler,
-                schedulerSupplier = schedulerSupplier,
             )
             val runtime = WowRuntime(
                 components = listOf(commandDispatcher),
                 shutdownTimeout = Duration.ofSeconds(30),
                 shutdownQuietPeriod = Duration.ZERO,
+                keyedExecutor = keyedExecutor,
             )
             runtime.start().block()
             return CommandDispatcherScenario(

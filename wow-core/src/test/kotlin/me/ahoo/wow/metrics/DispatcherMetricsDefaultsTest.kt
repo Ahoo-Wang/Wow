@@ -27,7 +27,6 @@ import me.ahoo.wow.eventsourcing.snapshot.dispatcher.AggregateSnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.modeling.command.dispatcher.AggregateCommandDispatcher
@@ -36,18 +35,15 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 
 class DispatcherMetricsDefaultsTest {
     private val namedAggregate = mockk<NamedAggregate>()
     private val functionRegistrar =
         mockk<MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>>()
     private val eventHandler = mockk<EventHandler>()
-    private val scheduler = mockk<Scheduler>()
 
     @Test
     fun `aggregate dispatchers should default to disabled metrics`() {
@@ -57,7 +53,6 @@ class DispatcherMetricsDefaultsTest {
             messageFlux = Flux.empty<EventStreamExchange>(),
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,
-            scheduler = scheduler,
         )
         val aggregateStateEventDispatcher = AggregateStateEventDispatcher(
             name = "aggregate-state-event",
@@ -65,21 +60,18 @@ class DispatcherMetricsDefaultsTest {
             messageFlux = Flux.empty<StateEventExchange<*>>(),
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,
-            scheduler = scheduler,
         )
         val aggregateCommandDispatcher = AggregateCommandDispatcher(
             name = "aggregate-command",
             aggregateMetadata = mockk<AggregateMetadata<Any, Any>>(),
             messageFlux = Flux.empty(),
             commandHandler = mockk<CommandHandler>(),
-            scheduler = scheduler,
         )
         val aggregateSnapshotDispatcher = AggregateSnapshotDispatcher(
             name = "aggregate-snapshot",
             namedAggregate = namedAggregate,
             messageFlux = Flux.empty(),
             snapshotHandler = mockk<SnapshotHandler>(),
-            scheduler = scheduler,
         )
 
         aggregateEventDispatcher.name.assert().isEqualTo("aggregate-event")
@@ -92,11 +84,9 @@ class DispatcherMetricsDefaultsTest {
     fun `composite dispatchers should default to disabled metrics`() {
         val stateEventDispatcher = StateEventDispatcher(
             name = "state-event",
-            parallelism = MessageParallelism.DEFAULT_PARALLELISM,
             messageBus = mockk<StateEventBus>(),
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,
-            schedulerSupplier = mockk<AggregateSchedulerSupplier>(),
         )
         val statelessSagaDispatcher = StatelessSagaDispatcher(
             name = "stateless-saga",

@@ -17,12 +17,9 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 
 /**
  * Dispatcher for handling snapshot operations on state events for a specific aggregate.
@@ -31,9 +28,7 @@ import reactor.core.scheduler.Scheduler
  * @param name the name of this dispatcher (default: aggregateName-AggregateSnapshotDispatcher)
  * @param namedAggregate the named aggregate this dispatcher handles
  * @param messageFlux the flux of state event exchanges to process
- * @param parallelism the number of parallel processing groups (default: MessageParallelism.DEFAULT_PARALLELISM)
  * @param snapshotHandler the handler responsible for creating and storing snapshots
- * @param scheduler the scheduler for processing messages
  * @param messageReadiness completion of asynchronous message-source setup when
  * this dispatcher is registered directly with a runtime
  * @param processingAdmission explicit transport-processing gate opened by
@@ -46,9 +41,7 @@ class AggregateSnapshotDispatcher(
         "${namedAggregate.aggregateName}-${AggregateSnapshotDispatcher::class.simpleName!!}",
     override val namedAggregate: NamedAggregate,
     override val messageFlux: Flux<StateEventExchange<*>>,
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val snapshotHandler: SnapshotHandler,
-    override val scheduler: Scheduler,
     messageReadiness: Mono<Void> = Mono.empty(),
     processingAdmission: () -> Unit = {},
     processingQuiescence: () -> Unit = {},
@@ -83,10 +76,6 @@ class AggregateSnapshotDispatcher(
         return snapshotHandler.handle(exchange)
     }
 
-    /**
-     * Computes the group key for parallel processing based on the message.
-     *
-     * @return the group key for this exchange
-     */
-    override fun StateEventExchange<*>.toGroupKey(): Int = message.toGroupKey(parallelism)
+    /** State events of one aggregate are snapshotted in order: the mailbox key is the aggregate ID. */
+    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId.id
 }

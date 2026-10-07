@@ -25,13 +25,9 @@ import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 
 internal const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
 
@@ -50,9 +46,6 @@ class SnapshotDispatcher(
     override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.namedAggregateType.keys.toSet(),
     private val snapshotHandler: SnapshotHandler,
     private val stateEventBus: StateEventBus,
-    private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    private val schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME),
     metrics: WowMetrics = WowMetrics.NONE,
 ) : MainDispatcher<StateEventExchange<*>>(metrics) {
     override fun createMessageReceiver(
@@ -74,17 +67,8 @@ class SnapshotDispatcher(
         return AggregateSnapshotDispatcher(
             namedAggregate = namedAggregate,
             messageFlux = messageFlux,
-            parallelism = parallelism,
             snapshotHandler = snapshotHandler,
-            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             metrics = metrics,
         )
-    }
-
-    override fun stopManagedGracefully(): Mono<Void> =
-        schedulerSupplier.stopGracefully()
-
-    override fun forceStopManaged() {
-        schedulerSupplier.forceStop()
     }
 }

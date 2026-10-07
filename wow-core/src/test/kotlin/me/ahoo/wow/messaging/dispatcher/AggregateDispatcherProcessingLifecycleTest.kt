@@ -25,8 +25,6 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -104,10 +102,8 @@ private class ProcessingLifecycleDispatcher(
 ) {
     override val name: String = "processing-lifecycle"
     override val namedAggregate: NamedAggregate = ProcessingLifecycleMessage().materialize()
-    override val parallelism: Int = 1
-    override val scheduler: Scheduler = Schedulers.immediate()
 
-    override fun ProcessingLifecycleExchange.toGroupKey(): Int = 0
+    override fun ProcessingLifecycleExchange.mailboxKey(): Any = 0
 
     override fun handleExchange(exchange: ProcessingLifecycleExchange): Mono<Void> = Mono.empty()
 }

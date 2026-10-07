@@ -19,7 +19,6 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.metrics.WowMetrics
@@ -27,8 +26,6 @@ import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
 import me.ahoo.wow.runtime.internal.forceAllReporting
 import me.ahoo.wow.runtime.internal.stopAllReporting
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.scheduler.BorrowedAggregateSchedulerSupplier
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -40,18 +37,16 @@ import java.util.concurrent.atomic.AtomicReference
  * - [EventStreamDispatcher] for handling domain event streams.
  * - [StateEventDispatcher] for handling state-related events.
  *
- * It provides a unified way to start and stop both dispatchers, ensuring proper lifecycle management and parallelism control.
+ * It provides a unified way to start and stop both dispatchers, ensuring proper lifecycle management.
  *
  * Example usage:
  * ```
  * val dispatcher = CompositeEventDispatcher(
  *     name = "MyApp.DomainEventDispatcher",
- *     parallelism = 4,
  *     domainEventBus = myDomainEventBus,
  *     stateEventBus = myStateEventBus,
  *     functionRegistrar = myFunctionRegistrar,
- *     eventHandler = myEventHandler,
- *     schedulerSupplier = mySchedulerSupplier
+ *     eventHandler = myEventHandler
  * )
  * val runtime = WowRuntime(
  *     components = listOf(dispatcher),
@@ -64,12 +59,10 @@ import java.util.concurrent.atomic.AtomicReference
  * ```
  *
  * @param name The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
- * @param parallelism The level of parallelism for processing events. Defaults to [MessageParallelism.DEFAULT_PARALLELISM].
  * @param domainEventBus The domain event bus for publishing and subscribing to domain events.
  * @param stateEventBus The state event bus for handling state-related events.
  * @param functionRegistrar The registrar for domain event handler functions.
  * @param eventHandler The event handler for processing domain events.
- * @param schedulerSupplier Supplier for creating schedulers for aggregate processing. Defaults to a default implementation.
  * @param metrics Instance-scoped metrics recorder propagated to both child dispatchers.
  *
  * @see EventStreamDispatcher
@@ -82,11 +75,6 @@ open class CompositeEventDispatcher(
      * The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
      */
     override val name: String,
-    /**
-     * The level of parallelism for processing events.
-     * @default MessageParallelism.DEFAULT_PARALLELISM
-     */
-    private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     /**
      * The domain event bus for publishing and subscribing to domain events.
      */
@@ -103,24 +91,14 @@ open class CompositeEventDispatcher(
      * The event handler for processing domain events.
      */
     private val eventHandler: EventHandler,
-    /**
-     * Supplier for creating schedulers for aggregate processing.
-     * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
-     */
-    private val schedulerSupplier: AggregateSchedulerSupplier,
     private val metrics: WowMetrics = WowMetrics.NONE,
 ) : MessageDispatcher {
-    private val childSchedulerSupplier =
-        BorrowedAggregateSchedulerSupplier(schedulerSupplier)
-
     private val eventStreamDispatcherLazy = lazy {
         EventStreamDispatcher(
             name = name,
-            parallelism = parallelism,
             messageBus = domainEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = childSchedulerSupplier,
             metrics = metrics,
         )
     }
@@ -129,11 +107,9 @@ open class CompositeEventDispatcher(
     private val stateEventDispatcherLazy = lazy {
         StateEventDispatcher(
             name = name,
-            parallelism = parallelism,
             messageBus = stateEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.STATE_EVENT },
             eventHandler = eventHandler,
-            schedulerSupplier = childSchedulerSupplier,
             metrics = metrics,
         )
     }
@@ -231,17 +207,9 @@ open class CompositeEventDispatcher(
                         )
                     }
                 }
-                add(::stopSchedulerGracefullyIfAllowed)
             },
             ::reportRuntimeFailure,
         )
-
-    private fun stopSchedulerGracefullyIfAllowed(): Mono<Void> =
-        if (forceStopRequested.get()) {
-            Mono.empty()
-        } else {
-            schedulerSupplier.stopGracefully()
-        }
 
     final override fun forceStop() {
         forceStopRequested.set(true)
@@ -252,7 +220,6 @@ open class CompositeEventDispatcher(
                         group.forceStop()?.let { throw it }
                     }
                 }
-                add(schedulerSupplier::forceStop)
             },
             ::reportRuntimeFailure,
         )?.let { throw it }
