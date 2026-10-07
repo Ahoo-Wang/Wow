@@ -28,8 +28,12 @@ private const val LOCAL_DELIVERY_TICKET_ATTRIBUTE = "__WOW_LOCAL_DELIVERY_TICKET
  *
  * Rejection wins over incomplete confirmations. Once every target confirms,
  * the receipt is terminal and later route shutdown cannot revoke admitted work.
- * Sender continuation crosses an asynchronous boundary so route shutdown never
- * runs a distributed fallback on its lifecycle thread.
+ * A rejection continues across an asynchronous boundary so route shutdown never
+ * runs a distributed fallback on its lifecycle thread. A confirmation continues
+ * on the confirming receiver's thread (the sender's, when the receiver admits
+ * the message as it is emitted): waking a scheduler thread for every admitted
+ * message cost more than the continuation itself, which only sends the
+ * distributed copy, a non-blocking send.
  */
 internal class LocalDeliveryReceipt(targets: Set<LocalDeliveryRouteTarget>) {
     private val monitor = Any()
@@ -45,8 +49,14 @@ internal class LocalDeliveryReceipt(targets: Set<LocalDeliveryRouteTarget>) {
     }
 
     fun signal(): Mono<Boolean> =
-        result.asMono()
-            .publishOn(Schedulers.parallel())
+        result.asMono().flatMap { admitted ->
+            if (admitted) ADMITTED else REJECTED
+        }
+
+    private companion object {
+        val ADMITTED: Mono<Boolean> = Mono.just(true)
+        val REJECTED: Mono<Boolean> = Mono.just(false).publishOn(Schedulers.parallel())
+    }
 
     fun claim(target: LocalDeliveryRouteTarget): LocalDeliveryTicket? =
         synchronized(monitor) {
