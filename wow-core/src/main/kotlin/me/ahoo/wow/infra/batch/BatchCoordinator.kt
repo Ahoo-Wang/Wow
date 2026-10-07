@@ -64,9 +64,10 @@ class BatchCoordinator<T : Any>(
     private val admission = BatchAdmission<T>(options.maxPendingItems, enabledMetrics)
     private val lifecycle = BatchLifecycle(name)
 
-    // Lock order: a lane's admission lock may be held while taking the lifecycle lock (a lane that completes or fails
-    // synchronously), never the reverse. Never acquire the result lock while holding an admission or lifecycle lock,
-    // or vice versa.
+    // Lock order: a lane's admission lock comes first. A lane that completes or fails synchronously inside an
+    // admission or completion takes the lifecycle lock and the result lock while still holding its admission lock.
+    // The reverse never happens: no lifecycle or result lock holder ever takes a lane admission lock, which is why
+    // the failure fence (BatchLane.awaitAdmissions) runs outside both.
     private val resultLock = Any()
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
@@ -75,6 +76,9 @@ class BatchCoordinator<T : Any>(
     private val batchScheduler = Schedulers.newSingle("$name-batch-window", true)
     private val resultDispatcher: BatchResultDispatcher
     private val lanes: Array<BatchLane<T>>
+
+    /** Test seam: runs inside a lane's admission lock after the lifecycle check, before the request is accepted. */
+    internal var admissionProbe: (() -> Unit)? = null
 
     init {
         resultDispatcher = BatchResultDispatcher(
@@ -136,6 +140,7 @@ class BatchCoordinator<T : Any>(
                 return@defer Mono.error(error)
             }
             val emitResult = lanes[lane].emitIfOpen(lifecycle::isOpen) {
+                admissionProbe?.invoke()
                 admission.accept(request)
                 request
             }
