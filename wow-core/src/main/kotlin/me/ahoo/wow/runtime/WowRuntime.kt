@@ -402,6 +402,8 @@ class WowRuntime private constructor(
             return
         }
         runtimeContext.forceClose()
+        // Synchronously, like disposing the 9.2 schedulers: no queued message starts after the force stop.
+        keyedExecutor.forceClose()
         gracefulOwner?.dispatchCancellation()
         val forceFailure = componentGroup.forceStop()
         forceFailure?.let(::recordFailure)

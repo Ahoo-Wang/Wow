@@ -69,6 +69,15 @@ class KeyedExecutor(
         dispatchWorkers.close()
     }
 
+    /**
+     * Stops the workers at once (the runtime's force stop, like disposing a Reactor scheduler): queued mailboxes are
+     * discarded on the calling thread — their messages are rejected and stay unacknowledged for redelivery — and no
+     * mailbox starts another message. A handler already running finishes its current step. Idempotent.
+     */
+    fun forceClose() {
+        dispatchWorkers.forceClose()
+    }
+
     override fun toString(): String =
         "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight, throughput=$throughput)"
 

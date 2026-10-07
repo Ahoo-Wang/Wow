@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.execution
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineDispatcher
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
@@ -30,6 +31,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import java.util.function.Function
+
+private val log = KotlinLogging.logger {}
 
 /**
  * The Reactor context key under which a dispatcher's handler finds the [CoroutineDispatcher] its `suspend` and `Flow`
@@ -166,6 +169,10 @@ private class KeyedDispatchSubscriber<T : Any>(
 
     fun nextAffinity(): Int = executor.dispatchWorkers.nextAffinity()
 
+    /** Whether no further element may start: the dispatch is cancelled or the workers are force-closed. */
+    val stopped: Boolean
+        get() = cancelled || executor.dispatchWorkers.forced
+
     private companion object {
         /** Replenish once 1/16 of the in-flight window has finished. */
         const val REPLENISH_SHIFT = 4
@@ -255,8 +262,11 @@ private class KeyedDispatchSubscriber<T : Any>(
     class Mailbox<T : Any>(
         val key: Any,
         private val owner: KeyedDispatchSubscriber<T>,
-    ) : Runnable, CoreSubscriber<Void> {
-        /** The worker this mailbox runs on for as long as it exists. */
+    ) : Runnable, CoreSubscriber<Void>, DispatchWorkers.Discardable {
+        /**
+         * The worker this mailbox runs on for as long as it exists. There is no work stealing: a mailbox never moves
+         * to another worker, even when its worker is busy with other mailboxes.
+         */
         val affinity: Int = owner.nextAffinity()
 
         enum class Offer { STARTED, QUEUED, REMOVED }
@@ -313,7 +323,7 @@ private class KeyedDispatchSubscriber<T : Any>(
             var budget = owner.throughput
             while (true) {
                 val element = synchronized(this) { head } ?: return
-                if (owner.cancelled) {
+                if (owner.stopped) {
                     owner.discard(element)
                     if (!advance()) {
                         return
@@ -325,7 +335,10 @@ private class KeyedDispatchSubscriber<T : Any>(
                 val publisher = try {
                     owner.handler(element)
                 } catch (error: Throwable) {
-                    Exceptions.throwIfFatal(error)
+                    if (Exceptions.isFatal(error)) {
+                        log.error(error) { "Mailbox[$key] is wedged: its handler threw a fatal error." }
+                        throw error
+                    }
                     Mono.error(error)
                 }
                 publisher.subscribe(this)
@@ -366,6 +379,12 @@ private class KeyedDispatchSubscriber<T : Any>(
             synchronized(this) {
                 queue?.toList()?.also { queue?.clear() } ?: emptyList()
             }
+
+        /** The workers were force-closed while this mailbox was queued: discard instead of run. */
+        override fun discard() {
+            clearScheduled()
+            discardAll()
+        }
 
         /** Discards the head and every waiting element, finishing each (the executor rejected the run). */
         fun discardAll() {

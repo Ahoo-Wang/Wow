@@ -39,11 +39,25 @@ internal class DispatchWorkers(
     var closed: Boolean = false
         private set
 
+    /** Set by [forceClose]: queued tasks are discarded instead of run. */
+    @Volatile
+    var forced: Boolean = false
+        private set
+
+    /** A task that can be dropped without running when the workers are force-closed. */
+    interface Discardable {
+        /** Called instead of running the task; it must release what the task holds (e.g. reject its messages). */
+        fun discard()
+    }
+
     init {
         workers.forEach(Thread::start)
     }
 
-    /** Runs [task] on the worker [affinity] selects; rejects once [close]d. */
+    /**
+     * Runs [task] on the worker [affinity] selects. Rejects once [close]d: either before queueing, or — when the
+     * worker exited while the task was being queued — by taking the task back, so a task is always run or rejected.
+     */
     fun execute(task: Runnable, affinity: Int) {
         if (closed) {
             throw RejectedExecutionException("Dispatch workers are closed.")
@@ -84,8 +98,23 @@ internal class DispatchWorkers(
         workers.forEach { LockSupport.unpark(it) }
     }
 
+    /**
+     * Stops at once, like disposing a Reactor scheduler: later submissions are rejected, and every queued task is
+     * discarded ([Discardable.discard]) on the calling thread instead of run. A task already running finishes its
+     * current step; a mailbox does not start another message once [forced] is set. Idempotent.
+     */
+    fun forceClose() {
+        forced = true
+        close()
+        workers.forEach { it.discardQueued() }
+    }
+
     private inner class Worker(name: String) : Thread(name), NonBlocking {
         private val queue = ConcurrentLinkedQueue<Runnable>()
+
+        /** Set once the worker has decided to exit; a submission seeing it takes its task back. */
+        @Volatile
+        private var exited = false
 
         /** 1 while the worker is about to park or parked: the submission that resets it unparks the worker. */
         @Volatile
@@ -100,21 +129,44 @@ internal class DispatchWorkers(
 
         fun submit(task: Runnable) {
             queue.offer(task)
+            // The worker sets `exited` and then drains once more: if the drain did not take this task, take it back.
+            if (exited && queue.remove(task)) {
+                throw RejectedExecutionException("Dispatch workers are closed.")
+            }
             if (idle == 1 && IDLE.compareAndSet(this, 1, 0)) {
                 LockSupport.unpark(this)
             }
         }
 
-        @Suppress("TooGenericExceptionCaught")
+        fun discardQueued() {
+            while (true) {
+                discard(queue.poll() ?: return)
+            }
+        }
+
         override fun run() {
             while (true) {
-                val task = queue.poll() ?: awaitTask() ?: return
-                try {
+                val task = queue.poll() ?: awaitTask() ?: break
+                runOrDiscard(task)
+            }
+            exited = true
+            // A task queued after the last check and before `exited` was published: run (or discard) it here.
+            while (true) {
+                runOrDiscard(queue.poll() ?: return)
+            }
+        }
+
+        @Suppress("TooGenericExceptionCaught")
+        private fun runOrDiscard(task: Runnable) {
+            try {
+                if (forced) {
+                    discard(task)
+                } else {
                     task.run()
-                } catch (error: Throwable) {
-                    Exceptions.throwIfJvmFatal(error)
-                    uncaughtExceptionHandler?.uncaughtException(this, error)
                 }
+            } catch (error: Throwable) {
+                Exceptions.throwIfJvmFatal(error)
+                uncaughtExceptionHandler?.uncaughtException(this, error)
             }
         }
 
@@ -141,6 +193,16 @@ internal class DispatchWorkers(
                     return null
                 }
             }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun discard(task: Runnable) {
+        try {
+            (task as? Discardable)?.discard()
+        } catch (error: Throwable) {
+            Exceptions.throwIfJvmFatal(error)
+            Thread.currentThread().uncaughtExceptionHandler?.uncaughtException(Thread.currentThread(), error)
         }
     }
 

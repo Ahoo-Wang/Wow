@@ -114,6 +114,44 @@ class AggregateDispatcherExecutionTest {
         }
     }
 
+    /** Force stop is synchronous, as disposing the 9.2 schedulers was: no queued message starts afterwards. */
+    @Test
+    fun `runtime force stop starts no queued message`() {
+        val running = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val handled = CopyOnWriteArrayList<Int>()
+        val dispatcher = ExecutionDispatcher(
+            name = "force-stopped",
+            messageFlux = Flux.range(
+                0,
+                50
+            ).map { ExecutionExchange(aggregateId = "aggregate-${it % 2}", sequence = it) },
+        ) { exchange ->
+            Mono.fromRunnable {
+                handled += exchange.sequence
+                if (exchange.sequence == 0) {
+                    running.countDown()
+                    release.await(5, TimeUnit.SECONDS)
+                }
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(dispatcher),
+            shutdownTimeout = Duration.ofSeconds(5),
+            shutdownQuietPeriod = Duration.ZERO,
+            keyedExecutor = KeyedExecutor(workers = 1, name = "force-stop-workers"),
+        )
+        runtime.start().block()
+        running.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+        runtime.forceStop()
+        release.countDown()
+
+        Thread.sleep(100)
+        handled.assert().containsExactly(0)
+        runtime.keyedExecutor.isDisposed.assert().isTrue()
+    }
+
     private class ExecutionDispatcher(
         override val name: String,
         override val messageFlux: Flux<ExecutionExchange>,

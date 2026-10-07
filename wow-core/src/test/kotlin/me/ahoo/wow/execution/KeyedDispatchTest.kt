@@ -414,10 +414,16 @@ class KeyedDispatchTest {
                 val active = ConcurrentHashMap<Int, AtomicInteger>()
                 val overlap = AtomicBoolean()
                 val handled = AtomicInteger()
+                val lastSeen = ConcurrentHashMap<Int, Int>()
+                val outOfOrder = AtomicBoolean()
                 val dispatched = Flux.range(0, total).dispatchKeyed(contended, { it % keys }) { value ->
                     Mono.defer {
                         if (active.computeIfAbsent(value % keys) { AtomicInteger() }.incrementAndGet() != 1) {
                             overlap.set(true)
+                        }
+                        // Elements of one key arrive in increasing order: each must exceed the key's previous one.
+                        if ((lastSeen.put(value % keys, value) ?: -1) >= value) {
+                            outOfOrder.set(true)
                         }
                         val completion = when (value % 3) {
                             0 -> Mono.empty()
@@ -434,6 +440,7 @@ class KeyedDispatchTest {
                 StepVerifier.create(dispatched).expectComplete().verify(Duration.ofSeconds(30))
                 handled.get().assert().describedAs("round $round").isEqualTo(total)
                 overlap.get().assert().describedAs("round $round").isFalse()
+                outOfOrder.get().assert().describedAs("round $round").isFalse()
             }
         } finally {
             contended.close()
@@ -464,6 +471,39 @@ class KeyedDispatchTest {
             order.filter { it.startsWith("hot") }.assert().isEqualTo((0 until 100).map { "hot-$it" })
         } finally {
             oneWorker.close()
+        }
+    }
+
+    @Test
+    fun `forceClose discards queued elements and starts no further element`() {
+        val forced = KeyedExecutor(workers = 1, name = "keyed-dispatch-force")
+        val running = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val handled = CopyOnWriteArrayList<Int>()
+        val discarded = CopyOnWriteArrayList<Any>()
+        val subscription = Flux.range(0, 20)
+            .dispatchKeyed(forced, { it % 4 }) { value ->
+                Mono.fromRunnable {
+                    handled += value
+                    if (value == 0) {
+                        running.countDown()
+                        release.await(5, TimeUnit.SECONDS)
+                    }
+                }
+            }
+            .doOnDiscard(Int::class.javaObjectType) { discarded += it }
+            .subscribe()
+        try {
+            running.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            forced.forceClose()
+            release.countDown()
+
+            awaitTrue { handled.size + discarded.size == 20 }
+            handled.assert().containsExactly(0)
+            discarded.assert().hasSize(19)
+        } finally {
+            subscription.dispose()
         }
     }
 

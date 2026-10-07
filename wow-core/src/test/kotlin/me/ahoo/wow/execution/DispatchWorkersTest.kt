@@ -107,6 +107,79 @@ class DispatchWorkersTest {
         }
     }
 
+    /**
+     * `close` racing submissions: every task is either run or rejected. Before the fix a task queued just after its
+     * worker saw `closed` with an empty queue (and exited) was neither — its completion never fired.
+     */
+    @Test
+    fun `a task submitted while the workers close is run or rejected, never stranded`() {
+        repeat(200) { round ->
+            val workers = DispatchWorkers(2, "dispatch-workers-close-race")
+            val submitters = Executors.newFixedThreadPool(3)
+            val ran = AtomicInteger()
+            val rejected = AtomicInteger()
+            val submitted = 3 * 200
+            val done = CountDownLatch(3)
+            repeat(3) { submitter ->
+                submitters.execute {
+                    repeat(submitted / 3) { index ->
+                        try {
+                            workers.execute({ ran.incrementAndGet() }, submitter + index)
+                        } catch (_: RejectedExecutionException) {
+                            rejected.incrementAndGet()
+                        }
+                    }
+                    done.countDown()
+                }
+            }
+            Thread.yield()
+            workers.close()
+            done.await(5, TimeUnit.SECONDS).assert().isTrue()
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (ran.get() + rejected.get() < submitted && System.nanoTime() < deadline) {
+                Thread.sleep(1)
+            }
+            (ran.get() + rejected.get()).assert().describedAs("round $round").isEqualTo(submitted)
+            submitters.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `forceClose discards queued tasks on the calling thread and rejects new ones`() {
+        val workers = DispatchWorkers(1, "dispatch-workers-force")
+        val running = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val ran = AtomicInteger()
+        val discarded = CopyOnWriteArrayList<String>()
+        workers.execute {
+            running.countDown()
+            release.await(5, TimeUnit.SECONDS)
+        }
+        running.await(5, TimeUnit.SECONDS).assert().isTrue()
+        repeat(5) {
+            workers.execute(object : Runnable, DispatchWorkers.Discardable {
+                override fun run() {
+                    ran.incrementAndGet()
+                }
+
+                override fun discard() {
+                    discarded += Thread.currentThread().name
+                }
+            })
+        }
+        workers.execute { ran.incrementAndGet() }
+
+        workers.forceClose()
+
+        discarded.assert().hasSize(5)
+        discarded.toSet().assert().containsExactly(Thread.currentThread().name)
+        workers.forced.assert().isTrue()
+        assertThrows<RejectedExecutionException> { workers.execute {} }
+        release.countDown()
+        Thread.sleep(50)
+        ran.get().assert().isZero()
+    }
+
     @Test
     fun `close runs the queued tasks, then rejects new ones`() {
         val workers = DispatchWorkers(1, "dispatch-workers-close")
