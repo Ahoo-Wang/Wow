@@ -245,6 +245,19 @@ class RouteIdentityBindingTest {
         withoutOwner.ownerId().assert().isNull()
     }
 
+    @Test
+    fun `only identity path variables can be required`() {
+        val values = IdentityPathValues(tenantId = "tenant-a", ownerId = null, id = " ")
+        values.require(MessageRecords.TENANT_ID).assert().isEqualTo("tenant-a")
+        assertThrownBy<IllegalArgumentException> { values.require(MessageRecords.OWNER_ID) }
+            .hasMessage("Path variable [ownerId] must not be blank.")
+        assertThrownBy<IllegalArgumentException> { values.require(MessageRecords.ID) }
+            .hasMessage("Path variable [id] must not be blank.")
+        assertThrownBy<IllegalStateException> { values.require("other") }
+            .hasMessage("[other] is not an identity path variable.")
+        values["other"].assert().isNull()
+    }
+
     private fun orderBinding(request: ServerRequest): RouteIdentityBinding =
         RouteIdentity.of(request).binding(Order::class.java.aggregateRouteMetadata())
 
