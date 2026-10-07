@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.internal
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext
 import reactor.core.Exceptions
@@ -69,7 +70,12 @@ internal class RuntimeComponentGroup(
 
     /**
      * Stops durable intake in registration order, before global admission closes.
+     *
+     * Suspension only shortens shutdown, so a component that fails to suspend is logged at WARN and skipped: the
+     * remaining components are still suspended, the failure is not reported, and quiescence still drains whatever the
+     * failed component keeps delivering.
      */
+    @Suppress("TooGenericExceptionCaught")
     fun suspendDurableIntake(
         shouldSuspend: () -> Boolean = { true },
     ): Boolean {
@@ -77,7 +83,16 @@ internal class RuntimeComponentGroup(
             if (!shouldSuspend() || !beginLifecycleAction(slot)) {
                 return false
             }
-            invokeLifecycleAction(slot, slot.component::suspendDurableIntake)
+            try {
+                slot.component.suspendDurableIntake()
+            } catch (error: Throwable) {
+                Exceptions.throwIfFatal(error)
+                log.warn(error) {
+                    "Failed to suspend the durable intake of ${slot.component.identityDescription()}; " +
+                        "it keeps receiving until quiescence closes its intake."
+                }
+            }
+            slot.completeLifecycleAction()?.let { throw it }
         }
         return true
     }
@@ -284,6 +299,8 @@ internal class RuntimeComponentGroup(
         }
 
     private companion object {
+        private val log = KotlinLogging.logger {}
+
         fun requireDistinctIdentities(components: List<RuntimeComponent>) {
             val identities =
                 Collections.newSetFromMap(IdentityHashMap<RuntimeComponent, Boolean>())

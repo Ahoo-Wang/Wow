@@ -94,6 +94,8 @@ flowchart LR
 | Redis Streams | 接收器停止读取。已经读到、但没有交出的条目保持待处理状态，不会 `XACK`；它空闲超过 `min-idle-time`、且本消费者已不活跃后，待处理消息恢复把它认领给组内其他消费者（`RedisStreamRecoveryOptions`） |
 | 进程内工作 | 与 9.2 相同：本地总线、本地优先的交接、Saga 或处理函数在排空期间发出的命令，在全局准入关闭前都会被接纳，已经在途的链路因此能在时限内完成。准入关闭后到达的消息照旧被拒绝（本地优先的交接退回到它的分布式副本） |
 
+暂停只是缩短停机：某个组件或接收器暂停失败时记 WARN，它继续接收，直到 quiesce 关闭它的入口；其他组件照常暂停，这次失败既不让停机失败，也不把它变成强制停止。
+
 只有中间件会保留未拉取的记录时，不拉取才是安全的，所以只暂停 `TransportReceiver.durable` 为 `true` 的接收器。内存总线与 `InMemoryTransport` 不投递就会丢消息，它们继续投递，直到准入关闭。HTTP 入口在运行时停止之前已经关闭：Spring Boot 中 Web 服务器在更早的生命周期阶段停止。
 
 `shutdownTimeout` 从停机 owner 建立时开始约束整个停机，而不只是单个组件。deadline 到达会记录 `TimeoutException` 并由强制清理接管。`stop(timeout)` 只限制当前调用者阻塞等待的时间，不会改变 Runtime 的全局 deadline。

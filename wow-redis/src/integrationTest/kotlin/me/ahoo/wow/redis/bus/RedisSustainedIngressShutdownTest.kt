@@ -34,6 +34,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -68,6 +69,8 @@ class RedisSustainedIngressShutdownTest {
         )
         val processed: MutableSet<String> = ConcurrentHashMap.newKeySet()
         val processCounts = ConcurrentHashMap<String, AtomicInteger>()
+        // aggregate ID -> send sequence of its commands, in processing order
+        val processedOrder = ConcurrentHashMap<String, MutableList<Int>>()
         val dispatcher = CommandDispatcher(
             name = group,
             namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
@@ -81,6 +84,9 @@ class RedisSustainedIngressShutdownTest {
                         Mono.fromRunnable<Void> {
                             processed += (exchange as TransportServerCommandExchange<*>).record.id
                             processCounts.computeIfAbsent(exchange.message.id) { AtomicInteger() }.incrementAndGet()
+                            processedOrder.computeIfAbsent(exchange.message.aggregateId.id) {
+                                CopyOnWriteArrayList()
+                            } += (exchange.message.body as MockCreateAggregate).data.toInt()
                         },
                     )
                     .then(exchange.acknowledge())
@@ -134,6 +140,8 @@ class RedisSustainedIngressShutdownTest {
         // Exactly the processed entries are acknowledged: nothing acknowledged without processing, and nothing
         // processed stays pending for another member to process again.
         acknowledged.assert().isEqualTo(processed.toSet())
+        // Per-aggregate order held: each aggregate's commands were processed in send order.
+        processedOrder.values.forEach { it.assert().isSorted() }
         // Ingress went on: entries were left unread or pending for the group.
         (entries.size - acknowledged.size).assert().isGreaterThan(0)
         bus.close()

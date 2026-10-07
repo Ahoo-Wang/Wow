@@ -256,16 +256,24 @@ abstract class MainDispatcher<T : Any>(
     }
 
     /**
-     * Stops every context receiver pulling from its durable transport; processing stays open.
+     * Stops every context receiver pulling from its durable transport; processing stays open. Suspension only
+     * shortens shutdown: a receiver that fails to suspend is logged at WARN and the others are still suspended.
      */
+    @Suppress("TooGenericExceptionCaught")
     final override fun suspendDurableIntake() {
         if (forceStopRequested.get() || !aggregateDispatcherBindingsLazy.isInitialized()) {
             return
         }
-        forceAllReporting(
-            aggregateDispatcherBindingsLazy.value.map { it.suspendDurableIntake },
-            ::reportRuntimeFailure,
-        )?.let { throw it }
+        aggregateDispatcherBindingsLazy.value.forEach { binding ->
+            try {
+                binding.suspendDurableIntake()
+            } catch (error: Throwable) {
+                Exceptions.throwIfFatal(error)
+                log.warn(error) {
+                    "Failed to suspend a durable intake; it keeps receiving until quiescence.".withNamePrefix()
+                }
+            }
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")

@@ -129,8 +129,8 @@ class SustainedIngressShutdownTest {
         fun assertNothingCommittedUnprocessed() {
             // No record was processed twice.
             processed.values.forEach { it.get().assert().isEqualTo(1) }
-            // Every acknowledged record was processed, and the committed prefix holds only processed records.
-            broker.acknowledged.forEach { processed.keys.assert().contains(it) }
+            // Exactly the processed records were acknowledged, and the committed prefix holds only processed records.
+            broker.acknowledged.toSet().assert().isEqualTo(processed.keys.toSet())
             val committed = broker.committedOffset()
             (0 until committed).forEach { processed.keys.assert().contains(it) }
             // Records the runtime never pulled stay uncommitted for another member.

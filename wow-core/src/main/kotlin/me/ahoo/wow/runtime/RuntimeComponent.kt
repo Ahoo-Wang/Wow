@@ -52,6 +52,7 @@ interface RuntimeComponent {
      *
      * This method must be prompt, non-blocking, and idempotent, and must not cancel the source (its consumer still
      * acknowledges the records being processed). Components without a durable intake may implement it as a no-op.
+     * A failure is logged at WARN and does not fail the stop: the component keeps receiving until [quiesce].
      */
     fun suspendDurableIntake() = Unit
 

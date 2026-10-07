@@ -247,8 +247,11 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
                 closeReceivers(localReceiver, distributedReceiver)
             },
             durableIntakeSuspension = {
-                localReceiver.suspendDurableIntake()
-                distributedReceiver.suspendDurableIntake()
+                try {
+                    localReceiver.suspendDurableIntake()
+                } finally {
+                    distributedReceiver.suspendDurableIntake()
+                }
             },
         )
     }

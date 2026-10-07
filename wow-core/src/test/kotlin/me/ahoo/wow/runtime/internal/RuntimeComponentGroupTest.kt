@@ -114,6 +114,36 @@ class RuntimeComponentGroupTest {
     }
 
     @Test
+    fun `a failing durable intake suspension is skipped without reporting a failure`() {
+        val calls = mutableListOf<String>()
+        val reportedFailures = mutableListOf<Throwable>()
+        val failing = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext) = Mono.empty<Void>()
+
+            override fun start() = Unit
+
+            override fun suspendDurableIntake() {
+                throw IllegalStateException("suspend")
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.empty()
+
+            override fun forceStop() = Unit
+        }
+        val group = RuntimeComponentGroup(
+            listOf(failing, RecordingComponent("second", calls)),
+            reportedFailures::add,
+        )
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
+
+        group.suspendDurableIntake().assert().isTrue()
+        group.quiesce().assert().isTrue()
+
+        calls.assert().containsExactly("prepare:second", "suspend:second", "quiesce:second")
+        reportedFailures.assert().isEmpty()
+    }
+
+    @Test
     fun `force stop covers every registered component before preparation`() {
         val calls = mutableListOf<String>()
         val group = RuntimeComponentGroup(

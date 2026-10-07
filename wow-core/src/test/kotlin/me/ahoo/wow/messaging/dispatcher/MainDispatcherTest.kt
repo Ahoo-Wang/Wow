@@ -240,17 +240,16 @@ class MainDispatcherTest {
     }
 
     @Test
-    fun `a failing durable intake suspension still suspends every receiver and is reported`() {
-        val failure = IllegalStateException("suspend")
-        val dispatcher = RecordingMainDispatcher(suspensionFailure = failure)
-        prepareAndStart(dispatcher)
+    fun `a failing durable intake suspension is logged, not reported, and every receiver is still suspended`() {
+        val reported = CopyOnWriteArrayList<Throwable>()
+        val dispatcher = RecordingMainDispatcher(suspensionFailure = IllegalStateException("suspend"))
+        dispatcher.prepare(DefaultRuntimeContext(failureHandler = { reported += it })).block()
+        dispatcher.start()
 
-        val thrown = assertThrows<IllegalStateException> {
-            dispatcher.suspendDurableIntake()
-        }
+        dispatcher.suspendDurableIntake()
 
-        thrown.assert().isSameAs(failure)
         dispatcher.durableIntakeSuspendCount.get().assert().isEqualTo(2)
+        reported.assert().isEmpty()
         dispatcher.forceStop()
     }
 

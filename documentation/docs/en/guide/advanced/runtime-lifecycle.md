@@ -94,6 +94,8 @@ Since 9.3.0 a graceful stop first suspends durable intake: every dispatcher's Ka
 | Redis Streams | The receiver stops reading. An entry it read but did not hand over stays pending without `XACK`; pending-message recovery claims it for another consumer of the group once it has been idle for `min-idle-time` and this consumer is inactive (`RedisStreamRecoveryOptions`) |
 | In-process work | Unchanged from 9.2: local buses, local-first hand-offs, and commands that sagas or handlers send during the drain are admitted until global admission closes, so a chain already in flight completes within the deadline. A message that arrives after admission closes is rejected as before (a local-first hand-off falls back to its distributed copy) |
 
+Suspension only shortens the stop: a component or receiver that fails to suspend is logged at WARN and keeps receiving until quiescence closes its intake; the others are still suspended, and the failure neither fails the stop nor turns it into a force stop.
+
 Not pulling is safe only where the broker keeps what is not pulled, so only receivers whose `TransportReceiver.durable` is `true` are suspended. The in-memory buses and `InMemoryTransport` would lose a message they do not deliver, so they keep delivering until admission closes. HTTP intake is closed before the runtime stops: under Spring Boot the web server stops in an earlier lifecycle phase.
 
 `shutdownTimeout` bounds the entire shutdown from creation of the shutdown owner, not one component. Deadline expiry records a `TimeoutException` and transfers ownership to force cleanup. `stop(timeout)` limits only that caller's blocking wait; it does not replace the runtime deadline.
