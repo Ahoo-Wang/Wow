@@ -41,32 +41,34 @@ class WowMetrics(
     val enabled: Boolean
         get() = meterRegistry != null
 
+    private val meters: MeterCache? = meterRegistry?.let(::MeterCache)
+
     fun <T : Any> operation(
         source: Mono<T>,
         descriptor: MetricDescriptor,
     ): Mono<T> {
-        val registry = meterRegistry ?: return source
-        return source.tap(OperationMetricsListenerFactory(registry, descriptor, recordItems = false))
+        val cache = meters ?: return source
+        return source.tap(OperationMetricsListenerFactory(cache, descriptor, recordItems = false))
     }
 
     fun <T : Any> operation(
         source: Flux<T>,
         descriptor: MetricDescriptor,
     ): Flux<T> {
-        val registry = meterRegistry ?: return source
-        return source.tap(OperationMetricsListenerFactory(registry, descriptor, recordItems = true))
+        val cache = meters ?: return source
+        return source.tap(OperationMetricsListenerFactory(cache, descriptor, recordItems = true))
     }
 
     fun <T : Any> stream(
         source: Flux<T>,
         descriptor: MetricDescriptor,
     ): Flux<T> {
-        val registry = meterRegistry ?: return source
+        val cache = meters ?: return source
         return Flux.deferContextual { context ->
             val resolvedDescriptor = descriptor.copy(
                 subscriber = context.getMetricsSubscriber() ?: descriptor.subscriber,
             )
-            source.tap(StreamMetricsListenerFactory(registry, resolvedDescriptor))
+            source.tap(StreamMetricsListenerFactory(cache, resolvedDescriptor))
         }
     }
 
@@ -75,12 +77,9 @@ class WowMetrics(
      * [descriptor] and `outcome`).
      */
     fun processingOutcome(descriptor: MetricDescriptor, outcome: String) {
-        val registry = meterRegistry ?: return
+        val cache = meters ?: return
         recordSafely {
-            registry.counter(
-                WowMetricNames.PROCESSING_OUTCOMES,
-                descriptor.baseTags().and(MetricDescriptor.OUTCOME_TAG, outcome),
-            ).increment()
+            cache.of(descriptor).processingOutcome(outcome).increment()
         }
     }
 
@@ -103,7 +102,7 @@ class WowMetrics(
 }
 
 private class OperationMetricsListenerFactory<T : Any>(
-    private val registry: MeterRegistry,
+    private val meters: MeterCache,
     private val descriptor: MetricDescriptor,
     private val recordItems: Boolean,
 ) : SignalListenerFactory<T, Unit> {
@@ -113,15 +112,15 @@ private class OperationMetricsListenerFactory<T : Any>(
         source: Publisher<out T>,
         listenerContext: ContextView,
         publisherContext: Unit,
-    ): SignalListener<T> = OperationMetricsListener(registry, descriptor, recordItems)
+    ): SignalListener<T> = OperationMetricsListener(meters, descriptor, recordItems)
 }
 
 private class OperationMetricsListener<T : Any>(
-    private val registry: MeterRegistry,
+    private val meters: MeterCache,
     private val descriptor: MetricDescriptor,
     private val recordItems: Boolean,
 ) : DefaultSignalListener<T>() {
-    private val sample = Timer.start(registry)
+    private val sample = Timer.start(meters.registry)
     private val items = AtomicLong()
     private var error: Throwable? = null
 
@@ -134,23 +133,20 @@ private class OperationMetricsListener<T : Any>(
     }
 
     override fun doFinally(terminationType: SignalType) {
-        val outcome = terminationType.toMetricOutcome()
-        val exception = error.metricException()
-        val terminalTags = descriptor.terminalTags(outcome, exception)
+        val terminal = meters.of(descriptor).terminal(terminationType.toMetricOutcome(), error.metricException())
         recordSafely {
-            sample.stop(registry.timer(WowMetricNames.OPERATION, terminalTags))
+            sample.stop(terminal.operation())
         }
         if (recordItems) {
             recordSafely {
-                registry.summary(WowMetricNames.OPERATION_ITEMS, terminalTags)
-                    .record(items.get().toDouble())
+                terminal.operationItems().record(items.get().toDouble())
             }
         }
     }
 }
 
 private class StreamMetricsListenerFactory<T : Any>(
-    private val registry: MeterRegistry,
+    private val meters: MeterCache,
     private val descriptor: MetricDescriptor,
 ) : SignalListenerFactory<T, Unit> {
     override fun initializePublisherState(source: Publisher<out T>) = Unit
@@ -159,20 +155,17 @@ private class StreamMetricsListenerFactory<T : Any>(
         source: Publisher<out T>,
         listenerContext: ContextView,
         publisherContext: Unit,
-    ): SignalListener<T> = StreamMetricsListener(registry, descriptor)
+    ): SignalListener<T> = StreamMetricsListener(meters.of(descriptor))
 }
 
 private class StreamMetricsListener<T : Any>(
-    private val registry: MeterRegistry,
-    private val descriptor: MetricDescriptor,
+    private val meters: DescriptorMeters,
 ) : DefaultSignalListener<T>() {
     private val activeSample = createSafely {
-        registry.more()
-            .longTaskTimer(WowMetricNames.STREAM_ACTIVE, descriptor.baseTags())
-            .start()
+        meters.streamActive().start()
     }
     private val messages = createSafely {
-        registry.counter(WowMetricNames.STREAM_MESSAGES, descriptor.baseTags())
+        meters.streamMessages()
     }
     private var error: Throwable? = null
 
@@ -186,13 +179,10 @@ private class StreamMetricsListener<T : Any>(
 
     override fun doFinally(terminationType: SignalType) {
         recordSafely { activeSample?.stop() }
-        val outcome = terminationType.toMetricOutcome()
-        val exception = error.metricException()
         recordSafely {
-            registry.counter(
-                WowMetricNames.STREAM_TERMINATIONS,
-                descriptor.terminalTags(outcome, exception),
-            ).increment()
+            meters.terminal(terminationType.toMetricOutcome(), error.metricException())
+                .streamTerminations()
+                .increment()
         }
     }
 }

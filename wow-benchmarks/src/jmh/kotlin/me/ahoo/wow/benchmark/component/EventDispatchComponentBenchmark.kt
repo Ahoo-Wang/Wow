@@ -141,7 +141,13 @@ open class EventDispatchComponentBenchmark {
         check(dispatchAndAwait(probe)) { "Probe event was not handled by $processors processor(s)." }
         if (bus == "local-first") {
             check(probe.peek().shouldLocalFirst()) { "Benchmark aggregate must be local for local-first routing." }
-            check(checkNotNull(discardingBus).sent.sum() == 1L) { "Local-first must still send the distributed copy." }
+            // The distributed copy is sent asynchronously after the local hand-off (X5), so wait for it.
+            val sent = checkNotNull(discardingBus).sent
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(DISPATCH_TIMEOUT_SECONDS)
+            while (sent.sum() < 1L && System.nanoTime() < deadline) {
+                Thread.onSpinWait()
+            }
+            check(sent.sum() == 1L) { "Local-first must still send the distributed copy." }
         }
         if (metrics == "on") {
             check(checkNotNull(meterRegistry).meters.isNotEmpty()) { "Metrics on must record meters." }
