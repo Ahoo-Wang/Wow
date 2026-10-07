@@ -210,9 +210,9 @@ It builds the JMH jar of each ref once and caches it by commit and by the hash o
 | Profile | Forks per side | Warmup, measurement | Default split | Typical wall time |
 | --- | --- | --- | --- | --- |
 | `quick` | up to 3 | 2 × 2 s, 3 × 2 s | `class` | about 10–15 minutes for one class |
-| `gate` | up to 8 | 3 × 3 s, 5 × 3 s | `params` | about 15–25 minutes, at most 16 jobs at a time |
+| `gate` | up to 8 | 3 × 3 s, 5 × 3 s | `params` | about 10–25 minutes, at most 16 jobs at a time |
 
-`split` chooses the job granularity: `class`, `method`, or `params`, one job per method and `@Param` combination (the combination is pinned with JMH `-p`). The default, `auto`, uses `class` for `quick` and `params` for `gate`. A gate run of a class with several methods and params used to run every combination serially in one job (`EventDispatchComponentBenchmark`: about 130 minutes); split by params, the combinations run in parallel. The plan step lists the jobs in the run summary, runs at most 16 at a time (GitHub Free allows 20 concurrent jobs per account), warns above 48 jobs, and fails above GitHub's matrix limit of 256; narrow the include patterns or pin params then.
+`split` chooses the job granularity: `class`, `method`, or `params`, one job per method and `@Param` combination (the combination is pinned with JMH `-p`). The default, `auto`, uses `class` for `quick` and `params` for `gate`. A gate run of a class with several methods and params used to run every combination serially in one job (`EventDispatchComponentBenchmark`: about 130 minutes); split by params, its 8 combinations run in parallel and an A/A gate run takes about 11 minutes. The plan step lists the jobs in the run summary, runs at most 16 at a time (GitHub Free allows 20 concurrent jobs per account), warns above 48 jobs, and fails above GitHub's matrix limit of 256; narrow the include patterns or pin params then.
 
 A job stops early once every row it measures is decided. After each round from the second until the last but one, it computes each side's interval over the iterations so far, at a stricter confidence than the report: the 0.1% that JMH's 99.9% interval leaves is split evenly over the early looks a job can take (Bonferroni; six looks for `gate`, one for `quick`). A row is decided when:
 

@@ -73,7 +73,7 @@ gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
 | Profile | 每侧 fork | 默认 split | 典型耗时 |
 | --- | --- | --- | --- |
 | `quick` | 最多 3 个 | 每个类一个 job | 单个类约 10–15 分钟 |
-| `gate` | 最多 8 个 | 每个方法与 `@Param` 组合一个 job（`split=params`） | 约 15–25 分钟 |
+| `gate` | 最多 8 个 | 每个方法与 `@Param` 组合一个 job（`split=params`） | 约 10–25 分钟 |
 
 split、提前停止规则、参数覆盖、噪声规则与 `benchmark-ab` PR 标签见[框架测试与基准](../documentation/docs/zh/guide/test-runtime.md#在-ci-中做-a-b)。
 

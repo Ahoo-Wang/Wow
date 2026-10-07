@@ -210,9 +210,9 @@ gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
 | Profile | 每侧 fork | 预热、测量 | 默认 split | 典型耗时 |
 | --- | --- | --- | --- | --- |
 | `quick` | 最多 3 个 | 2 × 2 s、3 × 2 s | `class` | 单个类约 10–15 分钟 |
-| `gate` | 最多 8 个 | 3 × 3 s、5 × 3 s | `params` | 约 15–25 分钟，同时最多 16 个 job |
+| `gate` | 最多 8 个 | 3 × 3 s、5 × 3 s | `params` | 约 10–25 分钟，同时最多 16 个 job |
 
-`split` 决定 job 粒度：`class`、`method`，或 `params`（每个方法与 `@Param` 组合一个 job，用 JMH `-p` 固定该组合）。默认值 `auto` 对 `quick` 用 `class`，对 `gate` 用 `params`。过去对含多个方法与参数的类做 gate，所有组合在一个 job 内串行运行（`EventDispatchComponentBenchmark` 约 130 分钟）；按参数拆分后各组合并行。plan 步骤在运行摘要中列出 job 数，同时最多运行 16 个（GitHub Free 每个账号最多 20 个并发 job），超过 48 个时给出警告，超过 GitHub 矩阵上限 256 个时失败，此时请收窄 include 或固定参数。
+`split` 决定 job 粒度：`class`、`method`，或 `params`（每个方法与 `@Param` 组合一个 job，用 JMH `-p` 固定该组合）。默认值 `auto` 对 `quick` 用 `class`，对 `gate` 用 `params`。过去对含多个方法与参数的类做 gate，所有组合在一个 job 内串行运行（`EventDispatchComponentBenchmark` 约 130 分钟）；按参数拆分后 8 个组合并行，A/A gate 运行约 11 分钟。plan 步骤在运行摘要中列出 job 数，同时最多运行 16 个（GitHub Free 每个账号最多 20 个并发 job），超过 48 个时给出警告，超过 GitHub 矩阵上限 256 个时失败，此时请收窄 include 或固定参数。
 
 job 在其测量的每一行都有结论后提前停止。从第 2 轮到倒数第 2 轮，每轮结束后按目前的迭代计算两侧区间，置信度比报告更严格：把 JMH 99.9% 区间剩下的 0.1% 平均分给 job 可能做的提前检查（Bonferroni；`gate` 6 次，`quick` 1 次）。一行在以下情况视为已有结论：
 
