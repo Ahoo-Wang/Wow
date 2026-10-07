@@ -64,7 +64,9 @@ class BatchCoordinator<T : Any>(
     private val admission = BatchAdmission<T>(options.maxPendingItems, enabledMetrics)
     private val lifecycle = BatchLifecycle(name)
 
-    // Never acquire this gate while holding the admission/lifecycle gate, or vice versa.
+    // Lock order: a lane's admission lock may be held while taking the lifecycle lock (a lane that completes or fails
+    // synchronously), never the reverse. Never acquire the result lock while holding an admission or lifecycle lock,
+    // or vice versa.
     private val resultLock = Any()
     private val processorTermination = CompletableFuture<Unit>()
     private val termination = CompletableFuture<Unit>()
@@ -133,13 +135,9 @@ class BatchCoordinator<T : Any>(
                 Exceptions.throwIfFatal(error)
                 return@defer Mono.error(error)
             }
-            val emitResult = lifecycle.emitIfOpen {
+            val emitResult = lanes[lane].emitIfOpen(lifecycle::isOpen) {
                 admission.accept(request)
-                lanes[lane].emit(request).also {
-                    if (it.isFailure) {
-                        request.discardAdmission()
-                    }
-                }
+                request
             }
             if (emitResult.isFailure) {
                 request.discardAdmission()
@@ -320,18 +318,13 @@ class BatchCoordinator<T : Any>(
     }
 
     private fun failLifecycle(error: Throwable): Throwable? {
-        var pending = emptyList<BatchRequest<T>>()
-        val transition = synchronized(lifecycle.lock) {
-            lifecycle.fail(error).also { transition ->
-                if (transition is BatchLifecycle.FailureTransition.Installed) {
-                    pending = admission.pendingSnapshot()
-                }
-            }
-        }
-        return when (transition) {
+        return when (val transition = lifecycle.fail(error)) {
             BatchLifecycle.FailureTransition.Closed -> null
             is BatchLifecycle.FailureTransition.Existing -> transition.cause
             is BatchLifecycle.FailureTransition.Installed -> {
+                // An admission that saw the lifecycle open has accepted its request once its lane lock is free.
+                lanes.forEach(BatchLane<T>::awaitAdmissions)
+                val pending = admission.pendingSnapshot()
                 val shutdown = synchronized(resultLock) {
                     try {
                         dispatchPendingFailures(pending, transition.cause)

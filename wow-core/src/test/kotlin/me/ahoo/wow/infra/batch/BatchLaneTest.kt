@@ -19,6 +19,9 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.scheduler.VirtualTimeScheduler
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class BatchLaneTest {
     @Test
@@ -109,6 +112,105 @@ class BatchLaneTest {
     }
 
     @Test
+    fun `closed lifecycle should reject admission without accepting the request`() {
+        LaneFixture().use { fixture ->
+            var accepted = false
+
+            fixture.lane.emitIfOpen({ false }) {
+                accepted = true
+                error("must not accept")
+            }.assert().isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
+
+            accepted.assert().isFalse()
+            fixture.lane.complete()
+            fixture.scheduler.advanceTimeBy(Duration.ZERO)
+            fixture.assertDrained(emptyList())
+        }
+    }
+
+    @Test
+    fun `admission into a completed lane should discard the request admission`() {
+        LaneFixture(maxPendingItems = 4).use { fixture ->
+            fixture.lane.complete().assert().isEqualTo(Sinks.EmitResult.OK)
+            repeat(4) {
+                fixture.admission.tryAcquire().assert().isNull()
+                val request = fixture.admission.track(it)
+
+                fixture.lane.emitIfOpen({ true }) {
+                    fixture.admission.accept(request)
+                    request
+                }.assert().isEqualTo(Sinks.EmitResult.FAIL_TERMINATED)
+            }
+
+            fixture.admission.pendingSnapshot().assert().isEmpty()
+            repeat(4) { fixture.admission.tryAcquire().assert().isNull() }
+            repeat(4) { fixture.admission.releaseUntracked() }
+        }
+    }
+
+    @Test
+    fun `admission into one lane should not wait for an admission into another lane`() {
+        LaneFixture().use { first ->
+            LaneFixture().use { second ->
+                val inFirst = CountDownLatch(1)
+                val releaseFirst = CountDownLatch(1)
+                val firstAdmission = CompletableFuture.supplyAsync {
+                    first.lane.emitIfOpen({ true }) {
+                        first.admission.tryAcquire().assert().isNull()
+                        val request = first.admission.track(1)
+                        first.admission.accept(request)
+                        inFirst.countDown()
+                        releaseFirst.await()
+                        request
+                    }
+                }
+                inFirst.await(1, TimeUnit.SECONDS).assert().isTrue()
+
+                CompletableFuture.runAsync { second.submit(2) }.get(1, TimeUnit.SECONDS)
+
+                releaseFirst.countDown()
+                firstAdmission.get(1, TimeUnit.SECONDS).assert().isEqualTo(Sinks.EmitResult.OK)
+                listOf(first, second).forEach {
+                    it.lane.complete()
+                    it.scheduler.advanceTimeBy(Duration.ofMillis(1))
+                    it.releaseWriter()
+                    it.scheduler.advanceTimeBy(Duration.ZERO)
+                }
+                first.assertDrained(listOf(1))
+                second.assertDrained(listOf(2))
+            }
+        }
+    }
+
+    @Test
+    fun `awaiting admissions should wait for an admission in progress`() {
+        LaneFixture().use { fixture ->
+            val inAdmission = CountDownLatch(1)
+            val releaseAdmission = CountDownLatch(1)
+            val admission = CompletableFuture.supplyAsync {
+                fixture.lane.emitIfOpen({ true }) {
+                    fixture.admission.tryAcquire().assert().isNull()
+                    val request = fixture.admission.track(1)
+                    fixture.admission.accept(request)
+                    inAdmission.countDown()
+                    releaseAdmission.await()
+                    request
+                }
+            }
+            inAdmission.await(1, TimeUnit.SECONDS).assert().isTrue()
+            val awaited = CompletableFuture.runAsync(fixture.lane::awaitAdmissions)
+
+            Thread.sleep(50)
+            awaited.isDone.assert().isFalse()
+            releaseAdmission.countDown()
+
+            awaited.get(1, TimeUnit.SECONDS)
+            admission.get(1, TimeUnit.SECONDS).assert().isEqualTo(Sinks.EmitResult.OK)
+            fixture.admission.pendingSnapshot().map { it.value }.assert().containsExactly(1)
+        }
+    }
+
+    @Test
     fun `partial batch should flush on timeout when writer has demand`() {
         LaneFixture().use { fixture ->
             fixture.submit(1)
@@ -156,10 +258,12 @@ class BatchLaneTest {
 
         fun submit(value: Int): BatchRequest<Int> {
             admission.tryAcquire().assert().isNull()
-            return admission.track(value).also {
-                admission.accept(it)
-                lane.emit(it).assert().isEqualTo(Sinks.EmitResult.OK)
-            }
+            val request = admission.track(value)
+            lane.emitIfOpen({ true }) {
+                admission.accept(request)
+                request
+            }.assert().isEqualTo(Sinks.EmitResult.OK)
+            return request
         }
 
         fun releaseWriter() {

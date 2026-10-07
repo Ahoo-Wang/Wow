@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.infra.batch
 
-import reactor.core.publisher.Sinks
-
 /**
- * Serializes coordinator state transitions and admission into lane sinks.
+ * Serializes coordinator state transitions. Admission into a lane is serialized by that lane's own lock, which
+ * reads [isOpen]; a failure that must see every admission in progress waits for each lane afterwards.
  */
 internal class BatchLifecycle(
     private val name: String,
@@ -78,15 +77,8 @@ internal class BatchLifecycle(
         }
     }
 
-    fun emitIfOpen(emitter: () -> Sinks.EmitResult): Sinks.EmitResult {
-        return synchronized(lock) {
-            if (state == State.Open) {
-                emitter()
-            } else {
-                Sinks.EmitResult.FAIL_TERMINATED
-            }
-        }
-    }
+    /** Whether new requests may be admitted; each lane reads it under its own admission lock. */
+    fun isOpen(): Boolean = state == State.Open
 
     fun initiateClose(): Boolean {
         return synchronized(lock) {
