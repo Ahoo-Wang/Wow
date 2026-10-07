@@ -13,9 +13,9 @@
 package me.ahoo.wow.eventsourcing.state
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.sink.UnboundedMulticastSink
 import me.ahoo.wow.infra.sink.concurrent
 import me.ahoo.wow.messaging.InMemoryMessageBus
-import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 
 /**
@@ -27,7 +27,7 @@ import reactor.core.publisher.Sinks.Many
  */
 class InMemoryStateEventBus(
     override val sinkSupplier: (NamedAggregate) -> Many<StateEvent<*>> = {
-        Sinks.unsafe().many().multicast().onBackpressureBuffer<StateEvent<*>>(Int.MAX_VALUE).concurrent()
+        UnboundedMulticastSink.create<StateEvent<*>>().concurrent()
     }
 ) : InMemoryMessageBus<StateEvent<*>, StateEventExchange<*>>(),
     LocalStateEventBus {
