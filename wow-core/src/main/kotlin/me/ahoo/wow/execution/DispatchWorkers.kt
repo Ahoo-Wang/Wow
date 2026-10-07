@@ -36,6 +36,8 @@ import java.util.concurrent.locks.LockSupport
 internal class DispatchWorkers(
     size: Int,
     name: String,
+    /** Starts a worker thread; a test replaces it to make a start fail. */
+    private val startThread: (Thread) -> Unit = Thread::start,
 ) : Executor {
     private val workers: Array<Worker> = Array(size) { Worker("$name-${it + 1}") }
     private val nextWorker = AtomicInteger()
@@ -66,7 +68,11 @@ internal class DispatchWorkers(
         workers[Math.floorMod(affinity, workers.size)].submit(task)
     }
 
-    /** Runs [task] on the next worker in turn (coroutine resumptions). */
+    /**
+     * Runs [task] on the next worker in turn (coroutine resumptions). A dead worker rejects it; kotlinx.coroutines then
+     * cancels the coroutine's job and runs the task on `Dispatchers.IO`, so the coroutine ends with its cancellation
+     * instead of hanging.
+     */
     override fun execute(task: Runnable) {
         execute(task, nextWorker.getAndIncrement())
     }
@@ -93,7 +99,18 @@ internal class DispatchWorkers(
                 parked = index
             }
         }
-        return if (parked >= 0) parked else start
+        if (parked >= 0) {
+            return parked
+        }
+        // Every live worker is busy: the next live one in turn. Only when all are dead is a dead one returned, and its
+        // submissions are rejected rather than stranded.
+        for (offset in workers.indices) {
+            val index = (start + offset) % workers.size
+            if (!workers[index].dead) {
+                return index
+            }
+        }
+        return start
     }
 
     /** Lets every worker finish its queued tasks and exit; later submissions are rejected. Idempotent. */
@@ -147,7 +164,7 @@ internal class DispatchWorkers(
 
         fun submit(task: Runnable) {
             if (started == 0 && STARTED.compareAndSet(this, 0, 1)) {
-                start()
+                startOrDie()
             }
             queue.offer(task)
             // The worker sets `exited` and then drains once more: if the drain did not take this task, take it back.
@@ -156,6 +173,23 @@ internal class DispatchWorkers(
             }
             if (idle == 1 && IDLE.compareAndSet(this, 1, 0)) {
                 LockSupport.unpark(this)
+            }
+        }
+
+        /**
+         * Starts the thread. If it cannot start (no native thread left), the worker is dead: it is no longer selected,
+         * a task queued meanwhile by another submission is discarded, and this submission is rejected.
+         */
+        @Suppress("TooGenericExceptionCaught")
+        private fun startOrDie() {
+            try {
+                startThread(this)
+            } catch (error: Throwable) {
+                dead = true
+                exited = true
+                log.error(error) { "Dispatch worker [$name] could not start; it is no longer selected." }
+                discardQueued()
+                throw RejectedExecutionException("Dispatch worker [$name] could not start.", error)
             }
         }
 

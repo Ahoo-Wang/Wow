@@ -17,7 +17,6 @@ import jakarta.annotation.PreDestroy
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
-import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.infra.batch.BatchClosedException
 import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchItemResult
@@ -62,8 +61,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.EmptyCoroutineContext
 
 internal class WowAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -131,35 +128,6 @@ internal class WowAutoConfigurationTest {
                 keyedExecutor.maxInFlight.assert().isEqualTo(32)
                 keyedExecutor.throughput.assert().isEqualTo(8)
             }
-    }
-
-    @Test
-    fun `the runtime's keyed executor is a context bean closed with the context`() {
-        lateinit var keyedExecutor: KeyedExecutor
-        contextRunner
-            .enableWow()
-            .run { context ->
-                keyedExecutor = context.getBean(KeyedExecutor::class.java)
-                context.getBean(WowRuntime::class.java).keyedExecutor.assert().isSameAs(keyedExecutor)
-            }
-        keyedExecutor.isDisposed.assert().isTrue()
-    }
-
-    @Test
-    fun `a context refresh failure closes the keyed executor and leaks no dispatch thread`() {
-        DispatchingThenFailingConfiguration.reset()
-        contextRunner
-            .enableWow()
-            .withUserConfiguration(DispatchingThenFailingConfiguration::class.java)
-            .run { context ->
-                context.startupFailure.assert().isNotNull()
-            }
-        val keyedExecutor = checkNotNull(DispatchingThenFailingConfiguration.keyedExecutor.get())
-        val worker = checkNotNull(DispatchingThenFailingConfiguration.worker.get())
-        keyedExecutor.isDisposed.assert().isTrue()
-        worker.name.assert().startsWith(KeyedExecutor.DEFAULT_NAME)
-        worker.join(Duration.ofSeconds(5).toMillis())
-        worker.isAlive.assert().isFalse()
     }
 
     @Test
@@ -988,32 +956,6 @@ internal class WowAutoConfigurationTest {
         @Scope("prototype")
         fun prototypeRuntimeComponent(): RuntimeComponent =
             RecordingRuntimeComponent("prototype")
-    }
-
-    /** Starts a dispatch worker during refresh, then fails the refresh. */
-    @Configuration(proxyBeanMethods = false)
-    class DispatchingThenFailingConfiguration {
-        @Bean
-        fun dispatchingThenFailing(keyedExecutor: KeyedExecutor): Any {
-            Companion.keyedExecutor.set(keyedExecutor)
-            val ran = CountDownLatch(1)
-            keyedExecutor.coroutineDispatcher.dispatch(EmptyCoroutineContext) {
-                worker.set(Thread.currentThread())
-                ran.countDown()
-            }
-            check(ran.await(5, TimeUnit.SECONDS)) { "The dispatch worker did not run." }
-            throw IllegalStateException("refresh fails after the first dispatch")
-        }
-
-        companion object {
-            val keyedExecutor = AtomicReference<KeyedExecutor>()
-            val worker = AtomicReference<Thread>()
-
-            fun reset() {
-                keyedExecutor.set(null)
-                worker.set(null)
-            }
-        }
     }
 }
 

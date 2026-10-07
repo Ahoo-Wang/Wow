@@ -361,6 +361,37 @@ class KeyedDispatchTest {
     }
 
     @Test
+    fun `late signals of a handler whose subscribe threw are ignored`() {
+        val shared = KeyedExecutor(workers = 1, name = "keyed-dispatch-abandoned")
+        try {
+            val fatal = StackOverflowError("fatal")
+            val late = IllegalStateException("late")
+            val abandoned = AtomicReference<CoreSubscriber<in Void>>()
+            val discarded = CopyOnWriteArrayList<Any>()
+            val dropped = CopyOnWriteArrayList<Throwable>()
+            val failing = Flux.just(1).dispatchKeyed(shared, { it }) {
+                object : Mono<Void>() {
+                    override fun subscribe(actual: CoreSubscriber<in Void>) {
+                        actual.onSubscribe(Operators.emptySubscription())
+                        abandoned.set(actual)
+                        throw fatal
+                    }
+                }
+            }.doOnDiscard(Int::class.javaObjectType) { discarded += it }
+                .contextWrite(Context.of(ON_ERROR_DROPPED_KEY, Consumer<Throwable> { dropped += it }))
+
+            StepVerifier.create(failing).expectErrorMatches { it.cause === fatal }.verify(Duration.ofSeconds(5))
+            abandoned.get().onComplete()
+            abandoned.get().onError(late)
+
+            discarded.assert().containsExactly(1)
+            dropped.assert().contains(late)
+        } finally {
+            shared.close()
+        }
+    }
+
+    @Test
     fun `a fatal error in one dispatch does not stop a concurrent dispatch pinned to the same worker`() {
         val shared = KeyedExecutor(workers = 1, name = "keyed-dispatch-fatal-concurrent")
         try {

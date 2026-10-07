@@ -13,9 +13,14 @@
 
 package me.ahoo.wow.runtime
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.execution.KeyedExecutor
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.time.Duration
@@ -94,14 +99,20 @@ class WowRuntimeKeyedExecutorTest {
     }
 
     @Test
-    fun `starting with the removed wow parallelism property still starts`() {
+    fun `starting with the removed wow parallelism property logs one warning`() {
         val keyedExecutor = KeyedExecutor(workers = 1, name = "runtime-parallelism")
         val runtime = runtime(ExecutorProbe(keyedExecutor), keyedExecutor)
+        val logger = LoggerFactory.getLogger(WowRuntime::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
         val previous = System.setProperty(REMOVED_PARALLELISM_PROPERTY, "8")
         try {
             runtime.start().block()
             runtime.isRunning.assert().isTrue()
+            appender.list.filter { it.level == Level.WARN && it.formattedMessage.contains(REMOVED_PARALLELISM_PROPERTY) }
+                .assert().hasSize(1)
         } finally {
+            logger.detachAppender(appender)
             if (previous == null) {
                 System.clearProperty(REMOVED_PARALLELISM_PROPERTY)
             } else {

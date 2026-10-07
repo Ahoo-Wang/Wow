@@ -299,6 +299,40 @@ class DispatchWorkersTest {
     }
 
     @Test
+    fun `a worker whose thread cannot start is dead and rejects instead of queueing`() {
+        val starts = AtomicInteger()
+        val workers = DispatchWorkers(2, "dispatch-workers-no-thread") { thread ->
+            if (starts.getAndIncrement() == 0) {
+                throw OutOfMemoryError("unable to create native thread")
+            }
+            thread.start()
+        }
+        try {
+            val rejected = assertThrows<RejectedExecutionException> { workers.execute({}, 0) }
+            rejected.cause.assert().isInstanceOf(OutOfMemoryError::class.java)
+            // Started at most once: later submissions to the dead worker are rejected, not queued forever.
+            assertThrows<RejectedExecutionException> { workers.execute({}, 0) }
+
+            // Keep the live worker busy with a queued task, so no live worker is idle or empty: the fallback still
+            // never returns the dead worker.
+            val release = CountDownLatch(1)
+            val ran = CountDownLatch(2)
+            workers.execute({
+                release.await(5, TimeUnit.SECONDS)
+                ran.countDown()
+            }, 1)
+            workers.execute({ ran.countDown() }, 1)
+            repeat(4) {
+                workers.nextAffinity().assert().isEqualTo(1)
+            }
+            release.countDown()
+            ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+        } finally {
+            workers.close()
+        }
+    }
+
+    @Test
     fun `a failing uncaught exception handler does not end the worker`() {
         val workers = DispatchWorkers(1, "dispatch-workers-handler")
         try {

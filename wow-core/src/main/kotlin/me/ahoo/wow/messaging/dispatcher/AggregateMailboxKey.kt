@@ -51,5 +51,8 @@ internal class AggregateMailboxKey(private val aggregateId: AggregateId) {
     }
 }
 
-/** This aggregate ID's [AggregateMailboxKey]: one mailbox per aggregate ID, whatever its tenant. */
-internal fun AggregateId.toMailboxKey(): Any = AggregateMailboxKey(this)
+/**
+ * The [AggregateDispatcher.mailboxKey] of this aggregate ID's messages, as the framework's dispatchers key them: one
+ * mailbox per bounded context, aggregate name and ID, whatever the tenant (as in 9.2).
+ */
+fun AggregateId.toMailboxKey(): Any = AggregateMailboxKey(this)

@@ -3442,6 +3442,10 @@ public abstract class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher : me/
 public final class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher$Companion {
 }
 
+public final class me/ahoo/wow/messaging/dispatcher/AggregateMailboxKeyKt {
+	public static final fun toMailboxKey (Lme/ahoo/wow/api/modeling/AggregateId;)Ljava/lang/Object;
+}
+
 public abstract class me/ahoo/wow/messaging/dispatcher/MainDispatcher : me/ahoo/wow/messaging/dispatcher/MessageDispatcher {
 	public static final field Companion Lme/ahoo/wow/messaging/dispatcher/MainDispatcher$Companion;
 	public fun <init> ()V

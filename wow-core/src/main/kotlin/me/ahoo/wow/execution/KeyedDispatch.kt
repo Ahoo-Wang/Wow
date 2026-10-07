@@ -280,7 +280,11 @@ private class KeyedDispatchSubscriber<T : Any>(
         /** Set once the mailbox is empty and has left [KeyedDispatchSubscriber.mailboxes]. Guarded by this mailbox. */
         private var removed = false
 
-        /** [SUBSCRIBING] while the head's handler is being subscribed; then [COMPLETED_INLINE] or [ASYNC]. */
+        /**
+         * [SUBSCRIBING] while the head's handler is being subscribed; then [COMPLETED_INLINE] or [ASYNC], or
+         * [ABANDONED] when subscribing threw: the head is finished by [run], and a late signal of that handler is
+         * ignored.
+         */
         @Volatile
         @JvmField
         var phase: Int = SUBSCRIBING
@@ -343,10 +347,10 @@ private class KeyedDispatchSubscriber<T : Any>(
                     // Thrown out of subscribe (Reactor rethrows JVM-fatal errors): fail the dispatch as a handler error
                     // does and finish the head here, so neither the mailbox nor its worker is left wedged. The handler
                     // may not have signalled, so the element is also discarded: the discard hook releases its resources.
+                    phase = ABANDONED
                     owner.fail(containFatal(error))
                     cancelRunning()
                     owner.discard(element)
-                    PHASE.compareAndSet(this, SUBSCRIBING, COMPLETED_INLINE)
                 }
                 if (owner.cancelled) {
                     cancelRunning()
@@ -430,11 +434,18 @@ private class KeyedDispatchSubscriber<T : Any>(
         override fun onNext(t: Void) = Unit
 
         override fun onError(error: Throwable) {
+            if (phase == ABANDONED) {
+                Operators.onErrorDropped(error, owner.context)
+                return
+            }
             owner.fail(containFatal(error))
             onComplete()
         }
 
         override fun onComplete() {
+            if (phase == ABANDONED) {
+                return
+            }
             if (PHASE.compareAndSet(this, SUBSCRIBING, COMPLETED_INLINE)) {
                 return
             }
@@ -447,6 +458,7 @@ private class KeyedDispatchSubscriber<T : Any>(
             const val SUBSCRIBING = 0
             const val COMPLETED_INLINE = 1
             const val ASYNC = 2
+            const val ABANDONED = 3
             const val INITIAL_QUEUE_CAPACITY = 4
             val CANCELLED: Subscription = Operators.emptySubscription()
             val PHASE: AtomicIntegerFieldUpdater<Mailbox<*>> =
