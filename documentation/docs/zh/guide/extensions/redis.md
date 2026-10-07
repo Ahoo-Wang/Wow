@@ -81,6 +81,8 @@ subscription 的 receiver group 成为 Redis consumer group。group 创建时的
 
 recovery 周期扫描 idle 超过阈值的 pending entry，并在确认原 consumer 不活跃后 claim。它只处理 ack 前因进程终止/取消、transport 或 decode 等路径遗留且仍在 Stream 中的 PEL entry，不恢复被 trim、删除或未持久化的数据。
 
+优雅停机（自 9.3.0 起）先停止读取：已经交出的 entry 照常处理并确认，已经读到、但没有交出的 entry 保持 pending，交由这里的恢复处理。见[运行时生命周期](../advanced/runtime-lifecycle.md#持续流量下先停持久入口)。
+
 ### Stream 保留与空闲 consumer
 
 默认不裁剪 Stream：条目一直保留到手动删除，落后的消费者组或从头重放的新组仍能读到它。要限制内存，可设置以下之一：

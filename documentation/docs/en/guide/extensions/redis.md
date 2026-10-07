@@ -81,6 +81,8 @@ Since 9.3.0 a failed receive stream is subscribed again with the core `Transport
 
 Recovery periodically scans entries idle beyond the threshold and claims them after confirming the original consumer is inactive. It handles only PEL entries left unacknowledged before process termination/cancellation or a transport/decode failure and still present in the Stream; it never recovers trimmed, deleted, or unpersisted data.
 
+A graceful stop (since 9.3.0) first stops reading: the entries already handed over are processed and acknowledged, and an entry that was read but not handed over stays pending for this recovery. See [Runtime Lifecycle](../advanced/runtime-lifecycle.md#sustained-traffic-durable-intake-stops-first).
+
 ### Stream retention and idle consumers
 
 Streams are not trimmed by default: an entry stays until it is deleted by hand, so a lagging consumer group or a new group replaying from the start still finds it. To bound memory, set one of these:

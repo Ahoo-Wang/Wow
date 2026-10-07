@@ -24,8 +24,8 @@ import reactor.core.publisher.Mono
  *
  * [forceStop] may be invoked again when force-stop overlaps a lifecycle action.
  * For [prepare] and [stopGracefully], compensation follows publisher
- * termination or the return of upstream cancellation. For [start] and
- * [quiesce], it follows method return. If force-stop wins before a publisher is
+ * termination or the return of upstream cancellation. For [start],
+ * [suspendDurableIntake] and [quiesce], it follows method return. If force-stop wins before a publisher is
  * subscribed, the runtime does not subscribe it.
  *
  * This contract deliberately does not extend [AutoCloseable]. Container
@@ -43,6 +43,17 @@ interface RuntimeComponent {
     fun prepare(runtimeContext: RuntimeContext): Mono<Void>
 
     fun start()
+
+    /**
+     * Stops pulling new records from durable transports (Kafka, Redis Streams) while runtime admission is still
+     * open. The runtime calls it first on a graceful stop, so sustained traffic cannot keep the runtime from becoming
+     * idle: the records already pulled, and the in-process work derived from them, keep flowing until global
+     * quiescence, and what was not pulled stays with the broker, uncommitted, for another member.
+     *
+     * This method must be prompt, non-blocking, and idempotent, and must not cancel the source (its consumer still
+     * acknowledges the records being processed). Components without a durable intake may implement it as a no-op.
+     */
+    fun suspendDurableIntake() = Unit
 
     /**
      * Stops admitting new work after the runtime has atomically closed global

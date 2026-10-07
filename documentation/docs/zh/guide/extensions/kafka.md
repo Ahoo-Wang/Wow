@@ -164,6 +164,8 @@ exchange 的 `acknowledge()` 提交处理完成的 offset，`max-deferred-commit
 9.2.2 及以前默认 `max-deferred-commits=1` 且没有上述提交触发：每确认一条记录，消费者都要暂停到下一次定期提交，所以接收端大约每个 `commitInterval`（5 秒）只处理一次拉取。现在默认值为 500，即 Kafka 默认的 `max.poll.records`。显式配置过 `max-deferred-commits` 的部署保留原值，但达到该数量后会立即提交，而不再暂停等待。
 :::
 
+优雅停机（自 9.3.0 起）：运行时先停止请求记录，Reactor Kafka 随之暂停已分配的分区，消费者继续 poll、留在组内，并提交分发器确认的 offset。已经 poll 到、但没有交出的记录永远不会被提交；消费者离开组后，由接手该分区的成员收到。主题、消费组与提交规则不变。见[运行时生命周期](../advanced/runtime-lifecycle.md#持续流量下先停持久入口)。
+
 ### 4. 发送反馈
 
 每次发送等待该 record 的 `KafkaSender` 结果，producer 异常作为 Reactor error 返回；`Mono<Void>` 只有在发送反馈完成后终止，不代表下游消费者已处理该消息。

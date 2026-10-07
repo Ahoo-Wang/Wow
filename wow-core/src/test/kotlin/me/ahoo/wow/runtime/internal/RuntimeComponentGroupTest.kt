@@ -86,6 +86,34 @@ class RuntimeComponentGroupTest {
     }
 
     @Test
+    fun `durable intake is suspended in registration order until suspension is no longer wanted`() {
+        val calls = mutableListOf<String>()
+        val group = RuntimeComponentGroup(
+            listOf(
+                RecordingComponent("first", calls),
+                RecordingComponent("second", calls),
+            ),
+            reportFailure = {},
+        )
+        group.prepare(DefaultRuntimeContext()).block().assert().isTrue()
+
+        group.suspendDurableIntake().assert().isTrue()
+        group.suspendDurableIntake { calls.size < 5 }.assert().isFalse()
+        group.forceStop()
+        group.suspendDurableIntake().assert().isFalse()
+
+        calls.assert().containsExactly(
+            "prepare:first",
+            "prepare:second",
+            "suspend:first",
+            "suspend:second",
+            "suspend:first",
+            "force:second",
+            "force:first",
+        )
+    }
+
+    @Test
     fun `force stop covers every registered component before preparation`() {
         val calls = mutableListOf<String>()
         val group = RuntimeComponentGroup(
@@ -755,6 +783,10 @@ class RuntimeComponentGroupTest {
 
         override fun start() {
             calls += "start:$name"
+        }
+
+        override fun suspendDurableIntake() {
+            calls += "suspend:$name"
         }
 
         override fun quiesce() {

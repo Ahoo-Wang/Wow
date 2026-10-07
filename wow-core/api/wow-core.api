@@ -3261,6 +3261,7 @@ public final class me/ahoo/wow/messaging/LocalFirstDistributedCopies : me/ahoo/w
 	public fun quiesce ()V
 	public fun start ()V
 	public fun stopGracefully ()Lreactor/core/publisher/Mono;
+	public fun suspendDurableIntake ()V
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -3338,14 +3339,15 @@ public final class me/ahoo/wow/messaging/MessageBus$DefaultImpls {
 }
 
 public final class me/ahoo/wow/messaging/MessageReceiver {
-	public fun <init> (Lreactor/core/publisher/Flux;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
-	public synthetic fun <init> (Lreactor/core/publisher/Flux;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lreactor/core/publisher/Flux;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
+	public synthetic fun <init> (Lreactor/core/publisher/Flux;Lreactor/core/publisher/Mono;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun closeProcessing ()V
 	public final fun getMessages ()Lreactor/core/publisher/Flux;
 	public final fun getReadiness ()Lreactor/core/publisher/Mono;
 	public final fun mapMessages (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public final fun openProcessing ()V
 	public final fun openedMessages ()Lreactor/core/publisher/Flux;
+	public final fun suspendDurableIntake ()V
 }
 
 public final class me/ahoo/wow/messaging/MessageSubscription {
@@ -3434,6 +3436,7 @@ public abstract class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher : me/
 	public final fun quiesce ()V
 	public final fun start ()V
 	public final fun stopGracefully ()Lreactor/core/publisher/Mono;
+	public fun suspendDurableIntake ()V
 }
 
 public final class me/ahoo/wow/messaging/dispatcher/AggregateDispatcher$Companion {
@@ -3458,6 +3461,7 @@ public abstract class me/ahoo/wow/messaging/dispatcher/MainDispatcher : me/ahoo/
 	protected final fun stopAggregateDispatchersGracefully ()Lreactor/core/publisher/Mono;
 	public final fun stopGracefully ()Lreactor/core/publisher/Mono;
 	protected fun stopManagedGracefully ()Lreactor/core/publisher/Mono;
+	public final fun suspendDurableIntake ()V
 }
 
 public final class me/ahoo/wow/messaging/dispatcher/MainDispatcher$Companion {
@@ -3468,6 +3472,7 @@ public abstract interface class me/ahoo/wow/messaging/dispatcher/MessageDispatch
 
 public final class me/ahoo/wow/messaging/dispatcher/MessageDispatcher$DefaultImpls {
 	public static fun quiesce (Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;)V
+	public static fun suspendDurableIntake (Lme/ahoo/wow/messaging/dispatcher/MessageDispatcher;)V
 }
 
 public abstract class me/ahoo/wow/messaging/dispatcher/SafeSubscriber : reactor/core/publisher/BaseSubscriber, me/ahoo/wow/api/naming/Named {
@@ -3874,6 +3879,7 @@ public final class me/ahoo/wow/messaging/transport/TransportMessageBus$Companion
 
 public abstract interface class me/ahoo/wow/messaging/transport/TransportReceiver {
 	public fun close ()V
+	public fun getDurable ()Z
 	public fun getReadiness ()Lreactor/core/publisher/Mono;
 	public abstract fun getRecords ()Lreactor/core/publisher/Flux;
 	public fun openProcessing ()V
@@ -3881,6 +3887,7 @@ public abstract interface class me/ahoo/wow/messaging/transport/TransportReceive
 
 public final class me/ahoo/wow/messaging/transport/TransportReceiver$DefaultImpls {
 	public static fun close (Lme/ahoo/wow/messaging/transport/TransportReceiver;)V
+	public static fun getDurable (Lme/ahoo/wow/messaging/transport/TransportReceiver;)Z
 	public static fun getReadiness (Lme/ahoo/wow/messaging/transport/TransportReceiver;)Lreactor/core/publisher/Mono;
 	public static fun openProcessing (Lme/ahoo/wow/messaging/transport/TransportReceiver;)V
 }
@@ -4618,10 +4625,12 @@ public abstract interface class me/ahoo/wow/runtime/RuntimeComponent {
 	public fun quiesce ()V
 	public abstract fun start ()V
 	public abstract fun stopGracefully ()Lreactor/core/publisher/Mono;
+	public fun suspendDurableIntake ()V
 }
 
 public final class me/ahoo/wow/runtime/RuntimeComponent$DefaultImpls {
 	public static fun quiesce (Lme/ahoo/wow/runtime/RuntimeComponent;)V
+	public static fun suspendDurableIntake (Lme/ahoo/wow/runtime/RuntimeComponent;)V
 }
 
 public abstract interface class me/ahoo/wow/runtime/RuntimeContext {
@@ -4653,6 +4662,7 @@ public final class me/ahoo/wow/runtime/RuntimeResources : me/ahoo/wow/runtime/Ru
 	public fun quiesce ()V
 	public fun start ()V
 	public fun stopGracefully ()Lreactor/core/publisher/Mono;
+	public fun suspendDurableIntake ()V
 }
 
 public final class me/ahoo/wow/runtime/WowRuntime : me/ahoo/wow/infra/lifecycle/GracefullyStoppable {

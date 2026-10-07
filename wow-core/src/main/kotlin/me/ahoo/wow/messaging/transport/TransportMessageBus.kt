@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.SuspendableDemandFlux
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.runtime.RuntimeResource
 import me.ahoo.wow.serialization.toJsonString
@@ -111,7 +112,9 @@ abstract class TransportMessageBus<M, E>(
         // A decode failure reaches readiness from inside the inner publisher, before concatMap cancels the transport,
         // whose readiness would otherwise fail first with its own cancellation error.
         val decodeFailure = Sinks.empty<Void>()
-        val messages = transportReceiver.records
+        // A durable receiver can stop pulling on a graceful stop: what it has not handed over stays with the broker.
+        val intake = if (transportReceiver.durable) SuspendableDemandFlux(transportReceiver.records) else null
+        val messages = (intake ?: transportReceiver.records)
             .concatMap { record ->
                 decodeRecord(group, record).doOnError { decodeFailure.tryEmitError(it) }
             }
@@ -120,6 +123,7 @@ abstract class TransportMessageBus<M, E>(
             readiness = Mono.firstWithSignal(decodeFailure.asMono(), transportReceiver.readiness),
             processingAdmission = transportReceiver::openProcessing,
             processingQuiescence = transportReceiver::close,
+            durableIntakeSuspension = { intake?.suspendDemand() },
         )
     }
 

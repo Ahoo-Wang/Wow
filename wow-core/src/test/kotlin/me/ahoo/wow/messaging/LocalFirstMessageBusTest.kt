@@ -95,6 +95,26 @@ class LocalFirstMessageBusTest {
     }
 
     @Test
+    fun `receiver suspends the durable intake of both sources`() {
+        val suspensions = CopyOnWriteArrayList<String>()
+        val bus = RecordingLocalFirstMessageBus(
+            localBus = RecordingLocalBus(
+                durableIntakeSuspension = { suspensions += "local" },
+            ),
+            distributedBus = RecordingDistributedBus(
+                durableIntakeSuspension = { suspensions += "distributed" },
+            ),
+        )
+        val receiver = bus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "receiver-group"),
+        )
+
+        receiver.suspendDurableIntake()
+
+        suspensions.assert().containsExactly("local", "distributed")
+    }
+
+    @Test
     fun `receiver revokes local routing before physical cancellation`() {
         val localBus = MpscLocalBus()
         val distributedBus = RecordingDistributedBus()
@@ -1105,6 +1125,7 @@ private class RecordingLocalBus(
     private val readiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
     private val processingQuiescence: () -> Unit = {},
+    private val durableIntakeSuspension: () -> Unit = {},
 ) : LocalMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
     val sent: MutableList<LocalFirstTestMessage> = mutableListOf()
     val received: MutableList<MessageSubscription> = mutableListOf()
@@ -1134,6 +1155,7 @@ private class RecordingLocalBus(
             readiness = readiness,
             processingAdmission = processingAdmission,
             processingQuiescence = processingQuiescence,
+            durableIntakeSuspension = durableIntakeSuspension,
         )
     }
 
@@ -1146,6 +1168,7 @@ private class RecordingDistributedBus(
     private val processingAdmission: () -> Unit = {},
     private val processingQuiescence: () -> Unit = {},
     private val onSend: (LocalFirstTestMessage) -> Unit = {},
+    private val durableIntakeSuspension: () -> Unit = {},
 ) : DistributedMessageBus<LocalFirstTestMessage, LocalFirstTestExchange> {
     // Thread-safe: a handler's chained send records on the dispatcher thread while the test thread records its own.
     val sent: MutableList<LocalFirstTestMessage> = CopyOnWriteArrayList()
@@ -1176,6 +1199,7 @@ private class RecordingDistributedBus(
             readiness = readiness,
             processingAdmission = processingAdmission,
             processingQuiescence = processingQuiescence,
+            durableIntakeSuspension = durableIntakeSuspension,
         )
     }
 }

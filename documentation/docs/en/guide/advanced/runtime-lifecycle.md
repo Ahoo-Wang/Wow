@@ -14,6 +14,7 @@ outline: deep
 interface RuntimeComponent {
     fun prepare(runtimeContext: RuntimeContext): Mono<Void>
     fun start()
+    fun suspendDurableIntake() = Unit
     fun quiesce() = Unit
     fun stopGracefully(): Mono<Void>
     fun forceStop()
@@ -24,6 +25,7 @@ interface RuntimeComponent {
 | --- | --- |
 | `prepare` | Acquire subscriptions or resources and complete when new work can be retained; processing remains closed |
 | `start` | Open processing after every component has prepared |
+| `suspendDurableIntake` | Promptly, non-blockingly, and idempotently stop pulling from durable transports at the start of a graceful stop, without cancelling them (since 9.3.0) |
 | `quiesce` | Promptly, non-blockingly, and idempotently close component intake after global admission closes |
 | `stopGracefully` | Drain accepted work and asynchronously release resources |
 | `forceStop` | Be prompt, non-blocking, repeatable, and safe before prepare |
@@ -70,7 +72,8 @@ Closing a lease is idempotent. The lease must cover the full asynchronous chain,
 
 ```mermaid
 flowchart LR
-    Stop[Shutdown requested] --> Quiet[Observe continuous quiet period]
+    Stop[Shutdown requested] --> Suspend[Suspend durable intake]
+    Suspend --> Quiet[Observe continuous quiet period]
     Quiet --> Close[Atomically close global admission]
     Close --> Quiesce[Quiesce in registration order]
     Quiesce --> Drain[stopGracefully in reverse order]
@@ -79,6 +82,19 @@ flowchart LR
 ```
 
 Each new runtime activity restarts the quiet period. After a continuous idle interval reaches `shutdownQuietPeriod`, the runtime closes global admission before component intake. Tail work can therefore acquire a lease during handoff gaps where upstream publication has completed but downstream consumption is only beginning.
+
+### Sustained traffic: durable intake stops first
+
+Since 9.3.0 a graceful stop first suspends durable intake: every dispatcher's Kafka and Redis Streams receivers stop requesting records. Up to 9.2 they kept pulling while the runtime waited for the quiet period, so traffic arriving more often than `shutdownQuietPeriod` reset it until `shutdownTimeout` expired and the runtime force-stopped.
+
+| | After the suspension |
+| --- | --- |
+| Records already handed over | Still processed and acknowledged, together with the records requested before the suspension (at most the decoder's prefetch of 32 per receiver) |
+| Kafka | Without demand Reactor Kafka pauses the assigned partitions and keeps polling, so the consumer stays in the group and still commits acknowledged offsets. Offsets are committed only up to the first unacknowledged record, so a record that was polled but not handed over is never committed; after the consumer leaves, the group's next owner of the partition receives it |
+| Redis Streams | The receiver stops reading. An entry it read but did not hand over stays pending without `XACK`; pending-message recovery claims it for another consumer of the group once it has been idle for `min-idle-time` and this consumer is inactive (`RedisStreamRecoveryOptions`) |
+| In-process work | Unchanged from 9.2: local buses, local-first hand-offs, and commands that sagas or handlers send during the drain are admitted until global admission closes, so a chain already in flight completes within the deadline. A message that arrives after admission closes is rejected as before (a local-first hand-off falls back to its distributed copy) |
+
+Not pulling is safe only where the broker keeps what is not pulled, so only receivers whose `TransportReceiver.durable` is `true` are suspended. The in-memory buses and `InMemoryTransport` would lose a message they do not deliver, so they keep delivering until admission closes. HTTP intake is closed before the runtime stops: under Spring Boot the web server stops in an earlier lifecycle phase.
 
 `shutdownTimeout` bounds the entire shutdown from creation of the shutdown owner, not one component. Deadline expiry records a `TimeoutException` and transfers ownership to force cleanup. `stop(timeout)` limits only that caller's blocking wait; it does not replace the runtime deadline.
 
@@ -98,7 +114,7 @@ Each new runtime activity restarts the quiet period. After a continuous idle int
 
 `RuntimeComponentGroup` requires distinct component identities in one group and uses these orders:
 
-- `prepare`, `start`, and `quiesce`: registration order;
+- `prepare`, `start`, `suspendDurableIntake`, and `quiesce`: registration order;
 - `stopGracefully` and `forceStop`: reverse registration order;
 - once force wins, a detached graceful chain cannot advance into another component.
 
@@ -147,9 +163,10 @@ An application-provided runtime explicitly owns its component topology; the Star
 2. Complete `prepare` at real readiness while processing remains closed.
 3. Hold one lease for every admitted asynchronous operation until full termination.
 4. Close logical intake synchronously in `quiesce`; do not block for a long operation.
-5. Make `forceStop` safe before prepare, idempotent, and non-blocking.
-6. Use `reportFailure` only for terminal pipeline failure.
-7. Test force races with prepare, start, quiesce, and graceful stop.
+5. A component that pulls from a broker that keeps unacknowledged records stops requesting in `suspendDurableIntake`, without cancelling the source or revoking processing. A custom `Transport` declares this with `TransportReceiver.durable`, and the transport bus stops requesting from it.
+6. Make `forceStop` safe before prepare, idempotent, and non-blocking.
+7. Use `reportFailure` only for terminal pipeline failure.
+8. Test force races with prepare, start, quiesce, and graceful stop.
 
 ## Verification and operations
 
@@ -158,6 +175,9 @@ Defaults and constraints live in the [Core Configuration Reference](../../refere
 ```bash
 ./gradlew :wow-core:test --tests "me.ahoo.wow.runtime.WowRuntimeTest"
 ./gradlew :wow-core:test --tests "me.ahoo.wow.runtime.internal.RuntimeComponentGroupTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.runtime.SustainedIngressShutdownTest"
+./gradlew :wow-kafka:integrationTest --tests "me.ahoo.wow.kafka.KafkaSustainedIngressShutdownTest"
+./gradlew :wow-redis:integrationTest --tests "me.ahoo.wow.redis.bus.RedisSustainedIngressShutdownTest"
 ```
 
 Module tests verify the implementation contract only. Production quiet-period and timeout values still require evidence from real handoff jitter, maximum drain time, and resource cleanup time.

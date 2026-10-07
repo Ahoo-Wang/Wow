@@ -14,6 +14,7 @@ outline: deep
 interface RuntimeComponent {
     fun prepare(runtimeContext: RuntimeContext): Mono<Void>
     fun start()
+    fun suspendDurableIntake() = Unit
     fun quiesce() = Unit
     fun stopGracefully(): Mono<Void>
     fun forceStop()
@@ -24,6 +25,7 @@ interface RuntimeComponent {
 | --- | --- |
 | `prepare` | 获取订阅或资源，并在能够保留新工作后完成；此时仍不能开放处理 |
 | `start` | 在所有组件完成 prepare 后开放处理 |
+| `suspendDurableIntake` | 优雅停机开始时，及时、非阻塞、幂等地停止从持久传输拉取，但不取消订阅（自 9.3.0 起） |
 | `quiesce` | 全局准入关闭后，及时、非阻塞、幂等地关闭组件 intake |
 | `stopGracefully` | 排空已接收工作并异步释放资源 |
 | `forceStop` | 及时、非阻塞、可重复调用，而且在 prepare 前也安全 |
@@ -70,7 +72,8 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Stop[请求停机] --> Quiet[等待连续静默期]
+    Stop[请求停机] --> Suspend[暂停持久入口]
+    Suspend --> Quiet[等待连续静默期]
     Quiet --> Close[原子关闭全局准入]
     Close --> Quiesce[按注册顺序 quiesce]
     Quiesce --> Drain[按逆序 stopGracefully]
@@ -79,6 +82,19 @@ flowchart LR
 ```
 
 每次新的运行时活动都会重新开始静默期。连续空闲达到 `shutdownQuietPeriod` 后，Runtime 先关闭全局准入，再关闭各组件 intake。这样在上游发布完成、下游刚准备接收的交接窗口中，尾部工作仍有机会取得租约。
+
+### 持续流量下先停持久入口
+
+自 9.3.0 起，优雅停机的第一步是暂停持久入口：每个分发器的 Kafka、Redis Streams 接收器不再请求新记录。9.2 及以前，它们在运行时等待静默期时仍在拉取，到达间隔短于 `shutdownQuietPeriod` 的流量不断重置静默期，直到 `shutdownTimeout` 到期、运行时强制停止。
+
+| | 暂停之后 |
+| --- | --- |
+| 已交给分发器的记录 | 照常处理并确认；暂停前已经请求的记录（每个接收器至多为解码的预取量 32 条）也一样 |
+| Kafka | 没有需求时 Reactor Kafka 暂停已分配的分区并继续 poll，消费者留在组内，已确认的偏移照常提交。偏移只提交到第一条未确认的记录为止，所以已经 poll 到、但没有交出的记录永远不会被提交；消费者离开后，由组内接手该分区的成员收到 |
+| Redis Streams | 接收器停止读取。已经读到、但没有交出的条目保持待处理状态，不会 `XACK`；它空闲超过 `min-idle-time`、且本消费者已不活跃后，待处理消息恢复把它认领给组内其他消费者（`RedisStreamRecoveryOptions`） |
+| 进程内工作 | 与 9.2 相同：本地总线、本地优先的交接、Saga 或处理函数在排空期间发出的命令，在全局准入关闭前都会被接纳，已经在途的链路因此能在时限内完成。准入关闭后到达的消息照旧被拒绝（本地优先的交接退回到它的分布式副本） |
+
+只有中间件会保留未拉取的记录时，不拉取才是安全的，所以只暂停 `TransportReceiver.durable` 为 `true` 的接收器。内存总线与 `InMemoryTransport` 不投递就会丢消息，它们继续投递，直到准入关闭。HTTP 入口在运行时停止之前已经关闭：Spring Boot 中 Web 服务器在更早的生命周期阶段停止。
 
 `shutdownTimeout` 从停机 owner 建立时开始约束整个停机，而不只是单个组件。deadline 到达会记录 `TimeoutException` 并由强制清理接管。`stop(timeout)` 只限制当前调用者阻塞等待的时间，不会改变 Runtime 的全局 deadline。
 
@@ -98,7 +114,7 @@ flowchart LR
 
 `RuntimeComponentGroup` 要求同一组中的组件实例身份互不重复，并使用以下顺序：
 
-- `prepare`、`start`、`quiesce`：注册顺序；
+- `prepare`、`start`、`suspendDurableIntake`、`quiesce`：注册顺序；
 - `stopGracefully`、`forceStop`：逆注册顺序；
 - force 已胜出时，不再让脱离的 graceful 链进入下一个组件。
 
@@ -147,9 +163,10 @@ Starter 提供唯一的 `WowRuntimeLifecycle` 把 Runtime 适配到 Spring `Smar
 2. `prepare` 等到真正 readiness，并保持处理关闭。
 3. 每项已准入异步工作持有一个租约直到完整终止。
 4. `quiesce` 同步关闭逻辑 intake，不执行长时间阻塞。
-5. `forceStop` 在 prepare 前安全、幂等且非阻塞。
-6. 只有 terminal pipeline failure 调用 `reportFailure`。
-7. 用并发测试覆盖 force 与 prepare/start/quiesce/stop 的重叠。
+5. 从会保留未确认记录的中间件拉取的组件，在 `suspendDurableIntake` 中停止请求，但不取消订阅、不撤销处理准入。自定义 `Transport` 用 `TransportReceiver.durable` 声明这一点，传输总线会停止向它请求。
+6. `forceStop` 在 prepare 前安全、幂等且非阻塞。
+7. 只有 terminal pipeline failure 调用 `reportFailure`。
+8. 用并发测试覆盖 force 与 prepare/start/quiesce/stop 的重叠。
 
 ## 验证与运维
 
@@ -158,6 +175,9 @@ Starter 提供唯一的 `WowRuntimeLifecycle` 把 Runtime 适配到 Spring `Smar
 ```bash
 ./gradlew :wow-core:test --tests "me.ahoo.wow.runtime.WowRuntimeTest"
 ./gradlew :wow-core:test --tests "me.ahoo.wow.runtime.internal.RuntimeComponentGroupTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.runtime.SustainedIngressShutdownTest"
+./gradlew :wow-kafka:integrationTest --tests "me.ahoo.wow.kafka.KafkaSustainedIngressShutdownTest"
+./gradlew :wow-redis:integrationTest --tests "me.ahoo.wow.redis.bus.RedisSustainedIngressShutdownTest"
 ```
 
 模块测试只验证实现合同。quiet period 与 timeout 的生产值仍要依据真实交接抖动、最长排空时间和资源清理时间验证。

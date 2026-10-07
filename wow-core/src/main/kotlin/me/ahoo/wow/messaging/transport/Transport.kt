@@ -105,6 +105,16 @@ interface TransportReceiver {
     val readiness: Mono<Void>
         get() = Mono.empty()
 
+    /**
+     * Whether a record this receiver has not handed over stays with the broker for the group: the consumer pulls
+     * [records] only on demand, and what it never delivers, or delivers but never acknowledges, another member
+     * receives (Kafka, Redis Streams). On a graceful stop the runtime stops requesting from a durable receiver first,
+     * so sustained traffic cannot keep it from becoming idle; a receiver that is not durable (the default) is drained
+     * instead, since what it does not deliver is lost.
+     */
+    val durable: Boolean
+        get() = false
+
     fun openProcessing() = Unit
 
     fun close() = Unit

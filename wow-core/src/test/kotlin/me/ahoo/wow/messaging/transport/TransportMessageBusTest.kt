@@ -118,6 +118,49 @@ class TransportMessageBusTest {
     }
 
     @Test
+    fun `a durable receiver stops requesting records once its intake is suspended`() {
+        val transport = RecordingTransport().apply { durable = true }
+        val bus = TransportCommandBus(transport, NAMING)
+        val message = command()
+        val source = Sinks.many().unicast().onBackpressureBuffer<TransportRecord>()
+        val requested = AtomicInteger()
+        transport.records = source.asFlux().doOnRequest { requested.addAndGet(it.toInt()) }
+        val receiver = bus.receiver(MessageSubscription(message, "group"))
+        val received = AtomicInteger()
+        val subscription = receiver.messages.subscribe { received.incrementAndGet() }
+
+        repeat(RECORDS) { source.tryEmitNext(record(bus, message)).orThrow() }
+        received.get().assert().isEqualTo(RECORDS)
+        val requestedAtSuspension = requested.get()
+        receiver.suspendDurableIntake()
+        receiver.suspendDurableIntake()
+        repeat(RECORDS * 4) { source.tryEmitNext(record(bus, message)).orThrow() }
+        subscription.dispose()
+
+        // What was requested before the suspension is still delivered, nothing more is requested.
+        requestedAtSuspension.assert().isGreaterThan(RECORDS)
+        received.get().assert().isEqualTo(requestedAtSuspension)
+        requested.get().assert().isEqualTo(requestedAtSuspension)
+    }
+
+    @Test
+    fun `a receiver that is not durable keeps delivering after a suspension`() {
+        val transport = RecordingTransport()
+        val bus = TransportCommandBus(transport, NAMING)
+        val message = command()
+        transport.records = Flux.just(record(bus, message), record(bus, message))
+        val receiver = bus.receiver(MessageSubscription(message, "group"))
+
+        receiver.suspendDurableIntake()
+
+        receiver.messages.test()
+            .expectNextCount(2)
+            .verifyComplete()
+        // A transport is not durable unless it says so: the in-memory one keeps nothing it does not deliver.
+        InMemoryTransport().open("group", setOf("topic")).durable.assert().isFalse()
+    }
+
+    @Test
     fun `a failing decode fails the stream and the readiness without exposing the payload`() {
         val message = command()
         val transport = RecordingTransport(readiness = Mono.never())
@@ -274,6 +317,7 @@ class TransportMessageBusTest {
         val sent = mutableListOf<TransportMessage>()
         val opened = mutableListOf<Pair<String, Set<String>>>()
         var records: Flux<TransportRecord> = Flux.empty()
+        var durable = false
         var closed = false
 
         override fun send(message: TransportMessage): Mono<Void> = Mono.fromRunnable { sent += message }
@@ -282,9 +326,11 @@ class TransportMessageBusTest {
             opened += group to topics
             val records = records
             val readiness = readiness
+            val durable = durable
             return object : TransportReceiver {
                 override val records: Flux<TransportRecord> = records
                 override val readiness: Mono<Void> = readiness
+                override val durable: Boolean = durable
             }
         }
 
@@ -295,5 +341,8 @@ class TransportMessageBusTest {
 
     companion object {
         private val NAMING = TopicNaming { "${it.contextName}.${it.aggregateName}" }
+
+        /** The prefetch of the decoding `concatMap`, so a received batch replenishes the demand once. */
+        private const val RECORDS = 32
     }
 }

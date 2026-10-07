@@ -111,6 +111,10 @@ class RedisStreamTransport(
             override val records: Flux<TransportRecord> = records
             override val readiness: Mono<Void> = readiness.asMono()
 
+            // Without demand the stream receiver stops reading; entries read but not handed over stay pending.
+            override val durable: Boolean
+                get() = true
+
             override fun openProcessing() {
                 readAdmission.tryEmitEmpty()
             }
