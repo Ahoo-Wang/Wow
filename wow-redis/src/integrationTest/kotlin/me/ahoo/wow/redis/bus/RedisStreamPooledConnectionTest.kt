@@ -48,10 +48,15 @@ import java.util.concurrent.TimeUnit
 
 /**
  * With a pooled Lettuce factory (`LettucePoolingClientConfiguration`, which needs commons-pool2) a receive stream asks
- * the factory for a connection per read and gives it back after the read: it keeps no pool slot between reads. While
- * its blocking `XREADGROUP … BLOCK` waits, though, it holds one, and Lettuce's reactive pool does not wait for a free
- * one: when the pool has no connection left for a read, it fails with "Pool exhausted" (as before 9.3). Besides the
- * reads, another pooled connection is held (most likely the template's shared one), hence `max-active` ≥ receive streams + 1.
+ * the factory for a connection per read and gives it back after the read: it keeps no pool slot between reads.
+ *
+ * Spring's pooling provider keeps two pools of `max-active` each: a blocking one, from which the template's shared
+ * connection comes, and an asynchronous one, from which every blocking `XREADGROUP … BLOCK` read borrows. The
+ * asynchronous pool does not wait for a free connection: a read that finds none fails at once with "Pool exhausted"
+ * (as before 9.3). A read holds its connection for as long as it blocks, so the asynchronous pool needs one connection
+ * per receive stream. With exactly that many, CI still saw an occasional exhaustion, most likely because a read's
+ * connection goes back asynchronously and the next read can ask before it is back; hence the documented minimum of
+ * streams + 1, an empirical margin.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisStreamPooledConnectionTest {
@@ -79,39 +84,34 @@ class RedisStreamPooledConnectionTest {
 
     @Test
     fun `a pooled factory is not given a held read connection`() {
-        val factory = pooledFactory(maxActive = 2, maxWait = Duration.ofSeconds(1))
+        val factory = pooledFactory(maxActive = 2)
 
         RedisStreamReadConnectionFactory.holdsReadConnection(factory).assert().isFalse()
     }
 
     @Test
-    fun `a pooled receive stream borrows a connection per read`() {
-        val factory = spyk(pooledFactory(maxActive = 2, maxWait = Duration.ofSeconds(1)))
-        val bus = RedisCommandBus(
-            redisTemplate = ReactiveStringRedisTemplate(factory),
-            pollTimeout = Duration.ofMillis(100),
-            failurePolicy = TransportFailurePolicy(TransportFailurePolicy.receiveRetry(maxAttempts = 0)),
-        )
+    fun `a pooled receive stream borrows a connection per read, and one pooled connection serves it`() {
+        // max-active 1: the template's shared connection comes from the other (blocking) pool, so it does not take
+        // the slot the stream's reads borrow.
+        val factory = spyk(pooledFactory(maxActive = 1))
+        val bus = pooledBus(factory, pollTimeout = Duration.ofMillis(100))
         val errors = CopyOnWriteArrayList<Throwable>()
-        startReceiving(bus, errors)
+        val received = startReceiving(bus, errors)
+        roundTrip(bus, received)
         clearMocks(factory, answers = false, recordedCalls = true)
 
         // About 10 empty polls; a stream holding one connection would ask the factory once.
         Thread.sleep(1_000)
 
         verify(atLeast = 5) { factory.reactiveConnection }
+        roundTrip(bus, received)
         errors.assert().isEmpty()
     }
 
     @Test
     fun `receive streams plus one pooled connections serve them all`() {
-        // One per blocking read, plus the one the documented rule adds (CI exhausted the pool with 2).
-        val factory = pooledFactory(maxActive = 3, maxWait = Duration.ofSeconds(1))
-        val bus = RedisCommandBus(
-            redisTemplate = ReactiveStringRedisTemplate(factory),
-            pollTimeout = Duration.ofMillis(100),
-            failurePolicy = TransportFailurePolicy(TransportFailurePolicy.receiveRetry(maxAttempts = 0)),
-        )
+        val factory = pooledFactory(maxActive = 3)
+        val bus = pooledBus(factory, pollTimeout = Duration.ofMillis(100))
         val errors = CopyOnWriteArrayList<Throwable>()
         val first = startReceiving(bus, errors)
         val second = startReceiving(bus, errors)
@@ -129,17 +129,12 @@ class RedisStreamPooledConnectionTest {
 
     @Test
     fun `fewer pooled connections than receive streams exhaust the pool`() {
-        // max-active 1 < 2 streams + 1: a read that finds no pooled connection left (an idle stream blocks in
-        // XREADGROUP for its whole poll timeout holding one) fails at once.
-        val factory = pooledFactory(maxActive = 1, maxWait = Duration.ofMillis(100))
-        val bus = RedisCommandBus(
-            redisTemplate = ReactiveStringRedisTemplate(factory),
-            pollTimeout = Duration.ofSeconds(2),
-            failurePolicy = TransportFailurePolicy(TransportFailurePolicy.receiveRetry(maxAttempts = 0)),
-        )
+        // 3 idle streams, 2 connections: two reads block in XREADGROUP for the whole poll timeout, each holding one,
+        // and the third read finds the pool exhausted.
+        val factory = pooledFactory(maxActive = 2)
+        val bus = pooledBus(factory, pollTimeout = Duration.ofSeconds(2))
         val errors = CopyOnWriteArrayList<Throwable>()
-        startReceiving(bus, errors)
-        startReceiving(bus, errors)
+        repeat(3) { startReceiving(bus, errors) }
 
         val deadline = System.nanoTime() + TIMEOUT.toNanos()
         while (errors.isEmpty()) {
@@ -149,11 +144,10 @@ class RedisStreamPooledConnectionTest {
         errors.first().causes().any { it is NoSuchElementException }.assert().isTrue()
     }
 
-    private fun pooledFactory(maxActive: Int, maxWait: Duration): LettuceConnectionFactory {
+    private fun pooledFactory(maxActive: Int): LettuceConnectionFactory {
         val poolConfig = GenericObjectPoolConfig<StatefulConnection<*, *>>().apply {
             maxTotal = maxActive
             maxIdle = maxActive
-            setMaxWait(maxWait)
         }
         val factory = LettuceConnectionFactory(
             RedisStandaloneConfiguration(redis.host, redis.getMappedPort(6379)),
@@ -162,6 +156,19 @@ class RedisStreamPooledConnectionTest {
         factory.afterPropertiesSet()
         connectionFactories += factory
         return factory
+    }
+
+    private fun pooledBus(factory: LettuceConnectionFactory, pollTimeout: Duration) = RedisCommandBus(
+        redisTemplate = ReactiveStringRedisTemplate(factory),
+        pollTimeout = pollTimeout,
+        failurePolicy = TransportFailurePolicy(TransportFailurePolicy.receiveRetry(maxAttempts = 0)),
+    )
+
+    private fun roundTrip(bus: RedisCommandBus, received: Sinks.Many<String>) {
+        val message = createMessage()
+        val acknowledged = received.asFlux().filter { it == message.id }.next().toFuture()
+        bus.send(message).block(TIMEOUT)
+        acknowledged.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
     }
 
     private fun startReceiving(bus: RedisCommandBus, errors: MutableList<Throwable>): Sinks.Many<String> {
