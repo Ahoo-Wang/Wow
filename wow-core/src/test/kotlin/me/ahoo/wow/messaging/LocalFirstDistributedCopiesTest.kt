@@ -48,6 +48,15 @@ class LocalFirstDistributedCopiesTest {
         sent.clear()
     }
 
+    /** A copy not sent within the sender's own send is sent on another thread: wait for it. */
+    private fun awaitUntil(timeout: Duration = Duration.ofSeconds(30), condition: () -> Boolean) {
+        val deadline = System.nanoTime() + timeout.toNanos()
+        while (!condition()) {
+            check(System.nanoTime() < deadline) { "Condition not met within $timeout." }
+            Thread.sleep(1)
+        }
+    }
+
     private fun LocalFirstDistributedCopies.enqueue(
         id: String,
         key: Any = "aggregate-1",
@@ -74,6 +83,7 @@ class LocalFirstDistributedCopiesTest {
 
         firstAdmission.tryEmitValue(false).orThrow()
 
+        awaitUntil { copies.pending == 0 }
         sent.assert().containsExactly("1" to false, "2" to true, "3" to false)
         third.sent.test().verifyComplete()
         copies.pending.assert().isZero()
@@ -87,6 +97,7 @@ class LocalFirstDistributedCopiesTest {
 
         copies.enqueue("other", key = "aggregate-2").decide(LocalHandoff.REFUSED)
 
+        awaitUntil { copies.pending == 1 }
         sent.assert().containsExactly("other" to false)
         copies.pending.assert().isEqualTo(1)
     }
@@ -100,6 +111,7 @@ class LocalFirstDistributedCopiesTest {
 
         blocker.tryEmitValue(true).orThrow()
 
+        awaitUntil { copies.pending == 0 }
         sent.size.assert().isEqualTo(20_001)
         copies.pending.assert().isZero()
     }
@@ -112,6 +124,7 @@ class LocalFirstDistributedCopiesTest {
         copy.decide(LocalHandoff.accepted(Mono.just(true)))
         copy.decide(LocalHandoff.REFUSED)
 
+        copy.sent.block(Duration.ofSeconds(30))
         sent.assert().containsExactly("1" to true)
     }
 
@@ -122,6 +135,7 @@ class LocalFirstDistributedCopiesTest {
         copies.enqueue("error").decide(LocalHandoff.accepted(Mono.error(IllegalStateException("closed"))))
         copies.enqueue("empty").decide(LocalHandoff.accepted(Mono.empty()))
 
+        awaitUntil { copies.pending == 0 }
         sent.assert().containsExactly("error" to false, "empty" to false)
     }
 
@@ -136,7 +150,7 @@ class LocalFirstDistributedCopiesTest {
 
         failed.sent.test().expectErrorMessage("broker down").verify()
         next.sent.test().verifyComplete()
-        copies.pending.assert().isZero()
+        awaitUntil { copies.pending == 0 }
     }
 
     @Test
@@ -156,6 +170,7 @@ class LocalFirstDistributedCopiesTest {
 
         copy.decide(LocalHandoff.REFUSED)
 
+        copy.sent.block(Duration.ofSeconds(30))
         seen.get().getMetricsSubscriber().assert().isEqualTo("subscriber-1")
         seen.get().hasKey("request").assert().isFalse()
     }
@@ -174,6 +189,67 @@ class LocalFirstDistributedCopiesTest {
     }
 
     @Test
+    fun `a copy admitted or refused within the sender's send is sent on the sender's thread`() {
+        val copies = LocalFirstDistributedCopies()
+        val sentOn = CopyOnWriteArrayList<Thread>()
+        val admitted = copies.enqueue("aggregate-1", aggregate, Context.empty(), { "message[1]" }) {
+            Mono.fromRunnable { sentOn += Thread.currentThread() }
+        }
+        val refused = copies.enqueue("aggregate-2", aggregate, Context.empty(), { "message[2]" }) {
+            Mono.fromRunnable { sentOn += Thread.currentThread() }
+        }
+
+        admitted.decideFrom(Mono.just(LocalHandoff.accepted(ADMITTED_ON_HAND_OFF))).test().expectNextCount(1)
+            .verifyComplete()
+        refused.decideFrom(Mono.just(LocalHandoff.REFUSED)).test().expectNextCount(1).verifyComplete()
+
+        // Sent synchronously, before decideFrom returned.
+        sentOn.assert().containsExactly(Thread.currentThread(), Thread.currentThread())
+    }
+
+    @Test
+    fun `a copy started when the copy before it finished is encoded and sent off the completing thread`() {
+        val copies = LocalFirstDistributedCopies()
+        val transport = Schedulers.newSingle("transport-network")
+        try {
+            val sentOn = AtomicReference<Thread>()
+            // The first send completes on the transport's thread, as a broker acknowledgement does.
+            val first = copies.enqueue("1", send = Mono.delay(Duration.ofMillis(20), transport).then())
+            val second = copies.enqueue("aggregate-1", aggregate, Context.empty(), { "message[2]" }) {
+                Mono.fromRunnable { sentOn.set(Thread.currentThread()) }
+            }
+            second.decide(LocalHandoff.REFUSED)
+            first.decideFrom(Mono.just(LocalHandoff.REFUSED)).block()
+
+            second.sent.block(Duration.ofSeconds(30))
+            sentOn.get().name.assert().doesNotStartWith("transport-network").startsWith("parallel-")
+        } finally {
+            transport.dispose()
+        }
+    }
+
+    @Test
+    fun `an admission completed on another thread sends the copy off that thread`() {
+        val copies = LocalFirstDistributedCopies()
+        val store = Executors.newSingleThreadExecutor { Thread(it, "store-driver") }
+        try {
+            val sentOn = AtomicReference<Thread>()
+            val admission = Sinks.one<Boolean>()
+            val copy = copies.enqueue("aggregate-1", aggregate, Context.empty(), { "message[1]" }) {
+                Mono.fromRunnable { sentOn.set(Thread.currentThread()) }
+            }
+            copy.decideFrom(Mono.just(LocalHandoff.accepted(admission.asMono()))).block()
+
+            store.submit { admission.tryEmitValue(true).orThrow() }.get()
+
+            copy.sent.block(Duration.ofSeconds(30))
+            sentOn.get().name.assert().startsWith("parallel-")
+        } finally {
+            store.shutdownNow()
+        }
+    }
+
+    @Test
     fun `the hand-off timeout must be positive`() {
         assertThrows<IllegalArgumentException> { LocalFirstDistributedCopies(handOffTimeout = Duration.ZERO) }
     }
@@ -183,13 +259,14 @@ class LocalFirstDistributedCopiesTest {
         val copies = LocalFirstDistributedCopies()
         val first = copies.enqueue("1", key = "aggregate-1")
         copies.enqueue("2", key = "aggregate-2").decide(LocalHandoff.REFUSED)
-        copies.queues.assert().isEqualTo(1)
+        awaitUntil { copies.queues == 1 }
 
         first.decide(LocalHandoff.REFUSED)
 
-        copies.queues.assert().isZero()
+        awaitUntil { copies.queues == 0 }
         // A later copy of the same aggregate gets a fresh queue.
         copies.enqueue("3", key = "aggregate-1").decide(LocalHandoff.REFUSED)
+        awaitUntil { copies.pending == 0 && copies.queues == 0 }
         sent.assert().containsExactly("2" to false, "1" to false, "3" to false)
         copies.queues.assert().isZero()
     }
@@ -288,6 +365,7 @@ class LocalFirstDistributedCopiesTest {
         val running = copies.enqueue("1", send = Mono.never<Void>().doOnCancel { cancelled.set(true) })
         running.decide(LocalHandoff.REFUSED)
         val queued = copies.enqueue("2")
+        awaitUntil { sent.size == 1 }
 
         copies.forceStop()
 

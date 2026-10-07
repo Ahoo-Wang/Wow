@@ -17,7 +17,6 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Schedulers
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -28,8 +27,11 @@ private const val LOCAL_DELIVERY_TICKET_ATTRIBUTE = "__WOW_LOCAL_DELIVERY_TICKET
  *
  * Rejection wins over incomplete confirmations. Once every target confirms,
  * the receipt is terminal and later route shutdown cannot revoke admitted work.
- * Sender continuation crosses an asynchronous boundary so route shutdown never
- * runs a distributed fallback on its lifecycle thread.
+ * [signal] completes on the thread that decided (the confirming receiver's, or
+ * the route's lifecycle thread for a rejection); the consumer of the result,
+ * [LocalFirstDistributedCopies], moves the distributed fallback off that thread.
+ * [confirmed] tells a hand-off that every receiver already admitted the message
+ * as it was emitted.
  */
 internal class LocalDeliveryReceipt(targets: Set<LocalDeliveryRouteTarget>) {
     private val monitor = Any()
@@ -37,6 +39,7 @@ internal class LocalDeliveryReceipt(targets: Set<LocalDeliveryRouteTarget>) {
     private val unclaimedTargets = targets.toMutableSet()
     private val result = Sinks.one<Boolean>()
     private var terminal = false
+    private var admitted = false
 
     init {
         require(targets.isNotEmpty()) {
@@ -44,9 +47,11 @@ internal class LocalDeliveryReceipt(targets: Set<LocalDeliveryRouteTarget>) {
         }
     }
 
-    fun signal(): Mono<Boolean> =
-        result.asMono()
-            .publishOn(Schedulers.parallel())
+    fun signal(): Mono<Boolean> = result.asMono()
+
+    /** Whether every target has confirmed: the receipt is terminal and admitted. */
+    val confirmed: Boolean
+        get() = synchronized(monitor) { admitted }
 
     fun claim(target: LocalDeliveryRouteTarget): LocalDeliveryTicket? =
         synchronized(monitor) {
@@ -63,6 +68,7 @@ internal class LocalDeliveryReceipt(targets: Set<LocalDeliveryRouteTarget>) {
                 false
             } else if (remainingTargets.isEmpty()) {
                 terminal = true
+                admitted = true
                 true
             } else {
                 false

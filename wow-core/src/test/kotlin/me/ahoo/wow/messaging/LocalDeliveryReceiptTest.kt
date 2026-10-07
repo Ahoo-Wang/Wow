@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class LocalDeliveryReceiptTest {
 
@@ -41,6 +42,32 @@ class LocalDeliveryReceiptTest {
         secondTicket.confirm()
 
         result.get(1, TimeUnit.SECONDS).assert().isTrue()
+    }
+
+    @Test
+    fun `a confirmation continues on the confirming thread`() {
+        val route = LocalDeliveryRouteTarget()
+        val receipt = LocalDeliveryReceipt(setOf(route))
+        val continuedOn = AtomicReference<Thread>()
+        receipt.signal().subscribe { continuedOn.set(Thread.currentThread()) }
+
+        checkNotNull(receipt.claim(route)).confirm()
+
+        continuedOn.get().assert().isSameAs(Thread.currentThread())
+        receipt.confirmed.assert().isTrue()
+    }
+
+    @Test
+    fun `a rejection completes the signal unconfirmed`() {
+        val route = LocalDeliveryRouteTarget()
+        val receipt = LocalDeliveryReceipt(setOf(route))
+        val result = receipt.signal().toFuture()
+
+        receipt.reject()
+        checkNotNull(receipt.claim(route).also { it.assert().isNull() } ?: route)
+
+        result.get(1, TimeUnit.SECONDS).assert().isFalse()
+        receipt.confirmed.assert().isFalse()
     }
 }
 
