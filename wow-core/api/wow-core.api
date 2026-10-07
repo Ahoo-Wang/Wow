@@ -2337,6 +2337,7 @@ public final class me/ahoo/wow/execution/KeyedExecutor : java/lang/AutoCloseable
 	public fun <init> (IILjava/lang/String;I)V
 	public synthetic fun <init> (IILjava/lang/String;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
+	public final fun forceClose ()V
 	public final fun getCoroutineDispatcher ()Lkotlinx/coroutines/CoroutineDispatcher;
 	public final fun getMaxInFlight ()I
 	public final fun getName ()Ljava/lang/String;
