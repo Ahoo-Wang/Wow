@@ -48,14 +48,25 @@ object DefaultMethodContract {
     val CONSTANT_CLASSIFIERS: Set<String> = setOf("topicKind")
 
     /**
+     * Deprecated defaults that are compatibility adapters onto their replacement member (`Interface.member`), each
+     * marked `compat(...)` in the source and listed in docs/compat-debt.md. A decorator that forwards the replacement
+     * forwards them too, so they are not checked. Any other deprecated default still is: deprecation alone does not
+     * make inheriting a fallback correct.
+     */
+    val COMPAT_ADAPTERS: Set<String> = setOf(
+        // compat(wow<9.3): the 9.2 receive entry, an adapter onto receiver; see docs/compat-debt.md.
+        "MessageBus.receive",
+    )
+
+    /**
      * Returns `SimpleName.member(ParamTypes)` for every member with a default body, declared by a Wow interface
      * (package `me.ahoo.wow.`), that [type] inherits without overriding it in a class of its own hierarchy.
      *
      * An interface that itself extends [Decorator] (a decorator mixin such as `TracingMessageBus`) is part of the
      * implementation, not of the SPI: its default members count as overrides, and its own defaults are not checked.
      *
-     * A deprecated default is skipped: it is a compatibility adapter onto its replacement member (for example
-     * `MessageBus.receive` onto `receiver`), so a decorator that forwards the replacement forwards it too.
+     * A deprecated default listed in [COMPAT_ADAPTERS] is skipped: it is a compatibility adapter onto its replacement
+     * member (`MessageBus.receive` onto `receiver`), so a decorator that forwards the replacement forwards it too.
      *
      * Kotlin reflection is used on purpose: the compiler emits a JVM bridge for each inherited default
      * (`invokespecial Interface.member`), so Java reflection cannot tell an override from an inherited default.
@@ -75,10 +86,10 @@ object DefaultMethodContract {
         val overridden = (classHierarchy + decoratorMixins).flatMap { it.declaredMembers }
         return spis
             .asSequence()
-            .flatMap { spi -> spi.declaredMembers.asSequence() }
-            .filter { !it.isAbstract && it.visibility == KVisibility.PUBLIC && it.name !in ignoredMembers }
-            // compat(wow<9.3): skips MessageBus.receive, the deprecated adapter onto receiver; see docs/compat-debt.md.
-            .filter { it.findAnnotation<Deprecated>() == null }
+            .flatMap { spi -> spi.declaredMembers.asSequence().map { spi to it } }
+            .filter { (_, it) -> !it.isAbstract && it.visibility == KVisibility.PUBLIC && it.name !in ignoredMembers }
+            .filterNot { (spi, it) -> it.findAnnotation<Deprecated>() != null && "${spi.simpleName}.${it.name}" in COMPAT_ADAPTERS }
+            .map { (_, it) -> it }
             .filter { default -> overridden.none { it.overrides(default) } }
             .map { "${type.simpleName}.${it.signature()}" }
             .distinct()

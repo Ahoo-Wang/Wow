@@ -79,6 +79,10 @@ This precheck rejects obvious duplicates early and resolves false positives from
 
 A production store must therefore enforce version and request-ID uniqueness within its own atomic write boundary and map failures correctly. Application-level “read, then write” logic cannot replace this constraint. Run the relevant backend module and TCK for the concrete store; [Event Sourcing](../domain/event-sourcing.md) does not treat the in-memory implementation as proof of production durability.
 
+## When the Append Outcome Is Unknown
+
+An append can fail without telling whether it was written: the store could not be read back to resolve the outcome, or the expected slot was still empty after the write. The command then fails, yet the write may still land. A retry, or the next command on that aggregate, loads the stream and builds on it, so history stays consistent; but that stream may never have been sent on the event bus, so projections, sagas and other consumers may never see it. "Stored, therefore published" is not guaranteed in this case. When such a failure is reported, check the aggregate's event stream and send any unpublished stream again with the event compensation APIs ([Recovery](../recovery.md): Event Compensate for one `DomainEventStream`, Resend State Event for state events).
+
 ## Version and Create Conflicts
 
 A version conflict usually means that a decision used a stale aggregate version or that the aggregate has concurrent writers. Retry with the same `requestId` only after reloading current state and proving that the original business intent remains valid. Do not silently increment the expected version or overwrite history.

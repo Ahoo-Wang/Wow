@@ -34,7 +34,8 @@ class WowProperties(
 
 /**
  * The runtime's [KeyedExecutor] (`wow.dispatch.*`): the worker threads every dispatcher shares, and how many
- * unfinished messages one dispatcher holds before it stops requesting more from its transport.
+ * unfinished messages one receiver (one per dispatcher and bounded context) holds before it stops requesting more from
+ * its transport.
  */
 class DispatchProperties(
     var workers: Int = KeyedExecutor.DEFAULT_WORKERS,

@@ -60,7 +60,9 @@ interface CommandHandler {
  *    the append.
  * 4. The aggregate processes the command through an [AggregateProcessorFactory] processor. The transport message is
  *    acknowledged whatever the outcome; a failure skips the publication.
- * 5. The domain event stream the command committed is sent on [domainEventBus]; a failure propagates.
+ * 5. The domain event stream the command committed is sent on [domainEventBus]; a failure of that send propagates.
+ *    A local-first send completes once the stream is handed off locally: its distributed copy is sent afterwards, and
+ *    a failure of the copy is logged and counted, not propagated here.
  * 6. The state event is sent on [stateEventBus]; a failure is logged and resumed. A stored stream is always applied
  *    (the kernel applies before it appends), so the check that the state's version is the stream's is only
  *    defensive.

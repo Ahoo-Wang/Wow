@@ -73,6 +73,12 @@ on:
 permissions:
   contents: read
 
+# One run per pull request, or per identical dispatch: a newer one (a re-applied label, the same dispatch
+# again) cancels the older, so two runs of one commit never race to build and cache the same jar.
+concurrency:
+  group: benchmark-ab-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('dispatch-{0}-{1}-{2}-{3}-{4}-{5}', inputs.base, inputs.head, inputs.include, inputs.profile, inputs.params, inputs.threads) }}
+  cancel-in-progress: true
+
 env:
   CI: GITHUB_ACTIONS
 
@@ -198,9 +204,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # This job builds whatever SHA it is given, a contributor's included. A workflow_dispatch run writes its
+      # caches into the default branch's scope, which every later run (trusted builds of main included) restores
+      # from; so the Gradle cache is never written here, and the jar is saved only for a commit already on the
+      # default branch. A pull_request run's caches stay in that pull request's scope.
       - name: Restore the cached JMH jar
         id: jar-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/jar
           key: benchmark-ab-jmh-jar-${{ matrix.sha }}-${{ hashFiles('wow-benchmarks/src/jmh/**', '**/build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -208,6 +218,8 @@ jobs:
       - name: Set up Gradle
         if: steps.jar-cache.outputs.cache-hit != 'true'
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
 
       - name: Build the JMH jar
         if: steps.jar-cache.outputs.cache-hit != 'true'
@@ -216,6 +228,35 @@ jobs:
           mkdir -p "$RUNNER_TEMP/jar"
           jars=(wow-benchmarks/build/libs/wow-benchmarks-*-jmh.jar)
           cp "${jars[0]}" "$RUNNER_TEMP/jar/benchmarks.jar"
+
+      - name: Decide whether the jar may be cached
+        id: jar-trust
+        if: steps.jar-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          SHA: ${{ matrix.sha }}
+        run: |
+          trusted=false
+          if [ "$EVENT" = pull_request ]; then
+            trusted=true
+          else
+            # behind or identical: the commit is already on the default branch.
+            status=$(gh api "repos/$REPOSITORY/compare/$DEFAULT_BRANCH...$SHA" --jq .status || echo unknown)
+            if [ "$status" = behind ] || [ "$status" = identical ]; then
+              trusted=true
+            fi
+          fi
+          echo "trusted=$trusted" >> "$GITHUB_OUTPUT"
+
+      - name: Save the JMH jar
+        if: steps.jar-trust.outputs.trusted == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/jar
+          key: ${{ steps.jar-cache.outputs.cache-primary-key }}
 
       - name: List the selected benchmarks
         env:

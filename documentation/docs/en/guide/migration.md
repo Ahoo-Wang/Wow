@@ -67,11 +67,6 @@ binary after a new storage-format write is not a rollback.
 
 The sections below are ordered by how likely an application is to meet them: every application reads the first four, an application with REST clients also reads the fifth, and the later ones mostly concern custom extensions.
 
-<!--
-Placeholders for 9.3.0 work not merged when this section was written. Add a section here, in order of likelihood, when one lands; delete the line when it moves to a later release.
-- X4 (hot path: meter caching).
--->
-
 ### Before You Upgrade
 
 1. **Move to 9.2.4 first** if you run an older 9.2.x: the mixed-version gate (`MixedVersionClusterTest`) runs the released 9.2.4 image beside the 9.3 build on one MongoDB and one Kafka, in the same consumer groups, and proves commands, snapshots, sagas and local-first copies cross versions in both directions.

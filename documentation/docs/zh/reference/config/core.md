@@ -19,7 +19,7 @@ outline: deep
 | `wow.shutdown-timeout` | Duration | `60s` | 整个 `WowRuntime` 静默和逆序停止共享的截止时间 |
 | `wow.shutdown-quiet-period` | Duration | `1s` | 停止接收前必须连续保持无活动的时间；新活动会重新计时 |
 | `wow.dispatch.workers` | Int | 可用处理器数 | 运行时 [`KeyedExecutor`](../../guide/advanced/keyed-executor.md) 的工作线程数，全部分发器共享（自 9.3.0 起） |
-| `wow.dispatch.max-in-flight` | Int | `256` | 单个分发器停止向传输请求新消息前可持有的未完成消息数（自 9.3.0 起） |
+| `wow.dispatch.max-in-flight` | Int | `256` | 单个接收器（每个分发器、每个限界上下文一个）停止向传输请求新消息前可持有的未完成消息数（自 9.3.0 起） |
 | `wow.dispatch.throughput` | Int | `16` | 分发工作线程在转向其他聚合前，一轮执行同一聚合的消息数（自 9.3.0 起） |
 
 `shutdown-timeout` 必须大于零；`shutdown-quiet-period` 必须非负且小于 `shutdown-timeout`。二者还必须能够精确表示为有符号 64 位纳秒值。
@@ -42,6 +42,7 @@ wow:
 | --- | --- | --- | --- |
 | `bus.type` | [`BusType`](#bustype) | `kafka` | 为当前通道选择总线实现 |
 | `bus.local-first.enabled` | Boolean | `true` | 分布式总线存在时启用 LocalFirst 组合 |
+| `bus.local-first.backlog-high-water-mark` | Int | `10000` | 单个聚合类型等待发送的副本达到该数量时记录告警（自 9.3.0 起） |
 
 “默认 `kafka`”只表示属性默认值。运行时仍必须包含 `kafka-support` capability，并提供 `wow.kafka.bootstrap-servers`；否则不能据此声称 Kafka 已可用。
 
@@ -72,6 +73,7 @@ LocalFirst 同时发送分布式副本并尝试本地准入。所有目标本地
 | --- | --- | --- | --- |
 | `wow.command.bus.type` | `BusType` | `kafka` | 命令总线 |
 | `wow.command.bus.local-first.enabled` | Boolean | `true` | 命令 LocalFirst |
+| `wow.command.bus.local-first.backlog-high-water-mark` | Int | `10000` | 命令 LocalFirst 积压告警阈值 |
 | `wow.command.idempotency.enabled` | Boolean | `true` | 启用命令幂等预检 |
 | `wow.command.idempotency.bloom-filter.ttl` | Duration | `1m` | Bloom Filter 的存活时间 |
 | `wow.command.idempotency.bloom-filter.expected-insertions` | Long | `1000000` | 预期插入量 |
@@ -102,6 +104,7 @@ wow:
 | --- | --- | --- |
 | `wow.event.bus.type` | `BusType` | `kafka` |
 | `wow.event.bus.local-first.enabled` | Boolean | `true` |
+| `wow.event.bus.local-first.backlog-high-water-mark` | Int | `10000` |
 | `wow.event.ack-on-unrecorded-failure` | Boolean | `true` |
 
 `ack-on-unrecorded-failure`（自 9.3.0 起）决定事件处理（Processor、Saga、Projection）失败且没有失败记录器记录它（即未启用补偿模块）时怎么办：`true` 记录日志后确认，与 9.3.0 之前相同；`false` 不确认，由总线再次投递（至少一次；在 Kafka 上会让接收端暂停，见[失败记录](../../guide/event/dispatch.md#失败记录)）。补偿模块未能记录的失败无论此开关如何都不确认。
@@ -195,6 +198,7 @@ wow:
 | --- | --- | --- |
 | `wow.eventsourcing.state.bus.type` | `BusType` | `kafka` |
 | `wow.eventsourcing.state.bus.local-first.enabled` | Boolean | `true` |
+| `wow.eventsourcing.state.bus.local-first.backlog-high-water-mark` | Int | `10000` |
 
 StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积压与失败纳入 `SNAPSHOT` 阶段诊断。
 

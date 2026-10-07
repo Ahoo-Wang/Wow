@@ -167,10 +167,10 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 9.2 `MessageBus.receive`
 
-- **Kept compatible**: 9.2 code that reads a bus as a plain stream with `bus.receive(subscription)`, from Kotlin or Java. 9.3 keeps one entry a bus implements, the abstract `receiver`; `receive` stays a deprecated default member that returns the receiver's messages with processing opened on subscription. Because `receiver` has no default, the two can never default onto each other. A bus that implemented only `receive` must implement `receiver`: that is an SPI change, listed in the migration guide. `DefaultMethodContract` (`test/wow-tck`) skips deprecated defaults, so a decorator need not forward `receive`.
+- **Kept compatible**: 9.2 code that reads a bus as a plain stream with `bus.receive(subscription)`, from Kotlin or Java. 9.3 keeps one entry a bus implements, the abstract `receiver`; `receive` stays a deprecated default member that returns the receiver's messages with processing opened on subscription. Because `receiver` has no default, the two can never default onto each other. A bus that implemented only `receive` must implement `receiver`: that is an SPI change, listed in the migration guide. `DefaultMethodContract` (`test/wow-tck`) skips `MessageBus.receive` by name (`COMPAT_ADAPTERS`; any other deprecated default is still checked), so a decorator need not forward `receive`.
 - **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt`, `test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/architecture/DefaultMethodContract.kt`
 - **Replacement**: `receiver(subscription).openedMessages()`.
-- **Removal in v10**: delete `receive` from `MessageBus` and the deprecated-default filter from `DefaultMethodContract`. Callers stop compiling and use the replacement.
+- **Removal in v10**: delete `receive` from `MessageBus` and its `COMPAT_ADAPTERS` entry from `DefaultMethodContract`. Callers stop compiling and use the replacement.
 
 ### Wow 9.2 Static `RecoverableExceptionRegistrar`
 

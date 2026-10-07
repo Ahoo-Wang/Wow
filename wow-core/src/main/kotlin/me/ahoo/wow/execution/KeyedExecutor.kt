@@ -24,8 +24,9 @@ import kotlinx.coroutines.asCoroutineDispatcher
  * worker it was given when it was created (a running worker with nothing queued, else a parked one); different
  * mailboxes run in parallel. Each worker has its own FIFO queue, so a mailbox that has run [throughput] messages goes
  * behind the other mailboxes of its worker. A handler that waits (I/O, a retry backoff) holds no worker and delays
- * only its own mailbox. Each dispatcher accepts at most [maxInFlight] messages it has not finished, and requests more
- * from its transport only as they finish, so a slow dispatcher backpressures its source instead of buffering.
+ * only its own mailbox. Each receiver (a dispatcher has one per bounded context) accepts at most [maxInFlight] messages
+ * it has not finished, and requests more from its transport only as they finish, so a slow dispatcher backpressures its
+ * source instead of buffering.
  *
  * A `suspend` or `Flow` message function called by a dispatcher resumes on these workers
  * ([coroutineDispatcher]) instead of `Dispatchers.Default`; its mailbox does not start the next message until it
@@ -34,7 +35,8 @@ import kotlinx.coroutines.asCoroutineDispatcher
  * The runtime owns its executor and disposes it once every component has stopped.
  *
  * @param workers the number of worker threads; defaults to the available processors.
- * @param maxInFlight the most messages one dispatcher holds unfinished (running or queued in a mailbox).
+ * @param maxInFlight the most messages one receiver, i.e. one (dispatcher, bounded context), holds unfinished (running
+ * or queued in a mailbox).
  * @param name the worker thread name prefix.
  * @param throughput the most messages of one aggregate a worker runs in one turn (while they complete synchronously)
  * before it moves on to other aggregates, so one hot aggregate cannot starve the others.
