@@ -67,7 +67,6 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 <!--
 本节写作时尚未合并的 9.3.0 工作的占位。合并后按可能性在这里加一节；推迟到之后的版本就删掉对应的行。
-- X7 2/2（按上下文接收；#3975）：合并后在“分发：每个运行时一个 KeyedExecutor”中加上它的条目与滚动升级说明。
 - X4（热路径：计量器缓存）。
 - B8（持续流入下的停机；命令链路设计 2026-09-28，B8 条）。
 -->
@@ -212,6 +211,8 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 - 由分发器调用的 `suspend` 与 `Flow` 消息函数在分发工作线程上恢复，不再是 `Dispatchers.Default`。
 - 等待中的处理函数（I/O、版本冲突后的重试退避）不占线程，只推迟自己的聚合；9.2 中它会推迟哈希到同一组的所有聚合。但未完成窗口由接收器的所有聚合 ID 共享：一个聚合积压约 241 条未完成消息（默认配置）就会让接收器停下，Kafka 上会暂停它的主题。见 [Keyed Executor](./advanced/keyed-executor.md#模型)。
 - 强制停止（`wow.shutdown-timeout` 到期）在返回前丢弃仍在邮箱中排队的消息，与 9.2 释放调度器一致；这些消息不会被确认，Kafka 与 Redis Streams 会重新投递。见[运行时生命周期](./advanced/runtime-lifecycle.md)。
+- 每个分发器按**限界上下文**各开一个接收器（Kafka 上是一个订阅该上下文全部聚合主题的消费者），不再按聚合类型各开一个。消费组 ID 与主题不变；每个组的实例与再均衡参与者从“聚合类型数”降为“限界上下文数”。未完成窗口与 Kafka 的 `max-deferred-commits` 由上下文内的聚合类型共享，所以一个聚合的积压会让该分发器在这个上下文的全部主题暂停；处理函数的致命错误也会让该分发器整个上下文的接收器失败，而不只是一种聚合类型的。自定义 `MainDispatcher` 改为实现 `newAggregateDispatcher(namedAggregates: Set<NamedAggregate>, …)`（每个上下文调用一次），自定义 `AggregateDispatcher` 提供 `namedAggregates`；`AggregateCommandDispatcher` 改为接收 `List<AggregateMetadata<*, *>>`，不再是泛型。子分发器的默认名称变为 `<context>-…Dispatcher`（日志中的组件名；指标标签不变）。
+- **滚动升级。** 9.2.x 按主题的消费者与 9.3.0 按上下文的消费者可以加入同一个消费组：Kafka 的分配器只在订阅了某主题的成员之间分配该主题，分区带着已提交的偏移量移交。混合版本门禁在命令与 Saga 驱动的订单持续流转时先重启 9.3 成员、再重启 9.2.4 成员，并检查没有命令丢失或被重复应用。所有成员的 `partition.assignment.strategy` 应保持一致。见 [Kafka 消费组](./extensions/kafka.md#消费者组)。
 - 修复（影响 9.2.x）：处理函数在自身完成时以响应式方式发送命令，不再让同组的其他聚合饿死直至命令超时。
 - 性能：9.3.0 的基准门禁比较了这一变更前后的 main。CI（4 核，每侧 8 个交替 fork）中没有变慢的行：本地优先与内存命令发送 7 行更快、5 行在噪声内（[run 37557218922](https://github.com/Ahoo-Wang/Wow/actions/runs/37557218922)），聚合处理在噪声内（[run 37550851420](https://github.com/Ahoo-Wang/Wow/actions/runs/37550851420)）。本地（14 核）在 128 个聚合等待 I/O 时，冷命令快 14–16 倍（单发送线程 4.9k → 71k ops/s，三线程 11.7k → 186k），可持续的命令发送速率最多高 66 %。完整表格见 [#3969](https://github.com/Ahoo-Wang/Wow/pull/3969)。
 

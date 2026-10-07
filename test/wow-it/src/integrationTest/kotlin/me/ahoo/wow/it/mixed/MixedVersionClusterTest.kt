@@ -134,7 +134,7 @@ class MixedVersionClusterTest {
      * Local-first on both versions: a command, its state events and the events a saga reacts to are processed on the
      * node that sent them, and the other version must filter their `local_first` copies, not process them a second
      * time (which the request-ID check would only partly hide). Each node's own `wow.operation` counters tell who
-     * processed what; both 9.2.3 and the current build meter handlers there.
+     * processed what; both the released 9.2.x (9.2.4 in CI) and the current build meter handlers there.
      */
     @Test
     fun `with local-first on, each version filters the other's locally handled copies`() {
