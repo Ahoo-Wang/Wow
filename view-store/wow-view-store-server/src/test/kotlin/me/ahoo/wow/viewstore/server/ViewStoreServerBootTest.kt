@@ -88,7 +88,8 @@ class ViewStoreServerBootTest {
         val dump = Thread {
             try {
                 Thread.sleep(STALL_DUMP_AFTER.toMillis())
-                println(threadDump())
+                // TEMP diag: bypass Gradle's capture so the dump reaches the CI console.
+                java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.err), true).print(threadDump())
             } catch (_: InterruptedException) {
                 // Answered in time.
             }
