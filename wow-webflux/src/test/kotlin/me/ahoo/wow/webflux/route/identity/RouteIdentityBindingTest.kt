@@ -180,6 +180,71 @@ class RouteIdentityBindingTest {
             .binding(Cart::class.java.aggregateRouteMetadata()).aggregateId.source.assert().isEqualTo(OWNER)
     }
 
+    @Test
+    fun `an unrouted identity is shared by the requests that match the same identity path variables`() {
+        fun request(vararg variables: String) = MockServerRequest.builder().apply {
+            variables.forEach { pathVariable(it, "value") }
+        }.pathVariable("other", "x").build()
+
+        val tenantAndId = RouteIdentity.of(request(MessageRecords.TENANT_ID, MessageRecords.ID))
+        tenantAndId.pathVariables.assert().containsExactly(MessageRecords.TENANT_ID, MessageRecords.ID)
+        RouteIdentity.of(request(MessageRecords.ID, MessageRecords.TENANT_ID)).assert().isSameAs(tenantAndId)
+        val all = RouteIdentity.of(request(MessageRecords.TENANT_ID, MessageRecords.OWNER_ID, MessageRecords.ID))
+        all.pathVariables.assert()
+            .containsExactly(MessageRecords.TENANT_ID, MessageRecords.OWNER_ID, MessageRecords.ID)
+        RouteIdentity.of(request()).pathVariables.assert().isEmpty()
+        RouteIdentity.of(request()).aliases.assert().isSameAs(IdentityHeaderAliases.NONE)
+
+        val aliases = IdentityHeaderAliases(spaceId = listOf("X-Space"))
+        val aliased = request(MessageRecords.OWNER_ID)
+        RouteIdentity.withAliases(aliased, aliases)
+        val aliasedIdentity = RouteIdentity.of(aliased)
+        aliasedIdentity.aliases.assert().isSameAs(aliases)
+        aliasedIdentity.pathVariables.assert().containsExactly(MessageRecords.OWNER_ID)
+        val second = request(MessageRecords.OWNER_ID)
+        RouteIdentity.withAliases(second, aliases)
+        RouteIdentity.of(second).assert().isSameAs(aliasedIdentity)
+        RouteIdentity.of(request(MessageRecords.OWNER_ID)).assert().isNotSameAs(aliasedIdentity)
+    }
+
+    @Test
+    fun `the binding of another aggregate is computed once per aggregate policy`() {
+        val routeIdentity = RouteIdentity(setOf(MessageRecords.ID))
+        val order = Order::class.java.aggregateRouteMetadata()
+        val cart = Cart::class.java.aggregateRouteMetadata()
+        val orderBinding = routeIdentity.binding(order)
+        routeIdentity.binding(order).assert().isSameAs(orderBinding)
+        routeIdentity.binding(order.aggregateMetadata).assert().isSameAs(orderBinding)
+        orderBinding.assert().isEqualTo(RouteIdentityBinding.of(setOf(MessageRecords.ID), order))
+        val cartBinding = routeIdentity.binding(cart)
+        routeIdentity.binding(cart).assert().isSameAs(cartBinding)
+        cartBinding.assert().isEqualTo(RouteIdentityBinding.of(setOf(MessageRecords.ID), cart))
+        cartBinding.tenantId.source.assert().isEqualTo(STATIC)
+    }
+
+    @Test
+    fun `a request identity reads the owner once and still checks every body against it`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.OWNER_ID, "owner-a")
+            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .build()
+        val identity = request.identity(Cart::class.java.aggregateRouteMetadata())
+        identity.ownerId(body = "owner-a").assert().isEqualTo("owner-a")
+        identity.ownerId().assert().isEqualTo("owner-a")
+        // The cart's ID is its owner.
+        identity.aggregateId().assert().isEqualTo("owner-a")
+        assertThrownBy<IllegalArgumentException> {
+            identity.ownerId(body = "victim")
+        }.hasMessage("Conflicting ownerId: the route fixes [owner-a], but the command body gives [victim].")
+
+        val withoutOwner = MockServerRequest.builder()
+            .header(CommandComponent.Header.AGGREGATE_ID, "cart-h")
+            .build()
+            .identity(Cart::class.java.aggregateRouteMetadata())
+        withoutOwner.aggregateId().assert().isEqualTo("cart-h")
+        withoutOwner.ownerId().assert().isNull()
+    }
+
     private fun orderBinding(request: ServerRequest): RouteIdentityBinding =
         RouteIdentity.of(request).binding(Order::class.java.aggregateRouteMetadata())
 

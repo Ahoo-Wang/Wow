@@ -28,7 +28,6 @@ import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.id.generateId
 import me.ahoo.wow.identity.IdentityFact
-import me.ahoo.wow.identity.IdentityHint
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.messaging.DefaultHeader
@@ -91,23 +90,30 @@ fun <C : Any> C.toCommandMessage(
     // The identity rule lives in IdentityResolver; here the body's values come first, then the caller's arguments.
     val commandOwnerId = IdentityResolver.resolve(
         IdentityFact.OWNER_ID,
-        IdentityHint.of(IdentitySource.BODY, metadata.ownerIdGetter?.get(this)),
-        IdentityHint.of(IdentitySource.HEADER, ownerId),
+        IdentitySource.BODY,
+        metadata.ownerIdGetter?.get(this),
+        IdentitySource.HEADER,
+        ownerId,
     )
-    val (commandAggregateId, finalOwnerId) = IdentityResolver.resolveAggregateIdAndOwner(
+    val commandAggregateId = IdentityResolver.resolveAggregateId(
         ownerIsAggregateId = ownerIdSameAsAggregateId,
         ownerId = commandOwnerId,
         aggregateId = IdentityResolver.resolve(
             IdentityFact.AGGREGATE_ID,
-            IdentityHint.of(IdentitySource.BODY, metadata.aggregateIdGetter?.get(this)),
-            IdentityHint.of(IdentitySource.HEADER, aggregateId),
+            IdentitySource.BODY,
+            metadata.aggregateIdGetter?.get(this),
+            IdentitySource.HEADER,
+            aggregateId,
         ),
         generateAggregateId = { commandNamedAggregate.generateId() },
     )
+    val finalOwnerId = IdentityResolver.resolveOwnerId(ownerIdSameAsAggregateId, commandOwnerId, commandAggregateId)
     val commandTenantId = IdentityResolver.resolve(
         IdentityFact.TENANT_ID,
-        IdentityHint.of(IdentitySource.BODY, metadata.tenantIdGetter?.get(this)),
-        IdentityHint.of(IdentitySource.HEADER, tenantId),
+        IdentitySource.BODY,
+        metadata.tenantIdGetter?.get(this),
+        IdentitySource.HEADER,
+        tenantId,
     ).orDefaultTenantId()
 
     val targetAggregateId = commandNamedAggregate.aggregateId(id = commandAggregateId, tenantId = commandTenantId)
