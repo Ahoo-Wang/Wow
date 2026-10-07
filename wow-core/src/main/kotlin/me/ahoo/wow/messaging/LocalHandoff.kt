@@ -23,15 +23,6 @@ import reactor.core.publisher.Mono
  *   rejected before that, for example because a receiver closed (`false`). It completes when the receivers decide,
  *   so a sender must not wait for it on its own send path.
  */
-/**
- * The admission of a message every routed receiver admitted while it was handed off: the copy queue may then send the
- * distributed copy on the sender's own thread, within its send.
- */
-internal val ADMITTED_ON_HAND_OFF: Mono<Boolean> = Mono.just(true)
-
-/** The admission of a message that was not handed off. */
-internal val NOT_ADMITTED: Mono<Boolean> = Mono.just(false)
-
 class LocalHandoff private constructor(
     val accepted: Boolean,
     val admission: Mono<Boolean>,
@@ -47,3 +38,12 @@ class LocalHandoff private constructor(
 
     override fun toString(): String = if (accepted) "LocalHandoff(accepted)" else "LocalHandoff(refused)"
 }
+
+/**
+ * The admission of a message every routed receiver admitted while it was handed off: the copy queue may then send the
+ * distributed copy on the sender's own thread, within its send.
+ */
+internal val ADMITTED_ON_HAND_OFF: Mono<Boolean> = Mono.just(true)
+
+/** The admission of a message that was not handed off. */
+internal val NOT_ADMITTED: Mono<Boolean> = Mono.just(false)

@@ -564,6 +564,41 @@ class LocalFirstMessageBusShutdownTest {
         }
     }
 
+    /**
+     * The fast path: a receiver that admits the message while it is emitted makes the hand-off report the admission
+     * as already known, so the distributed copy is sent on the sender's thread, before its send completes.
+     */
+    @Test
+    fun `a hand-off admitted synchronously sends the copy on the sender's thread within the send`() {
+        val localBus = MpscLocalBus()
+        val sentOn = AtomicReference<Thread>()
+        val distributedBus = RecordingDistributedBus(onSend = { sentOn.set(Thread.currentThread()) })
+        val bus = RecordingLocalFirstMessageBus(localBus, distributedBus)
+        val receiver = localBus.receiver(
+            MessageSubscription(LocalFirstTestMessage(), receiverGroup = "sync", runtimeOwned = true),
+        )
+        val subscription = receiver.messages.subscribe { exchange ->
+            exchange.confirmLocalDelivery()
+        }
+
+        try {
+            receiver.openProcessing()
+            val handoff = localBus.handOff(LocalFirstTestMessage(id = "handed-off")).block()!!
+            handoff.accepted.assert().isTrue()
+            handoff.admission.assert().isSameAs(ADMITTED_ON_HAND_OFF)
+
+            bus.send(LocalFirstTestMessage(id = "sync-admitted")).block(Duration.ofSeconds(5))
+
+            // Recorded before send() returned, without waiting.
+            distributedBus.sent.single().isLocalFirst().assert().isTrue()
+            sentOn.get().assert().isSameAs(Thread.currentThread())
+        } finally {
+            receiver.closeProcessing()
+            subscription.dispose()
+            bus.close()
+        }
+    }
+
     @Test
     fun `runtime-owned subscription takes part in local admission through the one receive entry`() {
         val localBus = MpscLocalBus()
