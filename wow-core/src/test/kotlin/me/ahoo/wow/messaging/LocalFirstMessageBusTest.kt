@@ -141,7 +141,7 @@ class LocalFirstMessageBusTest {
             StepVerifier.create(bus.send(message))
                 .verifyComplete()
 
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             messages.dispose()
             bus.close()
@@ -202,9 +202,9 @@ class LocalFirstMessageBusTest {
             .verifyComplete()
 
         localBus.sent.single().assert().isNotSameAs(message)
-        distributedBus.sent.single().assert().isNotSameAs(message)
+        distributedBus.awaitSent().single().assert().isNotSameAs(message)
         message.isLocalFirst().assert().isFalse()
-        distributedBus.sent.single().isLocalFirst().assert().isTrue()
+        distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
     }
 
     @Test
@@ -272,7 +272,7 @@ class LocalFirstMessageBusTest {
 
         StepVerifier.create(bus.send(LocalFirstTestMessage(id = "thrown"))).verifyComplete()
 
-        distributedBus.sent.single().isLocalFirst().assert().isFalse()
+        distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
     }
 
     @Test
@@ -286,7 +286,7 @@ class LocalFirstMessageBusTest {
             .expectComplete()
             .verify(Duration.ofSeconds(5))
 
-        distributedBus.sent.single().isLocalFirst().assert().isFalse()
+        distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         copies.pending.assert().isZero()
     }
 
@@ -304,7 +304,7 @@ class LocalFirstMessageBusTest {
 
         // The copy went out (marked locally handled) and is still in flight: the sender did not wait for it.
         // Wire flag unchanged: the copy carries `local_first: "true"`, which 9.2 consumers filter too.
-        distributedBus.sent.single().header[LOCAL_FIRST_HEADER].assert().isEqualTo("true")
+        distributedBus.awaitSent().single().header[LOCAL_FIRST_HEADER].assert().isEqualTo("true")
         copySent.currentSubscriberCount().assert().isEqualTo(1)
         copySent.tryEmitEmpty().orThrow()
     }
@@ -318,7 +318,7 @@ class LocalFirstMessageBusTest {
 
         StepVerifier.create(bus.send(LocalFirstTestMessage(id = "message-id"))).verifyComplete()
 
-        distributedBus.sent.single().isLocalFirst().assert().isTrue()
+        distributedBus.awaitSent().single().isLocalFirst().assert().isTrue()
     }
 
     @Test
@@ -330,7 +330,7 @@ class LocalFirstMessageBusTest {
         StepVerifier.create(bus.send(LocalFirstTestMessage(id = "message-id")))
             .expectErrorMessage("broker down")
             .verify()
-        distributedBus.sent.single().isLocalFirst().assert().isFalse()
+        distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
     }
 
     @Test
@@ -345,7 +345,8 @@ class LocalFirstMessageBusTest {
 
         localBus.sent.assert().hasSize(2)
         localBus.sent[0].assert().isNotSameAs(localBus.sent[1])
-        distributedBus.sent.assert().hasSize(2)
+        // Admitted by a later admission signal, the copies are sent off the sender's thread.
+        distributedBus.awaitSent(2)
         distributedBus.sent[0].assert().isNotSameAs(distributedBus.sent[1])
         distributedBus.sent.all { it.isLocalFirst() }.assert().isTrue()
     }
@@ -362,7 +363,7 @@ class LocalFirstMessageBusTest {
             .verifyComplete()
 
         localBus.sent.assert().hasSize(1)
-        distributedBus.sent.single().isLocalFirst().assert().isFalse()
+        distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
     }
 
     @Test
@@ -376,7 +377,7 @@ class LocalFirstMessageBusTest {
             .verifyComplete()
 
         localBus.sent.assert().isEmpty()
-        distributedBus.sent.single().assert().isNotSameAs(message)
+        distributedBus.awaitSent().single().assert().isNotSameAs(message)
         message.isLocalFirst().assert().isFalse()
     }
 
@@ -407,7 +408,7 @@ class LocalFirstMessageBusTest {
 
             StepVerifier.create(bus.send(fallbackMessage))
                 .verifyComplete()
-            distributedBus.sent.single().assert().isNotSameAs(fallbackMessage)
+            distributedBus.awaitSent().single().assert().isNotSameAs(fallbackMessage)
             fallbackMessage.isLocalFirst().assert().isFalse()
 
             releaseOnNext.countDown()
@@ -435,7 +436,7 @@ class LocalFirstMessageBusTest {
             .verifyComplete()
 
         localBus.sent.assert().isEmpty()
-        distributedBus.sent.single().assert().isSameAs(message)
+        distributedBus.awaitSent().single().assert().isSameAs(message)
         message.isLocalFirst().assert().isFalse()
     }
 
@@ -450,7 +451,7 @@ class LocalFirstMessageBusTest {
             .verifyComplete()
 
         localBus.sent.assert().isEmpty()
-        distributedBus.sent.single().assert().isSameAs(message)
+        distributedBus.awaitSent().single().assert().isSameAs(message)
         message.shouldLocalFirst().assert().isFalse()
     }
 
@@ -845,7 +846,7 @@ class LocalFirstMessageBusShutdownTest {
             StepVerifier.create(bus.send(LocalFirstTestMessage(id = "overflow"))).verifyComplete()
 
             // Sent before the send completed, eligible for distributed processing.
-            distributedBus.sent.single().isLocalFirst().assert().isFalse()
+            distributedBus.awaitSent().single().isLocalFirst().assert().isFalse()
         } finally {
             receiver.closeProcessing()
             subscription.dispose()

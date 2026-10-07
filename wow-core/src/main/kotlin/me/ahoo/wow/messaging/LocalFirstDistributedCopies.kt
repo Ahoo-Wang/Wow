@@ -24,6 +24,7 @@ import reactor.core.Disposables
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import reactor.util.context.Context
 import reactor.util.context.ContextView
 import java.time.Duration
@@ -169,6 +170,12 @@ class LocalFirstDistributedCopies(
             get() = decision.get() != null
 
         /**
+         * The sender's thread while [decideFrom] runs the hand-off synchronously, else `null`: a copy decided and
+         * started there, admitted as it was handed off, is sent right away on that thread (see [start]).
+         */
+        internal var deciding: Thread? = null
+
+        /**
          * Subscribes [handoff] on behalf of this copy, independently of the sender, in the captured sender context
          * (trace parent, metrics source): the copy is decided by the true local result even when the sender stops
          * waiting (cancels) before it arrives. An error or an empty result counts as refused, and so does a result
@@ -190,14 +197,19 @@ class LocalFirstDistributedCopies(
                     result.tryEmitValue(decided)
                 }
             }
-            val pending = Mono.defer { handoff }
-                .onErrorResume { error ->
-                    log.warn(error) { "[$name] Local hand-off of ${description()} failed; send it unmarked." }
-                    Mono.just(LocalHandoff.REFUSED)
-                }
-                .defaultIfEmpty(LocalHandoff.REFUSED)
-                .contextWrite(context)
-                .subscribe(::settle)
+            deciding = Thread.currentThread()
+            val pending = try {
+                Mono.defer { handoff }
+                    .onErrorResume { error ->
+                        log.warn(error) { "[$name] Local hand-off of ${description()} failed; send it unmarked." }
+                        Mono.just(LocalHandoff.REFUSED)
+                    }
+                    .defaultIfEmpty(LocalHandoff.REFUSED)
+                    .contextWrite(context)
+                    .subscribe(::settle)
+            } finally {
+                deciding = null
+            }
             if (!settled.get()) {
                 timer.update(
                     Mono.delay(handOffTimeout).subscribe {
@@ -217,15 +229,24 @@ class LocalFirstDistributedCopies(
 
         /** The local hand-off result; only the first call counts. */
         fun decide(handoff: LocalHandoff) {
-            val admission = if (handoff.accepted) handoff.admission else Mono.just(false)
+            val admission = if (handoff.accepted) handoff.admission else NOT_ADMITTED
             if (decision.compareAndSet(null, admission)) {
-                drain(lane)
+                drain(lane, this)
             }
         }
 
-        internal fun start() {
+        /**
+         * Sends this copy once its admission completes. Only a copy started by its own decision, within the sender's
+         * [decideFrom] on the sender's thread, and already decided (admitted as it was handed off, or not handed off)
+         * is sent on that thread: the sender is sending anyway. Every other start (a copy started when the one before
+         * it finished, on the previous send's completion thread such as a transport's network thread; an admission
+         * completed by a receiver, by demand being replenished, or rejected by a route closing) sends on
+         * [Schedulers.parallel], so encoding and sending never run on a transport, store or lifecycle thread.
+         */
+        internal fun start(inline: Boolean) {
             val admission = checkNotNull(decision.get())
-            val sending = admission
+            val immediate = inline && (admission === ADMITTED_ON_HAND_OFF || admission === NOT_ADMITTED)
+            val sending = (if (immediate) admission else admission.publishOn(Schedulers.parallel()))
                 .onErrorReturn(false)
                 .defaultIfEmpty(false)
                 .flatMap(send)
@@ -259,8 +280,11 @@ class LocalFirstDistributedCopies(
         var removed = false
     }
 
-    /** Starts the head copy of [lane] when it is decided and nothing runs; loops instead of recursing. */
-    private fun drain(lane: Lane) {
+    /**
+     * Starts the head copy of [lane] when it is decided and nothing runs; loops instead of recursing. [decided] is the
+     * copy whose decision triggered this drain, if any.
+     */
+    private fun drain(lane: Lane, decided: Copy? = null) {
         synchronized(lane) {
             if (lane.draining) {
                 lane.missed = true
@@ -280,7 +304,7 @@ class LocalFirstDistributedCopies(
                 }
             }
             if (next != null) {
-                next.start()
+                next.start(inline = next === decided && next.deciding === Thread.currentThread())
                 continue
             }
             val idle = synchronized(lane) {

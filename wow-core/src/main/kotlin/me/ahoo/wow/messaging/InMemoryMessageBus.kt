@@ -149,6 +149,11 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 route.reject(pendingDelivery)
                 return@defer Mono.just(LocalHandoff.REFUSED)
             }
+            if (pendingDelivery.receipt.confirmed) {
+                // Every receiver admitted it as it was emitted (on this thread).
+                route.remove(pendingDelivery)
+                return@defer Mono.just(LocalHandoff.accepted(ADMITTED_ON_HAND_OFF))
+            }
             Mono.just(
                 LocalHandoff.accepted(
                     pendingDelivery.receipt.signal()
