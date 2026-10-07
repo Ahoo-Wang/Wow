@@ -246,6 +246,13 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
             processingQuiescence = {
                 closeReceivers(localReceiver, distributedReceiver)
             },
+            durableIntakeSuspension = {
+                try {
+                    localReceiver.suspendDurableIntake()
+                } finally {
+                    distributedReceiver.suspendDurableIntake()
+                }
+            },
         )
     }
 

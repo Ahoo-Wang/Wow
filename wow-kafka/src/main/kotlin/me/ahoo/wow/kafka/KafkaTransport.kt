@@ -185,6 +185,11 @@ open class KafkaTransport(
         return object : TransportReceiver {
             override val records: Flux<TransportRecord> = records
             override val readiness: Mono<Void> = readiness.asMono()
+
+            // Without demand Reactor Kafka pauses the assigned partitions and keeps polling, so the consumer stays in
+            // the group and still commits acknowledged offsets; offsets of records not handed over are not committed.
+            override val durable: Boolean
+                get() = true
         }
     }
 

@@ -68,7 +68,6 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 <!--
 本节写作时尚未合并的 9.3.0 工作的占位。合并后按可能性在这里加一节；推迟到之后的版本就删掉对应的行。
 - X4（热路径：计量器缓存）。
-- B8（持续流入下的停机；命令链路设计 2026-09-28，B8 条）。
 -->
 
 ### 升级之前
@@ -238,6 +237,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 - Mongo 与 Elasticsearch 的批量写入器以及 Kafka 发送器，在分发器之后、运行时同一个 `wow.shutdown-timeout` 之内停止，不再在之后由 Spring 关闭（每个批量写入器最多 30 秒，依次进行）。请让 `wow.shutdown-timeout` 足够完成一次正常的刷写。见[存储与传输资源](./advanced/runtime-lifecycle.md#存储与传输资源)。
 - 默认 Starter 运行时的 `WowRuntime.components` 现在以一个 `RuntimeResources` 组件开头；自定义运行时也应把它放在最前。断言完整组件列表的测试需要把它过滤掉。
 - Kafka producer 的关闭时间受 `wow.kafka.close-timeout` 限制，默认为 `wow.shutdown-timeout`。`KafkaProperties` 新增末尾参数 `closeTimeout`，`buildSenderOptions(defaultCloseTimeout)` 优先用它，否则用传入的默认值；手动构造 `KafkaAutoConfiguration` 的代码还需传入 `WowProperties`。
+- 优雅停机先暂停持久入口：Kafka 与 Redis Streams 接收器不再请求新记录，持续到达的流量不再让运行时越过静默期、拖到 `wow.shutdown-timeout` 强制停止。尚未拉取的记录对 Kafka 保持未提交、对 Redis 保持未读或 pending，留给消费组；进程内发送与 9.2 一样，在全局准入关闭前都会被接纳。中间件会保留未投递记录的自定义 `Transport` 应设置 `TransportReceiver.durable = true`；`MessageReceiver` 新增末尾参数 `durableIntakeSuspension`（需重新编译）。见[持续流量下先停持久入口](./advanced/runtime-lifecycle.md#持续流量下先停持久入口)。
 
 ### 请求头传播与可恢复异常改为 Bean
 

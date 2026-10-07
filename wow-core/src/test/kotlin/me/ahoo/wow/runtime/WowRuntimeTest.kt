@@ -48,6 +48,38 @@ import java.util.concurrent.atomic.AtomicReference
 class WowRuntimeTest {
 
     @Test
+    fun `a failing durable intake suspension does not turn a graceful stop into a force stop`() {
+        val stopped = AtomicBoolean()
+        val forced = AtomicBoolean()
+        val component = object : RuntimeComponent {
+            override fun prepare(runtimeContext: RuntimeContext): Mono<Void> = Mono.empty()
+
+            override fun start() = Unit
+
+            override fun suspendDurableIntake() {
+                throw IllegalStateException("suspend")
+            }
+
+            override fun stopGracefully(): Mono<Void> = Mono.fromRunnable { stopped.set(true) }
+
+            override fun forceStop() {
+                forced.set(true)
+            }
+        }
+        val runtime = WowRuntime(
+            components = listOf(component),
+            shutdownTimeout = Duration.ofSeconds(5),
+            shutdownQuietPeriod = Duration.ZERO,
+        )
+        runtime.start().block()
+
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+
+        stopped.get().assert().isTrue()
+        forced.get().assert().isFalse()
+    }
+
+    @Test
     fun `close uses the runtime-owned terminal boundary`() {
         val terminationDispatcher = newTerminalSignalDispatcher(
             "wow-runtime-test-rejected-public-terminal",

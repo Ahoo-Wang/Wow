@@ -26,13 +26,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * runtime component is ready, `openProcessing` explicitly opens transport
  * consumption. `closeProcessing` revokes that logical admission before
  * physical cancellation, without inferring lifecycle state from reactive
- * demand or subscription count.
+ * demand or subscription count. `suspendDurableIntake` stops pulling new
+ * records from a durable transport, which keeps them for redelivery, while the
+ * records already pulled keep flowing; a source that is not durable ignores it.
  */
 class MessageReceiver<E : Any>(
     messages: Flux<E>,
     val readiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
     private val processingQuiescence: () -> Unit = {},
+    private val durableIntakeSuspension: () -> Unit = {},
 ) {
     private val subscribed = AtomicBoolean()
     private val processingMonitor = Any()
@@ -87,11 +90,22 @@ class MessageReceiver<E : Any>(
         }
     }
 
+    /**
+     * Stops pulling new records from a durable transport without revoking processing admission or cancelling the
+     * source: the records already pulled are still delivered and acknowledged, the rest stay with the broker
+     * (uncommitted on Kafka, unread or pending on Redis Streams) for another member. Prompt, non-blocking and
+     * idempotent; a source that is not durable, such as an in-memory bus, ignores it.
+     */
+    fun suspendDurableIntake() {
+        durableIntakeSuspension()
+    }
+
     fun <R : Any> mapMessages(transform: (Flux<E>) -> Flux<R>): MessageReceiver<R> =
         MessageReceiver(
             messages = transform(messages),
             readiness = readiness,
             processingAdmission = ::openProcessing,
             processingQuiescence = ::closeProcessing,
+            durableIntakeSuspension = ::suspendDurableIntake,
         )
 }

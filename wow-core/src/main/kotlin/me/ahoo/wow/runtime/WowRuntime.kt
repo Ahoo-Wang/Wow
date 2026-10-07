@@ -41,8 +41,9 @@ import java.util.concurrent.atomic.AtomicReference
  * High-level owner and lifecycle orchestrator for the complete Wow runtime.
  *
  * Startup uses a readiness barrier: every component is prepared before any
- * component starts processing. Shutdown first reaches global quiescence, then
- * stops components in reverse order under one shared deadline. A fatal runtime
+ * component starts processing. Shutdown first suspends durable intake, then
+ * reaches global quiescence, then stops components in reverse order under one
+ * shared deadline. A fatal runtime
  * component error initiates the same complete-runtime shutdown path.
  */
 class WowRuntime private constructor(
@@ -515,6 +516,11 @@ class WowRuntime private constructor(
 
     private fun shutdownPipeline(owner: ShutdownOwner): Mono<Void> {
         return Mono.defer {
+            // A durable transport keeps what is not pulled, so stop pulling first (B8): otherwise sustained traffic
+            // keeps the runtime from becoming idle until the deadline. In-process work keeps its admission.
+            componentGroup.suspendDurableIntake {
+                !owner.isCancelled
+            }
             val drained = runtimeContext.quiesce()
             runtimeContext.admissionClosed()
                 .publishOn(executionResources.shutdownScheduler)

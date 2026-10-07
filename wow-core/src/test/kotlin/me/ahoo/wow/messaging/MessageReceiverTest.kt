@@ -68,6 +68,32 @@ class MessageReceiverTest {
     }
 
     @Test
+    fun `mapping messages preserves durable intake suspension`() {
+        val suspensions = AtomicInteger()
+        val receiver = MessageReceiver(
+            messages = Flux.just(1),
+            durableIntakeSuspension = suspensions::incrementAndGet,
+        ).mapMessages { messages ->
+            messages.map(Int::toString)
+        }
+
+        receiver.suspendDurableIntake()
+
+        suspensions.get().assert().isOne()
+    }
+
+    @Test
+    fun `a receiver without durable intake ignores a suspension`() {
+        val receiver = MessageReceiver(Flux.just(1))
+
+        receiver.suspendDurableIntake()
+
+        StepVerifier.create(receiver.messages)
+            .expectNext(1)
+            .verifyComplete()
+    }
+
+    @Test
     fun `closing processing before open remains terminal`() {
         val processingAdmissions = AtomicInteger()
         val processingQuiescences = AtomicInteger()

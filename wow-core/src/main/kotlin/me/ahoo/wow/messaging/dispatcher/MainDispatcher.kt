@@ -125,6 +125,7 @@ abstract class MainDispatcher<T : Any>(
         val readiness: Mono<Void>,
         val openProcessing: () -> Unit,
         val closeProcessing: () -> Unit,
+        val suspendDurableIntake: () -> Unit,
     )
 
     private val aggregateDispatcherBindingsLazy = lazy {
@@ -147,6 +148,7 @@ abstract class MainDispatcher<T : Any>(
                     readiness = receiver.readiness,
                     openProcessing = receiver::openProcessing,
                     closeProcessing = receiver::closeProcessing,
+                    suspendDurableIntake = receiver::suspendDurableIntake,
                 )
             }
     }
@@ -248,6 +250,27 @@ abstract class MainDispatcher<T : Any>(
                         return
                     }
                     binding.openProcessing()
+                }
+            }
+        }
+    }
+
+    /**
+     * Stops every context receiver pulling from its durable transport; processing stays open. Suspension only
+     * shortens shutdown: a receiver that fails to suspend is logged at WARN and the others are still suspended.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    final override fun suspendDurableIntake() {
+        if (forceStopRequested.get() || !aggregateDispatcherBindingsLazy.isInitialized()) {
+            return
+        }
+        aggregateDispatcherBindingsLazy.value.forEach { binding ->
+            try {
+                binding.suspendDurableIntake()
+            } catch (error: Throwable) {
+                Exceptions.throwIfFatal(error)
+                log.warn(error) {
+                    "Failed to suspend a durable intake; it keeps receiving until quiescence.".withNamePrefix()
                 }
             }
         }

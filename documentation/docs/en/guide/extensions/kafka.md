@@ -164,6 +164,8 @@ Reactor Kafka stops polling while `max-deferred-commits` acknowledged offsets wa
 Up to 9.2.2 the default was `max-deferred-commits=1` without the commit trigger: after each acknowledged record the consumer paused until the next periodic commit, so a receiver handled about one poll per `commitInterval` (5 s). The default is now 500, Kafka's default `max.poll.records`. A deployment that set `max-deferred-commits` explicitly keeps its value and now commits after that many acknowledgements instead of pausing.
 :::
 
+Graceful shutdown (since 9.3.0): the runtime first stops requesting records, so Reactor Kafka pauses the assigned partitions while the consumer keeps polling, stays in the group, and commits what the dispatchers acknowledge. Records it polled but did not hand over are never committed; once the consumer leaves the group, the member that takes over the partition receives them. Topics, consumer groups and the commit rule are unchanged. See [Runtime Lifecycle](../advanced/runtime-lifecycle.md#sustained-traffic-durable-intake-stops-first).
+
 ### 4. Send Feedback
 
 Each send waits for the `KafkaSender` result of its record and reports the producer's exception as a Reactor error. The returned `Mono<Void>` completes after producer feedback, not after a downstream consumer processes the message.

@@ -213,6 +213,46 @@ class MainDispatcherTest {
         dispatcher.managedStopCount.get().assert().isZero()
     }
 
+    @Test
+    fun `runtime stop suspends every durable intake before closing processing`() {
+        val dispatcher = RecordingMainDispatcher()
+        val runtime = runtime(dispatcher)
+        runtime.start().block()
+
+        StepVerifier.create(runtime.stopGracefully())
+            .verifyComplete()
+
+        dispatcher.durableIntakeSuspendCount.get().assert().isEqualTo(2)
+        dispatcher.closedProcessingCountsObservedBySuspension.assert().containsExactly(0, 0)
+    }
+
+    @Test
+    fun `durable intake suspension is a no-op before prepare and after force stop`() {
+        val unprepared = RecordingMainDispatcher()
+        unprepared.suspendDurableIntake()
+        unprepared.durableIntakeSuspendCount.get().assert().isZero()
+
+        val forced = RecordingMainDispatcher()
+        prepareAndStart(forced)
+        forced.forceStop()
+        forced.suspendDurableIntake()
+        forced.durableIntakeSuspendCount.get().assert().isZero()
+    }
+
+    @Test
+    fun `a failing durable intake suspension is logged, not reported, and every receiver is still suspended`() {
+        val reported = CopyOnWriteArrayList<Throwable>()
+        val dispatcher = RecordingMainDispatcher(suspensionFailure = IllegalStateException("suspend"))
+        dispatcher.prepare(DefaultRuntimeContext(failureHandler = { reported += it })).block()
+        dispatcher.start()
+
+        dispatcher.suspendDurableIntake()
+
+        dispatcher.durableIntakeSuspendCount.get().assert().isEqualTo(2)
+        reported.assert().isEmpty()
+        dispatcher.forceStop()
+    }
+
     private fun tryStartAfterTerminalStop(dispatcher: RecordingMainDispatcher) {
         try {
             dispatcher.start()
@@ -246,12 +286,15 @@ class MainDispatcherTest {
         private val childForceAction: (() -> Unit)? = null,
         private val childStopAction: (() -> Mono<Void>)? = null,
         private val firstChildReportedFailure: Throwable? = null,
+        private val suspensionFailure: RuntimeException? = null,
     ) : MainDispatcher<String>() {
         val receiveCount = AtomicInteger()
         val createCount = AtomicInteger()
         val childStartCount = AtomicInteger()
         val processingOpenCount = AtomicInteger()
         val processingCloseCount = AtomicInteger()
+        val durableIntakeSuspendCount = AtomicInteger()
+        val closedProcessingCountsObservedBySuspension = CopyOnWriteArrayList<Int>()
         val childStopCount = AtomicInteger()
         val managedStopCount = AtomicInteger()
         val childForceCalls = mutableListOf<String>()
@@ -276,6 +319,12 @@ class MainDispatcherTest {
                 messages = Flux.just(subscription.receiverGroup),
                 processingAdmission = processingOpenCount::incrementAndGet,
                 processingQuiescence = processingCloseCount::incrementAndGet,
+                durableIntakeSuspension = {
+                    closedProcessingCountsObservedBySuspension += processingCloseCount.get()
+                    if (durableIntakeSuspendCount.incrementAndGet() == 1) {
+                        suspensionFailure?.let { throw it }
+                    }
+                },
             )
         }
 

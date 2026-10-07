@@ -509,7 +509,7 @@ wow-core 提供唯一的装配根 `CommandPipelineAssembly`：输入存储、传
 
 在此之上的改变：
 
-- **两级准入**：先关闭外部入口，即传输消费与 HTTP 入口；派生工作（Saga 发出的命令、事件处理）在静默期内继续被接纳，直到全局空闲。持续有外部流量时，停机不再必然等到超时。这需要 `RuntimeContext.tryAcquire` 区分来源。
+- **两级准入**：先关闭外部入口，即传输消费与 HTTP 入口；派生工作（Saga 发出的命令、事件处理）在静默期内继续被接纳，直到全局空闲。持续有外部流量时，停机不再必然等到超时。（B8 已按此实施，不需要 `RuntimeContext.tryAcquire` 区分来源：停机第一步暂停持久入口 `RuntimeComponent.suspendDurableIntake`，只停止向 `TransportReceiver.durable` 的接收器请求，未拉取的记录留在中间件、不提交；已拉取的记录与进程内工作照常准入直到全局空闲，9.2 的进程内语义不变；HTTP 入口由 Spring 的 Web 服务器在更早的生命周期阶段关闭。）
 - **活动计数**：只在静默阶段维护活动版本号；计数按组件分段，只在静默时汇总判断是否归零，避免全局缓存行热点。
 - **生命周期所有者唯一**：运行时的状态迁移由一个串行的生命周期事件循环处理，包括 start、stop、failure、deadline、force。组件改用 `LifecycleSupport` 模板，只实现打开入口、关闭入口、排空三个钩子。
 - **结构化并发**：组件的工作挂在运行时 scope 之下（§6.6）。排空就是 join，超过期限就 cancel；不再手写 dispose 的记账。

@@ -173,6 +173,40 @@ class CompositeEventDispatcherLifecycleTest {
     }
 
     @Test
+    fun `runtime graceful stop suspends every durable intake before closing any`() {
+        val gracefulCalls = CopyOnWriteArrayList<String>()
+        val gracefulDispatcher = newRecordingDispatcher(gracefulCalls)
+        val runtime = runtime(gracefulDispatcher)
+        runtime.start().block()
+        gracefulCalls.clear()
+
+        StepVerifier.create(runtime.stopGracefully()).verifyComplete()
+
+        gracefulCalls
+            .filter { it.startsWith("suspend:") || it.startsWith("close:") }
+            .assert().containsExactly(
+                "suspend:domain",
+                "suspend:state",
+                "close:domain",
+                "close:state",
+            )
+        gracefulDispatcher.suspendDurableIntake()
+        gracefulCalls.filter { it.startsWith("suspend:") }.assert().hasSize(4)
+    }
+
+    @Test
+    fun `durable intake suspension is a no-op after force stop`() {
+        val calls = CopyOnWriteArrayList<String>()
+        val dispatcher = newRecordingDispatcher(calls)
+        dispatcher.prepare(DefaultRuntimeContext()).block()
+        dispatcher.forceStop()
+
+        dispatcher.suspendDurableIntake()
+
+        calls.filter { it.startsWith("suspend:") }.assert().isEmpty()
+    }
+
+    @Test
     fun `runtime force stop does not wait for physical intake cleanup`() {
         val forceCalls = CopyOnWriteArrayList<String>()
         val releaseCancellation = CountDownLatch(1)
@@ -296,6 +330,7 @@ class CompositeEventDispatcherLifecycleTest {
             MessageReceiver(
                 messages = messages(),
                 processingQuiescence = onCloseProcessing,
+                durableIntakeSuspension = { calls += "suspend:domain" },
             )
 
         fun awaitCancellation() {
@@ -359,6 +394,7 @@ class CompositeEventDispatcherLifecycleTest {
             MessageReceiver(
                 messages = messages(),
                 processingQuiescence = onCloseProcessing,
+                durableIntakeSuspension = { calls += "suspend:state" },
             )
 
         fun awaitCancellation() {
