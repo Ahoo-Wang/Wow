@@ -4,21 +4,30 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   collect,
   compare,
+  decideStop,
+  earlyDecision,
+  MAX_JOBS,
+  MAX_PARALLEL,
   parseBenchmarkList,
+  parseBenchmarkParams,
   planMatrix,
   readResults,
   renderReport,
   resolveInputs,
+  stopOf,
   summarize,
   touchedPatterns,
   tQuantile,
+  WARN_JOBS,
 } from './benchmark-ab.mjs';
 
 const COMPONENT = 'me.ahoo.wow.benchmark.component';
@@ -92,14 +101,24 @@ test('dispatch inputs become JMH arguments', () => {
     '5',
     '-r',
     '3s',
-    '-p',
-    'processors=1,4',
-    '-p',
-    'bus=in-memory',
   ]);
+  assert.deepEqual(settings.params, ['processors=1,4', 'bus=in-memory']);
   assert.deepEqual(settings.threads, ['1', '4']);
-  assert.deepEqual(resolveInputs({ include: 'X' }).threads, ['default']);
-  assert.equal(resolveInputs({ include: 'X' }).rounds, 3);
+  // `auto` splits gate runs per @Param combination, quick runs per class.
+  assert.equal(settings.split, 'params');
+  const quick = resolveInputs({ include: 'X' });
+  assert.deepEqual(quick.threads, ['default']);
+  assert.equal(quick.rounds, 3);
+  assert.equal(quick.split, 'class');
+  assert.deepEqual(quick.params, []);
+  assert.equal(
+    resolveInputs({ include: 'X', profile: 'gate', split: 'method' }).split,
+    'method',
+  );
+  assert.equal(
+    resolveInputs({ include: 'X', split: 'params' }).split,
+    'params',
+  );
 });
 
 test('inputs that would smuggle JMH options or bad values are refused', () => {
@@ -109,6 +128,10 @@ test('inputs that would smuggle JMH options or bad values are refused', () => {
     /cannot start/,
   );
   assert.throws(() => resolveInputs({ include: 'X', params: 'oops' }), /name=/);
+  assert.throws(
+    () => resolveInputs({ include: 'X', params: '-jvmArgs=x' }),
+    /name=/,
+  );
   assert.throws(() => resolveInputs({ include: 'X', threads: '0' }), /Threads/);
   assert.throws(() => resolveInputs({ include: 'X', profile: 'x' }), /profile/);
   assert.throws(() => resolveInputs({ include: 'X', split: 'x' }), /split/);
@@ -154,21 +177,25 @@ test('the matrix has one job per class, or per method', () => {
       id: 'A',
       label: 'A',
       regex: '^me\\.ahoo\\.wow\\.benchmark\\.component\\.A\\.',
+      params: '[]',
     },
     {
       id: 'me.ahoo.wow.benchmark.component.B',
       label: 'me.ahoo.wow.benchmark.component.B',
       regex: '^me\\.ahoo\\.wow\\.benchmark\\.component\\.B\\.',
+      params: '[]',
     },
     {
       id: 'C',
       label: 'C',
       regex: '^me\\.ahoo\\.wow\\.benchmark\\.component\\.C\\.',
+      params: '[]',
     },
     {
       id: 'me.ahoo.wow.benchmark.query.B',
       label: 'me.ahoo.wow.benchmark.query.B',
       regex: '^me\\.ahoo\\.wow\\.benchmark\\.query\\.B\\.',
+      params: '[]',
     },
   ]);
   assert.deepEqual(plan.skipped, [
@@ -186,6 +213,114 @@ test('the matrix has one job per class, or per method', () => {
   );
 });
 
+const DISPATCH = `${COMPONENT}.EventDispatchComponentBenchmark.dispatchToProcessors`;
+const LIST_WITH_PARAMS = `Benchmarks:
+${DISPATCH}
+  param "processors" = {1, 8}
+  param "metrics" = {off, on}
+  param "bus" = {in-memory, local-first}
+${COMPONENT}.CommandIdComponentBenchmark.generateGlobalId
+${COMPONENT}.Shapes.draw
+  param "kind" = {}
+  param "label" = {a,b, c}
+`;
+
+test('`-lp` output gives each benchmark its @Param values', () => {
+  assert.deepEqual(parseBenchmarkList(LIST_WITH_PARAMS), [
+    DISPATCH,
+    `${COMPONENT}.CommandIdComponentBenchmark.generateGlobalId`,
+    `${COMPONENT}.Shapes.draw`,
+  ]);
+  assert.deepEqual(parseBenchmarkParams(LIST_WITH_PARAMS), {
+    [DISPATCH]: {
+      processors: ['1', '8'],
+      metrics: ['off', 'on'],
+      bus: ['in-memory', 'local-first'],
+    },
+    [`${COMPONENT}.CommandIdComponentBenchmark.generateGlobalId`]: {},
+    [`${COMPONENT}.Shapes.draw`]: { kind: [], label: ['a,b', 'c'] },
+  });
+});
+
+test('split=params plans one job per method and @Param combination', () => {
+  const names = parseBenchmarkList(LIST_WITH_PARAMS);
+  const params = parseBenchmarkParams(LIST_WITH_PARAMS);
+  const plan = planMatrix(names, names, 'params', {
+    baseParams: params,
+    headParams: {
+      ...params,
+      // A value only head lists still gets its own job.
+      [DISPATCH]: { ...params[DISPATCH], processors: ['1', '8', '16'] },
+    },
+    overrides: ['label=x', 'processors=1,8'],
+  });
+  const include = plan.matrix.include;
+  // 3 × 2 × 2 dispatch combinations, generateGlobalId and Shapes.draw.
+  assert.equal(include.length, 14);
+  assert.equal(plan.maxParallel, MAX_PARALLEL);
+  assert.deepEqual(plan.warnings, []);
+  const first = include.find(job => job.label.startsWith('EventDispatch'));
+  assert.deepEqual(first, {
+    id: 'EventDispatchComponentBenchmark.dispatchToProcessors_bus=in-memory_metrics=off_processors=1',
+    label:
+      'EventDispatchComponentBenchmark.dispatchToProcessors [bus=in-memory, metrics=off, processors=1]',
+    regex: `^${DISPATCH.replaceAll('.', '\\.')}$`,
+    // The pin replaces the processors override; the label override is kept.
+    params: JSON.stringify([
+      'bus=in-memory',
+      'metrics=off',
+      'processors=1',
+      'label=x',
+    ]),
+  });
+  assert.ok(include.some(job => job.label.endsWith('processors=16]')));
+  // No params: one job; an empty value list or a value with a comma cannot
+  // be pinned, so those params run inside the job with the overrides.
+  assert.deepEqual(
+    include
+      .filter(job => !job.label.startsWith('EventDispatch'))
+      .map(job => [job.label, job.params]),
+    [
+      [
+        'CommandIdComponentBenchmark.generateGlobalId',
+        JSON.stringify(['label=x', 'processors=1,8']),
+      ],
+      ['Shapes.draw', JSON.stringify(['label=x', 'processors=1,8'])],
+    ],
+  );
+  assert.equal(new Set(include.map(job => job.id)).size, include.length);
+  // Class and method splits keep the overrides as they are.
+  assert.deepEqual(
+    planMatrix(names, names, 'class', {
+      overrides: ['bus=x'],
+    }).matrix.include.map(job => job.params),
+    [
+      JSON.stringify(['bus=x']),
+      JSON.stringify(['bus=x']),
+      JSON.stringify(['bus=x']),
+    ],
+  );
+});
+
+test('a plan over the sane job count warns, and one over the matrix limit fails', () => {
+  const params = count => ({
+    [DISPATCH]: { n: Array.from({ length: count }, (_, index) => `${index}`) },
+  });
+  const plan = count =>
+    planMatrix([DISPATCH], [DISPATCH], 'params', {
+      baseParams: params(count),
+      headParams: params(count),
+    });
+  assert.deepEqual(plan(WARN_JOBS).warnings, []);
+  assert.match(
+    plan(WARN_JOBS + 1).warnings[0],
+    new RegExp(
+      `^${WARN_JOBS + 1} jobs is more than ${WARN_JOBS}: at ${MAX_PARALLEL} at a time they run in 4 waves`,
+    ),
+  );
+  assert.throws(() => plan(MAX_JOBS + 1), /matrix limit of 256/);
+});
+
 test('forks are pooled per side, benchmark, threads and params', () => {
   const { rows } = collect([
     { name: 'base-tdefault-r1.json', records: [record({ scores: [1, 2] })] },
@@ -200,6 +335,8 @@ test('forks are pooled per side, benchmark, threads and params', () => {
   assert.equal(rows.length, 2);
   assert.deepEqual(rows[0].base.score, [1, 2, 3]);
   assert.deepEqual(rows[0].head.score, [4]);
+  assert.equal(rows[0].base.forks, 2);
+  assert.equal(rows[0].head.forks, 1);
   assert.equal(rows[1].params, 'a=1, b=2');
   assert.equal(rows[1].threads, 4);
 });
@@ -235,6 +372,137 @@ test('overlapping error bars or a small Δ are noise; the rest are flagged', () 
   assert.ok(Math.abs(result.delta - 10) < 1e-9);
   assert.deepEqual(result.alloc, [48, 32]);
   assert.deepEqual(result.gcTime, [1, 0.5]);
+});
+
+// A row after `forks` rounds of 5-iteration forks per side.
+const forked = (base, head, forks = 2, mode = 'thrpt') => ({
+  benchmark: DISPATCH,
+  mode,
+  threads: 1,
+  params: '',
+  base: { forks, score: base, alloc: [], gcTime: [] },
+  head: { forks, score: head, alloc: [], gcTime: [] },
+});
+const STEADY = [100, 100.4, 99.6, 100.2, 99.8, 100.1, 99.9, 100.3, 99.7, 100];
+const NOISY = [88, 112, 95, 105, 91, 109, 97, 103, 90, 110];
+
+test('early stop: clearly separated intervals beyond the threshold stop the job', () => {
+  const row = forked(
+    STEADY,
+    STEADY.map(value => value * 0.9),
+  );
+  assert.deepEqual(earlyDecision(row, 3, 8), {
+    decided: true,
+    reason: 'separated',
+  });
+  // The report's verdict on the same data agrees.
+  assert.equal(compare(row, 3).verdict, 'slower');
+  // Separated but under the threshold is not a stop for a flag...
+  assert.notEqual(earlyDecision(row, 20, 8).reason, 'separated');
+});
+
+test('early stop: intervals that bound |Δ| under the threshold stop as noise', () => {
+  const row = forked(STEADY, [...STEADY].reverse());
+  assert.deepEqual(earlyDecision(row, 3, 8), {
+    decided: true,
+    reason: 'noise',
+  });
+  assert.equal(compare(row, 3).verdict, 'noise');
+  // ...and a 0% threshold can never be bounded.
+  assert.deepEqual(earlyDecision(row, 0, 8), { decided: false });
+});
+
+test('early stop: wide or overlapping intervals continue', () => {
+  // Overlapping and too wide to bound the change.
+  assert.deepEqual(earlyDecision(forked(STEADY, NOISY), 3, 8), {
+    decided: false,
+  });
+  // A 2.5% change: the intervals neither separate at the early-look
+  // confidence nor bound |Δ| under 3%.
+  assert.deepEqual(
+    earlyDecision(
+      forked(
+        STEADY,
+        STEADY.map(value => value * 1.025),
+      ),
+      3,
+      8,
+    ),
+    { decided: false },
+  );
+  // One iteration per side has no interval yet.
+  assert.deepEqual(earlyDecision(forked([100], [100], 1), 3, 8), {
+    decided: false,
+  });
+});
+
+test('early looks use a stricter interval than the report, never a looser one', () => {
+  // Separated at 99.9% (the report flags it) but not once the 0.1% is split
+  // over the six early looks of a gate job: the job keeps running.
+  const base = [100, 101, 99, 100.5, 99.5, 100, 101, 99, 100.5, 99.5];
+  const row = forked(
+    base,
+    base.map(value => value * 1.026),
+  );
+  assert.equal(compare(row, 2).verdict, 'faster');
+  assert.deepEqual(earlyDecision(row, 2, 8), { decided: false });
+  // A quick job (3 rounds) has one early look, at 99.9% itself.
+  assert.equal(earlyDecision(row, 2, 3).reason, 'separated');
+  assert.ok(summarize(base, 0.001 / 6).error > summarize(base).error);
+});
+
+test('a job stops only once every row is decided', () => {
+  const separated = forked(
+    STEADY,
+    STEADY.map(value => value * 1.1),
+  );
+  const noise = forked(STEADY, [...STEADY].reverse());
+  const undecided = forked(STEADY, NOISY);
+  const onlyBase = forked(STEADY, []);
+  assert.equal(decideStop([separated, noise, onlyBase], 3, 8).stop, true);
+  const pending = decideStop([separated, undecided], 3, 8);
+  assert.equal(pending.stop, false);
+  assert.equal(pending.undecided, 1);
+  assert.equal(decideStop([], 3, 8).stop, false);
+  // The report shows the forks used and why the job stopped there.
+  assert.deepEqual(stopOf(separated, 3, 8), { forks: 2, reason: 'separated' });
+  assert.deepEqual(stopOf(noise, 3, 8), { forks: 2, reason: 'noise' });
+  assert.deepEqual(stopOf(forked(STEADY, NOISY, 8), 3, 8), {
+    forks: 8,
+    reason: 'max forks',
+  });
+  assert.deepEqual(stopOf(undecided, 3, 8), { forks: 2, reason: 'incomplete' });
+});
+
+test('`decide` prints stop or continue for a thread directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'benchmark-ab-decide-'));
+  const fork = (side, round, scores) =>
+    writeFileSync(
+      join(dir, `${side}-r${round}.json`),
+      JSON.stringify([record({ scores })]),
+    );
+  const decide = () =>
+    execFileSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL('./benchmark-ab.mjs', import.meta.url)),
+        'decide',
+        dir,
+      ],
+      {
+        env: { ...process.env, THRESHOLD: '3', ROUNDS: '8' },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    ).trim();
+  fork('base', 1, STEADY.slice(0, 5));
+  fork('head', 1, NOISY.slice(0, 5));
+  fork('base', 2, STEADY.slice(5));
+  fork('head', 2, NOISY.slice(5));
+  assert.equal(decide(), 'continue: 1 of 1 rows undecided');
+  fork('head', 1, STEADY.slice(0, 5).reverse());
+  fork('head', 2, STEADY.slice(5).reverse());
+  assert.equal(decide(), 'stop: all 1 rows decided');
 });
 
 test('the report reads a results directory and renders the table', () => {
@@ -297,15 +565,15 @@ test('the report reads a results directory and renders the table', () => {
   );
   assert.match(
     markdown,
-    /\| CommandIdComponentBenchmark\.generateGlobalId \| - \| 100\.2 ± [\d.]+ ops\/s \| 100\.2 ± [\d.]+ ops\/s \| \+0\.0% \| noise \| 48 → 48 \| 0\.7 → 0\.7 \|/,
+    /\| CommandIdComponentBenchmark\.generateGlobalId \| - \| 100\.2 ± [\d.]+ ops\/s \| 100\.2 ± [\d.]+ ops\/s \| \+0\.0% \| noise \| 2 \| max forks \| 48 → 48 \| 0\.7 → 0\.7 \|/,
   );
   assert.match(
     markdown,
-    /\| CommandIdComponentBenchmark\.createAggregateId \| - \| .+ \| \+100\.0% \| \*\*faster\*\* \|/,
+    /\| CommandIdComponentBenchmark\.createAggregateId \| - \| .+ \| \+100\.0% \| \*\*faster\*\* \| 2 \| max forks \|/,
   );
   assert.match(
     markdown,
-    /\| CommandIdComponentBenchmark\.removed \| size=a\\\|b \| 5\.500 ± .+ \| - \| - \| only in base \|/,
+    /\| CommandIdComponentBenchmark\.removed \| size=a\\\|b \| 5\.500 ± .+ \| - \| - \| only in base \| 1 \| - \|/,
   );
   assert.match(
     markdown,

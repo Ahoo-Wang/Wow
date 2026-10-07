@@ -205,9 +205,23 @@ gh workflow run benchmark-ab.yml -f base=main -f head=my-branch \
   -f include=CommandIdComponentBenchmark -f profile=quick
 ```
 
-It builds the JMH jar of each ref once, then runs one job per benchmark class (`split=method` for one per method). Inside a job, base and head forks alternate on the same runner (base-head, head-base, …), so runner and drift variance cancel. `quick` runs 3 forks per side (2 × 2 s warmup, 3 × 2 s measurement); `gate` runs 8 forks per side (3 × 3 s warmup, 5 × 3 s measurement). Every fork runs with `-prof gc`. Optional inputs override `@Param` values (`name=v1,v2;…`), thread counts, the noise threshold (default 3%) and a pull request number to comment on. Benchmarks under `benchmark.infrastructure` need Redis, MongoDB, Elasticsearch or Kafka and are skipped.
+It builds the JMH jar of each ref once and caches it by commit and by the hash of the benchmark sources and build files, so a repeated A/B of the same commits skips the Gradle build. It then fans the selected benchmarks out into matrix jobs. Inside a job, base and head forks alternate on the same runner (base-head, head-base, …), so runner and drift variance cancel. Every fork runs with `-prof gc`. Optional inputs override `@Param` values (`name=v1,v2;…`), thread counts, the noise threshold (default 3%) and a pull request number to comment on. Benchmarks under `benchmark.infrastructure` need Redis, MongoDB, Elasticsearch or Kafka and are skipped.
 
-The report in the run summary lists base and head score ± error (pooled over every fork of that side, JMH's 99.9% interval), Δ%, B/op and GC ms per iteration. A row is flagged `faster` or `slower` only when the two intervals do not overlap and |Δ| reaches the threshold; overlapping intervals are noise. The `benchmark-ab` label on a pull request runs the quick profile for the JMH classes that pull request changed, head against its merge base, and comments the report.
+| Profile | Forks per side | Warmup, measurement | Default split | Typical wall time |
+| --- | --- | --- | --- | --- |
+| `quick` | up to 3 | 2 × 2 s, 3 × 2 s | `class` | about 10–15 minutes for one class |
+| `gate` | up to 8 | 3 × 3 s, 5 × 3 s | `params` | about 15–25 minutes, at most 16 jobs at a time |
+
+`split` chooses the job granularity: `class`, `method`, or `params`, one job per method and `@Param` combination (the combination is pinned with JMH `-p`). The default, `auto`, uses `class` for `quick` and `params` for `gate`. A gate run of a class with several methods and params used to run every combination serially in one job (`EventDispatchComponentBenchmark`: about 130 minutes); split by params, the combinations run in parallel. The plan step lists the jobs in the run summary, runs at most 16 at a time (GitHub Free allows 20 concurrent jobs per account), warns above 48 jobs, and fails above GitHub's matrix limit of 256; narrow the include patterns or pin params then.
+
+A job stops early once every row it measures is decided. After each round from the second until the last but one, it computes each side's interval over the iterations so far, at a stricter confidence than the report: the 0.1% that JMH's 99.9% interval leaves is split evenly over the early looks a job can take (Bonferroni; six looks for `gate`, one for `quick`). A row is decided when:
+
+- **separated**: the intervals do not overlap and |Δ| reaches the threshold. The report's 99.9% intervals are narrower, so it flags the row the same way;
+- **noise**: even the far ends of the two intervals differ by less than the threshold, so more forks could not show a change of that size. A 0% threshold never stops on noise.
+
+Anything else runs another round, up to the profile's forks. The verdict rule itself is unchanged: the report pools whatever forks each row ran.
+
+The report in the run summary lists base and head score ± error (pooled over every fork of that side, JMH's 99.9% interval), Δ%, the verdict, the forks per side the row used and why its job stopped there (`separated`, `noise` or `max forks`), B/op and GC ms per iteration, and the run's wall time. A row is flagged `faster` or `slower` only when the two intervals do not overlap and |Δ| reaches the threshold; overlapping intervals are noise. The `benchmark-ab` label on a pull request runs the quick profile for the JMH classes that pull request changed, head against its merge base, and comments the report.
 
 ## Read Historical Reports Correctly
 

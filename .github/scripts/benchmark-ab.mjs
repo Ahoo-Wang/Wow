@@ -9,19 +9,23 @@ import { pathToFileURL } from 'node:url';
 
 // The steps of benchmark-ab.yml, the A/B JMH comparison of two refs:
 //
-//   node .github/scripts/benchmark-ab.mjs inputs   (resolve job)
-//   node .github/scripts/benchmark-ab.mjs plan     (plan job)
-//   node .github/scripts/benchmark-ab.mjs report   (report job)
+//   node .github/scripts/benchmark-ab.mjs inputs        (resolve job)
+//   node .github/scripts/benchmark-ab.mjs plan          (plan job)
+//   node .github/scripts/benchmark-ab.mjs decide <dir>  (run job, per round)
+//   node .github/scripts/benchmark-ab.mjs report        (report job)
 //
 // `inputs` validates the dispatch inputs (or, for the `benchmark-ab` label,
 // derives the include patterns from the benchmark classes the pull request
 // changed) and turns them into JMH arguments. `plan` splits the benchmarks the
-// two JMH jars list into one matrix job per class or method. `report` pools the
-// JSON of every interleaved fork per side and writes the comparison table.
+// two JMH jars list (`-lp`) into one matrix job per class, method, or method
+// and @Param combination. `decide` tells a job, after each round, whether
+// every row it measures is already decided (see earlyDecision). `report` pools
+// the JSON of every interleaved fork per side and writes the comparison table.
 
-// Forks per side (`rounds`): each round runs one fork of base and one of head
-// on the same runner, alternating which goes first (ABBA) so drift over the job
-// cancels as well as runner-to-runner variance.
+// Forks per side (`rounds`, the most a job runs): each round runs one fork of
+// base and one of head on the same runner, alternating which goes first (ABBA)
+// so drift over the job cancels as well as runner-to-runner variance. From the
+// second round on, a job stops as soon as every row is decided.
 export const PROFILES = {
   quick: {
     rounds: 3,
@@ -41,12 +45,25 @@ export const PROFILES = {
 
 export const JVM_ARGS = '-Xmx2g -Xms2g -XX:+UseG1GC -XX:+AlwaysPreTouch';
 
+// The split each profile uses when the dispatch leaves it on `auto`.
+const AUTO_SPLIT = { quick: 'class', gate: 'params' };
+// Matrix jobs: at most MAX_PARALLEL run at once (GitHub Free allows 20
+// concurrent jobs per account, shared with every other workflow); a plan over
+// WARN_JOBS gets a warning, and GitHub refuses a matrix over MAX_JOBS.
+export const MAX_PARALLEL = 16;
+export const WARN_JOBS = 48;
+export const MAX_JOBS = 256;
+
 // Benchmarks that need Redis, MongoDB, Elasticsearch or Kafka; a runner has
 // none of them.
 const SERVICE_BENCHMARK = /^me\.ahoo\.wow\.benchmark\.infrastructure\./;
 const JMH_SOURCE =
   /^wow-benchmarks\/src\/jmh\/(?:kotlin|java)\/(.+Benchmark)\.(?:kt|java)$/;
 const PARAM = /^[A-Za-z_$][\w$]*=[^\s;]+$/;
+const PARAM_NAME = /^[A-Za-z_$][\w$]*$/;
+// A value one job can pin with `-p name=value`: JMH splits `-p` on commas.
+const PINNABLE = /^[^\s,]+$/;
+const BENCHMARK_NAME = /^[\w$]+(?:\.[\w$]+)+$/;
 
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const words = text =>
@@ -77,13 +94,13 @@ export function resolveInputs({
   profile = 'quick',
   params = '',
   threads = '',
-  split = 'class',
+  split = 'auto',
   threshold = '3',
   changedPaths,
 }) {
   const settings = PROFILES[profile];
   if (!settings) throw new Error(`Unknown profile: ${profile}`);
-  if (!['class', 'method'].includes(split))
+  if (!['auto', 'class', 'method', 'params'].includes(split))
     throw new Error(`Unknown split: ${split}`);
   const noise = Number(threshold);
   if (!Number.isFinite(noise) || noise < 0)
@@ -96,13 +113,13 @@ export function resolveInputs({
       throw new Error(`An include pattern cannot start with '-': ${pattern}`);
   if (exclude.trim().startsWith('-'))
     throw new Error(`The exclude pattern cannot start with '-': ${exclude}`);
-  const paramArgs = (params ?? '')
+  const overrides = (params ?? '')
     .split(/[\s;]+/)
     .filter(Boolean)
-    .flatMap(param => {
+    .map(param => {
       if (!PARAM.test(param))
         throw new Error(`A param override must be name=v1,v2: ${param}`);
-      return ['-p', param];
+      return param;
     });
   const threadCounts = words(threads);
   for (const count of threadCounts)
@@ -112,7 +129,7 @@ export function resolveInputs({
     run: patterns.length > 0,
     patterns,
     exclude: exclude.trim(),
-    split,
+    split: split === 'auto' ? AUTO_SPLIT[profile] : split,
     threshold: noise,
     rounds: settings.rounds,
     jmhArgs: [
@@ -124,53 +141,139 @@ export function resolveInputs({
       String(settings.iterations),
       '-r',
       settings.iterationTime,
-      ...paramArgs,
     ],
+    // `name=v1,v2` overrides, each passed as `-p name=v1,v2`; split=params
+    // pins one value of each param per job instead.
+    params: overrides,
     // `default` keeps the benchmark's own @Threads (JMH's default is 1).
     threads: threadCounts.length ? threadCounts : ['default'],
   };
 }
 
-/** The benchmark names of `java -jar benchmarks.jar -l` output. */
+/** The benchmark names of `java -jar benchmarks.jar -l` (or `-lp`) output. */
 export function parseBenchmarkList(output) {
   return output
     .split('\n')
     .map(line => line.trim())
-    .filter(line => /^[\w$]+(?:\.[\w$]+)+$/.test(line));
+    .filter(line => BENCHMARK_NAME.test(line));
 }
 
 /**
- * One matrix job per class (or per method), over the benchmarks either jar
- * lists. A benchmark only one side has still runs there; the report marks it.
+ * The @Param values per benchmark of `-lp` output, which prints each one under
+ * its benchmark as `  param "name" = {v1, v2}` (overrides already applied).
  */
-export function planMatrix(baseNames, headNames, split = 'class') {
+export function parseBenchmarkParams(output) {
+  const params = {};
+  let current;
+  for (const line of output.split('\n')) {
+    if (BENCHMARK_NAME.test(line.trim())) {
+      current = params[line.trim()] = {};
+      continue;
+    }
+    const match = /^\s+param "([^"]+)" = \{(.*)\}\s*$/.exec(line);
+    if (match && current)
+      current[match[1]] = match[2] === '' ? [] : match[2].split(', ');
+  }
+  return params;
+}
+
+const nameOf = param => param.slice(0, param.indexOf('='));
+
+/**
+ * The `-p` pins of each job of one method: every combination of the values
+ * base or head list, params sorted by name. A param with no listed values or a
+ * value `-p` cannot carry alone stays unpinned and runs inside the job.
+ */
+function paramCombinations(...spaces) {
+  const values = new Map();
+  for (const space of spaces)
+    for (const [name, list] of Object.entries(space ?? {}))
+      values.set(name, [...new Set([...(values.get(name) ?? []), ...list])]);
+  return [...values.entries()]
+    .filter(
+      ([name, list]) =>
+        PARAM_NAME.test(name) &&
+        list.length > 0 &&
+        list.every(value => PINNABLE.test(value)),
+    )
+    .sort(([left], [right]) => left.localeCompare(right))
+    .reduce(
+      (combinations, [name, list]) =>
+        combinations.flatMap(combination =>
+          list.map(value => [...combination, `${name}=${value}`]),
+        ),
+      [[]],
+    );
+}
+
+/**
+ * One matrix job per class, method, or method and @Param combination
+ * (`params`), over the benchmarks either jar lists. A benchmark only one side
+ * has still runs there; the report marks it. A job's `params` (JSON) are its
+ * `-p` arguments: its pinned combination, then the dispatch overrides of the
+ * params it leaves unpinned.
+ */
+export function planMatrix(
+  baseNames,
+  headNames,
+  split = 'class',
+  { baseParams = {}, headParams = {}, overrides = [] } = {},
+) {
   const names = [...new Set([...baseNames, ...headNames])].sort();
   const skipped = names.filter(name => SERVICE_BENCHMARK.test(name));
   const groups = new Map();
   for (const name of names) {
     if (SERVICE_BENCHMARK.test(name)) continue;
-    const key =
-      split === 'method' ? name : name.slice(0, name.lastIndexOf('.'));
-    groups.set(key, true);
+    const key = split === 'class' ? name.slice(0, name.lastIndexOf('.')) : name;
+    groups.set(
+      key,
+      split === 'params'
+        ? paramCombinations(baseParams[name], headParams[name])
+        : [[]],
+    );
   }
-  const keys = [...groups.keys()];
   const shortName = key => {
     const parts = key.split('.');
-    return split === 'method' ? parts.slice(-2).join('.') : parts.at(-1);
+    return split === 'class' ? parts.at(-1) : parts.slice(-2).join('.');
   };
   const counts = new Map();
-  for (const key of keys)
+  for (const key of groups.keys())
     counts.set(shortName(key), (counts.get(shortName(key)) ?? 0) + 1);
-  const include = keys.map(key => {
-    const label = counts.get(shortName(key)) > 1 ? key : shortName(key);
-    return {
-      id: label.replace(/[^\w.-]/g, '_'),
-      label,
-      regex: `^${escapeRegex(key)}${split === 'method' ? '$' : '\\.'}`,
-    };
-  });
+  const ids = new Set();
+  const include = [...groups.entries()].flatMap(([key, combinations]) =>
+    combinations.map(pinned => {
+      const name = counts.get(shortName(key)) > 1 ? key : shortName(key);
+      const label = pinned.length ? `${name} [${pinned.join(', ')}]` : name;
+      const stem = label.replace(/[^\w.=-]+/g, '_').replace(/_+$/, '');
+      let id = stem;
+      for (let index = 2; ids.has(id); index++) id = `${stem}_${index}`;
+      ids.add(id);
+      const pinnedNames = new Set(pinned.map(nameOf));
+      return {
+        id,
+        label,
+        regex: `^${escapeRegex(key)}${split === 'class' ? '\\.' : '$'}`,
+        params: JSON.stringify([
+          ...pinned,
+          ...overrides.filter(param => !pinnedNames.has(nameOf(param))),
+        ]),
+      };
+    }),
+  );
+  if (include.length > MAX_JOBS)
+    throw new Error(
+      `${include.length} jobs exceed GitHub's matrix limit of ${MAX_JOBS}: narrow the include patterns, pin params with the params input, or use a coarser split.`,
+    );
+  const warnings =
+    include.length > WARN_JOBS
+      ? [
+          `${include.length} jobs is more than ${WARN_JOBS}: at ${MAX_PARALLEL} at a time they run in ${Math.ceil(include.length / MAX_PARALLEL)} waves and hold most of the account's concurrent jobs. Narrow the include patterns or pin params if that is not intended.`,
+        ]
+      : [];
   return {
     matrix: { include },
+    maxParallel: MAX_PARALLEL,
+    warnings,
     skipped,
     onlyBase: baseNames.filter(name => !headNames.includes(name)),
     onlyHead: headNames.filter(name => !baseNames.includes(name)),
@@ -258,8 +361,11 @@ export function tQuantile(p, df) {
   return (low + high) / 2;
 }
 
-/** Mean and JMH's error (99.9% CI half-width) of pooled iteration scores. */
-export function summarize(values) {
+/**
+ * Mean and confidence half-width of pooled iteration scores: by default JMH's
+ * error, the two-sided 99.9% interval (`alpha` 0.001).
+ */
+export function summarize(values, alpha = 0.001) {
   const n = values.length;
   const mean = values.reduce((sum, value) => sum + value, 0) / n;
   if (n < 2) return { n, mean, error: NaN };
@@ -268,7 +374,8 @@ export function summarize(values) {
   return {
     n,
     mean,
-    error: (tQuantile(0.9995, n - 1) * Math.sqrt(variance)) / Math.sqrt(n),
+    error:
+      (tQuantile(1 - alpha / 2, n - 1) * Math.sqrt(variance)) / Math.sqrt(n),
   };
 }
 
@@ -289,9 +396,9 @@ const paramsText = params =>
     .join(', ');
 
 /**
- * Pools JMH JSON records per side and benchmark/mode/threads/params. Files are
- * `base-*.json` and `head-*.json` (one fork each); `meta.json` is a job's
- * wall time.
+ * Pools JMH JSON records per side and benchmark/mode/threads/params, counting
+ * the forks of each row per side. Files are `base-*.json` and `head-*.json`
+ * (one fork each); `meta.json` is a job's wall time.
  */
 export function collect(files) {
   const rows = new Map();
@@ -314,11 +421,12 @@ export function collect(files) {
         threads: record.threads,
         params,
         unit: record.primaryMetric.scoreUnit,
-        base: { score: [], alloc: [], gcTime: [] },
-        head: { score: [], alloc: [], gcTime: [] },
+        base: { forks: 0, score: [], alloc: [], gcTime: [] },
+        head: { forks: 0, score: [], alloc: [], gcTime: [] },
       };
       const pool = row[side];
       const secondary = record.secondaryMetrics ?? {};
+      pool.forks++;
       pool.score.push(...record.primaryMetric.rawData.flat());
       pool.alloc.push(
         ...(secondary['gc.alloc.rate.norm']?.rawData?.flat() ?? []),
@@ -371,6 +479,69 @@ export function compare(row, threshold) {
   };
 }
 
+/**
+ * Whether a job may stop for this row before its last round. Both tests use
+ * JMH's intervals at a stricter confidence: the 0.1% JMH's 99.9% leaves is
+ * split evenly over the early looks a job can take (Bonferroni over
+ * `rounds - 2` looks, after rounds 2 to `rounds - 1`), so all the looks
+ * together are no more likely to stop on chance than one look at 99.9%.
+ *
+ * - `separated`: the strict intervals do not overlap and |Δ| ≥ threshold. The
+ *   99.9% intervals are narrower, so `compare` flags the row the same way.
+ * - `noise`: the change stays under the threshold even between the far ends
+ *   of the strict intervals, so `compare` calls it noise and more forks could
+ *   not show a change of the threshold's size.
+ *
+ * Anything else is undecided. A row only one side has is decided: there is
+ * nothing to compare.
+ */
+export function earlyDecision(row, threshold, rounds) {
+  if (!row.base.score.length || !row.head.score.length)
+    return { decided: true, reason: 'one side' };
+  const alpha = 0.001 / Math.max(1, rounds - 2);
+  const base = summarize(row.base.score, alpha);
+  const head = summarize(row.head.score, alpha);
+  if (!Number.isFinite(base.error) || !Number.isFinite(head.error))
+    return { decided: false };
+  const delta = ((head.mean - base.mean) / base.mean) * 100;
+  if (
+    Math.abs(head.mean - base.mean) > base.error + head.error &&
+    Math.abs(delta) >= threshold
+  )
+    return { decided: true, reason: 'separated' };
+  const low = base.mean - base.error;
+  if (low > 0) {
+    const widest =
+      Math.max(
+        (head.mean + head.error) / low - 1,
+        1 - (head.mean - head.error) / (base.mean + base.error),
+      ) * 100;
+    if (widest < threshold) return { decided: true, reason: 'noise' };
+  }
+  return { decided: false };
+}
+
+/** Whether a job can stop after a round: every row it measures is decided. */
+export function decideStop(rows, threshold, rounds) {
+  const decisions = rows.map(row => ({
+    row,
+    ...earlyDecision(row, threshold, rounds),
+  }));
+  const undecided = decisions.filter(decision => !decision.decided).length;
+  return { stop: rows.length > 0 && undecided === 0, decisions, undecided };
+}
+
+/**
+ * The forks per side a row used, and why its job stopped there: `max forks`,
+ * or the early decision that let it stop sooner (the same data `decide` saw).
+ */
+export function stopOf(row, threshold, rounds) {
+  const forks = Math.min(row.base.forks, row.head.forks);
+  if (forks >= rounds) return { forks, reason: 'max forks' };
+  const { decided, reason } = earlyDecision(row, threshold, rounds);
+  return { forks, reason: decided ? reason : 'incomplete' };
+}
+
 function decimals(value) {
   // At least four significant digits.
   const magnitude = Math.abs(value);
@@ -405,12 +576,18 @@ const duration = seconds =>
 /** The Markdown report: a header, the table and how to read it. */
 export function renderReport({ rows, jobs }, meta) {
   const threshold = meta.threshold;
+  const rounds = Number(meta.rounds);
   const lines = [`## Benchmark A/B: ${meta.profile}`, ''];
   lines.push(
     `Base \`${meta.baseRef}\` (${meta.baseSha.slice(0, 10)}) against head \`${meta.headRef}\` (${meta.headSha.slice(0, 10)}); ` +
-      `${meta.rounds} interleaved forks per side on the same runner, noise threshold ±${threshold}%.`,
+      `up to ${meta.rounds} interleaved forks per side on the same runner, a job stopping once every row it measures is decided; noise threshold ±${threshold}%.`,
   );
   if (meta.runUrl) lines.push('', `Run: ${meta.runUrl}`);
+  if (Number.isFinite(meta.wallSeconds))
+    lines.push(
+      '',
+      `Wall time from the run start to this report: ${duration(meta.wallSeconds)}.`,
+    );
   if (meta.runResult && meta.runResult !== 'success')
     lines.push(
       '',
@@ -427,8 +604,8 @@ export function renderReport({ rows, jobs }, meta) {
       left.params.localeCompare(right.params),
   );
   const table = [
-    '| Benchmark | Params | Base | Head | Δ | Verdict | B/op base → head | GC ms/iter base → head |',
-    '| --- | --- | --- | ---: | ---: | --- | ---: | ---: |',
+    '| Benchmark | Params | Base | Head | Δ | Verdict | Forks | Stop | B/op base → head | GC ms/iter base → head |',
+    '| --- | --- | --- | ---: | ---: | --- | ---: | --- | ---: | ---: |',
   ];
   const counts = { faster: 0, slower: 0, noise: 0, missing: 0 };
   for (const row of sorted) {
@@ -445,7 +622,7 @@ export function renderReport({ rows, jobs }, meta) {
       const only = row.base.score.length ? 'base' : 'head';
       const result = summarize(row[only].score);
       table.push(
-        `| ${cell(name)} | ${cell(params || '-')} | ${only === 'base' ? scoreText(result, row.unit) : '-'} | ${only === 'head' ? scoreText(result, row.unit) : '-'} | - | only in ${only} | - | - |`,
+        `| ${cell(name)} | ${cell(params || '-')} | ${only === 'base' ? scoreText(result, row.unit) : '-'} | ${only === 'head' ? scoreText(result, row.unit) : '-'} | - | only in ${only} | ${row[only].forks} | - | - | - |`,
       );
       continue;
     }
@@ -453,8 +630,9 @@ export function renderReport({ rows, jobs }, meta) {
     counts[result.verdict]++;
     const verdict =
       result.verdict === 'noise' ? 'noise' : `**${result.verdict}**`;
+    const stop = stopOf(row, threshold, rounds);
     table.push(
-      `| ${cell(name)} | ${cell(params || '-')} | ${scoreText(result.base, row.unit)} | ${scoreText(result.head, row.unit)} | ${result.delta >= 0 ? '+' : ''}${format(result.delta, 1)}% | ${verdict} | ${pairText(result.alloc, 0)} | ${pairText(result.gcTime, 1)} |`,
+      `| ${cell(name)} | ${cell(params || '-')} | ${scoreText(result.base, row.unit)} | ${scoreText(result.head, row.unit)} | ${result.delta >= 0 ? '+' : ''}${format(result.delta, 1)}% | ${verdict} | ${stop.forks} | ${stop.reason} | ${pairText(result.alloc, 0)} | ${pairText(result.gcTime, 1)} |`,
     );
   }
   lines.push(
@@ -475,7 +653,10 @@ export function renderReport({ rows, jobs }, meta) {
   lines.push(
     '',
     '`±` is the 99.9% confidence half-width over every measured iteration of every fork of that side, as JMH computes it. ' +
-      `A row is flagged only when the two intervals do not overlap and |Δ| ≥ ${threshold}%; ` +
+      `A row is flagged only when the two intervals do not overlap and |Δ| ≥ ${threshold}%. ` +
+      '`Forks` is the forks per side the row used; `Stop` says why its job stopped there: `max forks`, or, from the second round on, ' +
+      '`separated` (the intervals, widened by splitting the 0.1% over the early looks, do not overlap and |Δ| reaches the threshold) or ' +
+      '`noise` (those widened intervals keep |Δ| under the threshold). ' +
       '`B/op` (`gc.alloc.rate.norm`) and `GC ms/iter` (`gc.time`) come from `-prof gc`.',
   );
   return `${lines.join('\n')}\n`;
@@ -511,7 +692,7 @@ if (
       profile: env.PROFILE || 'quick',
       params: env.PARAMS,
       threads: env.THREADS,
-      split: env.SPLIT || 'class',
+      split: env.SPLIT || 'auto',
       threshold: env.THRESHOLD || '3',
       changedPaths: env.CHANGED_FILES
         ? readFileSync(env.CHANGED_FILES, 'utf8').split('\n')
@@ -525,6 +706,7 @@ if (
       threshold: String(settings.threshold),
       rounds: String(settings.rounds),
       'jmh-args': settings.jmhArgs,
+      params: settings.params,
       threads: settings.threads,
       'jvm-args': JVM_ARGS,
     });
@@ -533,17 +715,27 @@ if (
         'No JMH benchmark class changed in this pull request. Dispatch Benchmark A/B with an include pattern to compare others.\n',
       );
   } else if (command === 'plan') {
-    const read = path => parseBenchmarkList(readFileSync(path, 'utf8'));
+    const base = readFileSync(env.BASE_LIST, 'utf8');
+    const head = readFileSync(env.HEAD_LIST, 'utf8');
+    const split = env.SPLIT || 'class';
     const plan = planMatrix(
-      read(env.BASE_LIST),
-      read(env.HEAD_LIST),
-      env.SPLIT || 'class',
+      parseBenchmarkList(base),
+      parseBenchmarkList(head),
+      split,
+      {
+        baseParams: parseBenchmarkParams(base),
+        headParams: parseBenchmarkParams(head),
+        overrides: JSON.parse(env.PARAMS || '[]'),
+      },
     );
     if (!plan.matrix.include.length)
       throw new Error('No benchmark matches the include patterns.');
-    output({ matrix: plan.matrix });
+    output({ matrix: plan.matrix, 'max-parallel': String(plan.maxParallel) });
+    for (const warning of plan.warnings) console.log(`::warning::${warning}`);
+    const jobs = plan.matrix.include.length;
     const notes = [
-      `Planned ${plan.matrix.include.length} benchmark jobs.`,
+      `Planned ${jobs} benchmark ${jobs === 1 ? 'job' : 'jobs'}, one per ${split === 'params' ? 'method and @Param combination' : split}, at most ${plan.maxParallel} at a time.`,
+      ...plan.warnings.map(warning => `> [!WARNING]\n> ${warning}`),
       ...(plan.skipped.length
         ? [`Skipped (they need external services): ${plan.skipped.join(', ')}`]
         : []),
@@ -555,7 +747,24 @@ if (
         : []),
     ];
     summary(`${notes.join('\n\n')}\n`);
+  } else if (command === 'decide') {
+    const { rows } = readResults(process.argv[3]);
+    const { stop, decisions, undecided } = decideStop(
+      rows,
+      Number(env.THRESHOLD),
+      Number(env.ROUNDS),
+    );
+    for (const { row, decided, reason } of decisions)
+      console.error(
+        `${row.benchmark} [${row.params}] threads=${row.threads}: ${row.base.forks}/${row.head.forks} forks, ${decided ? reason : 'undecided'}`,
+      );
+    console.log(
+      stop
+        ? `stop: all ${rows.length} rows decided`
+        : `continue: ${undecided} of ${rows.length} rows undecided`,
+    );
   } else if (command === 'report') {
+    const started = Date.parse(env.RUN_STARTED_AT ?? '');
     const markdown = renderReport(readResults(env.RESULTS_DIR), {
       profile: env.PROFILE,
       baseRef: env.BASE_REF,
@@ -566,6 +775,9 @@ if (
       threshold: Number(env.THRESHOLD),
       runUrl: env.RUN_URL,
       runResult: env.RUN_RESULT,
+      wallSeconds: Number.isFinite(started)
+        ? (Date.now() - started) / 1000
+        : undefined,
     });
     process.stdout.write(markdown);
   } else {
