@@ -50,8 +50,8 @@ import java.util.concurrent.TimeUnit
  * With a pooled Lettuce factory (`LettucePoolingClientConfiguration`, which needs commons-pool2) a receive stream asks
  * the factory for a connection per read and gives it back after the read: it keeps no pool slot between reads. While
  * its blocking `XREADGROUP … BLOCK` waits, though, it holds one, and Lettuce's reactive pool does not wait for a free
- * one: when the pool has no connection left for a read, it fails with "Pool exhausted" (as before 9.3). The template's
- * shared connection takes one pooled connection for good, hence `max-active` ≥ receive streams + 1.
+ * one: when the pool has no connection left for a read, it fails with "Pool exhausted" (as before 9.3). Besides the
+ * reads, another pooled connection is held (most likely the template's shared one), hence `max-active` ≥ receive streams + 1.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisStreamPooledConnectionTest {
@@ -105,7 +105,7 @@ class RedisStreamPooledConnectionTest {
 
     @Test
     fun `receive streams plus one pooled connections serve them all`() {
-        // One for the template's shared connection, one per blocking read.
+        // One per blocking read, plus the one the documented rule adds (CI exhausted the pool with 2).
         val factory = pooledFactory(maxActive = 3, maxWait = Duration.ofSeconds(1))
         val bus = RedisCommandBus(
             redisTemplate = ReactiveStringRedisTemplate(factory),
