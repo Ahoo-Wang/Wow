@@ -17,6 +17,7 @@ import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
+import me.ahoo.wow.messaging.dispatcher.toMailboxKey
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -77,11 +78,11 @@ class AggregateSnapshotDispatcher(
     }
 
     /**
-     * State events of one aggregate are snapshotted in order: the mailbox key is the whole `AggregateId`
-     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * State events of one aggregate are snapshotted in order: the mailbox key is the aggregate ID ([toMailboxKey]:
+     * bounded context, aggregate name and ID, not the tenant, as in 9.2), since one dispatcher serves several aggregates of a context and
      * an ID (for example one derived by a saga) can be shared across aggregate types.
      */
-    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId
+    override fun StateEventExchange<*>.mailboxKey(): Any = message.aggregateId.toMailboxKey()
 
     /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
     override fun metricProcessorName(namedAggregate: NamedAggregate): String =

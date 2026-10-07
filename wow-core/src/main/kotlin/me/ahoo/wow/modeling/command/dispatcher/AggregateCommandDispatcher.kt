@@ -16,6 +16,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
+import me.ahoo.wow.messaging.dispatcher.toMailboxKey
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import reactor.core.publisher.Flux
@@ -98,11 +99,11 @@ class AggregateCommandDispatcher(
     }
 
     /**
-     * Commands of one aggregate run in order: the mailbox key is the whole `AggregateId`
-     * (bounded context, aggregate name, ID, tenant), since one dispatcher serves several aggregates of a context and
+     * Commands of one aggregate run in order: the mailbox key is the aggregate ID ([toMailboxKey]:
+     * bounded context, aggregate name and ID, not the tenant, as in 9.2), since one dispatcher serves several aggregates of a context and
      * an ID (for example one derived by a saga) can be shared across aggregate types.
      */
-    override fun ServerCommandExchange<*>.mailboxKey(): Any = message.aggregateId
+    override fun ServerCommandExchange<*>.mailboxKey(): Any = message.aggregateId.toMailboxKey()
 
     /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
     override fun metricProcessorName(namedAggregate: NamedAggregate): String =

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.execution.KeyedExecutor
 import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
@@ -36,6 +37,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+
+private val log = KotlinLogging.logger {}
+
+/** The 9.2 system property that sized the per-aggregate schedulers; 9.3 sizes the shared workers with `wow.dispatch.*`. */
+internal const val REMOVED_PARALLELISM_PROPERTY = "wow.parallelism"
 
 /**
  * High-level owner and lifecycle orchestrator for the complete Wow runtime.
@@ -207,6 +213,15 @@ class WowRuntime private constructor(
             }
             state = State.STARTING
         }
+        warnIfRemovedParallelismSet()
+    }
+
+    private fun warnIfRemovedParallelismSet() {
+        val parallelism = System.getProperty(REMOVED_PARALLELISM_PROPERTY) ?: return
+        log.warn {
+            "System property [$REMOVED_PARALLELISM_PROPERTY=$parallelism] is ignored: it was removed in 9.3, " +
+                "size the dispatch workers with wow.dispatch.* instead."
+        }
     }
 
     private fun startOwned(): Mono<Void> =
@@ -350,6 +365,7 @@ class WowRuntime private constructor(
             }
         }
         if (completeWithoutStarting) {
+            keyedExecutor.close()
             terminationSink.tryEmitEmpty()
         }
         owner?.let {
@@ -569,6 +585,8 @@ class WowRuntime private constructor(
             if (!forceCleanupClaimed) {
                 return@defer rawTerminationSignal
             }
+            // Synchronously, as forceStop does: no queued message starts once the failed shutdown force-stops.
+            keyedExecutor.forceClose()
             val forceFailure = componentGroup.forceStop()
             forceFailure?.let(::recordFailure)
             Mono.error(currentFailure() ?: forceFailure ?: primaryFailure)

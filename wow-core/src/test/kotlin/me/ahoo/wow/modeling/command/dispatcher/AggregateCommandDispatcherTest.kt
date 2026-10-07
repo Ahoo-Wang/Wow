@@ -169,14 +169,58 @@ class AggregateCommandDispatcherTest {
         }
     }
 
+    @Test
+    fun `commands of one aggregate ID run one at a time whatever their tenant`() {
+        val release = Sinks.empty<Void>()
+        val firstStarted = CountDownLatch(1)
+        val secondStarted = CountDownLatch(1)
+        val sharedId = "tenant-shared-id"
+        val dispatcher = AggregateCommandDispatcher(
+            aggregateMetadata = listOf(MOCK_AGGREGATE_METADATA),
+            messageFlux = Flux.just(
+                command(MOCK_AGGREGATE_METADATA, "first", aggregateId = sharedId, tenantId = "tenant-a"),
+                command(MOCK_AGGREGATE_METADATA, "second", aggregateId = sharedId, tenantId = "tenant-b"),
+            ),
+            commandHandler = object : CommandHandler {
+                override fun handle(
+                    exchange: ServerCommandExchange<*>,
+                    aggregateMetadata: AggregateMetadata<*, *>,
+                ): Mono<Void> =
+                    if (exchange.message.aggregateId.tenantId == "tenant-a") {
+                        firstStarted.countDown()
+                        release.asMono()
+                    } else {
+                        Mono.fromRunnable { secondStarted.countDown() }
+                    }
+            },
+        )
+
+        dispatcher.prepare(DefaultRuntimeContext()).block()
+        dispatcher.start()
+        try {
+            firstStarted.await(5, TimeUnit.SECONDS).assert().isTrue()
+            secondStarted.await(200, TimeUnit.MILLISECONDS).assert().isFalse()
+            release.tryEmitEmpty()
+            secondStarted.await(5, TimeUnit.SECONDS).assert().isTrue()
+        } finally {
+            release.tryEmitEmpty()
+            dispatcher.terminatedSignal.block(Duration.ofSeconds(5))
+        }
+    }
+
     private fun command(
         metadata: AggregateMetadata<*, *>,
         data: String,
         aggregateId: String = "$data-id",
+        tenantId: String? = null,
     ): ServerCommandExchange<*> =
         SimpleServerCommandExchange(
             MockCreateAggregate(id = aggregateId, data = data)
-                .toCommandMessage(aggregateId = aggregateId, namedAggregate = metadata.namedAggregate),
+                .toCommandMessage(
+                    aggregateId = aggregateId,
+                    tenantId = tenantId,
+                    namedAggregate = metadata.namedAggregate,
+                ),
         )
 
     private fun recordingHandler(handledWith: MutableList<String>): CommandHandler =

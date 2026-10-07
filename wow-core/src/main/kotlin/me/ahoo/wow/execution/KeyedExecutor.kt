@@ -54,7 +54,9 @@ class KeyedExecutor(
     /**
      * The workers: daemon threads that Reactor treats as [NonBlocking][reactor.core.scheduler.NonBlocking], like the
      * `Schedulers.newParallel` threads they replace: `block()` on them fails fast, and a `@Blocking` message function
-     * moves to `boundedElastic` instead of holding a shared worker. A task submitted after [close] is rejected.
+     * moves to `boundedElastic` instead of holding a shared worker. A task submitted after [close] is rejected. A
+     * thread starts on its first task, so an executor that never dispatches starts none; a failing task, even with a
+     * JVM-fatal error, does not end its worker.
      */
     internal val dispatchWorkers: DispatchWorkers = DispatchWorkers(workers, name)
 

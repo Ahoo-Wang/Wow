@@ -311,22 +311,110 @@ class KeyedDispatchTest {
     }
 
     @Test
-    fun `a handler that throws a fatal error wedges its mailbox and its worker rethrows it`() {
-        val wedged = KeyedExecutor(workers = 1, name = "keyed-dispatch-fatal")
+    fun `a handler that throws a fatal error fails its dispatch and the shared worker keeps running other keys`() {
+        val shared = KeyedExecutor(workers = 1, name = "keyed-dispatch-fatal")
         try {
-            val called = CountDownLatch(1)
-            val dispatched = Flux.just(1).dispatchKeyed(wedged, { it }) {
-                called.countDown()
-                throw LinkageError("fatal")
-            }
+            val fatal = LinkageError("fatal")
+            val failing = Flux.just(1).dispatchKeyed(shared, { it }) { throw fatal }
+            StepVerifier.create(failing).expectErrorMatches {
+                it is IllegalStateException && it.cause === fatal
+            }.verify(Duration.ofSeconds(5))
 
-            StepVerifier.create(dispatched)
-                .then { called.await(5, TimeUnit.SECONDS).assert().isTrue() }
-                .expectNoEvent(Duration.ofMillis(200))
-                .thenCancel()
-                .verify(Duration.ofSeconds(5))
+            val ran = CopyOnWriteArrayList<Int>()
+            val other = Flux.range(0, 100).dispatchKeyed(shared, { it % 7 }) { item ->
+                Mono.fromRunnable { ran += item }
+            }
+            StepVerifier.create(other).verifyComplete()
+            ran.assert().hasSize(100)
         } finally {
-            wedged.close()
+            shared.close()
+        }
+    }
+
+    @Test
+    fun `a fatal error thrown out of subscribing the handler fails its dispatch without stranding the mailbox`() {
+        val shared = KeyedExecutor(workers = 1, name = "keyed-dispatch-fatal-subscribe")
+        try {
+            val fatal = StackOverflowError("fatal")
+            val failing = Flux.just(1, 1, 2).dispatchKeyed(shared, { it }) {
+                object : Mono<Void>() {
+                    override fun subscribe(actual: CoreSubscriber<in Void>) {
+                        actual.onSubscribe(Operators.emptySubscription())
+                        throw fatal
+                    }
+                }
+            }
+            StepVerifier.create(failing).expectErrorMatches {
+                it is IllegalStateException && it.cause === fatal
+            }.verify(Duration.ofSeconds(5))
+
+            // Other keys on the same (only) worker keep making progress after the fatal error.
+            val ran = AtomicInteger()
+            val other = Flux.range(0, 50).dispatchKeyed(shared, { it % 3 }) {
+                Mono.fromRunnable { ran.incrementAndGet() }
+            }
+            StepVerifier.create(other).verifyComplete()
+            ran.get().assert().isEqualTo(50)
+        } finally {
+            shared.close()
+        }
+    }
+
+    @Test
+    fun `late signals of a handler whose subscribe threw are ignored`() {
+        val shared = KeyedExecutor(workers = 1, name = "keyed-dispatch-abandoned")
+        try {
+            val fatal = StackOverflowError("fatal")
+            val late = IllegalStateException("late")
+            val abandoned = AtomicReference<CoreSubscriber<in Void>>()
+            val discarded = CopyOnWriteArrayList<Any>()
+            val dropped = CopyOnWriteArrayList<Throwable>()
+            val failing = Flux.just(1).dispatchKeyed(shared, { it }) {
+                object : Mono<Void>() {
+                    override fun subscribe(actual: CoreSubscriber<in Void>) {
+                        actual.onSubscribe(Operators.emptySubscription())
+                        abandoned.set(actual)
+                        throw fatal
+                    }
+                }
+            }.doOnDiscard(Int::class.javaObjectType) { discarded += it }
+                .contextWrite(Context.of(ON_ERROR_DROPPED_KEY, Consumer<Throwable> { dropped += it }))
+
+            StepVerifier.create(failing).expectErrorMatches { it.cause === fatal }.verify(Duration.ofSeconds(5))
+            abandoned.get().onComplete()
+            abandoned.get().onError(late)
+
+            discarded.assert().containsExactly(1)
+            dropped.assert().contains(late)
+        } finally {
+            shared.close()
+        }
+    }
+
+    @Test
+    fun `a fatal error in one dispatch does not stop a concurrent dispatch pinned to the same worker`() {
+        val shared = KeyedExecutor(workers = 1, name = "keyed-dispatch-fatal-concurrent")
+        try {
+            val source = Sinks.many().unicast().onBackpressureBuffer<Int>()
+            val ran = CopyOnWriteArrayList<Int>()
+            val survivor = source.asFlux().dispatchKeyed(shared, { it }) { item ->
+                Mono.fromRunnable { ran += item }
+            }
+            StepVerifier.create(survivor)
+                .then {
+                    source.tryEmitNext(1).orThrow()
+                    awaitTrue { ran.size == 1 }
+                    StepVerifier.create(Flux.just(9).dispatchKeyed(shared, { it }) { throw LinkageError("fatal") })
+                        .expectErrorMatches { it.cause is LinkageError }
+                        .verify(Duration.ofSeconds(5))
+                    source.tryEmitNext(1).orThrow()
+                    source.tryEmitNext(2).orThrow()
+                    source.tryEmitComplete().orThrow()
+                }
+                .verifyComplete()
+            ran.assert().containsExactly(1, 1, 2)
+        } finally {
+            shared.close()
         }
     }
 

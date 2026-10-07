@@ -70,6 +70,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     companion object {
         const val SPRING_APPLICATION_NAME = "spring.application.name"
         const val WOW_CURRENT_BOUNDED_CONTEXT = "wow.CurrentBoundedContext"
+        const val WOW_KEYED_EXECUTOR_BEAN_NAME = "wowKeyedExecutor"
     }
 
     @Bean(WOW_RUNTIME_LIFECYCLE_PROCESSOR_CONFIGURER_BEAN_NAME)
@@ -164,6 +165,21 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
         return registry
     }
 
+    /**
+     * The runtime's dispatch workers, a bean of its own so the context closes it (`close`, inferred from
+     * [AutoCloseable]) even when the runtime never starts or its bean fails to build: the runtime closes it on every
+     * stop path, and closing it twice is harmless. Its threads start on the first dispatch. A `KeyedExecutor` bean of
+     * the application's own replaces it; one in a parent context does not, so a child context never closes it.
+     */
+    @Bean(WOW_KEYED_EXECUTOR_BEAN_NAME)
+    @ConditionalOnMissingBean(search = SearchStrategy.CURRENT)
+    internal fun wowKeyedExecutor(): KeyedExecutor =
+        KeyedExecutor(
+            workers = wowProperties.dispatch.workers,
+            maxInFlight = wowProperties.dispatch.maxInFlight,
+            throughput = wowProperties.dispatch.throughput,
+        )
+
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")
     @ConditionalOnMissingBean(
         name = [WOW_RUNTIME_BEAN_NAME],
@@ -172,6 +188,13 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     internal fun wowRuntime(
         beanFactory: ConfigurableListableBeanFactory,
     ): WowRuntime {
+        // This context's own executor: a parent context's is not this runtime's to close.
+        val keyedExecutors = beanFactory.getBeansOfType(KeyedExecutor::class.java, false, true)
+        val (keyedExecutorName, keyedExecutor) = requireNotNull(keyedExecutors.entries.singleOrNull()) {
+            "The current ApplicationContext must declare exactly one KeyedExecutor bean, found ${keyedExecutors.keys}."
+        }
+        // So the context destroys (closes) the executor only after the runtime.
+        beanFactory.registerDependentBean(keyedExecutorName, WOW_RUNTIME_BEAN_NAME)
         // First, so it stops last: storage and transport resources flush after every dispatcher has drained.
         val resources = RuntimeResources {
             beanFactory.getBeansOfType(RuntimeResource::class.java, false, true).values
@@ -180,11 +203,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             components = listOf(resources) + beanFactory.localRuntimeComponents(),
             shutdownTimeout = wowProperties.shutdownTimeout,
             shutdownQuietPeriod = wowProperties.shutdownQuietPeriod,
-            keyedExecutor = KeyedExecutor(
-                workers = wowProperties.dispatch.workers,
-                maxInFlight = wowProperties.dispatch.maxInFlight,
-                throughput = wowProperties.dispatch.throughput,
-            ),
+            keyedExecutor = keyedExecutor,
         )
     }
 

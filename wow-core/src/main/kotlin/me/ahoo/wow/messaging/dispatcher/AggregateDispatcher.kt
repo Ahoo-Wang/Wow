@@ -67,7 +67,7 @@ import java.util.concurrent.atomic.AtomicReference
  *     override val namedAggregates: Set<NamedAggregate> = setOf(cartAggregate, orderAggregate)
  *     override val messageFlux: Flux<CommandExchange> = receiver.messages
  *
- *     override fun CommandExchange.mailboxKey(): Any = message.aggregateId
+ *     override fun CommandExchange.mailboxKey(): Any = message.aggregateId.toMailboxKey()
  *
  *     override fun handleExchange(exchange: CommandExchange): Mono<Void> {
  *         return commandHandler.handle(exchange)
@@ -343,7 +343,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> protected construc
 
     /**
      * The key of this exchange's mailbox: exchanges with equal keys run one at a time in arrival order; exchanges with
-     * different keys may run in parallel. Dispatchers key by the aggregate ID.
+     * different keys may run in parallel. Dispatchers key by the aggregate ID ([toMailboxKey], which ignores the tenant).
      */
     abstract fun T.mailboxKey(): Any
 

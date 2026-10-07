@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.execution
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.Exceptions
 import reactor.core.scheduler.NonBlocking
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -27,10 +28,16 @@ import java.util.concurrent.locks.LockSupport
  * its affinity selects (a mailbox always to the same one, chosen by [nextAffinity] when the mailbox is created). A
  * busy worker picks up newly queued tasks without being woken; an idle worker is unparked only by the submission that
  * finds it parked. There is no shared queue: no lock, and no cascade of wake-ups between workers.
+ *
+ * A worker thread starts on its first submission, so a runtime that never dispatches (a gateway-only service) starts
+ * none. A task's failure, a JVM-fatal error included, is contained: the worker logs it and goes on, so the mailboxes
+ * pinned to it are never stranded on a dead thread.
  */
 internal class DispatchWorkers(
     size: Int,
     name: String,
+    /** Starts a worker thread; a test replaces it to make a start fail. */
+    private val startThread: (Thread) -> Unit = Thread::start,
 ) : Executor {
     private val workers: Array<Worker> = Array(size) { Worker("$name-${it + 1}") }
     private val nextWorker = AtomicInteger()
@@ -50,10 +57,6 @@ internal class DispatchWorkers(
         fun discard()
     }
 
-    init {
-        workers.forEach(Thread::start)
-    }
-
     /**
      * Runs [task] on the worker [affinity] selects. Rejects once [close]d: either before queueing, or — when the
      * worker exited while the task was being queued — by taking the task back, so a task is always run or rejected.
@@ -65,7 +68,11 @@ internal class DispatchWorkers(
         workers[Math.floorMod(affinity, workers.size)].submit(task)
     }
 
-    /** Runs [task] on the next worker in turn (coroutine resumptions). */
+    /**
+     * Runs [task] on the next worker in turn (coroutine resumptions). A dead worker rejects it; kotlinx.coroutines then
+     * cancels the coroutine's job and runs the task on `Dispatchers.IO`, so the coroutine ends with its cancellation
+     * instead of hanging.
+     */
     override fun execute(task: Runnable) {
         execute(task, nextWorker.getAndIncrement())
     }
@@ -81,6 +88,9 @@ internal class DispatchWorkers(
         for (offset in workers.indices) {
             val index = (start + offset) % workers.size
             val worker = workers[index]
+            if (worker.dead) {
+                continue
+            }
             if (worker.idle == 0) {
                 if (worker.hasNoQueuedTask()) {
                     return index
@@ -89,7 +99,18 @@ internal class DispatchWorkers(
                 parked = index
             }
         }
-        return if (parked >= 0) parked else start
+        if (parked >= 0) {
+            return parked
+        }
+        // Every live worker is busy: the next live one in turn. Only when all are dead is a dead one returned, and its
+        // submissions are rejected rather than stranded.
+        for (offset in workers.indices) {
+            val index = (start + offset) % workers.size
+            if (!workers[index].dead) {
+                return index
+            }
+        }
+        return start
     }
 
     /** Lets every worker finish its queued tasks and exit; later submissions are rejected. Idempotent. */
@@ -116,6 +137,20 @@ internal class DispatchWorkers(
         @Volatile
         private var exited = false
 
+        /** 1 once the thread has been started (lazily, by the first submission). */
+        @Volatile
+        @JvmField
+        var started: Int = 0
+
+        /**
+         * Set if the thread ends abnormally. It should not ([runOrDiscard] contains every failure), but if it does,
+         * [nextAffinity] no longer picks it and its submissions are rejected (failing their dispatch) instead of
+         * waiting forever in a queue nobody drains.
+         */
+        @Volatile
+        var dead = false
+            private set
+
         /** 1 while the worker is about to park or parked: the submission that resets it unparks the worker. */
         @Volatile
         @JvmField
@@ -128,6 +163,9 @@ internal class DispatchWorkers(
         fun hasNoQueuedTask(): Boolean = queue.isEmpty()
 
         fun submit(task: Runnable) {
+            if (started == 0 && STARTED.compareAndSet(this, 0, 1)) {
+                startOrDie()
+            }
             queue.offer(task)
             // The worker sets `exited` and then drains once more: if the drain did not take this task, take it back.
             if (exited && queue.remove(task)) {
@@ -138,6 +176,23 @@ internal class DispatchWorkers(
             }
         }
 
+        /**
+         * Starts the thread. If it cannot start (no native thread left), the worker is dead: it is no longer selected,
+         * a task queued meanwhile by another submission is discarded, and this submission is rejected.
+         */
+        @Suppress("TooGenericExceptionCaught")
+        private fun startOrDie() {
+            try {
+                startThread(this)
+            } catch (error: Throwable) {
+                dead = true
+                exited = true
+                log.error(error) { "Dispatch worker [$name] could not start; it is no longer selected." }
+                discardQueued()
+                throw RejectedExecutionException("Dispatch worker [$name] could not start.", error)
+            }
+        }
+
         fun discardQueued() {
             while (true) {
                 discard(queue.poll() ?: return)
@@ -145,17 +200,32 @@ internal class DispatchWorkers(
         }
 
         override fun run() {
-            while (true) {
-                val task = queue.poll() ?: awaitTask() ?: break
-                runOrDiscard(task)
+            var drained = false
+            try {
+                while (true) {
+                    val task = queue.poll() ?: awaitTask() ?: break
+                    runOrDiscard(task)
+                }
+                drained = true
+            } finally {
+                exited = true
+                if (!drained) {
+                    dead = true
+                    log.error { "Dispatch worker [$name] ended unexpectedly; it is no longer selected." }
+                    discardQueued()
+                }
             }
-            exited = true
             // A task queued after the last check and before `exited` was published: run (or discard) it here.
             while (true) {
                 runOrDiscard(queue.poll() ?: return)
             }
         }
 
+        /**
+         * Runs [task] and contains any failure, so a shared worker outlives a failing task as the 9.2 `newParallel`
+         * threads did. A JVM-fatal error is logged at ERROR; a mailbox has already failed its dispatch with it, which
+         * reports it to the runtime.
+         */
         @Suppress("TooGenericExceptionCaught")
         private fun runOrDiscard(task: Runnable) {
             try {
@@ -165,8 +235,7 @@ internal class DispatchWorkers(
                     task.run()
                 }
             } catch (error: Throwable) {
-                Exceptions.throwIfJvmFatal(error)
-                uncaughtExceptionHandler?.uncaughtException(this, error)
+                contain(error)
             }
         }
 
@@ -201,12 +270,32 @@ internal class DispatchWorkers(
         try {
             (task as? Discardable)?.discard()
         } catch (error: Throwable) {
-            Exceptions.throwIfJvmFatal(error)
-            Thread.currentThread().uncaughtExceptionHandler?.uncaughtException(Thread.currentThread(), error)
+            contain(error)
+        }
+    }
+
+    /**
+     * Reports a task failure without rethrowing it: a JVM-fatal error is logged at ERROR, any other goes to the
+     * thread's uncaught-exception handler, whose own failure is logged too.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun contain(error: Throwable) {
+        val thread = Thread.currentThread()
+        if (Exceptions.isJvmFatal(error)) {
+            log.error(error) { "Dispatch worker [${thread.name}] contained a fatal error thrown by a task." }
+            return
+        }
+        try {
+            thread.uncaughtExceptionHandler?.uncaughtException(thread, error)
+        } catch (handlerError: Throwable) {
+            log.error(handlerError) { "Dispatch worker [${thread.name}] uncaught-exception handler failed." }
         }
     }
 
     private companion object {
+        private val log = KotlinLogging.logger {}
+        val STARTED: AtomicIntegerFieldUpdater<Worker> =
+            AtomicIntegerFieldUpdater.newUpdater(Worker::class.java, "started")
         val IDLE: AtomicIntegerFieldUpdater<Worker> =
             AtomicIntegerFieldUpdater.newUpdater(Worker::class.java, "idle")
     }

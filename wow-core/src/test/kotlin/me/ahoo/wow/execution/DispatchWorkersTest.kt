@@ -222,7 +222,181 @@ class DispatchWorkersTest {
         ran.get().assert().isEqualTo(10)
         workers.close()
     }
+
+    @Test
+    fun `a worker thread starts on its first submission`() {
+        val prefix = "dispatch-workers-lazy-"
+        val workers = DispatchWorkers(3, prefix.dropLast(1))
+        try {
+            workerThreads(prefix).assert().isZero()
+            val ran = CountDownLatch(1)
+            workers.execute({ ran.countDown() }, 0)
+            ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+            workerThreads(prefix).assert().isEqualTo(1)
+        } finally {
+            workers.close()
+        }
+    }
+
+    @Test
+    fun `closing workers that never ran a task starts no thread`() {
+        val prefix = "dispatch-workers-unused-"
+        val workers = DispatchWorkers(2, prefix.dropLast(1))
+        workers.close()
+        workers.forceClose()
+        workerThreads(prefix).assert().isZero()
+        assertThrows<RejectedExecutionException> { workers.execute {} }
+    }
+
+    @Test
+    fun `a worker survives a fatal error and keeps running the tasks pinned to it`() {
+        val workers = DispatchWorkers(1, "dispatch-workers-fatal")
+        try {
+            val threads = CopyOnWriteArrayList<Thread>()
+            val ran = CountDownLatch(2)
+            workers.execute({
+                threads += Thread.currentThread()
+                throw LinkageError("fatal")
+            }, 0)
+            workers.execute({ throw StackOverflowError("fatal") }, 0)
+            repeat(2) {
+                workers.execute({
+                    threads += Thread.currentThread()
+                    ran.countDown()
+                }, 0)
+            }
+            ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+            threads.toSet().assert().hasSize(1)
+            threads.first().isAlive.assert().isTrue()
+            (workers.nextAffinity() == 0).assert().isTrue()
+        } finally {
+            workers.close()
+        }
+    }
+
+    /**
+     * Containment itself failing (here: logging a fatal error whose message throws) is the only way a worker can end.
+     * The ended worker is then never chosen for a new mailbox, and a task pinned to it is rejected, not stranded.
+     */
+    @Test
+    fun `a worker that ends abnormally is no longer selected and rejects its tasks`() {
+        val workers = DispatchWorkers(2, "dispatch-workers-dead")
+        try {
+            val ran = CountDownLatch(1)
+            workers.execute({ throw UnloggableFatalError() }, 0)
+            workers.execute({ ran.countDown() }, 1)
+            ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+            awaitTrue {
+                Thread.getAllStackTraces().keys.none { it.name == "dispatch-workers-dead-1" }
+            }
+            repeat(4) {
+                workers.nextAffinity().assert().isEqualTo(1)
+            }
+            assertThrows<RejectedExecutionException> { workers.execute({}, 0) }
+        } finally {
+            workers.close()
+        }
+    }
+
+    @Test
+    fun `a worker whose thread cannot start is dead and rejects instead of queueing`() {
+        val starts = AtomicInteger()
+        val workers = DispatchWorkers(2, "dispatch-workers-no-thread") { thread ->
+            if (starts.getAndIncrement() == 0) {
+                throw OutOfMemoryError("unable to create native thread")
+            }
+            thread.start()
+        }
+        try {
+            val rejected = assertThrows<RejectedExecutionException> { workers.execute({}, 0) }
+            rejected.cause.assert().isInstanceOf(OutOfMemoryError::class.java)
+            // Started at most once: later submissions to the dead worker are rejected, not queued forever.
+            assertThrows<RejectedExecutionException> { workers.execute({}, 0) }
+
+            // Keep the live worker busy with a queued task, so no live worker is idle or empty: the fallback still
+            // never returns the dead worker.
+            val release = CountDownLatch(1)
+            val ran = CountDownLatch(2)
+            workers.execute({
+                release.await(5, TimeUnit.SECONDS)
+                ran.countDown()
+            }, 1)
+            workers.execute({ ran.countDown() }, 1)
+            repeat(4) {
+                workers.nextAffinity().assert().isEqualTo(1)
+            }
+            release.countDown()
+            ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+        } finally {
+            workers.close()
+        }
+    }
+
+    @Test
+    fun `a failing uncaught exception handler does not end the worker`() {
+        val workers = DispatchWorkers(1, "dispatch-workers-handler")
+        try {
+            val ran = CountDownLatch(1)
+            workers.execute({
+                Thread.currentThread().uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ ->
+                    throw IllegalStateException("handler")
+                }
+            }, 0)
+            workers.execute({ throw IllegalArgumentException("task") }, 0)
+            workers.execute({ ran.countDown() }, 0)
+            ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+        } finally {
+            workers.close()
+        }
+    }
+
+    @Test
+    fun `a fatal error while discarding is contained`() {
+        val workers = DispatchWorkers(1, "dispatch-workers-discard-fatal")
+        val release = CountDownLatch(1)
+        val started = CountDownLatch(1)
+        workers.execute({
+            started.countDown()
+            release.await(5, TimeUnit.SECONDS)
+        }, 0)
+        started.await(5, TimeUnit.SECONDS).assert().isTrue()
+        val discarded = AtomicInteger()
+        val failingDiscard = object : Runnable, DispatchWorkers.Discardable {
+            override fun run() = Unit
+            override fun discard() {
+                throw LinkageError("fatal")
+            }
+        }
+        val countingDiscard = object : Runnable, DispatchWorkers.Discardable {
+            override fun run() = Unit
+            override fun discard() {
+                discarded.incrementAndGet()
+            }
+        }
+        workers.execute(failingDiscard, 0)
+        workers.execute(countingDiscard, 0)
+        workers.forceClose()
+        release.countDown()
+        discarded.get().assert().isEqualTo(1)
+    }
 }
+
+/** A JVM-fatal error that cannot be logged: reading its message throws. */
+private class UnloggableFatalError : LinkageError() {
+    override val message: String
+        get() = throw IllegalStateException("unloggable")
+}
+
+private fun awaitTrue(condition: () -> Boolean) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+    while (!condition()) {
+        check(System.nanoTime() < deadline) { "Condition not met in time." }
+        Thread.sleep(5)
+    }
+}
+
+private fun workerThreads(prefix: String): Int =
+    Thread.getAllStackTraces().keys.count { it.name.startsWith(prefix) && it.isAlive }
 
 /** Waits until [count] worker threads named with [prefix] are parked, waiting for a task. */
 private fun awaitParked(prefix: String, count: Int) {
