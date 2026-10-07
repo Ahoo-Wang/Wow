@@ -150,7 +150,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 return@defer Mono.just(LocalHandoff.REFUSED)
             }
             if (pendingDelivery.receipt.confirmed) {
-                // Every receiver admitted it as it was emitted (on this thread).
+                // Every routed receiver admitted it synchronously while it was emitted, on the sender's thread:
+                // the admission is already known, so the copy queue may send the distributed copy within this send.
                 route.remove(pendingDelivery)
                 return@defer Mono.just(LocalHandoff.accepted(ADMITTED_ON_HAND_OFF))
             }

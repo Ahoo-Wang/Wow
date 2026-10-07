@@ -64,7 +64,9 @@ class LocalDeliveryReceiptTest {
         val result = receipt.signal().toFuture()
 
         receipt.reject()
-        checkNotNull(receipt.claim(route).also { it.assert().isNull() } ?: route)
+
+        // A rejected receipt hands out no more tickets.
+        receipt.claim(route).assert().isNull()
 
         result.get(1, TimeUnit.SECONDS).assert().isFalse()
         receipt.confirmed.assert().isFalse()
