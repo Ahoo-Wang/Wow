@@ -107,21 +107,30 @@ data class RouteIdentityBinding(
 
     /** Rejects a blank value of any identity path variable the route declares. */
     fun requirePathVariables(request: ServerRequest) {
+        requirePathVariables(IdentityPathValues.of(request))
+    }
+
+    /** [requirePathVariables] over the identity path variables [pathValues] already read. */
+    internal fun requirePathVariables(pathValues: IdentityPathValues) {
         for (variable in pathVariableNames) {
-            request.requirePathVariable(variable)
+            pathValues.require(variable)
         }
     }
 
-    fun tenantId(request: ServerRequest, body: String? = null): String? =
-        resolve(IdentityFact.TENANT_ID, tenantId, request, body)
+    fun tenantId(request: ServerRequest, body: String? = null): String? = tenantId(request, body, null)
+
+    internal fun tenantId(request: ServerRequest, body: String?, pathValues: IdentityPathValues?): String? =
+        resolve(IdentityFact.TENANT_ID, tenantId, request, body, pathValues)
 
     /**
      * The owner. A blank [body] states no owner when the owner is [derived][FactBinding.derived] from `{id}` (as in
      * 9.2, the command's owner is then its aggregate ID); against an owner the route states itself it is a conflict.
      */
-    fun ownerId(request: ServerRequest, body: String? = null): String? {
+    fun ownerId(request: ServerRequest, body: String? = null): String? = ownerId(request, body, null)
+
+    internal fun ownerId(request: ServerRequest, body: String?, pathValues: IdentityPathValues?): String? {
         val bodyOwner = if (ownerId.derived && body.isNullOrBlank()) null else body
-        return resolve(IdentityFact.OWNER_ID, ownerId, request, bodyOwner)
+        return resolve(IdentityFact.OWNER_ID, ownerId, request, bodyOwner, pathValues)
     }
 
     /**
@@ -141,8 +150,11 @@ data class RouteIdentityBinding(
         if (aggregateId.source == RouteIdentitySource.OWNER) {
             return aggregateIdFromOwner(request, ownerId(request))
         }
-        return resolve(IdentityFact.AGGREGATE_ID, aggregateId, request, null)
+        return aggregateId(request, null)
     }
+
+    internal fun aggregateId(request: ServerRequest, pathValues: IdentityPathValues?): String? =
+        resolve(IdentityFact.AGGREGATE_ID, aggregateId, request, null, pathValues)
 
     /** Whether the aggregate ID is the owner ([ownerId]) when there is one. */
     internal val aggregateIdIsOwner: Boolean
@@ -152,13 +164,20 @@ data class RouteIdentityBinding(
     internal fun aggregateIdFromOwner(request: ServerRequest, ownerId: String?): String? =
         ownerId ?: request.firstHeader(aggregateId.headers)
 
-    fun spaceId(request: ServerRequest): String? = resolve(IdentityFact.SPACE_ID, spaceId, request, null)
+    fun spaceId(request: ServerRequest): String? = resolve(IdentityFact.SPACE_ID, spaceId, request, null, null)
 
     fun spaceIdHeader(request: ServerRequest): String? = request.firstHeader(spaceHeaders)
 
     fun requestId(request: ServerRequest): String? = request.firstHeader(requestId.headers)
 
-    private fun resolve(fact: IdentityFact, binding: FactBinding, request: ServerRequest, body: String?): String? {
+    /** [pathValues]: the identity path variables already read, or `null` to read the path variable here. */
+    private fun resolve(
+        fact: IdentityFact,
+        binding: FactBinding,
+        request: ServerRequest,
+        body: String?,
+        pathValues: IdentityPathValues?,
+    ): String? {
         val route = when (binding.source) {
             // One non-authoritative source: nothing can conflict, a body included.
             RouteIdentitySource.HEADER -> return request.firstHeader(binding.headers)
@@ -170,7 +189,7 @@ data class RouteIdentityBinding(
                 requireNotNull(binding.value)
             }
 
-            RouteIdentitySource.PATH -> request.requirePathVariable(requireNotNull(binding.value))
+            RouteIdentitySource.PATH -> pathValue(request, requireNotNull(binding.value), pathValues)
         }
         val header = request.firstHeader(binding.headers)
         val value = IdentityResolver.resolve(fact, IdentitySource.ROUTE, route, IdentitySource.HEADER, header)
@@ -188,6 +207,9 @@ data class RouteIdentityBinding(
         }
         return value
     }
+
+    private fun pathValue(request: ServerRequest, variable: String, pathValues: IdentityPathValues?): String =
+        pathValues?.require(variable) ?: request.requirePathVariable(variable)
 
     @InternalWowApi
     companion object {
@@ -355,8 +377,12 @@ class RouteIdentity(
          * The route identity of [request]: the one its route was materialized with, else (a handler invoked outside a
          * materialized router) one read from the path variables the request matched.
          */
-        fun of(request: ServerRequest): RouteIdentity =
-            request.attributes()[ATTRIBUTE] as? RouteIdentity ?: unrouted(request, IdentityHeaderAliases.NONE)
+        fun of(request: ServerRequest): RouteIdentity = of(request, null)
+
+        /** [of], with the request's identity path variables when they were already read. */
+        internal fun of(request: ServerRequest, pathValues: IdentityPathValues?): RouteIdentity =
+            request.attributes()[ATTRIBUTE] as? RouteIdentity
+                ?: unrouted(pathValues ?: IdentityPathValues.of(request), IdentityHeaderAliases.NONE)
 
         private val OWNER_POLICIES = OwnerPolicy.entries
         private const val NO_STATIC_TENANT = ""
@@ -369,17 +395,21 @@ class RouteIdentity(
          * the request matched (a bit set over [INDEXED_PATH_VARIABLES]): a handful, found without allocating.
          */
         private val UNROUTED = ConcurrentHashMap<IdentityHeaderAliases, Array<RouteIdentity?>>()
+        private val UNROUTED_TABLE_SIZE = 1 shl INDEXED_PATH_VARIABLES.size
+        private val UNROUTED_WITHOUT_ALIASES = arrayOfNulls<RouteIdentity>(UNROUTED_TABLE_SIZE)
 
-        private fun unrouted(request: ServerRequest, aliases: IdentityHeaderAliases): RouteIdentity {
-            val requestPathVariables = request.pathVariables()
+        private fun unrouted(pathValues: IdentityPathValues, aliases: IdentityHeaderAliases): RouteIdentity {
             var index = 0
             for (bit in INDEXED_PATH_VARIABLES.indices) {
-                if (requestPathVariables.containsKey(INDEXED_PATH_VARIABLES[bit])) {
+                if (pathValues[INDEXED_PATH_VARIABLES[bit]] != null) {
                     index = index or (1 shl bit)
                 }
             }
-            val table = UNROUTED[aliases]
-                ?: UNROUTED.computeIfAbsent(aliases) { arrayOfNulls(1 shl INDEXED_PATH_VARIABLES.size) }
+            val table = if (aliases === IdentityHeaderAliases.NONE) {
+                UNROUTED_WITHOUT_ALIASES
+            } else {
+                UNROUTED[aliases] ?: UNROUTED.computeIfAbsent(aliases) { arrayOfNulls(UNROUTED_TABLE_SIZE) }
+            }
             return table[index] ?: RouteIdentity(pathVariablesOf(index), aliases).also { table[index] = it }
         }
 
@@ -395,7 +425,7 @@ class RouteIdentity(
             if (aliases.isEmpty() || request.attributes().containsKey(ATTRIBUTE)) {
                 return
             }
-            request.attributes()[ATTRIBUTE] = unrouted(request, aliases)
+            request.attributes()[ATTRIBUTE] = unrouted(IdentityPathValues.of(request), aliases)
         }
     }
 }
@@ -412,17 +442,19 @@ class RouteIdentity(
  */
 class RequestIdentity internal constructor(
     val request: ServerRequest,
-    private val binding: RouteIdentityBinding
+    private val binding: RouteIdentityBinding,
+    /** The request's identity path variables, read once. */
+    private val pathValues: IdentityPathValues = IdentityPathValues.of(request),
 ) {
     init {
-        binding.requirePathVariables(request)
+        binding.requirePathVariables(pathValues)
     }
 
     /**
      * The tenant: the aggregate's static tenant, else `{tenantId}`, else `Command-Tenant-Id`. A non-null [body] (the
      * command body's tenant) is only checked: it may not contradict a tenant the route fixes.
      */
-    fun tenantId(body: String? = null): String? = binding.tenantId(request, body)
+    fun tenantId(body: String? = null): String? = binding.tenantId(request, body, pathValues)
 
     /**
      * The owner: `{ownerId}`, else `{id}` when the owner is the aggregate ID, else `Command-Owner-Id`. A non-null
@@ -434,7 +466,7 @@ class RequestIdentity internal constructor(
             return resolved as String?
         }
         // The value never depends on body, which is only checked; keep it for aggregateId().
-        return binding.ownerId(request, body).also { resolvedOwnerId = it }
+        return binding.ownerId(request, body, pathValues).also { resolvedOwnerId = it }
     }
 
     /** The owner once resolved, else [UNRESOLVED]: the aggregate ID of an aggregate owned by its ID reads it again. */
@@ -448,7 +480,7 @@ class RequestIdentity internal constructor(
         if (binding.aggregateIdIsOwner) {
             return binding.aggregateIdFromOwner(request, ownerId())
         }
-        return binding.aggregateId(request)
+        return binding.aggregateId(request, pathValues)
     }
 
     /** The space: `Wow-Space-Id` (or a space alias) when the aggregate is spaced, otherwise `null`. */
@@ -466,12 +498,16 @@ class RequestIdentity internal constructor(
 }
 
 /** The identity this request states for the aggregate of [aggregateRouteMetadata]. */
-fun ServerRequest.identity(aggregateRouteMetadata: AggregateRouteMetadata<*>): RequestIdentity =
-    RequestIdentity(this, RouteIdentity.of(this).binding(aggregateRouteMetadata))
+fun ServerRequest.identity(aggregateRouteMetadata: AggregateRouteMetadata<*>): RequestIdentity {
+    val pathValues = IdentityPathValues.of(this)
+    return RequestIdentity(this, RouteIdentity.of(this, pathValues).binding(aggregateRouteMetadata), pathValues)
+}
 
 /** The identity this request states for the aggregate of [aggregateMetadata]. */
-fun ServerRequest.identity(aggregateMetadata: AggregateMetadata<*, *>): RequestIdentity =
-    RequestIdentity(this, RouteIdentity.of(this).binding(aggregateMetadata))
+fun ServerRequest.identity(aggregateMetadata: AggregateMetadata<*, *>): RequestIdentity {
+    val pathValues = IdentityPathValues.of(this)
+    return RequestIdentity(this, RouteIdentity.of(this, pathValues).binding(aggregateMetadata), pathValues)
+}
 
 /** The identity of a request to a route of an aggregate with the [owner] policy and no static tenant or space. */
 internal fun ServerRequest.identity(owner: OwnerPolicy): RequestIdentity {
@@ -493,12 +529,43 @@ internal fun ServerRequest.identity(owner: OwnerPolicy): RequestIdentity {
  * gateway may authorize on that segment, so a blank segment (such as `%20`) is rejected with an
  * [IllegalArgumentException] (`IllegalArgument`, 400) and no header is read in its place.
  */
-internal fun ServerRequest.requirePathVariable(variable: String): String {
-    val value = pathVariables()[variable]
+internal fun ServerRequest.requirePathVariable(variable: String): String =
+    requireNotBlankPathVariable(variable, pathVariables()[variable])
+
+private fun requireNotBlankPathVariable(variable: String, value: String?): String {
     require(!value.isNullOrBlank()) {
         "Path variable [$variable] must not be blank."
     }
     return value
+}
+
+/** The identity path variables ([RouteIdentityBinding.IDENTITY_PATH_VARIABLES]) a request matched, read once. */
+internal class IdentityPathValues(
+    private val tenantId: String?,
+    private val ownerId: String?,
+    private val id: String?,
+) {
+    /** The value of the identity path variable [variable], `null` when the request did not match it. */
+    operator fun get(variable: String): String? = when (variable) {
+        MessageRecords.TENANT_ID -> tenantId
+        MessageRecords.OWNER_ID -> ownerId
+        MessageRecords.ID -> id
+        else -> null
+    }
+
+    /** The value of the declared identity path variable [variable]; a blank one is rejected (400). */
+    fun require(variable: String): String = requireNotBlankPathVariable(variable, get(variable))
+
+    companion object {
+        fun of(request: ServerRequest): IdentityPathValues {
+            val pathVariables = request.pathVariables()
+            return IdentityPathValues(
+                pathVariables[MessageRecords.TENANT_ID],
+                pathVariables[MessageRecords.OWNER_ID],
+                pathVariables[MessageRecords.ID],
+            )
+        }
+    }
 }
 
 internal fun ServerRequest.firstHeader(names: List<String>): String? {

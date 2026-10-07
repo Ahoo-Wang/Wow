@@ -129,20 +129,20 @@ object IdentityResolver {
             }
         }
         if (second != null) {
-            if (winnerSource == null || secondSource < winnerSource) {
+            if (winnerSource == null || secondSource.ordinal < winnerSource.ordinal) {
                 winnerSource = secondSource
                 winner = second
             }
-            if (secondSource.authoritative && (fixedSource == null || secondSource < fixedSource)) {
+            if (secondSource.authoritative && (fixedSource == null || secondSource.ordinal < fixedSource.ordinal)) {
                 fixedSource = secondSource
                 fixed = second
             }
         }
         if (third != null) {
-            if (winnerSource == null || thirdSource < winnerSource) {
+            if (winnerSource == null || thirdSource.ordinal < winnerSource.ordinal) {
                 winner = third
             }
-            if (thirdSource.authoritative && (fixedSource == null || thirdSource < fixedSource)) {
+            if (thirdSource.authoritative && (fixedSource == null || thirdSource.ordinal < fixedSource.ordinal)) {
                 fixedSource = thirdSource
                 fixed = third
             }
