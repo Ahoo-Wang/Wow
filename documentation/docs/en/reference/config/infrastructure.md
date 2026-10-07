@@ -103,6 +103,8 @@ Configuration classes: `RedisProperties`, `RedisStreamRecoveryProperties`, `Redi
 
 `min-idle-time` and `interval` must be at least `1ms`; `batch-size` must be positive. Set at most one of `retention.max-length` (positive) and `retention.max-age` (at least `1m`); trimming needs Redis 7.0 or later. Spring Boot owns the connection through `spring.data.redis.*`.
 
+Each receiver reads every stream it subscribes to with blocking `XREADGROUP … BLOCK`, which cannot share Lettuce's multiplexed connection. Since 9.3.0 each such stream keeps one dedicated connection for as long as it receives, with or without a Lettuce pool; before, without a pool (Spring Boot's default), every read opened and closed a TCP connection of its own, so a busy consumer left thousands of sockets in `TIME_WAIT` and could exhaust the client's ephemeral ports. Count one connection per subscribed stream and receiver in addition to the shared one.
+
 ```yaml
 spring:
   data:

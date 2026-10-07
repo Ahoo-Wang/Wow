@@ -103,6 +103,8 @@ MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.infra.b
 
 `min-idle-time`、`interval` 至少为 `1ms`，`batch-size` 必须大于零。`retention.max-length`（大于零）与 `retention.max-age`（至少 `1m`）最多设置一个；裁剪需要 Redis 7.0 及以上。连接由 Spring Boot 的 `spring.data.redis.*` 属性拥有。
 
+接收器用阻塞的 `XREADGROUP … BLOCK` 读取它订阅的每个 Stream，这类命令不能共用 Lettuce 的多路复用连接。自 9.3.0 起，每个这样的 Stream 在接收期间保持一条专用连接，有无 Lettuce 连接池都一样；此前在没有连接池时（Spring Boot 的默认），每次读取都会新建并关闭一条 TCP 连接，繁忙的消费者会留下成千上万个 `TIME_WAIT` 套接字，可能耗尽客户端的临时端口。除共享连接外，按每个接收器订阅的每个 Stream 各计一条连接。
+
 ```yaml
 spring:
   data:
