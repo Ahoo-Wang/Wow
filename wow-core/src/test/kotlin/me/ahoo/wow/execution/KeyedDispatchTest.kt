@@ -657,7 +657,7 @@ class KeyedDispatchTest {
         }.message.assert().contains("microseconds")
         KeyedExecutor(spin = KeyedExecutor.MAX_SPIN).close()
         KeyedExecutor(spin = java.time.Duration.ZERO).close()
-        KeyedExecutor.DEFAULT_SPIN.assert().isEqualTo(java.time.Duration.ofNanos(20_000))
+        KeyedExecutor.DEFAULT_SPIN.assert().isEqualTo(java.time.Duration.ZERO)
         KeyedExecutor.shared.assert().isSameAs(KeyedExecutor.shared)
         executor.toString().assert().contains("keyed-dispatch-test").contains("spin=")
     }

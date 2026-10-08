@@ -18,8 +18,8 @@ import java.time.Duration
 
 /**
  * The [KeyedExecutor] of benchmark runtimes. `-Dwow.benchmark.dispatch.spin=<duration>` (passed to the fork, e.g.
- * `-jvmArgsAppend -Dwow.benchmark.dispatch.spin=0`) overrides the worker spin, so the same jar can be measured with
- * the spin off or at another budget; without it the executor uses [KeyedExecutor.DEFAULT_SPIN].
+ * `-jvmArgsAppend -Dwow.benchmark.dispatch.spin=20us`) overrides the worker spin, so the same jar can be measured with
+ * the spin on at some budget (`20us`); without it the executor uses [KeyedExecutor.DEFAULT_SPIN] (no spin).
  *
  * The duration is ISO-8601 (`PT0.00002S`) or a number with a unit suffix: `ns`, `us`, `ms` or `s` (`0`, `20us`,
  * `1ms`); a bare number is milliseconds, as in Spring's `wow.dispatch.spin`.

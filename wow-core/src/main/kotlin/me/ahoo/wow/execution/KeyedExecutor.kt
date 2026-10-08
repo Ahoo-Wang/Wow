@@ -41,8 +41,9 @@ import java.time.Duration
  * @param name the worker thread name prefix.
  * @param throughput the most messages of one aggregate a worker runs in one turn (while they complete synchronously)
  * before it moves on to other aggregates, so one hot aggregate cannot starve the others.
- * @param spin the longest a worker that ran out of messages spins before it parks, at most [MAX_SPIN];
- * [Duration.ZERO] parks at once. A worker spins only when its last wait was shorter than this; after a longer wait it
+ * @param spin the longest a worker that ran out of messages spins before it parks, at most [MAX_SPIN]; the default,
+ * [Duration.ZERO], parks at once (no spin). Worth setting only for in-memory, high-rate dispatch whose messages keep
+ * arriving within microseconds of each other; with a real store the gain is within noise. A worker spins only when its last wait was shorter than this; after a longer wait it
  * parks at once. A spinning worker takes the next message without the wake-up a park costs (an OS call by the sender
  * and the scheduling delay of the woken thread). CPU cost: while messages keep arriving at intervals shorter than the
  * spin, a worker can stay busy on one core the whole time; after each short interval, the next wait can cost up to
@@ -110,13 +111,13 @@ class KeyedExecutor(
         const val DEFAULT_THROUGHPUT: Int = 16
 
         /**
-         * The default [spin], 20 µs: on 4-vCPU cloud runners (EPYC 7763/9V45/9V74, Xeon 8573C) it brought the
-         * closed-loop event dispatch row back within noise of v9.2.3, while a worker fed at a steady interval longer
-         * than 20 µs, or by bursts, spends at most 20 µs of CPU per wait. Longer spins (100 µs) were faster still under
-         * a steady stream but kept a worker on a core for message intervals up to the spin.
+         * The default [spin]: zero, workers park at once. Spinning is an opt-in optimization for in-memory, high-rate
+         * dispatch where messages keep arriving within microseconds of each other: on 4-vCPU CI runners a 20 µs spin
+         * made the closed-loop event-dispatch benchmark 0 to 6% faster, 100 µs 16 to 63% faster. With a real store
+         * (MongoDB, Redis) the gain was within noise, so it is off by default.
          */
         @JvmField
-        val DEFAULT_SPIN: Duration = Duration.ofNanos(20_000)
+        val DEFAULT_SPIN: Duration = Duration.ZERO
 
         /** The longest [spin] accepted: 1 ms. */
         @JvmField
