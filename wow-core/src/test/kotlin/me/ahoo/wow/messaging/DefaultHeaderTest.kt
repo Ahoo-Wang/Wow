@@ -195,12 +195,29 @@ class DefaultHeaderTest {
     }
 
     @Test
-    fun `views are created once per header`() {
-        val header = DefaultHeader().with("key", "value")
+    fun `iterating a writable shared header takes private entries first`() {
+        val source = DefaultHeader().with("key", "value") as DefaultHeader
+        val copy = source.copy() as DefaultHeader
+        source.entries.assert().isSameAs(source.entries)
 
-        header.keys.assert().isSameAs(header.keys)
-        header.values.assert().isSameAs(header.values)
-        header.entries.assert().isSameAs(header.entries)
+        val entry = copy.entries.first()
+        entry.setValue("changed")
+
+        copy.sharesEntriesWith(source).assert().isFalse()
+        copy["key"].assert().isEqualTo("changed")
+        source["key"].assert().isEqualTo("value")
+    }
+
+    @Test
+    fun `iterating a read only shared header reads the shared entries`() {
+        val source = DefaultHeader().with("key", "value").withReadOnly() as DefaultHeader
+        val copy = source.copy() as DefaultHeader
+
+        source.keys.toList().assert().containsExactly("key")
+        source.values.toList().assert().containsExactly("value")
+        source.entries.map { it.key to it.value }.assert().containsExactly("key" to "value")
+
+        copy.sharesEntriesWith(source).assert().isTrue()
     }
 
     @Test
@@ -248,13 +265,12 @@ class DefaultHeaderTest {
     }
 
     @Test
-    fun `a view taken before a copy does not change the copy`() {
+    fun `a view taken before a copy, iterated after it, does not change the copy`() {
         val source = DefaultHeader().with("one", "1").with("two", "2")
         val keys = source.keys
+        val copy = source.copy()
         val entries = source.entries.iterator()
         val firstEntry = entries.next()
-
-        val copy = source.copy()
         keys.remove("two")
         firstEntry.setValue("11").assert().isEqualTo("1")
         firstEntry.value.assert().isEqualTo("11")
@@ -285,21 +301,15 @@ class DefaultHeaderTest {
     }
 
     @Test
-    fun `an entry of a header that took private entries reads them`() {
+    fun `views report the current entries`() {
         val header = DefaultHeader().with("one", "1").with("two", "2")
-        val iterator = header.entries.iterator()
-        val first = iterator.next()
-
         header.copy()
-        header.with("one", "11")
-        first.value.assert().isEqualTo("11")
         header.remove("one")
-        first.value.assert().isEqualTo("1")
 
         header.containsValue("2").assert().isTrue()
         header.keys.size.assert().isEqualTo(1)
+        header.values.size.assert().isEqualTo(1)
         header.entries.size.assert().isEqualTo(1)
-        first.equals(java.util.AbstractMap.SimpleEntry("other", "1")).assert().isFalse()
     }
 
     @Test

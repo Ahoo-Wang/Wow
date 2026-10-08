@@ -29,13 +29,15 @@ import me.ahoo.wow.api.messaging.Header
  * Unlike a plain map, iterating a header whose entries are shared is not fail-fast: a write during the iteration
  * takes private entries and the iteration goes on over the shared ones, without a `ConcurrentModificationException`.
  *
- * @param store The entries and whether they may be shared
+ * @param delegate The entries: an [EntryMap] this header created (its copies may share it), or a caller's map
  * @param isReadOnly Whether this header starts read-only
+ * @param marker Tells this constructor apart from the public one
  * @author ahoo wang
  */
 class DefaultHeader private constructor(
-    store: Entries,
+    delegate: MutableMap<String, String>,
     isReadOnly: Boolean,
+    @Suppress("UNUSED_PARAMETER") marker: Unit,
 ) : Header,
     MutableMap<String, String> {
     /**
@@ -45,27 +47,27 @@ class DefaultHeader private constructor(
     constructor(
         delegate: MutableMap<String, String> = LinkedHashMap(),
         isReadOnly: Boolean = false
-    ) : this(Entries(delegate, shareable = false), isReadOnly)
+    ) : this(delegate, isReadOnly, Unit)
 
     /** Creates an empty, mutable header. */
-    constructor() : this(Entries(LinkedHashMap(), shareable = true), isReadOnly = false)
+    constructor() : this(EntryMap(), isReadOnly = false, Unit)
 
     /**
-     * A header's entry map. [shareable]: the header created [map] itself, so its copies may share it (a map a caller
-     * passed in never is). [shared]: some copy may hold it; once set it is never cleared: a write takes a new
-     * [Entries] instead, so two headers never go on writing to one map, even when a write races a copy.
+     * An entry map a header created itself, so its copies may share it (a map a caller passed in never is).
+     * [shared]: some copy may hold it. Once set it is never cleared: a write takes a new [EntryMap] instead, so two
+     * headers never go on writing to one map, even when a write races a copy.
      */
-    private class Entries(
-        val map: MutableMap<String, String>,
-        val shareable: Boolean,
-        @Volatile var shared: Boolean = false,
-    )
+    private class EntryMap : LinkedHashMap<String, String> {
+        constructor() : super()
+        constructor(source: Map<String, String>) : super(source)
+
+        @Volatile
+        @JvmField
+        var shared: Boolean = false
+    }
 
     @Volatile
-    private var store: Entries = store
-
-    private val delegate: MutableMap<String, String>
-        get() = store.map
+    private var delegate: MutableMap<String, String> = delegate
 
     /** Whether this header is read-only (volatile for thread safety). */
     @Volatile
@@ -80,8 +82,8 @@ class DefaultHeader private constructor(
         fun empty(): Header = DefaultHeader()
 
         /** A header that owns [entries], a map nobody else holds, so that its copies may share it. */
-        internal fun owning(entries: MutableMap<String, String>): DefaultHeader =
-            DefaultHeader(Entries(entries, shareable = true), isReadOnly = false)
+        internal fun owning(entries: Map<String, String>): DefaultHeader =
+            DefaultHeader(EntryMap(entries), isReadOnly = false, Unit)
     }
 
     /**
@@ -106,23 +108,21 @@ class DefaultHeader private constructor(
      * @return A new mutable copy of this header
      */
     override fun copy(): Header {
-        val current = store
-        if (!current.shareable || current.map.isEmpty()) {
-            return owning(LinkedHashMap(current.map))
+        val current = delegate
+        if (current !is EntryMap || current.isEmpty()) {
+            return owning(current)
         }
         current.shared = true
-        return DefaultHeader(current, isReadOnly = false)
+        return DefaultHeader(current, isReadOnly = false, Unit)
     }
 
     /** The entries to change: a new private map when the current one may be shared. */
     private fun ownEntries(): MutableMap<String, String> {
-        val current = store
-        if (!current.shared) {
-            return current.map
+        val current = delegate
+        if (current is EntryMap && current.shared) {
+            return EntryMap(current).also { delegate = it }
         }
-        val own = Entries(LinkedHashMap(current.map), shareable = true)
-        store = own
-        return own.map
+        return current
     }
 
     /**
@@ -219,17 +219,27 @@ class DefaultHeader private constructor(
     }
 
     /**
-     * The keys of this header, a live view. As before 9.3.0, changes through a view do not check [isReadOnly]; they
-     * never reach a copy of this header or the header it was copied from.
+     * The keys of this header, a live view. As before 9.3.0, changes through a view of a writable header do not
+     * check [isReadOnly]; they never reach a copy of this header or the header it was copied from.
+     *
+     * Iterating a view iterates the backing map itself. A writable header whose entries are shared first takes
+     * private entries (as a write would), so whatever the iteration changes stays in this header. A read-only header
+     * iterates the shared entries as they are: its views must not be used to change it. An iterator or entry kept
+     * past a [copy] must not be used to change the header either.
      */
-    override val keys: MutableSet<String> by lazy(LazyThreadSafetyMode.PUBLICATION) { KeysView() }
+    override val keys: MutableSet<String>
+        get() = KeysView()
 
     /** The values of this header, a live view; see [keys]. */
-    override val values: MutableCollection<String> by lazy(LazyThreadSafetyMode.PUBLICATION) { ValuesView() }
+    override val values: MutableCollection<String>
+        get() = ValuesView()
 
     /** The entries of this header, a live view; see [keys]. */
     override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
-        by lazy(LazyThreadSafetyMode.PUBLICATION) { EntriesView() }
+        get() = entriesView ?: EntriesView().also { entriesView = it }
+
+    /** Created on first use; a race creates an equivalent second view. */
+    private var entriesView: EntriesView? = null
 
     /** Whether this header and [other] currently share their entries (copy-on-write); for tests. */
     internal fun sharesEntriesWith(other: DefaultHeader): Boolean = delegate === other.delegate
@@ -244,71 +254,8 @@ class DefaultHeader private constructor(
 
     override fun toString(): String = "DefaultHeader(delegate=$delegate)"
 
-    /**
-     * Iterates the entries as they are when it starts. A removal or a [MutableMap.MutableEntry.setValue] through it
-     * changes the iterated map in place only while this header still holds it alone; otherwise (it was copied since,
-     * or this header took a private map) the change goes to this header's own entries, by key.
-     */
-    private inner class EntryIterator<T>(
-        private val extract: (MutableMap.MutableEntry<String, String>, MutableMap<String, String>) -> T,
-    ) : MutableIterator<T> {
-        private val iterated = delegate
-        private val iterator = iterated.entries.iterator()
-        private var last: MutableMap.MutableEntry<String, String>? = null
-
-        override fun hasNext(): Boolean = iterator.hasNext()
-
-        override fun next(): T {
-            val entry = iterator.next()
-            last = entry
-            return extract(entry, iterated)
-        }
-
-        override fun remove() {
-            val entry = checkNotNull(last) { "next() has not been called, or remove() was already called." }
-            last = null
-            if (changesInPlace(iterated)) {
-                iterator.remove()
-            } else {
-                ownEntries().remove(entry.key)
-            }
-        }
-    }
-
-    /** Whether a change through a view of [iterated] may change it in place: this header holds it, and holds it alone. */
-    private fun changesInPlace(iterated: MutableMap<String, String>): Boolean {
-        val current = store
-        return current.map === iterated && !current.shared
-    }
-
-    /** An entry of [iterated] seen through [EntriesView]; see [EntryIterator]. */
-    private inner class ViewEntry(
-        private val entry: MutableMap.MutableEntry<String, String>,
-        private val iterated: MutableMap<String, String>,
-    ) : MutableMap.MutableEntry<String, String> {
-        override val key: String
-            get() = entry.key
-        override val value: String
-            get() = if (changesInPlace(iterated)) entry.value else delegate[entry.key] ?: entry.value
-
-        override fun setValue(newValue: String): String {
-            if (changesInPlace(iterated)) {
-                return entry.setValue(newValue)
-            }
-            val previous = value
-            ownEntries()[entry.key] = newValue
-            return previous
-        }
-
-        override fun equals(other: Any?): Boolean {
-            if (other !is Map.Entry<*, *>) return false
-            return key == other.key && value == other.value
-        }
-
-        override fun hashCode(): Int = key.hashCode() xor value.hashCode()
-
-        override fun toString(): String = "$key=$value"
-    }
+    /** The map a view iterates; see [keys]. */
+    private fun iterated(): MutableMap<String, String> = if (isReadOnly) delegate else ownEntries()
 
     private inner class KeysView : AbstractMutableSet<String>() {
         override val size: Int
@@ -330,7 +277,7 @@ class DefaultHeader private constructor(
             ownEntries().clear()
         }
 
-        override fun iterator(): MutableIterator<String> = EntryIterator { entry, _ -> entry.key }
+        override fun iterator(): MutableIterator<String> = iterated().keys.iterator()
     }
 
     private inner class ValuesView : AbstractMutableCollection<String>() {
@@ -345,7 +292,7 @@ class DefaultHeader private constructor(
             ownEntries().clear()
         }
 
-        override fun iterator(): MutableIterator<String> = EntryIterator { entry, _ -> entry.value }
+        override fun iterator(): MutableIterator<String> = iterated().values.iterator()
     }
 
     private inner class EntriesView : AbstractMutableSet<MutableMap.MutableEntry<String, String>>() {
@@ -371,7 +318,7 @@ class DefaultHeader private constructor(
         }
 
         override fun iterator(): MutableIterator<MutableMap.MutableEntry<String, String>> =
-            EntryIterator { entry, iterated -> ViewEntry(entry, iterated) }
+            iterated().entries.iterator()
     }
 }
 
@@ -392,5 +339,5 @@ fun Map<String, String>?.toHeader(): Header {
     if (this is Header) {
         return this
     }
-    return DefaultHeader.owning(LinkedHashMap(this))
+    return DefaultHeader.owning(this)
 }
