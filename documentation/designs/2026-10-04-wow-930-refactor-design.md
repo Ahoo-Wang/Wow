@@ -246,6 +246,12 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 | Q24 | 未经路由器的命令提取（`extractPreparedCommandMessage`，处理函数在路由器外被直接调用）比 v9.2.3 慢 | **接受**（方案 A）：这是 I2 身份解析与 V3 身份冲突检查的固有成本。P1 优化后（#4007、#4009）为 1.49M → 1.21M ops/s（−19 %，B/op 1,344 → 1,352，[run 37717809873](https://github.com/Ahoo-Wang/Wow/actions/runs/37717809873)）。同一条未经路由器的路径还有 `CommandRequestAppenderBenchmark.extractCommandMessage`（直接调用提取器，请求没有路由属性）：6 个参数组合 −1.2 %…−4.2 %，因为每个 op 85–89 % 是基准自己构造请求，9.3 新增的身份解析只占 op 的 0.5–0.9 %，主要是 V3 冲突检查必须多读 `Command-Tenant-Id`、`Command-Owner-Id` 两个 header（[run 37723037038](https://github.com/Ahoo-Wang/Wow/actions/runs/37723037038)）。端到端 `handlePreparedAddCartItemRequestWaitSent` 在噪声内。数据写进发布说明 |
 | Q25 | 内存事件总线的发布微基准（`publishStateEvent`）比 v9.2.3 慢 | **接受**（方案 A）：X5 让本地领域/状态事件的缓冲无界（慢的本地消费者不会拒绝移交），Reactor 因此改用 `SpscLinkedArrayQueue`，单元素比 9.2 有界的 `SpscArrayQueue` 慢。−7 %（11.06M → 10.25M ops/s，每次 112 B 不变）；`publishDomainEventStream` 在 −1 %…−5 % 之间波动（[run 37717805304](https://github.com/Ahoo-Wang/Wow/actions/runs/37717805304) 噪声内，[run 37753169686](https://github.com/Ahoo-Wang/Wow/actions/runs/37753169686) −4.9 %）。自建队列（分支 `perf/p1-publish-queue`）不合入，数据写进发布说明 |
 
+2026-10-08 性能门禁第 3 轮，用户决定：
+
+| # | 问题 | 决定 |
+|---|---|---|
+| Q26 | 默认配置下，local-first 分发到 8 个 processor（`EventDispatchComponentBenchmark.dispatchToProcessors`，`bus=local-first, metrics=off, processors=8`）在部分 CI 机型上比 v9.2.3 慢 | **接受，按真实 I/O 判断**（用户：「最终优化还得看接入真正的 IO 操作」）。原因：#4008 去掉分布式副本那一跳后，阻塞在 `block()` 上的生产者不再与 8 个函数的处理重叠，关键路径多了 worker 的 park/unpark（futex 每次 2–5 µs）；不是 mailbox 串行，R2a 不变。#4018 削减每个函数的开销后：EPYC 7763 +5.8 %、9V74 +0.8 %、Xeon 8573C −1.2 %、9V45 −4.6 %，Xeon 6973P-C 约 −32 %。接入真实存储后没有回退：本机 `benchmarkQuickInfrastructureE2E`（Mongo 8.3.11、Redis 7.4.9）中 main 比 v9.2.3 快 2–9 %，自旋 20 µs 只多 0–3 %（噪声内）。所以 `wow.dispatch.spin`（#4021）**默认 0**，作为内存高吞吐场景的可选优化（20 µs 时上述 AMD 机型回到噪声内，100 µs 时快 16–63 %），最坏 CPU 开销写进文档；协程不能免掉线程的 park/unpark，且不进 9.3.0（V9） |
+
 ## 9. 与已有设计的关系
 
 - **命令链路 v9（2026-09-28）**：本文采纳它的问题分析（附录 B）和大部分决定。实施按本文第 1、4、5 阶段重新编排：它的步骤 0 拆成 S1–S5 并可先发补丁；步骤 1 即 G1/G2；步骤 2、3、6、8 即 K1–K3；步骤 4 即 X7 并扩展到事件侧；步骤 10、11 并入 X3、S5；步骤 12 即 K2 的 V6。协程（§6、V9）不进 9.3.0。该文的状态在本文确认后改为“由 9.3.0 重构设计接管实施”。
