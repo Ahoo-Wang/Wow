@@ -23,7 +23,6 @@ import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Dispatcher for processing the domain events of the aggregates of one bounded context.
@@ -84,7 +83,7 @@ internal class AggregateEventDispatcher(
     override fun EventStreamExchange.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> =
         SimpleDomainEventExchange(
             message = event,
-            attributes = ConcurrentHashMap(attributes),
+            attributes = attributes.copyAttributes(),
         )
 
     /** The per-aggregate dispatcher name 9.2 reported, kept as the metric tag. */
