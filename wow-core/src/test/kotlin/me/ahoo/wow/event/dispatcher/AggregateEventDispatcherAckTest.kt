@@ -99,6 +99,24 @@ class AggregateEventDispatcherAckTest {
         meterRegistry.close()
     }
 
+    @Test
+    fun `each function exchange gets its own copy of the stream exchange attributes`() {
+        listOf(emptyMap(), mapOf("trace" to "t-1")).forEach { streamAttributes ->
+            val exchange = AckCountingExchange().apply { attributes.putAll(streamAttributes) }
+            val seen = CopyOnWriteArrayList<Map<String, Any>>()
+
+            dispatcher { functionExchange ->
+                functionExchange.attributes.filterKeys { it == "trace" }.let(seen::add)
+                functionExchange.attributes["written-by-function"] = true
+                Mono.empty()
+            }.handleExchange(exchange).test().verifyComplete()
+
+            seen.assert().hasSize(2)
+            seen.forEach { it.assert().isEqualTo(streamAttributes) }
+            exchange.attributes.assert().isEqualTo(streamAttributes)
+        }
+    }
+
     private fun dispatcher(
         messageFlux: Flux<EventStreamExchange> = Flux.empty(),
         metrics: WowMetrics = WowMetrics.NONE,

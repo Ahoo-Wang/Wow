@@ -32,6 +32,7 @@ import me.ahoo.wow.projection.DefaultProjectionHandler
 import me.ahoo.wow.saga.stateless.DefaultStatelessSagaHandler
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -276,6 +277,57 @@ class FailureRecordingHandlerTest {
         ProcessingOutcome.FAILURE_UNRECORDED.acknowledges(false).assert().isFalse()
         ProcessingOutcome.RECORDING_FAILED.acknowledges(true).assert().isFalse()
         FailureRecorder.NONE.toString().assert().isEqualTo("FailureRecorder.NONE")
+    }
+
+    @Test
+    fun `without a recorder or metrics a success settles nothing and a failure is still handled`() {
+        val handled = exchange()
+        val failed = exchange()
+        val error = IllegalStateException("handler failed")
+        val chain = mockk<FilterChain<DomainEventExchange<*>>> {
+            every { filter(handled) } returns Mono.empty()
+            every { filter(failed) } returns Mono.error(Exceptions.retryExhausted("exhausted", error))
+        }
+        val handler = handler(chain, FailureRecorder.NONE, ackOnUnrecordedFailure = false)
+
+        handler.handle(handled).test().verifyComplete()
+        handler.handle(failed).test().verifyComplete()
+
+        handled.isAcknowledgementWithheld().assert().isFalse()
+        handled.getError().assert().isNull()
+        failed.isAcknowledgementWithheld().assert().isTrue()
+        failed.getError().assert().isSameAs(error)
+        handledErrors.single().assert().isSameAs(error)
+    }
+
+    @Test
+    fun `a JVM-fatal error thrown while subscribing the chain escapes the handler with or without a recorder`() {
+        // Q23: the mailbox fails the dispatch with it, so the runtime stops instead of the error being resumed.
+        listOf(FailureRecorder.NONE, recorder()).forEach { recorder ->
+            val exchange = exchange()
+            val fatal = NoClassDefFoundError("fatal")
+            val chain = mockk<FilterChain<DomainEventExchange<*>>> {
+                every { filter(exchange) } returns Mono.fromRunnable { throw fatal }
+            }
+
+            assertThrows<NoClassDefFoundError> { handler(chain, recorder).handle(exchange).subscribe() }
+                .assert().isSameAs(fatal)
+            handledErrors.assert().isEmpty()
+        }
+    }
+
+    @Test
+    fun `an error handler that rethrows propagates the processing error with or without a recorder`() {
+        listOf(FailureRecorder.NONE, recorder()).forEach { recorder ->
+            val exchange = exchange()
+            val error = IllegalStateException("handler failed")
+
+            DefaultDomainEventHandler(failing(exchange, error), LogErrorHandler(), recorder)
+                .handle(exchange)
+                .test()
+                .expectErrorMatches { it === error }
+                .verify()
+        }
     }
 
     @Test

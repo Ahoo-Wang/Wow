@@ -30,6 +30,7 @@ import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Abstract base class for aggregate event dispatchers.
@@ -151,3 +152,11 @@ internal abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, 
      */
     abstract fun E.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*>
 }
+
+/**
+ * The attributes of one function's event exchange: a copy of the stream exchange's. An empty map (the usual case: the
+ * local delivery ticket is already taken) is not copied, so the new map allocates its table on its first entry instead
+ * of presizing it for the copy.
+ */
+internal fun Map<String, Any>.copyAttributes(): MutableMap<String, Any> =
+    if (isEmpty()) ConcurrentHashMap() else ConcurrentHashMap(this)

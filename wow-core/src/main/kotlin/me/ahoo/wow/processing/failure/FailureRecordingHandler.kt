@@ -53,8 +53,19 @@ abstract class FailureRecordingHandler<E : EventExchange<*, *>>(
         private val log = KotlinLogging.logger {}
     }
 
-    override fun handle(context: E): Mono<Void> =
-        chain.filter(context)
+    /**
+     * Whether a success needs settling: with [FailureRecorder.NONE] and metrics off it does nothing, so [handle] skips
+     * the per-function `materialize`/`flatMap` and only resumes a failure (the event consume path runs one handler per
+     * function, so those operators were on its critical path).
+     */
+    private val settlesSuccess: Boolean = failureRecorder !== FailureRecorder.NONE || metrics.enabled
+
+    override fun handle(context: E): Mono<Void> {
+        val processed = chain.filter(context)
+        if (!settlesSuccess) {
+            return processed.onErrorResume { error -> onFailure(context, error.retryExhaustedCause()) }
+        }
+        return processed
             .materialize()
             .flatMap { signal ->
                 val error = signal.throwable
@@ -64,6 +75,7 @@ abstract class FailureRecordingHandler<E : EventExchange<*, *>>(
                     onFailure(context, error.retryExhaustedCause())
                 }
             }
+    }
 
     /** The metric identity of the processing of [context]. */
     protected abstract fun metricDescriptor(context: E): MetricDescriptor
