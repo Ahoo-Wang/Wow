@@ -105,9 +105,11 @@ class KeyedExecutor(
         const val DEFAULT_THROUGHPUT: Int = 16
 
         /**
-         * The default [spin]: longer than the hand-off of a message that arrives right after the previous one finished
-         * (a sender woken by that completion sends the next), measured on 4-vCPU cloud machines, where a park and
-         * wake-up costs tens of microseconds. See the 9.3.0 release notes for the data.
+         * The default [spin]: longer than the gap before a message that follows the previous one's completion (the
+         * sender woken by that completion sends the next). Measured on 4-vCPU cloud runners (EPYC 7763/9V45/9V74,
+         * Xeon 8573C), where a park and wake-up costs tens of microseconds: 20 and 50 µs mostly ran out before the next
+         * message; 100 µs made the closed-loop and saturated dispatch rows faster with less CPU per message, and left
+         * the CPU of low-rate traffic (one message per 20 µs to 1 ms) unchanged.
          */
         @JvmField
         val DEFAULT_SPIN: Duration = Duration.ofNanos(100_000)
