@@ -198,7 +198,6 @@ class DefaultHeaderTest {
     fun `iterating a writable shared header takes private entries first`() {
         val source = DefaultHeader().with("key", "value") as DefaultHeader
         val copy = source.copy() as DefaultHeader
-        source.entries.assert().isSameAs(source.entries)
 
         val entry = copy.entries.first()
         entry.setValue("changed")

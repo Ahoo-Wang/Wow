@@ -29,15 +29,16 @@ import me.ahoo.wow.api.messaging.Header
  * Unlike a plain map, iterating a header whose entries are shared is not fail-fast: a write during the iteration
  * takes private entries and the iteration goes on over the shared ones, without a `ConcurrentModificationException`.
  *
- * @param delegate The entries: an [EntryMap] this header created (its copies may share it), or a caller's map
+ * @param delegate The entries
  * @param isReadOnly Whether this header starts read-only
- * @param marker Tells this constructor apart from the public one
+ * @param share `null` while this header holds [delegate] alone; the token of the headers it is shared with; or
+ * [CALLER_MAP] when a caller passed [delegate] in (never shared: the caller may still change it)
  * @author ahoo wang
  */
 class DefaultHeader private constructor(
     delegate: MutableMap<String, String>,
     isReadOnly: Boolean,
-    @Suppress("UNUSED_PARAMETER") marker: Unit,
+    share: Share?,
 ) : Header,
     MutableMap<String, String> {
     /**
@@ -47,27 +48,31 @@ class DefaultHeader private constructor(
     constructor(
         delegate: MutableMap<String, String> = LinkedHashMap(),
         isReadOnly: Boolean = false
-    ) : this(delegate, isReadOnly, Unit)
+    ) : this(delegate, isReadOnly, CALLER_MAP)
 
     /** Creates an empty, mutable header. */
-    constructor() : this(EntryMap(), isReadOnly = false, Unit)
+    constructor() : this(LinkedHashMap(), isReadOnly = false, share = null)
 
     /**
-     * An entry map a header created itself, so its copies may share it (a map a caller passed in never is).
-     * [shared]: some copy may hold it. Once set it is never cleared: a write takes a new [EntryMap] instead, so two
-     * headers never go on writing to one map, even when a write races a copy.
+     * Held by every header that shares one entry map. A header drops it (never clears anything on it) when a write
+     * takes private entries, so a write racing a copy can leak at most that one write into the copy, never make two
+     * headers go on writing to one map. The entry map stays a plain [LinkedHashMap]: a map subclass would make the
+     * JVM's shared `HashMap` call sites megamorphic.
      */
-    private class EntryMap : LinkedHashMap<String, String> {
-        constructor() : super()
-        constructor(source: Map<String, String>) : super(source)
+    private class Share
 
-        @Volatile
-        @JvmField
-        var shared: Boolean = false
-    }
+    // Not volatile: a reader that sees the previous map sees entries no header changes any more.
+    private var delegate: MutableMap<String, String> = delegate
 
     @Volatile
-    private var delegate: MutableMap<String, String> = delegate
+    private var share: Share? = null
+
+    init {
+        // Only a copy or a caller's map stores it: a volatile store of `null` would cost every new header a fence.
+        if (share != null) {
+            this.share = share
+        }
+    }
 
     /** Whether this header is read-only (volatile for thread safety). */
     @Volatile
@@ -81,9 +86,12 @@ class DefaultHeader private constructor(
          */
         fun empty(): Header = DefaultHeader()
 
-        /** A header that owns [entries], a map nobody else holds, so that its copies may share it. */
+        /** Marks a map a caller passed in: never shared, copied at once by [copy]. */
+        private val CALLER_MAP = Share()
+
+        /** A header that owns a copy of [entries], so that its copies may share it. */
         internal fun owning(entries: Map<String, String>): DefaultHeader =
-            DefaultHeader(EntryMap(entries), isReadOnly = false, Unit)
+            DefaultHeader(LinkedHashMap(entries), isReadOnly = false, share = null)
     }
 
     /**
@@ -109,20 +117,22 @@ class DefaultHeader private constructor(
      */
     override fun copy(): Header {
         val current = delegate
-        if (current !is EntryMap || current.isEmpty()) {
+        val token = share
+        if (token === CALLER_MAP || current.isEmpty()) {
             return owning(current)
         }
-        current.shared = true
-        return DefaultHeader(current, isReadOnly = false, Unit)
+        val shared = token ?: Share().also { share = it }
+        return DefaultHeader(current, isReadOnly = false, share = shared)
     }
 
     /** The entries to change: a new private map when the current one may be shared. */
     private fun ownEntries(): MutableMap<String, String> {
-        val current = delegate
-        if (current is EntryMap && current.shared) {
-            return EntryMap(current).also { delegate = it }
+        val token = share
+        if (token == null || token === CALLER_MAP) {
+            return delegate
         }
-        return current
+        share = null
+        return LinkedHashMap(delegate).also { delegate = it }
     }
 
     /**
@@ -236,10 +246,7 @@ class DefaultHeader private constructor(
 
     /** The entries of this header, a live view; see [keys]. */
     override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
-        get() = entriesView ?: EntriesView().also { entriesView = it }
-
-    /** Created on first use; a race creates an equivalent second view. */
-    private var entriesView: EntriesView? = null
+        get() = EntriesView()
 
     /** Whether this header and [other] currently share their entries (copy-on-write); for tests. */
     internal fun sharesEntriesWith(other: DefaultHeader): Boolean = delegate === other.delegate
