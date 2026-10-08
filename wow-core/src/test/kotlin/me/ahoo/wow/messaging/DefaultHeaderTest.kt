@@ -222,6 +222,24 @@ class DefaultHeaderTest {
     }
 
     @Test
+    fun `an entry of a header that took private entries reads them`() {
+        val header = DefaultHeader().with("one", "1").with("two", "2")
+        val iterator = header.entries.iterator()
+        val first = iterator.next()
+
+        header.copy()
+        header.with("one", "11")
+        first.value.assert().isEqualTo("11")
+        header.remove("one")
+        first.value.assert().isEqualTo("1")
+
+        header.containsValue("2").assert().isTrue()
+        header.keys.size.assert().isEqualTo(1)
+        header.entries.size.assert().isEqualTo(1)
+        first.equals(java.util.AbstractMap.SimpleEntry("other", "1")).assert().isFalse()
+    }
+
+    @Test
     fun `clearing a view of a copy clears only the copy`() {
         val source = DefaultHeader().with("key", "value")
         val byKeys = source.copy()
