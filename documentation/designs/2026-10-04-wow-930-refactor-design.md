@@ -243,7 +243,7 @@ X7 风险最高，放在最后。它的合并门槛是滚动升级测试与基�
 
 | # | 问题 | 决定 |
 |---|---|---|
-| Q24 | 未经路由器的命令提取（`extractPreparedCommandMessage`，处理函数在路由器外被直接调用）比 v9.2.3 慢 | **接受**（方案 A）：这是 I2 身份解析与 V3 身份冲突检查的固有成本。P1 优化后（#4007、#4009）为 1.49M → 1.21M ops/s（−19 %，B/op 1,344 → 1,352，[run 37717809873](https://github.com/Ahoo-Wang/Wow/actions/runs/37717809873)）；经路由器的路径（`CommandRequestAppenderBenchmark.extractCommandMessage`）与端到端 `handlePreparedAddCartItemRequestWaitSent` 在噪声内。数据写进发布说明 |
+| Q24 | 未经路由器的命令提取（`extractPreparedCommandMessage`，处理函数在路由器外被直接调用）比 v9.2.3 慢 | **接受**（方案 A）：这是 I2 身份解析与 V3 身份冲突检查的固有成本。P1 优化后（#4007、#4009）为 1.49M → 1.21M ops/s（−19 %，B/op 1,344 → 1,352，[run 37717809873](https://github.com/Ahoo-Wang/Wow/actions/runs/37717809873)）；端到端 `handlePreparedAddCartItemRequestWaitSent` 在噪声内。数据写进发布说明 |
 | Q25 | 内存事件总线的发布微基准（`publishStateEvent`）比 v9.2.3 慢 | **接受**（方案 A）：X5 让本地领域/状态事件的缓冲无界（慢的本地消费者不会拒绝移交），Reactor 因此改用 `SpscLinkedArrayQueue`，单元素比 9.2 有界的 `SpscArrayQueue` 慢。−7 %（11.06M → 10.25M ops/s，每次 112 B 不变）；`publishDomainEventStream` 在噪声内。自建队列（分支 `perf/p1-publish-queue`）不合入，数据写进发布说明 |
 
 ## 9. 与已有设计的关系
