@@ -116,7 +116,7 @@ class InferredQuerySchemaSource(
             if (types.isEmpty()) return QuerySchemaDeclaration(emptyMap())
             val field = profile.payloadField
             val variants = types.map { (event, fact) ->
-                fact.toDeclaration(field, contextName).copy(variant = DeclarationValue.Set(event.name))
+                fact.toDeclaration(field, contextName).asEventVariant(event)
             }
             val payload = variants.singleOrNull() ?: QueryFieldDeclaration(
                 kind = DeclarationValue.Set(QueryValueKind.UNION),
@@ -174,6 +174,15 @@ class InferredQuerySchemaSource(
         /** The model's system declaration owns the payload's presence; inference only describes its shape. */
         fun QueryFieldDeclaration.asPayload(): QueryFieldDeclaration =
             copy(nullable = DeclarationValue.Unset, required = DeclarationValue.Unset)
+
+        /**
+         * An event payload is never null by construction; a type the source cannot tell the nullability of (a custom
+         * serializer's opaque schema) would otherwise materialize as a nullable branch of the non-null payload union.
+         */
+        fun QueryFieldDeclaration.asEventVariant(event: Class<*>): QueryFieldDeclaration = copy(
+            variant = DeclarationValue.Set(event.name),
+            nullable = if (nullable is DeclarationValue.Set) nullable else DeclarationValue.Set(false),
+        )
     }
 }
 

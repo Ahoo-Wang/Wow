@@ -127,7 +127,8 @@ class QuerySchemaCatalog(
                 val started = System.nanoTime()
                 entry.status(entry.provider.refresh()).doOnNext { status ->
                     status.error?.let { error ->
-                        log.warn { "Query schema [${status.aggregate}/${status.model}] kept its previous version: $error" }
+                        val outcome = if (before.isEmpty()) "has no published version" else "kept its previous version"
+                        log.warn { "Query schema [${status.aggregate}/${status.model}] $outcome: $error" }
                     }
                     entry.record(status, before, Duration.ofNanos(System.nanoTime() - started))
                 }

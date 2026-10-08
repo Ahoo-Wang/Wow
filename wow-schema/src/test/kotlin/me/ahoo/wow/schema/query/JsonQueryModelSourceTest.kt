@@ -159,6 +159,41 @@ class JsonQueryModelSourceTest {
     }
 
     @Test
+    fun `should publish event stream schema when an event type is opaque`() {
+        val eventStreamContext = QuerySchemaContext(
+            Cart::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.EVENT_STREAM,
+        )
+        val jsonSource = JsonQueryModelSource()
+        // A custom serializer's schema is `{}`: its nullability is unknown.
+        val modelSource = QueryModelSource { type ->
+            when (type) {
+                CartItemRemoved::class.java -> QueryTypeFact(QueryValueKind.UNKNOWN)
+                else -> jsonSource.describe(type)
+            }
+        }
+        val resolved = AtomicReference<LogicalQuerySchema>()
+        val provider = DefaultQueryModelSchemaProvider(
+            eventStreamContext,
+            listOf(inferred(modelSource = modelSource)),
+            object : QueryStorageAdapter {
+                override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> {
+                    resolved.set(logicalSchema)
+                    return Mono.just(QueryStorageFacts(emptyMap()))
+                }
+            },
+        )
+
+        provider.schema().block()!!
+
+        val payload = resolved.get().value(
+            QueryPathTemplate(listOf(QueryPathSegment.Property("body"), QueryPathSegment.Property("body")))
+        )!!
+        payload.nullable.assert().isFalse()
+        payload.alternatives.map { it.nullable }.assert().containsOnly(false)
+    }
+
+    @Test
     fun `should infer aggregate state fields for snapshot model`() {
         val snapshotContext = QuerySchemaContext(
             Cart::class.java.aggregateMetadata<Any, Any>().namedAggregate,
