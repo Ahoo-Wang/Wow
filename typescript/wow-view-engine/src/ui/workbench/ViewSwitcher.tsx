@@ -109,6 +109,7 @@ export function ViewSwitcher({
       choosing ? 'label.workbench.choose-view' : 'label.workbench.switch-view',
     ),
   );
+  const shown = choosing ? name : messages.say(currentTitle);
 
   return (
     <DropdownMenu>
@@ -120,9 +121,12 @@ export function ViewSwitcher({
             size="sm"
             // The title is the label, so the button needs a name for what it
             // *does* — a screen reader otherwise hears the view it is on as
-            // though pressing it would open that one. With no title it is
-            // the label, and the two are the same word.
-            aria-label={name}
+            // though pressing it would open that one. The name still starts
+            // with the words on the button ("Orders, Switch view"): one that
+            // leaves them out cannot be asked for out loud (WCAG 2.5.3,
+            // axe's `label-content-name-mismatch`). With no title it is the
+            // label, and the two are the same word.
+            aria-label={choosing ? name : `${shown}, ${name}`}
             // `max-w-fit` is where the taking stops, and it is the whole of
             // the 470px pill: `grow` alone stretched the trigger across the
             // group whatever it had to say, and the vendored button centres
@@ -171,7 +175,7 @@ export function ViewSwitcher({
           data-slot="view-switcher-label"
           className="fve:min-w-[6em] fve:truncate"
         >
-          {choosing ? name : messages.say(currentTitle)}
+          {shown}
         </span>
         {/* The trigger's own foreground, not `muted`: an icon inside a
             button inherits the button's ink, and that grey measures 4.34:1

@@ -340,7 +340,9 @@ describe('the states behind a click pass axe', () => {
     );
     await user.click(
       screen.getByRole('button', {
-        name: defaultMessages['label.workbench.switch-view'],
+        name: new RegExp(
+          `, ${defaultMessages['label.workbench.switch-view']}$`,
+        ),
       }),
     );
     await screen.findByRole('menu');

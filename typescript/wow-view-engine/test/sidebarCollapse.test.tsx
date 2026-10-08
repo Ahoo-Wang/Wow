@@ -35,7 +35,10 @@ afterEach(cleanup);
 
 const COLLAPSE = defaultMessages['label.workbench.collapse-sidebar'];
 const EXPAND = defaultMessages['label.workbench.expand-sidebar'];
-const SWITCH = defaultMessages['label.workbench.switch-view'];
+/** The switcher: the open view's title, then what pressing it does. */
+const SWITCH = new RegExp(
+  `, ${defaultMessages['label.workbench.switch-view']}$`,
+);
 /** The same control with no view behind it, where the label is the name. */
 const CHOOSE = defaultMessages['label.workbench.choose-view'];
 const MANAGE = defaultMessages['label.manage.open'];

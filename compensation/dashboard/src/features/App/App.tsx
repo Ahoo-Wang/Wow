@@ -225,7 +225,12 @@ function ColorModeMenu() {
   );
 }
 
-/** The build this is, linked to its commit. */
+/**
+ * The build this is, linked to its commit. Its name is what it shows — a
+ * name that differs from the visible words cannot be asked for out loud
+ * (WCAG 2.5.3) — and the full commit is its title, which is also its
+ * description.
+ */
 function BuildVersion() {
   const { t } = useI18n();
   const commit = t("GitHub commit {commit}", { commit: buildCommitSha });
@@ -234,7 +239,6 @@ function BuildVersion() {
       variant="ghost"
       size="sm"
       className="font-normal text-muted-foreground tabular-nums max-md:hidden"
-      aria-label={`${t("Version {version}", { version: buildVersion })}, ${commit}`}
       title={commit}
       render={
         <a href={buildCommitUrl} target="_blank" rel="noopener noreferrer" />

@@ -42,6 +42,8 @@ export default meta;
 type Story = StoryObj<typeof displayMeta>;
 
 /** What one element is actually painted, as the browser resolved it. */
+/** The switcher: the open view's title, then what pressing it does. */
+const SWITCH_VIEW = new RegExp(`, ${zhCN['label.workbench.switch-view']}$`);
 const paintOf = (node: Element) => getComputedStyle(node).backgroundColor;
 
 /**
@@ -295,7 +297,7 @@ export const FillingTheScreenFoldsTheList: Story = {
     // Not lost, only folded: the switcher is the list while it is away.
     await expect(
       canvas.getByRole('button', {
-        name: zhCN['label.workbench.switch-view'],
+        name: SWITCH_VIEW,
       }),
     ).toBeVisible();
 
@@ -345,7 +347,7 @@ export const CollapseAndSwitch: Story = {
     await expect(identity).toHaveTextContent('订单');
     await expect(
       within(identity).getByRole('button', {
-        name: zhCN['label.workbench.switch-view'],
+        name: SWITCH_VIEW,
       }),
     ).toBeVisible();
     // The save group moved left, next to the view's name: it changes the
@@ -358,7 +360,7 @@ export const CollapseAndSwitch: Story = {
     // way, and choosing one opens it.
     await userEvent.click(
       within(identity).getByRole('button', {
-        name: zhCN['label.workbench.switch-view'],
+        name: SWITCH_VIEW,
       }),
     );
     const menu = await within(document.body).findByRole('menu');
@@ -382,7 +384,7 @@ export const CollapseAndSwitch: Story = {
     await expect(sidebar()).not.toBeNull();
     await expect(
       canvas.queryByRole('button', {
-        name: zhCN['label.workbench.switch-view'],
+        name: SWITCH_VIEW,
       }),
     ).toBeNull();
     // Nothing left open: Base UI parks focus-guard sentinels beside an open

@@ -105,12 +105,14 @@ describe('the view switcher trigger', () => {
   /**
    * The title is what it shows, so the name has to say what pressing it
    * *does* — a screen reader otherwise hears the view it is on as though
-   * pressing it would open that one.
+   * pressing it would open that one. And it starts with the words it shows:
+   * a name that leaves them out cannot be asked for out loud (WCAG 2.5.3,
+   * axe's `label-content-name-mismatch`).
    */
-  it('shows the open view and is named for what it does', () => {
+  it('shows the open view and is named for it and for what it does', () => {
     switcher();
 
-    const trigger = screen.getByRole('button', { name: 'Switch view' });
+    const trigger = screen.getByRole('button', { name: 'Mine, Switch view' });
     expect(trigger.dataset.slot).toBe('view-switcher');
     expect(within(trigger).getByText('Mine').getAttribute('data-slot')).toBe(
       'view-switcher-label',
@@ -129,7 +131,7 @@ describe('the view switcher trigger', () => {
     expect(
       within(trigger).getByText('Choose a view').getAttribute('data-slot'),
     ).toBe('view-switcher-label');
-    expect(screen.queryByRole('button', { name: 'Switch view' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Switch view/ })).toBeNull();
   });
 });
 
