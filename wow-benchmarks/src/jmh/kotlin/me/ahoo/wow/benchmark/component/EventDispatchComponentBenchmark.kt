@@ -18,6 +18,7 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.benchmark.scenario.DiscardingDistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
@@ -134,7 +135,7 @@ open class EventDispatchComponentBenchmark {
             components = listOf(dispatcher),
             shutdownTimeout = Duration.ofSeconds(30),
             shutdownQuietPeriod = Duration.ZERO,
-            keyedExecutor = KeyedExecutor(),
+            keyedExecutor = BenchmarkKeyedExecutors.create(),
         )
         runtime.start().block()
         val probe = ProducerState().also { it.setup(this) }

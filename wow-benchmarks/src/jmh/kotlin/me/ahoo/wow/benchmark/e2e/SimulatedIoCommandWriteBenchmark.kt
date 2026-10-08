@@ -14,6 +14,7 @@
 package me.ahoo.wow.benchmark.e2e
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -71,7 +72,7 @@ open class SimulatedIoCommandWriteBenchmark {
         }
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = eventStore,
-            keyedExecutor = KeyedExecutor(workers = resolveSchedulerPoolSize(schedulerPoolSize)),
+            keyedExecutor = BenchmarkKeyedExecutors.create(workers = resolveSchedulerPoolSize(schedulerPoolSize)),
         )
     }
 

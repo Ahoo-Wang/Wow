@@ -16,6 +16,7 @@ package me.ahoo.wow.benchmark.scenario
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
@@ -102,7 +103,7 @@ class CommandDispatcherChainScenario private constructor(
             aggregateMetadata: AggregateMetadata<*, *> = BenchmarkAggregates.cartMetadata,
             aggregateIdCardinality: Int = 1,
             handlerCost: HandlerCost = HandlerCost.NOOP,
-            keyedExecutor: KeyedExecutor = KeyedExecutor(),
+            keyedExecutor: KeyedExecutor = BenchmarkKeyedExecutors.create(),
         ): CommandDispatcherChainScenario {
             val messageSink = Sinks.many().unicast().onBackpressureBuffer<ServerCommandExchange<*>>()
             val handler = DispatchChainHandler(handlerCost)

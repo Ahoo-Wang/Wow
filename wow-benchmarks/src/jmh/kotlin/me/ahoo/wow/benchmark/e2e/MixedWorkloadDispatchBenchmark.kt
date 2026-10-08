@@ -16,6 +16,7 @@ package me.ahoo.wow.benchmark.e2e
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
@@ -87,6 +88,7 @@ open class MixedWorkloadDispatchBenchmark {
             components = listOf(dispatcher),
             shutdownTimeout = Duration.ofSeconds(30),
             shutdownQuietPeriod = Duration.ZERO,
+            keyedExecutor = BenchmarkKeyedExecutors.create(),
         )
         runtime.start().block()
         running.set(true)
