@@ -75,7 +75,7 @@ Wow 客户端、视图引擎与视图存储客户端来自同仓的工作区包 
 [`src/generated/`](src/generated/) 是 `wow-generator`（工作区包 `@ahoo-wang/wow-generator`）根据补偿服务 OpenAPI 产生的输出，连同生成清单 `.wow-generator.json` 逐字节提交，不是手工维护源码：
 
 1. 先在 `wow-compensation-api`/服务端修改公开合同并生成运行时 `/v3/api-docs`；
-2. 构建生成器：`pnpm --filter @ahoo-wang/wow-generator build`；
+2. 构建生成器：`pnpm --filter @ahoo-wang/wow-generator build`，然后再执行一次 `pnpm install`。生成器的命令指向它的 `dist/cli.js`；新克隆里第一次 `pnpm install` 时它还不存在，pnpm 只警告 `Failed to create bin … wow-generator`，控制台就没有这个命令，第 3 步会报 `Command "wow-generator" not found`。构建后重装一次才会链上；之后只要 `dist` 还在，就不用再重装；
 3. 开发集群可访问时执行 `pnpm --dir compensation/dashboard generate`（读取 `package.json` 中的集群 OpenAPI 地址）；否则按[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)在本机启动补偿服务，再执行 `pnpm --dir compensation/dashboard exec wow-generator generate -i http://127.0.0.1:18083/v3/api-docs -o src/generated`；
 4. 审查生成 diff，再运行 build、Vitest 和 lint。
 

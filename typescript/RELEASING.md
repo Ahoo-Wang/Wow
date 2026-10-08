@@ -324,7 +324,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    pnpm --dir compensation/dashboard test:browser
    ```
 
-   - `generate` 不用 `package.json` 里的 `generate` 脚本，那个脚本读的是开发集群的地址。`git diff` 应当没有差异。有差异时，在 main 上用工作区的生成器（先 `pnpm --filter @ahoo-wang/wow-generator build`）对同一个服务端再生成一次：工作区也有同样的差异，说明提交的产物过期了，在 main 上重新生成提交；只有 npm 上的生成器才有的差异，就是打包问题。
+   - `generate` 不用 `package.json` 里的 `generate` 脚本，那个脚本读的是开发集群的地址。`git diff` 应当没有差异。有差异时，在 main 上用工作区的生成器（先 `pnpm --filter @ahoo-wang/wow-generator build`，再 `pnpm install`，见[控制台 README](../compensation/dashboard/README.md#生成客户端边界)第 2 步）对同一个服务端再生成一次：工作区也有同样的差异，说明提交的产物过期了，在 main 上重新生成提交；只有 npm 上的生成器才有的差异，就是打包问题。
    - 不用 `pnpm --filter wow-compensation-dashboard... build`：这个过滤器会连带构建控制台的工作区依赖，而试用一个工作区包也不构建，这里直接构建控制台自己即可。`coverage` 与 `test:browser` 同 `dashboard-test.yml`。
    - `test:browser` 在 `127.0.0.1:4174` 起构建好的 preview，接口由用例里的 `page.route` 桩住，不连服务端；它验证的是 rc 包在真实浏览器里的渲染和交互。
 
