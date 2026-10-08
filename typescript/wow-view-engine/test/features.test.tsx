@@ -128,7 +128,7 @@ describe('workbench features', () => {
       />,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
-    fireEvent.click(screen.getByRole('button', { name: 'Switch view' }));
+    fireEvent.click(screen.getByRole('button', { name: /, Switch view$/ }));
     expect(
       await screen.findByRole('menuitem', { name: 'New view' }),
     ).toBeDefined();

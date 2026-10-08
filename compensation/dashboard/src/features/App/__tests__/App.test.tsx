@@ -130,13 +130,16 @@ describe("App", () => {
   it("links the build version to its commit", () => {
     renderAt();
 
-    const version = screen.getByRole("link", {
-      name: /^Version \d+\.\d+\.\d+/,
-    });
+    const version = screen.getByRole("link", { name: /^v\d+\.\d+\.\d+/ });
     // A pre-release version (9.2.0-rc.0) carries its suffix before the commit.
     expect(version).toHaveTextContent(
       /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?[0-9a-f]{7}$/,
     );
+    // Its name is the words it shows (WCAG 2.5.3, axe's
+    // label-content-name-mismatch), so it can be asked for out loud; the full
+    // commit is its description.
+    expect(version).toHaveAccessibleName(version.textContent ?? "");
+    expect(version).toHaveAccessibleDescription(/^GitHub commit [0-9a-f]{40}$/);
     expect(version).toHaveAttribute(
       "href",
       expect.stringMatching(

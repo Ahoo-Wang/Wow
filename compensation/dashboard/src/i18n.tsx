@@ -145,7 +145,6 @@ const zhCN = {
   "Unable to copy {value}": "无法复制 {value}",
   Copied: "已复制",
   "Stack trace content": "堆栈跟踪内容",
-  "Version {version}": "版本 {version}",
   "Something went wrong.": "出现错误。",
   "The dashboard could not render this view. Try again to recover from a temporary problem.":
     "仪表盘无法呈现此视图，请重试以恢复临时故障。",
