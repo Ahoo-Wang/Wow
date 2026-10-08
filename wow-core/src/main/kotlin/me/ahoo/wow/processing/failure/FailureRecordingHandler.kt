@@ -56,7 +56,8 @@ abstract class FailureRecordingHandler<E : EventExchange<*, *>>(
     /**
      * Whether a success needs settling: with [FailureRecorder.NONE] and metrics off it does nothing, so [handle] skips
      * the per-function `materialize`/`flatMap` and only resumes a failure (the event consume path runs one handler per
-     * function, so those operators were on its critical path).
+     * function, so those operators were on its critical path). Both are constructor values that never change, so
+     * deciding once at construction is safe.
      */
     private val settlesSuccess: Boolean = failureRecorder !== FailureRecorder.NONE || metrics.enabled
 
