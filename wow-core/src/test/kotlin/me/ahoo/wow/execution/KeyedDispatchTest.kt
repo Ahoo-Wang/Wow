@@ -652,7 +652,12 @@ class KeyedDispatchTest {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             KeyedExecutor(spin = java.time.Duration.ofNanos(-1))
         }
-        KeyedExecutor.DEFAULT_SPIN.isNegative.assert().isFalse()
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            KeyedExecutor(spin = KeyedExecutor.MAX_SPIN.plusNanos(1))
+        }.message.assert().contains("microseconds")
+        KeyedExecutor(spin = KeyedExecutor.MAX_SPIN).close()
+        KeyedExecutor(spin = java.time.Duration.ZERO).close()
+        KeyedExecutor.DEFAULT_SPIN.assert().isEqualTo(java.time.Duration.ofNanos(20_000))
         KeyedExecutor.shared.assert().isSameAs(KeyedExecutor.shared)
         executor.toString().assert().contains("keyed-dispatch-test").contains("spin=")
     }

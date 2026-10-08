@@ -16,6 +16,8 @@ package me.ahoo.wow.execution
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -33,9 +35,10 @@ class DispatchWorkersTest {
      * unparks it; one that arrives while the worker is about to park is seen by the worker's re-check. A lost wake-up
      * would leave a task queued forever and the latch short.
      */
-    @Test
-    fun `no wake-up is lost when producers race with workers going idle`() {
-        val workers = DispatchWorkers(4, "dispatch-workers-race")
+    @ParameterizedTest
+    @ValueSource(longs = [0L, SMALL_SPIN_NANOS])
+    fun `no wake-up is lost when producers race with workers going idle`(spinNanos: Long) {
+        val workers = DispatchWorkers(4, "dispatch-workers-race", spinNanos)
         val producers = Executors.newFixedThreadPool(4)
         try {
             repeat(20) { round ->
@@ -115,10 +118,11 @@ class DispatchWorkersTest {
      * `close` racing submissions: every task is either run or rejected. Before the fix a task queued just after its
      * worker saw `closed` with an empty queue (and exited) was neither — its completion never fired.
      */
-    @Test
-    fun `a task submitted while the workers close is run or rejected, never stranded`() {
+    @ParameterizedTest
+    @ValueSource(longs = [0L, SMALL_SPIN_NANOS])
+    fun `a task submitted while the workers close is run or rejected, never stranded`(spinNanos: Long) {
         repeat(200) { round ->
-            val workers = DispatchWorkers(2, "dispatch-workers-close-race")
+            val workers = DispatchWorkers(2, "dispatch-workers-close-race", spinNanos)
             val submitters = Executors.newFixedThreadPool(3)
             val ran = AtomicInteger()
             val rejected = AtomicInteger()
@@ -473,6 +477,9 @@ private fun startSpinning(workers: DispatchWorkers): Thread {
     }
     error("The worker never spun.")
 }
+
+/** A spin budget like the default: short waits spin, so the race tests also cover workers that spin. */
+private const val SMALL_SPIN_NANOS = 20_000L
 
 private fun workerThreads(prefix: String): Int =
     Thread.getAllStackTraces().keys.count { it.name.startsWith(prefix) && it.isAlive }

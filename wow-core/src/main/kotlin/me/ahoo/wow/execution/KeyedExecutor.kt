@@ -41,10 +41,13 @@ import java.time.Duration
  * @param name the worker thread name prefix.
  * @param throughput the most messages of one aggregate a worker runs in one turn (while they complete synchronously)
  * before it moves on to other aggregates, so one hot aggregate cannot starve the others.
- * @param spin the longest a worker that ran out of messages spins before it parks; [Duration.ZERO] parks at once. A
- * worker spins only while messages keep arriving sooner than this (its last wait was shorter), so an idle or lightly
- * loaded runtime burns no CPU on it; under a steady stream a spinning worker takes the next message without the
- * wake-up a park costs (an OS call by the sender and the scheduling delay of the woken thread).
+ * @param spin the longest a worker that ran out of messages spins before it parks, at most [MAX_SPIN];
+ * [Duration.ZERO] parks at once. A worker spins only when its last wait was shorter than this; after a longer wait it
+ * parks at once. A spinning worker takes the next message without the wake-up a park costs (an OS call by the sender
+ * and the scheduling delay of the woken thread). CPU cost: while messages keep arriving at intervals shorter than the
+ * spin, a worker can stay busy on one core the whole time; after each short interval, the next wait can cost up to
+ * the spin in CPU even when no message follows. The worst case is [workers] cores. In a container with a CPU quota
+ * (cgroup limit), set it to [Duration.ZERO].
  */
 class KeyedExecutor(
     val workers: Int = DEFAULT_WORKERS,
@@ -57,7 +60,9 @@ class KeyedExecutor(
         require(workers > 0) { "workers must be positive." }
         require(maxInFlight > 0) { "maxInFlight must be positive." }
         require(throughput > 0) { "throughput must be positive." }
-        require(!spin.isNegative) { "spin must not be negative." }
+        require(!spin.isNegative && spin <= MAX_SPIN) {
+            "spin must be between 0 and ${MAX_SPIN.toNanos() / 1_000} microseconds, but was ${spin.toNanos()} ns."
+        }
     }
 
     /**
@@ -105,14 +110,17 @@ class KeyedExecutor(
         const val DEFAULT_THROUGHPUT: Int = 16
 
         /**
-         * The default [spin]: longer than the gap before a message that follows the previous one's completion (the
-         * sender woken by that completion sends the next). Measured on 4-vCPU cloud runners (EPYC 7763/9V45/9V74,
-         * Xeon 8573C), where a park and wake-up costs tens of microseconds: 20 and 50 µs mostly ran out before the next
-         * message; 100 µs made the closed-loop and saturated dispatch rows faster with less CPU per message, and left
-         * the CPU of low-rate traffic (one message per 20 µs to 1 ms) unchanged.
+         * The default [spin], 20 µs: on 4-vCPU cloud runners (EPYC 7763/9V45/9V74, Xeon 8573C) it brought the
+         * closed-loop event dispatch row back within noise of v9.2.3, while a worker fed at a steady interval longer
+         * than 20 µs, or by bursts, spends at most 20 µs of CPU per wait. Longer spins (100 µs) were faster still under
+         * a steady stream but kept a worker on a core for message intervals up to the spin.
          */
         @JvmField
-        val DEFAULT_SPIN: Duration = Duration.ofNanos(100_000)
+        val DEFAULT_SPIN: Duration = Duration.ofNanos(20_000)
+
+        /** The longest [spin] accepted: 1 ms. */
+        @JvmField
+        val MAX_SPIN: Duration = Duration.ofMillis(1)
 
         /**
          * The executor of a [me.ahoo.wow.runtime.RuntimeContext] that does not bring its own (a dispatcher prepared

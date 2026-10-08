@@ -21,7 +21,7 @@ outline: deep
 | `wow.dispatch.workers` | Int | 可用处理器数 | 运行时 [`KeyedExecutor`](../../guide/advanced/keyed-executor.md) 的工作线程数，全部分发器共享（自 9.3.0 起） |
 | `wow.dispatch.max-in-flight` | Int | `256` | 单个接收器（每个分发器、每个限界上下文一个）停止向传输请求新消息前可持有的未完成消息数（自 9.3.0 起） |
 | `wow.dispatch.throughput` | Int | `16` | 分发工作线程在转向其他聚合前，一轮执行同一聚合的消息数（自 9.3.0 起） |
-| `wow.dispatch.spin` | Duration | `100us` | 消息到达间隔短于它时，分发工作线程没有消息后 park 前的自旋时长；`0` 表示总是直接 park（自 9.3.0 起） |
+| `wow.dispatch.spin` | Duration | `20us` | 上一次等待短于它时，分发工作线程没有消息后 park 前的自旋时长；最大 `1ms`，`0` 表示总是直接 park；必须带单位后缀（不带单位的数字按毫秒解析）。消息到达比它更快时，每个工作线程最多占用一个核；有 CPU 配额时可设为 `0`（自 9.3.0 起） |
 
 `shutdown-timeout` 必须大于零；`shutdown-quiet-period` 必须非负且小于 `shutdown-timeout`。二者还必须能够精确表示为有符号 64 位纳秒值。
 

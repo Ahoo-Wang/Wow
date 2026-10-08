@@ -29,9 +29,11 @@ import java.util.concurrent.locks.LockSupport
  * busy worker picks up newly queued tasks without being woken; an idle worker is unparked only by the submission that
  * finds it parked. There is no shared queue: no lock, and no cascade of wake-ups between workers.
  *
- * A worker that runs out of tasks spins for up to [spinNanos] before it parks, but only while tasks keep arriving
- * sooner than that: when its last wait was longer than [spinNanos] (an idle or lightly loaded runtime), it parks at
- * once. While it spins it counts as running, so [nextAffinity] picks it and a submission needs no wake-up.
+ * A worker that runs out of tasks spins for up to [spinNanos] before it parks, but only when its last wait was shorter
+ * than that; after a longer wait it parks at once. While it spins it counts as running, so [nextAffinity] picks it and
+ * a submission needs no wake-up. CPU cost: while tasks keep arriving at intervals shorter than [spinNanos], a worker
+ * can stay busy on one core the whole time; after each short interval, the next wait can cost up to [spinNanos] of
+ * CPU even when no task follows; the worst case is one core per worker.
  *
  * A worker thread starts on its first submission, so a runtime that never dispatches (a gateway-only service) starts
  * none. A task's failure, a JVM-fatal error included, is contained: the worker logs it and goes on, so the mailboxes
@@ -253,6 +255,9 @@ internal class DispatchWorkers(
          * spins that long (tasks arrive faster than a park and wake-up would take), else it parks at once.
          */
         private fun awaitTask(): Runnable? {
+            if (spinNanos == 0L) {
+                return parkForTask()
+            }
             val start = System.nanoTime()
             val task = (if (lastWaitNanos < spinNanos) spinForTask(start) else null) ?: parkForTask()
             lastWaitNanos = System.nanoTime() - start

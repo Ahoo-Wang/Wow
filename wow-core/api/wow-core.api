@@ -2335,6 +2335,7 @@ public final class me/ahoo/wow/execution/KeyedExecutor : java/lang/AutoCloseable
 	public static final field DEFAULT_SPIN Ljava/time/Duration;
 	public static final field DEFAULT_THROUGHPUT I
 	public static final field DEFAULT_WORKERS I
+	public static final field MAX_SPIN Ljava/time/Duration;
 	public fun <init> ()V
 	public fun <init> (IILjava/lang/String;ILjava/time/Duration;)V
 	public synthetic fun <init> (IILjava/lang/String;ILjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
