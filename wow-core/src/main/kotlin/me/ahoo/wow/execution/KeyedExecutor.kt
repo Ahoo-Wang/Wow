@@ -15,6 +15,7 @@ package me.ahoo.wow.execution
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import java.time.Duration
 
 /**
  * The execution resource every dispatcher of one [me.ahoo.wow.runtime.WowRuntime] shares (design X7): one set of
@@ -40,17 +41,23 @@ import kotlinx.coroutines.asCoroutineDispatcher
  * @param name the worker thread name prefix.
  * @param throughput the most messages of one aggregate a worker runs in one turn (while they complete synchronously)
  * before it moves on to other aggregates, so one hot aggregate cannot starve the others.
+ * @param spin the longest a worker that ran out of messages spins before it parks; [Duration.ZERO] parks at once. A
+ * worker spins only while messages keep arriving sooner than this (its last wait was shorter), so an idle or lightly
+ * loaded runtime burns no CPU on it; under a steady stream a spinning worker takes the next message without the
+ * wake-up a park costs (an OS call by the sender and the scheduling delay of the woken thread).
  */
 class KeyedExecutor(
     val workers: Int = DEFAULT_WORKERS,
     val maxInFlight: Int = DEFAULT_MAX_IN_FLIGHT,
     val name: String = DEFAULT_NAME,
     val throughput: Int = DEFAULT_THROUGHPUT,
+    val spin: Duration = DEFAULT_SPIN,
 ) : AutoCloseable {
     init {
         require(workers > 0) { "workers must be positive." }
         require(maxInFlight > 0) { "maxInFlight must be positive." }
         require(throughput > 0) { "throughput must be positive." }
+        require(!spin.isNegative) { "spin must not be negative." }
     }
 
     /**
@@ -60,7 +67,7 @@ class KeyedExecutor(
      * thread starts on its first task, so an executor that never dispatches starts none; a failing task, even with a
      * JVM-fatal error, does not end its worker.
      */
-    internal val dispatchWorkers: DispatchWorkers = DispatchWorkers(workers, name)
+    internal val dispatchWorkers: DispatchWorkers = DispatchWorkers(workers, name, spin.toNanos())
 
     /** The workers as a coroutine dispatcher, for `suspend` and `Flow` message functions. */
     val coroutineDispatcher: CoroutineDispatcher = dispatchWorkers.asCoroutineDispatcher()
@@ -83,7 +90,7 @@ class KeyedExecutor(
     }
 
     override fun toString(): String =
-        "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight, throughput=$throughput)"
+        "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight, throughput=$throughput, spin=$spin)"
 
     companion object {
         const val DEFAULT_NAME: String = "wow-dispatch"
@@ -96,6 +103,14 @@ class KeyedExecutor(
 
         /** Messages of one aggregate per turn; a turn also ends when a handler does not complete synchronously. */
         const val DEFAULT_THROUGHPUT: Int = 16
+
+        /**
+         * The default [spin]: longer than the hand-off of a message that arrives right after the previous one finished
+         * (a sender woken by that completion sends the next), measured on 4-vCPU cloud machines, where a park and
+         * wake-up costs tens of microseconds. See the 9.3.0 release notes for the data.
+         */
+        @JvmField
+        val DEFAULT_SPIN: Duration = Duration.ofNanos(100_000)
 
         /**
          * The executor of a [me.ahoo.wow.runtime.RuntimeContext] that does not bring its own (a dispatcher prepared

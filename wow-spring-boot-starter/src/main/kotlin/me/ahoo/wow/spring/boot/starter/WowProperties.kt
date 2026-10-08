@@ -41,4 +41,6 @@ class DispatchProperties(
     var workers: Int = KeyedExecutor.DEFAULT_WORKERS,
     var maxInFlight: Int = KeyedExecutor.DEFAULT_MAX_IN_FLIGHT,
     var throughput: Int = KeyedExecutor.DEFAULT_THROUGHPUT,
+    /** How long a worker that ran out of messages spins before it parks (see [KeyedExecutor.spin]); `0` parks at once. */
+    var spin: Duration = KeyedExecutor.DEFAULT_SPIN,
 )

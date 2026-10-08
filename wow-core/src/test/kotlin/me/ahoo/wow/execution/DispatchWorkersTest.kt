@@ -24,6 +24,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class DispatchWorkersTest {
 
@@ -224,6 +225,62 @@ class DispatchWorkersTest {
     }
 
     @Test
+    fun `a worker spins for the next task while tasks arrive back to back, and stops spinning when it closes`() {
+        val prefix = "dispatch-workers-spin-"
+        val workers = DispatchWorkers(1, prefix.dropLast(1), spinNanos = TimeUnit.SECONDS.toNanos(30))
+        val worker = startSpinning(workers)
+
+        Thread.sleep(100)
+        worker.state.assert().isEqualTo(Thread.State.RUNNABLE)
+        // A spinning worker takes a task without being unparked.
+        val third = CountDownLatch(1)
+        workers.execute({ third.countDown() }, 0)
+        third.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+        // Closing ends the spin at once instead of after the 30 s budget.
+        workers.close()
+        worker.join(TimeUnit.SECONDS.toMillis(5))
+        worker.isAlive.assert().isFalse()
+    }
+
+    @Test
+    fun `a force close ends a spinning worker at once`() {
+        val workers = DispatchWorkers(1, "dispatch-workers-spin-force", spinNanos = TimeUnit.SECONDS.toNanos(30))
+        val worker = startSpinning(workers)
+        Thread.sleep(50)
+        worker.state.assert().isEqualTo(Thread.State.RUNNABLE)
+
+        workers.forceClose()
+        worker.join(TimeUnit.SECONDS.toMillis(5))
+        worker.isAlive.assert().isFalse()
+    }
+
+    @Test
+    fun `a worker whose last wait outlasted the spin budget parks at once`() {
+        val prefix = "dispatch-workers-spin-idle-"
+        val spin = TimeUnit.MILLISECONDS.toNanos(200)
+        val workers = DispatchWorkers(1, prefix.dropLast(1), spinNanos = spin)
+        try {
+            val first = CountDownLatch(1)
+            workers.execute({ first.countDown() }, 0)
+            first.await(5, TimeUnit.SECONDS).assert().isTrue()
+            // The first wait has no history, so it parks at once; then a wait far longer than the budget.
+            awaitParked(prefix, 1)
+            Thread.sleep(TimeUnit.NANOSECONDS.toMillis(spin) * 2)
+            val second = CountDownLatch(1)
+            workers.execute({ second.countDown() }, 0)
+            second.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            // That wait was long, so this one parks well within the budget instead of spinning through it.
+            val started = System.nanoTime()
+            awaitParked(prefix, 1)
+            (System.nanoTime() - started).assert().isLessThan(spin / 2)
+        } finally {
+            workers.close()
+        }
+    }
+
+    @Test
     fun `a worker thread starts on its first submission`() {
         val prefix = "dispatch-workers-lazy-"
         val workers = DispatchWorkers(3, prefix.dropLast(1))
@@ -393,6 +450,28 @@ private fun awaitTrue(condition: () -> Boolean) {
         check(System.nanoTime() < deadline) { "Condition not met in time." }
         Thread.sleep(5)
     }
+}
+
+/**
+ * Runs tasks on worker 0 one after another, each submitted right after the previous one ran, until the worker spins:
+ * its first wait has no history and parks, but that wait is short, so a later wait spins. (A task submitted before the
+ * worker started waiting is taken without a wait, so it may take more than two.) Returns the spinning worker thread.
+ */
+private fun startSpinning(workers: DispatchWorkers): Thread {
+    val worker = AtomicReference<Thread>()
+    repeat(50) {
+        val ran = CountDownLatch(1)
+        workers.execute({
+            worker.set(Thread.currentThread())
+            ran.countDown()
+        }, 0)
+        ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+        Thread.sleep(20)
+        if (worker.get().state == Thread.State.RUNNABLE) {
+            return worker.get()
+        }
+    }
+    error("The worker never spun.")
 }
 
 private fun workerThreads(prefix: String): Int =
