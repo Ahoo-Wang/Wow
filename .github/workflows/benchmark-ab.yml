@@ -73,10 +73,12 @@ on:
 permissions:
   contents: read
 
-# One run per pull request, or per identical dispatch: a newer one (a re-applied label, the same dispatch
-# again) cancels the older, so two runs of one commit never race to build and cache the same jar.
+# One run per pull request: a re-applied label cancels the older run, so two runs of one commit never race to
+# build and cache the same jar. Dispatches are not deduplicated: a group built from their inputs exceeds GitHub's
+# 400-character limit once `include` lists a release's benchmark classes, and the run then fails before any job.
+# Two dispatches of one commit at most both try to save the same jar key; the second save is skipped.
 concurrency:
-  group: benchmark-ab-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('dispatch-{0}-{1}-{2}-{3}-{4}-{5}', inputs.base, inputs.head, inputs.include, inputs.profile, inputs.params, inputs.threads) }}
+  group: benchmark-ab-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('dispatch-{0}', github.run_id) }}
   cancel-in-progress: true
 
 env:
