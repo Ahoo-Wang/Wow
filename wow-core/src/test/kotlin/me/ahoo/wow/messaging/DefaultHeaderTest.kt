@@ -80,6 +80,187 @@ class DefaultHeaderTest {
     }
 
     @Test
+    fun `copy shares the entries until either side writes`() {
+        val source = DefaultHeader().with("key", "value") as DefaultHeader
+
+        val copy = source.copy() as DefaultHeader
+
+        copy.sharesEntriesWith(source).assert().isTrue()
+        copy.assert().isEqualTo(source)
+        copy.hashCode().assert().isEqualTo(source.hashCode())
+
+        source.with("source-only", "true")
+
+        copy.sharesEntriesWith(source).assert().isFalse()
+        copy.containsKey("source-only").assert().isFalse()
+        copy["key"].assert().isEqualTo("value")
+    }
+
+    @Test
+    fun `a write to the copy never reaches the source or a sibling copy`() {
+        val source = DefaultHeader().with("key", "value") as DefaultHeader
+        val first = source.copy()
+        val second = source.copy()
+        val ofCopy = first.copy()
+
+        first.with("key", "first")
+        second.remove("key")
+        ofCopy.putAll(mapOf("of-copy" to "true"))
+
+        source.toMap().assert().isEqualTo(mapOf("key" to "value"))
+        first.toMap().assert().isEqualTo(mapOf("key" to "first"))
+        second.assert().isEmpty()
+        ofCopy.toMap().assert().isEqualTo(mapOf("key" to "value", "of-copy" to "true"))
+    }
+
+    @Test
+    fun `clear and conditional remove on a copy take private entries`() {
+        val source = DefaultHeader().with("key", "value")
+        val cleared = source.copy()
+        val removed = source.copy()
+
+        cleared.clear()
+        removed.remove("key", "value").assert().isTrue()
+
+        source["key"].assert().isEqualTo("value")
+        cleared.assert().isEmpty()
+        removed.assert().isEmpty()
+    }
+
+    @Test
+    fun `entries of a header built around a caller map are copied at once`() {
+        val callerMap = mutableMapOf("key" to "value")
+        val header = DefaultHeader(callerMap)
+
+        val copy = header.copy() as DefaultHeader
+        callerMap["key"] = "changed"
+
+        copy.sharesEntriesWith(header).assert().isFalse()
+        copy["key"].assert().isEqualTo("value")
+        header["key"].assert().isEqualTo("changed")
+    }
+
+    @Test
+    fun `copy of an empty header shares nothing`() {
+        val source = DefaultHeader()
+
+        val copy = source.copy() as DefaultHeader
+        copy.with("key", "value")
+
+        copy.sharesEntriesWith(source).assert().isFalse()
+        source.assert().isEmpty()
+    }
+
+    @Test
+    fun `view changes on a copy never reach the source`() {
+        val source = DefaultHeader().with("one", "1").with("two", "2").with("three", "3")
+        val copy = source.copy()
+
+        copy.keys.remove("one").assert().isTrue()
+        copy.keys.remove("missing").assert().isFalse()
+        copy.values.remove("2").assert().isTrue()
+        copy.entries.first().setValue("33").assert().isEqualTo("3")
+
+        source.toMap().assert().isEqualTo(mapOf("one" to "1", "two" to "2", "three" to "3"))
+        copy.toMap().assert().isEqualTo(mapOf("three" to "33"))
+    }
+
+    @Test
+    fun `iterator removal on a shared header removes from its private entries`() {
+        val source = DefaultHeader().with("one", "1").with("two", "2")
+        val copy = source.copy()
+
+        val iterator = copy.entries.iterator()
+        iterator.next().key.assert().isEqualTo("one")
+        iterator.remove()
+        iterator.next().key.assert().isEqualTo("two")
+        iterator.hasNext().assert().isFalse()
+
+        copy.toMap().assert().isEqualTo(mapOf("two" to "2"))
+        source.toMap().assert().isEqualTo(mapOf("one" to "1", "two" to "2"))
+
+        iterator.remove()
+        copy.assert().isEmpty()
+        assertThrownBy<IllegalStateException> { iterator.remove() }
+    }
+
+    @Test
+    fun `a view taken before a copy does not change the copy`() {
+        val source = DefaultHeader().with("one", "1").with("two", "2")
+        val keys = source.keys
+        val entries = source.entries.iterator()
+        val firstEntry = entries.next()
+
+        val copy = source.copy()
+        keys.remove("two")
+        firstEntry.setValue("11").assert().isEqualTo("1")
+        firstEntry.value.assert().isEqualTo("11")
+
+        copy.toMap().assert().isEqualTo(mapOf("one" to "1", "two" to "2"))
+        source.toMap().assert().isEqualTo(mapOf("one" to "11"))
+    }
+
+    @Test
+    fun `views of an unshared header change it in place`() {
+        val header = DefaultHeader().with("one", "1").with("two", "2").with("three", "3")
+
+        val iterator = header.keys.iterator()
+        iterator.next()
+        iterator.remove()
+        header.entries.first().setValue("22")
+        header.entries.remove(header.entries.last()).assert().isTrue()
+        header.entries.contains(header.entries.first()).assert().isTrue()
+
+        header.toMap().assert().isEqualTo(mapOf("two" to "22"))
+        header.values.contains("22").assert().isTrue()
+        header.keys.contains("two").assert().isTrue()
+        header.values.size.assert().isEqualTo(1)
+        header.entries.first().toString().assert().isEqualTo("two=22")
+        header.entries.first().hashCode().assert().isEqualTo("two".hashCode() xor "22".hashCode())
+        header.entries.first().assert().isEqualTo(java.util.AbstractMap.SimpleEntry("two", "22"))
+        header.entries.first().equals("two").assert().isFalse()
+    }
+
+    @Test
+    fun `clearing a view of a copy clears only the copy`() {
+        val source = DefaultHeader().with("key", "value")
+        val byKeys = source.copy()
+        val byValues = source.copy()
+        val byEntries = source.copy()
+
+        byKeys.keys.clear()
+        byValues.values.clear()
+        byEntries.entries.clear()
+        byEntries.entries.remove(java.util.AbstractMap.SimpleEntry("key", "value")).assert().isFalse()
+
+        byKeys.assert().isEmpty()
+        byValues.assert().isEmpty()
+        byEntries.assert().isEmpty()
+        source["key"].assert().isEqualTo("value")
+    }
+
+    @Test
+    fun `views do not support adding`() {
+        val header = DefaultHeader().with("key", "value")
+
+        assertThrownBy<UnsupportedOperationException> { header.keys.add("other") }
+        assertThrownBy<UnsupportedOperationException> { header.values.add("other") }
+        assertThrownBy<UnsupportedOperationException> {
+            header.entries.add(java.util.AbstractMap.SimpleEntry("other", "value"))
+        }
+    }
+
+    @Test
+    fun `read only state and toString`() {
+        val header = DefaultHeader(mutableMapOf("key" to "value"), isReadOnly = true)
+
+        header.isReadOnly.assert().isTrue()
+        header.toString().assert().isEqualTo("DefaultHeader(delegate={key=value})")
+        header.equals("key").assert().isFalse()
+        header.assert().isEqualTo(header)
+    }
+
+    @Test
     fun `toHeader returns empty header for null and empty maps`() {
         val nullMap: Map<String, String>? = null
 
