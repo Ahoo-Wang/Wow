@@ -27,15 +27,16 @@ import me.ahoo.wow.api.messaging.Header
  * copy copies them at once, as before.
  *
  * @param delegate The underlying mutable map that stores header key-value pairs
- * @property isReadOnly Whether this header is read-only (volatile for thread safety)
+ * @param isReadOnly Whether this header starts read-only
+ * @param owned Whether this header created [delegate] itself, so that its copies may share it
  * @author ahoo wang
  */
 class DefaultHeader private constructor(
     private var delegate: MutableMap<String, String>,
     isReadOnly: Boolean,
-    /** Whether this header created [delegate] itself, so that its copies may share it. */
     private val owned: Boolean,
-) : Header {
+) : Header,
+    MutableMap<String, String> {
     /**
      * Creates a header that stores its entries in [delegate]; changes the caller makes to [delegate] afterwards show
      * in this header (not in its copies).
@@ -48,6 +49,7 @@ class DefaultHeader private constructor(
     /** Creates an empty, mutable header. */
     constructor() : this(LinkedHashMap(), isReadOnly = false, owned = true)
 
+    /** Whether this header is read-only (volatile for thread safety). */
     @Volatile
     override var isReadOnly: Boolean = isReadOnly
 
