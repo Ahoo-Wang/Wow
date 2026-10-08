@@ -54,10 +54,14 @@ class DefaultHeader private constructor(
     constructor() : this(LinkedHashMap(), isReadOnly = false, share = null)
 
     /**
-     * Held by every header that shares one entry map. A header drops it (never clears anything on it) when a write
-     * takes private entries, so a write racing a copy can leak at most that one write into the copy, never make two
-     * headers go on writing to one map. The entry map stays a plain [LinkedHashMap]: a map subclass would make the
-     * JVM's shared `HashMap` call sites megamorphic.
+     * Held by every header that shares one entry map; a header drops it when a write takes private entries. The
+     * entry map stays a plain [LinkedHashMap]: a map subclass would make the JVM's shared `HashMap` call sites
+     * megamorphic.
+     *
+     * Thread safety, as before 9.3.0: writing a header while another thread copies it is not supported and the
+     * outcome is undefined (the copy may go on seeing the source's writes). Supported is copying, from any number of
+     * threads at once, a header nobody writes any more (for example a read-only message header), and then writing
+     * each copy on its own.
      */
     private class Share
 
