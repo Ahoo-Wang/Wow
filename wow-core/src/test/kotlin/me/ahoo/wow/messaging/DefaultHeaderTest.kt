@@ -141,6 +141,69 @@ class DefaultHeaderTest {
     }
 
     @Test
+    fun `copies taken concurrently from a read only header stay isolated`() {
+        val source = DefaultHeader().with("key", "value").with("other", "1").withReadOnly()
+        val threads = 8
+        val start = java.util.concurrent.CountDownLatch(1)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(threads)
+        try {
+            val copies = (0 until threads).map { index ->
+                pool.submit<me.ahoo.wow.api.messaging.Header> {
+                    start.await()
+                    val copy = source.copy()
+                    repeat(100) { copy.with("key", "copy-$index-$it") }
+                    copy.with("only-$index", "true")
+                    copy
+                }
+            }
+            start.countDown()
+            val results = copies.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }
+
+            results.forEachIndexed { index, copy ->
+                copy["key"].assert().isEqualTo("copy-$index-99")
+                copy["other"].assert().isEqualTo("1")
+                copy.keys.filter { it.startsWith("only-") }.assert().containsExactly("only-$index")
+            }
+            source.toMap().assert().isEqualTo(mapOf("key" to "value", "other" to "1"))
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `read only header can be created with the default map`() {
+        val header = DefaultHeader(isReadOnly = true)
+
+        header.isReadOnly.assert().isTrue()
+        header.assert().isEmpty()
+        header.copy().with("key", "value")["key"].assert().isEqualTo("value")
+    }
+
+    @Test
+    fun `a write after a copy takes new entries and later copies share those`() {
+        val source = DefaultHeader().with("key", "value") as DefaultHeader
+        val first = source.copy() as DefaultHeader
+
+        source.with("key", "changed")
+        val second = source.copy() as DefaultHeader
+
+        second.sharesEntriesWith(source).assert().isTrue()
+        first.sharesEntriesWith(source).assert().isFalse()
+        first["key"].assert().isEqualTo("value")
+        second.with("key", "second")
+        source["key"].assert().isEqualTo("changed")
+    }
+
+    @Test
+    fun `views are created once per header`() {
+        val header = DefaultHeader().with("key", "value")
+
+        header.keys.assert().isSameAs(header.keys)
+        header.values.assert().isSameAs(header.values)
+        header.entries.assert().isSameAs(header.entries)
+    }
+
+    @Test
     fun `copy of an empty header shares nothing`() {
         val source = DefaultHeader()
 

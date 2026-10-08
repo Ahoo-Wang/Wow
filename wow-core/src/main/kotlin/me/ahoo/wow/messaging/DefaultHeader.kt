@@ -26,15 +26,16 @@ import me.ahoo.wow.api.messaging.Header
  * in ([DefaultHeader] with a `delegate`) are never shared, because the caller may still change that map: its first
  * copy copies them at once, as before.
  *
- * @param delegate The underlying mutable map that stores header key-value pairs
+ * Unlike a plain map, iterating a header whose entries are shared is not fail-fast: a write during the iteration
+ * takes private entries and the iteration goes on over the shared ones, without a `ConcurrentModificationException`.
+ *
+ * @param store The entries and whether they may be shared
  * @param isReadOnly Whether this header starts read-only
- * @param owned Whether this header created [delegate] itself, so that its copies may share it
  * @author ahoo wang
  */
 class DefaultHeader private constructor(
-    private var delegate: MutableMap<String, String>,
+    store: Entries,
     isReadOnly: Boolean,
-    private val owned: Boolean,
 ) : Header,
     MutableMap<String, String> {
     /**
@@ -42,23 +43,33 @@ class DefaultHeader private constructor(
      * in this header (not in its copies).
      */
     constructor(
-        delegate: MutableMap<String, String>,
+        delegate: MutableMap<String, String> = LinkedHashMap(),
         isReadOnly: Boolean = false
-    ) : this(delegate, isReadOnly, owned = false)
+    ) : this(Entries(delegate, shareable = false), isReadOnly)
 
     /** Creates an empty, mutable header. */
-    constructor() : this(LinkedHashMap(), isReadOnly = false, owned = true)
+    constructor() : this(Entries(LinkedHashMap(), shareable = true), isReadOnly = false)
+
+    /**
+     * A header's entry map. [shareable]: the header created [map] itself, so its copies may share it (a map a caller
+     * passed in never is). [shared]: some copy may hold it; once set it is never cleared: a write takes a new
+     * [Entries] instead, so two headers never go on writing to one map, even when a write races a copy.
+     */
+    private class Entries(
+        val map: MutableMap<String, String>,
+        val shareable: Boolean,
+        @Volatile var shared: Boolean = false,
+    )
+
+    @Volatile
+    private var store: Entries = store
+
+    private val delegate: MutableMap<String, String>
+        get() = store.map
 
     /** Whether this header is read-only (volatile for thread safety). */
     @Volatile
     override var isReadOnly: Boolean = isReadOnly
-
-    /**
-     * Whether [delegate] may be shared with another header (a copy, or the source of this copy). A header whose flag
-     * is `false` is the only one holding its [delegate]; a write first takes a private copy when it is `true`.
-     */
-    @Volatile
-    private var shared: Boolean = false
 
     companion object {
         /**
@@ -70,7 +81,7 @@ class DefaultHeader private constructor(
 
         /** A header that owns [entries], a map nobody else holds, so that its copies may share it. */
         internal fun owning(entries: MutableMap<String, String>): DefaultHeader =
-            DefaultHeader(entries, isReadOnly = false, owned = true)
+            DefaultHeader(Entries(entries, shareable = true), isReadOnly = false)
     }
 
     /**
@@ -95,21 +106,23 @@ class DefaultHeader private constructor(
      * @return A new mutable copy of this header
      */
     override fun copy(): Header {
-        val entries = delegate
-        if (!owned || entries.isEmpty()) {
-            return owning(LinkedHashMap(entries))
+        val current = store
+        if (!current.shareable || current.map.isEmpty()) {
+            return owning(LinkedHashMap(current.map))
         }
-        shared = true
-        return owning(entries).also { it.shared = true }
+        current.shared = true
+        return DefaultHeader(current, isReadOnly = false)
     }
 
-    /** The entries to change: a private copy when they may be shared. */
+    /** The entries to change: a new private map when the current one may be shared. */
     private fun ownEntries(): MutableMap<String, String> {
-        if (shared) {
-            delegate = LinkedHashMap(delegate)
-            shared = false
+        val current = store
+        if (!current.shared) {
+            return current.map
         }
-        return delegate
+        val own = Entries(LinkedHashMap(current.map), shareable = true)
+        store = own
+        return own.map
     }
 
     /**
@@ -209,16 +222,14 @@ class DefaultHeader private constructor(
      * The keys of this header, a live view. As before 9.3.0, changes through a view do not check [isReadOnly]; they
      * never reach a copy of this header or the header it was copied from.
      */
-    override val keys: MutableSet<String>
-        get() = KeysView()
+    override val keys: MutableSet<String> by lazy(LazyThreadSafetyMode.PUBLICATION) { KeysView() }
 
     /** The values of this header, a live view; see [keys]. */
-    override val values: MutableCollection<String>
-        get() = ValuesView()
+    override val values: MutableCollection<String> by lazy(LazyThreadSafetyMode.PUBLICATION) { ValuesView() }
 
     /** The entries of this header, a live view; see [keys]. */
     override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
-        get() = EntriesView()
+        by lazy(LazyThreadSafetyMode.PUBLICATION) { EntriesView() }
 
     /** Whether this header and [other] currently share their entries (copy-on-write); for tests. */
     internal fun sharesEntriesWith(other: DefaultHeader): Boolean = delegate === other.delegate
@@ -265,7 +276,10 @@ class DefaultHeader private constructor(
     }
 
     /** Whether a change through a view of [iterated] may change it in place: this header holds it, and holds it alone. */
-    private fun changesInPlace(iterated: MutableMap<String, String>): Boolean = delegate === iterated && !shared
+    private fun changesInPlace(iterated: MutableMap<String, String>): Boolean {
+        val current = store
+        return current.map === iterated && !current.shared
+    }
 
     /** An entry of [iterated] seen through [EntriesView]; see [EntryIterator]. */
     private inner class ViewEntry(
