@@ -96,7 +96,10 @@ const FILL = defaultMessages['label.workbench.expand-view'];
 const LEAVE = defaultMessages['label.workbench.collapse-view'];
 const COLLAPSE_SIDEBAR = defaultMessages['label.workbench.collapse-sidebar'];
 const EXPAND_SIDEBAR = defaultMessages['label.workbench.expand-sidebar'];
-const SWITCH = defaultMessages['label.workbench.switch-view'];
+/** The switcher: the open view's title, then what pressing it does. */
+const SWITCH = new RegExp(
+  `, ${defaultMessages['label.workbench.switch-view']}$`,
+);
 const FILTER = new RegExp(defaultMessages['label.filter.panel']);
 
 const mine: ViewInstance = {

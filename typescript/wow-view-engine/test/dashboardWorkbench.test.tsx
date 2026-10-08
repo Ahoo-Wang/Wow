@@ -858,7 +858,7 @@ describe('DashboardWorkbench', () => {
     expect(
       await screen.findByRole('button', { name: '展开仪表盘列表' }),
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: '切换仪表盘' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /, 切换仪表盘$/ })).toBeTruthy();
     // Nothing on the chrome calls the board a view.
     const named = [...document.querySelectorAll('[aria-label]')]
       .map(element => element.getAttribute('aria-label') ?? '')
