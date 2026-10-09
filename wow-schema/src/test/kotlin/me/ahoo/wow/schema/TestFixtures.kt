@@ -205,3 +205,13 @@ data class TreeNodeFixture(
         return copy(children = children)
     }
 }
+
+// ── Recursive type with getter-only properties (Kotlin getter provider recursion guard) ──
+
+data class RecursiveGetterFixture(
+    val children: List<RecursiveGetterFixture>,
+    val parent: RecursiveGetterFixture?,
+) {
+    val size: Int get() = children.size
+    val first: RecursiveGetterFixture? get() = children.firstOrNull()
+}
