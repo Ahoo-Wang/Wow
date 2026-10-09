@@ -131,10 +131,6 @@ internal class ClickHouseScriptRenderer(
     }
 
     companion object {
-        const val DEPLOYMENT_ANCHOR = "__wow_bi_deployment"
-        const val COMMAND_SUFFIX = "command"
-        const val STATE_SUFFIX = "state"
-        const val STATE_LAST_SUFFIX = "state_last"
         const val STATE_COLUMN = "state"
         const val STATE_TARGET = "__state"
         const val PATH_TARGET = "__path"

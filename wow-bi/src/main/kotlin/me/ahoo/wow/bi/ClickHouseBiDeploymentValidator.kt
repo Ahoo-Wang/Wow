@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.bi
 
+import me.ahoo.wow.bi.layout.BiEngine
+import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax
 
 internal object ClickHouseBiDeploymentValidator {
@@ -169,23 +171,20 @@ internal object ClickHouseBiDeploymentValidator {
         validateConsumerGroup: Boolean,
         validateRequestedConfiguration: Boolean,
     ) {
-        check(queue.engine == "Kafka") {
+        check(queue.engine == BiEngine.KAFKA) {
             "Owned BI queue [${queue.database}.${queue.name}] must use the Kafka engine"
         }
         val metadata = checkNotNull(queue.metadata)
-        val consumerName = queue.name.removeSuffix("_queue") + "_consumer"
-        val arguments = queue.engineFull.functionArguments("Kafka").orEmpty()
+        val stream = checkNotNull(BiLayout.streamOfQueue(queue.name)) {
+            "Owned BI queue [${queue.database}.${queue.name}] has an unsupported queue name"
+        }
+        val arguments = queue.engineFull.functionArguments(BiEngine.KAFKA).orEmpty()
         val actualGroup = arguments.getOrNull(KAFKA_GROUP_ARGUMENT_INDEX)
         if (validateConsumerGroup) {
-            val expectedGroup = "wow-bi.$consumerIdentity.$consumerName"
+            val expectedGroup = "wow-bi.$consumerIdentity.${stream.consumer}"
             check(actualGroup == ClickHouseSqlSyntax.stringLiteral(expectedGroup)) {
                 "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka consumer group"
             }
-        }
-        val streamKind = when {
-            queue.name.endsWith("_command_queue") -> "command"
-            queue.name.endsWith("_state_queue") -> "state"
-            else -> error("Owned BI queue [${queue.database}.${queue.name}] has an unsupported queue name")
         }
         check(arguments.getOrNull(KAFKA_FORMAT_ARGUMENT_INDEX) == ClickHouseSqlSyntax.stringLiteral(KAFKA_FORMAT)) {
             "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka format"
@@ -199,7 +198,7 @@ internal object ClickHouseBiDeploymentValidator {
         ) {
             "Owned BI queue [${queue.database}.${queue.name}] has unexpected Kafka bootstrap servers"
         }
-        val expectedTopic = "${options.topicPrefix}${checkNotNull(metadata.aggregate)}.$streamKind"
+        val expectedTopic = "${options.topicPrefix}${checkNotNull(metadata.aggregate)}.${stream.suffix}"
         check(arguments.getOrNull(KAFKA_TOPIC_ARGUMENT_INDEX) == ClickHouseSqlSyntax.stringLiteral(expectedTopic)) {
             "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka topic"
         }

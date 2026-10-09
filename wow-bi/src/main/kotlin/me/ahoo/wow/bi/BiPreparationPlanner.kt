@@ -14,12 +14,14 @@
 package me.ahoo.wow.bi
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlanner
+import me.ahoo.wow.bi.layout.BiEngine
+import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.modeling.toStringWithAlias
 
 internal class BiPreparationPlanner(private val options: BiScriptOptions) {
+    private val layout = BiLayout(options)
     private val definitionRenderer = ClickHouseScriptRenderer(options)
 
     fun plan(namedAggregates: Set<NamedAggregate>): BiScriptPreparation {
@@ -42,45 +44,30 @@ internal class BiPreparationPlanner(private val options: BiScriptOptions) {
             .map { namedAggregate -> PlannedAggregate(namedAggregate, planner.plan(namedAggregate)) }
     }
 
-    private fun desiredObjects(plannedAggregates: List<PlannedAggregate>): List<DesiredBiObject> {
-        val naming = BiTableNaming(options)
-        return plannedAggregates.flatMap { planned -> desiredObjects(planned, naming) }
-    }
+    private fun desiredObjects(plannedAggregates: List<PlannedAggregate>): List<DesiredBiObject> =
+        plannedAggregates.flatMap { planned -> desiredObjects(planned) }
 
-    private fun desiredObjects(
-        planned: PlannedAggregate,
-        naming: BiTableNaming,
-    ): List<DesiredBiObject> = with(planned) {
+    private fun desiredObjects(planned: PlannedAggregate): List<DesiredBiObject> = with(planned) {
         val aggregate = namedAggregate.toStringWithAlias()
         val expectedQueries = definitionRenderer.expectedComputedQueries(namedAggregate, plan)
         val computed = DesiredComputedFactory(aggregate, expectedQueries)
-        val command = naming.toTableName(namedAggregate, "command")
-        val state = naming.toTableName(namedAggregate, "state")
-        val stateLast = naming.toTableName(namedAggregate, "state_last")
-        val statePhysical = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
-        val stateLastPhysical =
-            naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
+        val names = layout.of(namedAggregate)
         buildList {
-            listOf(command, statePhysical, stateLastPhysical).forEach { table -> addDesiredStores(table, aggregate) }
-            add(computed.view(command))
-            add(computed.view(state))
-            add(computed.view("${state}_event"))
-            add(computed.view(stateLast))
+            listOf(names.command.store, names.state.store, names.stateLastStore).forEach { store ->
+                addDesiredStores(store, aggregate)
+            }
+            add(computed.view(names.command.table))
+            add(computed.view(names.state.table))
+            add(computed.view(names.stateEvent))
+            add(computed.view(names.stateLast))
             plan.views.forEach { view ->
                 add(computed.view(view.targetTableName))
             }
-            listOf(command, statePhysical).forEach { table ->
-                add(
-                    DesiredBiObject(
-                        BiObjectKey(options.consumerDatabase, "${table}_queue"),
-                        aggregate,
-                        BiObjectKind.QUEUE,
-                        QUEUE_ENGINE,
-                    )
-                )
-                add(computed.consumer("${table}_consumer"))
+            listOf(names.command, names.state).forEach { stream ->
+                add(DesiredBiObject(layout.ingressKey(stream.queue), aggregate, BiObjectKind.QUEUE, BiEngine.KAFKA))
+                add(computed.consumer(stream.consumer))
             }
-            add(computed.consumer("${stateLastPhysical}_consumer"))
+            add(computed.consumer(names.stateLastConsumer))
         }
     }
 
@@ -88,46 +75,40 @@ internal class BiPreparationPlanner(private val options: BiScriptOptions) {
         private val aggregate: String,
         private val expectedQueries: Map<BiObjectKey, ExpectedBiQuery>,
     ) {
-        fun view(name: String): DesiredBiObject = create(BiObjectKey(options.database, name), BiObjectKind.VIEW)
+        fun view(name: String): DesiredBiObject = create(layout.viewKey(name), BiObjectKind.VIEW)
 
-        fun consumer(name: String): DesiredBiObject =
-            create(BiObjectKey(options.consumerDatabase, name), BiObjectKind.CONSUMER)
+        fun consumer(name: String): DesiredBiObject = create(layout.ingressKey(name), BiObjectKind.CONSUMER)
 
         private fun create(key: BiObjectKey, kind: BiObjectKind): DesiredBiObject = DesiredBiObject(
             key = key,
             aggregate = aggregate,
             kind = kind,
-            expectedEngine = if (kind == BiObjectKind.VIEW) VIEW_ENGINE else CONSUMER_ENGINE,
+            expectedEngine = if (kind == BiObjectKind.VIEW) BiEngine.VIEW else BiEngine.MATERIALIZED_VIEW,
             expectedQuery = checkNotNull(expectedQueries[key]) {
                 "Missing expected BI query for [${key.database}.${key.name}]"
             },
         )
     }
 
-    private fun MutableList<DesiredBiObject>.addDesiredStores(table: String, aggregate: String) {
-        val store = "${table}_store"
-        val storeEngine = when (options.topology) {
-            is ClickHouseTopology.Cluster -> "Distributed"
-            ClickHouseTopology.Standalone -> "ReplacingMergeTree"
-        }
-        add(DesiredBiObject(BiObjectKey(options.database, store), aggregate, BiObjectKind.STORE, storeEngine))
+    private fun MutableList<DesiredBiObject>.addDesiredStores(store: String, aggregate: String) {
+        add(DesiredBiObject(layout.storeKey(store), aggregate, BiObjectKind.STORE, layout.storeEngine))
         if (options.topology is ClickHouseTopology.Cluster) {
             add(
                 DesiredBiObject(
-                    BiObjectKey(options.database, "${store}_local"),
+                    layout.storeKey(BiLayout.localStore(store)),
                     aggregate,
                     BiObjectKind.STORE,
-                    "ReplicatedReplacingMergeTree",
+                    BiEngine.REPLICATED_REPLACING_MERGE_TREE,
                 )
             )
         }
     }
 
     private fun desiredAnchor(): DesiredBiObject = DesiredBiObject(
-        BiObjectKey(options.consumerDatabase, ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR),
+        layout.anchor,
         null,
         BiObjectKind.ANCHOR,
-        VIEW_ENGINE,
+        BiEngine.VIEW
     )
 
     private fun validateDesiredObjectNames(objects: List<DesiredBiObject>) {
@@ -137,11 +118,5 @@ internal class BiPreparationPlanner(private val options: BiScriptOptions) {
                 collision.value.mapNotNull(DesiredBiObject::aggregate).distinct().sorted()
                     .joinToString(prefix = "[", postfix = "]")
         }
-    }
-
-    private companion object {
-        const val VIEW_ENGINE: String = "View"
-        const val QUEUE_ENGINE: String = "Kafka"
-        const val CONSUMER_ENGINE: String = "MaterializedView"
     }
 }

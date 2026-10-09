@@ -58,9 +58,9 @@ CREATE TABLE "bi_db"."bi_aggregate_state_store_local" ON CLUSTER '{cluster}'
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}', "version")
-      PARTITION BY toYYYYMM("create_time")
-      ORDER BY ("tenant_id", "aggregate_id", "version")
-      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY ("tenant_id", "aggregate_id", "version")
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
 
 CREATE TABLE "bi_db"."bi_aggregate_state_store" ON CLUSTER '{cluster}'
 AS "bi_db"."bi_aggregate_state_store_local"
@@ -90,9 +90,9 @@ CREATE TABLE "bi_db"."bi_aggregate_state_last_store_local" ON CLUSTER '{cluster}
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}', '{replica}', "version")
-      PARTITION BY toYYYYMM("first_event_time")
-      ORDER BY ("tenant_id", "aggregate_id")
-      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
+  PARTITION BY toYYYYMM("first_event_time")
+  ORDER BY ("tenant_id", "aggregate_id")
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
 
 CREATE TABLE "bi_db"."bi_aggregate_state_last_store" ON CLUSTER '{cluster}'
 AS "bi_db"."bi_aggregate_state_last_store_local"

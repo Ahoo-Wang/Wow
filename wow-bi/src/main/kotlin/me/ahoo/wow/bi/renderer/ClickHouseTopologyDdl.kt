@@ -14,6 +14,7 @@
 package me.ahoo.wow.bi.renderer
 
 import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 
@@ -47,7 +48,7 @@ internal fun ClickHouseTopology.toDdl(): ClickHouseTopologyDdl = when (this) {
 private class ClusterTopologyDdl(private val topology: ClickHouseTopology.Cluster) : ClickHouseTopologyDdl {
     override val scopeClause: String = "ON CLUSTER ${stringLiteral(topology.name)}"
 
-    override fun physicalTableName(logicalTableName: String): String = "${logicalTableName}_local"
+    override fun physicalTableName(logicalTableName: String): String = BiLayout.localStore(logicalTableName)
 
     override fun engineSql(spec: ReplacingMergeTreeSpec): String {
         val path = stringLiteral(

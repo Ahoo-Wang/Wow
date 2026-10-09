@@ -11,10 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.expansion
+package me.ahoo.wow.bi.layout
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.expansion.BIAggregate
+import me.ahoo.wow.bi.expansion.BIAggregateState
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test

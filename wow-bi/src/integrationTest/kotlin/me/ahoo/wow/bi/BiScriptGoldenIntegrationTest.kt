@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.expansion.BiTableNaming
+import me.ahoo.wow.bi.layout.BiTableNaming
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 import me.ahoo.wow.modeling.annotation.aggregateMetadata

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.bi
 
-import me.ahoo.wow.bi.expansion.BiTableNaming
+import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.renderer.CatalogMutationMode
 import me.ahoo.wow.bi.renderer.ClickHouseAggregateRenderPlan
 import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
@@ -173,20 +173,16 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         if (retainedQueueKeys.isEmpty()) {
             return emptySet()
         }
-        val naming = BiTableNaming(options)
-        fun consumerKey(table: String) = BiObjectKey(options.consumerDatabase, "${table}_consumer")
+        val layout = BiLayout(options)
         return plannedAggregates.flatMapTo(linkedSetOf()) { planned ->
-            val aggregate = planned.namedAggregate
-            val command = naming.toTableName(aggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
-            val state = naming.toTableName(aggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
-            val stateLast = naming.toTableName(aggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
+            val names = layout.of(planned.namedAggregate)
             listOf(
-                command to listOf(consumerKey(command)),
-                state to listOf(consumerKey(state), consumerKey(stateLast)),
+                names.command to listOf(names.command.consumer),
+                names.state to listOf(names.state.consumer, names.stateLastConsumer),
             ).filter { (stream, chain) ->
-                BiObjectKey(options.consumerDatabase, "${stream}_queue") in retainedQueueKeys &&
-                    chain.all { key -> key in verifiedComputedKeys }
-            }.flatMap { (_, chain) -> chain }
+                layout.ingressKey(stream.queue) in retainedQueueKeys &&
+                    chain.all { consumer -> layout.ingressKey(consumer) in verifiedComputedKeys }
+            }.flatMap { (_, chain) -> chain.map(layout::ingressKey) }
         }
     }
 
@@ -221,10 +217,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                 }
 
                 is BiScriptOperation.Reset -> {
-                    val anchorKey = BiObjectKey(
-                        options.consumerDatabase,
-                        ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR,
-                    )
+                    val anchorKey = BiLayout(options).anchor
                     val ownedObjects = resolveOwnedCatalogObjects(
                         deployment = checkNotNull(observed),
                         descriptor = descriptor,

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.bi.expansion.type
 
-import me.ahoo.wow.bi.expansion.plan.PropertyFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType

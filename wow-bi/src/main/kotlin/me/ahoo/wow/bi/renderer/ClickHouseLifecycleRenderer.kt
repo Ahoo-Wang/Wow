@@ -19,6 +19,7 @@ import me.ahoo.wow.bi.BiDurableEntry
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.ObservedBiObject
+import me.ahoo.wow.bi.layout.BiLayout
 
 internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRenderContext) {
     fun renderGlobal(): List<String> = with(context) {
@@ -42,7 +43,7 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
         immutableStatements(
             objects.sortedWith(
                 compareBy<BiOwnedObject> { it.kind == BiObjectKind.STORE }
-                    .thenBy { it.kind == BiObjectKind.STORE && it.key.name.endsWith("_local") }
+                    .thenBy { it.kind == BiObjectKind.STORE && BiLayout.isLocalStore(it.key.name) }
                     .thenByDescending { it.key.name.length }
                     .thenBy { it.key.database }
                     .thenBy { it.key.name }
@@ -58,15 +59,14 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
 
     fun renderAnchor(phase: BiDeploymentPhase, durableInventory: List<BiDurableEntry>): String = with(context) {
         val comment = anchorComment(phase, durableInventory)
-        "$viewCreateClause ${qualified(options.consumerDatabase, ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR)}" +
+        "$viewCreateClause ${qualified(layout.anchor.database, layout.anchor.name)}" +
             "${scopeClause()} AS (SELECT 1 AS ${identifier("alive")} WHERE 0) COMMENT $comment;"
     }
 
     fun renderPauseIngress(namedAggregate: NamedAggregate): List<String> = with(context) {
-        val commandTable = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
-        val stateTable = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
+        val aggregateLayout = layout.of(namedAggregate)
         immutableStatements(
-            listOf("${commandTable}_consumer", "${stateTable}_consumer")
+            listOf(aggregateLayout.command.consumer, aggregateLayout.state.consumer)
                 .filterNot { consumerTable -> isConsumerRetained(consumerTable) }
                 .map { consumerTable -> dropView(options.consumerDatabase, consumerTable) }
         )

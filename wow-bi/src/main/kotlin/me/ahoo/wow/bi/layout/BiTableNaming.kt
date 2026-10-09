@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.expansion
+package me.ahoo.wow.bi.layout
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiScriptOptions

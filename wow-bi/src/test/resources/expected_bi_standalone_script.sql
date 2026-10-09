@@ -52,9 +52,9 @@ CREATE TABLE "bi_db"."bi_aggregate_state_store"
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplacingMergeTree("version")
-      PARTITION BY toYYYYMM("create_time")
-      ORDER BY ("tenant_id", "aggregate_id", "version")
-      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY ("tenant_id", "aggregate_id", "version")
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
 -- bi.aggregate.stateStorage --
 -- bi.aggregate.stateLast --
 CREATE TABLE "bi_db"."bi_aggregate_state_last_store"
@@ -78,9 +78,9 @@ CREATE TABLE "bi_db"."bi_aggregate_state_last_store"
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplacingMergeTree("version")
-      PARTITION BY toYYYYMM("first_event_time")
-      ORDER BY ("tenant_id", "aggregate_id")
-      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
+  PARTITION BY toYYYYMM("first_event_time")
+  ORDER BY ("tenant_id", "aggregate_id")
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"82ea723bc0a7d5fe1a1f3dfcfd696fd4","kind":"STORE","aggregate":"bi.aggregate"}';
 
 CREATE MATERIALIZED VIEW "bi_db_consumer"."bi_aggregate_state_last_consumer"
 TO "bi_db"."bi_aggregate_state_last_store"
