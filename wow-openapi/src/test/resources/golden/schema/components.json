@@ -1,0 +1,3518 @@
+{
+  "references" : {
+    "IntRange" : {
+      "$ref" : "#/components/schemas/golden.IntRange"
+    },
+    "CharRange" : {
+      "$ref" : "#/components/schemas/golden.CharRange"
+    },
+    "LongRange" : {
+      "$ref" : "#/components/schemas/golden.LongRange"
+    },
+    "AggregateId" : {
+      "$ref" : "#/components/schemas/wow.api.modeling.AggregateId"
+    },
+    "OrderStatus" : {
+      "$ref" : "#/components/schemas/example.order.OrderStatus"
+    },
+    "JsonNode" : {
+      "$ref" : "#/components/schemas/golden.JsonNode"
+    },
+    "FilterExpression" : {
+      "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+    },
+    "ListQuery" : {
+      "$ref" : "#/components/schemas/wow.api.query.ListQuery"
+    },
+    "PagedQuery" : {
+      "$ref" : "#/components/schemas/wow.api.query.PagedQuery"
+    },
+    "OrderStateMaterializedSnapshotPagedList" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshotPagedList"
+    },
+    "ServerSentEvent" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderStateServerSentEvent"
+    },
+    "ServerSentEventNonNullData" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderStateServerSentEventNonNullData"
+    },
+    "CommandMessage" : {
+      "$ref" : "#/components/schemas/wow.api.command.ObjectCommandMessage"
+    },
+    "CreateOrderCommandMessage" : {
+      "$ref" : "#/components/schemas/example.order.CreateOrderCommandMessage"
+    },
+    "DomainEvent" : {
+      "$ref" : "#/components/schemas/wow.api.exception.ObjectDomainEvent"
+    },
+    "OrderCreatedDomainEvent" : {
+      "$ref" : "#/components/schemas/example.order.OrderCreatedDomainEvent"
+    },
+    "DomainEventStream" : {
+      "$ref" : "#/components/schemas/wow.event.DomainEventStream"
+    },
+    "AggregatedDomainEventStream" : {
+      "$ref" : "#/components/schemas/wow.ObjectAggregatedDomainEventStream"
+    },
+    "CartAggregatedDomainEventStream" : {
+      "$ref" : "#/components/schemas/example.cart.CartAggregatedDomainEventStream"
+    },
+    "StateAggregate" : {
+      "$ref" : "#/components/schemas/wow.modeling.ObjectStateAggregate"
+    },
+    "OrderStateStateAggregate" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderStateStateAggregate"
+    },
+    "OrderStateSnapshot" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderStateSnapshot"
+    },
+    "OrderStateStateEvent" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderStateStateEvent"
+    },
+    "OrderState" : {
+      "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
+    },
+    "CartState" : {
+      "$ref" : "#/components/schemas/example.cart.CartState"
+    }
+  },
+  "components" : {
+    "example.cart.CartAggregatedDomainEventStream" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "commandId" : {
+          "type" : "string",
+          "description" : "The ID of the command message.",
+          "minLength" : 1
+        },
+        "requestId" : {
+          "type" : "string",
+          "description" : "The request ID of the command message, which is used to check the idempotency of the command message",
+          "minLength" : 1
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the domain event stream"
+        },
+        "body" : {
+          "type" : "array",
+          "description" : "A list of domain events for the domain event stream",
+          "items" : {
+            "anyOf" : [ {
+              "type" : "object",
+              "description" : "The body of the domain event",
+              "properties" : {
+                "id" : {
+                  "type" : "string",
+                  "description" : "The ID of the domain event.",
+                  "minLength" : 1
+                },
+                "name" : {
+                  "type" : "string",
+                  "const" : "cart_item_added",
+                  "description" : "The name of the domain event",
+                  "minLength" : 1
+                },
+                "revision" : {
+                  "type" : "string",
+                  "default" : "0.0.1",
+                  "description" : "The revision number of the domain event"
+                },
+                "bodyType" : {
+                  "type" : "string",
+                  "const" : "me.ahoo.wow.example.api.cart.CartItemAdded",
+                  "description" : "The fully qualified name of the domain event body"
+                },
+                "body" : {
+                  "$ref" : "#/components/schemas/example.cart.CartItemAdded"
+                }
+              },
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "title" : "商品已加入购物车"
+            }, {
+              "type" : "object",
+              "description" : "The body of the domain event",
+              "properties" : {
+                "id" : {
+                  "type" : "string",
+                  "description" : "The ID of the domain event.",
+                  "minLength" : 1
+                },
+                "name" : {
+                  "type" : "string",
+                  "const" : "cart_item_removed",
+                  "description" : "The name of the domain event",
+                  "minLength" : 1
+                },
+                "revision" : {
+                  "type" : "string",
+                  "default" : "0.0.1",
+                  "description" : "The revision number of the domain event"
+                },
+                "bodyType" : {
+                  "type" : "string",
+                  "const" : "me.ahoo.wow.example.api.cart.CartItemRemoved",
+                  "description" : "The fully qualified name of the domain event body"
+                },
+                "body" : {
+                  "$ref" : "#/components/schemas/example.cart.CartItemRemoved"
+                }
+              },
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "title" : "cart_item_removed"
+            }, {
+              "type" : "object",
+              "description" : "The body of the domain event",
+              "properties" : {
+                "id" : {
+                  "type" : "string",
+                  "description" : "The ID of the domain event.",
+                  "minLength" : 1
+                },
+                "name" : {
+                  "type" : "string",
+                  "const" : "cart_quantity_changed",
+                  "description" : "The name of the domain event",
+                  "minLength" : 1
+                },
+                "revision" : {
+                  "type" : "string",
+                  "default" : "0.0.1",
+                  "description" : "The revision number of the domain event"
+                },
+                "bodyType" : {
+                  "type" : "string",
+                  "const" : "me.ahoo.wow.example.api.cart.CartQuantityChanged",
+                  "description" : "The fully qualified name of the domain event body"
+                },
+                "body" : {
+                  "$ref" : "#/components/schemas/example.cart.CartQuantityChanged"
+                }
+              },
+              "required" : [ "body", "bodyType", "id", "name", "revision" ],
+              "title" : "cart_quantity_changed"
+            } ]
+          },
+          "minItems" : 1
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the domain event stream was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+    },
+    "example.cart.CartItem" : {
+      "type" : "object",
+      "properties" : {
+        "productId" : {
+          "type" : "string"
+        },
+        "quantity" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      },
+      "required" : [ "productId" ]
+    },
+    "example.cart.CartItemAdded" : {
+      "type" : "object",
+      "properties" : {
+        "added" : {
+          "$ref" : "#/components/schemas/example.cart.CartItem"
+        }
+      },
+      "required" : [ "added" ],
+      "title" : "商品已加入购物车"
+    },
+    "example.cart.CartItemRemoved" : {
+      "type" : "object",
+      "properties" : {
+        "productIds" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "productIds" ]
+    },
+    "example.cart.CartQuantityChanged" : {
+      "type" : "object",
+      "properties" : {
+        "changed" : {
+          "$ref" : "#/components/schemas/example.cart.CartItem"
+        }
+      },
+      "required" : [ "changed" ]
+    },
+    "example.cart.CartState" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "items" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/components/schemas/example.cart.CartItem"
+          }
+        },
+        "size" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "购物车数量",
+          "readOnly" : true
+        }
+      },
+      "required" : [ "id" ]
+    },
+    "example.order.CreateOrder.Item" : {
+      "type" : "object",
+      "properties" : {
+        "price" : {
+          "type" : "number",
+          "exclusiveMinimum" : 0
+        },
+        "productId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "quantity" : {
+          "type" : "integer",
+          "format" : "int32",
+          "exclusiveMinimum" : 0
+        }
+      },
+      "required" : [ "price", "productId", "quantity" ]
+    },
+    "example.order.CreateOrderCommandMessage" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the command message.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the command message belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the command message belongs",
+          "minLength" : 1
+        },
+        "name" : {
+          "type" : "string",
+          "description" : "The name of the command name",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "requestId" : {
+          "type" : "string",
+          "description" : "The request ID of the command message, which is used to check the idempotency of the command message",
+          "minLength" : 1
+        },
+        "aggregateVersion" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int32",
+          "description" : "The version of the target aggregate, which is used to control version conflicts"
+        },
+        "isCreate" : {
+          "type" : "boolean",
+          "description" : "Whether it is a command to create an aggregate"
+        },
+        "isVoid" : {
+          "type" : "boolean",
+          "description" : "Whether it is a void command"
+        },
+        "allowCreate" : {
+          "type" : "boolean",
+          "description" : "Whether to allow an aggregate to be created when it does not exist"
+        },
+        "bodyType" : {
+          "const" : "me.ahoo.wow.example.api.order.CreateOrder",
+          "description" : "The fully qualified name of the command message body"
+        },
+        "body" : {
+          "type" : "object",
+          "description" : "Command message body",
+          "properties" : {
+            "address" : {
+              "$ref" : "#/components/schemas/example.order.ShippingAddress"
+            },
+            "fromCart" : {
+              "type" : "boolean"
+            },
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/components/schemas/example.order.CreateOrder.Item"
+              },
+              "minItems" : 1
+            }
+          },
+          "required" : [ "address", "fromCart", "items" ],
+          "title" : "下单"
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the command message was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "allowCreate", "body", "bodyType", "contextName", "createTime", "id", "isCreate", "isVoid", "name", "ownerId", "requestId", "spaceId", "tenantId" ]
+    },
+    "example.order.OrderCreatedDomainEvent" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the domain event.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the domain event belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the domain event belongs",
+          "minLength" : 1
+        },
+        "name" : {
+          "type" : "string",
+          "description" : "The name of the domain event",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the domain event"
+        },
+        "sequence" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The ordinal number of the domain event in the event stream, starting with 1"
+        },
+        "revision" : {
+          "type" : "string",
+          "default" : "0.0.1",
+          "description" : "The revision number of the domain event"
+        },
+        "isLast" : {
+          "type" : "boolean",
+          "description" : "Whether it is the last event of the event stream"
+        },
+        "bodyType" : {
+          "const" : "me.ahoo.wow.example.api.order.OrderCreated",
+          "description" : "The fully qualified name of the domain event body"
+        },
+        "body" : {
+          "type" : "object",
+          "description" : "The message body of the domain event",
+          "properties" : {
+            "address" : {
+              "$ref" : "#/components/schemas/example.order.ShippingAddress"
+            },
+            "fromCart" : {
+              "type" : "boolean"
+            },
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/components/schemas/example.order.OrderItem"
+              }
+            },
+            "orderId" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "address", "fromCart", "items", "orderId" ]
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the domain event was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "body", "bodyType", "contextName", "createTime", "id", "isLast", "name", "ownerId", "revision", "sequence", "spaceId", "tenantId", "version" ]
+    },
+    "example.order.OrderItem" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "price" : {
+          "type" : "number"
+        },
+        "productId" : {
+          "type" : "string"
+        },
+        "quantity" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "totalPrice" : {
+          "type" : "number",
+          "readOnly" : true
+        }
+      },
+      "required" : [ "id", "price", "productId", "quantity" ]
+    },
+    "example.order.OrderStatus" : {
+      "type" : "string",
+      "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
+      "x-enum-text" : {
+        "CREATED" : "已创建",
+        "PAID" : "已支付",
+        "SHIPPED" : "已发货",
+        "RECEIVED" : "已收货"
+      }
+    },
+    "example.order.ShippingAddress" : {
+      "type" : "object",
+      "properties" : {
+        "city" : {
+          "type" : "string"
+        },
+        "country" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "detail" : {
+          "type" : "string"
+        },
+        "district" : {
+          "type" : "string"
+        },
+        "province" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "city", "country", "detail", "district", "province" ]
+    },
+    "example.order.WowExampleOrderState" : {
+      "type" : "object",
+      "properties" : {
+        "address" : {
+          "allOf" : [ {
+            "$ref" : "#/components/schemas/example.order.ShippingAddress"
+          }, {
+            "readOnly" : true
+          } ]
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "items" : {
+          "type" : "array",
+          "items" : {
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/example.order.OrderItem"
+            }, {
+              "readOnly" : true
+            } ]
+          },
+          "readOnly" : true
+        },
+        "paidAmount" : {
+          "type" : "number"
+        },
+        "status" : {
+          "$ref" : "#/components/schemas/example.order.OrderStatus"
+        },
+        "totalAmount" : {
+          "type" : "number"
+        },
+        "payable" : {
+          "type" : "number",
+          "readOnly" : true
+        }
+      },
+      "required" : [ "id" ]
+    },
+    "example.order.WowExampleOrderStateMaterializedSnapshot" : {
+      "type" : "object",
+      "properties" : {
+        "aggregateId" : {
+          "type" : "string"
+        },
+        "aggregateName" : {
+          "type" : "string"
+        },
+        "contextName" : {
+          "type" : "string"
+        },
+        "deleted" : {
+          "type" : "boolean",
+          "description" : "Whether the aggregate is deleted."
+        },
+        "eventId" : {
+          "type" : "string",
+          "description" : "The event id of the aggregate."
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The last event time of the aggregate, represented as a Unix timestamp in milliseconds."
+        },
+        "firstEventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The first event time of the aggregate, represented as a Unix timestamp in milliseconds."
+        },
+        "firstOperator" : {
+          "type" : "string",
+          "description" : "The first operator of the aggregate."
+        },
+        "operator" : {
+          "type" : "string",
+          "description" : "The last operator of the aggregate."
+        },
+        "ownerId" : {
+          "type" : "string"
+        },
+        "snapshotTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds."
+        },
+        "spaceId" : {
+          "type" : "string"
+        },
+        "state" : {
+          "allOf" : [ {
+            "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
+          }, {
+            "description" : "The state of the aggregate."
+          } ]
+        },
+        "tags" : {
+          "allOf" : [ {
+            "$ref" : "#/components/schemas/golden.StringStringListMap"
+          }, {
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          } ]
+        },
+        "tenantId" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+    },
+    "example.order.WowExampleOrderStateMaterializedSnapshotPagedList" : {
+      "type" : "object",
+      "properties" : {
+        "list" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshot"
+          }
+        },
+        "total" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "list", "total" ]
+    },
+    "example.order.WowExampleOrderStateServerSentEvent" : {
+      "type" : "object",
+      "properties" : {
+        "data" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
+          } ]
+        },
+        "event" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "type" : "string"
+          } ]
+        },
+        "id" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "type" : "string"
+          } ]
+        },
+        "retry" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "type" : "integer",
+            "format" : "int32"
+          } ]
+        }
+      }
+    },
+    "example.order.WowExampleOrderStateServerSentEventNonNullData" : {
+      "type" : "object",
+      "properties" : {
+        "data" : {
+          "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
+        },
+        "event" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "type" : "string"
+          } ]
+        },
+        "id" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "type" : "string"
+          } ]
+        },
+        "retry" : {
+          "anyOf" : [ {
+            "type" : "null"
+          }, {
+            "type" : "integer",
+            "format" : "int32"
+          } ]
+        }
+      },
+      "required" : [ "data" ]
+    },
+    "example.order.WowExampleOrderStateSnapshot" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the snapshot belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the snapshot belongs",
+          "minLength" : 1
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the snapshot"
+        },
+        "eventId" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "firstOperator" : {
+          "type" : "string",
+          "description" : "The first person who operates the aggregate is the creator"
+        },
+        "operator" : {
+          "type" : "string",
+          "description" : "The last person who operates the aggregate"
+        },
+        "firstEventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The first event time of the aggregate, which is the time it was created"
+        },
+        "state" : {
+          "type" : "object",
+          "description" : "The state data of the aggregate",
+          "properties" : {
+            "address" : {
+              "allOf" : [ {
+                "$ref" : "#/components/schemas/example.order.ShippingAddress"
+              }, {
+                "readOnly" : true
+              } ]
+            },
+            "id" : {
+              "type" : "string"
+            },
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "allOf" : [ {
+                  "$ref" : "#/components/schemas/example.order.OrderItem"
+                }, {
+                  "readOnly" : true
+                } ]
+              },
+              "readOnly" : true
+            },
+            "paidAmount" : {
+              "type" : "number"
+            },
+            "status" : {
+              "$ref" : "#/components/schemas/example.order.OrderStatus"
+            },
+            "totalAmount" : {
+              "type" : "number"
+            }
+          },
+          "required" : [ "id" ]
+        },
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "description" : "The ABAC tags of the aggregate"
+        },
+        "deleted" : {
+          "type" : "boolean",
+          "description" : "Whether the aggregate has been deleted"
+        },
+        "snapshotTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The snapshot time of the aggregate"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "tenantId", "version" ]
+    },
+    "example.order.WowExampleOrderStateStateAggregate" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the state aggregate belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the state aggregate belongs",
+          "minLength" : 1
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the snapshot"
+        },
+        "eventId" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "firstOperator" : {
+          "type" : "string",
+          "description" : "The first person who operates the aggregate is the creator"
+        },
+        "operator" : {
+          "type" : "string",
+          "description" : "The last person who operates the aggregate"
+        },
+        "firstEventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The first event time of the aggregate, which is the time it was created"
+        },
+        "state" : {
+          "type" : "object",
+          "description" : "The state data of the aggregate",
+          "properties" : {
+            "address" : {
+              "allOf" : [ {
+                "$ref" : "#/components/schemas/example.order.ShippingAddress"
+              }, {
+                "readOnly" : true
+              } ]
+            },
+            "id" : {
+              "type" : "string"
+            },
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "allOf" : [ {
+                  "$ref" : "#/components/schemas/example.order.OrderItem"
+                }, {
+                  "readOnly" : true
+                } ]
+              },
+              "readOnly" : true
+            },
+            "paidAmount" : {
+              "type" : "number"
+            },
+            "status" : {
+              "$ref" : "#/components/schemas/example.order.OrderStatus"
+            },
+            "totalAmount" : {
+              "type" : "number"
+            }
+          },
+          "required" : [ "id" ]
+        },
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "description" : "The ABAC tags of the aggregate"
+        },
+        "deleted" : {
+          "type" : "boolean",
+          "description" : "Whether the aggregate has been deleted"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "spaceId", "state", "tenantId", "version" ]
+    },
+    "example.order.WowExampleOrderStateStateEvent" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "commandId" : {
+          "type" : "string",
+          "description" : "The ID of the command message.",
+          "minLength" : 1
+        },
+        "requestId" : {
+          "type" : "string",
+          "description" : "The request ID of the command message, which is used to check the idempotency of the command message",
+          "minLength" : 1
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the domain event stream"
+        },
+        "body" : {
+          "type" : "array",
+          "description" : "A list of domain events for the domain event stream",
+          "items" : {
+            "type" : "object",
+            "description" : "The body of the domain event",
+            "properties" : {
+              "id" : {
+                "type" : "string",
+                "description" : "The ID of the domain event.",
+                "minLength" : 1
+              },
+              "name" : {
+                "type" : "string",
+                "description" : "The name of the domain event",
+                "minLength" : 1
+              },
+              "revision" : {
+                "type" : "string",
+                "description" : "The revision number of the domain event"
+              },
+              "bodyType" : {
+                "type" : "string",
+                "description" : "The fully qualified name of the domain event body"
+              },
+              "body" : {
+                "type" : "object",
+                "description" : "The message body of the domain event"
+              }
+            },
+            "required" : [ "body", "bodyType", "id", "name", "revision" ]
+          },
+          "minItems" : 1
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the domain event stream was created"
+        },
+        "firstOperator" : {
+          "type" : "string",
+          "description" : "The first person who operates the aggregate is the creator"
+        },
+        "firstEventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The first event time of the aggregate, which is the time it was created"
+        },
+        "state" : {
+          "type" : "object",
+          "description" : "The state data of the aggregate",
+          "properties" : {
+            "address" : {
+              "allOf" : [ {
+                "$ref" : "#/components/schemas/example.order.ShippingAddress"
+              }, {
+                "readOnly" : true
+              } ]
+            },
+            "id" : {
+              "type" : "string"
+            },
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "allOf" : [ {
+                  "$ref" : "#/components/schemas/example.order.OrderItem"
+                }, {
+                  "readOnly" : true
+                } ]
+              },
+              "readOnly" : true
+            },
+            "paidAmount" : {
+              "type" : "number"
+            },
+            "status" : {
+              "$ref" : "#/components/schemas/example.order.OrderStatus"
+            },
+            "totalAmount" : {
+              "type" : "number"
+            }
+          },
+          "required" : [ "id" ]
+        },
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "description" : "The ABAC tags of the aggregate"
+        },
+        "deleted" : {
+          "type" : "boolean",
+          "description" : "Whether the aggregate has been deleted"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "deleted", "firstEventTime", "firstOperator", "id", "ownerId", "spaceId", "state", "tenantId", "version" ]
+    },
+    "golden.CharRange" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "start" : {
+          "type" : "string",
+          "maxLength" : 1,
+          "minLength" : 1,
+          "pattern" : "^.$"
+        },
+        "end" : {
+          "type" : "string",
+          "maxLength" : 1,
+          "minLength" : 1,
+          "pattern" : "^.$"
+        }
+      },
+      "required" : [ "end", "start" ]
+    },
+    "golden.IntRange" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "start" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "end" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      },
+      "required" : [ "end", "start" ]
+    },
+    "golden.JsonNode" : { },
+    "golden.LongRange" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "start" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "end" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "end", "start" ]
+    },
+    "golden.StringStringListMap" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "array",
+        "items" : {
+          "type" : "string"
+        }
+      }
+    },
+    "wow.ObjectAggregatedDomainEventStream" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "commandId" : {
+          "type" : "string",
+          "description" : "The ID of the command message.",
+          "minLength" : 1
+        },
+        "requestId" : {
+          "type" : "string",
+          "description" : "The request ID of the command message, which is used to check the idempotency of the command message",
+          "minLength" : 1
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the domain event stream"
+        },
+        "body" : {
+          "type" : "array",
+          "description" : "A list of domain events for the domain event stream",
+          "items" : {
+            "type" : "object",
+            "description" : "The body of the domain event",
+            "properties" : {
+              "id" : {
+                "type" : "string",
+                "description" : "The ID of the domain event.",
+                "minLength" : 1
+              },
+              "name" : {
+                "type" : "string",
+                "description" : "The name of the domain event",
+                "minLength" : 1
+              },
+              "revision" : {
+                "type" : "string",
+                "default" : "0.0.1",
+                "description" : "The revision number of the domain event"
+              },
+              "bodyType" : {
+                "type" : "string",
+                "description" : "The fully qualified name of the domain event body"
+              },
+              "body" : {
+                "type" : "object",
+                "description" : "The message body of the domain event"
+              }
+            },
+            "required" : [ "body", "bodyType", "id", "name", "revision" ]
+          },
+          "minItems" : 1
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the domain event stream was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+    },
+    "wow.api.command.ObjectCommandMessage" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the command message.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the command message belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the command message belongs",
+          "minLength" : 1
+        },
+        "name" : {
+          "type" : "string",
+          "description" : "The name of the command name",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "requestId" : {
+          "type" : "string",
+          "description" : "The request ID of the command message, which is used to check the idempotency of the command message",
+          "minLength" : 1
+        },
+        "aggregateVersion" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int32",
+          "description" : "The version of the target aggregate, which is used to control version conflicts"
+        },
+        "isCreate" : {
+          "type" : "boolean",
+          "description" : "Whether it is a command to create an aggregate"
+        },
+        "isVoid" : {
+          "type" : "boolean",
+          "description" : "Whether it is a void command"
+        },
+        "allowCreate" : {
+          "type" : "boolean",
+          "description" : "Whether to allow an aggregate to be created when it does not exist"
+        },
+        "bodyType" : {
+          "type" : "string",
+          "description" : "The fully qualified name of the command message body"
+        },
+        "body" : {
+          "type" : "object",
+          "description" : "Command message body"
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the command message was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "allowCreate", "body", "bodyType", "contextName", "createTime", "id", "isCreate", "isVoid", "name", "ownerId", "requestId", "spaceId", "tenantId" ]
+    },
+    "wow.api.exception.ObjectDomainEvent" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the domain event.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the domain event belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the domain event belongs",
+          "minLength" : 1
+        },
+        "name" : {
+          "type" : "string",
+          "description" : "The name of the domain event",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the domain event"
+        },
+        "sequence" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The ordinal number of the domain event in the event stream, starting with 1"
+        },
+        "revision" : {
+          "type" : "string",
+          "default" : "0.0.1",
+          "description" : "The revision number of the domain event"
+        },
+        "isLast" : {
+          "type" : "boolean",
+          "description" : "Whether it is the last event of the event stream"
+        },
+        "bodyType" : {
+          "type" : "string",
+          "description" : "The fully qualified name of the domain event body"
+        },
+        "body" : {
+          "type" : "object",
+          "description" : "The message body of the domain event"
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the domain event was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "body", "bodyType", "contextName", "createTime", "id", "isLast", "name", "ownerId", "revision", "sequence", "spaceId", "tenantId", "version" ]
+    },
+    "wow.api.modeling.AggregateId" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "contextName" : {
+          "type" : "string",
+          "description" : "aggregate context name",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "aggregate name",
+          "minLength" : 1
+        },
+        "tenantId" : {
+          "type" : "string",
+          "default" : "(0)",
+          "description" : "aggregate tenant id",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "aggregate id",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ]
+    },
+    "wow.api.query.FilterExpression" : {
+      "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression",
+      "$schema" : "http://json-schema.org/draft-07/schema#",
+      "title" : "Filter Expression",
+      "definitions" : {
+        "queryField" : {
+          "type" : "string",
+          "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+        },
+        "literal" : {
+          "type" : [ "null", "string", "number", "boolean" ]
+        },
+        "comparableLiteral" : {
+          "type" : [ "string", "number", "boolean" ]
+        },
+        "stringComparison" : {
+          "type" : "string",
+          "enum" : [ "CASE_SENSITIVE", "CASE_INSENSITIVE" ],
+          "default" : "CASE_SENSITIVE"
+        },
+        "filterExpression" : {
+          "oneOf" : [ {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchAll"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchNone"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/and"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/or"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nor"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/id"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ids"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregateId"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregateIds"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tenantId"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ownerId"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/spaceId"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eq"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ne"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gt"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gte"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lt"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lte"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/contains"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/startsWith"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/endsWith"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/in"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notIn"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/between"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/containsAll"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmpty"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmptyString"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotEmptyString"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNull"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotNull"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/exists"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notExists"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/deletion"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementMatch"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/search"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/today"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterday"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeToday"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrow"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeek"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeek"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeek"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisMonth"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextMonth"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastMonth"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastYear"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisYear"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextYear"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/recentDays"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/earlierDays"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeNow"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/afterNow"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/expression"
+          } ]
+        },
+        "elementPredicate" : {
+          "oneOf" : [ {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchAll"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/matchNone"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementAnd"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementOr"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementNor"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eq"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ne"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gt"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gte"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lt"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lte"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/contains"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/startsWith"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/endsWith"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/in"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notIn"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/between"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/containsAll"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmpty"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isEmptyString"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotEmptyString"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNull"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/isNotNull"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/exists"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/notExists"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementMatch"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementSearch"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/today"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterday"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeToday"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrow"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeek"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeek"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeek"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisMonth"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextMonth"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastMonth"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastYear"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisYear"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextYear"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/recentDays"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/earlierDays"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeNow"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/afterNow"
+          } ]
+        },
+        "elementAnd" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "AND" ]
+            },
+            "operands" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
+              }
+            }
+          },
+          "required" : [ "op", "operands" ],
+          "additionalProperties" : false
+        },
+        "elementOr" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "OR" ]
+            },
+            "operands" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
+              }
+            }
+          },
+          "required" : [ "op", "operands" ],
+          "additionalProperties" : false
+        },
+        "elementNor" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NOR" ]
+            },
+            "operands" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
+              }
+            }
+          },
+          "required" : [ "op", "operands" ],
+          "additionalProperties" : false
+        },
+        "matchAll" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "MATCH_ALL" ]
+            }
+          },
+          "required" : [ "op" ],
+          "additionalProperties" : false
+        },
+        "matchNone" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "MATCH_NONE" ]
+            }
+          },
+          "required" : [ "op" ],
+          "additionalProperties" : false
+        },
+        "and" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "AND" ]
+            },
+            "operands" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression"
+              }
+            }
+          },
+          "required" : [ "op", "operands" ],
+          "additionalProperties" : false
+        },
+        "or" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "OR" ]
+            },
+            "operands" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression"
+              }
+            }
+          },
+          "required" : [ "op", "operands" ],
+          "additionalProperties" : false
+        },
+        "nor" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NOR" ]
+            },
+            "operands" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression"
+              }
+            }
+          },
+          "required" : [ "op", "operands" ],
+          "additionalProperties" : false
+        },
+        "id" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "ID" ]
+            },
+            "value" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "op", "value" ],
+          "additionalProperties" : false
+        },
+        "ids" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IDS" ]
+            },
+            "values" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "required" : [ "op", "values" ],
+          "additionalProperties" : false
+        },
+        "aggregateId" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "AGGREGATE_ID" ]
+            },
+            "value" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "op", "value" ],
+          "additionalProperties" : false
+        },
+        "aggregateIds" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "AGGREGATE_IDS" ]
+            },
+            "values" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "required" : [ "op", "values" ],
+          "additionalProperties" : false
+        },
+        "tenantId" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "TENANT_ID" ]
+            },
+            "value" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "op", "value" ],
+          "additionalProperties" : false
+        },
+        "ownerId" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "OWNER_ID" ]
+            },
+            "value" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "op", "value" ],
+          "additionalProperties" : false
+        },
+        "spaceId" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "SPACE_ID" ]
+            },
+            "value" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "op", "value" ],
+          "additionalProperties" : false
+        },
+        "eq" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eqShape"
+        },
+        "ne" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/neShape"
+        },
+        "gt" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gtShape"
+        },
+        "gte" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gteShape"
+        },
+        "lt" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/ltShape"
+        },
+        "lte" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lteShape"
+        },
+        "eqShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "EQ" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/literal"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "neShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NE" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/literal"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "gtShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "GT" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "gteShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "GTE" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "ltShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "LT" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "lteShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "LTE" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "contains" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "CONTAINS" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "type" : "string"
+            },
+            "stringComparison" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/stringComparison"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "startsWith" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "STARTS_WITH" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "type" : "string"
+            },
+            "stringComparison" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/stringComparison"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "endsWith" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "ENDS_WITH" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "value" : {
+              "type" : "string"
+            },
+            "stringComparison" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/stringComparison"
+            }
+          },
+          "required" : [ "op", "field", "value" ],
+          "additionalProperties" : false
+        },
+        "in" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IN" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "values" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+              }
+            }
+          },
+          "required" : [ "op", "field", "values" ],
+          "additionalProperties" : false
+        },
+        "notIn" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NOT_IN" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "values" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+              }
+            }
+          },
+          "required" : [ "op", "field", "values" ],
+          "additionalProperties" : false
+        },
+        "containsAll" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "CONTAINS_ALL" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "values" : {
+              "type" : "array",
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+              }
+            }
+          },
+          "required" : [ "op", "field", "values" ],
+          "additionalProperties" : false
+        },
+        "between" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "BETWEEN" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "lowerBound" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+            },
+            "upperBound" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/comparableLiteral"
+            }
+          },
+          "required" : [ "op", "field", "lowerBound", "upperBound" ],
+          "additionalProperties" : false
+        },
+        "isEmpty" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IS_EMPTY" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "isEmptyString" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IS_EMPTY_STRING" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "isNotEmptyString" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IS_NOT_EMPTY_STRING" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "isNull" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IS_NULL" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "isNotNull" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "IS_NOT_NULL" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "exists" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "EXISTS" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "notExists" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NOT_EXISTS" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "deletion" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "DELETION" ]
+            },
+            "state" : {
+              "enum" : [ "ACTIVE", "DELETED", "ALL" ]
+            }
+          },
+          "required" : [ "op", "state" ],
+          "additionalProperties" : false
+        },
+        "elementMatch" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "ELEMENT_MATCH" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "predicate" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementPredicate"
+            }
+          },
+          "required" : [ "op", "field", "predicate" ],
+          "additionalProperties" : false
+        },
+        "search" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "SEARCH" ]
+            },
+            "query" : {
+              "type" : "string",
+              "minLength" : 1,
+              "pattern" : "\\S"
+            },
+            "fields" : {
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              },
+              "default" : [ ]
+            },
+            "mode" : {
+              "type" : "string",
+              "enum" : [ "TERMS", "PHRASE" ],
+              "default" : "TERMS"
+            }
+          },
+          "required" : [ "op", "query" ],
+          "additionalProperties" : false
+        },
+        "elementSearch" : {
+          "description" : "SEARCH inside ELEMENT_MATCH: it must name the element fields it searches, relative to the element.",
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "SEARCH" ]
+            },
+            "query" : {
+              "type" : "string",
+              "minLength" : 1,
+              "pattern" : "\\S"
+            },
+            "fields" : {
+              "type" : "array",
+              "uniqueItems" : true,
+              "minItems" : 1,
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              }
+            },
+            "mode" : {
+              "type" : "string",
+              "enum" : [ "TERMS", "PHRASE" ],
+              "default" : "TERMS"
+            }
+          },
+          "required" : [ "op", "query", "fields" ],
+          "additionalProperties" : false
+        },
+        "timeUnit" : {
+          "type" : "string",
+          "enum" : [ "NANOSECONDS", "MICROSECONDS", "MILLISECONDS", "SECONDS", "MINUTES", "HOURS", "DAYS" ],
+          "default" : "MILLISECONDS"
+        },
+        "today" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/todayShape"
+        },
+        "yesterday" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterdayShape"
+        },
+        "tomorrow" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/tomorrowShape"
+        },
+        "thisWeek" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisWeekShape"
+        },
+        "nextWeek" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextWeekShape"
+        },
+        "lastWeek" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastWeekShape"
+        },
+        "thisMonth" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisMonthShape"
+        },
+        "nextMonth" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextMonthShape"
+        },
+        "lastMonth" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastMonthShape"
+        },
+        "lastYear" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/lastYearShape"
+        },
+        "thisYear" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/thisYearShape"
+        },
+        "nextYear" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/nextYearShape"
+        },
+        "todayShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "TODAY" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "yesterdayShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "YESTERDAY" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "tomorrowShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "TOMORROW" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "thisWeekShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "THIS_WEEK" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "nextWeekShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NEXT_WEEK" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "lastWeekShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "LAST_WEEK" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "thisMonthShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "THIS_MONTH" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "nextMonthShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NEXT_MONTH" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "lastMonthShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "LAST_MONTH" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "lastYearShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "LAST_YEAR" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "thisYearShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "THIS_YEAR" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "nextYearShape" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "NEXT_YEAR" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "beforeToday" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "BEFORE_TODAY" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "time" : {
+              "type" : "string",
+              "pattern" : "^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field", "time" ],
+          "additionalProperties" : false
+        },
+        "recentDays" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "RECENT_DAYS" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "days" : {
+              "type" : "integer",
+              "minimum" : 1
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field", "days" ],
+          "additionalProperties" : false
+        },
+        "earlierDays" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "EARLIER_DAYS" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "days" : {
+              "type" : "integer",
+              "minimum" : 1
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field", "days" ],
+          "additionalProperties" : false
+        },
+        "beforeNow" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "BEFORE_NOW" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "offset" : {
+              "type" : "string",
+              "pattern" : "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$",
+              "default" : "PT0S"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "afterNow" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "AFTER_NOW" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "offset" : {
+              "type" : "string",
+              "pattern" : "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$",
+              "default" : "PT0S"
+            },
+            "zoneId" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "datePattern" : {
+              "type" : "string",
+              "minLength" : 1
+            },
+            "timeUnit" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+            }
+          },
+          "required" : [ "op", "field" ],
+          "additionalProperties" : false
+        },
+        "aggregationExpression" : {
+          "oneOf" : [ {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/fieldExpression"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/constantExpression"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/binaryExpression"
+          }, {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/dateDiffExpression"
+          } ]
+        },
+        "fieldExpression" : {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "enum" : [ "FIELD" ]
+            },
+            "field" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            }
+          },
+          "required" : [ "field" ],
+          "additionalProperties" : false
+        },
+        "constantExpression" : {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "enum" : [ "CONSTANT" ]
+            },
+            "value" : {
+              "type" : "number"
+            }
+          },
+          "required" : [ "type", "value" ],
+          "additionalProperties" : false
+        },
+        "binaryExpression" : {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "enum" : [ "BINARY" ]
+            },
+            "operator" : {
+              "enum" : [ "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE" ]
+            },
+            "left" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregationExpression"
+            },
+            "right" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregationExpression"
+            }
+          },
+          "required" : [ "type", "operator", "left", "right" ],
+          "additionalProperties" : false
+        },
+        "dateDiffExpression" : {
+          "type" : "object",
+          "properties" : {
+            "type" : {
+              "enum" : [ "DATE_DIFF" ]
+            },
+            "from" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "to" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+            },
+            "unit" : {
+              "enum" : [ "SECOND", "MINUTE", "HOUR", "DAY" ]
+            }
+          },
+          "required" : [ "type", "from", "to", "unit" ],
+          "additionalProperties" : false
+        },
+        "expression" : {
+          "type" : "object",
+          "properties" : {
+            "op" : {
+              "enum" : [ "EXPRESSION" ]
+            },
+            "expression" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregationExpression"
+            },
+            "comparison" : {
+              "enum" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE" ]
+            },
+            "value" : {
+              "type" : "number"
+            }
+          },
+          "required" : [ "op", "expression", "comparison", "value" ],
+          "additionalProperties" : false
+        }
+      }
+    },
+    "wow.api.query.ListQuery" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "filter" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+        },
+        "limit" : {
+          "type" : "integer",
+          "format" : "int32",
+          "default" : 100,
+          "minimum" : 0
+        },
+        "projection" : {
+          "$ref" : "#/components/schemas/wow.api.query.Projection"
+        },
+        "sort" : {
+          "type" : "array",
+          "default" : [ ],
+          "items" : {
+            "$ref" : "#/components/schemas/wow.api.query.Sort"
+          },
+          "maxItems" : 32
+        }
+      },
+      "required" : [ "filter" ]
+    },
+    "wow.api.query.PagedQuery" : {
+      "type" : "object",
+      "additionalProperties" : false,
+      "properties" : {
+        "filter" : {
+          "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+        },
+        "pagination" : {
+          "$ref" : "#/components/schemas/wow.api.query.Pagination"
+        },
+        "projection" : {
+          "$ref" : "#/components/schemas/wow.api.query.Projection"
+        },
+        "sort" : {
+          "type" : "array",
+          "default" : [ ],
+          "items" : {
+            "$ref" : "#/components/schemas/wow.api.query.Sort"
+          },
+          "maxItems" : 32
+        }
+      },
+      "required" : [ "filter" ]
+    },
+    "wow.api.query.Pagination" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32",
+          "default" : 1
+        },
+        "size" : {
+          "type" : "integer",
+          "format" : "int32",
+          "default" : 10
+        }
+      }
+    },
+    "wow.api.query.Projection" : {
+      "type" : "object",
+      "properties" : {
+        "exclude" : {
+          "type" : "array",
+          "default" : [ ],
+          "items" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          }
+        },
+        "include" : {
+          "type" : "array",
+          "default" : [ ],
+          "items" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          }
+        }
+      }
+    },
+    "wow.api.query.QueryField" : {
+      "type" : "string",
+      "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
+    },
+    "wow.api.query.Sort" : {
+      "type" : "object",
+      "properties" : {
+        "direction" : {
+          "$ref" : "#/components/schemas/wow.api.query.Sort.Direction"
+        },
+        "field" : {
+          "$ref" : "#/components/schemas/wow.api.query.QueryField"
+        }
+      },
+      "required" : [ "direction", "field" ]
+    },
+    "wow.api.query.Sort.Direction" : {
+      "type" : "string",
+      "enum" : [ "ASC", "DESC" ]
+    },
+    "wow.event.DomainEventStream" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the domain event stream belongs",
+          "minLength" : 1
+        },
+        "header" : {
+          "type" : "object",
+          "additionalProperties" : true,
+          "description" : "message header",
+          "properties" : {
+            "user_agent" : {
+              "type" : "string",
+              "description" : "user agent"
+            },
+            "remote_ip" : {
+              "type" : "string",
+              "description" : "remote ip"
+            },
+            "trace_id" : {
+              "type" : "string",
+              "description" : "trace id"
+            },
+            "command_operator" : {
+              "type" : "string",
+              "description" : "command operator"
+            },
+            "local_first" : {
+              "type" : "boolean",
+              "description" : "local first"
+            },
+            "command_wait_endpoint" : {
+              "type" : "string",
+              "format" : "url",
+              "description" : "command wait endpoint"
+            },
+            "command_wait_stage" : {
+              "type" : "string",
+              "default" : "PROCESSED",
+              "enum" : [ "SENT", "PROCESSED", "SNAPSHOT", "PROJECTED", "EVENT_HANDLED", "SAGA_HANDLED" ]
+            }
+          }
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "commandId" : {
+          "type" : "string",
+          "description" : "The ID of the command message.",
+          "minLength" : 1
+        },
+        "requestId" : {
+          "type" : "string",
+          "description" : "The request ID of the command message, which is used to check the idempotency of the command message",
+          "minLength" : 1
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the domain event stream"
+        },
+        "body" : {
+          "type" : "array",
+          "description" : "A list of domain events for the domain event stream",
+          "items" : {
+            "type" : "object",
+            "description" : "The body of the domain event",
+            "properties" : {
+              "id" : {
+                "type" : "string",
+                "description" : "The ID of the domain event.",
+                "minLength" : 1
+              },
+              "name" : {
+                "type" : "string",
+                "description" : "The name of the domain event",
+                "minLength" : 1
+              },
+              "revision" : {
+                "type" : "string",
+                "default" : "0.0.1",
+                "description" : "The revision number of the domain event"
+              },
+              "bodyType" : {
+                "type" : "string",
+                "description" : "The fully qualified name of the domain event body"
+              },
+              "body" : {
+                "type" : "object",
+                "description" : "The message body of the domain event"
+              }
+            },
+            "required" : [ "body", "bodyType", "id", "name", "revision" ]
+          },
+          "minItems" : 1
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The time when the domain event stream was created"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "body", "contextName", "createTime", "id", "ownerId", "spaceId", "tenantId", "version" ]
+    },
+    "wow.modeling.ObjectStateAggregate" : {
+      "type" : "object",
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "properties" : {
+        "contextName" : {
+          "type" : "string",
+          "description" : "The name of the context to which the state aggregate belongs",
+          "minLength" : 1
+        },
+        "aggregateName" : {
+          "type" : "string",
+          "description" : "The name of the aggregate to which the state aggregate belongs",
+          "minLength" : 1
+        },
+        "tenantId" : {
+          "type" : "string",
+          "description" : "The tenant id of the aggregate",
+          "minLength" : 1
+        },
+        "aggregateId" : {
+          "type" : "string",
+          "description" : "The id of the aggregate",
+          "minLength" : 1
+        },
+        "ownerId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The owner ID of the aggregate resource"
+        },
+        "spaceId" : {
+          "type" : "string",
+          "default" : "",
+          "description" : "The space ID of the aggregate resource"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32",
+          "description" : "The version of the snapshot"
+        },
+        "eventId" : {
+          "type" : "string",
+          "description" : "The ID of the domain event stream.",
+          "minLength" : 1
+        },
+        "firstOperator" : {
+          "type" : "string",
+          "description" : "The first person who operates the aggregate is the creator"
+        },
+        "operator" : {
+          "type" : "string",
+          "description" : "The last person who operates the aggregate"
+        },
+        "firstEventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The first event time of the aggregate, which is the time it was created"
+        },
+        "state" : {
+          "type" : "object",
+          "description" : "The state data of the aggregate"
+        },
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "description" : "The ABAC tags of the aggregate"
+        },
+        "deleted" : {
+          "type" : "boolean",
+          "description" : "Whether the aggregate has been deleted"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "firstEventTime", "firstOperator", "operator", "ownerId", "spaceId", "state", "tenantId", "version" ]
+    }
+  }
+}
