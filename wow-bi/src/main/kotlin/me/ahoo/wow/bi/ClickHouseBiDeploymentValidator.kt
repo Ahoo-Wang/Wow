@@ -79,21 +79,26 @@ internal object ClickHouseBiDeploymentValidator {
         }
     }
 
+    /** Validates this deployment's queues; RESET removes queues of another layout without inspecting them. */
     private fun validateQueues(
         context: CatalogObjectValidationContext,
         objects: List<ClickHouseCatalogObject>,
     ) = with(context) {
-        objects.filter { it.observed.metadata?.kind == BiObjectKind.QUEUE }
+        val owned = objects.filter { catalogObject ->
+            catalogObject.observed.metadata?.let { metadata ->
+                metadata.deploymentId == descriptor.deploymentId && metadata.isCurrentLayout
+            } == true
+        }
+        val consumerIdentity = owned.firstNotNullOfOrNull { it.observed.metadata?.anchor }?.consumerIdentity
+            ?: BiConsumerIdentity.deterministic(descriptor).value
+        owned.filter { it.observed.metadata?.kind == BiObjectKind.QUEUE }
             .forEach { queue ->
-                val validateRequestedConfiguration =
-                    operation == BiScriptOperation.Deploy &&
-                        deploymentStable &&
-                        queue.observed.metadata?.deploymentId == descriptor.deploymentId
                 validateQueueIdentity(
                     options = options,
                     queue = queue.observed,
+                    consumerIdentity = consumerIdentity,
                     validateConsumerGroup = operation == BiScriptOperation.Deploy,
-                    validateRequestedConfiguration = validateRequestedConfiguration,
+                    validateRequestedConfiguration = operation == BiScriptOperation.Deploy && deploymentStable,
                 )
             }
     }
@@ -148,13 +153,7 @@ internal object ClickHouseBiDeploymentValidator {
         if (desired.expectedQuery == null || desired.kind !in COMPUTED_KINDS) {
             return false
         }
-        if (metadata.deploymentId != descriptor.deploymentId) {
-            return false
-        }
-        if (metadata.configurationFingerprint != descriptor.configurationFingerprint) {
-            return false
-        }
-        if (metadata.topologyFingerprint != descriptor.topologyFingerprint) {
+        if (metadata.deploymentId != descriptor.deploymentId || !metadata.isCurrentLayout) {
             return false
         }
         if (metadata.kind != desired.kind || metadata.aggregate != desired.aggregate) {
@@ -166,6 +165,7 @@ internal object ClickHouseBiDeploymentValidator {
     private fun validateQueueIdentity(
         options: BiScriptOptions,
         queue: ObservedBiObject,
+        consumerIdentity: String,
         validateConsumerGroup: Boolean,
         validateRequestedConfiguration: Boolean,
     ) {
@@ -173,14 +173,11 @@ internal object ClickHouseBiDeploymentValidator {
             "Owned BI queue [${queue.database}.${queue.name}] must use the Kafka engine"
         }
         val metadata = checkNotNull(queue.metadata)
-        val identity = checkNotNull(metadata.consumerIdentity) {
-            "Owned BI queue [${queue.database}.${queue.name}] is missing consumerIdentity"
-        }
         val consumerName = queue.name.removeSuffix("_queue") + "_consumer"
-        val expectedGroup = "wow-bi.$identity.$consumerName"
         val arguments = queue.engineFull.functionArguments("Kafka").orEmpty()
         val actualGroup = arguments.getOrNull(KAFKA_GROUP_ARGUMENT_INDEX)
         if (validateConsumerGroup) {
+            val expectedGroup = "wow-bi.$consumerIdentity.$consumerName"
             check(actualGroup == ClickHouseSqlSyntax.stringLiteral(expectedGroup)) {
                 "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka consumer group"
             }
@@ -214,13 +211,13 @@ internal object ClickHouseBiDeploymentValidator {
             }
 
             KafkaOffsetStorage.KEEPER -> {
-                val expectedKeeperPath = "${options.kafkaKeeperPathPrefix.trimEnd('/')}/$identity/${queue.name}"
+                val expectedKeeperPath = "${options.kafkaKeeperPathPrefix.trimEnd('/')}/$consumerIdentity/${queue.name}"
                 check(actualKeeperPath == ClickHouseSqlSyntax.stringLiteral(expectedKeeperPath)) {
                     "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka Keeper path"
                 }
                 val expectedReplicaName = when (options.topology) {
                     is ClickHouseTopology.Cluster -> "{replica}"
-                    ClickHouseTopology.Standalone -> identity
+                    ClickHouseTopology.Standalone -> consumerIdentity
                 }
                 check(actualReplicaName == ClickHouseSqlSyntax.stringLiteral(expectedReplicaName)) {
                     "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka Keeper replica name"

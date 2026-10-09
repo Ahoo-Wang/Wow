@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.bi.renderer
 
+import me.ahoo.wow.bi.BiAnchorState
 import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentPhase
+import me.ahoo.wow.bi.BiDurableEntry
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiObjectMetadata
@@ -71,22 +73,24 @@ internal class ClickHouseRenderContext(
             .joinToString("\n")
     }
 
-    fun metadataComment(
-        kind: BiObjectKind,
-        aggregate: String?,
-        phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
-        registryRevision: Long? = null,
-    ): String = literal(
+    fun metadataComment(kind: BiObjectKind, aggregate: String?): String = literal(
+        BiObjectMetadataCodec.encode(
+            BiObjectMetadata(deploymentId = deployment.deploymentId, kind = kind, aggregate = aggregate)
+        )
+    )
+
+    fun anchorComment(phase: BiDeploymentPhase, durableInventory: List<BiDurableEntry>): String = literal(
         BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = deployment.deploymentId,
-                configurationFingerprint = deployment.configurationFingerprint,
-                topologyFingerprint = deployment.topologyFingerprint,
-                phase = phase,
-                aggregate = aggregate,
-                kind = kind,
-                consumerIdentity = consumerIdentity.value,
-                registryRevision = if (kind == BiObjectKind.ANCHOR) registryRevision else null,
+                kind = BiObjectKind.ANCHOR,
+                anchor = BiAnchorState(
+                    phase = phase,
+                    configurationFingerprint = deployment.configurationFingerprint,
+                    topologyFingerprint = deployment.topologyFingerprint,
+                    consumerIdentity = consumerIdentity.value,
+                    durableInventory = durableInventory,
+                ),
             )
         )
     )

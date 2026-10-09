@@ -17,7 +17,7 @@ That ownership boundary has operational consequences:
 
 - application metadata defines the desired schema and view graph;
 - Kafka retention and offsets define what can be replayed;
-- ClickHouse object comments and the ownership registry identify objects managed by the current BI deployment;
+- ClickHouse object comments identify objects managed by the current BI deployment, and the anchor records the deployment state and the durable objects it created;
 - BI rows must be reconciled with the event/state source before a cutover is accepted.
 
 Do not write domain state back from BI tables, and do not treat a successful SQL generation as proof that ClickHouse
@@ -108,10 +108,11 @@ reconciliation requires `wow.bi.script.inspector.type=CLICKHOUSE` and ClickHouse
 
 ## Generated SQL Contract
 
-The current renderer owns protocol `3`, layout `7`. Each managed ClickHouse object carries a `wow-bi:` JSON comment
-with deployment/configuration/topology fingerprints, object kind, aggregate owner where applicable, and consumer
-identity. The `__wow_bi_deployment` anchor records deployment phase and registry revision. Unknown protocol/layout or
-an inconsistent registry fails closed; object names alone never establish ownership.
+The current renderer uses layout `8`. Each managed ClickHouse object carries a `wow-bi:` JSON comment with the layout,
+`deploymentId`, object kind, and aggregate owner where applicable. The `__wow_bi_deployment` anchor records the
+deployment phase, configuration and topology fingerprints, consumer identity, and the durable inventory (the stores and
+queues it has created). A deployment of another layout can only be rebuilt by a confirmed `RESET`; object names alone
+never establish ownership. See [BI Deployment and Recovery](./bi-operations) for the operating rules.
 
 ### Kafka Offset Lifecycle
 

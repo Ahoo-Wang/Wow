@@ -93,7 +93,6 @@ internal data class ClickHouseCatalogNode(
     val tcpPort: Int,
 )
 
-@Suppress("TooManyFunctions") // Typed accessors isolate the untyped ClickHouse wire record at one boundary.
 internal data class ClickHouseCatalogRecord(
     private val values: Map<String, String?>,
 ) {
@@ -150,39 +149,6 @@ internal data class ClickHouseCatalogRecord(
             ?: error("ClickHouse BI catalog column [position] must be positive"),
     )
 
-    fun toRegistryEntry(): BiOwnershipRegistryEntry = BiOwnershipRegistryEntry(
-        key = BiObjectKey(
-            database = required("object_database"),
-            name = required("object_name"),
-        ),
-        kind = BiObjectKind.valueOf(required("kind")),
-        aggregate = nullable("aggregate"),
-        consumerIdentity = nullable("consumer_identity"),
-        definitionFingerprint = required("definition_fingerprint"),
-        revision = required("revision").toLong(),
-        status = BiRegistryEntryStatus.valueOf(required("status")),
-    )
-
-    fun toRegistryRow(): ClickHouseRegistryRow = ClickHouseRegistryRow(
-        entry = toRegistryEntry(),
-        rowFingerprint = required("row_fingerprint"),
-    )
-
-    fun toRegistryHead(): ClickHouseRegistryHead = ClickHouseRegistryHead(
-        revision = required("revision").toLong(),
-        snapshotFingerprint = required("snapshot_fingerprint"),
-        rowFingerprint = required("row_fingerprint"),
-    )
-
-    fun toRegistryTableDefinition(): ClickHouseRegistryTableDefinition =
-        ClickHouseRegistryTableDefinition(
-            key = toObjectKey(),
-            engine = required("engine"),
-            engineFull = required("engine_full"),
-            comment = required("comment"),
-            sortingKey = required("sorting_key"),
-        )
-
     private fun required(column: String): String {
         val value = values[column]
         check(!value.isNullOrBlank()) {
@@ -190,28 +156,7 @@ internal data class ClickHouseCatalogRecord(
         }
         return value
     }
-
-    private fun nullable(column: String): String? = values[column]?.takeIf(String::isNotBlank)
 }
-
-internal data class ClickHouseRegistryHead(
-    val revision: Long,
-    val snapshotFingerprint: String,
-    val rowFingerprint: String,
-)
-
-internal data class ClickHouseRegistryRow(
-    val entry: BiOwnershipRegistryEntry,
-    val rowFingerprint: String,
-)
-
-internal data class ClickHouseRegistryTableDefinition(
-    val key: BiObjectKey,
-    val engine: String,
-    val engineFull: String,
-    val comment: String,
-    val sortingKey: String,
-)
 
 internal data class ClickHouseCatalogObject(
     val observed: ObservedBiObject,

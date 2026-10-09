@@ -43,61 +43,42 @@ class BiDeploymentInspectorTest {
 
     @Test
     fun `object metadata codec should distinguish owned catalog objects`() {
-        val metadata = BiObjectMetadata(
+        val queue =
+            BiObjectMetadata(deploymentId = "a".repeat(32), kind = BiObjectKind.QUEUE, aggregate = "example.order")
+        val anchor = BiObjectMetadata(
             deploymentId = "a".repeat(32),
-            configurationFingerprint = "b".repeat(32),
-            topologyFingerprint = "c".repeat(32),
-            aggregate = "example.order",
-            kind = BiObjectKind.QUEUE,
+            kind = BiObjectKind.ANCHOR,
+            anchor = BiAnchorState(
+                phase = BiDeploymentPhase.STABLE,
+                configurationFingerprint = "b".repeat(32),
+                topologyFingerprint = "c".repeat(32),
+                consumerIdentity = "d".repeat(32),
+                durableInventory = listOf(
+                    BiDurableEntry(BiObjectKey("bi_db", "example_order_state_store"), BiDurableStatus.RETIRED),
+                ),
+            ),
         )
 
-        val encoded = BiObjectMetadataCodec.encode(metadata)
-
-        encoded.assert().startsWith("wow-bi:")
-        BiObjectMetadataCodec.decode(encoded).assert().isEqualTo(metadata)
+        listOf(queue, anchor).forEach { metadata ->
+            val encoded = BiObjectMetadataCodec.encode(metadata)
+            encoded.assert().startsWith("wow-bi:")
+            BiObjectMetadataCodec.decode(encoded).assert().isEqualTo(metadata)
+        }
         BiObjectMetadataCodec.decode("user-owned").assert().isNull()
     }
 
     @Test
-    fun `object metadata codec should reject legacy metadata`() {
-        val legacy = """
-            wow-bi:{
-              "protocolVersion": 2,
-              "layoutVersion": 6,
-              "phase": "STABLE",
-              "deploymentId": "${"a".repeat(32)}",
-              "configurationFingerprint": "${"b".repeat(32)}",
-              "topologyFingerprint": "${"c".repeat(32)}",
-              "aggregate": null,
-              "kind": "ANCHOR",
-              "consumerIdentity": "${"d".repeat(32)}"
-            }
-        """.trimIndent()
+    fun `object metadata codec should keep the ownership of another layout readable for reset`() {
+        val legacy = "wow-bi:{\"protocolVersion\":3,\"layoutVersion\":7,\"phase\":\"STABLE\"," +
+            "\"deploymentId\":\"${"a".repeat(32)}\",\"configurationFingerprint\":\"${"b".repeat(32)}\"," +
+            "\"topologyFingerprint\":\"${"c".repeat(32)}\",\"kind\":\"ANCHOR\",\"registryRevision\":3}"
 
-        assertThrows<IllegalArgumentException> {
-            BiObjectMetadataCodec.decode(legacy)
-        }.message.assert().contains("Unsupported BI object metadata protocol version: 2")
-    }
+        val metadata = requireNotNull(BiObjectMetadataCodec.decode(legacy))
 
-    @Test
-    fun `object metadata codec should fail closed for an invalid v3 layout pair`() {
-        val unknown = """
-            wow-bi:{
-              "protocolVersion": 3,
-              "layoutVersion": 6,
-              "phase": "STABLE",
-              "deploymentId": "${"a".repeat(32)}",
-              "configurationFingerprint": "${"b".repeat(32)}",
-              "topologyFingerprint": "${"d".repeat(32)}",
-              "aggregate": null,
-              "kind": "ANCHOR",
-              "consumerIdentity": "${"c".repeat(32)}"
-            }
-        """.trimIndent()
-
-        assertThrows<IllegalArgumentException> {
-            BiObjectMetadataCodec.decode(unknown)
-        }.message.assert().contains("Unsupported BI object metadata layout version: 6")
+        metadata.isCurrentLayout.assert().isFalse()
+        metadata.deploymentId.assert().isEqualTo("a".repeat(32))
+        metadata.kind.assert().isEqualTo(BiObjectKind.ANCHOR)
+        metadata.anchor.assert().isNull()
     }
 
     @Test
@@ -152,43 +133,31 @@ class BiDeploymentInspectorTest {
 
     @Test
     fun `object metadata should reject every incompatible ownership marker`() {
-        val valid = BiObjectMetadata(
-            deploymentId = "a".repeat(32),
+        val valid =
+            BiObjectMetadata(deploymentId = "a".repeat(32), kind = BiObjectKind.QUEUE, aggregate = "example.order")
+        val state = BiAnchorState(
+            phase = BiDeploymentPhase.STABLE,
             configurationFingerprint = "b".repeat(32),
-            topologyFingerprint = "d".repeat(32),
-            aggregate = "example.order",
-            kind = BiObjectKind.QUEUE,
-            consumerIdentity = "c".repeat(32),
+            topologyFingerprint = "c".repeat(32),
+            consumerIdentity = "d".repeat(32),
         )
-        val invalidMetadata: List<Pair<() -> Any, String>> = listOf(
-            { valid.copy(protocolVersion = valid.protocolVersion + 1) } to
-                "Unsupported BI object metadata protocol version",
-            { valid.copy(layoutVersion = valid.layoutVersion + 1) } to
-                "Unsupported BI object metadata layout version",
+        val entry = BiDurableEntry(BiObjectKey("bi_db", "example_order_state_store"), BiDurableStatus.ACTIVE)
+        val invalid: List<Pair<() -> Any, String>> = listOf(
             { valid.copy(deploymentId = "invalid") } to "Invalid BI deploymentId",
-            { valid.copy(configurationFingerprint = "invalid") } to
-                "Invalid BI configurationFingerprint",
-            { valid.copy(topologyFingerprint = "invalid") } to "Invalid BI topologyFingerprint",
-            { valid.copy(consumerIdentity = "invalid") } to "Invalid BI consumer identity",
             { valid.copy(aggregate = null) } to "requires an aggregate owner",
-            { valid.copy(phase = BiDeploymentPhase.RESETTING) } to "RESETTING phase is only valid for the deployment anchor",
+            { valid.copy(anchor = state) } to "only valid on the deployment anchor",
+            { valid.copy(kind = BiObjectKind.ANCHOR, aggregate = null) } to "requires its anchor state",
+            { state.copy(configurationFingerprint = "invalid") } to "Invalid BI configurationFingerprint",
+            { state.copy(topologyFingerprint = "invalid") } to "Invalid BI topologyFingerprint",
+            { state.copy(consumerIdentity = "invalid") } to "Invalid BI consumer identity",
+            { state.copy(durableInventory = listOf(entry, entry.copy(status = BiDurableStatus.RETIRED))) } to
+                "duplicate objects",
         )
 
-        invalidMetadata.forEach { (createMetadata, expectedMessage) ->
-            assertThrows<IllegalArgumentException> {
-                createMetadata()
-            }.message.assert().contains(expectedMessage)
+        invalid.forEach { (create, expectedMessage) ->
+            assertThrows<IllegalArgumentException> { create() }.message.assert().contains(expectedMessage)
         }
-
-        valid.copy(kind = BiObjectKind.ANCHOR, aggregate = null).aggregate.assert().isNull()
-        assertThrows<IllegalArgumentException> {
-            valid.copy(
-                kind = BiObjectKind.ANCHOR,
-                aggregate = null,
-                phase = BiDeploymentPhase.RESETTING,
-                consumerIdentity = null,
-            )
-        }.message.assert().contains("RESETTING deployment anchor requires a consumer identity")
+        valid.copy(kind = BiObjectKind.ANCHOR, aggregate = null, layoutVersion = 7).anchor.assert().isNull()
     }
 
     @Test

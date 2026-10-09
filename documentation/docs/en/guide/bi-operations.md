@@ -5,119 +5,142 @@ description: Ownership, Deploy, Reset, interruption recovery, acceptance, and ro
 
 # BI Deployment and Recovery
 
-This runbook applies to the current Wow BI protocol/layout only. It does not migrate an older registry or SQL layout
-in place. Archive the old physical scope and offsets before introducing the current owner.
+This runbook applies to BI layout 8. A deployment of another layout is not migrated in place: DEPLOY rejects it, and a
+confirmed RESET drops it and rebuilds it with the current layout (see [Upgrade](#upgrade)).
 
 ## Operational Boundary
 
-One writer owns one physical BI scope: `database`, `consumerDatabase`, `consumerGroupNamespace`, and topology. The
-same external lock must cover catalog inspection, script generation, review, and ordered execution. The internal
-ownership registry makes interrupted DDL recoverable; it is not a distributed lock.
+One writer owns one physical BI scope: `database`, `consumerDatabase`, `consumerGroupNamespace`, and topology. Catalog
+inspection, script generation, review, and ordered execution must run under the same external lock; the generator
+provides no distributed lock.
 
-| Operation | Data effect | Required inspection |
+| Operation | Data impact | Required inspection |
 |---|---|---|
-| `DEPLOY` | Creates missing objects, repairs computed objects, resumes owned pending work, retires/removes owned stale objects according to the plan | ClickHouse inspector for production |
-| `RESET` | Drops and rebuilds the owned current layout and starts a replay generation | Available authoritative inspection plus `replayFromEarliestConfirmed=true` |
+| `DEPLOY` | Creates missing objects, repairs drifted computed objects, drops computed objects and queues that are no longer desired; stores are only created or kept, never dropped | ClickHouse inspector in production |
+| `RESET` | Drops and rebuilds every object this scope owns and starts a new replay generation | Available authoritative inspection plus `replayFromEarliestConfirmed=true` |
 
 `wow.bi.script.enabled` defaults to `true`. Protect `/wow/bi/script` as an administrative route or disable it. The
-default NoOp inspector is limited to initial/offline preview and cannot authorize Reset.
+default NoOp inspector is for first-time/offline previews only and cannot authorize Reset.
 
-The SQL executor must preserve statement order and stop at the first error. Never run two scripts concurrently or
-replay an old file after catalog state changes.
+The SQL executor must preserve statement order and stop on the first error. Never run two scripts concurrently or
+replay an old file after the catalog changes.
+
+## Ownership and the Anchor
+
+Every BI object's comment starts with `wow-bi:` and records the layout, `deploymentId`, object kind, and owning
+aggregate. Only objects whose `deploymentId` matches the current scope are changed or dropped; familiar table names
+never establish ownership.
+
+The `__wow_bi_deployment` anchor is the last statement of every script and records the deployment-level facts:
+
+- the phase (`STABLE` or `RESETTING`), configuration fingerprint, topology fingerprint, and consumer identity;
+- the durable inventory: every store and queue that has been created, either `ACTIVE`, or `RETIRED` (the aggregate
+  was removed and the store was kept for its data).
+
+Durable objects are created before they are recorded, so the inventory can lag the catalog but never run ahead of it.
+A recorded store or queue that disappears therefore means lost data or lost Kafka offsets: DEPLOY refuses and asks for
+RESET instead of quietly creating an empty table.
 
 ## Operation Decision
 
-| Observed catalog/registry state | Action | Reason |
+| Observed catalog state | Operation | Reason |
 |---|---|---|
-| Empty target scope | `DEPLOY` | Installs registry, stores, ingress, views, and a `STABLE` anchor |
+| Empty target scope | `DEPLOY` | Installs stores, ingress, views, and a `STABLE` anchor |
 | Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation; verified ingress (queues and consumer materialized views) stays attached, so ingestion is not paused |
-| Computed view/materialized-view drift | `DEPLOY` | Records `PENDING_UPDATE`, replaces definition, verifies, then returns to `ACTIVE`; consumer drift pauses and recreates that stream's whole consumer chain |
-| Owned `PENDING_CREATE`, `PENDING_UPDATE`, or `PENDING_DROP` | Regenerate the same `DEPLOY` | Registry is write-ahead recovery evidence |
-| Missing `ACTIVE`/`RETIRED` object or surviving `TOMBSTONE` | Confirmed `RESET` after backup | Catalog no longer matches recoverable ownership state |
-| Store, Kafka queue, or topology contract drift | Confirmed `RESET` | The generator does not mutate these durable contracts in place |
-| Registry engine/comment/sort key/columns invalid or older protocol/layout | Archive/drop the incompatible scope, then `RESET` | Ownership cannot be trusted |
-| Anchor phase `RESETTING` | Continue `RESET` with identical physical-scope configuration | Reuses the recorded reset consumer identity |
-| `STABLE` anchor but incomplete ingress | `DEPLOY` | Recreates missing queue/consumer materialized views |
-
-Do not infer ownership from a familiar table name. Only a validated current registry and `wow-bi:` metadata may
-authorize destructive cleanup.
+| Computed view/materialized-view drift | `DEPLOY` | Replaces the drifted definitions; consumer drift pauses and recreates that stream's whole consumer chain |
+| A desired store/queue is missing and not recorded | `DEPLOY` | First creation, or completion after an interruption |
+| A recorded store/queue is missing | Back up, then confirmed `RESET` | Data or offsets were lost |
+| Store, Kafka queue, configuration, or topology contract drift | Confirmed `RESET` (a topology change needs a new scope) | The generator does not mutate durable contracts in place |
+| An object or the anchor uses another layout | Confirmed `RESET` | See [Upgrade](#upgrade) |
+| Anchor phase is `RESETTING` | Continue `RESET` with the exact same physical-scope configuration | Reuses the recorded reset consumer identity |
+| Anchor is `STABLE` but ingress is incomplete | `DEPLOY` | Recreates missing queue/consumer materialized views |
 
 ## Preflight
 
-1. Pin the application/Wow version, BI protocol/layout, request options, and generated client version.
-2. Stop every old BI consumer/writer for this scope and acquire the external lock.
-3. Configure `wow.bi.script.inspector.type=CLICKHOUSE`; verify endpoints, credentials, timeout, and replica access.
+1. Pin the application/Wow version, BI layout, request options, and generated client version.
+2. Stop all old BI consumers/writers for the scope and acquire the external lock.
+3. Configure `wow.bi.script.inspector.type=CLICKHOUSE`; verify endpoints, credentials, timeouts, and replica access.
 4. Record database, consumer database, namespace, topology, cluster/installation, topic prefix, Kafka servers, offset
-   storage, and configuration fingerprint.
-5. Back up/clone the ClickHouse scope; capture registry HEAD/entries, anchor Comment, object DDL, row counts, aggregate
-   max versions, Kafka offsets, and retention evidence.
-6. For Reset, prove the required history still exists and a new group will use earliest. Verify Keeper prerequisites
-   when Keeper offsets are selected.
-7. Generate JSON, review `destructive` and every diagnostic, then review the ordered SQL. An unexplained diagnostic is
-   a stop condition.
+   storage, and the configuration fingerprint.
+5. Back up or clone the ClickHouse scope; retain the anchor comment, object DDL, row counts, aggregate max versions,
+   Kafka offsets, and retention evidence.
+6. Before Reset, prove that the required history still exists and that the new group starts from earliest; with Keeper
+   offsets, verify its prerequisites.
+7. Generate JSON, review `destructive` and every diagnostic, then review the ordered SQL. Stop on any unexplained
+   diagnostic.
 
-Local generator/module checks validate code and deterministic SQL. They do not prove credentials, replica agreement,
-Kafka retention, live traffic, or production change admission.
+Local generator/module checks prove code and deterministic SQL only. They do not prove credentials, replica
+consistency, Kafka retention, live traffic, or production change approval.
 
 ## Execute Deploy
 
-1. Reinspect and regenerate `DEPLOY` while holding the lock; retain the request and inspection timestamp.
-2. Execute statements exactly in response order, stopping on the first failure.
-3. On interruption, discard the old script, inspect the new catalog state, and regenerate `DEPLOY` with identical
-   scope configuration.
-4. After SQL completes, run a fresh authoritative inspection and require a `STABLE` anchor, registry HEAD consistency,
-   no unexplained pending state, and complete ingress.
-5. Keep the lock until the acceptance checks below finish.
-
-The registry persists pending mutation state before object DDL, then records `ACTIVE`/`TOMBSTONE` only after
-verification. This is why regeneration is safe and guessed statement resumption is not.
+1. Re-run inspection under the lock and generate `DEPLOY`; keep the request and inspection time.
+2. Execute statements in response order and stop at the first failure.
+3. After an interruption, discard the old script, inspect the new catalog state, and regenerate `DEPLOY` with the
+   exact same scope configuration. Every statement can be re-run, so the regenerated script converges from the current
+   catalog; guessing a resume point inside the old script is unsafe.
+4. After the SQL completes, run authoritative inspection again and require a `STABLE` anchor and complete ingress.
+5. Keep the external lock until acceptance below is complete.
 
 ## Execute Reset
 
-Reset is a data-loss/replay operation inside the owned BI scope:
+Reset drops data in the managed BI scope and replays:
 
-1. Obtain explicit approval for full rebuild, confirm backups and Kafka retention, and keep all consumers stopped.
-2. Generate `RESET` with `replayFromEarliestConfirmed=true`; require `destructive=true`.
-3. Execute in order. If interrupted, inspect again:
-   - `RESETTING` anchor → regenerate `RESET` with identical scope/configuration;
-   - `STABLE` anchor with missing ingress → generate `DEPLOY`;
-   - incompatible/missing registry → stop and restore or manually archive; do not guess ownership.
-4. When Reset finishes, generate one fresh authoritative `DEPLOY` and execute any remaining reconciliation.
-5. Keep the old scope/backup immutable through the rollback window.
+1. Obtain explicit approval for the full rebuild, confirm backups and Kafka retention, and keep all consumers stopped.
+2. Generate `RESET` with `replayFromEarliestConfirmed=true` and require `destructive=true`.
+3. Execute in order; if interrupted, inspect again:
+   - anchor `RESETTING` → regenerate `RESET` with the exact same scope/configuration;
+   - anchor `STABLE` but ingress missing → generate `DEPLOY`.
+4. After Reset completes, generate and execute one fresh authoritative `DEPLOY`. Reset writes its anchor before Kafka
+   ingress and records only the stores; this DEPLOY records the queues and completes the remaining reconciliation.
+5. Keep the old scope/backup immutable for the rollback window.
 
 ## Acceptance
 
-Accept the deployment only when all applicable evidence is recorded:
+Accept a deployment only after recording all applicable evidence:
 
-- inspector validates registry engine, replication path, sorting key, Comment, complete column schema, HEAD revision,
-  and object snapshot fingerprint;
-- anchor is `STABLE`; no unexplained pending entry exists; no `TOMBSTONE` object survives;
-- required stores, queues, consumers, public views, and expansion views exist, and computed SQL/`TO` targets match;
-- every cluster replica agrees on object shape and metadata;
-- Kafka consumption advances, earliest/latest offset samples are retained, and consumer errors remain zero;
-- command/state/latest/expansion row counts and representative aggregate maximum versions reconcile to the source;
-- dashboards, alerts, and the operational route's authorization are verified against the deployed revision.
+- the anchor is `STABLE`, and its layout, configuration, and topology fingerprints match the request;
+- required stores, queues, consumers, public views, and expansion views exist with matching computed SQL/`TO` targets;
+- every cluster replica has the same object structure and metadata;
+- Kafka consumption progresses, earliest/latest offset samples are retained, and consumer errors are zero;
+- command/state/latest/expansion row counts and representative aggregate max versions reconcile with sources;
+- dashboards, alerts, and operational route authorization are verified against the deployed revision.
 
-A green local build or SQL exit code is only one item in this list, not production admission.
+A green local build or SQL exit code is one input, not production acceptance.
+
+## Upgrade
+
+Layout 8 takes effect in Wow 9.4.0. It removes the ownership registry and records the deployment-level facts and the
+durable inventory on the anchor. A deployment of an older layout is not migrated in place:
+
+1. Confirm, as for [Execute Reset](#execute-reset), that Kafka retention covers the history to replay.
+2. Generate and execute a confirmed `RESET` with 9.4.0. It recognizes the ownership of the old objects, drops them,
+   and rebuilds the scope with layout 8.
+3. Run the follow-up `DEPLOY` from step 4.
+4. Drop the registry table that is no longer used:
+
+   ```sql
+   DROP TABLE IF EXISTS `<consumerDatabase>`.`__wow_bi_registry_<deploymentId>` [ON CLUSTER '<cluster>'] SYNC;
+   ```
 
 ## Rollback
 
-Prefer completing current-version recovery while the registry is in a current pending state. Older clients may reject
-protocol/layout 3/7 or misread pending phases.
+When rollback is required:
 
-If rollback is required:
+1. Stop consumers and reacquire the same scope lock.
+2. Preserve post-cutover writes/offset progress.
+3. Restore the old application, ClickHouse scope, offset state, and configuration snapshot as one unit.
+4. Reconcile or explicitly discard post-cutover analytics data according to the approved plan.
+5. Verify restored readers before reopening traffic.
 
-1. stop consumers and regain the same scope lock;
-2. capture writes/offset progress since cutover;
-3. restore the previous application, ClickHouse scope, offset state, and configuration snapshot as one unit;
-4. reconcile or intentionally discard post-cutover analytical data under an approved plan;
-5. verify the restored reader before reopening traffic.
+Older versions reject a layout 8 deployment, so rolling back to a version before 9.4.0 must also restore the backed-up
+ClickHouse scope.
 
-Setting `wow.bi.script.enabled=false` only removes the route/OpenAPI operation/inspector wiring. It does not stop
+Setting `wow.bi.script.enabled=false` removes only route/OpenAPI operation/inspector wiring. It does not stop
 ClickHouse Kafka engines, restore data, or roll back offsets.
 
-See [Business Intelligence](./bi) for the generated contract and
-[Migrate Wow v6 to v8](./migration/v6-to-v8) for cross-version gates.
+See [Business Intelligence](./bi) for the generated contract and [Wow v6 to v8 migration](./migration/v6-to-v8) for
+cross-version gates.
 
-<!-- Sources: BiOwnershipRegistry/Plan, ClickHouseOwnershipRegistryRenderer/CatalogReader,
-BiScriptAssembly/Operation, ClickHouseBiDeploymentInspector, and related tests -->
+<!-- Sources: BiObservedDeploymentPolicy, BiScriptAssembly (durableInventory), BiObjectMetadata/BiAnchorState,
+ClickHouseCatalogReader, ClickHouseBiDeploymentInspector, and related tests -->

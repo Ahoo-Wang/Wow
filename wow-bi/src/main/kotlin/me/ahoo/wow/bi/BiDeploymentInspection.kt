@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.bi
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfoCapable
@@ -57,13 +58,11 @@ sealed interface BiDeploymentInspection {
             fun reconciled(
                 deployment: ObservedBiDeployment,
                 repairableComputedDrifts: List<RepairableBiObjectDrift>,
-                ownershipRegistry: BiOwnershipRegistry?,
                 verifiedComputedKeys: Set<BiObjectKey> = emptySet(),
             ): Available = Available(
                 deployment,
                 BiReconciliationSnapshot(
                     Collections.unmodifiableList(ArrayList(repairableComputedDrifts)),
-                    ownershipRegistry,
                     Collections.unmodifiableSet(LinkedHashSet(verifiedComputedKeys)),
                 ),
             )
@@ -73,12 +72,11 @@ sealed interface BiDeploymentInspection {
 
 internal data class BiReconciliationSnapshot(
     val repairableComputedDrifts: List<RepairableBiObjectDrift>,
-    val ownershipRegistry: BiOwnershipRegistry?,
     /** Computed objects whose observed SELECT and target match the requested deployment exactly. */
     val verifiedComputedKeys: Set<BiObjectKey> = emptySet(),
 ) {
     companion object {
-        val EMPTY = BiReconciliationSnapshot(emptyList(), null)
+        val EMPTY = BiReconciliationSnapshot(emptyList())
     }
 }
 
@@ -159,66 +157,85 @@ enum class BiDeploymentPhase {
     RESETTING,
 }
 
+/**
+ * Ownership written into every BI catalog object's comment.
+ *
+ * Deployment-level facts live only on the anchor ([anchor]). An object from another layout keeps its ownership
+ * fields readable so that RESET can remove it; every other operation rejects it.
+ */
 data class BiObjectMetadata(
-    val protocolVersion: Int = CURRENT_PROTOCOL_VERSION,
     val layoutVersion: Int = CURRENT_LAYOUT_VERSION,
-    val phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
     val deploymentId: String,
-    val configurationFingerprint: String,
-    val topologyFingerprint: String,
-    val aggregate: String? = null,
     val kind: BiObjectKind,
-    val consumerIdentity: String? = null,
-    val registryRevision: Long? = null,
+    val aggregate: String? = null,
+    val anchor: BiAnchorState? = null,
 ) {
     init {
-        require(protocolVersion == CURRENT_PROTOCOL_VERSION) {
-            "Unsupported BI object metadata protocol version: $protocolVersion"
-        }
-        require(layoutVersion == CURRENT_LAYOUT_VERSION) {
-            "Unsupported BI object metadata layout version: $layoutVersion"
-        }
         require(DIGEST_PATTERN.matches(deploymentId)) { "Invalid BI deploymentId: $deploymentId" }
+        require(kind == BiObjectKind.ANCHOR || aggregate != null) {
+            "BI catalog object [$kind] requires an aggregate owner"
+        }
+        require(anchor == null || kind == BiObjectKind.ANCHOR) {
+            "BI anchor state is only valid on the deployment anchor"
+        }
+        require(!isCurrentLayout || kind != BiObjectKind.ANCHOR || anchor != null) {
+            "BI deployment anchor requires its anchor state"
+        }
+    }
+
+    val isCurrentLayout: Boolean
+        get() = layoutVersion == CURRENT_LAYOUT_VERSION
+
+    companion object {
+        const val CURRENT_LAYOUT_VERSION: Int = 8
+    }
+}
+
+/** The deployment-level facts, recorded once on the anchor and rewritten as the last statement of every script. */
+data class BiAnchorState(
+    val phase: BiDeploymentPhase,
+    val configurationFingerprint: String,
+    val topologyFingerprint: String,
+    val consumerIdentity: String,
+    val durableInventory: List<BiDurableEntry> = emptyList(),
+) {
+    init {
         require(DIGEST_PATTERN.matches(configurationFingerprint)) {
             "Invalid BI configurationFingerprint: $configurationFingerprint"
         }
         require(DIGEST_PATTERN.matches(topologyFingerprint)) {
             "Invalid BI topologyFingerprint: $topologyFingerprint"
         }
-        consumerIdentity?.let(::BiConsumerIdentity)
-        require(kind == BiObjectKind.ANCHOR || aggregate != null) {
-            "BI catalog object [$kind] requires an aggregate owner"
+        BiConsumerIdentity(consumerIdentity)
+        require(durableInventory.map(BiDurableEntry::key).distinct().size == durableInventory.size) {
+            "BI durable inventory contains duplicate objects"
         }
-        require(phase != BiDeploymentPhase.RESETTING || kind == BiObjectKind.ANCHOR) {
-            "BI RESETTING phase is only valid for the deployment anchor"
-        }
-        require(phase != BiDeploymentPhase.RESETTING || consumerIdentity != null) {
-            "BI RESETTING deployment anchor requires a consumer identity"
-        }
-        registryRevision?.let { require(it >= 0) { "registryRevision must not be negative" } }
     }
+}
 
-    companion object {
-        const val CURRENT_PROTOCOL_VERSION: Int = 3
-        const val CURRENT_LAYOUT_VERSION: Int = 7
-        private val DIGEST_PATTERN = Regex("[0-9a-f]{32}")
-    }
+/**
+ * A store or queue that the deployment has created.
+ *
+ * A recorded durable object that disappears means lost data or lost offsets, so DEPLOY refuses and asks for RESET.
+ */
+data class BiDurableEntry(val key: BiObjectKey, val status: BiDurableStatus)
+
+enum class BiDurableStatus {
+    ACTIVE,
+
+    /** Kept for its data after its aggregate left the deployment. */
+    RETIRED,
 }
 
 object BiObjectMetadataCodec {
     fun encode(metadata: BiObjectMetadata): String =
         BI_OBJECT_METADATA_PREFIX + JsonSerializer.writeValueAsString(
             BiObjectMetadataWire(
-                protocolVersion = metadata.protocolVersion,
                 layoutVersion = metadata.layoutVersion,
-                phase = metadata.phase,
                 deploymentId = metadata.deploymentId,
-                configurationFingerprint = metadata.configurationFingerprint,
-                topologyFingerprint = metadata.topologyFingerprint,
-                aggregate = metadata.aggregate,
                 kind = metadata.kind,
-                consumerIdentity = metadata.consumerIdentity,
-                registryRevision = metadata.registryRevision,
+                aggregate = metadata.aggregate,
+                anchor = metadata.anchor,
             )
         )
 
@@ -230,44 +247,28 @@ object BiObjectMetadataCodec {
             comment.removePrefix(BI_OBJECT_METADATA_PREFIX),
             BiObjectMetadataWire::class.java,
         )
-        require(wire.protocolVersion == BiObjectMetadata.CURRENT_PROTOCOL_VERSION) {
-            "Unsupported BI object metadata protocol version: ${wire.protocolVersion}"
-        }
-        val phase = requireNotNull(wire.phase) {
-            "BI object metadata protocol v${wire.protocolVersion} requires phase"
-        }
-        val topologyFingerprint = requireNotNull(wire.topologyFingerprint) {
-            "BI object metadata protocol v${wire.protocolVersion} requires topologyFingerprint"
-        }
         return BiObjectMetadata(
-            protocolVersion = wire.protocolVersion,
             layoutVersion = wire.layoutVersion,
-            phase = phase,
             deploymentId = wire.deploymentId,
-            configurationFingerprint = wire.configurationFingerprint,
-            topologyFingerprint = topologyFingerprint,
-            aggregate = wire.aggregate,
             kind = wire.kind,
-            consumerIdentity = wire.consumerIdentity,
-            registryRevision = wire.registryRevision,
+            aggregate = wire.aggregate,
+            anchor = wire.anchor.takeIf { wire.layoutVersion == BiObjectMetadata.CURRENT_LAYOUT_VERSION },
         )
     }
 }
 
 internal const val BI_OBJECT_METADATA_PREFIX: String = "wow-bi:"
 
+private val DIGEST_PATTERN = Regex("[0-9a-f]{32}")
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 private data class BiObjectMetadataWire(
-    val protocolVersion: Int,
     val layoutVersion: Int,
-    val phase: BiDeploymentPhase? = null,
     val deploymentId: String,
-    val configurationFingerprint: String,
-    val topologyFingerprint: String? = null,
-    val aggregate: String? = null,
     val kind: BiObjectKind,
-    val consumerIdentity: String? = null,
-    val registryRevision: Long? = null,
+    val aggregate: String? = null,
+    val anchor: BiAnchorState? = null,
 )
 
 @JvmInline

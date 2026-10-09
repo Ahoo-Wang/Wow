@@ -16,7 +16,6 @@ package me.ahoo.wow.bi
 import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.renderer.CatalogMutationMode
 import me.ahoo.wow.bi.renderer.ClickHouseAggregateRenderPlan
-import me.ahoo.wow.bi.renderer.ClickHouseOwnershipRegistryRenderer
 import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.modeling.toStringWithAlias
 import java.util.Collections
@@ -40,7 +39,6 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         val desiredObjects = preparation.desiredObjects
         val availableInspection = inspection as? BiDeploymentInspection.Available
         val observed = availableInspection?.deployment
-        val ownershipRegistry = availableInspection?.reconciliation?.ownershipRegistry
         observed?.let { deployment -> observedPolicy.validate(deployment, descriptor, desiredObjects, operation) }
         val consumerIdentity = resolveConsumerIdentity(operation, descriptor, observed)
         val retainedQueueKeys = resolveRetainedQueueKeys(operation, desiredObjects, descriptor, observed)
@@ -57,132 +55,43 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             retainedQueueKeys,
             retainedConsumerKeys,
         )
-        val registryPlan = if (operation == BiScriptOperation.Deploy && shouldRenderDeploymentAnchor) {
-            BiOwnershipRegistryPlan.create(
-                descriptor = descriptor,
-                consumerIdentity = consumerIdentity,
-                desiredObjects = desiredObjects,
-                current = ownershipRegistry,
-            )
-        } else {
-            null
-        }
-        val registryRenderer = registryPlan?.let {
-            ClickHouseOwnershipRegistryRenderer(
-                options = options,
-                deploymentId = descriptor.deploymentId,
-            )
-        }
         val renderedAggregates = plannedAggregates.map { planned ->
             val aggregate = planned.namedAggregate.toStringWithAlias()
             renderer.renderAggregate(planned.namedAggregate, planned.plan, aggregate)
         }
 
-        val globalSection = ScriptSection("global", renderer.renderGlobalStatements())
-        val registryCreateSection = registryPlan?.let { plan ->
-            ScriptSection(
-                "ownership-registry",
-                checkNotNull(registryRenderer).renderCreateStatements(plan.afterVerification.name),
-            )
-        }
-        val registryIntentSection = registryPlan
-            ?.takeIf(BiOwnershipRegistryPlan::intentChanged)
-            ?.let { plan ->
-                ScriptSection(
-                    "ownership-registry-intent",
-                    listOf(checkNotNull(registryRenderer).renderSnapshotStatement(plan.beforeMutation)),
-                )
-            }
         val lifecycleSections = renderLifecycle(
-            LifecycleRenderContext(
-                operation,
-                plannedAggregates,
-                desiredObjects,
-                descriptor,
-                observed,
-                ownershipRegistry,
-                renderer,
-            )
+            LifecycleRenderContext(operation, plannedAggregates, desiredObjects, descriptor, observed, renderer)
         )
-        val durableAggregateSections = durableAggregateSections(renderedAggregates)
-        val ingressSections = ingressSections(renderedAggregates)
-        val resetIntentSection = if (operation is BiScriptOperation.Reset) {
+        val resetIntent = if (operation is BiScriptOperation.Reset) {
             ScriptSection(
                 "deployment-reset-intent",
-                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING)),
+                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING, emptyList())),
             )
         } else {
             null
         }
-        val resetRegistrySection = if (operation is BiScriptOperation.Reset) {
-            ownershipRegistry?.let { registry ->
-                ScriptSection(
-                    "reset-ownership-registry",
-                    listOf(
-                        ClickHouseOwnershipRegistryRenderer(
-                            options = options,
-                            deploymentId = descriptor.deploymentId,
-                        ).renderDropStatement(registry.name)
-                    ),
-                )
-            }
-        } else {
-            null
-        }
-        val registryConfirmationSection = registryPlan
-            ?.takeIf { plan -> plan.verificationChanged || plan.bootstrap }
-            ?.let { plan ->
-                ScriptSection(
-                    "ownership-registry-confirmation",
-                    listOf(checkNotNull(registryRenderer).renderSnapshotStatement(plan.afterVerification)),
-                )
-            }
-        val anchorSection = if (shouldRenderDeploymentAnchor) {
-            val registryRevision = registryPlan?.afterVerification?.revision
+        val anchor = if (shouldRenderDeploymentAnchor) {
             ScriptSection(
                 "deployment-anchor",
                 listOf(
                     renderer.renderAnchorStatement(
-                        phase = BiDeploymentPhase.STABLE,
-                        registryRevision = registryRevision,
+                        BiDeploymentPhase.STABLE,
+                        durableInventory(operation, desiredObjects, descriptor, observed),
                     )
                 ),
             )
         } else {
             null
         }
-        val orderedSections = if (operation == BiScriptOperation.Deploy) {
-            listOf(globalSection) +
-                listOfNotNull(registryCreateSection, registryIntentSection) +
-                lifecycleSections +
-                durableAggregateSections +
-                ingressSections +
-                listOfNotNull(registryConfirmationSection, anchorSection)
-        } else {
-            listOf(globalSection) + listOfNotNull(resetIntentSection) + lifecycleSections +
-                listOfNotNull(resetRegistrySection) +
-                durableAggregateSections + listOfNotNull(anchorSection) + ingressSections
-        }
-        val statements = Collections.unmodifiableList(ArrayList(orderedSections.flatMap(ScriptSection::statements)))
-        val script = buildString {
-            appendSection(globalSection)
-            registryCreateSection?.let { section -> appendSection(section) }
-            registryIntentSection?.let { section -> appendSection(section) }
-            appendLine("-- lifecycle --")
-            resetIntentSection?.let { section -> appendSection(section) }
-            lifecycleSections.forEach { section -> appendSection(section) }
-            resetRegistrySection?.let { section -> appendSection(section) }
-            appendLine("-- lifecycle --")
-            durableAggregateSections.forEach { section -> appendSection(section) }
-            if (operation == BiScriptOperation.Deploy) {
-                ingressSections.forEach { section -> appendSection(section) }
-                registryConfirmationSection?.let { section -> appendSection(section) }
-                anchorSection?.let { section -> appendSection(section) }
-            } else {
-                anchorSection?.let { section -> appendSection(section) }
-                ingressSections.forEach { section -> appendSection(section) }
-            }
-        }
+        val lifecycle = ScriptGroup("lifecycle", listOfNotNull(resetIntent) + lifecycleSections)
+        val durable = durableAggregateSections(renderedAggregates)
+        val ingress = ingressSections(renderedAggregates)
+        val blocks: List<ScriptBlock> = listOf(ScriptSection("global", renderer.renderGlobalStatements()), lifecycle) +
+            durable +
+            if (operation == BiScriptOperation.Deploy) ingress + listOfNotNull(anchor) else listOfNotNull(anchor) + ingress
+        val statements = Collections.unmodifiableList(ArrayList(blocks.flatMap(ScriptBlock::statements)))
+        val script = buildString { blocks.forEach { block -> appendBlock(block) } }
         return BiScriptResult(
             script = script,
             statements = statements,
@@ -297,7 +206,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                     }
                     val desiredKeys = desiredObjects.map(DesiredBiObject::key).toSet()
                     val staleObjects = observed?.let { deployment ->
-                        resolveOwnedCatalogObjects(deployment, descriptor, ownershipRegistry)
+                        resolveOwnedCatalogObjects(deployment, descriptor)
                     }
                         .orEmpty()
                         .filter { it.key !in desiredKeys && it.kind != BiObjectKind.STORE }
@@ -319,7 +228,6 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
                     val ownedObjects = resolveOwnedCatalogObjects(
                         deployment = checkNotNull(observed),
                         descriptor = descriptor,
-                        ownershipRegistry = ownershipRegistry,
                     )
                         .filterNot { it.key == anchorKey }
                     if (ownedObjects.isNotEmpty()) {
@@ -338,24 +246,43 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
     private fun resolveOwnedCatalogObjects(
         deployment: ObservedBiDeployment,
         descriptor: BiDeploymentDescriptor,
-        ownershipRegistry: BiOwnershipRegistry?,
-    ): List<BiOwnedObject> {
-        val ownedByKey = observedPolicy.ownedBy(deployment, descriptor).associate { observed ->
-            observed.key to BiOwnedObject(
-                key = observed.key,
-                kind = checkNotNull(observed.metadata).kind,
-            )
-        }.toMutableMap()
-        if (ownershipRegistry == null) {
-            return ownedByKey.values.toList()
+    ): List<BiOwnedObject> = observedPolicy.ownedBy(deployment, descriptor).map { observed ->
+        BiOwnedObject(key = observed.key, kind = checkNotNull(observed.metadata).kind)
+    }
+
+    /**
+     * The stores and queues that exist when the anchor is written, so the inventory never runs ahead of the catalog.
+     *
+     * DEPLOY writes the anchor last: every desired store and queue, plus the stores it keeps for their data after
+     * their aggregate left. RESET writes it before Kafka ingress, so it records the stores only; the next DEPLOY
+     * records the queues.
+     */
+    private fun durableInventory(
+        operation: BiScriptOperation,
+        desiredObjects: List<DesiredBiObject>,
+        descriptor: BiDeploymentDescriptor,
+        observed: ObservedBiDeployment?,
+    ): List<BiDurableEntry> {
+        val recorded = if (operation == BiScriptOperation.Deploy) {
+            setOf(BiObjectKind.STORE, BiObjectKind.QUEUE)
+        } else {
+            setOf(BiObjectKind.STORE)
         }
-        val observedKeys = deployment.objects.mapTo(hashSetOf(), ObservedBiObject::key)
-        ownershipRegistry.entries.asSequence()
-            .filter { entry -> entry.key in observedKeys }
-            .forEach { entry ->
-                ownedByKey[entry.key] = BiOwnedObject(entry.key, entry.kind)
-            }
-        return ownedByKey.values.toList()
+        val desired = desiredObjects.filter { it.kind in recorded }.map {
+            BiDurableEntry(
+                it.key,
+                BiDurableStatus.ACTIVE
+            )
+        }
+        val desiredKeys = desired.mapTo(hashSetOf(), BiDurableEntry::key)
+        val retired = if (operation == BiScriptOperation.Deploy && observed != null) {
+            observedPolicy.ownedBy(observed, descriptor)
+                .filter { it.metadata?.kind == BiObjectKind.STORE && it.key !in desiredKeys }
+                .map { BiDurableEntry(it.key, BiDurableStatus.RETIRED) }
+        } else {
+            emptyList()
+        }
+        return (desired + retired).sortedWith(compareBy({ it.key.database }, { it.key.name }))
     }
 
     private fun resolveConsumerIdentity(
@@ -368,16 +295,26 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         } ?: BiConsumerIdentity.deterministic(descriptor)
 
         is BiScriptOperation.Reset -> observed?.let { deployment ->
-            observedPolicy.resettingAnchor(deployment, descriptor)?.metadata?.consumerIdentity
+            observedPolicy.resettingAnchor(deployment, descriptor)?.consumerIdentity
         }?.let(::BiConsumerIdentity) ?: BiConsumerIdentity.random()
     }
 
-    private fun StringBuilder.appendSection(section: ScriptSection) {
-        appendLine("-- ${section.name} --")
-        if (section.statements.isNotEmpty()) {
-            appendLine(section.statements.joinToString("\n\n"))
+    private fun StringBuilder.appendBlock(block: ScriptBlock) {
+        when (block) {
+            is ScriptGroup -> {
+                appendLine("-- ${block.name} --")
+                block.sections.forEach { section -> appendBlock(section) }
+                appendLine("-- ${block.name} --")
+            }
+
+            is ScriptSection -> {
+                appendLine("-- ${block.name} --")
+                if (block.statements.isNotEmpty()) {
+                    appendLine(block.statements.joinToString("\n\n"))
+                }
+                appendLine("-- ${block.name} --")
+            }
         }
-        appendLine("-- ${section.name} --")
     }
 
     private data class LifecycleRenderContext(
@@ -386,11 +323,21 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         val desiredObjects: List<DesiredBiObject>,
         val descriptor: BiDeploymentDescriptor,
         val observed: ObservedBiDeployment?,
-        val ownershipRegistry: BiOwnershipRegistry?,
         val renderer: ClickHouseScriptRenderer,
     )
 
-    private data class ScriptSection(val name: String, val statements: List<String>)
+    /** One ordered list of blocks yields both [BiScriptResult.statements] and [BiScriptResult.script]. */
+    private sealed interface ScriptBlock {
+        val name: String
+        val statements: List<String>
+    }
+
+    private data class ScriptSection(override val name: String, override val statements: List<String>) : ScriptBlock
+
+    private data class ScriptGroup(override val name: String, val sections: List<ScriptSection>) : ScriptBlock {
+        override val statements: List<String>
+            get() = sections.flatMap(ScriptSection::statements)
+    }
 }
 
 internal class BiScriptDiagnostics(

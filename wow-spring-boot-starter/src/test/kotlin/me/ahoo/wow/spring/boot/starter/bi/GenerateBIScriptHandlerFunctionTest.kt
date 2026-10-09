@@ -23,10 +23,12 @@ import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.bi.BiAnchorState
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
+import me.ahoo.wow.bi.BiDeploymentPhase
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiObjectMetadata
 import me.ahoo.wow.bi.BiScriptDiagnostic
@@ -440,8 +442,6 @@ class GenerateBIScriptHandlerFunctionTest {
                                     engine = "Distributed",
                                     metadata = BiObjectMetadata(
                                         deploymentId = descriptor.deploymentId,
-                                        configurationFingerprint = descriptor.configurationFingerprint,
-                                        topologyFingerprint = descriptor.topologyFingerprint,
                                         aggregate = "example.cart",
                                         kind = BiObjectKind.STORE,
                                     ),
@@ -489,10 +489,13 @@ class GenerateBIScriptHandlerFunctionTest {
                                     engine = "View",
                                     metadata = BiObjectMetadata(
                                         deploymentId = descriptor.deploymentId,
-                                        configurationFingerprint = descriptor.configurationFingerprint,
-                                        topologyFingerprint = descriptor.topologyFingerprint,
                                         kind = BiObjectKind.ANCHOR,
-                                        consumerIdentity = descriptor.configurationFingerprint,
+                                        anchor = BiAnchorState(
+                                            phase = BiDeploymentPhase.STABLE,
+                                            configurationFingerprint = descriptor.configurationFingerprint,
+                                            topologyFingerprint = descriptor.topologyFingerprint,
+                                            consumerIdentity = descriptor.configurationFingerprint,
+                                        ),
                                     ),
                                 )
                             )

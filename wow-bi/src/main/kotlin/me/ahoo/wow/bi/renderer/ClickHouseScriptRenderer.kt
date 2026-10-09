@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentPhase
+import me.ahoo.wow.bi.BiDurableEntry
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.BiScriptOptions
@@ -78,10 +79,8 @@ internal class ClickHouseScriptRenderer(
     fun renderDropOwnedStatements(objects: List<BiOwnedObject>): List<String> =
         lifecycle.renderDropOwned(objects)
 
-    fun renderAnchorStatement(
-        phase: BiDeploymentPhase,
-        registryRevision: Long? = null,
-    ): String = lifecycle.renderAnchor(phase, registryRevision)
+    fun renderAnchorStatement(phase: BiDeploymentPhase, durableInventory: List<BiDurableEntry>): String =
+        lifecycle.renderAnchor(phase, durableInventory)
 
     fun renderCommandStorageStatements(namedAggregate: NamedAggregate): List<String> =
         command.render(namedAggregate).storage
