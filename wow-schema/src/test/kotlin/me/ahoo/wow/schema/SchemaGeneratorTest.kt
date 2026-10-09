@@ -43,7 +43,6 @@ import java.util.stream.Stream
 
 class SchemaGeneratorTest {
     private val jsonSchemaGenerator = SchemaGeneratorBuilder()
-        .openapi31(true)
         .schemaVersion(SchemaVersion.DRAFT_2020_12)
         .optionPreset(OptionPreset.PLAIN_JSON)
         .customizer {
@@ -264,7 +263,6 @@ class SchemaGeneratorTest {
     @Test
     fun `should handle is-prefixed properties with standard jackson module`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder()
-            .openapi31(true)
             .schemaVersion(SchemaVersion.DRAFT_2020_12)
             .optionPreset(OptionPreset.PLAIN_JSON)
             .jacksonModule(

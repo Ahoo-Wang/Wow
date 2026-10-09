@@ -25,6 +25,8 @@ public final class me/ahoo/wow/schema/JavaTypeResolver {
 public final class me/ahoo/wow/schema/SchemaGeneratorBuilder {
 	public fun <init> ()V
 	public final fun build ()Lcom/github/victools/jsonschema/generator/SchemaGenerator;
+	public final fun buildConfig ()Lcom/github/victools/jsonschema/generator/SchemaGeneratorConfig;
+	public final fun copy ()Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
 	public final fun customizer (Ljava/util/function/Consumer;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
 	public final fun getCustomizer ()Ljava/util/function/Consumer;
 	public final fun getJacksonModule ()Lcom/github/victools/jsonschema/module/jackson/JacksonSchemaModule;

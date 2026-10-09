@@ -79,7 +79,8 @@ wow-openapi  me.ahoo.wow.schema.openapi（包名保持不变，物理迁入）
 ### 3.3 Builder（解决 D4）
 
 - `build()` 只返回 `SchemaGenerator`，不再在 builder 上留下 `typeContext`。新增 `buildConfig(): SchemaGeneratorConfig`；需要 `TypeContext` 的调用方（`OpenAPISchemaBuilder`）从 config 自己创建。
-- `OpenAPISchemaBuilder` 不再改写传入的 builder：命名回调在构建时一次性注入到它自己的那份配置里。
+- `OpenAPISchemaBuilder` 不再改写传入的 builder：它在 `copy()` 出来的副本上设置命名模块，再构建自己的配置。
+- builder 仍是可变的 fluent builder。应用代码会调用这些 setter，有的还忽略返回值（例如 `OpenAPIComponentContext.default`），改成不可变会悄悄改变这些代码的行为。
 - `SchemaGeneratorConfigFactory` 并入 builder，删除无效的 `forFields()` 调用。
 - 应用会调用的 fluent 方法保持源码兼容。`openapi31(...)`、`openapi31`、`typeContext`、`requiredTypeContent` 标为 `@Deprecated("Scheduled for removal in 10.0.0. …")`，记入 `docs/compat-debt.md`；`openapi31` 保持无效果，文档改为如实描述（可空形状由 `Option.NULLABLE_ALWAYS_AS_ANYOF` 与 Kotlin 模块决定）。
 

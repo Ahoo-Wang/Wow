@@ -16,6 +16,7 @@ package me.ahoo.wow.schema
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
 import com.github.victools.jsonschema.generator.SchemaGenerator
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfig
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.generator.TypeContext
@@ -41,7 +42,10 @@ class SchemaGeneratorBuilder {
     var objectMapper: ObjectMapper? = null
         private set
 
-    /** Whether to use OpenAPI 3.1 specification. */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. It never had an effect: nullable shapes follow " +
+            "Option.NULLABLE_ALWAYS_AS_ANYOF and the Kotlin module.",
+    )
     var openapi31: Boolean = true
         private set
 
@@ -95,16 +99,31 @@ class SchemaGeneratorBuilder {
             it.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
         }
         private set
+
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use buildConfig() and " +
+            "TypeContextFactory.createDefaultTypeContext(config), then SchemaGenerator(config, typeContext).",
+    )
     var typeContext: TypeContext? = null
         private set
 
     /** Gets the TypeContext after build() has been called. Throws if not built yet. */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use buildConfig() and " +
+            "TypeContextFactory.createDefaultTypeContext(config), then SchemaGenerator(config, typeContext).",
+    )
+    @Suppress("DEPRECATION")
     val requiredTypeContent: TypeContext
         get() =
             checkNotNull(typeContext) {
                 "typeContext is null, please call SchemaGeneratorBuilder.build() first."
             }
 
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. It never had an effect: nullable shapes follow " +
+            "Option.NULLABLE_ALWAYS_AS_ANYOF and the Kotlin module.",
+    )
+    @Suppress("DEPRECATION")
     fun openapi31(openapi31: Boolean): SchemaGeneratorBuilder {
         this.openapi31 = openapi31
         return this
@@ -170,16 +189,56 @@ class SchemaGeneratorBuilder {
         return this
     }
 
+    /** A builder with the same settings; changing either one leaves the other as it is. */
+    @Suppress("DEPRECATION")
+    fun copy(): SchemaGeneratorBuilder {
+        val copy = SchemaGeneratorBuilder()
+        copy.objectMapper = objectMapper
+        copy.openapi31 = openapi31
+        copy.schemaVersion = schemaVersion
+        copy.optionPreset = optionPreset
+        copy.jacksonModule = jacksonModule
+        copy.jakartaValidationModule = jakartaValidationModule
+        copy.swagger2Module = swagger2Module
+        copy.kotlinModule = kotlinModule
+        copy.jodaMoneyModule = jodaMoneyModule
+        copy.wowModule = wowModule
+        copy.schemaNamingModule = schemaNamingModule
+        copy.options = options
+        copy.customizer = customizer
+        return copy
+    }
+
+    /** The generator configuration: the modules in a fixed order, then [options], then the [customizer]. */
+    fun buildConfig(): SchemaGeneratorConfig {
+        val configBuilder = objectMapper?.let {
+            SchemaGeneratorConfigBuilder(it, schemaVersion, optionPreset)
+        } ?: SchemaGeneratorConfigBuilder(schemaVersion, optionPreset)
+        listOfNotNull(
+            jacksonModule,
+            jakartaValidationModule,
+            swagger2Module,
+            kotlinModule,
+            jodaMoneyModule,
+            wowModule,
+            schemaNamingModule,
+        ).forEach(configBuilder::with)
+        options.forEach(configBuilder::with)
+        customizer?.accept(configBuilder)
+        return configBuilder.build()
+    }
+
     /**
-     * Builds and returns a SchemaGenerator instance with the configured modules and options.
-     * This method must be called before accessing requiredTypeContent.
+     * Builds a generator from [buildConfig].
      *
      * The generator is not thread-safe (victools' Jackson module sorts properties with unsynchronized state); build one
      * generator per thread. Generators built separately may run concurrently.
      */
+    @Suppress("DEPRECATION")
     fun build(): SchemaGenerator {
-        val config = SchemaGeneratorConfigFactory.create(this).build()
-        typeContext = TypeContextFactory.createDefaultTypeContext(config)
+        val config = buildConfig()
+        val typeContext = TypeContextFactory.createDefaultTypeContext(config)
+        this.typeContext = typeContext
         return SchemaGenerator(config, typeContext)
     }
 }

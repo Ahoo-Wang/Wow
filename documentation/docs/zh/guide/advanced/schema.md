@@ -45,7 +45,9 @@ val generator = SchemaGeneratorBuilder().build()
 val schema: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
-默认 Builder 使用 `SchemaVersion.DRAFT_7`、`OptionPreset.PLAIN_JSON` 与 `openapi31 = true`，并安装 Wow 的 Jackson、Jakarta Validation、Swagger2、Kotlin、Joda Money、命名和框架模块。读取 `requiredTypeContent` 前必须先调用 `build()`。
+默认 Builder 使用 `SchemaVersion.DRAFT_7` 与 `OptionPreset.PLAIN_JSON`，并安装 Wow 的 Jackson、Jakarta Validation、Swagger2、Kotlin、Joda Money、命名和框架模块。`buildConfig()` 只返回配置、不创建生成器；`copy()` 返回一个设置相同、彼此独立的 Builder。
+
+生成器不是线程安全的：每个线程各建一个。分别创建的生成器可以并发运行。
 
 生成过程基于运行时类型与已注册序列化器。KSP 元数据 JSON 不是该调用的输入。
 
@@ -112,7 +114,6 @@ OpenAPI 查询发布包含两个静态层次，以及之后的一个运行时层
 ```kotlin
 val generator = SchemaGeneratorBuilder()
     .schemaVersion(SchemaVersion.DRAFT_2020_12)
-    .openapi31(false)
     .customizer { config ->
         config.without(Option.SCHEMA_VERSION_INDICATOR)
     }
@@ -121,7 +122,6 @@ val generator = SchemaGeneratorBuilder()
 
 | Builder 属性 | 默认值 | 作用 |
 |---|---|---|
-| `openapi31` | `true` | OpenAPI 3.1 兼容 nullable 处理 |
 | `schemaVersion` | `DRAFT_7` | JSON Schema 关键字方言 |
 | `optionPreset` | `PLAIN_JSON` | 基础 field/getter 纳入规则 |
 | `jacksonModule` | Wow Jackson module | Jackson 名称、忽略、enum 值、顺序 |

@@ -33,7 +33,6 @@ import java.util.stream.Stream
 
 class E2ESchemaGeneratorTest {
     private val jsonSchemaGenerator = SchemaGeneratorBuilder()
-        .openapi31(true)
         .schemaVersion(SchemaVersion.DRAFT_2020_12)
         .optionPreset(OptionPreset.PLAIN_JSON)
         .customizer {
