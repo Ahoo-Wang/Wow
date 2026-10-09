@@ -41,4 +41,27 @@ internal object ClickHouseSqlSyntax {
 
     fun stringLiteral(value: String): String =
         "'${escape(value, '\'')}'"
+
+    /**
+     * The literal as ClickHouse writes it back in `system.tables.engine_full`, which differs from [stringLiteral]:
+     * a backslash-escaped quote, named escapes for `\b \f \n \r \t \0`, and every other character verbatim.
+     * Catalog validation compares observed engine arguments against this form.
+     */
+    fun catalogStringLiteral(value: String): String = buildString {
+        append('\'')
+        value.forEach { character ->
+            when (character) {
+                '\\' -> append("\\\\")
+                '\'' -> append("\\'")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                '\u0000' -> append("\\0")
+                else -> append(character)
+            }
+        }
+        append('\'')
+    }
 }

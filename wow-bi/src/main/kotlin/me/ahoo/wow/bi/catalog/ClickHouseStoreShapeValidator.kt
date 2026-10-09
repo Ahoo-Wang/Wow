@@ -91,12 +91,12 @@ internal object ClickHouseStoreShapeValidator {
     ) {
         val expectedArguments = buildList {
             add(
-                ClickHouseSqlSyntax.stringLiteral(
+                ClickHouseSqlSyntax.catalogStringLiteral(
                     "/clickhouse/${topology.installation}/${topology.name}/tables/" +
                         "{shard}/${observed.database}/${observed.name}"
                 )
             )
-            add(ClickHouseSqlSyntax.stringLiteral("{replica}"))
+            add(ClickHouseSqlSyntax.catalogStringLiteral("{replica}"))
             layout.versionColumn?.let(::add)
         }
         val actualArguments = observed.engineFull.functionArguments(BiEngine.REPLICATED_REPLACING_MERGE_TREE)
@@ -112,9 +112,9 @@ internal object ClickHouseStoreShapeValidator {
         layout: BiStoreSchema,
     ) {
         val expectedArguments = listOf(
-            ClickHouseSqlSyntax.stringLiteral(topology.name),
-            ClickHouseSqlSyntax.stringLiteral(observed.database),
-            ClickHouseSqlSyntax.stringLiteral(BiLayout.localStore(observed.name)),
+            ClickHouseSqlSyntax.catalogStringLiteral(topology.name),
+            ClickHouseSqlSyntax.catalogStringLiteral(observed.database),
+            ClickHouseSqlSyntax.catalogStringLiteral(BiLayout.localStore(observed.name)),
             layout.catalogShardingKey,
         )
         val actualArguments = observed.engineFull.functionArguments(BiEngine.DISTRIBUTED)

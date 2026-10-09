@@ -44,7 +44,7 @@ internal object ClickHouseCatalogValidator {
         options: BiScriptOptions,
         operation: BiScriptOperation,
         snapshot: ClickHouseCatalogSnapshot,
-        desiredObjects: List<DesiredBiObject>?,
+        desiredObjects: List<DesiredBiObject>,
     ): ValidatedBiDeployment {
         val objects = snapshot.objects
         val uniqueObjects = uniqueCatalogObjects(objects)
@@ -121,7 +121,7 @@ internal object ClickHouseCatalogValidator {
                     options = options,
                     queue = queue.observed,
                     consumerIdentity = consumerIdentity,
-                    validateConsumerGroup = operation == BiScriptOperation.Deploy,
+                    validateConsumerGroup = operation == BiScriptOperation.Deploy && deploymentStable,
                     validateRequestedConfiguration = operation == BiScriptOperation.Deploy && deploymentStable,
                 )
             }
@@ -130,7 +130,7 @@ internal object ClickHouseCatalogValidator {
     /** Compares each comparable computed object with its expected definition: verified or drifted. */
     private fun computedDefinitions(context: ComputedDriftValidationContext): List<ComputedDefinition> =
         with(context) {
-            if (operation != BiScriptOperation.Deploy || !requestedDeploymentIsStable || desiredObjects == null) {
+            if (operation != BiScriptOperation.Deploy || !requestedDeploymentIsStable) {
                 return emptyList()
             }
             val desiredByKey = desiredObjects.associateBy(DesiredBiObject::key)
@@ -204,11 +204,13 @@ internal object ClickHouseCatalogValidator {
         val actualGroup = arguments.getOrNull(KAFKA_GROUP_ARGUMENT_INDEX)
         if (validateConsumerGroup) {
             val expectedGroup = "wow-bi.$consumerIdentity.${stream.consumer}"
-            check(actualGroup == ClickHouseSqlSyntax.stringLiteral(expectedGroup)) {
+            check(actualGroup == ClickHouseSqlSyntax.catalogStringLiteral(expectedGroup)) {
                 "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka consumer group"
             }
         }
-        check(arguments.getOrNull(KAFKA_FORMAT_ARGUMENT_INDEX) == ClickHouseSqlSyntax.stringLiteral(KAFKA_FORMAT)) {
+        check(
+            arguments.getOrNull(KAFKA_FORMAT_ARGUMENT_INDEX) == ClickHouseSqlSyntax.catalogStringLiteral(KAFKA_FORMAT)
+        ) {
             "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka format"
         }
         if (!validateRequestedConfiguration) {
@@ -216,12 +218,14 @@ internal object ClickHouseCatalogValidator {
         }
         check(
             arguments.getOrNull(KAFKA_BROKERS_ARGUMENT_INDEX) ==
-                ClickHouseSqlSyntax.stringLiteral(options.kafkaBootstrapServers)
+                ClickHouseSqlSyntax.catalogStringLiteral(options.kafkaBootstrapServers)
         ) {
             "Owned BI queue [${queue.database}.${queue.name}] has unexpected Kafka bootstrap servers"
         }
         val expectedTopic = "${options.topicPrefix}${checkNotNull(metadata.aggregate)}.${stream.suffix}"
-        check(arguments.getOrNull(KAFKA_TOPIC_ARGUMENT_INDEX) == ClickHouseSqlSyntax.stringLiteral(expectedTopic)) {
+        check(
+            arguments.getOrNull(KAFKA_TOPIC_ARGUMENT_INDEX) == ClickHouseSqlSyntax.catalogStringLiteral(expectedTopic)
+        ) {
             "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka topic"
         }
         val actualKeeperPath = queue.engineFull.settingLiteral(KAFKA_KEEPER_PATH_SETTING)
@@ -233,14 +237,14 @@ internal object ClickHouseCatalogValidator {
 
             KafkaOffsetStorage.KEEPER -> {
                 val expectedKeeperPath = "${options.kafkaKeeperPathPrefix.trimEnd('/')}/$consumerIdentity/${queue.name}"
-                check(actualKeeperPath == ClickHouseSqlSyntax.stringLiteral(expectedKeeperPath)) {
+                check(actualKeeperPath == ClickHouseSqlSyntax.catalogStringLiteral(expectedKeeperPath)) {
                     "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka Keeper path"
                 }
                 val expectedReplicaName = when (options.topology) {
                     is ClickHouseTopology.Cluster -> "{replica}"
                     ClickHouseTopology.Standalone -> consumerIdentity
                 }
-                check(actualReplicaName == ClickHouseSqlSyntax.stringLiteral(expectedReplicaName)) {
+                check(actualReplicaName == ClickHouseSqlSyntax.catalogStringLiteral(expectedReplicaName)) {
                     "Owned BI queue [${queue.database}.${queue.name}] has an unexpected Kafka Keeper replica name"
                 }
             }
@@ -262,7 +266,7 @@ private data class ComputedDriftValidationContext(
     val requestedDeploymentIsStable: Boolean,
     val descriptor: BiDeploymentDescriptor,
     val objects: List<ClickHouseCatalogObject>,
-    val desiredObjects: List<DesiredBiObject>?,
+    val desiredObjects: List<DesiredBiObject>,
     val expectedQueries: Map<BiObjectKey, CanonicalExpectedBiQuery>,
 )
 

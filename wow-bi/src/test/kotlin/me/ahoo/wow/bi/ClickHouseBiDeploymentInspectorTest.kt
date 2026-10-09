@@ -1000,9 +1000,13 @@ class ClickHouseBiDeploymentInspectorTest {
 
     @Test
     fun `should defer requested source validation while its deployment anchor is resetting`() {
-        val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
-        val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
-        val resettingAnchor = BiObjectMetadataCodec.encode(anchorMetadata(BiDeploymentPhase.RESETTING, identity))
+        // An interrupted RESET has written its new identity to the anchor before dropping the old queues.
+        val previousGroup = "wow-bi.${BiConsumerIdentity.deterministic(
+            DESCRIPTOR
+        ).value}.example_order_command_consumer"
+        val resettingAnchor = BiObjectMetadataCodec.encode(
+            anchorMetadata(BiDeploymentPhase.RESETTING, BiConsumerIdentity.random())
+        )
         val client = StubClickHouseCatalogClient(
             records(
                 catalogRecord(
@@ -1015,7 +1019,7 @@ class ClickHouseBiDeploymentInspectorTest {
                     name = "example_order_command_queue",
                     engine = "Kafka",
                     engineFull = "Kafka('old-kafka:9092', 'old.example.order.command', " +
-                        "'$expectedGroup', 'JSONAsString')",
+                        "'$previousGroup', 'JSONAsString')",
                     comment = queueComment(),
                 ),
             )

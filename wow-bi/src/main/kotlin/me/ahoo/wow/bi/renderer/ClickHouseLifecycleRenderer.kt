@@ -15,7 +15,7 @@ package me.ahoo.wow.bi.renderer
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiDeploymentPhase
-import me.ahoo.wow.bi.BiDurableEntry
+import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.layout.BiLayout
@@ -46,7 +46,7 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
         )
     }
 
-    fun renderAnchor(phase: BiDeploymentPhase, durableInventory: List<BiDurableEntry>): String = with(context) {
+    fun renderAnchor(phase: BiDeploymentPhase, durableInventory: Set<BiObjectKey>): String = with(context) {
         val comment = anchorComment(phase, durableInventory)
         "$viewCreateClause ${qualified(layout.anchor.database, layout.anchor.name)}" +
             "${scopeClause()} AS (SELECT 1 AS ${identifier("alive")} WHERE 0) COMMENT $comment;"

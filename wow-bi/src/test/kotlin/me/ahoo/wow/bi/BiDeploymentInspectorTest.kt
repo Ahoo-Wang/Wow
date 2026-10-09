@@ -53,8 +53,10 @@ class BiDeploymentInspectorTest {
                 configurationFingerprint = "b".repeat(32),
                 topologyFingerprint = "c".repeat(32),
                 consumerIdentity = "d".repeat(32),
-                durableInventory = listOf(
-                    BiDurableEntry(BiObjectKey("bi_db", "example_order_state_store"), BiDurableStatus.RETIRED),
+                durableInventory = setOf(
+                    BiObjectKey("bi_db_consumer", "example_order_state_queue"),
+                    BiObjectKey("bi_db", "example_order_state_store"),
+                    BiObjectKey("bi_db", "example_order_command_store"),
                 ),
             ),
         )
@@ -64,6 +66,11 @@ class BiDeploymentInspectorTest {
             encoded.assert().startsWith("wow-bi:")
             BiObjectMetadataCodec.decode(encoded).assert().isEqualTo(metadata)
         }
+        // The inventory groups sorted names by database so the anchor comment stays compact.
+        BiObjectMetadataCodec.encode(anchor).assert().contains(
+            "\"durableInventory\":{\"bi_db\":[\"example_order_command_store\",\"example_order_state_store\"]," +
+                "\"bi_db_consumer\":[\"example_order_state_queue\"]}"
+        )
         BiObjectMetadataCodec.decode("user-owned").assert().isNull()
     }
 
@@ -141,7 +148,6 @@ class BiDeploymentInspectorTest {
             topologyFingerprint = "c".repeat(32),
             consumerIdentity = "d".repeat(32),
         )
-        val entry = BiDurableEntry(BiObjectKey("bi_db", "example_order_state_store"), BiDurableStatus.ACTIVE)
         val invalid: List<Pair<() -> Any, String>> = listOf(
             { valid.copy(deploymentId = "invalid") } to "Invalid BI deploymentId",
             { valid.copy(aggregate = null) } to "requires an aggregate owner",
@@ -150,8 +156,12 @@ class BiDeploymentInspectorTest {
             { state.copy(configurationFingerprint = "invalid") } to "Invalid BI configurationFingerprint",
             { state.copy(topologyFingerprint = "invalid") } to "Invalid BI topologyFingerprint",
             { state.copy(consumerIdentity = "invalid") } to "Invalid BI consumer identity",
-            { state.copy(durableInventory = listOf(entry, entry.copy(status = BiDurableStatus.RETIRED))) } to
-                "duplicate objects",
+            {
+                BiObjectMetadataCodec.decode(
+                    BiObjectMetadataCodec.encode(valid.copy(kind = BiObjectKind.ANCHOR, aggregate = null, anchor = state))
+                        .replace("\"durableInventory\":{}", "\"durableInventory\":{\"bi_db\":[\"a\",\"a\"]}")
+                )!!
+            } to "duplicate objects",
         )
 
         invalid.forEach { (create, expectedMessage) ->

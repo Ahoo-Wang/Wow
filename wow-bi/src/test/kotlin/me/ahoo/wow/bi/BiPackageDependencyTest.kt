@@ -25,6 +25,8 @@ class BiPackageDependencyTest {
     @Test
     fun `implementation packages form a DAG`() {
         val graph = implementationGraph()
+        // An unresolved source root would yield an empty graph that is trivially acyclic.
+        graph.keys.assert().contains("catalog", "expansion.plan", "layout", "plan", "renderer", "type")
         cycles(graph).assert().isEqualTo(KNOWN_CYCLES)
     }
 

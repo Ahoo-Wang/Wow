@@ -276,7 +276,6 @@ class BiScriptGeneratorTest {
         result.script.assert().contains("__wow_bi_deployment", "wow-bi:")
         result.statements
             .drop(2)
-            .filterNot { it.contains("__wow_bi_registry_") }
             .joinToString("\n")
             .assert()
             .doesNotContain("DROP ", "CREATE OR REPLACE", "IF NOT EXISTS")
@@ -454,7 +453,7 @@ class BiScriptGeneratorTest {
     fun `should require reset when a recorded durable object is lost`() {
         val lostStore = BiObjectKey("bi_db", "bi_aggregate_state_store")
         val inspection = availableInspection(
-            anchor(durableInventory = listOf(BiDurableEntry(lostStore, BiDurableStatus.ACTIVE))),
+            anchor(durableInventory = setOf(lostStore)),
         )
 
         assertThrows<IllegalArgumentException> {
@@ -465,7 +464,7 @@ class BiScriptGeneratorTest {
     }
 
     @Test
-    fun `should record desired durable objects as active and retained stores as retired`() {
+    fun `should record desired durable objects and the stores kept after their aggregate left`() {
         val siblingStore = observed("bi_db", "bi_sibling_state_store", BiObjectKind.STORE, "bi-service.sibling")
         val siblingQueue = observed(
             "bi_db_consumer",
@@ -479,12 +478,12 @@ class BiScriptGeneratorTest {
             BiScriptOperation.Deploy,
             availableInspection(anchor(), siblingStore, siblingQueue),
         ).script
+        val anchor = script.lines().single { line -> "__wow_bi_deployment" in line && "durableInventory" in line }
 
-        script.assert().contains(
-            "{\"key\":{\"database\":\"bi_db\",\"name\":\"bi_aggregate_state_store\"},\"status\":\"ACTIVE\"}",
-            "{\"key\":{\"database\":\"bi_db\",\"name\":\"bi_sibling_state_store\"},\"status\":\"RETIRED\"}",
-            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_sibling_state_queue\"",
-        ).doesNotContain("\"name\":\"bi_sibling_state_queue\"},\"status\"")
+        script.assert().contains("DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_sibling_state_queue\"")
+        anchor.assert()
+            .contains("\"bi_aggregate_state_store\"", "\"bi_aggregate_state_queue\"", "\"bi_sibling_state_store\"")
+            .doesNotContain("\"bi_sibling_state_queue\"")
     }
 
     @Test
@@ -498,7 +497,7 @@ class BiScriptGeneratorTest {
         val stableAnchor = script.lines().single { line -> "__wow_bi_deployment" in line && "\"STABLE\"" in line }
 
         stableAnchor.assert()
-            .contains("\"name\":\"bi_aggregate_state_store_local\"")
+            .contains("\"bi_aggregate_state_store_local\"")
             .doesNotContain("_queue")
     }
 
@@ -1078,7 +1077,7 @@ class BiScriptGeneratorTest {
         options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
         identity: BiConsumerIdentity = BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
         phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
-        durableInventory: List<BiDurableEntry> = emptyList(),
+        durableInventory: Set<BiObjectKey> = emptySet(),
     ): ObservedBiObject {
         val descriptor = BiDeploymentDescriptor.from(options)
         return ObservedBiObject(

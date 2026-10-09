@@ -17,7 +17,6 @@ import me.ahoo.wow.bi.BiAnchorState
 import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentPhase
-import me.ahoo.wow.bi.BiDurableEntry
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiObjectMetadata
@@ -83,7 +82,7 @@ internal class ClickHouseRenderContext(
         )
     )
 
-    fun anchorComment(phase: BiDeploymentPhase, durableInventory: List<BiDurableEntry>): String = literal(
+    fun anchorComment(phase: BiDeploymentPhase, durableInventory: Set<BiObjectKey>): String = literal(
         BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = deployment.deploymentId,

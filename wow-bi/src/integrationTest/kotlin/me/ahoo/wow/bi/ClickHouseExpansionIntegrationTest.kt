@@ -441,7 +441,7 @@ class ClickHouseExpansionIntegrationTest {
                 "WHERE database IN (${literal(DATABASE)}, ${literal(CONSUMER_DATABASE)})",
             columns = listOf("comment"),
         ).map { it.required("comment") }
-            .all { comment -> comment.startsWith("wow-bi:") || comment.startsWith("wow-bi-registry:") }
+            .all { comment -> comment.startsWith("wow-bi:") }
             .assert().isTrue()
 
         if (case.topology == ClickHouseTopology.Standalone) {

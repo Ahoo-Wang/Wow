@@ -206,6 +206,38 @@ class ClickHouseBiDeploymentInspectorIntegrationTest {
     }
 
     @Test
+    fun `should verify queues whose configured literals contain quotes`() {
+        ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).use { clickHouse ->
+            clickHouse.start()
+            // ClickHouse writes a quote back as \' in engine_full, unlike the '' that Wow renders.
+            val options = BiScriptOptions(
+                database = DATABASE,
+                consumerDatabase = CONSUMER_DATABASE,
+                consumerGroupNamespace = "quoted-literals",
+                topology = ClickHouseTopology.Standalone,
+                topicPrefix = "wow.o'reilly\\.",
+                kafkaBootstrapServers = "o'reilly-kafka:9092",
+            )
+            val aggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
+            ClickHouseBiDeploymentInspector(
+                ClickHouseClientOptions(
+                    endpoints = listOf(URI.create(clickHouse.httpUrl)),
+                    username = clickHouse.username,
+                    password = clickHouse.password,
+                )
+            ).use { inspector ->
+                val service = BiScriptService(inspector)
+                executeStatements(clickHouse, service.generate(options) { setOf(aggregate) }.block()!!.statements)
+
+                val redeploy = service.generate(options) { setOf(aggregate) }.block()!!
+
+                redeploy.statements.filterNot { it.startsWith("CREATE DATABASE IF NOT EXISTS") }
+                    .single().assert().contains("__wow_bi_deployment")
+            }
+        }
+    }
+
+    @Test
     @Suppress("LongMethod", "NestedBlockDepth") // Drift mutations must stay within one live inspector lifecycle.
     fun `should reject an owned store with drifted physical keys`() {
         ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).use { clickHouse ->

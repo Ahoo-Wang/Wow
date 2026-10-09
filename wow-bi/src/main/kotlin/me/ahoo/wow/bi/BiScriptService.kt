@@ -39,11 +39,13 @@ class BiScriptService(
         operation: BiScriptOperation = BiScriptOperation.Deploy,
         namedAggregates: () -> Set<NamedAggregate>,
     ): Mono<BiScriptResult> {
-        val generator = BiScriptGenerator(options)
-        return Mono.fromCallable { generator.prepare(namedAggregates()) }
+        return Mono.fromCallable {
+            val generator = BiScriptGenerator(options)
+            generator to generator.prepare(namedAggregates())
+        }
             .subscribeOn(scheduler)
             .mapOverload()
-            .flatMap { preparation ->
+            .flatMap { (generator, preparation) ->
                 inspector.inspect(options, operation, preparation).flatMap { inspection ->
                     Mono.fromCallable { generator.generate(preparation, operation, inspection) }
                         .subscribeOn(scheduler)

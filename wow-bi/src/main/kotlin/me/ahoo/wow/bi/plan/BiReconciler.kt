@@ -15,8 +15,6 @@ package me.ahoo.wow.bi.plan
 
 import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
-import me.ahoo.wow.bi.BiDurableEntry
-import me.ahoo.wow.bi.BiDurableStatus
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiOperationPolicy
@@ -125,22 +123,21 @@ internal class BiReconciler(private val options: BiScriptOptions) {
         operation: BiScriptOperation,
         desiredObjects: List<DesiredBiObject>,
         owned: List<BiOwnedObject>,
-    ): List<BiDurableEntry> {
+    ): Set<BiObjectKey> {
         val recorded = if (operation == BiScriptOperation.Deploy) {
             setOf(BiObjectKind.STORE, BiObjectKind.QUEUE)
         } else {
             setOf(BiObjectKind.STORE)
         }
-        val desired = desiredObjects.filter { it.kind in recorded }
-            .map { BiDurableEntry(it.key, BiDurableStatus.ACTIVE) }
-        val desiredKeys = desired.mapTo(hashSetOf(), BiDurableEntry::key)
-        val retired = if (operation == BiScriptOperation.Deploy) {
-            owned.filter { it.kind == BiObjectKind.STORE && it.key !in desiredKeys }
-                .map { BiDurableEntry(it.key, BiDurableStatus.RETIRED) }
+        val desired = desiredObjects.filter { it.kind in recorded }.map(DesiredBiObject::key)
+        val kept = if (operation == BiScriptOperation.Deploy) {
+            owned.filter { it.kind == BiObjectKind.STORE }.map(BiOwnedObject::key)
         } else {
             emptyList()
         }
-        return (desired + retired).sortedWith(compareBy({ it.key.database }, { it.key.name }))
+        return (desired + kept).sortedWith(
+            compareBy(BiObjectKey::database, BiObjectKey::name)
+        ).toCollection(linkedSetOf())
     }
 
     private fun consumerIdentity(

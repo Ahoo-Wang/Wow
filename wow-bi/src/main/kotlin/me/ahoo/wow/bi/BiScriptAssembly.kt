@@ -114,7 +114,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         val resetIntent = if (plan.operation is BiScriptOperation.Reset) {
             ScriptSection(
                 "deployment-reset-intent",
-                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING, emptyList())),
+                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING, emptySet())),
             )
         } else {
             null

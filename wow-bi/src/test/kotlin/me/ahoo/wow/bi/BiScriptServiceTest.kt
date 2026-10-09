@@ -71,16 +71,24 @@ class BiScriptServiceTest {
     @Test
     fun `should resolve aggregates and render on its scheduler`() {
         val scheduler = Schedulers.newSingle("bi-service-test")
+        val inspection = Schedulers.newSingle("bi-inspection-test")
         try {
             lateinit var resolvedOn: String
-            BiScriptService(scheduler = scheduler).generate(options) {
+            lateinit var renderedOn: String
+            // The inspection completes on its own thread; rendering must move back onto the service's scheduler.
+            val inspector = BiDeploymentInspector { _, _, _ ->
+                Mono.just<BiDeploymentInspection>(BiDeploymentInspection.Unavailable).publishOn(inspection)
+            }
+            BiScriptService(inspector, scheduler).generate(options) {
                 resolvedOn = Thread.currentThread().name
                 setOf(aggregate)
-            }.block()!!
+            }.doOnNext { renderedOn = Thread.currentThread().name }.block()!!
 
             resolvedOn.assert().startsWith("bi-service-test")
+            renderedOn.assert().startsWith("bi-service-test")
         } finally {
             scheduler.dispose()
+            inspection.dispose()
         }
     }
 

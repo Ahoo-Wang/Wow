@@ -89,20 +89,16 @@ internal class ClickHouseCatalogReader(private val catalogClient: ClickHouseCata
 
     private fun readStandalone(
         context: StandaloneReadContext,
-        desiredObjectKeys: Set<BiObjectKey>?,
+        desiredObjectKeys: Set<BiObjectKey>,
     ): List<ClickHouseCatalogObject> = with(context) {
-        val query = if (desiredObjectKeys == null) {
-            ClickHouseCatalogQuery(STANDALONE_CATALOG_QUERY, options.catalogParameters())
-        } else {
-            val candidates = discoverObjectKeys(
-                query = options.catalogScopeQuery(desiredObjectKeys, STANDALONE_CATALOG_DISCOVERY_QUERY, true),
-                cancellation = cancellation,
-            )
-            if (candidates.isEmpty()) {
-                return emptyList()
-            }
-            options.catalogScopeQuery(candidates, STANDALONE_SCOPED_CATALOG_QUERY, false)
+        val candidates = discoverObjectKeys(
+            query = options.catalogScopeQuery(desiredObjectKeys, STANDALONE_CATALOG_DISCOVERY_QUERY, true),
+            cancellation = cancellation,
+        )
+        if (candidates.isEmpty()) {
+            return emptyList()
         }
+        val query = options.catalogScopeQuery(candidates, STANDALONE_SCOPED_CATALOG_QUERY, false)
         val objects = catalogClient.query(
             sql = query.sql,
             parameters = query.parameters,
@@ -114,7 +110,7 @@ internal class ClickHouseCatalogReader(private val catalogClient: ClickHouseCata
 
     private fun readCluster(
         context: ClusterReadContext,
-        desiredObjectKeys: Set<BiObjectKey>?,
+        desiredObjectKeys: Set<BiObjectKey>,
     ): List<ClickHouseCatalogObject> = with(context) {
         val nodes = catalogClient.query(
             sql = CLUSTER_NODES_QUERY,
@@ -125,23 +121,15 @@ internal class ClickHouseCatalogReader(private val catalogClient: ClickHouseCata
         check(nodes.isNotEmpty()) {
             "ClickHouse BI cluster [${cluster.name}] returned no replicas"
         }
-        val query = if (desiredObjectKeys == null) {
-            ClickHouseCatalogQuery(CLUSTER_CATALOG_QUERY, options.catalogParameters())
-        } else {
-            val discoveryQuery = options.catalogScopeQuery(
-                desiredObjectKeys,
-                CLUSTER_CATALOG_DISCOVERY_QUERY,
-                true,
-            )
-            val candidates = discoverObjectKeys(
-                query = discoveryQuery.copy(parameters = discoveryQuery.parameters + ("cluster" to cluster.name)),
-                cancellation = cancellation,
-            )
-            if (candidates.isEmpty()) {
-                return emptyList()
-            }
-            options.catalogScopeQuery(candidates, CLUSTER_SCOPED_CATALOG_QUERY, false)
+        val discoveryQuery = options.catalogScopeQuery(desiredObjectKeys, CLUSTER_CATALOG_DISCOVERY_QUERY, true)
+        val candidates = discoverObjectKeys(
+            query = discoveryQuery.copy(parameters = discoveryQuery.parameters + ("cluster" to cluster.name)),
+            cancellation = cancellation,
+        )
+        if (candidates.isEmpty()) {
+            return emptyList()
         }
+        val query = options.catalogScopeQuery(candidates, CLUSTER_SCOPED_CATALOG_QUERY, false)
         var objects = catalogClient.query(
             sql = query.sql,
             parameters = query.parameters + ("cluster" to cluster.name),
@@ -294,8 +282,8 @@ internal class ClickHouseCatalogReader(private val catalogClient: ClickHouseCata
 internal data class ClickHouseCatalogReadRequest(
     val options: BiScriptOptions,
     val operation: BiScriptOperation,
-    val desiredObjectKeys: Set<BiObjectKey>?,
-    val desiredObjects: List<DesiredBiObject>?,
+    val desiredObjectKeys: Set<BiObjectKey>,
+    val desiredObjects: List<DesiredBiObject>,
     val cancellation: ClickHouseQueryCancellation,
 )
 
@@ -311,11 +299,6 @@ private data class ExpectedQueryWire(
 )
 
 private data class ClickHouseCatalogQuery(val sql: String, val parameters: Map<String, Any>)
-
-private fun BiScriptOptions.catalogParameters(): Map<String, Any> = mapOf(
-    "database" to database,
-    "consumerDatabase" to consumerDatabase,
-)
 
 private fun BiScriptOptions.catalogScopeQuery(
     objectKeys: Set<BiObjectKey>,
@@ -353,9 +336,6 @@ private fun BiScriptOptions.catalogScopeQuery(
 private fun ClickHouseCatalogReadRequest.shouldCanonicalizeExpectedQueries(
     objects: List<ClickHouseCatalogObject>,
 ): Boolean {
-    if (desiredObjects == null) {
-        return false
-    }
     if (operation != BiScriptOperation.Deploy) {
         return false
     }
