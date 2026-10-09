@@ -39,11 +39,15 @@ class JsonSchemaWalkerTest {
     fun `a recursive reference is not expanded again`() {
         val fact = fact(
             """{"${'$'}defs":{"Node":{"type":"object","title":"Node",""" +
-                """"properties":{"next":{"${'$'}ref":"#/${'$'}defs/Node"}}}},"${'$'}ref":"#/${'$'}defs/Node"}""",
+                """"properties":{"next":{"${'$'}ref":"#/${'$'}defs/Node"},""" +
+                """"ghost":{"${'$'}ref":"#/${'$'}defs/Missing"}}}},"${'$'}ref":"#/${'$'}defs/Node"}""",
         )
         fact.kind.assert().isEqualTo(QueryValueKind.OBJECT)
         fact.title.assert().isEqualTo("Node")
-        fact.properties.getValue("next").kind.assert().isEqualTo(QueryValueKind.UNKNOWN)
+        val next = fact.properties.getValue("next")
+        next.kind.assert().isEqualTo(QueryValueKind.UNKNOWN)
+        next.omitted.assert().isEmpty()
+        fact.properties.getValue("ghost").kind.assert().isEqualTo(QueryValueKind.UNKNOWN)
     }
 
     @Test
@@ -53,9 +57,11 @@ class JsonSchemaWalkerTest {
                 """"byReference":{"${'$'}ref":"#/${'$'}defs/Secret"},""" +
                 """"byComposition":{"allOf":[{"type":"string","writeOnly":true}]},""" +
                 """"byMissingReference":{"${'$'}ref":"#/${'$'}defs/Missing"},""" +
+                """"notWriteOnly":{"type":"string","writeOnly":false},""" +
+                """"textualWriteOnly":{"type":"string","writeOnly":"true"},""" +
                 """"plain":{"type":"string"}}}""",
         )
-        fact.properties.keys.assert().containsExactly("byMissingReference", "plain")
+        fact.properties.keys.assert().containsExactly("byMissingReference", "notWriteOnly", "textualWriteOnly", "plain")
     }
 
     @Test
