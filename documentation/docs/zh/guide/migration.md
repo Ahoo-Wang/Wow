@@ -24,6 +24,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | CRUD/事务脚本/直接写表，没有 Wow 历史 | [传统架构迁移](./migration/traditional-architecture.md) | 建立 command、aggregate、event、导入与流量所有权 |
 | 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 比较固定平台/API/存储契约，并在需要时执行数据硬切换 |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
+| Wow 9.3.x | [从 9.3 升级到 9.4.0](#从-9-3-升级到-9-4-0) | 只有 `wow-bi` 变化：每个 BI 部署用确认后的 `RESET` 重建一次，直接调用已删除 `wow-bi` API 的 Kotlin 代码改用 `BiScriptService` 或 `generate(prepare(…))`；其余部分的 REST、存储与线上格式不变 |
 | Wow 9.2.x | [从 9.2 升级到 9.3.0](#从-9-2-升级到-9-3-0) | 重新编译，迁移已删除与已弃用的 API，先升级处理节点再升级只做网关的服务；REST、存储与线上格式不变 |
 | Wow v8.16.x 使用旧查询 API 或 `SnapshotRepository` | [V9 查询迁移](./query/v9-query-migration.md) | 迁移 Gateway/Backend、Filter、Mask、SnapshotStore 与 Spring Bean 名 |
 | TypeScript 客户端使用 `fetcher-wow`、`fetcher-generator` 或 `fetcher-react` 的 Wow Hook | [从 Fetcher 包迁移](./typescript/migration.md) | 换用 `wow-client`、`wow-generator` 和 `wow-react`，并重新生成客户端代码 |
@@ -59,9 +60,22 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 回滚计划必须区分“目标版本第一次生产写入之前”和“之后”。新存储格式已经写入时，只恢复旧 binary
 不是回滚。
 
+## 从 9.3 升级到 9.4.0
+
+9.4.0 只改了 `wow-bi`（ClickHouse BI 脚本生成器）。其余部分的 API、REST 行为、配置、存储与线上格式都与 9.3 相同，9.3.x 与 9.4.0 节点可以共用一个集群；BI 部署重建之后只从 9.4.0 节点生成 BI 脚本，9.3 节点会拒绝 layout 8。`wow-bi` 没有兼容性负担：它的 ClickHouse 布局是 v9 存储冻结的唯一例外，变化时不提供迁移路径，也不经弃用周期。9.4.0 发布说明（[Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
+
+| 变化 | 影响谁 | 怎么做 |
+|---|---|---|
+| BI layout 8：anchor 的持久对象清单取代 ownership registry | 每个既有 BI 部署 | 用 9.4.0 执行一次确认后的 `RESET`，再执行一次 `DEPLOY`，然后手工删除旧的 `__wow_bi_registry_<deploymentId>` 表，见 [BI 部署与恢复：升级](./bi-operations#升级)。9.3 及更早版本拒绝 layout 8 的部署，回滚只能恢复 ClickHouse 备份 |
+| `DEPLOY` 只渲染变化 | 审阅与执行 BI 脚本的人 | 幂等 `DEPLOY` 只有两条 `CREATE DATABASE IF NOT EXISTS` 与 anchor；漂移只替换漂移的 view，或该 stream 的 consumer 链 |
+| 清单中的 store 或 queue 缺失时 `DEPLOY` 拒绝（400） | 丢了 BI 表的部署 | 备份后执行确认后的 `RESET` |
+| Kotlin API：新增 `BiScriptService`；观测模型改为 internal；删除 `BiScriptGenerator.generate(namedAggregates, …)` | 直接调用 `wow-bi` 或实现 `BiDeploymentInspector` 的代码 | 调用 `BiScriptService` 或 `generate(prepare(…), …)`；自定义 inspector 可以包装内置实现，但不能再构造 `BiDeploymentInspection.Available` |
+
+`POST /wow/bi/script` 路由、请求选项与 `wow.bi.script.*` 配置不变；使用 `kafkaOffsetStorage = KEEPER` 时，执行会修复 consumer 的 `DEPLOY` 之前先读 [BI 部署与恢复](./bi-operations#操作决策) 里关于 consumer 漂移的规则。
+
 ## 从 9.2 升级到 9.3.0
 
-9.3.0 重做了写侧、传输与 API 分层。REST 路由与请求体、存储格式、消息 JSON、Kafka 主题与消费组都不变，所以滚动升级期间 9.2.x 与 9.3.0 节点可以共用一个集群。Kotlin API 有变化：9.3.0 **不保留二进制兼容垫片**（只为让 9.2 字节码继续链接而保留的声明），被替换的面向应用的 API 保留**一个 `@Deprecated` 周期**，10.0.0 删除，清单见[兼容性债务](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。只有后端、传输或框架实现者才会接触的扩展点 SPI 直接修改，不经弃用。9.3.0 发布说明（9.3.0 发布后见 [Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
+9.3.0 重做了写侧、传输与 API 分层。REST 路由与请求体、存储格式、消息 JSON、Kafka 主题与消费组都不变，所以滚动升级期间 9.2.x 与 9.3.0 节点可以共用一个集群。Kotlin API 有变化：9.3.0 **不保留二进制兼容垫片**（只为让 9.2 字节码继续链接而保留的声明），被替换的面向应用的 API 保留**一个 `@Deprecated` 周期**，10.0.0 删除，清单见[兼容性债务](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。只有后端、传输或框架实现者才会接触的扩展点 SPI 直接修改，不经弃用。9.3.0 发布说明（见 [Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
 
 下面各节按应用遇到的可能性排序：前四节每个应用都要看，有 REST 客户端的应用还要看第五节，后面的主要涉及自定义扩展。
 

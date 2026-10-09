@@ -17,7 +17,7 @@
 
 必须守住的不变量：
 
-1. **摄入不丢消息。** 不在 Kafka 引擎轮询窗口内摘掉在用的 consumer（#4028 的根因）；`state_last` 只在 state 摄入暂停时重建。
+1. **摄入不丢消息。** 不在 Kafka 引擎轮询窗口内摘掉在用的 consumer（#4028 的根因）；`state_last` 只在 state 摄入暂停时重建。这一条对已验证的 consumer 链成立；修复漂移仍要重建该链，`KEEPER` 下有残余风险（见 §9）。
 2. **DEPLOY 不删数据。** store 只会创建、保留或退役，绝不被 DEPLOY 删除。
 3. **可恢复。** 每条语句可重跑；中断后用同一配置重新 inspection 并生成，即可收敛。持久对象丢失时失败关闭，要求显式 RESET（§4.1）。
 4. **没有兼容性负担。** 用户 2026-10-09 确认：`wow-bi` 是 BI 同步脚本生成模块，不考虑向前兼容，不留债务。对象名、comment 元数据、registry、consumer group、Keeper 路径、公开 Kotlin API 都只按当下的设计质量取舍：不写迁移代码，不为旧版本做失败关闭，不保留弃用入口。代价写进发布说明：升级后既有 BI 部署执行一次确认过的 RESET，从 Kafka earliest 重建。新代码遇到不认识的 layout 时要求 RESET——这是正确性检查，不是兼容代码。
@@ -235,3 +235,8 @@ anchor 在脚本最后写入，晚于所有持久对象的创建。规则全部�
 - **B7 保留 `QueryResponseLifecycle` 状态机。** 它的四个状态正是 12 个竞态测试固定的语义（取消与 claim 谁先都
   只关闭一次、迟到响应在查询线程外排空）；同步重写只是换个写法，完全响应式会把顺序的多查询 catalog 读取变成
   `Mono` 链，可读性更差。改为独立成文件并写明协议。
+
+发布前审查对不变量 1 的限定：它只对已验证的 consumer 链成立（DEPLOY 不再动它们，#4028、#4034）。修复 consumer
+漂移仍会在 queue 继续轮询时删除并重建该 stream 的整条链；`kafkaOffsetStorage = KEEPER`（`StorageKafka2`）下，
+落在一个轮询周期内的重建仍可能丢失该周期读到的消息。运维规则写在 `bi-operations`（zh/en）「操作决策」：修复
+consumer 漂移的 DEPLOY 之前先停 producer 等摄入排空，或改用 RESET。

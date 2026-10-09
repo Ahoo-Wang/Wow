@@ -24,6 +24,7 @@ A green local build can close the source gate. It does not close the other four.
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow 9.3.x | [Upgrading from 9.3 to 9.4.0](#upgrading-from-9-3-to-9-4-0) | Only `wow-bi` changes: rebuild each BI deployment once with a confirmed `RESET`, and move Kotlin callers of the removed `wow-bi` API to `BiScriptService` or `generate(prepare(…))`; REST, storage and wire formats of everything else are unchanged |
 | Wow 9.2.x | [Upgrading from 9.2 to 9.3.0](#upgrading-from-9-2-to-9-3-0) | Recompile, migrate the removed and deprecated APIs, and roll out processing nodes before gateway-only services; REST, storage and wire formats are unchanged |
 | Wow v8.16.x using old query APIs or `SnapshotRepository` | [V9 Query Migration](./query/v9-query-migration.md) | Migrate Gateway/Backend, filters, masking, SnapshotStore, and Spring bean names |
 | TypeScript client on `fetcher-wow`, `fetcher-generator`, or the Wow hooks of `fetcher-react` | [Migrate from Fetcher Packages](./typescript/migration.md) | Switch to `wow-client`, `wow-generator`, and `wow-react`, then regenerate generated clients |
@@ -61,9 +62,22 @@ Advance only when the current gate has reproducible evidence:
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
 
+## Upgrading from 9.3 to 9.4.0
+
+9.4.0 changes only `wow-bi`, the ClickHouse BI script generator. Everything else keeps its 9.3 API, REST behaviour, configuration, storage and wire formats, and 9.3.x and 9.4.0 nodes can share one cluster; generate BI scripts only from 9.4.0 nodes once the BI deployment is rebuilt, since a 9.3 node rejects layout 8. `wow-bi` has no compatibility burden: its ClickHouse layout is the one exception to the v9 storage freeze, and it changes without a migration path or a deprecation cycle. The 9.4.0 release notes on the [releases page](https://github.com/Ahoo-Wang/Wow/releases) list every change with its pull request.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| BI layout 8: the ownership registry is replaced by the anchor's durable inventory | Every existing BI deployment | One confirmed `RESET` with 9.4.0, then one `DEPLOY`, then drop the old `__wow_bi_registry_<deploymentId>` table by hand; see [BI Deployment and Recovery: Upgrade](./bi-operations#upgrade). 9.3 and earlier reject a layout 8 deployment, so rolling back means restoring the ClickHouse backup |
+| `DEPLOY` renders only changes | Reviewers and executors of BI scripts | An idempotent `DEPLOY` is two `CREATE DATABASE IF NOT EXISTS` statements plus the anchor; drift replaces only the drifted view, or that stream's consumer chain |
+| `DEPLOY` refuses (400) when a recorded store or queue is missing | Deployments that lost a BI table | Back up, then run a confirmed `RESET` |
+| Kotlin API: new `BiScriptService`; the observed model is internal; `BiScriptGenerator.generate(namedAggregates, …)` is removed | Code that calls `wow-bi` directly or implements `BiDeploymentInspector` | Call `BiScriptService`, or `generate(prepare(…), …)`; a custom inspector can wrap the built-in ones but can no longer construct `BiDeploymentInspection.Available` |
+
+The `POST /wow/bi/script` route, its request options and its `wow.bi.script.*` properties are unchanged; with `kafkaOffsetStorage = KEEPER`, read the consumer-drift rule in [BI Deployment and Recovery](./bi-operations#operation-decision) before a `DEPLOY` that repairs consumers.
+
 ## Upgrading from 9.2 to 9.3.0
 
-9.3.0 reworks the write side, the transports and the API tiers. REST routes and bodies, the stored formats, the message JSON and the Kafka topics and consumer groups do not change, so 9.2.x and 9.3.0 nodes can share one cluster during a rolling upgrade. The Kotlin API does change: 9.3.0 keeps **no binary-compatibility shims** (declarations kept only so that 9.2 bytecode links), and application-facing APIs it replaces keep **one `@Deprecated` cycle** and are removed in 10.0.0, as listed in [compatibility debt](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md). Extension-point SPI that only backend, transport or framework implementers touch changes without a deprecation cycle. The 9.3.0 release notes, on the [releases page](https://github.com/Ahoo-Wang/Wow/releases) once 9.3.0 is published, list every change with its pull request.
+9.3.0 reworks the write side, the transports and the API tiers. REST routes and bodies, the stored formats, the message JSON and the Kafka topics and consumer groups do not change, so 9.2.x and 9.3.0 nodes can share one cluster during a rolling upgrade. The Kotlin API does change: 9.3.0 keeps **no binary-compatibility shims** (declarations kept only so that 9.2 bytecode links), and application-facing APIs it replaces keep **one `@Deprecated` cycle** and are removed in 10.0.0, as listed in [compatibility debt](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md). Extension-point SPI that only backend, transport or framework implementers touch changes without a deprecation cycle. The 9.3.0 release notes, on the [releases page](https://github.com/Ahoo-Wang/Wow/releases), list every change with its pull request.
 
 The sections below are ordered by how likely an application is to meet them: every application reads the first four, an application with REST clients also reads the fifth, and the later ones mostly concern custom extensions.
 

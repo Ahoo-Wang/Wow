@@ -9,7 +9,7 @@ Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIG
 
 **9.3.0 已发布**（2026-10-09，tag `v9.3.0` → `e71384074`（#4025 的合并提交），[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.3.0)，[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37882720912)）：整体重构的次版本，按用户决定**不发 rc**——五个发布包自 9.2.3 起源码没有变化，rc 只发 npm 验证不到 JVM 侧；C′ 改在 main 的本地构建上做（[MIGRATION.md](MIGRATION.md)「9.3.0 控制台试用记录」）。`admission`（27 个破坏性 PR 都点名）、`preflight`、`github-deploy`、`central-deploy`、`npm-deploy`（五个包都带 provenance，`latest: 9.3.0`）、两个 `npm-smoke` 全部成功；三个镜像的 `9.3.0`、`9.3`、`latest` 在 Docker Hub、ghcr、阿里云 digest 一致。发布说明就是那个 release，草稿已删。
 
-下一个版本按「发版准入」第 3 条定：上一个 tag 以来没有破坏性改动就是下一个补丁版本；有就只能是 9.3.0，准入拒绝补丁版本。
+下一个版本按「发版准入」第 3 条定：上一个 tag 以来没有破坏性改动就是下一个补丁版本；有就只能是下一个次版本（`x.Y.0`），准入拒绝补丁版本。`v9.3.0` 以来有三个破坏性 PR（#4031、#4034、#4035，都在 wow-bi），所以下一个版本是 **9.4.0**，草稿在 [release-notes/v9.4.0.md](release-notes/v9.4.0.md)。
 
 「发布包」在本文里一律指 `.github/scripts/publish-npm.mjs` 的 `PUBLISHED`，9.2.0 起是五个：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store。下面的循环都从 `node .github/scripts/publish-npm.mjs --list` 取包名，不在文中手写名单。
 
@@ -435,7 +435,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 1. 在 [MIGRATION.md](MIGRATION.md)「进度」里记下首发；删掉草稿 `release-notes/v9.2.0.md`（GitHub release 就是记录）。
 2. 翻转文档状态：`documentation/docs/{en,zh}/guide/typescript/` 的 `index.md`、`compatibility.md`「发布状态」、`quick-start.md` 的提示框和 `troubleshooting.md` 的 `E404` 一行，视图引擎与视图存储各页顶部「随 Wow 9.2.0 发布」提示框里的「在此之前不在 npm 上／it is not on npm before that」，以及 `reference/typescript/index.md`，把「尚未上 npm／not yet on npm」改成已发布；包 README 已冻结在 tarball 里，只写了「随 Wow 9.2.0 发布」与兼容规则，不用改。然后在一个空目录里照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)从 npm 安装、生成、编译一遍，确认页面上的安装命令能用。
 3. 删掉 C′ 的临时分支 `chore/compensation-9.2.0-rc.0`（不合并，main 上的控制台保持 `workspace:*`）。按 MIGRATION「下一步」，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
-4. 每次 9.2.x 发布、`ahoowang/wow-example-server:<版本>` 镜像推送以后，把 `.github/workflows/mixed-version.yml` 的 `PREVIOUS_IMAGE` 改成最新的 9.2.x 镜像：混部测试守的是 9.2 与 9.3 之间的边界。
+4. 每次发布、`ahoowang/wow-example-server:<版本>` 镜像推送以后，把 `.github/workflows/mixed-version.yml` 的 `PREVIOUS_IMAGE` 改成最新发布的镜像：混部测试守的是上一个发布与当前构建之间的边界（9.3.0 发布后是 `9.3.0`，#4027）。
 
 ## 日常发版
 
@@ -490,7 +490,7 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
 2. 按提交整理。`--first-parent` 只走 main 上的合并提交，导入的 fetcher 历史不会混进来：
 
    ```bash
-   PREV=v9.2.0 NEXT=v9.3.0                    # 上一个 tag、这次的 tag（或 HEAD）
+   PREV=v9.3.0 NEXT=HEAD                      # 上一个 tag、这次的 tag（或 HEAD）
    for pkg in $(node .github/scripts/publish-npm.mjs --list); do
      echo "## $pkg"; git log --first-parent --format='- %s' "$PREV..$NEXT" -- "typescript/${pkg#@ahoo-wang/}"
    done

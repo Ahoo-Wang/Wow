@@ -41,12 +41,19 @@ Durable objects are created before they are recorded, so the inventory can lag t
 A recorded store or queue that disappears therefore means lost data or lost Kafka offsets: DEPLOY refuses and asks for
 RESET instead of quietly creating an empty table.
 
+The inventory lives in the anchor's comment, and the anchor is one `CREATE OR REPLACE VIEW` statement, so it must fit
+ClickHouse's `max_query_size` (256 KiB by default). Each recorded store or queue takes about 45 bytes (its name plus
+quoting, for names of about 40 characters). A cluster deployment records 8 objects per aggregate (3 stores, their 3
+`_local` tables, and 2 queues), a standalone one 5 (3 stores and 2 queues), and an aggregate that was removed keeps its
+stores recorded (6 on a cluster, 3 standalone). That allows roughly 700 aggregates on a cluster and 1,100 standalone,
+fewer with longer names. A larger deployment must raise `max_query_size` for the session that executes the script.
+
 ## Operation Decision
 
 | Observed catalog state | Operation | Reason |
 |---|---|---|
 | Empty target scope | `DEPLOY` | Installs stores, ingress, views, and a `STABLE` anchor |
-| Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation: stores, queues, views, and consumers that exist with matching definitions stay untouched and the script only rewrites the anchor; ingestion is not paused |
+| Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation: stores, queues, views, and consumers that exist with matching definitions stay untouched. When nothing drifted, the script is the two `CREATE DATABASE IF NOT EXISTS` statements plus the anchor and ingestion is not paused |
 | Computed view/materialized-view drift | `DEPLOY` | Replaces the drifted definitions; consumer drift pauses and recreates that stream's whole consumer chain |
 | A desired store/queue is missing and not recorded | `DEPLOY` | First creation, or completion after an interruption |
 | A recorded store/queue is missing | Back up, then confirmed `RESET` | Data or offsets were lost |
@@ -54,6 +61,14 @@ RESET instead of quietly creating an empty table.
 | An object or the anchor uses another layout | Confirmed `RESET` | See [Upgrade](#upgrade) |
 | Anchor phase is `RESETTING` | Continue `RESET` with the exact same physical-scope configuration | Reuses the recorded reset consumer identity |
 | Anchor is `STABLE` but ingress is incomplete | `DEPLOY` | Recreates missing queue/consumer materialized views |
+
+Repairing consumer drift recreates that stream's chain while its queue keeps polling. With
+`kafkaOffsetStorage = KEEPER` (`wow.bi.script.kafka-offset-storage`, ClickHouse `StorageKafka2`), a consumer dropped
+and recreated during a poll cycle can lose the messages that cycle reads: the cycle commits their offsets but writes
+them nowhere. Before a `DEPLOY` that repairs consumer drift (the diagnostics and the script show which consumers are
+dropped and recreated; a Wow upgrade that changes a consumer `SELECT` causes it), stop the producers of the affected
+topics and let ingestion drain, or rebuild with a confirmed `RESET` instead. `BROKER` (the default) does not have this
+gap. A `DEPLOY` that changes no consumer leaves ingestion attached in both modes.
 
 ## Preflight
 
@@ -93,6 +108,9 @@ Reset drops data in the managed BI scope and replays:
    - anchor `STABLE` but ingress missing → generate `DEPLOY`.
 4. After Reset completes, generate and execute one fresh authoritative `DEPLOY`. Reset writes its anchor before Kafka
    ingress and records only the stores; this DEPLOY records the queues and completes the remaining reconciliation.
+   A queue lost before this DEPLOY is not detected, because it was never recorded: the DEPLOY recreates it like a first
+   creation. With `KEEPER` offsets, where the recreated queue resumes depends on what is left at its Keeper path, so
+   check its offsets during acceptance.
 5. Keep the old scope/backup immutable for the rollback window.
 
 ## Acceptance
@@ -117,11 +135,16 @@ durable inventory on the anchor. A deployment of an older layout is not migrated
 2. Generate and execute a confirmed `RESET` with 9.4.0. It recognizes the ownership of the old objects, drops them,
    and rebuilds the scope with layout 8.
 3. Run the follow-up `DEPLOY` from step 4.
-4. Drop the registry table that is no longer used:
+4. Drop the registry table that is no longer used. `<deploymentId>` is the `deploymentId` field of the `wow-bi:` JSON
+   in any BI object's comment, for example the anchor's (the scope's deployment ID does not change across versions):
 
    ```sql
+   SELECT comment FROM system.tables WHERE database = '<consumerDatabase>' AND name = '__wow_bi_deployment';
    DROP TABLE IF EXISTS `<consumerDatabase>`.`__wow_bi_registry_<deploymentId>` [ON CLUSTER '<cluster>'] SYNC;
    ```
+
+   On a cluster, keep `ON CLUSTER` and `SYNC`: without `SYNC` the Atomic database defers the drop of the replicated
+   table.
 
 ## Rollback
 
@@ -142,5 +165,6 @@ ClickHouse Kafka engines, restore data, or roll back offsets.
 See [Business Intelligence](./bi) for the generated contract and [Wow v6 to v8 migration](./migration/v6-to-v8) for
 cross-version gates.
 
-<!-- Sources: BiObservedDeploymentPolicy, BiScriptAssembly (durableInventory), BiObjectMetadata/BiAnchorState,
-ClickHouseCatalogReader, ClickHouseBiDeploymentInspector, and related tests -->
+<!-- Sources: BiOperationPolicy, plan/BiReconciler (durable inventory), BiObjectMetadata/BiAnchorState, layout/BiLayout,
+catalog/ClickHouseCatalogReader, ClickHouseBiDeploymentInspector, the golden scripts under
+wow-bi/src/integrationTest/resources/golden, and related tests -->
