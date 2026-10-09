@@ -147,7 +147,7 @@ internal class WrappedDefinitionProvider private constructor(
 
 ## 8. 9.5.0 发布说明条目
 
-发布说明须点名标了 `breaking-change` 的 PR：#4046、#4047、#4050、#4051，以及发版前审查的修复 PR。生成的 Schema、OpenAPI 文档和查询事实逐字节不变；REST、存储、线格式不变，9.4/9.5 混合集群不受影响。
+发布说明须点名标了 `breaking-change` 的 PR：#4046、#4047、#4050、#4051，以及发版前审查的修复 PR #4054。生成的 Schema、OpenAPI 文档和查询事实逐字节不变；REST、存储、线格式不变，9.4/9.5 混合集群不受影响。
 
 - **修复**：并发生成 Schema 时，Kotlin getter-only（计算）属性会随机缺失，影响查询模型与 OpenAPI（#4046）。
 - **破坏性（ABI）**，都不影响生成结果：
@@ -173,7 +173,7 @@ internal class WrappedDefinitionProvider private constructor(
 | S5 | #4050 | 迁移前先在 `wow-openapi` 用迁移前的代码生成 OpenAPI golden，迁移后不变；main 代码只有重命名，外加可见性调整 |
 | S2 | #4051 | 公开类从 63 个降到 19 个 |
 | 清理 | #4052 | `Types` 去掉死分支和只用一次的辅助函数 |
-| 发版前审查 | 见下 | 两个独立 reviewer（正确性；架构/API/兼容/文档），无阻塞项；修复见下方修正与本 PR |
+| 发版前审查 | #4054 | 两个独立 reviewer（正确性；架构/API/兼容/文档），无阻塞项；修复见下方修正与本 PR |
 
 实施中对设计的修正：
 
