@@ -23,6 +23,16 @@ class ClickHouseSqlSyntaxTest {
     }
 
     @Test
+    fun `should write literals the way ClickHouse echoes them in the catalog`() {
+        // Observed from system.tables.engine_full on ClickHouse 24.8.
+        ClickHouseSqlSyntax.catalogStringLiteral("o'reilly\\x").assert().isEqualTo("'o\\'reilly\\\\x'")
+        ClickHouseSqlSyntax.catalogStringLiteral("a\bb\u000Cc\nd\re\tf\u0000g")
+            .assert().isEqualTo("'a\\bb\\fc\\nd\\re\\tf\\0g'")
+        ClickHouseSqlSyntax.catalogStringLiteral("a\u0001b\u000Bc\u007Fd\"é")
+            .assert().isEqualTo("'a\u0001b\u000Bc\u007Fd\"é'")
+    }
+
+    @Test
     fun `should escape quoted identifiers`() {
         ClickHouseSqlSyntax.quoteIdentifier("db\"x").assert().isEqualTo("\"db\\\"x\"")
         ClickHouseSqlSyntax.quoteIdentifier("db\\x").assert().isEqualTo("\"db\\\\x\"")

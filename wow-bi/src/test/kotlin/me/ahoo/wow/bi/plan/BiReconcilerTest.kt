@@ -18,8 +18,6 @@ import me.ahoo.wow.bi.BiAnchorState
 import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentPhase
-import me.ahoo.wow.bi.BiDurableEntry
-import me.ahoo.wow.bi.BiDurableStatus
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiObjectMetadata
@@ -116,8 +114,7 @@ class BiReconcilerTest {
             BiOwnedObject(staleQueue.key, BiObjectKind.QUEUE),
             BiOwnedObject(staleView.key, BiObjectKind.VIEW),
         )
-        plan.durableInventory.assert().contains(BiDurableEntry(staleStore.key, BiDurableStatus.RETIRED))
-        plan.durableInventory.map(BiDurableEntry::key).assert().doesNotContain(staleQueue.key)
+        plan.durableInventory.assert().contains(staleStore.key).doesNotContain(staleQueue.key)
     }
 
     @Test
@@ -128,8 +125,7 @@ class BiReconcilerTest {
             .all { plan.action(it.key) == BiObjectAction.CREATE }.assert().isTrue()
         plan.drops.map(BiOwnedObject::key).assert().doesNotContain(layout.anchor)
         plan.drops.size.assert().isEqualTo(desired.size - 1)
-        plan.durableInventory.all { it.status == BiDurableStatus.ACTIVE }.assert().isTrue()
-        plan.durableInventory.map(BiDurableEntry::key).assert()
+        plan.durableInventory.assert()
             .containsExactlyInAnyOrder(
                 layout.storeKey(names.command.store),
                 layout.storeKey(names.state.store),

@@ -14,7 +14,6 @@
 package me.ahoo.wow.bi.plan
 
 import me.ahoo.wow.bi.BiConsumerIdentity
-import me.ahoo.wow.bi.BiDurableEntry
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.BiScriptOperation
@@ -45,7 +44,7 @@ internal data class BiChangePlan(
     /** Owned objects dropped before anything else: every one on RESET, the undesired non-stores on DEPLOY. */
     val drops: List<BiOwnedObject>,
     /** The anchor's record of the stores and queues that exist once the script has run up to the anchor. */
-    val durableInventory: List<BiDurableEntry>,
+    val durableInventory: Set<BiObjectKey>,
 ) {
     /** The action for a desired object. */
     fun action(key: BiObjectKey): BiObjectAction = checkNotNull(actions[key] ?: unlistedAction) {
@@ -66,7 +65,7 @@ internal data class BiChangePlan(
                 actions = emptyMap(),
                 unlistedAction = BiObjectAction.CREATE,
                 drops = emptyList(),
-                durableInventory = emptyList(),
+                durableInventory = emptySet(),
             )
     }
 }

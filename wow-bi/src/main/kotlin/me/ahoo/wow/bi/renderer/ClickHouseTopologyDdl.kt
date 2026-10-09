@@ -14,7 +14,6 @@
 package me.ahoo.wow.bi.renderer
 
 import me.ahoo.wow.bi.ClickHouseTopology
-import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.stringLiteral
 
@@ -31,13 +30,9 @@ internal data class DistributedFacadeSpec(
 internal interface ClickHouseTopologyDdl {
     val scopeClause: String
 
-    fun physicalTableName(logicalTableName: String): String
-
     fun engineSql(spec: ReplacingMergeTreeSpec): String
 
     fun distributedFacade(spec: DistributedFacadeSpec): String?
-
-    fun dropTableNames(logicalTableName: String): List<String>
 }
 
 internal fun ClickHouseTopology.toDdl(): ClickHouseTopologyDdl = when (this) {
@@ -47,8 +42,6 @@ internal fun ClickHouseTopology.toDdl(): ClickHouseTopologyDdl = when (this) {
 
 private class ClusterTopologyDdl(private val topology: ClickHouseTopology.Cluster) : ClickHouseTopologyDdl {
     override val scopeClause: String = "ON CLUSTER ${stringLiteral(topology.name)}"
-
-    override fun physicalTableName(logicalTableName: String): String = BiLayout.localStore(logicalTableName)
 
     override fun engineSql(spec: ReplacingMergeTreeSpec): String {
         val path = stringLiteral(
@@ -71,15 +64,10 @@ private class ClusterTopologyDdl(private val topology: ClickHouseTopology.Cluste
                                  ${stringLiteral(spec.physicalTableName)}, ${spec.shardingKey});
         """.trimIndent()
     }
-
-    override fun dropTableNames(logicalTableName: String): List<String> =
-        listOf(logicalTableName, physicalTableName(logicalTableName))
 }
 
 private data object StandaloneTopologyDdl : ClickHouseTopologyDdl {
     override val scopeClause: String = ""
-
-    override fun physicalTableName(logicalTableName: String): String = logicalTableName
 
     override fun engineSql(spec: ReplacingMergeTreeSpec): String =
         spec.versionColumn?.let { versionColumn ->
@@ -87,8 +75,6 @@ private data object StandaloneTopologyDdl : ClickHouseTopologyDdl {
         } ?: "ENGINE = ReplacingMergeTree"
 
     override fun distributedFacade(spec: DistributedFacadeSpec): String? = null
-
-    override fun dropTableNames(logicalTableName: String): List<String> = listOf(logicalTableName)
 }
 
 private fun topologyQualified(database: String, table: String): String =

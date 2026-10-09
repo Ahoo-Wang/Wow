@@ -57,7 +57,8 @@ internal data class BiAnchorState(
     val configurationFingerprint: String,
     val topologyFingerprint: String,
     val consumerIdentity: String,
-    val durableInventory: List<BiDurableEntry> = emptyList(),
+    /** The stores and queues the deployment has created; one that disappears means lost data or lost offsets. */
+    val durableInventory: Set<BiObjectKey> = emptySet(),
 ) {
     init {
         require(DIGEST_PATTERN.matches(configurationFingerprint)) {
@@ -67,24 +68,7 @@ internal data class BiAnchorState(
             "Invalid BI topologyFingerprint: $topologyFingerprint"
         }
         BiConsumerIdentity(consumerIdentity)
-        require(durableInventory.map(BiDurableEntry::key).distinct().size == durableInventory.size) {
-            "BI durable inventory contains duplicate objects"
-        }
     }
-}
-
-/**
- * A store or queue that the deployment has created.
- *
- * A recorded durable object that disappears means lost data or lost offsets, so DEPLOY refuses and asks for RESET.
- */
-internal data class BiDurableEntry(val key: BiObjectKey, val status: BiDurableStatus)
-
-internal enum class BiDurableStatus {
-    ACTIVE,
-
-    /** Kept for its data after its aggregate left the deployment. */
-    RETIRED,
 }
 
 internal object BiObjectMetadataCodec {
@@ -95,7 +79,7 @@ internal object BiObjectMetadataCodec {
                 deploymentId = metadata.deploymentId,
                 kind = metadata.kind,
                 aggregate = metadata.aggregate,
-                anchor = metadata.anchor,
+                anchor = metadata.anchor?.let(BiAnchorStateWire::from),
             )
         )
 
@@ -112,7 +96,8 @@ internal object BiObjectMetadataCodec {
             deploymentId = wire.deploymentId,
             kind = wire.kind,
             aggregate = wire.aggregate,
-            anchor = wire.anchor.takeIf { wire.layoutVersion == BiObjectMetadata.CURRENT_LAYOUT_VERSION },
+            anchor = wire.anchor.takeIf { wire.layoutVersion == BiObjectMetadata.CURRENT_LAYOUT_VERSION }
+                ?.toState(),
         )
     }
 }
@@ -128,5 +113,46 @@ private data class BiObjectMetadataWire(
     val deploymentId: String,
     val kind: BiObjectKind,
     val aggregate: String? = null,
-    val anchor: BiAnchorState? = null,
+    val anchor: BiAnchorStateWire? = null,
 )
+
+/**
+ * The anchor state as written: the inventory groups object names by database, sorted, because the whole state lives
+ * in one comment that the anchor statement carries and that statement is bounded by ClickHouse's `max_query_size`.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+private data class BiAnchorStateWire(
+    val phase: BiDeploymentPhase,
+    val configurationFingerprint: String,
+    val topologyFingerprint: String,
+    val consumerIdentity: String,
+    val durableInventory: Map<String, List<String>> = emptyMap(),
+) {
+    fun toState(): BiAnchorState {
+        durableInventory.forEach { (database, names) ->
+            require(names.distinct().size == names.size) {
+                "BI durable inventory contains duplicate objects in database [$database]"
+            }
+        }
+        return BiAnchorState(
+            phase = phase,
+            configurationFingerprint = configurationFingerprint,
+            topologyFingerprint = topologyFingerprint,
+            consumerIdentity = consumerIdentity,
+            durableInventory = durableInventory.flatMapTo(linkedSetOf()) { (database, names) ->
+                names.map { name -> BiObjectKey(database, name) }
+            },
+        )
+    }
+
+    companion object {
+        fun from(state: BiAnchorState): BiAnchorStateWire = BiAnchorStateWire(
+            phase = state.phase,
+            configurationFingerprint = state.configurationFingerprint,
+            topologyFingerprint = state.topologyFingerprint,
+            consumerIdentity = state.consumerIdentity,
+            durableInventory = state.durableInventory.groupByTo(sortedMapOf(), BiObjectKey::database)
+                .mapValues { (_, keys) -> keys.map(BiObjectKey::name).sorted() },
+        )
+    }
+}

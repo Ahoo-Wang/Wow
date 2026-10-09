@@ -32,8 +32,8 @@ SQL executor 必须保持 statement 顺序，并在第一条错误时停止。�
 `__wow_bi_deployment` anchor 是脚本的最后一条语句，记录部署级事实：
 
 - phase（`STABLE` 或 `RESETTING`）、configuration fingerprint、topology fingerprint 与 consumer identity；
-- 持久对象清单：已创建的每个 store 与 queue，状态为 `ACTIVE`，或 `RETIRED`（aggregate 已移除、store
-  为保留数据而留下）。
+- 持久对象清单：已创建的每个 store 与 queue，按 database 分组，包括 aggregate 移除后为保留数据而留下的
+  store。
 
 持久对象先建后记，清单只会落后于 catalog、不会超前。因此清单里的 store 或 queue 消失，意味着数据或
 Kafka offset 已丢失，DEPLOY 会拒绝并要求 RESET，而不是悄悄重建一张空表。

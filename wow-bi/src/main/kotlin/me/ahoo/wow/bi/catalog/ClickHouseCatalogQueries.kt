@@ -39,15 +39,6 @@ internal val EXPECTED_QUERY_COLUMNS = listOf("database", "name", "canonical_sele
 internal val OBJECT_KEY_COLUMNS = listOf("database", "name")
 internal val COLUMN_COLUMNS = listOf("database", "table", "name", "type", "position")
 
-internal val STANDALONE_CATALOG_QUERY: String = """
-    SELECT database, name, engine, engine_full, create_table_query,
-           formatQuerySingleLineOrNull(as_select) AS as_select,
-           comment, partition_key, sorting_key
-    FROM system.tables
-    WHERE database IN ({database:String}, {consumerDatabase:String})
-    SETTINGS show_table_uuid_in_table_create_query_if_not_nil = 0
-""".trimIndent()
-
 internal val STANDALONE_CATALOG_DISCOVERY_QUERY: String = """
     SELECT database, name
     FROM system.tables
@@ -71,24 +62,6 @@ internal val STANDALONE_SCOPED_CATALOG_QUERY: String = """
 internal val CLUSTER_NODES_QUERY: String = """
     SELECT hostName() AS host_name, tcpPort() AS tcp_port
     FROM clusterAllReplicas({cluster:String}, system.one)
-    SETTINGS skip_unavailable_shards = 0,
-             show_table_uuid_in_table_create_query_if_not_nil = 0
-""".trimIndent()
-
-internal val CLUSTER_CATALOG_QUERY: String = """
-    SELECT hostName() AS host_name,
-           tcpPort() AS tcp_port,
-           database,
-           name,
-           engine,
-           engine_full,
-           create_table_query,
-           formatQuerySingleLineOrNull(as_select) AS as_select,
-           comment,
-           partition_key,
-           sorting_key
-    FROM clusterAllReplicas({cluster:String}, system.tables)
-    WHERE database IN ({database:String}, {consumerDatabase:String})
     SETTINGS skip_unavailable_shards = 0,
              show_table_uuid_in_table_create_query_if_not_nil = 0
 """.trimIndent()

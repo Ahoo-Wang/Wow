@@ -124,7 +124,6 @@ internal class BiOperationPolicy(options: BiScriptOptions) {
     ) {
         val observedKeys = objects.mapTo(hashSetOf(), ObservedBiObject::key)
         val lost = anchorState(this, descriptor)?.durableInventory.orEmpty()
-            .map(BiDurableEntry::key)
             .filter { key -> key in desiredKeys && key !in observedKeys }
         require(lost.isEmpty()) {
             "Observed BI deployment lost recorded durable objects " +
