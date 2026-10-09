@@ -17,7 +17,7 @@ import com.clickhouse.client.api.ClientException
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.bi.renderer.ClickHouseOwnershipRegistryRenderer
-import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 import org.testcontainers.clickhouse.ClickHouseContainer
 import org.testcontainers.utility.DockerImageName
@@ -215,7 +215,7 @@ class ClickHouseBiDeploymentInspectorIntegrationTest {
             )
             val descriptor = BiDeploymentDescriptor.from(options)
             val identity = BiConsumerIdentity.deterministic(descriptor)
-            val aggregate = MetadataSearcher.localAggregates.first()
+            val aggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
             val desiredForeignKey = BiScriptGenerator(options).desiredObjectKeys(setOf(aggregate))
                 .first()
             val storeMetadata = BiObjectMetadata(
