@@ -67,9 +67,9 @@ CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_store"
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplacingMergeTree("version")
-      PARTITION BY toYYYYMM("create_time")
-      ORDER BY ("tenant_id", "aggregate_id", "version")
-      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
+  PARTITION BY toYYYYMM("create_time")
+  ORDER BY ("tenant_id", "aggregate_id", "version")
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.stateStorage --
 -- bi-it.nullable.stateLast --
 CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_last_store"
@@ -93,9 +93,9 @@ CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_last_store"
     "tags" Map(String, Array(String)),
     "deleted" Bool
 ) ENGINE = ReplacingMergeTree("version")
-      PARTITION BY toYYYYMM("first_event_time")
-      ORDER BY ("tenant_id", "aggregate_id")
-      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
+  PARTITION BY toYYYYMM("first_event_time")
+  ORDER BY ("tenant_id", "aggregate_id")
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last"
 AS (SELECT * FROM "bi_golden"."bi_it_nullable_state_last_store" FINAL)

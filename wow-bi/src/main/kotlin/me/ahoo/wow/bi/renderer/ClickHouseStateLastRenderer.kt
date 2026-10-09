@@ -97,9 +97,9 @@ internal class ClickHouseStateLastRenderer(private val context: ClickHouseRender
                 ${identifier("tags")} Map(String, Array(String)),
                 ${identifier("deleted")} Bool
             ) ${topology.engineSql(ReplacingMergeTreeSpec("version"))}
-                  PARTITION BY toYYYYMM(${identifier("first_event_time")})
-                  ORDER BY (${identifier("tenant_id")}, ${identifier("aggregate_id")})
-                  COMMENT $comment;
+              PARTITION BY toYYYYMM(${identifier("first_event_time")})
+              ORDER BY (${identifier("tenant_id")}, ${identifier("aggregate_id")})
+              COMMENT $comment;
         """.trimIndent()
     }
 
