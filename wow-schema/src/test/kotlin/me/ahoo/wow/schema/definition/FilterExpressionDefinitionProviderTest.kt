@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.schema.definition
 
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
@@ -20,7 +20,6 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.schema.CreateTestAggregate
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.TestAggregateCreated
 import me.ahoo.wow.schema.TestState
@@ -29,7 +28,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
-class TypedDefinitionProviderTest {
+class WowDefinitionProviderTest {
     private val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
 
     companion object {
@@ -78,10 +77,10 @@ class TypedDefinitionProviderTest {
         typeParameter: Class<*>,
         expectedPropertyName: String?
     ) {
-        val schema = jsonSchemaGenerator.generateSchema(interfaceType, typeParameter).asJsonSchema()
-        schema.getProperties().assert().describedAs { "Schema for $name should have properties" }.isNotNull()
+        val schema = jsonSchemaGenerator.generateSchema(interfaceType, typeParameter)
+        schema.get("properties").assert().describedAs { "Schema for $name should have properties" }.isNotNull()
         if (expectedPropertyName != null) {
-            schema.getProperties()!!.get(expectedPropertyName).assert()
+            schema.get("properties")!!.get(expectedPropertyName).assert()
                 .describedAs { "Schema for $name should have property '$expectedPropertyName'" }
                 .isNotNull()
         }

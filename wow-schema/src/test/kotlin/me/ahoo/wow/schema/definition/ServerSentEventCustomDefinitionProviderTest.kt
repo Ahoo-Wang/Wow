@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.web
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.TypeResolver
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.TestState
 import org.junit.jupiter.api.Test
@@ -27,15 +26,15 @@ class ServerSentEventCustomDefinitionProviderTest {
     @Test
     fun `should generate schema for server sent event`() {
         val resolvedType = TypeResolver().resolve(ServerSentEvent::class.java)
-        val schema = jsonSchemaGenerator.generateSchema(resolvedType).asJsonSchema()
-        schema.getProperties().assert().isNotNull()
+        val schema = jsonSchemaGenerator.generateSchema(resolvedType)
+        schema.get("properties").assert().isNotNull()
     }
 
     @Test
     fun `should generate schema for parameterized server sent event`() {
         val resolvedType =
             TypeResolver().resolve(ServerSentEvent::class.java, TestState::class.java)
-        val schema = jsonSchemaGenerator.generateSchema(resolvedType).asJsonSchema()
-        schema.getProperties().assert().isNotNull()
+        val schema = jsonSchemaGenerator.generateSchema(resolvedType)
+        schema.get("properties").assert().isNotNull()
     }
 }

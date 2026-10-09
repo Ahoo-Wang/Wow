@@ -24,9 +24,6 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
-import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.Types.isWowType
@@ -71,9 +68,9 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
             return null
         }
         val declarationDetails = DeclarationDetails(javaType, context.typeContext.resolveWithMembers(javaType))
-        val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
-        rootSchema.ensureProperties()
-        val propertiesNode: ObjectNode = rootSchema.getProperties() ?: return null
+        val rootSchema = context.createStandardDefinition(javaType, this)
+        val propertiesKey = context.getKeyword(SchemaKeyword.TAG_PROPERTIES)
+        val propertiesNode = rootSchema[propertiesKey] as? ObjectNode ?: rootSchema.putObject(propertiesKey)
         for (kotlinGetter in kotlinGettersIfNonFields) {
             if (propertiesNode.get(kotlinGetter.name) == null) {
                 val kotlinGetterMethod = declarationDetails.declaringTypeMembers.memberMethods.firstOrNull {
@@ -83,17 +80,17 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
                 val methodScope: MethodScope =
                     context.typeContext.createMethodScope(resolvedMethod, declarationDetails)
                 val getterNode = createStandardDefinition(methodScope, context)
-                getterNode.markReadOnlyIfNecessary(kotlinGetter)
+                getterNode.markReadOnlyIfNecessary(kotlinGetter, context)
                 propertiesNode.set(kotlinGetter.name, getterNode)
             }
         }
-        return rootSchema.asCustomDefinition()
+        return CustomDefinition(rootSchema)
     }
 
-    private fun ObjectNode.markReadOnlyIfNecessary(kotlinGetter: KProperty1<*, *>) {
+    private fun ObjectNode.markReadOnlyIfNecessary(kotlinGetter: KProperty1<*, *>, context: SchemaGenerationContext) {
         val accessMode = kotlinGetter.scanAnnotation<Schema>()?.accessMode
         if (accessMode == null || accessMode == Schema.AccessMode.AUTO || accessMode == Schema.AccessMode.READ_ONLY) {
-            put(SchemaKeyword.TAG_READ_ONLY.toPropertyName(), true)
+            put(context.getKeyword(SchemaKeyword.TAG_READ_ONLY), true)
         }
     }
 

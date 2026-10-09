@@ -11,27 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
+import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.eventsourcing.state.StateEvent
+import com.github.victools.jsonschema.generator.SchemaKeyword
+import me.ahoo.wow.api.query.QueryField
 
-object DomainEventStreamDefinitionProvider : TypedCustomDefinitionProvider() {
-    override val type: Class<*>
-        get() = DomainEventStream::class.java
-
+internal object QueryFieldDefinitionProvider : CustomDefinitionProviderV2 {
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
-        context: SchemaGenerationContext
+        context: SchemaGenerationContext,
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(type) || javaType.isInstanceOf(StateEvent::class.java) ||
-            javaType.isInstanceOf(AggregatedDomainEventStream::class.java)
-        ) {
-            return null
-        }
-        return createCustomDefinition(javaType, context)
+        if (javaType.erasedType != QueryField::class.java) return null
+        val definition = context.generatorConfig.createObjectNode()
+        definition.put(
+            context.getKeyword(SchemaKeyword.TAG_TYPE),
+            context.getKeyword(SchemaKeyword.TAG_TYPE_STRING),
+        )
+        definition.put(context.getKeyword(SchemaKeyword.TAG_PATTERN), QueryField.PATTERN)
+        return CustomDefinition(definition)
     }
 }

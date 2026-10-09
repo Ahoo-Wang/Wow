@@ -13,30 +13,71 @@
 
 package me.ahoo.wow.schema
 
+import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigPart
-import me.ahoo.wow.schema.typed.TypedDefaultValueDefinitionProvider
-import me.ahoo.wow.schema.typed.query.FilterExpressionDefinitionProvider
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.schema.definition.AggregatedDomainEventStreamDefinitionProvider
+import me.ahoo.wow.schema.definition.BundledDefinitionProvider
+import me.ahoo.wow.schema.definition.EnumTextDefinitionProvider
+import me.ahoo.wow.schema.definition.FilterExpressionDefinitionProvider
+import me.ahoo.wow.schema.definition.JsonNodeDefinitionProvider
+import me.ahoo.wow.schema.definition.MapDefinitionProvider
+import me.ahoo.wow.schema.definition.QueryFieldDefinitionProvider
+import me.ahoo.wow.schema.definition.QuerySchemaValueDefinitionProvider
+import me.ahoo.wow.schema.definition.ServerSentEventCustomDefinitionProvider
+import me.ahoo.wow.schema.definition.TypedDefaultValueDefinitionProvider
+import me.ahoo.wow.schema.definition.WrappedDefinitionProvider
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 
+/** Wow's annotations (`@Summary`, `@Description`, command route variables) and framework type definitions. */
 class WowModule(
     private val options: Set<WowOption> = WowOption.ALL
-) :
-    Module {
+) : Module {
+    private companion object {
+        /** Order matters: the first provider that answers for a type wins. */
+        val PROVIDERS: List<CustomDefinitionProviderV2> = listOf(
+            BundledDefinitionProvider(AggregateId::class.java),
+            WrappedDefinitionProvider.message(CommandMessage::class.java),
+            WrappedDefinitionProvider.message(DomainEvent::class.java),
+            BundledDefinitionProvider(
+                DomainEventStream::class.java,
+                excludedSubtypes = setOf(StateEvent::class.java, AggregatedDomainEventStream::class.java),
+            ),
+            AggregatedDomainEventStreamDefinitionProvider,
+            WrappedDefinitionProvider.state(StateAggregate::class.java),
+            WrappedDefinitionProvider.state(Snapshot::class.java),
+            WrappedDefinitionProvider.state(StateEvent::class.java),
+            ServerSentEventCustomDefinitionProvider,
+            QueryFieldDefinitionProvider,
+            QuerySchemaValueDefinitionProvider,
+            JsonNodeDefinitionProvider,
+            MapDefinitionProvider,
+            EnumTextDefinitionProvider,
+        )
+    }
+
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         TypedDefaultValueDefinitionProvider.applyToConfigBuilder(builder)
-        FilterExpressionDefinitionProvider.applyToConfigBuilder(builder)
+        val generalConfigPart = builder.forTypesInGeneral()
+        generalConfigPart.withCustomDefinitionProvider(FilterExpressionDefinitionProvider)
         val fieldConfigPart = builder.forFields()
+        fieldConfigPart.withTargetTypeOverridesResolver(FilterExpressionDefinitionProvider::skipSubtypeLookup)
+        builder.forMethods().withTargetTypeOverridesResolver(FilterExpressionDefinitionProvider::skipSubtypeLookup)
         fieldConfigPart.withTitleResolver(SummaryTitleFieldResolver)
         fieldConfigPart.withDescriptionResolver(DescriptionFieldResolver)
         ignoreCommandRouteVariable(fieldConfigPart)
-        val generalConfigPart = builder.forTypesInGeneral()
         generalConfigPart.withTitleResolver(SummaryTitleTypeResolver)
         generalConfigPart.withDescriptionResolver(DescriptionTypeResolver)
-        WowDefinitionProviderRegistry.providers.forEach {
-            generalConfigPart.withCustomDefinitionProvider(it)
-        }
+        PROVIDERS.forEach(generalConfigPart::withCustomDefinitionProvider)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {

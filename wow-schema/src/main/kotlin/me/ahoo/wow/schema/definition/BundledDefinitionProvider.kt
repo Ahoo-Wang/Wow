@@ -11,33 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import me.ahoo.wow.models.common.EnumText
-import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.WowSchemaLoader
 
-object EnumTextDefinitionProvider : CustomDefinitionProviderV2 {
-    const val ENUM_TEXT_KEY_NAME = "x-enum-text"
+/**
+ * Describes every type assignable to [type], except [excludedSubtypes], with the bundled resource
+ * `META-INF/wow-schema/{type.simpleName}.json`: a framework type's wire shape, independent of its implementation classes.
+ */
+internal open class BundledDefinitionProvider(
+    protected val type: Class<*>,
+    private val excludedSubtypes: Set<Class<*>> = emptySet(),
+) : CustomDefinitionProviderV2 {
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
-        context: SchemaGenerationContext
+        context: SchemaGenerationContext,
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(EnumText::class.java) || !javaType.erasedType.isEnum) {
+        if (!javaType.isInstanceOf(type) || excludedSubtypes.any(javaType::isInstanceOf)) {
             return null
         }
-        val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
-        val enumTextsNode = context.generatorConfig.createObjectNode()
-        javaType.erasedType.enumConstants.forEach {
-            it as Enum<*>
-            it as EnumText
-            enumTextsNode.put(it.name, it.text)
-        }
-        rootSchema.set(ENUM_TEXT_KEY_NAME, enumTextsNode)
-        return rootSchema.asCustomDefinition()
+        return createCustomDefinition(javaType, context)
     }
+
+    protected open fun createCustomDefinition(
+        javaType: ResolvedType,
+        context: SchemaGenerationContext,
+    ): CustomDefinition = CustomDefinition(WowSchemaLoader.load(type))
 }

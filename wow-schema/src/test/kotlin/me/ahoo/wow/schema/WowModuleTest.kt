@@ -20,7 +20,6 @@ import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.RelativeTimeFilter
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import org.junit.jupiter.api.Test
 
@@ -53,29 +52,29 @@ class WowModuleTest {
     @Test
     fun `should ignore command route path variable by default`() {
         val generator = SchemaGeneratorBuilder().build()
-        val schema = generator.generateSchema(CommandRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNull()
+        val schema = generator.generateSchema(CommandRouteFixture::class.java)
+        schema.get("properties").assert().isNull()
     }
 
     @Test
     fun `should ignore command route header variable by default`() {
         val generator = SchemaGeneratorBuilder().build()
-        val schema = generator.generateSchema(HeaderRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNull()
+        val schema = generator.generateSchema(HeaderRouteFixture::class.java)
+        schema.get("properties").assert().isNull()
     }
 
     @Test
     fun `should not ignore path variable when option is disabled`() {
         val generator = SchemaGeneratorBuilder().wowModule(WowModule(setOf())).build()
-        val schema = generator.generateSchema(CommandRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNotNull()
+        val schema = generator.generateSchema(CommandRouteFixture::class.java)
+        schema.get("properties").assert().isNotNull()
     }
 
     @Test
     fun `should not ignore header variable when option is disabled`() {
         val generator = SchemaGeneratorBuilder().wowModule(WowModule(setOf())).build()
-        val schema = generator.generateSchema(HeaderRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNotNull()
+        val schema = generator.generateSchema(HeaderRouteFixture::class.java)
+        schema.get("properties").assert().isNotNull()
     }
 
     @Test

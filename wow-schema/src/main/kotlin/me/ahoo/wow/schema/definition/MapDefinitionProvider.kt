@@ -11,34 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryValueType
 
-object QuerySchemaValueDefinitionProvider : CustomDefinitionProviderV2 {
-    private val valueTypes = setOf(
-        QueryCapability::class.java,
-        QueryModel::class.java,
-        QueryValueType::class.java,
-    )
-
+internal object MapDefinitionProvider : CustomDefinitionProviderV2 {
+    const val MAP_KEY_NAME = "x-map-key-schema"
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
-        context: SchemaGenerationContext,
+        context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (javaType.erasedType !in valueTypes) return null
-        val definition = context.generatorConfig.createObjectNode()
-        definition.put(
-            context.getKeyword(SchemaKeyword.TAG_TYPE),
-            context.getKeyword(SchemaKeyword.TAG_TYPE_STRING),
-        )
-        return CustomDefinition(definition)
+        if (!javaType.isInstanceOf(Map::class.java)) {
+            return null
+        }
+        val mapTypeParameters = javaType.typeParametersFor(Map::class.java)
+        if (mapTypeParameters.size != 2) {
+            return null
+        }
+
+        val mapKeyType = javaType.typeParameters[0]
+        if (mapKeyType.isInstanceOf(String::class.java)) {
+            return null
+        }
+        val rootSchema = context.createStandardDefinition(javaType, this)
+        val keySchema = context.createStandardDefinitionReference(mapKeyType, null)
+        rootSchema.set(MAP_KEY_NAME, keySchema)
+        return CustomDefinition(rootSchema)
     }
 }

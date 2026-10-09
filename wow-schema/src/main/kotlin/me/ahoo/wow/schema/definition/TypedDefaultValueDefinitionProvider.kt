@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclusion
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition

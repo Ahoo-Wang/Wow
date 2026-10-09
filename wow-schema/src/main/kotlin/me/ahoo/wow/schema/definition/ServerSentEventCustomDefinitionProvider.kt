@@ -11,36 +11,33 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
+import me.ahoo.wow.schema.web.ServerSentEvent
 
-object MapDefinitionProvider : CustomDefinitionProviderV2 {
-    const val MAP_KEY_NAME = "x-map-key-schema"
+internal object ServerSentEventCustomDefinitionProvider : CustomDefinitionProviderV2 {
+    const val SPRING_WEB_SERVER_SENT_EVENT = "org.springframework.http.codec.ServerSentEvent"
+
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (!javaType.isInstanceOf(Map::class.java)) {
-            return null
-        }
-        val mapTypeParameters = javaType.typeParametersFor(Map::class.java)
-        if (mapTypeParameters.size != 2) {
+        if (javaType.erasedType.name != SPRING_WEB_SERVER_SENT_EVENT) {
             return null
         }
 
-        val mapKeyType = javaType.typeParameters[0]
-        if (mapKeyType.isInstanceOf(String::class.java)) {
-            return null
+        val serverSentEventType = if (javaType.typeParameters.isNotEmpty()) {
+            val dataType = javaType.typeParameters[0]
+            context.typeContext.resolve(ServerSentEvent::class.java, dataType)
+        } else {
+            context.typeContext.resolve(ServerSentEvent::class.java)
         }
-        val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
-        val keySchema = context.createStandardDefinitionReference(mapKeyType, null)
-        rootSchema.set(MAP_KEY_NAME, keySchema)
-        return rootSchema.asCustomDefinition()
+
+        val standardDefinition = context.createStandardDefinition(serverSentEventType, this)
+        return CustomDefinition(standardDefinition)
     }
 }

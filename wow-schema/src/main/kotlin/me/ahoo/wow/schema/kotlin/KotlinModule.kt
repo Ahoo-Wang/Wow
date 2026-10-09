@@ -15,11 +15,14 @@ package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
-import me.ahoo.wow.schema.kotlin.range.CharRangeDefinitionProvider
-import me.ahoo.wow.schema.kotlin.range.IntRangeDefinitionProvider
-import me.ahoo.wow.schema.kotlin.range.LongRangeDefinitionProvider
+import me.ahoo.wow.schema.definition.BundledDefinitionProvider
 
 class KotlinModule : Module {
+    private companion object {
+        val RANGES = listOf(CharRange::class.java, IntRange::class.java, LongRange::class.java)
+            .map(::BundledDefinitionProvider)
+    }
+
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
         fieldConfigPart.withNullableCheck(KotlinNullableCheck)
@@ -31,8 +34,6 @@ class KotlinModule : Module {
         methodConfigPart.withIgnoreCheck(KotlinMethodIgnoreCheck)
         val generalConfigPart = builder.forTypesInGeneral()
         generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
-        generalConfigPart.withCustomDefinitionProvider(CharRangeDefinitionProvider)
-        generalConfigPart.withCustomDefinitionProvider(IntRangeDefinitionProvider)
-        generalConfigPart.withCustomDefinitionProvider(LongRangeDefinitionProvider)
+        RANGES.forEach(generalConfigPart::withCustomDefinitionProvider)
     }
 }

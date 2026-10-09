@@ -11,32 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.web
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
+import me.ahoo.wow.models.common.EnumText
 
-object ServerSentEventCustomDefinitionProvider : CustomDefinitionProviderV2 {
-    const val SPRING_WEB_SERVER_SENT_EVENT = "org.springframework.http.codec.ServerSentEvent"
-
+internal object EnumTextDefinitionProvider : CustomDefinitionProviderV2 {
+    const val ENUM_TEXT_KEY_NAME = "x-enum-text"
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
     ): CustomDefinition? {
-        if (javaType.erasedType.name != SPRING_WEB_SERVER_SENT_EVENT) {
+        if (!javaType.isInstanceOf(EnumText::class.java) || !javaType.erasedType.isEnum) {
             return null
         }
-
-        val serverSentEventType = if (javaType.typeParameters.isNotEmpty()) {
-            val dataType = javaType.typeParameters[0]
-            context.typeContext.resolve(ServerSentEvent::class.java, dataType)
-        } else {
-            context.typeContext.resolve(ServerSentEvent::class.java)
+        val rootSchema = context.createStandardDefinition(javaType, this)
+        val enumTextsNode = context.generatorConfig.createObjectNode()
+        javaType.erasedType.enumConstants.forEach {
+            it as Enum<*>
+            it as EnumText
+            enumTextsNode.put(it.name, it.text)
         }
-
-        val standardDefinition = context.createStandardDefinition(serverSentEventType, this)
-        return CustomDefinition(standardDefinition)
+        rootSchema.set(ENUM_TEXT_KEY_NAME, enumTextsNode)
+        return CustomDefinition(rootSchema)
     }
 }
