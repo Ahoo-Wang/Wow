@@ -38,7 +38,10 @@ jobs:
         with:
           sync-labels: false
 
-  # actions/labeler cannot match titles. A Conventional Commit title with `!`
+  # actions/labeler cannot match titles, so this job labels from them. The title
+  # type picks the release-notes label (feat -> enhancement, fix -> bug, perf ->
+  # performance, docs -> documentation, other types -> maintenance, a `deps`
+  # scope -> dependencies; .github/scripts/title-label.mjs). A Conventional Commit title with `!`
   # (`type(scope)!: …`), or a description that declares a break (a BREAKING
   # CHANGE footer, the template's breaking box ticked, a `## Breaking` section
   # that is not "None."), gets `breaking-change`: release notes list it first,
@@ -50,7 +53,7 @@ jobs:
   # script reads the diff from the REST API with this job's token, so the
   # PR's code is still never checked out.
   breaking:
-    name: Label Breaking Change
+    name: Label From Title and Diff
     # After the path labeler: actions/labeler writes the PR's label set, and
     # run in parallel it could drop `breaking-change` added a moment earlier
     # (seen on #3941). `always()` keeps the breaking check independent of the
@@ -72,7 +75,14 @@ jobs:
           sparse-checkout: .github/scripts
 
       # The title and the description are untrusted input: they reach the
-      # script only through env.
+      # scripts only through env.
+      - name: Label the title type
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/title-label.mjs
+
       - name: Label a breaking change
         env:
           GH_TOKEN: ${{ github.token }}
