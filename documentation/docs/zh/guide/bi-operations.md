@@ -38,12 +38,19 @@ SQL executor 必须保持 statement 顺序，并在第一条错误时停止。�
 持久对象先建后记，清单只会落后于 catalog、不会超前。因此清单里的 store 或 queue 消失，意味着数据或
 Kafka offset 已丢失，DEPLOY 会拒绝并要求 RESET，而不是悄悄重建一张空表。
 
+清单存放在 anchor 的 Comment 里，而 anchor 是一条 `CREATE OR REPLACE VIEW` 语句，所以它必须放得进 ClickHouse 的
+`max_query_size`（默认 256 KiB）。每个记录的 store 或 queue 约占 45 字节（名字加引号，按约 40 个字符的名字计）。
+cluster 部署每个 aggregate 记录 8 个对象（3 个 store、它们的 3 张 `_local` 表与 2 个 queue），standalone 记录 5 个
+（3 个 store 与 2 个 queue）；已移除的 aggregate 保留的 store 仍在清单里（cluster 6 个，standalone 3 个）。据此
+cluster 大约容得下 700 个 aggregate，standalone 约 1,100 个，名字更长则更少。更大的部署必须为执行脚本的会话调高
+`max_query_size`。
+
 ## 操作决策
 
 | 观测到的 catalog 状态 | 操作 | 原因 |
 |---|---|---|
 | 空目标 scope | `DEPLOY` | 安装 store、ingress、view 与 `STABLE` anchor |
-| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账：已存在且定义一致的 store、queue、view 与 consumer 都保持不动，脚本只重写 anchor；摄入不暂停 |
+| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账：已存在且定义一致的 store、queue、view 与 consumer 都保持不动。没有任何漂移时，脚本只有两条 `CREATE DATABASE IF NOT EXISTS` 与 anchor，摄入不暂停 |
 | 计算 view/materialized-view 漂移 | `DEPLOY` | 替换漂移的定义；consumer 漂移时暂停并重建该 stream 的整条 consumer 链 |
 | 期望的 store/queue 缺失且不在清单中 | `DEPLOY` | 首次创建或中断后补齐 |
 | 清单中的 store/queue 缺失 | 备份后确认 `RESET` | 数据或 offset 已丢失 |
@@ -51,6 +58,13 @@ Kafka offset 已丢失，DEPLOY 会拒绝并要求 RESET，而不是悄悄重建
 | 对象或 anchor 的 layout 不是当前值 | 确认 `RESET` | 见[升级](#升级) |
 | anchor phase 为 `RESETTING` | 用完全相同物理范围配置继续 `RESET` | 复用已记录的 reset consumer identity |
 | anchor 为 `STABLE` 但 ingress 不完整 | `DEPLOY` | 重建缺失 queue/consumer materialized view |
+
+修复 consumer 漂移会在 queue 继续轮询时重建该 stream 的 consumer 链。使用
+`kafkaOffsetStorage = KEEPER`（`wow.bi.script.kafka-offset-storage`，ClickHouse `StorageKafka2`）时，在一个轮询周期内
+被删除并重建的 consumer 可能丢失该周期读到的消息：周期提交了它们的 offset，却没有写到任何地方。执行会修复 consumer
+漂移的 `DEPLOY` 之前（diagnostic 与脚本会显示哪些 consumer 被删除并重建；改变了 consumer `SELECT` 的 Wow 升级就会
+引起它），先停止相关 topic 的 producer 并等摄入排空，或者改用确认后的 `RESET` 重建。`BROKER`（默认）没有这个缺口。
+不改动任何 consumer 的 `DEPLOY` 在两种模式下都保持摄入挂接。
 
 ## 发布前检查
 
@@ -86,7 +100,9 @@ Reset 会删除受管 BI scope 内的数据并重放：
    - anchor 为 `RESETTING` → 使用完全相同 scope/configuration 重新生成 `RESET`；
    - anchor 为 `STABLE` 但缺少 ingress → 生成 `DEPLOY`。
 4. Reset 完成后再生成并执行一次新的权威 `DEPLOY`：Reset 的 anchor 写在 Kafka ingress 之前，只记录
-   store；这次 DEPLOY 把 queue 记入清单并完成剩余对账。
+   store；这次 DEPLOY 把 queue 记入清单并完成剩余对账。在这次 DEPLOY 之前丢失的 queue 从未被记录，因此不会被
+   发现：DEPLOY 把它当作首次创建重建。使用 `KEEPER` offset 时，重建的 queue 从哪里继续取决于它的 Keeper 路径上
+   还剩什么，验收时要核对它的 offset。
 5. 回滚窗口内保持旧 scope/backup 不可变。
 
 ## 验收
@@ -110,11 +126,15 @@ layout 8 自 Wow 9.4.0 起生效。它去掉了 ownership registry，部署级�
 1. 按[执行 Reset](#执行-reset) 的前提确认 Kafka retention 覆盖需要重放的历史。
 2. 用 9.4.0 生成并执行确认后的 `RESET`。它识别旧对象的归属并全部删除，再按 layout 8 重建。
 3. 按第 4 步再执行一次 `DEPLOY`。
-4. 手工删除不再使用的 registry 表：
+4. 手工删除不再使用的 registry 表。`<deploymentId>` 是任一 BI 对象 Comment 里 `wow-bi:` JSON 的 `deploymentId`
+   字段，例如 anchor 的（同一 scope 的 deployment ID 跨版本不变）：
 
    ```sql
+   SELECT comment FROM system.tables WHERE database = '<consumerDatabase>' AND name = '__wow_bi_deployment';
    DROP TABLE IF EXISTS `<consumerDatabase>`.`__wow_bi_registry_<deploymentId>` [ON CLUSTER '<cluster>'] SYNC;
    ```
+
+   cluster 上保留 `ON CLUSTER` 与 `SYNC`：不带 `SYNC` 时 Atomic database 会推迟删除这张复制表。
 
 ## 回滚
 
@@ -133,5 +153,6 @@ Kafka engine、恢复数据或回滚 offset。
 
 生成契约见 [商业智能](./bi)，跨版本门禁见 [Wow v6 迁移到 v8](./migration/v6-to-v8)。
 
-<!-- Sources: BiObservedDeploymentPolicy, BiScriptAssembly (durableInventory), BiObjectMetadata/BiAnchorState,
-ClickHouseCatalogReader, ClickHouseBiDeploymentInspector, and related tests -->
+<!-- Sources: BiOperationPolicy, plan/BiReconciler (durable inventory), BiObjectMetadata/BiAnchorState, layout/BiLayout,
+catalog/ClickHouseCatalogReader, ClickHouseBiDeploymentInspector, the golden scripts under
+wow-bi/src/integrationTest/resources/golden, and related tests -->
