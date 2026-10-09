@@ -156,7 +156,7 @@ internal class WrappedDefinitionProvider(
 | S6 | #4048 | 三处遍历合成一个展开器（`expand`）和一个引用解析（`referencedNode`）；查询事实 golden 不变 |
 | S3 | #4049 | `buildConfig()`、`copy()`；`openapi31`、`typeContext`、`requiredTypeContent` 弃用并记入 compat-debt；ConfigFactory 并入 builder |
 | S5 | #4050 | 迁移前先在 `wow-openapi` 用迁移前的代码生成 OpenAPI golden，迁移后不变；main 代码只有重命名，外加可见性调整 |
-| S2 | 待定 | 公开类从 63 个降到 19 个 |
+| S2 | #4051 | 公开类从 63 个降到 19 个 |
 
 实施中对设计的修正：
 
