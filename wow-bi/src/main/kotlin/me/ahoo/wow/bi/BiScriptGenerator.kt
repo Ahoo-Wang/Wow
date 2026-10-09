@@ -69,15 +69,6 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
     private val assembler = BiScriptAssembler(options)
 
     fun generate(
-        namedAggregates: Set<NamedAggregate>,
-        operation: BiScriptOperation = BiScriptOperation.Deploy,
-        inspection: BiDeploymentInspection = BiDeploymentInspection.Unavailable,
-    ): BiScriptResult {
-        validateGenerationRequest(namedAggregates, operation, inspection)
-        return assembler.assemble(preparationPlanner.plan(namedAggregates), operation, inspection)
-    }
-
-    fun generate(
         preparation: BiScriptPreparation,
         operation: BiScriptOperation = BiScriptOperation.Deploy,
         inspection: BiDeploymentInspection = BiDeploymentInspection.Unavailable,
@@ -115,7 +106,4 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
             }
         }
     }
-
-    internal fun desiredObjectKeys(namedAggregates: Set<NamedAggregate>): Set<BiObjectKey> =
-        prepare(namedAggregates).desiredObjectKeys
 }

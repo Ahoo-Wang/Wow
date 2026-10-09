@@ -1,6 +1,6 @@
 # wow-bi 重构设计
 
-日期：2026-10-09。状态：已确认（2026-10-09），待实施。
+日期：2026-10-09。状态：已实施（2026-10-09，#4030–#4035），见 §9。
 
 依据：对 `wow-bi`（`main` 代码 8.5k 行、测试 11.3k 行）和唯一调用方 `wow-spring-boot-starter` 的 `bi` 包做的只读审查，基于 `main` `41913a1e5`。文中路径都相对 `wow-bi/src/main/kotlin/me/ahoo/wow/bi/`，行号指该提交。
 
@@ -215,3 +215,23 @@ anchor 在脚本最后写入，晚于所有持久对象的创建。规则全部�
 | 手写并发状态机 | 1 | 0 |
 | renderer 内的生命周期分支（mode / retained） | 14 | 0 |
 | 最长函数 | `CatalogReader.read` ~280 行 | 不超过 detekt 默认阈值，去掉 `LongMethod`/`CyclomaticComplexMethod` 抑制 |
+
+## 9. 实施记录
+
+| 阶段 | PR | 结果 |
+|---|---|---|
+| R0 | #4030 | 两种拓扑 × 9 个场景的 golden、包依赖测试；顺带修复 cluster 上 RESET 不带 `SYNC` 删除 registry 导致紧随的 DEPLOY 报 `REPLICA_ALREADY_EXISTS` |
+| R1 | #4031 | layout 8：anchor 持久对象清单取代 registry；RESET 的 anchor 写在 Kafka ingress 之前，只记录 store |
+| R2 | #4032 | `layout` 包成为名字、engine、store schema 的唯一来源；包循环清零；输出逐字节不变 |
+| R3 | #4033 | `catalog` 包、catalog SQL 独立成文件、`biDigest`；输出逐字节不变 |
+| R4 | #4034 | `BiReconciler` / `BiChangePlan` 一处决定每个对象的动作；golden 只删不增（−4982 行），幂等 DEPLOY 只剩建库与 anchor |
+| R5 | #4035 | `BiScriptService` 收拢编排；观测模型收为 `internal`；删除重复入口；按概念拆分 inspection 文件 |
+
+实施中对设计的两处修正：
+
+- **B5 不合并两份校验。** 两者的失败含义不同：catalog 不完整是 `Inconsistent`（HTTP 502），完整 catalog 上
+  不允许的操作是 `IllegalArgumentException`（HTTP 400，并指明应改用的操作）。合并会把 400 变成 502，属于用户可见
+  的 REST 变化。改为命名为 `ClickHouseCatalogValidator` 与 `BiOperationPolicy`，并在两侧写明边界。
+- **B7 保留 `QueryResponseLifecycle` 状态机。** 它的四个状态正是 12 个竞态测试固定的语义（取消与 claim 谁先都
+  只关闭一次、迟到响应在查询线程外排空）；同步重写只是换个写法，完全响应式会把顺序的多查询 catalog 读取变成
+  `Mono` 链，可读性更差。改为独立成文件并写明协议。

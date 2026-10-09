@@ -29,7 +29,9 @@ is current.
 
 ### Structured Result API
 
-`BiScriptGenerator` returns SQL plus an explicit operation and diagnostics:
+`BiScriptService` prepares the desired layout, inspects the ClickHouse catalog, and renders the script, returning SQL
+plus an explicit operation and diagnostics. Preparation and rendering run on a bounded scheduler; when it is saturated
+the request fails as `BiDeploymentInspectionException.Unavailable`:
 
 ```kotlin
 val options = BiScriptOptions(
@@ -38,14 +40,12 @@ val options = BiScriptOptions(
     topology = ClickHouseTopology.Standalone,
     consumerGroupNamespace = "orders-blue",
 )
-val generator = BiScriptGenerator(options)
-val preparation = generator.prepare(namedAggregates)
-val result: Mono<BiScriptResult> = inspector
-    .inspect(options, BiScriptOperation.Deploy, preparation)
-    .map { inspection ->
-        generator.generate(preparation, BiScriptOperation.Deploy, inspection)
-    }
+val service = BiScriptService(ClickHouseBiDeploymentInspector(clientOptions))
+val result: Mono<BiScriptResult> = service.generate(options, BiScriptOperation.Deploy) { namedAggregates }
 ```
+
+For an offline preview only, `BiScriptGenerator(options).let { it.generate(it.prepare(namedAggregates)) }` renders
+directly.
 
 `BiScriptResult` exposes `script`, `diagnostics`, `operation`, and `destructive`; statement boundaries are internal so
 an executor must still run the rendered SQL in order and stop on the first failure. `Reset(true)` is the only
@@ -103,8 +103,9 @@ requires `replayFromEarliestConfirmed=true`; that field is invalid for `DEPLOY`.
 
 The default `NoOpBiDeploymentInspector` returns explicit `Unavailable`. It supports initial/offline `DEPLOY` preview
 with a diagnostic, but cannot clean stale objects, recover a prior consumer identity, or execute `RESET`. Production
-reconciliation requires `wow.bi.script.inspector.type=CLICKHOUSE` and ClickHouse endpoints, or a custom authoritative
-`BiDeploymentInspector`. Protect this operational route with the deployment gateway.
+reconciliation requires `wow.bi.script.inspector.type=CLICKHOUSE` and ClickHouse endpoints. Only the built-in
+inspectors can observe a catalog: a custom `BiDeploymentInspector` may wrap them (to add metrics, for example) but cannot
+fabricate an observation. Protect this operational route with the deployment gateway.
 
 ## Generated SQL Contract
 

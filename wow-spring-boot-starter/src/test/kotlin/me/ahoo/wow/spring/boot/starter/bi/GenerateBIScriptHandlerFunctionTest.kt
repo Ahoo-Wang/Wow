@@ -18,28 +18,24 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.BiAnchorState
-import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentInspection
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
-import me.ahoo.wow.bi.BiDeploymentPhase
-import me.ahoo.wow.bi.BiObjectKind
-import me.ahoo.wow.bi.BiObjectMetadata
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.BiScriptPreparation
+import me.ahoo.wow.bi.BiScriptResult
+import me.ahoo.wow.bi.BiScriptService
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
-import me.ahoo.wow.bi.ObservedBiDeployment
-import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
@@ -213,7 +209,7 @@ class GenerateBIScriptHandlerFunctionTest {
                 options = BASE_OPTIONS,
                 deploymentInspector = NoOpBiDeploymentInspector,
                 exceptionHandler = WebFluxRequestExceptionHandler(),
-                generationScheduler = scheduler,
+                scriptService = BiScriptService(NoOpBiDeploymentInspector, scheduler),
             ).handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
                 .block()!!
 
@@ -429,28 +425,19 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should expose explicit destructive reset over HTTP`() {
-        val descriptor = BiDeploymentDescriptor.from(BASE_OPTIONS)
-        val handler = handler(
-            deploymentInspector = BiDeploymentInspector { _, _, _ ->
-                Mono.just(
-                    BiDeploymentInspection.Available(
-                        ObservedBiDeployment(
-                            listOf(
-                                ObservedBiObject(
-                                    database = BASE_OPTIONS.database,
-                                    name = "example_cart_state_last_store",
-                                    engine = "Distributed",
-                                    metadata = BiObjectMetadata(
-                                        deploymentId = descriptor.deploymentId,
-                                        aggregate = "example.cart",
-                                        kind = BiObjectKind.STORE,
-                                    ),
-                                )
-                            )
-                        )
-                    )
-                )
-            }
+        val result = mockk<BiScriptResult> {
+            every { script } returns "DROP TABLE IF EXISTS \"bi_db\".\"example_cart_state_last_store\";"
+            every { destructive } returns true
+            every { diagnostics } returns emptyList()
+        }
+        val scriptService = mockk<BiScriptService> {
+            every { generate(any(), BiScriptOperation.Reset(true), any()) } returns Mono.just(result)
+        }
+        val handler = GenerateBIScriptHandlerFunction(
+            options = BASE_OPTIONS,
+            deploymentInspector = NoOpBiDeploymentInspector,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            scriptService = scriptService,
         )
         val request = MockServerRequest.builder()
             .header("Accept", MediaType.APPLICATION_JSON_VALUE)
@@ -468,7 +455,6 @@ class GenerateBIScriptHandlerFunctionTest {
 
     @Test
     fun `should inspect changed configuration with reset semantics over HTTP`() {
-        val descriptor = BiDeploymentDescriptor.from(BASE_OPTIONS)
         lateinit var inspectedOptions: BiScriptOptions
         lateinit var inspectedOperation: BiScriptOperation
         val deploymentInspector = object : BiDeploymentInspector {
@@ -479,29 +465,7 @@ class GenerateBIScriptHandlerFunctionTest {
             ): Mono<BiDeploymentInspection> {
                 inspectedOptions = options
                 inspectedOperation = operation
-                return Mono.just(
-                    BiDeploymentInspection.Available(
-                        ObservedBiDeployment(
-                            listOf(
-                                ObservedBiObject(
-                                    database = BASE_OPTIONS.consumerDatabase,
-                                    name = "__wow_bi_deployment",
-                                    engine = "View",
-                                    metadata = BiObjectMetadata(
-                                        deploymentId = descriptor.deploymentId,
-                                        kind = BiObjectKind.ANCHOR,
-                                        anchor = BiAnchorState(
-                                            phase = BiDeploymentPhase.STABLE,
-                                            configurationFingerprint = descriptor.configurationFingerprint,
-                                            topologyFingerprint = descriptor.topologyFingerprint,
-                                            consumerIdentity = descriptor.configurationFingerprint,
-                                        ),
-                                    ),
-                                )
-                            )
-                        )
-                    )
-                )
+                return Mono.just(BiDeploymentInspection.Unavailable)
             }
         }
         val request = MockServerRequest.builder()
@@ -515,8 +479,8 @@ class GenerateBIScriptHandlerFunctionTest {
 
         val response = handler(deploymentInspector = deploymentInspector).handle(request).block()!!
 
-        response.statusCode().assert().isEqualTo(HttpStatus.OK)
-        response.writeBody().assert().contains("changed-kafka:9092")
+        response.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        response.writeBody().assert().contains("RESET requires an available BI deployment inspection")
         inspectedOptions.kafkaBootstrapServers.assert().isEqualTo("changed-kafka:9092")
         inspectedOperation.assert().isEqualTo(BiScriptOperation.Reset(true))
     }
@@ -557,7 +521,9 @@ class GenerateBIScriptHandlerFunctionTest {
                 topology = ClickHouseTopology.Standalone,
                 consumerGroupNamespace = "test",
             )
-            val generated = BiScriptGenerator(options).generate(setOf(aggregate))
+            val generated = BiScriptGenerator(
+                options
+            ).let { generator -> generator.generate(generator.prepare(setOf(aggregate))) }
             generated.diagnostics.assert().hasSize(3)
 
             lateinit var response: ServerResponse
@@ -604,7 +570,11 @@ class GenerateBIScriptHandlerFunctionTest {
 
             response.statusCode().assert().isEqualTo(HttpStatus.OK)
             val script = response.writeBody()
-            script.assert().isEqualTo(BiScriptGenerator(options).generate(setOf(kept)).script)
+            script.assert().isEqualTo(
+                BiScriptGenerator(
+                    options
+                ).let { generator -> generator.generate(generator.prepare(setOf(kept))) }.script
+            )
             script.assert().doesNotContain("excluded")
         } finally {
             unmockkObject(MetadataSearcher)
@@ -634,7 +604,11 @@ class GenerateBIScriptHandlerFunctionTest {
                 .block()!!
 
             response.statusCode().assert().isEqualTo(HttpStatus.OK)
-            response.writeBody().assert().isEqualTo(BiScriptGenerator(options).generate(setOf(aggregate)).script)
+            response.writeBody().assert().isEqualTo(
+                BiScriptGenerator(
+                    options
+                ).let { generator -> generator.generate(generator.prepare(setOf(aggregate))) }.script
+            )
         } finally {
             unmockkObject(MetadataSearcher)
         }

@@ -19,7 +19,6 @@ import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.ClickHouseBiDeploymentInspector
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
-import me.ahoo.wow.bi.ObservedBiDeployment
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -258,7 +257,7 @@ class BiAutoConfigurationTest {
     @Test
     fun `should let a custom inspector override ClickHouse configuration`() {
         val customInspector = BiDeploymentInspector { _, _, _ ->
-            Mono.just(BiDeploymentInspection.Available(ObservedBiDeployment(emptyList())))
+            Mono.just(BiDeploymentInspection.Unavailable)
         }
         contextRunner
             .withBean(BiDeploymentInspector::class.java, { customInspector })

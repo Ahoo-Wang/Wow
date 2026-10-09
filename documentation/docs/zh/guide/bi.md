@@ -27,7 +27,9 @@ Kafka topic 投影到 ClickHouse。事件存储仍是事实源，ClickHouse 是�
 
 ### 结构化结果 API
 
-`BiScriptGenerator` 返回 SQL、明确 operation 与 diagnostics：
+`BiScriptService` 依次准备期望布局、inspection ClickHouse catalog 并渲染脚本，返回 SQL、明确 operation 与
+diagnostics。准备与渲染在有界调度器上运行，调度器饱和时请求以 `BiDeploymentInspectionException.Unavailable`
+失败：
 
 ```kotlin
 val options = BiScriptOptions(
@@ -36,14 +38,11 @@ val options = BiScriptOptions(
     topology = ClickHouseTopology.Standalone,
     consumerGroupNamespace = "orders-blue",
 )
-val generator = BiScriptGenerator(options)
-val preparation = generator.prepare(namedAggregates)
-val result: Mono<BiScriptResult> = inspector
-    .inspect(options, BiScriptOperation.Deploy, preparation)
-    .map { inspection ->
-        generator.generate(preparation, BiScriptOperation.Deploy, inspection)
-    }
+val service = BiScriptService(ClickHouseBiDeploymentInspector(clientOptions))
+val result: Mono<BiScriptResult> = service.generate(options, BiScriptOperation.Deploy) { namedAggregates }
 ```
+
+只需要离线预览时，`BiScriptGenerator(options).let { it.generate(it.prepare(namedAggregates)) }` 直接渲染。
 
 `BiScriptResult` 公开 `script`、`diagnostics`、`operation` 与 `destructive`；statement 边界是 internal，因此
 执行器仍必须按渲染顺序运行 SQL，并在第一条失败时停止。`Reset(true)` 是唯一破坏性操作，要求可用的
@@ -98,8 +97,8 @@ inspection 与 generation 指向不同物理范围。`RESET` 必须提交 `repla
 
 默认 `NoOpBiDeploymentInspector` 明确返回 `Unavailable`。它只适合首次/离线 `DEPLOY` 预览并产生诊断，
 不能清理旧对象、恢复已有 consumer identity 或执行 `RESET`。生产对账必须配置
-`wow.bi.script.inspector.type=CLICKHOUSE` 与 ClickHouse endpoints，或提供自定义权威
-`BiDeploymentInspector`。部署网关必须保护该操作路由。
+`wow.bi.script.inspector.type=CLICKHOUSE` 与 ClickHouse endpoints。观测结果只能由内置 inspector 产生：自定义
+`BiDeploymentInspector` 可以包装内置实现（例如加指标），但不能自行构造观测结果。部署网关必须保护该操作路由。
 
 ## 生成的 SQL 契约
 

@@ -25,7 +25,6 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
     private val reconciler = BiReconciler(options)
     private val diagnostics = BiScriptDiagnostics(options, policy)
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun assemble(
         preparation: BiScriptPreparation,
         operation: BiScriptOperation,
@@ -48,36 +47,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             verifiedComputedKeys = availableInspection?.reconciliation?.verifiedComputedKeys.orEmpty(),
         )
         val renderer = ClickHouseScriptRenderer(options, plan, descriptor)
-        val renderedAggregates = plannedAggregates.map { planned ->
-            val aggregate = planned.namedAggregate.toStringWithAlias()
-            renderer.renderAggregate(planned.namedAggregate, planned.plan, aggregate)
-        }
-
-        val lifecycleSections = renderLifecycle(plannedAggregates, plan, observed != null, renderer)
-        val resetIntent = if (operation is BiScriptOperation.Reset) {
-            ScriptSection(
-                "deployment-reset-intent",
-                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING, emptyList())),
-            )
-        } else {
-            null
-        }
-        val anchor = if (shouldRenderDeploymentAnchor) {
-            ScriptSection(
-                "deployment-anchor",
-                listOf(
-                    renderer.renderAnchorStatement(BiDeploymentPhase.STABLE, plan.durableInventory)
-                ),
-            )
-        } else {
-            null
-        }
-        val lifecycle = ScriptGroup("lifecycle", listOfNotNull(resetIntent) + lifecycleSections)
-        val durable = durableAggregateSections(renderedAggregates)
-        val ingress = ingressSections(renderedAggregates)
-        val blocks: List<ScriptBlock> = listOf(ScriptSection("global", renderer.renderGlobalStatements()), lifecycle) +
-            durable +
-            if (operation == BiScriptOperation.Deploy) ingress + listOfNotNull(anchor) else listOfNotNull(anchor) + ingress
+        val blocks = scriptBlocks(plannedAggregates, plan, observed != null, renderer, shouldRenderDeploymentAnchor)
         val statements = Collections.unmodifiableList(ArrayList(blocks.flatMap(ScriptBlock::statements)))
         val script = buildString { blocks.forEach { block -> appendBlock(block) } }
         return BiScriptResult(
@@ -124,6 +94,51 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             ScriptSection("$name.commandIngress", rendered.command.ingress),
             ScriptSection("$name.stateIngress", rendered.state.ingress),
         )
+    }
+
+    /**
+     * The script's one ordering: databases, then the lifecycle (RESET's intent, paused ingress, drops), the durable
+     * objects and views, and finally the anchor and Kafka ingress. DEPLOY writes the anchor last; RESET writes it
+     * before ingress so consumers start only once the rebuild is recorded.
+     */
+    private fun scriptBlocks(
+        plannedAggregates: List<PlannedAggregate>,
+        plan: BiChangePlan,
+        observed: Boolean,
+        renderer: ClickHouseScriptRenderer,
+        renderAnchor: Boolean,
+    ): List<ScriptBlock> {
+        val renderedAggregates = plannedAggregates.map { planned ->
+            renderer.renderAggregate(planned.namedAggregate, planned.plan, planned.namedAggregate.toStringWithAlias())
+        }
+        val resetIntent = if (plan.operation is BiScriptOperation.Reset) {
+            ScriptSection(
+                "deployment-reset-intent",
+                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.RESETTING, emptyList())),
+            )
+        } else {
+            null
+        }
+        val anchor = if (renderAnchor) {
+            ScriptSection(
+                "deployment-anchor",
+                listOf(renderer.renderAnchorStatement(BiDeploymentPhase.STABLE, plan.durableInventory)),
+            )
+        } else {
+            null
+        }
+        val lifecycle = ScriptGroup(
+            "lifecycle",
+            listOfNotNull(resetIntent) + renderLifecycle(plannedAggregates, plan, observed, renderer),
+        )
+        val ingress = ingressSections(renderedAggregates)
+        val tail = if (plan.operation == BiScriptOperation.Deploy) {
+            ingress + listOfNotNull(anchor)
+        } else {
+            listOfNotNull(anchor) + ingress
+        }
+        return listOf(ScriptSection("global", renderer.renderGlobalStatements()), lifecycle) +
+            durableAggregateSections(renderedAggregates) + tail
     }
 
     private fun renderLifecycle(
