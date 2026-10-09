@@ -1,0 +1,19 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "inheritedToken" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.InterfaceGetterMaskedState.inheritedToken",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+      }
+    }
+  }
+}

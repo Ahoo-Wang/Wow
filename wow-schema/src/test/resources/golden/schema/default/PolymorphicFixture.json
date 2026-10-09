@@ -1,0 +1,48 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "definitions" : {
+    "wow.schema.PolymorphicFixture.Custom" : {
+      "allOf" : [ {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "value" ]
+      }, {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "const" : "custom"
+          }
+        },
+        "required" : [ "type" ]
+      } ]
+    },
+    "wow.schema.PolymorphicFixture.Default" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "const" : "default"
+        }
+      },
+      "required" : [ "type" ]
+    }
+  },
+  "anyOf" : [ {
+    "$ref" : "#/definitions/wow.schema.PolymorphicFixture.Default"
+  }, {
+    "$ref" : "#/definitions/wow.schema.PolymorphicFixture.Custom"
+  } ],
+  "properties" : {
+    "type" : {
+      "type" : "string",
+      "minLength" : 1
+    }
+  }
+}

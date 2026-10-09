@@ -1,0 +1,52 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "equalStatus" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "enumValues" : [ "OK", "DISABLED" ],
+      "title" : "Shared status",
+      "description" : "Shared status description",
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.EqualReferencedStatus me.ahoo.wow.schema.query.DescriptiveMetadataState.equalStatus",
+        "type" : "me.ahoo.wow.schema.query.EqualReferencedStatus",
+        "valueType" : "me.ahoo.wow.schema.query.EqualReferencedStatus",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(description=\"Shared status description\", title=\"Shared status\")" ]
+      }
+    },
+    "referencedStatus" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "enumValues" : [ "OK", "DISABLED" ],
+      "title" : "Referenced status",
+      "description" : "Referenced status description",
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.ReferencedOnlyStatus me.ahoo.wow.schema.query.DescriptiveMetadataState.referencedStatus",
+        "type" : "me.ahoo.wow.schema.query.ReferencedOnlyStatus",
+        "valueType" : "me.ahoo.wow.schema.query.ReferencedOnlyStatus",
+        "annotations" : [ ]
+      }
+    },
+    "status" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "enumValues" : [ "OK", "DISABLED" ],
+      "title" : "Account status",
+      "description" : "Account status description",
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.ReferencedStatus me.ahoo.wow.schema.query.DescriptiveMetadataState.status",
+        "type" : "me.ahoo.wow.schema.query.ReferencedStatus",
+        "valueType" : "me.ahoo.wow.schema.query.ReferencedStatus",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(description=\"Account status description\", title=\"Account status\")" ]
+      }
+    }
+  }
+}

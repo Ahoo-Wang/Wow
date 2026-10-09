@@ -1,0 +1,165 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "title" : "State title",
+  "description" : "State description",
+  "properties" : {
+    "active" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "BOOLEAN" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final boolean me.ahoo.wow.schema.query.StructuralState.active",
+        "type" : "boolean",
+        "valueType" : "boolean",
+        "annotations" : [ ]
+      }
+    },
+    "address" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "city" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.query.StructuralAddress.city",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.StructuralAddress me.ahoo.wow.schema.query.StructuralState.address",
+        "type" : "me.ahoo.wow.schema.query.StructuralAddress",
+        "valueType" : "me.ahoo.wow.schema.query.StructuralAddress",
+        "annotations" : [ ]
+      }
+    },
+    "count" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : true,
+      "title" : "Count title",
+      "description" : "Count description",
+      "formats" : [ "int32" ],
+      "member" : {
+        "name" : "private final int me.ahoo.wow.schema.query.StructuralState.count",
+        "type" : "int",
+        "valueType" : "int",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(description=\"Count description\", requiredMode=REQUIRED, title=\"Count title\")" ]
+      }
+    },
+    "items" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "quantity" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "INTEGER" ],
+            "nullable" : false,
+            "required" : true,
+            "formats" : [ "int32" ],
+            "member" : {
+              "name" : "private final int me.ahoo.wow.schema.query.StructuralItem.quantity",
+              "type" : "int",
+              "valueType" : "int",
+              "annotations" : [ ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.StructuralState.items",
+          "type" : "me.ahoo.wow.schema.query.StructuralItem",
+          "valueType" : "me.ahoo.wow.schema.query.StructuralItem",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.StructuralState.items",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.query.StructuralItem",
+        "annotations" : [ ]
+      }
+    },
+    "optional" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : false,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.StructuralState.optional",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(requiredMode=NOT_REQUIRED)" ]
+      }
+    },
+    "ratio" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.math.BigDecimal me.ahoo.wow.schema.query.StructuralState.ratio",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ ]
+      }
+    },
+    "status" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "enumValues" : [ "ACTIVE", "INACTIVE" ],
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.StructuralStatus me.ahoo.wow.schema.query.StructuralState.status",
+        "type" : "me.ahoo.wow.schema.query.StructuralStatus",
+        "valueType" : "me.ahoo.wow.schema.query.StructuralStatus",
+        "annotations" : [ ]
+      }
+    },
+    "tags" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.StructuralState.tags",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.StructuralState.tags",
+        "type" : "java.util.List",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

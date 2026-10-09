@@ -1,0 +1,43 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "address" : {
+      "type" : "object",
+      "properties" : {
+        "city" : {
+          "type" : "string"
+        },
+        "country" : {
+          "type" : "string"
+        },
+        "district" : {
+          "type" : "string"
+        }
+      }
+    },
+    "items" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "price" : {
+            "type" : "number"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "price", "productId", "quantity" ]
+      }
+    },
+    "name" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "address", "items", "name" ]
+}

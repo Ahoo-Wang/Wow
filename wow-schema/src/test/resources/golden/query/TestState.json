@@ -1,0 +1,174 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "address" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : false,
+      "properties" : {
+        "city" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : false,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.TestAddress.city",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "country" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : false,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.TestAddress.country",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "district" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : false,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.TestAddress.district",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.TestAddress me.ahoo.wow.schema.TestState.address",
+        "type" : "me.ahoo.wow.schema.TestAddress",
+        "valueType" : "me.ahoo.wow.schema.TestAddress",
+        "annotations" : [ ]
+      }
+    },
+    "id" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.TestState.id",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "items" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : false,
+      "items" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "price" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "DECIMAL" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.math.BigDecimal me.ahoo.wow.schema.TestItem.price",
+              "type" : "java.math.BigDecimal",
+              "valueType" : "java.math.BigDecimal",
+              "annotations" : [ ]
+            }
+          },
+          "productId" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.TestItem.productId",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          },
+          "quantity" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "INTEGER" ],
+            "nullable" : false,
+            "required" : true,
+            "formats" : [ "int32" ],
+            "member" : {
+              "name" : "private final int me.ahoo.wow.schema.TestItem.quantity",
+              "type" : "int",
+              "valueType" : "int",
+              "annotations" : [ ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.TestState.items",
+          "type" : "me.ahoo.wow.schema.TestItem",
+          "valueType" : "me.ahoo.wow.schema.TestItem",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.TestState.items",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.TestItem",
+        "annotations" : [ ]
+      }
+    },
+    "name" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.TestState.name",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "nullableField" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : false,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.TestState.nullableField",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "status" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "enumValues" : [ "ACTIVE", "INACTIVE" ],
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.TestStatus me.ahoo.wow.schema.TestState.status",
+        "type" : "me.ahoo.wow.schema.TestStatus",
+        "valueType" : "me.ahoo.wow.schema.TestStatus",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

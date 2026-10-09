@@ -1,0 +1,227 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "address" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : false,
+      "properties" : {
+        "city" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.example.api.order.ShippingAddress.city",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "country" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.example.api.order.ShippingAddress.country",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ "@jakarta.validation.constraints.NotBlank()" ]
+          }
+        },
+        "detail" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.example.api.order.ShippingAddress.detail",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "district" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.example.api.order.ShippingAddress.district",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "province" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.example.api.order.ShippingAddress.province",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ "@jakarta.validation.constraints.NotBlank()" ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private me.ahoo.wow.example.api.order.ShippingAddress me.ahoo.wow.example.domain.order.OrderState.address",
+        "type" : "me.ahoo.wow.example.api.order.ShippingAddress",
+        "valueType" : "me.ahoo.wow.example.api.order.ShippingAddress",
+        "annotations" : [ ]
+      }
+    },
+    "id" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.example.domain.order.OrderState.id",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "items" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : false,
+      "items" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "id" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.example.api.order.OrderItem.id",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          },
+          "price" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "DECIMAL" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.math.BigDecimal me.ahoo.wow.example.api.order.OrderItem.price",
+              "type" : "java.math.BigDecimal",
+              "valueType" : "java.math.BigDecimal",
+              "annotations" : [ ]
+            }
+          },
+          "productId" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.example.api.order.OrderItem.productId",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryReference(aggregateName=\"product\")" ]
+            }
+          },
+          "quantity" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "INTEGER" ],
+            "nullable" : false,
+            "required" : true,
+            "formats" : [ "int32" ],
+            "member" : {
+              "name" : "private final int me.ahoo.wow.example.api.order.OrderItem.quantity",
+              "type" : "int",
+              "valueType" : "int",
+              "annotations" : [ ]
+            }
+          },
+          "totalPrice" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "DECIMAL" ],
+            "nullable" : false,
+            "required" : false,
+            "member" : {
+              "name" : "public final java.math.BigDecimal me.ahoo.wow.example.api.order.OrderItem.getTotalPrice()",
+              "type" : "java.math.BigDecimal",
+              "valueType" : "java.math.BigDecimal",
+              "annotations" : [ ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private java.util.List me.ahoo.wow.example.domain.order.OrderState.items",
+          "type" : "me.ahoo.wow.example.api.order.OrderItem",
+          "valueType" : "me.ahoo.wow.example.api.order.OrderItem",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private java.util.List me.ahoo.wow.example.domain.order.OrderState.items",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.example.api.order.OrderItem",
+        "annotations" : [ ]
+      }
+    },
+    "paidAmount" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private java.math.BigDecimal me.ahoo.wow.example.domain.order.OrderState.paidAmount",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ ]
+      }
+    },
+    "payable" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public final java.math.BigDecimal me.ahoo.wow.example.domain.order.OrderState.getPayable()",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ ]
+      }
+    },
+    "status" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "enumValues" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
+      "member" : {
+        "name" : "private me.ahoo.wow.example.api.order.OrderStatus me.ahoo.wow.example.domain.order.OrderState.status",
+        "type" : "me.ahoo.wow.example.api.order.OrderStatus",
+        "valueType" : "me.ahoo.wow.example.api.order.OrderStatus",
+        "annotations" : [ ]
+      }
+    },
+    "totalAmount" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private java.math.BigDecimal me.ahoo.wow.example.domain.order.OrderState.totalAmount",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

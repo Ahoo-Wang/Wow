@@ -1,0 +1,49 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "anyOf" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "formats" : [ "date" ]
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private final java.lang.Object me.ahoo.wow.schema.query.MixedTemporalAlternativeState.anyOf",
+        "type" : "java.lang.Object",
+        "valueType" : "java.lang.Object",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(anyOf={java.time.LocalDate.class, java.lang.String.class})" ]
+      }
+    },
+    "oneOf" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "formats" : [ "date" ]
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private final java.lang.Object me.ahoo.wow.schema.query.MixedTemporalAlternativeState.oneOf",
+        "type" : "java.lang.Object",
+        "valueType" : "java.lang.Object",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(oneOf={java.time.LocalDate.class, java.lang.String.class})" ]
+      }
+    }
+  }
+}

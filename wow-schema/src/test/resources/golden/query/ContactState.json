@@ -1,0 +1,76 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "email" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : false,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private java.lang.String me.ahoo.wow.schema.query.ContactState.email",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "id" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.ContactState.id",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "mobile" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : false,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private java.lang.String me.ahoo.wow.schema.query.ContactState.mobile",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+      }
+    },
+    "phone" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : false,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private java.lang.String me.ahoo.wow.schema.query.ContactState.phone",
+        "type" : "java.lang.String",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

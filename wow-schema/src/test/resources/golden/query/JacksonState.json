@@ -1,0 +1,79 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "0" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.JacksonState.numericName",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"0\")" ]
+      }
+    },
+    "display name" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.JacksonState.spacedName",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"display name\")" ]
+      }
+    },
+    "display.name" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.JacksonState.dottedName",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"display.name\")" ]
+      }
+    },
+    "display_name" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.JacksonState.displayName",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"display_name\")" ]
+      }
+    },
+    "visible" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.JacksonState.visible",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(access=READ_ONLY)" ]
+      }
+    },
+    "detail_nested_value" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.JacksonDetails.nested",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"nested\")" ]
+      }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "definitions" : {
+    "wow.schema.TestAddress" : {
+      "type" : "object",
+      "properties" : {
+        "city" : {
+          "type" : "string"
+        },
+        "country" : {
+          "type" : "string"
+        },
+        "district" : {
+          "type" : "string"
+        }
+      }
+    },
+    "wow.schema.TestItem" : {
+      "type" : "object",
+      "properties" : {
+        "price" : {
+          "type" : "number"
+        },
+        "productId" : {
+          "type" : "string"
+        },
+        "quantity" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      },
+      "required" : [ "price", "productId", "quantity" ]
+    },
+    "wow.schema.TestStatus" : {
+      "type" : "string",
+      "enum" : [ "ACTIVE", "INACTIVE" ]
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "address" : {
+      "$ref" : "#/definitions/wow.schema.TestAddress"
+    },
+    "id" : {
+      "type" : "string"
+    },
+    "items" : {
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/definitions/wow.schema.TestItem"
+      }
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "nullableField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ]
+    },
+    "status" : {
+      "$ref" : "#/definitions/wow.schema.TestStatus"
+    }
+  },
+  "required" : [ "id", "name" ]
+}

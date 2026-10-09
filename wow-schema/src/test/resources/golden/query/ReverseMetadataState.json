@@ -1,0 +1,27 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "value" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "title" : "First title",
+      "description" : "First description",
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "title" : "First title",
+        "description" : "First description"
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "title" : "First title",
+        "description" : "First description"
+      } ]
+    }
+  }
+}

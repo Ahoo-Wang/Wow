@@ -1,0 +1,55 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "metadata" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "title" : "Shared title",
+      "description" : "Shared description",
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "title" : "Shared title",
+        "description" : "Shared description"
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "title" : "Shared title",
+        "description" : "Shared description"
+      } ],
+      "member" : {
+        "name" : "private final java.lang.Object me.ahoo.wow.schema.query.EqualContainerMetadataState.metadata",
+        "type" : "java.lang.Object",
+        "valueType" : "java.lang.Object",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(oneOf={me.ahoo.wow.schema.query.SharedMetadataFirst.class, me.ahoo.wow.schema.query.SharedMetadataSecond.class})" ]
+      }
+    },
+    "temporal" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "formats" : [ "date" ]
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "formats" : [ "date-time" ]
+      } ],
+      "member" : {
+        "name" : "private final java.lang.Object me.ahoo.wow.schema.query.EqualContainerMetadataState.temporal",
+        "type" : "java.lang.Object",
+        "valueType" : "java.lang.Object",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(oneOf={java.time.LocalDate.class, java.time.Instant.class})" ]
+      }
+    }
+  }
+}

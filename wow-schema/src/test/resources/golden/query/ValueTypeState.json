@@ -1,0 +1,77 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "idCard" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.IdCardNumber me.ahoo.wow.schema.query.ValueTypeState.idCard",
+        "type" : "me.ahoo.wow.schema.query.IdCardNumber",
+        "valueType" : "me.ahoo.wow.schema.query.IdCardNumber",
+        "annotations" : [ ]
+      }
+    },
+    "phone" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.ValueTypeState.phone",
+        "type" : "java.lang.String",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ ]
+      }
+    },
+    "phones" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.ValueTypeState.phones",
+          "type" : "me.ahoo.wow.schema.query.PhoneNumber",
+          "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.ValueTypeState.phones",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ ]
+      }
+    },
+    "plain" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.ValueTypeState.plain",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "tightened" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.ValueTypeState.tightened",
+        "type" : "java.lang.String",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=CONFIDENTIAL)" ]
+      }
+    }
+  }
+}

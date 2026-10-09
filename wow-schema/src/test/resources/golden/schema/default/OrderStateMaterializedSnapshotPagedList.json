@@ -1,0 +1,202 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "definitions" : {
+    "StringStringListMap" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "array",
+        "items" : {
+          "type" : "string"
+        }
+      }
+    },
+    "example.order.OrderItem" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "price" : {
+          "type" : "number"
+        },
+        "productId" : {
+          "type" : "string"
+        },
+        "quantity" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "totalPrice" : {
+          "type" : "number",
+          "readOnly" : true
+        }
+      },
+      "required" : [ "id", "price", "productId", "quantity" ]
+    },
+    "example.order.OrderStatus" : {
+      "type" : "string",
+      "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
+      "x-enum-text" : {
+        "CREATED" : "已创建",
+        "PAID" : "已支付",
+        "SHIPPED" : "已发货",
+        "RECEIVED" : "已收货"
+      }
+    },
+    "example.order.ShippingAddress" : {
+      "type" : "object",
+      "properties" : {
+        "city" : {
+          "type" : "string"
+        },
+        "country" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "detail" : {
+          "type" : "string"
+        },
+        "district" : {
+          "type" : "string"
+        },
+        "province" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "city", "country", "detail", "district", "province" ]
+    },
+    "example.order.WowExampleOrderState" : {
+      "type" : "object",
+      "properties" : {
+        "address" : {
+          "allOf" : [ {
+            "$ref" : "#/definitions/example.order.ShippingAddress"
+          }, {
+            "readOnly" : true
+          } ]
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "items" : {
+          "readOnly" : true,
+          "type" : "array",
+          "items" : {
+            "allOf" : [ {
+              "$ref" : "#/definitions/example.order.OrderItem"
+            }, {
+              "readOnly" : true
+            } ]
+          }
+        },
+        "paidAmount" : {
+          "type" : "number"
+        },
+        "status" : {
+          "$ref" : "#/definitions/example.order.OrderStatus"
+        },
+        "totalAmount" : {
+          "type" : "number"
+        },
+        "payable" : {
+          "type" : "number",
+          "readOnly" : true
+        }
+      },
+      "required" : [ "id" ]
+    },
+    "example.order.WowExampleOrderStateMaterializedSnapshot" : {
+      "type" : "object",
+      "properties" : {
+        "aggregateId" : {
+          "type" : "string"
+        },
+        "aggregateName" : {
+          "type" : "string"
+        },
+        "contextName" : {
+          "type" : "string"
+        },
+        "deleted" : {
+          "type" : "boolean",
+          "description" : "Whether the aggregate is deleted."
+        },
+        "eventId" : {
+          "type" : "string",
+          "description" : "The event id of the aggregate."
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The last event time of the aggregate, represented as a Unix timestamp in milliseconds."
+        },
+        "firstEventTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The first event time of the aggregate, represented as a Unix timestamp in milliseconds."
+        },
+        "firstOperator" : {
+          "type" : "string",
+          "description" : "The first operator of the aggregate."
+        },
+        "operator" : {
+          "type" : "string",
+          "description" : "The last operator of the aggregate."
+        },
+        "ownerId" : {
+          "type" : "string"
+        },
+        "snapshotTime" : {
+          "type" : "integer",
+          "format" : "int64",
+          "description" : "The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds."
+        },
+        "spaceId" : {
+          "type" : "string"
+        },
+        "state" : {
+          "allOf" : [ {
+            "$ref" : "#/definitions/example.order.WowExampleOrderState"
+          }, {
+            "description" : "The state of the aggregate."
+          } ]
+        },
+        "tags" : {
+          "allOf" : [ {
+            "$ref" : "#/definitions/StringStringListMap"
+          }, {
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          } ]
+        },
+        "tenantId" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      },
+      "required" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "snapshotTime", "state", "tenantId", "version" ]
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "list" : {
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/definitions/example.order.WowExampleOrderStateMaterializedSnapshot"
+      }
+    },
+    "total" : {
+      "type" : "integer",
+      "format" : "int64"
+    }
+  },
+  "required" : [ "list", "total" ]
+}

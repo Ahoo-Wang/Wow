@@ -1,0 +1,113 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "idBook" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "additionalProperties" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "member" : {
+            "name" : "private final java.util.Map me.ahoo.wow.schema.query.ContainerValueTypeState.idBook",
+            "type" : "me.ahoo.wow.schema.query.IdCardNumber",
+            "valueType" : "me.ahoo.wow.schema.query.IdCardNumber",
+            "annotations" : [ ]
+          }
+        }
+      } ],
+      "member" : {
+        "name" : "private final java.util.Map me.ahoo.wow.schema.query.ContainerValueTypeState.idBook",
+        "type" : "java.util.Map",
+        "valueType" : "me.ahoo.wow.schema.query.IdCardNumber",
+        "annotations" : [ ]
+      }
+    },
+    "listBook" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "additionalProperties" : {
+        "kind" : "ARRAY",
+        "nullable" : false,
+        "items" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false
+        },
+        "member" : {
+          "name" : "private final java.util.Map me.ahoo.wow.schema.query.ContainerValueTypeState.listBook",
+          "type" : "java.util.List",
+          "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.Map me.ahoo.wow.schema.query.ContainerValueTypeState.listBook",
+        "type" : "java.util.Map",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ ]
+      }
+    },
+    "phoneBook" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "additionalProperties" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "member" : {
+          "name" : "private final java.util.Map me.ahoo.wow.schema.query.ContainerValueTypeState.phoneBook",
+          "type" : "me.ahoo.wow.schema.query.PhoneNumber",
+          "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.Map me.ahoo.wow.schema.query.ContainerValueTypeState.phoneBook",
+        "type" : "java.util.Map",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ ]
+      }
+    },
+    "phoneGroups" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "ARRAY",
+        "nullable" : false,
+        "items" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false
+        },
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.ContainerValueTypeState.phoneGroups",
+          "type" : "java.util.List",
+          "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.ContainerValueTypeState.phoneGroups",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.query.PhoneNumber",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

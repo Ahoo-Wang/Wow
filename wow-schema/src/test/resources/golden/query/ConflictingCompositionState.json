@@ -1,0 +1,51 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "union" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "value" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "title" : "First",
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.FirstTitledBranch.value",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(title=\"First\")" ]
+            }
+          }
+        }
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "value" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "title" : "First",
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.SecondTitledBranch.value",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(title=\"Second\")" ]
+            }
+          }
+        }
+      } ]
+    }
+  }
+}

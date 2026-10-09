@@ -1,0 +1,96 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "memberId" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.DurationReferenceState.memberId",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryReference(aggregateName=\"member\")" ]
+      }
+    },
+    "orderIds" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.DurationReferenceState.orderIds",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryReference(aggregateName=\"order\", contextName=\"sales\")" ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.DurationReferenceState.orderIds",
+        "type" : "java.util.List",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryReference(aggregateName=\"order\", contextName=\"sales\")" ]
+      }
+    },
+    "source" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "contextName" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "description" : "aggregate context name"
+        },
+        "aggregateName" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "description" : "aggregate name"
+        },
+        "tenantId" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "description" : "aggregate tenant id"
+        },
+        "aggregateId" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "description" : "aggregate id"
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.api.modeling.AggregateId me.ahoo.wow.schema.query.DurationReferenceState.source",
+        "type" : "me.ahoo.wow.api.modeling.AggregateId",
+        "valueType" : "me.ahoo.wow.api.modeling.AggregateId",
+        "annotations" : [ ]
+      }
+    },
+    "timeout" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "int32" ],
+      "member" : {
+        "name" : "private final int me.ahoo.wow.schema.query.DurationReferenceState.timeout",
+        "type" : "int",
+        "valueType" : "int",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryDuration(unit=SECONDS)" ]
+      }
+    }
+  }
+}

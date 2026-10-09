@@ -1,0 +1,82 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "address" : {
+      "type" : "object",
+      "properties" : {
+        "city" : {
+          "type" : "string"
+        },
+        "country" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "detail" : {
+          "type" : "string"
+        },
+        "district" : {
+          "type" : "string"
+        },
+        "province" : {
+          "type" : "string",
+          "minLength" : 1
+        }
+      },
+      "required" : [ "city", "country", "detail", "district", "province" ],
+      "readOnly" : true
+    },
+    "id" : {
+      "type" : "string"
+    },
+    "items" : {
+      "readOnly" : true,
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalPrice" : {
+            "type" : "number",
+            "readOnly" : true
+          }
+        },
+        "required" : [ "id", "price", "productId", "quantity" ],
+        "readOnly" : true
+      }
+    },
+    "paidAmount" : {
+      "type" : "number"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
+      "x-enum-text" : {
+        "CREATED" : "已创建",
+        "PAID" : "已支付",
+        "SHIPPED" : "已发货",
+        "RECEIVED" : "已收货"
+      }
+    },
+    "totalAmount" : {
+      "type" : "number"
+    },
+    "payable" : {
+      "type" : "number",
+      "readOnly" : true
+    }
+  },
+  "required" : [ "id" ]
+}

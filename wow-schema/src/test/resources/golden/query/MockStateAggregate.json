@@ -1,0 +1,285 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "createdAt" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : false,
+      "formats" : [ "int64" ],
+      "member" : {
+        "name" : "private final long me.ahoo.wow.tck.mock.MockStateAggregate.createdAt",
+        "type" : "long",
+        "valueType" : "long",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryTemporal()" ]
+      }
+    },
+    "data" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private java.lang.String me.ahoo.wow.tck.mock.MockStateAggregate.data",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "decimalValue" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.math.BigDecimal me.ahoo.wow.tck.mock.MockStateAggregate.decimalValue",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ ]
+      }
+    },
+    "id" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.tck.mock.MockStateAggregate.id",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "orders" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : false,
+      "items" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "lines" : {
+            "kind" : "ARRAY",
+            "nullable" : false,
+            "required" : true,
+            "items" : {
+              "kind" : "OBJECT",
+              "valueTypes" : [ "OBJECT" ],
+              "nullable" : false,
+              "properties" : {
+                "amount" : {
+                  "kind" : "UNION",
+                  "nullable" : true,
+                  "required" : true,
+                  "alternatives" : [ {
+                    "kind" : "NULL",
+                    "nullable" : true
+                  }, {
+                    "kind" : "SCALAR",
+                    "valueTypes" : [ "DECIMAL" ],
+                    "nullable" : false,
+                    "formats" : [ "double" ]
+                  } ],
+                  "member" : {
+                    "name" : "private final java.lang.Double me.ahoo.wow.tck.mock.MockLine.amount",
+                    "type" : "java.lang.Double",
+                    "valueType" : "java.lang.Double",
+                    "annotations" : [ ]
+                  }
+                },
+                "createdAt" : {
+                  "kind" : "SCALAR",
+                  "valueTypes" : [ "STRING" ],
+                  "nullable" : false,
+                  "required" : true,
+                  "formats" : [ "date-time" ],
+                  "member" : {
+                    "name" : "private final java.time.Instant me.ahoo.wow.tck.mock.MockLine.createdAt",
+                    "type" : "java.time.Instant",
+                    "valueType" : "java.time.Instant",
+                    "annotations" : [ ]
+                  }
+                },
+                "discounts" : {
+                  "kind" : "ARRAY",
+                  "nullable" : false,
+                  "required" : true,
+                  "items" : {
+                    "kind" : "OBJECT",
+                    "valueTypes" : [ "OBJECT" ],
+                    "nullable" : false,
+                    "properties" : {
+                      "amount" : {
+                        "kind" : "SCALAR",
+                        "valueTypes" : [ "DECIMAL" ],
+                        "nullable" : false,
+                        "required" : true,
+                        "formats" : [ "double" ],
+                        "member" : {
+                          "name" : "private final double me.ahoo.wow.tck.mock.MockDiscount.amount",
+                          "type" : "double",
+                          "valueType" : "double",
+                          "annotations" : [ ]
+                        }
+                      },
+                      "type" : {
+                        "kind" : "SCALAR",
+                        "valueTypes" : [ "STRING" ],
+                        "nullable" : false,
+                        "required" : true,
+                        "member" : {
+                          "name" : "private final java.lang.String me.ahoo.wow.tck.mock.MockDiscount.type",
+                          "type" : "java.lang.String",
+                          "valueType" : "java.lang.String",
+                          "annotations" : [ ]
+                        }
+                      }
+                    },
+                    "member" : {
+                      "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockLine.discounts",
+                      "type" : "me.ahoo.wow.tck.mock.MockDiscount",
+                      "valueType" : "me.ahoo.wow.tck.mock.MockDiscount",
+                      "annotations" : [ ]
+                    }
+                  },
+                  "member" : {
+                    "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockLine.discounts",
+                    "type" : "java.util.List",
+                    "valueType" : "me.ahoo.wow.tck.mock.MockDiscount",
+                    "annotations" : [ ]
+                  }
+                },
+                "productId" : {
+                  "kind" : "SCALAR",
+                  "valueTypes" : [ "STRING" ],
+                  "nullable" : false,
+                  "required" : true,
+                  "member" : {
+                    "name" : "private final java.lang.String me.ahoo.wow.tck.mock.MockLine.productId",
+                    "type" : "java.lang.String",
+                    "valueType" : "java.lang.String",
+                    "annotations" : [ ]
+                  }
+                },
+                "productName" : {
+                  "kind" : "UNION",
+                  "nullable" : true,
+                  "required" : false,
+                  "alternatives" : [ {
+                    "kind" : "NULL",
+                    "nullable" : true
+                  }, {
+                    "kind" : "SCALAR",
+                    "valueTypes" : [ "STRING" ],
+                    "nullable" : false
+                  } ],
+                  "member" : {
+                    "name" : "private final java.lang.String me.ahoo.wow.tck.mock.MockLine.productName",
+                    "type" : "java.lang.String",
+                    "valueType" : "java.lang.String",
+                    "annotations" : [ ]
+                  }
+                },
+                "quantity" : {
+                  "kind" : "SCALAR",
+                  "valueTypes" : [ "INTEGER" ],
+                  "nullable" : false,
+                  "required" : true,
+                  "formats" : [ "int32" ],
+                  "member" : {
+                    "name" : "private final int me.ahoo.wow.tck.mock.MockLine.quantity",
+                    "type" : "int",
+                    "valueType" : "int",
+                    "annotations" : [ ]
+                  }
+                },
+                "samples" : {
+                  "kind" : "ARRAY",
+                  "nullable" : false,
+                  "required" : false,
+                  "items" : {
+                    "kind" : "SCALAR",
+                    "valueTypes" : [ "DECIMAL" ],
+                    "nullable" : false,
+                    "formats" : [ "double" ],
+                    "member" : {
+                      "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockLine.samples",
+                      "type" : "java.lang.Double",
+                      "valueType" : "double",
+                      "annotations" : [ ]
+                    }
+                  },
+                  "member" : {
+                    "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockLine.samples",
+                    "type" : "java.util.List",
+                    "valueType" : "double",
+                    "annotations" : [ ]
+                  }
+                },
+                "shippedAt" : {
+                  "kind" : "UNION",
+                  "nullable" : true,
+                  "required" : false,
+                  "alternatives" : [ {
+                    "kind" : "NULL",
+                    "nullable" : true
+                  }, {
+                    "kind" : "SCALAR",
+                    "valueTypes" : [ "INTEGER" ],
+                    "nullable" : false,
+                    "formats" : [ "int64" ]
+                  } ],
+                  "member" : {
+                    "name" : "private final java.lang.Long me.ahoo.wow.tck.mock.MockLine.shippedAt",
+                    "type" : "java.lang.Long",
+                    "valueType" : "java.lang.Long",
+                    "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryTemporal()" ]
+                  }
+                }
+              },
+              "member" : {
+                "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockOrder.lines",
+                "type" : "me.ahoo.wow.tck.mock.MockLine",
+                "valueType" : "me.ahoo.wow.tck.mock.MockLine",
+                "annotations" : [ ]
+              }
+            },
+            "member" : {
+              "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockOrder.lines",
+              "type" : "java.util.List",
+              "valueType" : "me.ahoo.wow.tck.mock.MockLine",
+              "annotations" : [ ]
+            }
+          },
+          "status" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.tck.mock.MockOrder.status",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockStateAggregate.orders",
+          "type" : "me.ahoo.wow.tck.mock.MockOrder",
+          "valueType" : "me.ahoo.wow.tck.mock.MockOrder",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.tck.mock.MockStateAggregate.orders",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.tck.mock.MockOrder",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "placedAt" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "int64" ],
+      "member" : {
+        "name" : "private final long me.ahoo.wow.schema.query.InvalidFormattedTemporalState.placedAt",
+        "type" : "long",
+        "valueType" : "long",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryTemporal(pattern=\"yyyy-MM-dd\")" ]
+      }
+    }
+  }
+}

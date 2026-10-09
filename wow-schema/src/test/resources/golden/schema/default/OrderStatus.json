@@ -1,0 +1,11 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "type" : "string",
+  "enum" : [ "CREATED", "PAID", "SHIPPED", "RECEIVED" ],
+  "x-enum-text" : {
+    "CREATED" : "已创建",
+    "PAID" : "已支付",
+    "SHIPPED" : "已发货",
+    "RECEIVED" : "已收货"
+  }
+}

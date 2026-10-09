@@ -1,0 +1,20 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "createdAt" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "int64" ],
+      "member" : {
+        "name" : "private final long me.ahoo.wow.schema.query.LegacyTemporalState.createdAt",
+        "type" : "long",
+        "valueType" : "long",
+        "annotations" : [ "@me.ahoo.wow.api.query.schema.QueryTemporal(timeUnit=SECONDS)" ]
+      }
+    }
+  }
+}

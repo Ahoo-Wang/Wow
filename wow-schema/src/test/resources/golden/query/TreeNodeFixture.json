@@ -1,0 +1,108 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "children" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "UNKNOWN",
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.TreeNodeFixture.children",
+          "type" : "me.ahoo.wow.schema.TreeNodeFixture",
+          "valueType" : "me.ahoo.wow.schema.TreeNodeFixture",
+          "annotations" : [ ]
+        },
+        "omitted" : [ {
+          "name" : "private final java.util.List me.ahoo.wow.schema.TreeNodeFixture.children",
+          "type" : "java.util.List",
+          "valueType" : "me.ahoo.wow.schema.TreeNodeFixture",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.util.List me.ahoo.wow.schema.TreeNodeFixture.children",
+          "type" : "me.ahoo.wow.schema.TreeNodeFixture",
+          "valueType" : "me.ahoo.wow.schema.TreeNodeFixture",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.lang.String me.ahoo.wow.schema.TreeNodeFixture.code",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        }, {
+          "name" : "public int me.ahoo.wow.schema.TreeNodeFixture.getLevel()",
+          "type" : "int",
+          "valueType" : "int",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.lang.String me.ahoo.wow.schema.TreeNodeFixture.name",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final int me.ahoo.wow.schema.TreeNodeFixture.sortId",
+          "type" : "int",
+          "valueType" : "int",
+          "annotations" : [ ]
+        } ]
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.TreeNodeFixture.children",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.TreeNodeFixture",
+        "annotations" : [ ]
+      }
+    },
+    "code" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.TreeNodeFixture.code",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "level" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : false,
+      "formats" : [ "int32" ],
+      "member" : {
+        "name" : "public int me.ahoo.wow.schema.TreeNodeFixture.getLevel()",
+        "type" : "int",
+        "valueType" : "int",
+        "annotations" : [ ]
+      }
+    },
+    "name" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.TreeNodeFixture.name",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "sortId" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "int32" ],
+      "member" : {
+        "name" : "private final int me.ahoo.wow.schema.TreeNodeFixture.sortId",
+        "type" : "int",
+        "valueType" : "int",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

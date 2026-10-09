@@ -1,0 +1,146 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "defaultField" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.KotlinFixture.defaultField",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "explicitReadOnlyGetter" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public final java.lang.String me.ahoo.wow.schema.KotlinFixture.getExplicitReadOnlyGetter()",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(accessMode=READ_ONLY)" ]
+      }
+    },
+    "field" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.KotlinFixture.field",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "nullableField" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false
+      } ],
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.KotlinFixture.nullableField",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "readOnlyByLazy" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public final java.lang.String me.ahoo.wow.schema.KotlinFixture.getReadOnlyByLazy()",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "readOnlyByLazy$delegate" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : false,
+      "properties" : {
+        "isInitialized" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "BOOLEAN" ],
+          "nullable" : false,
+          "required" : false,
+          "member" : {
+            "name" : "public abstract boolean kotlin.Lazy.isInitialized()",
+            "type" : "boolean",
+            "valueType" : "boolean",
+            "annotations" : [ ]
+          }
+        },
+        "value" : {
+          "kind" : "UNKNOWN",
+          "required" : false,
+          "member" : {
+            "name" : "public abstract java.lang.Object kotlin.Lazy.getValue()",
+            "type" : "java.lang.Object",
+            "valueType" : "java.lang.Object",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final kotlin.Lazy me.ahoo.wow.schema.KotlinFixture.readOnlyByLazy$delegate",
+        "type" : "kotlin.Lazy",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "readOnlyField" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.KotlinFixture.readOnlyField",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "readOnlyGetter" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public final java.lang.String me.ahoo.wow.schema.KotlinFixture.getReadOnlyGetter()",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "readWriteGetter" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public final java.lang.String me.ahoo.wow.schema.KotlinFixture.getReadWriteGetter()",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(accessMode=READ_WRITE)" ]
+      }
+    }
+  }
+}

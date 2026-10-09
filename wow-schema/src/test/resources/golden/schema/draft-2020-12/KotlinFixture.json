@@ -1,0 +1,35 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "defaultField" : {
+      "type" : "string"
+    },
+    "field" : {
+      "type" : "string"
+    },
+    "nullableField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ]
+    },
+    "readOnlyField" : {
+      "type" : "string",
+      "readOnly" : true
+    },
+    "explicitReadOnlyGetter" : {
+      "readOnly" : true,
+      "type" : "string"
+    },
+    "readOnlyGetter" : {
+      "type" : "string",
+      "readOnly" : true
+    },
+    "readWriteGetter" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "field", "nullableField" ]
+}

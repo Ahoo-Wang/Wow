@@ -1,0 +1,20 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "value" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "enumValues" : [ "ACTIVE", "INACTIVE" ],
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.StructuralStatus me.ahoo.wow.schema.query.InvalidMaskedJvmTypeState.value",
+        "type" : "me.ahoo.wow.schema.query.StructuralStatus",
+        "valueType" : "me.ahoo.wow.schema.query.StructuralStatus",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+      }
+    }
+  }
+}

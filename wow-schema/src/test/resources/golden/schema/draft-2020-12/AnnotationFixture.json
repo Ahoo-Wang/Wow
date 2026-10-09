@@ -1,0 +1,73 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "wow.schema.TestStatus" : {
+      "type" : "string",
+      "enum" : [ "ACTIVE", "INACTIVE" ]
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "enumField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "$ref" : "#/$defs/wow.schema.TestStatus"
+      } ]
+    },
+    "enumMap" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "string"
+        },
+        "x-map-key-schema" : {
+          "$ref" : "#/$defs/wow.schema.TestStatus"
+        }
+      } ],
+      "additionalProperties" : {
+        "type" : "string"
+      }
+    },
+    "nullableField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ],
+      "title" : "titleField",
+      "description" : "descField"
+    },
+    "readOnlyField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ],
+      "readOnly" : true
+    },
+    "requiredField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ]
+    },
+    "writeOnlyField" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ],
+      "writeOnly" : true
+    },
+    "getterProp" : {
+      "readOnly" : true,
+      "type" : "string",
+      "description" : "getterDesc"
+    }
+  },
+  "required" : [ "nullableField", "requiredField", "writeOnlyField" ]
+}

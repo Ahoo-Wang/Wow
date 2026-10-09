@@ -1,0 +1,68 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "isActive" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "BOOLEAN" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final boolean me.ahoo.wow.schema.query.ComputedGetterState.isActive",
+        "type" : "boolean",
+        "valueType" : "boolean",
+        "annotations" : [ ]
+      }
+    },
+    "isEnabled" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "BOOLEAN" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public boolean me.ahoo.wow.schema.query.ComputedGetterState.isEnabled()",
+        "type" : "boolean",
+        "valueType" : "boolean",
+        "annotations" : [ ]
+      }
+    },
+    "isRetryable" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "BOOLEAN" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public boolean me.ahoo.wow.schema.query.ComputedGetterState.isRetryable()",
+        "type" : "boolean",
+        "valueType" : "boolean",
+        "annotations" : [ ]
+      }
+    },
+    "succeeded" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "BOOLEAN" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "public boolean me.ahoo.wow.schema.query.ComputedGetterState.getSucceeded()",
+        "type" : "boolean",
+        "valueType" : "boolean",
+        "annotations" : [ ]
+      }
+    },
+    "version" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "int32" ],
+      "member" : {
+        "name" : "private final int me.ahoo.wow.schema.query.ComputedGetterState.version",
+        "type" : "int",
+        "valueType" : "int",
+        "annotations" : [ ]
+      }
+    }
+  }
+}
