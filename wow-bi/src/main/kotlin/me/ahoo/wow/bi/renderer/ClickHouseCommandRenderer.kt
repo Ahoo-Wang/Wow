@@ -21,11 +21,12 @@ import me.ahoo.wow.modeling.toStringWithAlias
 
 internal class ClickHouseCommandRenderer(private val context: ClickHouseRenderContext) {
     fun expectedQueries(namedAggregate: NamedAggregate): Map<BiObjectKey, ExpectedBiQuery> = with(context) {
-        val table = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
-        val storeTable = storageTable(table)
-        val queueTable = "${table}_queue"
+        val stream = layout.of(namedAggregate).command
+        val table = stream.table
+        val storeTable = stream.store
+        val queueTable = stream.queue
         mapOf(
-            BiObjectKey(options.consumerDatabase, "${table}_consumer") to ExpectedBiQuery(
+            layout.ingressKey(stream.consumer) to ExpectedBiQuery(
                 selectSql = renderConsumerSelect(queueTable),
                 target = BiObjectKey(options.database, storeTable),
             ),
@@ -35,31 +36,18 @@ internal class ClickHouseCommandRenderer(private val context: ClickHouseRenderCo
 
     fun render(namedAggregate: NamedAggregate): ClickHouseStreamRenderPlan = with(context) {
         val aggregate = namedAggregate.toStringWithAlias()
-        val table = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
-        val storeTable = storageTable(table)
-        val physicalTable = topology.physicalTableName(storeTable)
-        val queueTable = "${table}_queue"
-        val consumerTable = "${table}_consumer"
-        val topic = naming.toTopicName(namedAggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
+        val stream = layout.of(namedAggregate).command
+        val table = stream.table
+        val storeTable = stream.store
+        val queueTable = stream.queue
+        val consumerTable = stream.consumer
+        val topic = stream.topic
         val storeComment = metadataComment(BiObjectKind.STORE, aggregate)
         val viewComment = metadataComment(BiObjectKind.VIEW, aggregate)
         val queueComment = metadataComment(BiObjectKind.QUEUE, aggregate)
         val consumerComment = metadataComment(BiObjectKind.CONSUMER, aggregate)
         ClickHouseStreamRenderPlan(
-            storage = immutableStatements(
-                buildList {
-                    add(renderStore(physicalTable, storeComment))
-                    topology.distributedFacade(
-                        DistributedFacadeSpec(
-                            database = options.database,
-                            logicalTableName = storeTable,
-                            physicalTableName = physicalTable,
-                            shardingKey = "sipHash64(${identifier("aggregate_id")})",
-                            createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
-                        )
-                    )?.withTableComment(storeComment)?.let(::add)
-                }
-            ),
+            storage = immutableStatements(renderStoreStatements(stream.schema, storeTable, storeComment)),
             ingress = immutableStatements(
                 buildList {
                     if (isConsumerRetained(consumerTable)) {
@@ -78,34 +66,6 @@ internal class ClickHouseCommandRenderer(private val context: ClickHouseRenderCo
                 listOf(renderPublicView(table, storeTable, viewComment))
             ),
         )
-    }
-
-    private fun renderStore(physicalTable: String, comment: String): String = with(context) {
-        """
-            $tableCreateClause ${qualified(options.database, physicalTable)}${scopeClause()}
-            (
-                ${identifier("id")} String,
-                ${identifier("context_name")} String,
-                ${identifier("aggregate_name")} String,
-                ${identifier("name")} String,
-                ${identifier("header")} Map(String, String),
-                ${identifier("aggregate_id")} String,
-                ${identifier("tenant_id")} String,
-                ${identifier("owner_id")} String,
-                ${identifier("space_id")} String,
-                ${identifier("request_id")} String,
-                ${identifier("aggregate_version")} Nullable(UInt32),
-                ${identifier("is_create")} Bool,
-                ${identifier("is_void")} Bool,
-                ${identifier("allow_create")} Bool,
-                ${identifier("body_type")} String,
-                ${identifier("body")} String,
-                ${identifier("create_time")} DateTime64(3, ${literal(options.timezone)})
-            ) ${topology.engineSql(ReplacingMergeTreeSpec(null))}
-              PARTITION BY toYYYYMM(${identifier("create_time")})
-              ORDER BY ${identifier("id")}
-              COMMENT $comment;
-        """.trimIndent()
     }
 
     private fun renderQueue(

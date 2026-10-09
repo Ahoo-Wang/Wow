@@ -17,19 +17,17 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.ExpectedBiQuery
+import me.ahoo.wow.bi.layout.BiStoreSchema
 import me.ahoo.wow.modeling.toStringWithAlias
 
 internal class ClickHouseStateLastRenderer(private val context: ClickHouseRenderContext) {
     fun expectedQueries(namedAggregate: NamedAggregate): Map<BiObjectKey, ExpectedBiQuery> = with(context) {
-        val statePhysicalBase =
-            naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
-        val stateStoreTable = storageTable(statePhysicalBase)
-        val table = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
-        val physicalBase =
-            naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
-        val storeTable = storageTable(physicalBase)
+        val aggregateLayout = layout.of(namedAggregate)
+        val stateStoreTable = aggregateLayout.state.store
+        val table = aggregateLayout.stateLast
+        val storeTable = aggregateLayout.stateLastStore
         mapOf(
-            BiObjectKey(options.consumerDatabase, "${physicalBase}_consumer") to ExpectedBiQuery(
+            layout.ingressKey(aggregateLayout.stateLastConsumer) to ExpectedBiQuery(
                 selectSql = renderConsumerSelect(stateStoreTable),
                 target = BiObjectKey(options.database, storeTable),
             ),
@@ -39,30 +37,17 @@ internal class ClickHouseStateLastRenderer(private val context: ClickHouseRender
 
     fun render(namedAggregate: NamedAggregate): List<String> = with(context) {
         val aggregate = namedAggregate.toStringWithAlias()
-        val statePhysicalBase =
-            naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
-        val stateStoreTable = storageTable(statePhysicalBase)
-        val table = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
-        val physicalBase =
-            naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
-        val storeTable = storageTable(physicalBase)
-        val physicalTable = topology.physicalTableName(storeTable)
-        val consumerTable = "${physicalBase}_consumer"
+        val aggregateLayout = layout.of(namedAggregate)
+        val stateStoreTable = aggregateLayout.state.store
+        val table = aggregateLayout.stateLast
+        val storeTable = aggregateLayout.stateLastStore
+        val consumerTable = aggregateLayout.stateLastConsumer
         val storeComment = metadataComment(BiObjectKind.STORE, aggregate)
         val viewComment = metadataComment(BiObjectKind.VIEW, aggregate)
         val consumerComment = metadataComment(BiObjectKind.CONSUMER, aggregate)
         immutableStatements(
             buildList {
-                add(renderStore(physicalTable, storeComment))
-                topology.distributedFacade(
-                    DistributedFacadeSpec(
-                        database = options.database,
-                        logicalTableName = storeTable,
-                        physicalTableName = physicalTable,
-                        shardingKey = "sipHash64(${identifier("tenant_id")}, ${identifier("aggregate_id")})",
-                        createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
-                    )
-                )?.withTableComment(storeComment)?.let(::add)
+                addAll(renderStoreStatements(BiStoreSchema.STATE_LAST, storeTable, storeComment))
                 if (!isConsumerRetained(consumerTable)) {
                     if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
                         add(dropView(options.consumerDatabase, consumerTable))
@@ -72,35 +57,6 @@ internal class ClickHouseStateLastRenderer(private val context: ClickHouseRender
                 add(renderPublicView(table, storeTable, viewComment))
             }
         )
-    }
-
-    private fun renderStore(physicalTable: String, comment: String): String = with(context) {
-        """
-            $tableCreateClause ${qualified(options.database, physicalTable)}${scopeClause()}
-            (
-                ${identifier("id")} String,
-                ${identifier("context_name")} String,
-                ${identifier("aggregate_name")} String,
-                ${identifier("header")} Map(String, String),
-                ${identifier("aggregate_id")} String,
-                ${identifier("tenant_id")} String,
-                ${identifier("owner_id")} String,
-                ${identifier("space_id")} String,
-                ${identifier("command_id")} String,
-                ${identifier("request_id")} String,
-                ${identifier("version")} UInt32,
-                ${identifier("state")} String,
-                ${identifier("body")} Array(String),
-                ${identifier("first_operator")} String,
-                ${identifier("first_event_time")} DateTime64(3, ${literal(options.timezone)}),
-                ${identifier("create_time")} DateTime64(3, ${literal(options.timezone)}),
-                ${identifier("tags")} Map(String, Array(String)),
-                ${identifier("deleted")} Bool
-            ) ${topology.engineSql(ReplacingMergeTreeSpec("version"))}
-              PARTITION BY toYYYYMM(${identifier("first_event_time")})
-              ORDER BY (${identifier("tenant_id")}, ${identifier("aggregate_id")})
-              COMMENT $comment;
-        """.trimIndent()
     }
 
     private fun renderConsumer(

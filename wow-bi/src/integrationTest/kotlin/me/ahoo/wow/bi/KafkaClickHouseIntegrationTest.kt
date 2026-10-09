@@ -14,7 +14,7 @@
 package me.ahoo.wow.bi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.bi.expansion.BiTableNaming
+import me.ahoo.wow.bi.layout.BiTableNaming
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.ContainerImages

@@ -25,11 +25,11 @@ import me.ahoo.wow.bi.BiObjectMetadataCodec
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.KafkaOffsetStorage
-import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
 import me.ahoo.wow.bi.expansion.plan.ColumnPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnReference
+import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.type.ClickHouseType
 
 internal class ClickHouseRenderContext(
@@ -40,7 +40,7 @@ internal class ClickHouseRenderContext(
     private val retainedQueueKeys: Set<BiObjectKey>,
     private val retainedConsumerKeys: Set<BiObjectKey> = emptySet(),
 ) {
-    val naming = BiTableNaming(options)
+    val layout = BiLayout(options)
     val topology = options.topology.toDdl()
     val metadataColumns = buildMetadataColumns(options.timezone)
 

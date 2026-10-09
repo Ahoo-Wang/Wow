@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.bi
 
-import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
+import me.ahoo.wow.bi.layout.BiEngine
+import me.ahoo.wow.bi.layout.BiLayout
 
-internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) {
+internal class BiObservedDeploymentPolicy(options: BiScriptOptions) {
+    private val layout = BiLayout(options)
+
     fun validate(
         deployment: ObservedBiDeployment,
         descriptor: BiDeploymentDescriptor,
@@ -165,24 +168,17 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
     ): Boolean = when (this) {
         BiObjectKind.ANCHOR,
         BiObjectKind.VIEW,
-        -> engine == "View"
+        -> engine == BiEngine.VIEW
 
-        BiObjectKind.STORE ->
-            if (allowStoreDrift) engine !in VIEW_ENGINES && engine != "Kafka" else engine in STORE_ENGINES
+        BiObjectKind.STORE -> if (allowStoreDrift) {
+            engine !in setOf(BiEngine.VIEW, BiEngine.MATERIALIZED_VIEW, BiEngine.KAFKA)
+        } else {
+            engine in BiEngine.STORE_ENGINES
+        }
 
-        BiObjectKind.QUEUE -> engine == "Kafka"
-        BiObjectKind.CONSUMER -> engine == "MaterializedView"
+        BiObjectKind.QUEUE -> engine == BiEngine.KAFKA
+        BiObjectKind.CONSUMER -> engine == BiEngine.MATERIALIZED_VIEW
     }
 
-    private fun desiredAnchorKey(): BiObjectKey =
-        BiObjectKey(options.consumerDatabase, ClickHouseScriptRenderer.DEPLOYMENT_ANCHOR)
-
-    private companion object {
-        val STORE_ENGINES: Set<String> = setOf(
-            "ReplacingMergeTree",
-            "ReplicatedReplacingMergeTree",
-            "Distributed",
-        )
-        val VIEW_ENGINES: Set<String> = setOf("View", "MaterializedView")
-    }
+    private fun desiredAnchorKey(): BiObjectKey = layout.anchor
 }

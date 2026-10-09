@@ -23,8 +23,6 @@ internal fun ClickHouseRenderContext.drop(database: String, table: String): Stri
 internal fun ClickHouseRenderContext.dropView(database: String, view: String): String =
     "DROP VIEW IF EXISTS ${qualified(database, view)}${scopeClause()} SYNC;"
 
-internal fun storageTable(table: String): String = "${table}_store"
-
 internal fun immutableStatements(vararg statements: String): List<String> =
     immutableStatements(statements.asList())
 

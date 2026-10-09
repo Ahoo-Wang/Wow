@@ -78,7 +78,6 @@ class BiPackageDependencyTest {
         val PACKAGE = Regex("""^\s*package\s+([\w.]+)""", RegexOption.MULTILINE)
         val IMPORT = Regex("""^\s*import\s+(me\.ahoo\.wow\.bi\.[\w.]+)""", RegexOption.MULTILINE)
 
-        /** Shrinks to empty as the refactor (documentation/designs/2026-10-09-wow-bi-refactor-design.md) lands. */
-        val KNOWN_CYCLES: Set<Set<String>> = setOf(setOf("expansion.plan", "expansion.type"))
+        val KNOWN_CYCLES: Set<Set<String>> = emptySet()
     }
 }

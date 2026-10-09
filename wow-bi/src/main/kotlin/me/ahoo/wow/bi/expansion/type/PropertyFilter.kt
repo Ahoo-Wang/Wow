@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.expansion.plan
+package me.ahoo.wow.bi.expansion.type
 
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 

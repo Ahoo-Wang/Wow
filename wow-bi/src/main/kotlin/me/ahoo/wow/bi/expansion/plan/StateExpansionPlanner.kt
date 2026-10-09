@@ -16,9 +16,10 @@ package me.ahoo.wow.bi.expansion.plan
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiScriptDiagnostic
 import me.ahoo.wow.bi.BiScriptOptions
-import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.expansion.type.Nullability
 import me.ahoo.wow.bi.expansion.type.ResolvedType
+import me.ahoo.wow.bi.layout.BiLayout
+import me.ahoo.wow.bi.layout.BiTableNaming
 import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -38,7 +39,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             .state
             .aggregateType
         val stateType = JsonSerializer.constructType(stateClass)
-        val sourceTableName = naming.toTableName(namedAggregate, STATE_LAST_SUFFIX)
+        val sourceTableName = naming.toTableName(namedAggregate, BiLayout.STATE_LAST)
         val rootNode = PlanningNode(
             path = "",
             pointer = emptyList(),
@@ -135,5 +136,3 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
 
 private fun <T> unmodifiableCopy(values: Collection<T>): List<T> =
     Collections.unmodifiableList(ArrayList(values))
-
-private const val STATE_LAST_SUFFIX: String = "state_last"
