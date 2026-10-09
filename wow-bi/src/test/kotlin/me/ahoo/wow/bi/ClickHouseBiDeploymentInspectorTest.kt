@@ -87,10 +87,6 @@ class ClickHouseBiDeploymentInspectorTest {
         val queryThread = AtomicReference<String>()
         val client = StubClickHouseCatalogClient { sql, parameters, columns ->
             queryThread.set(Thread.currentThread().name)
-            if (sql.contains("registryTable")) {
-                columns.assert().containsExactlyElementsOf(REGISTRY_TABLE_COLUMNS)
-                return@StubClickHouseCatalogClient emptyList()
-            }
             sql.assert().contains("FROM system.tables").doesNotContain("clusterAllReplicas")
             if (columns == CATALOG_COLUMNS) {
                 sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
@@ -123,12 +119,6 @@ class ClickHouseBiDeploymentInspectorTest {
         val client = StubClickHouseCatalogClient { sql, parameters, columns ->
             queryCount.incrementAndGet()
             when (columns) {
-                REGISTRY_TABLE_COLUMNS -> {
-                    parameters["registryDatabase"].assert().isEqualTo(OPTIONS.consumerDatabase)
-                    parameters["registryTable"].toString().assert().startsWith("__wow_bi_registry_")
-                    emptyList()
-                }
-
                 OBJECT_KEY_COLUMNS -> {
                     sql.assert()
                         .contains(
@@ -169,7 +159,7 @@ class ClickHouseBiDeploymentInspectorTest {
             .block() as BiDeploymentInspection.Available
 
         inspection.deployment.objects.assert().isEmpty()
-        queryCount.get().assert().isEqualTo(3)
+        queryCount.get().assert().isEqualTo(2)
     }
 
     @Test
@@ -238,18 +228,10 @@ class ClickHouseBiDeploymentInspectorTest {
         val desiredView = preparation.desiredObjects.first { desired -> desired.kind == BiObjectKind.VIEW }
         val viewMetadata = BiObjectMetadata(
             deploymentId = DESCRIPTOR.deploymentId,
-            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
-            topologyFingerprint = DESCRIPTOR.topologyFingerprint,
             aggregate = desiredView.aggregate,
             kind = BiObjectKind.VIEW,
         )
-        val anchorMetadata = BiObjectMetadata(
-            deploymentId = DESCRIPTOR.deploymentId,
-            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
-            topologyFingerprint = DESCRIPTOR.topologyFingerprint,
-            kind = BiObjectKind.ANCHOR,
-            consumerIdentity = BiConsumerIdentity.deterministic(DESCRIPTOR).value,
-        )
+        val anchorMetadata = anchorMetadata(BiDeploymentPhase.STABLE, BiConsumerIdentity.deterministic(DESCRIPTOR))
         val catalog = records(
             catalogRecord(
                 database = desiredView.key.database,
@@ -306,7 +288,6 @@ class ClickHouseBiDeploymentInspectorTest {
             queryCount.incrementAndGet()
             when {
                 sql.contains("system.one") -> listOf(nodeRecord(NODE_A), nodeRecord(NODE_B))
-                sql.contains("registryTable") -> emptyList()
                 columns == OBJECT_KEY_COLUMNS -> {
                     sql.assert().contains(
                         "SELECT DISTINCT database, name",
@@ -338,7 +319,7 @@ class ClickHouseBiDeploymentInspectorTest {
             .block() as BiDeploymentInspection.Available
 
         inspection.deployment.objects.assert().isEmpty()
-        queryCount.get().assert().isEqualTo(5)
+        queryCount.get().assert().isEqualTo(3)
     }
 
     @Test
@@ -451,11 +432,8 @@ class ClickHouseBiDeploymentInspectorTest {
         val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
         val metadata = BiObjectMetadata(
             deploymentId = DESCRIPTOR.deploymentId,
-            configurationFingerprint = DESCRIPTOR.configurationFingerprint,
-            topologyFingerprint = DESCRIPTOR.topologyFingerprint,
             aggregate = "example.order",
             kind = BiObjectKind.QUEUE,
-            consumerIdentity = identity.value,
         )
         val client = StubClickHouseCatalogClient(
             records(
@@ -849,7 +827,7 @@ class ClickHouseBiDeploymentInspectorTest {
     @Test
     fun `should fail closed for every invalid owned Kafka queue identity`() {
         val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
-        val validComment = queueComment(identity.value)
+        val validComment = queueComment()
         val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
         val invalidQueues = listOf(
             catalogRecord(
@@ -859,13 +837,6 @@ class ClickHouseBiDeploymentInspectorTest {
                 engineFull = "MergeTree",
                 comment = validComment,
             ) to "must use the Kafka engine",
-            catalogRecord(
-                database = OPTIONS.consumerDatabase,
-                name = "example_order_command_queue",
-                engine = "Kafka",
-                engineFull = "Kafka('kafka:9092', 'topic', '$expectedGroup', 'JSONAsString')",
-                comment = queueComment(null),
-            ) to "is missing consumerIdentity",
             catalogRecord(
                 database = OPTIONS.consumerDatabase,
                 name = "example_order_command_queue",
@@ -915,7 +886,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         name = "example_order_command_queue",
                         engine = "Kafka",
                         engineFull = engineFull,
-                        comment = queueComment(identity.value),
+                        comment = queueComment(),
                     )
                 )
             )
@@ -951,7 +922,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         name = "example_order_command_queue",
                         engine = "Kafka",
                         engineFull = whitespaceDefinition,
-                        comment = queueComment(identity.value),
+                        comment = queueComment(),
                     )
                 )
             )
@@ -968,7 +939,7 @@ class ClickHouseBiDeploymentInspectorTest {
                             name = "example_order_command_queue",
                             engine = "Kafka",
                             engineFull = nestedDefinition,
-                            comment = queueComment(identity.value),
+                            comment = queueComment(),
                         )
                     )
                 )
@@ -999,7 +970,7 @@ class ClickHouseBiDeploymentInspectorTest {
                 name = queueName,
                 engine = "Kafka",
                 engineFull = engineFull,
-                comment = queueComment(identity.value, options),
+                comment = queueComment(options),
             ),
             catalogRecord(
                 node = NODE_B,
@@ -1007,7 +978,7 @@ class ClickHouseBiDeploymentInspectorTest {
                 name = queueName,
                 engine = "Kafka",
                 engineFull = engineFull,
-                comment = queueComment(identity.value, options),
+                comment = queueComment(options),
             ),
         )
 
@@ -1023,17 +994,7 @@ class ClickHouseBiDeploymentInspectorTest {
     fun `should defer requested source validation while its deployment anchor is resetting`() {
         val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
         val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
-        val resettingAnchor = BiObjectMetadataCodec.encode(
-            BiObjectMetadata(
-                deploymentId = DESCRIPTOR.deploymentId,
-                configurationFingerprint = DESCRIPTOR.configurationFingerprint,
-                topologyFingerprint = DESCRIPTOR.topologyFingerprint,
-                phase = BiDeploymentPhase.RESETTING,
-                aggregate = null,
-                kind = BiObjectKind.ANCHOR,
-                consumerIdentity = identity.value,
-            )
-        )
+        val resettingAnchor = BiObjectMetadataCodec.encode(anchorMetadata(BiDeploymentPhase.RESETTING, identity))
         val client = StubClickHouseCatalogClient(
             records(
                 catalogRecord(
@@ -1047,7 +1008,7 @@ class ClickHouseBiDeploymentInspectorTest {
                     engine = "Kafka",
                     engineFull = "Kafka('old-kafka:9092', 'old.example.order.command', " +
                         "'$expectedGroup', 'JSONAsString')",
-                    comment = queueComment(identity.value),
+                    comment = queueComment(),
                 ),
             )
         )
@@ -1061,7 +1022,7 @@ class ClickHouseBiDeploymentInspectorTest {
     fun `should fail closed when an owned Kafka queue source definition drifted`() {
         val identity = BiConsumerIdentity.deterministic(DESCRIPTOR)
         val expectedGroup = "wow-bi.${identity.value}.example_order_command_consumer"
-        val validComment = queueComment(identity.value)
+        val validComment = queueComment()
         val invalidDefinitions = listOf(
             "Kafka('other:9092', 'wow.example.order.command', '$expectedGroup', 'JSONAsString')" to
                 "unexpected Kafka bootstrap servers",
@@ -1108,8 +1069,14 @@ class ClickHouseBiDeploymentInspectorTest {
                     engine = "Kafka",
                     engineFull = "Kafka('localhost:9093', 'wow.example.order.command', " +
                         "'$expectedGroup', 'JSONAsString')",
-                    comment = queueComment(identity.value),
-                )
+                    comment = queueComment(),
+                ),
+                catalogRecord(
+                    database = OPTIONS.consumerDatabase,
+                    name = "__wow_bi_deployment",
+                    engine = "View",
+                    comment = BiObjectMetadataCodec.encode(anchorMetadata(BiDeploymentPhase.STABLE, identity)),
+                ),
             )
         )
         val changedOptions = OPTIONS.copy(
@@ -1123,14 +1090,16 @@ class ClickHouseBiDeploymentInspectorTest {
         inspector.inspect(changedOptions).test()
             .assertNext { inspection ->
                 val available = inspection as BiDeploymentInspection.Available
-                available.deployment.objects.single().metadata.assert().isNotNull()
+                available.deployment.objects.map(ObservedBiObject::name).assert()
+                    .containsExactlyInAnyOrder("example_order_command_queue", "__wow_bi_deployment")
             }
             .verifyComplete()
 
         inspector.inspect(changedOptions, BiScriptOperation.Reset(true)).test()
             .assertNext { inspection ->
                 val available = inspection as BiDeploymentInspection.Available
-                available.deployment.objects.single().metadata.assert().isNotNull()
+                available.deployment.objects.map(ObservedBiObject::name).assert()
+                    .containsExactlyInAnyOrder("example_order_command_queue", "__wow_bi_deployment")
             }
             .verifyComplete()
     }
@@ -1154,7 +1123,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         engine = "Kafka",
                         engineFull = "Kafka('foreign-kafka:9092', 'foreign.example.order.command', " +
                             "'$foreignGroup', 'JSONAsString')",
-                        comment = queueComment(foreignIdentity.value, foreignOptions),
+                        comment = queueComment(foreignOptions),
                     )
                 )
             )
@@ -1182,7 +1151,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         name = "example_order_command_queue",
                         engine = "Kafka",
                         engineFull = driftedEngine,
-                        comment = queueComment(identity.value),
+                        comment = queueComment(),
                     )
                 )
             )
@@ -1207,7 +1176,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         name = "example_order_command_queue",
                         engine = "Kafka",
                         engineFull = invalidEngine,
-                        comment = queueComment(identity.value),
+                        comment = queueComment(),
                     )
                 )
             )
@@ -1235,7 +1204,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         engine = "Kafka",
                         engineFull = "Kafka('localhost:9093', 'wow.example.order.unknown', " +
                             "'$expectedGroup', 'JSONAsString')",
-                        comment = queueComment(identity.value),
+                        comment = queueComment(),
                     )
                 )
             )
@@ -1273,7 +1242,7 @@ class ClickHouseBiDeploymentInspectorTest {
                         name = "example_order_command_queue",
                         engine = "Kafka",
                         engineFull = engineFull,
-                        comment = queueComment(identity.value, options),
+                        comment = queueComment(options),
                     )
                 )
             )
@@ -1466,7 +1435,7 @@ class ClickHouseBiDeploymentInspectorTest {
             (resultB.get() is BiDeploymentInspection.Available).assert().isTrue()
             responseFutureA.complete(responseA).assert().isTrue()
             verify(exactly = 1, timeout = 1_000) { responseA.close() }
-            verify(exactly = 2) { responseB.close() }
+            verify(exactly = 1) { responseB.close() }
         } finally {
             subscriptionA.dispose()
             subscriptionB?.dispose()
@@ -1868,8 +1837,6 @@ class ClickHouseBiDeploymentInspectorTest {
                     sql.assert().contains("show_table_uuid_in_table_create_query_if_not_nil = 0")
                     listOf(nodeRecord(NODE_A), nodeRecord(NODE_B))
                 }
-
-                sql.contains("registryTable") -> emptyList()
                 sql.contains("system.columns") -> expectedColumnRecords(catalog.toList())
                 else -> {
                     sql.assert().contains(
@@ -1950,30 +1917,34 @@ class ClickHouseBiDeploymentInspectorTest {
         )
     }
 
-    private fun queueComment(
-        identity: String?,
-        options: BiScriptOptions = OPTIONS,
-    ): String {
+    private fun queueComment(options: BiScriptOptions = OPTIONS): String {
         val descriptor = BiDeploymentDescriptor.from(options)
         return BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
                 aggregate = "example.order",
                 kind = BiObjectKind.QUEUE,
-                consumerIdentity = identity,
             )
         )
     }
+
+    private fun anchorMetadata(phase: BiDeploymentPhase, identity: BiConsumerIdentity): BiObjectMetadata =
+        BiObjectMetadata(
+            deploymentId = DESCRIPTOR.deploymentId,
+            kind = BiObjectKind.ANCHOR,
+            anchor = BiAnchorState(
+                phase = phase,
+                configurationFingerprint = DESCRIPTOR.configurationFingerprint,
+                topologyFingerprint = DESCRIPTOR.topologyFingerprint,
+                consumerIdentity = identity.value,
+            ),
+        )
 
     private fun storeComment(options: BiScriptOptions = OPTIONS): String {
         val descriptor = BiDeploymentDescriptor.from(options)
         return BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
                 aggregate = "example.order",
                 kind = BiObjectKind.STORE,
             )
@@ -2066,19 +2037,9 @@ class ClickHouseBiDeploymentInspectorTest {
         val NODE_C = ClickHouseCatalogNode("clickhouse-c", 9000)
         val NODE_COLUMNS = listOf("host_name", "tcp_port")
         val OBJECT_KEY_COLUMNS = listOf("database", "name")
-        val REGISTRY_TABLE_COLUMNS = listOf(
-            "database",
-            "name",
-            "engine",
-            "engine_full",
-            "comment",
-            "sorting_key",
-        )
         val OWNED_COMMENT = BiObjectMetadataCodec.encode(
             BiObjectMetadata(
                 deploymentId = DESCRIPTOR.deploymentId,
-                configurationFingerprint = DESCRIPTOR.configurationFingerprint,
-                topologyFingerprint = DESCRIPTOR.topologyFingerprint,
                 aggregate = "example.order",
                 kind = BiObjectKind.VIEW,
             )

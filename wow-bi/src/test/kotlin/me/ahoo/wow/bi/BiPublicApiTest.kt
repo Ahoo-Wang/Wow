@@ -34,6 +34,7 @@ class BiPublicApiTest {
             .sorted()
 
         publicTypes.assert().containsExactly(
+            BiAnchorState::class.qualifiedName,
             BiConsumerIdentity::class.qualifiedName,
             BiConsumerIdentity.Companion::class.qualifiedName,
             BiDeploymentDescriptor::class.qualifiedName,
@@ -48,6 +49,8 @@ class BiPublicApiTest {
             BiDeploymentInspectionException.Unavailable::class.qualifiedName,
             BiDeploymentInspector::class.qualifiedName,
             BiDeploymentPhase::class.qualifiedName,
+            BiDurableEntry::class.qualifiedName,
+            BiDurableStatus::class.qualifiedName,
             BiObjectKey::class.qualifiedName,
             BiObjectKind::class.qualifiedName,
             BiObjectMetadata::class.qualifiedName,

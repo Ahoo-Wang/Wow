@@ -16,7 +16,6 @@ package me.ahoo.wow.bi
 import com.clickhouse.client.api.ClientException
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.bi.renderer.ClickHouseOwnershipRegistryRenderer
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 import org.testcontainers.clickhouse.ClickHouseContainer
@@ -27,155 +26,6 @@ import java.sql.DriverManager
 import java.time.Duration
 
 class ClickHouseBiDeploymentInspectorIntegrationTest {
-    @Test
-    fun `should persist and restore an ownership registry through real ClickHouse SQL`() {
-        ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).use { clickHouse ->
-            clickHouse.start()
-            val options = BiScriptOptions(
-                database = DATABASE,
-                consumerDatabase = CONSUMER_DATABASE,
-                consumerGroupNamespace = "native-registry-integration",
-                topology = ClickHouseTopology.Standalone,
-            )
-            val descriptor = BiDeploymentDescriptor.from(options)
-            val key = BiObjectKey(DATABASE, "registry_owned_view")
-            val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
-                .beginCreate(
-                    BiOwnershipRegistration(
-                        key = key,
-                        kind = BiObjectKind.VIEW,
-                        aggregate = "integration.catalog",
-                        consumerIdentity = BiConsumerIdentity.deterministic(descriptor).value,
-                        definitionFingerprint = "f".repeat(32),
-                    )
-                )
-                .markMutationVerified(key)
-            val renderer = ClickHouseOwnershipRegistryRenderer(options, descriptor.deploymentId)
-            val metadata = BiObjectMetadata(
-                deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
-                aggregate = "integration.catalog",
-                kind = BiObjectKind.VIEW,
-            )
-            DriverManager.getConnection(
-                clickHouse.jdbcUrl,
-                clickHouse.username,
-                clickHouse.password,
-            ).use { connection ->
-                connection.createStatement().use { statement ->
-                    statement.execute("CREATE DATABASE $DATABASE")
-                    statement.execute("CREATE DATABASE $CONSUMER_DATABASE")
-                    statement.execute(
-                        "CREATE VIEW ${key.database}.${key.name} AS SELECT 1 AS id " +
-                            "COMMENT '${BiObjectMetadataCodec.encode(metadata)}'"
-                    )
-                    renderer.renderCreateStatements(registry.name).forEach(statement::execute)
-                    statement.execute(renderer.renderSnapshotStatement(registry))
-                }
-            }
-
-            NativeClickHouseCatalogClient.create(
-                ClickHouseClientOptions(
-                    endpoints = listOf(URI.create(clickHouse.httpUrl)),
-                    username = clickHouse.username,
-                    password = clickHouse.password,
-                )
-            ).use { catalogClient ->
-                val snapshot = ClickHouseCatalogReader(catalogClient).read(
-                    ClickHouseCatalogReadRequest(
-                        options = options,
-                        operation = BiScriptOperation.Reset(true),
-                        desiredObjectKeys = setOf(key),
-                        desiredObjects = null,
-                        cancellation = ClickHouseQueryCancellation(),
-                    )
-                )
-
-                snapshot.ownershipRegistry?.revision.assert().isEqualTo(registry.revision)
-                snapshot.ownershipRegistry?.snapshotFingerprint().assert()
-                    .isEqualTo(registry.snapshotFingerprint())
-                snapshot.objects.map(ClickHouseCatalogObject::key).assert().contains(key)
-            }
-        }
-    }
-
-    @Test
-    fun `should restore the same ownership registry from every configured cluster replica`() {
-        ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE))
-            .withCopyFileToContainer(
-                MountableFile.forClasspathResource(CLUSTER_CONFIG_RESOURCE),
-                CLUSTER_CONFIG_PATH,
-            ).use { clickHouse ->
-                clickHouse.start()
-                val options = BiScriptOptions(
-                    database = DATABASE,
-                    consumerDatabase = CONSUMER_DATABASE,
-                    consumerGroupNamespace = "native-registry-cluster-integration",
-                    topology = ClickHouseTopology.Cluster(name = CLUSTER, installation = "test"),
-                )
-                val descriptor = BiDeploymentDescriptor.from(options)
-                val key = BiObjectKey(DATABASE, "cluster_registry_owned_view")
-                val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
-                    .beginCreate(
-                        BiOwnershipRegistration(
-                            key = key,
-                            kind = BiObjectKind.VIEW,
-                            aggregate = "integration.catalog",
-                            consumerIdentity = BiConsumerIdentity.deterministic(descriptor).value,
-                            definitionFingerprint = "e".repeat(32),
-                        )
-                    )
-                    .markMutationVerified(key)
-                val renderer = ClickHouseOwnershipRegistryRenderer(options, descriptor.deploymentId)
-                val metadata = BiObjectMetadata(
-                    deploymentId = descriptor.deploymentId,
-                    configurationFingerprint = descriptor.configurationFingerprint,
-                    topologyFingerprint = descriptor.topologyFingerprint,
-                    aggregate = "integration.catalog",
-                    kind = BiObjectKind.VIEW,
-                )
-                DriverManager.getConnection(
-                    clickHouse.jdbcUrl,
-                    clickHouse.username,
-                    clickHouse.password,
-                ).use { connection ->
-                    connection.createStatement().use { statement ->
-                        statement.execute("CREATE DATABASE $DATABASE ON CLUSTER '$CLUSTER'")
-                        statement.execute("CREATE DATABASE $CONSUMER_DATABASE ON CLUSTER '$CLUSTER'")
-                        statement.execute(
-                            "CREATE VIEW ${key.database}.${key.name} ON CLUSTER '$CLUSTER' AS SELECT 1 AS id " +
-                                "COMMENT '${BiObjectMetadataCodec.encode(metadata)}'"
-                        )
-                        renderer.renderCreateStatements(registry.name).forEach(statement::execute)
-                        statement.execute(renderer.renderSnapshotStatement(registry))
-                    }
-                }
-
-                NativeClickHouseCatalogClient.create(
-                    ClickHouseClientOptions(
-                        endpoints = listOf(URI.create(clickHouse.httpUrl)),
-                        username = clickHouse.username,
-                        password = clickHouse.password,
-                    )
-                ).use { catalogClient ->
-                    val snapshot = ClickHouseCatalogReader(catalogClient).read(
-                        ClickHouseCatalogReadRequest(
-                            options = options,
-                            operation = BiScriptOperation.Reset(true),
-                            desiredObjectKeys = setOf(key),
-                            desiredObjects = null,
-                            cancellation = ClickHouseQueryCancellation(),
-                        )
-                    )
-
-                    snapshot.ownershipRegistry?.snapshotFingerprint().assert()
-                        .isEqualTo(registry.snapshotFingerprint())
-                    snapshot.objects.map(ClickHouseCatalogObject::key).assert().contains(key)
-                }
-            }
-    }
-
     @Test
     fun `should apply execution timeout to a real ClickHouse request`() {
         ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).use { clickHouse ->
@@ -220,25 +70,23 @@ class ClickHouseBiDeploymentInspectorIntegrationTest {
                 .first()
             val storeMetadata = BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
                 aggregate = "integration.catalog",
                 kind = BiObjectKind.STORE,
             )
             val queueMetadata = BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
                 aggregate = "integration.catalog",
                 kind = BiObjectKind.QUEUE,
-                consumerIdentity = identity.value,
             )
             val anchorMetadata = BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
                 kind = BiObjectKind.ANCHOR,
-                consumerIdentity = identity.value,
+                anchor = BiAnchorState(
+                    phase = BiDeploymentPhase.STABLE,
+                    configurationFingerprint = descriptor.configurationFingerprint,
+                    topologyFingerprint = descriptor.topologyFingerprint,
+                    consumerIdentity = identity.value,
+                ),
             )
             val expectedGroup = "wow-bi.${identity.value}.catalog_command_consumer"
             DriverManager.getConnection(
@@ -369,8 +217,6 @@ class ClickHouseBiDeploymentInspectorIntegrationTest {
             val descriptor = BiDeploymentDescriptor.from(options)
             val storeMetadata = BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
                 aggregate = "integration.catalog",
                 kind = BiObjectKind.STORE,
             )
@@ -470,8 +316,6 @@ class ClickHouseBiDeploymentInspectorIntegrationTest {
                 val viewName = "cluster_owned_view"
                 val metadata = BiObjectMetadata(
                     deploymentId = descriptor.deploymentId,
-                    configurationFingerprint = descriptor.configurationFingerprint,
-                    topologyFingerprint = descriptor.topologyFingerprint,
                     aggregate = "integration.catalog",
                     kind = BiObjectKind.VIEW,
                 )

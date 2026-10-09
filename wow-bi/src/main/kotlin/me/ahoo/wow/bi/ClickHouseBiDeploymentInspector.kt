@@ -124,7 +124,6 @@ class ClickHouseBiDeploymentInspector internal constructor(
             return BiDeploymentInspection.Available.reconciled(
                 deployment = validated.deployment,
                 repairableComputedDrifts = validated.repairableDrifts,
-                ownershipRegistry = snapshot.ownershipRegistry,
                 verifiedComputedKeys = validated.verifiedComputedKeys,
             )
         } catch (error: BiDeploymentInspectionException) {

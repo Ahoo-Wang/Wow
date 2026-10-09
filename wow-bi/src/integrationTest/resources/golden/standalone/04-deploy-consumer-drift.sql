@@ -17,27 +17,6 @@ CREATE DATABASE IF NOT EXISTS "bi_golden";
 
 CREATE DATABASE IF NOT EXISTS "bi_golden_consumer";
 -- global --
--- ownership-registry --
-CREATE TABLE IF NOT EXISTS "bi_golden_consumer"."__wow_bi_registry_623dfbee6748cde26fc115e6da93e2e5"
-(
-    "deployment_id" FixedString(32),
-    "row_kind" LowCardinality(String),
-    "object_database" String,
-    "object_name" String,
-    "kind" LowCardinality(String),
-    "aggregate" Nullable(String),
-    "consumer_identity" Nullable(FixedString(32)),
-    "definition_fingerprint" FixedString(32),
-    "revision" UInt64,
-    "status" LowCardinality(String),
-    "row_fingerprint" FixedString(32),
-    "recorded_at" DateTime64(3, 'UTC') DEFAULT now64(3)
-) ENGINE = ReplacingMergeTree("revision")
-  ORDER BY ("deployment_id", "row_kind",
-            "object_database",
-            "object_name")
-  COMMENT 'wow-bi-registry:623dfbee6748cde26fc115e6da93e2e5';
--- ownership-registry --
 -- lifecycle --
 -- bi-it.nullable.pause-ingress --
 DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_consumer" SYNC;
@@ -66,7 +45,7 @@ CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_command_store"
 ) ENGINE = ReplacingMergeTree
   PARTITION BY toYYYYMM("create_time")
   ORDER BY "id"
-  COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"STORE","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+  COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.commandStorage --
 -- bi-it.nullable.stateStorage --
 CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_store"
@@ -92,7 +71,7 @@ CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_store"
 ) ENGINE = ReplacingMergeTree("version")
       PARTITION BY toYYYYMM("create_time")
       ORDER BY ("tenant_id", "aggregate_id", "version")
-      COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"STORE","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.stateStorage --
 -- bi-it.nullable.stateLast --
 CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_last_store"
@@ -118,7 +97,7 @@ CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_last_store"
 ) ENGINE = ReplacingMergeTree("version")
       PARTITION BY toYYYYMM("first_event_time")
       ORDER BY ("tenant_id", "aggregate_id")
-      COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"STORE","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+      COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
 
 DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_last_consumer" SYNC;
 
@@ -127,11 +106,11 @@ TO "bi_golden"."bi_it_nullable_state_last_store"
 AS (
 SELECT *
 FROM "bi_golden"."bi_it_nullable_state_store"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"CONSUMER","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"CONSUMER","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last"
 AS (SELECT * FROM "bi_golden"."bi_it_nullable_state_last_store" FINAL)
-COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.stateLast --
 -- bi-it.nullable.expansion --
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last_root" AS (
@@ -189,7 +168,7 @@ JSONExtract("__source"."state", 'years', 'Map(String, Int32)') AS "years",
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_golden"."bi_it_nullable_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last_root_field_7dc34f9338e4d4c34ea6d6664feeaad1" AS (
 WITH
@@ -248,7 +227,7 @@ concat('/a~1b~0c/', toString(tupleElement("__cursor__a/b~c", 1) - 1)) AS "__path
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_golden"."bi_it_nullable_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last_root_nullable_objects" AS (
 WITH
@@ -307,7 +286,7 @@ concat('/nullableObjects/', toString(tupleElement("__cursor__nullable_objects", 
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_golden"."bi_it_nullable_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last_root_recovery_items" AS (
 WITH
@@ -368,7 +347,7 @@ concat('/recoveryItems/', toString(tupleElement("__cursor__recovery_items", 1) -
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_golden"."bi_it_nullable_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_last_root_recovery_items_children" AS (
 WITH
@@ -432,17 +411,17 @@ concat('/recoveryItems/', toString(tupleElement("__cursor__recovery_items", 1) -
 "__source"."tags" AS "__tags",
 "__source"."deleted" AS "__deleted"
 FROM "bi_golden"."bi_it_nullable_state_last" AS "__source"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.expansion --
 -- bi-it.nullable.commandPublic --
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_command"
 AS (SELECT * FROM "bi_golden"."bi_it_nullable_command_store" FINAL)
-COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.commandPublic --
 -- bi-it.nullable.statePublic --
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state"
 AS (SELECT * FROM "bi_golden"."bi_it_nullable_state_store" FINAL)
-COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 
 CREATE OR REPLACE VIEW "bi_golden"."bi_it_nullable_state_event"
 AS (
@@ -472,7 +451,7 @@ SELECT "id",
        "tags",
        "deleted"
 FROM "bi_golden"."bi_it_nullable_state"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"VIEW","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.statePublic --
 -- bi-it.nullable.commandIngress --
 -- bi-it.nullable.commandIngress --
@@ -501,8 +480,8 @@ SELECT JSONExtractString("data", 'id') AS "id",
        JSONExtract("data", 'tags', 'Map(String, Array(String))') AS "tags",
        JSONExtractBool("data", 'deleted') AS "deleted"
 FROM "bi_golden_consumer"."bi_it_nullable_state_queue"
-) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","aggregate":"bi-it.nullable","kind":"CONSUMER","consumerIdentity":"04e164f980daedb379f00846a78ae7d1"}';
+) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"CONSUMER","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.stateIngress --
 -- deployment-anchor --
-CREATE OR REPLACE VIEW "bi_golden_consumer"."__wow_bi_deployment" AS (SELECT 1 AS "alive" WHERE 0) COMMENT 'wow-bi:{"protocolVersion":3,"layoutVersion":7,"phase":"STABLE","deploymentId":"623dfbee6748cde26fc115e6da93e2e5","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","kind":"ANCHOR","consumerIdentity":"04e164f980daedb379f00846a78ae7d1","registryRevision":34}';
+CREATE OR REPLACE VIEW "bi_golden_consumer"."__wow_bi_deployment" AS (SELECT 1 AS "alive" WHERE 0) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"ANCHOR","anchor":{"phase":"STABLE","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","consumerIdentity":"04e164f980daedb379f00846a78ae7d1","durableInventory":[{"key":{"database":"bi_golden","name":"bi_it_nullable_command_store"},"status":"ACTIVE"},{"key":{"database":"bi_golden","name":"bi_it_nullable_state_last_store"},"status":"ACTIVE"},{"key":{"database":"bi_golden","name":"bi_it_nullable_state_store"},"status":"ACTIVE"},{"key":{"database":"bi_golden_consumer","name":"bi_it_nullable_command_queue"},"status":"ACTIVE"},{"key":{"database":"bi_golden_consumer","name":"bi_it_nullable_state_queue"},"status":"ACTIVE"}]}}';
 -- deployment-anchor --

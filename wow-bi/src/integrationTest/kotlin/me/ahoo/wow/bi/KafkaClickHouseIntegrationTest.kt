@@ -170,7 +170,7 @@ class KafkaClickHouseIntegrationTest {
                                 options,
                                 BiScriptOperation.Reset(true),
                             )
-                            resettingInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.RESETTING)
+                            resettingInspection.anchorState().phase.assert().isEqualTo(BiDeploymentPhase.RESETTING)
                             resettingInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
                             assertThrows<IllegalArgumentException> {
                                 generator.generate(setOf(aggregate), BiScriptOperation.Deploy, resettingInspection)
@@ -187,7 +187,7 @@ class KafkaClickHouseIntegrationTest {
                                 .forEach { statement -> connection.executeStatement(statement) }
 
                             val stableInspection = inspector.inspectAvailable(options)
-                            stableInspection.anchorMetadata().phase.assert().isEqualTo(BiDeploymentPhase.STABLE)
+                            stableInspection.anchorState().phase.assert().isEqualTo(BiDeploymentPhase.STABLE)
                             stableInspection.consumerIdentity().assert().isEqualTo(resetIdentity)
                             listOf("command", "state").flatMap { suffix ->
                                 listOf(
@@ -351,12 +351,11 @@ class KafkaClickHouseIntegrationTest {
         Regex("wow-bi\\.([0-9a-f]{32})\\.").find(script)?.groupValues?.get(1)
     )
 
-    private fun BiDeploymentInspection.Available.consumerIdentity(): String =
-        requireNotNull(anchorMetadata().consumerIdentity)
+    private fun BiDeploymentInspection.Available.consumerIdentity(): String = anchorState().consumerIdentity
 
-    private fun BiDeploymentInspection.Available.anchorMetadata(): BiObjectMetadata =
+    private fun BiDeploymentInspection.Available.anchorState(): BiAnchorState =
         requireNotNull(
-            deployment.objects.single { observed -> observed.metadata?.kind == BiObjectKind.ANCHOR }.metadata
+            deployment.objects.single { observed -> observed.metadata?.kind == BiObjectKind.ANCHOR }.metadata?.anchor
         )
 
     private fun BiScriptResult.indexOfStatement(fragment: String): Int =

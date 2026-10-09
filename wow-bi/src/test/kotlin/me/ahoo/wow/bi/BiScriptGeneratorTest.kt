@@ -86,18 +86,6 @@ class BiScriptGeneratorTest {
     }
 
     @Test
-    fun `bootstrap registry creation should be retryable before its first head is written`() {
-        val options = BiScriptOptions(consumerGroupNamespace = "test")
-        val registryName = BiOwnershipRegistry.empty(
-            BiDeploymentDescriptor.from(options).deploymentId
-        ).name
-
-        generator(options).generate(setOf(aggregate)).script.assert().contains(
-            "CREATE TABLE IF NOT EXISTS \"${options.consumerDatabase}\".\"$registryName\""
-        )
-    }
-
-    @Test
     fun `should match complete scripts for every topology`() {
         val clusterScript = generator().generate(setOf(aggregate)).script
         val standaloneScript = BiScriptGenerator(
@@ -462,117 +450,73 @@ class BiScriptGeneratorTest {
     }
 
     @Test
-    fun `should delete registry owned objects whose catalog comment is missing during reset`() {
-        val options = BiScriptOptions(consumerGroupNamespace = "test")
-        val descriptor = BiDeploymentDescriptor.from(options)
-        val identity = BiConsumerIdentity.deterministic(descriptor)
-        val key = BiObjectKey("bi_db", "bi_sibling_command_store")
-        val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
-            .beginCreate(
-                BiOwnershipRegistration(
-                    key = key,
-                    kind = BiObjectKind.STORE,
-                    aggregate = "bi-service.sibling",
-                    consumerIdentity = identity.value,
-                    definitionFingerprint = "a".repeat(32),
-                )
-            ).markMutationVerified(key)
-        val inspection = BiDeploymentInspection.Available.reconciled(
-            deployment = ObservedBiDeployment(
-                listOf(
-                    anchor(options = options, identity = identity),
-                    ObservedBiObject(
-                        database = key.database,
-                        name = key.name,
-                        engine = "ReplacingMergeTree",
-                    ),
-                )
-            ),
-            repairableComputedDrifts = emptyList(),
-            ownershipRegistry = registry,
+    fun `should require reset when a recorded durable object is lost`() {
+        val lostStore = BiObjectKey("bi_db", "bi_aggregate_state_store")
+        val inspection = availableInspection(
+            anchor(durableInventory = listOf(BiDurableEntry(lostStore, BiDurableStatus.ACTIVE))),
         )
 
-        val result = generator(options).generate(
-            setOf(aggregate),
-            BiScriptOperation.Reset(true),
-            inspection,
-        )
-
-        val objectDrop = result.script.indexOf(
-            "DROP TABLE IF EXISTS \"${key.database}\".\"${key.name}\""
-        )
-        val registryDrop = result.script.indexOf(
-            "DROP TABLE IF EXISTS \"${options.consumerDatabase}\".\"${registry.name}\""
-        )
-        objectDrop.assert().isGreaterThanOrEqualTo(0)
-        objectDrop.assert().isLessThan(registryDrop)
+        assertThrows<IllegalArgumentException> {
+            generator().generate(setOf(aggregate), BiScriptOperation.Deploy, inspection)
+        }.message.assert().contains("lost recorded durable objects", "bi_db.bi_aggregate_state_store", "RESET")
+        generator().generate(setOf(aggregate), BiScriptOperation.Reset(true), inspection).script.assert()
+            .contains("CREATE TABLE IF NOT EXISTS \"bi_db\".\"bi_aggregate_state_store_local\"")
     }
 
     @Test
-    fun `should reconcile registry owned stale objects whose catalog comment is missing during deploy`() {
-        val options = BiScriptOptions(consumerGroupNamespace = "test")
-        val descriptor = BiDeploymentDescriptor.from(options)
-        val identity = BiConsumerIdentity.deterministic(descriptor)
-        val key = BiObjectKey(options.consumerDatabase, "bi_sibling_command_queue")
-        val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
-            .beginCreate(
-                BiOwnershipRegistration(
-                    key = key,
-                    kind = BiObjectKind.QUEUE,
-                    aggregate = "bi-service.sibling",
-                    consumerIdentity = identity.value,
-                    definitionFingerprint = "a".repeat(32),
-                )
-            ).markMutationVerified(key)
-        val inspection = BiDeploymentInspection.Available.reconciled(
-            deployment = ObservedBiDeployment(
-                listOf(
-                    anchor(options = options, identity = identity),
-                    ObservedBiObject(
-                        database = key.database,
-                        name = key.name,
-                        engine = "Kafka",
-                    ),
-                )
-            ),
-            repairableComputedDrifts = emptyList(),
-            ownershipRegistry = registry,
+    fun `should record desired durable objects as active and retained stores as retired`() {
+        val siblingStore = observed("bi_db", "bi_sibling_state_store", BiObjectKind.STORE, "bi-service.sibling")
+        val siblingQueue = observed(
+            "bi_db_consumer",
+            "bi_sibling_state_queue",
+            BiObjectKind.QUEUE,
+            "bi-service.sibling"
         )
 
-        val result = generator(options).generate(
+        val script = generator().generate(
             setOf(aggregate),
             BiScriptOperation.Deploy,
-            inspection,
-        )
+            availableInspection(anchor(), siblingStore, siblingQueue),
+        ).script
 
-        result.script.assert().contains(
-            "DROP TABLE IF EXISTS \"${key.database}\".\"${key.name}\""
-        )
+        script.assert().contains(
+            "{\"key\":{\"database\":\"bi_db\",\"name\":\"bi_aggregate_state_store\"},\"status\":\"ACTIVE\"}",
+            "{\"key\":{\"database\":\"bi_db\",\"name\":\"bi_sibling_state_store\"},\"status\":\"RETIRED\"}",
+            "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_sibling_state_queue\"",
+        ).doesNotContain("\"name\":\"bi_sibling_state_queue\"},\"status\"")
     }
 
     @Test
-    fun `should drop the ownership registry after persisting reset intent`() {
-        val options = BiScriptOptions(consumerGroupNamespace = "test")
-        val descriptor = BiDeploymentDescriptor.from(options)
-        val registry = BiOwnershipRegistry.empty(descriptor.deploymentId)
-        val inspection = BiDeploymentInspection.Available.reconciled(
-            deployment = ObservedBiDeployment(listOf(anchor(options = options))),
-            repairableComputedDrifts = emptyList(),
-            ownershipRegistry = registry,
-        )
-
-        val result = generator(options).generate(
+    fun `should record only stores in the reset anchor written before Kafka ingress`() {
+        val script = generator().generate(
             setOf(aggregate),
             BiScriptOperation.Reset(true),
-            inspection,
+            availableInspection(anchor())
         )
+            .script
+        val stableAnchor = script.lines().single { line -> "__wow_bi_deployment" in line && "\"STABLE\"" in line }
 
-        val resetIntent = result.script.indexOf("deployment-reset-intent")
-        val registryDrop = result.script.indexOf(
-            "DROP TABLE IF EXISTS \"${options.consumerDatabase}\".\"${registry.name}\""
+        stableAnchor.assert()
+            .contains("\"name\":\"bi_aggregate_state_store_local\"")
+            .doesNotContain("_queue")
+    }
+
+    @Test
+    fun `should require reset for a deployment of another layout and let reset remove it`() {
+        val legacyStore = observed(
+            "bi_db",
+            "bi_aggregate_state_store",
+            BiObjectKind.STORE,
+            "bi.aggregate",
+            layoutVersion = BiObjectMetadata.CURRENT_LAYOUT_VERSION - 1,
         )
-        resetIntent.assert().isLessThan(registryDrop)
-        registryDrop.assert().isGreaterThanOrEqualTo(0)
+        val inspection = availableInspection(legacyStore)
+
+        assertThrows<IllegalArgumentException> {
+            generator().generate(setOf(aggregate), BiScriptOperation.Deploy, inspection)
+        }.message.assert().contains("layout", "RESET is required")
+        generator().generate(setOf(aggregate), BiScriptOperation.Reset(true), inspection).script.assert()
+            .contains("DROP TABLE IF EXISTS \"bi_db\".\"bi_aggregate_state_store\"")
     }
 
     @Test
@@ -602,7 +546,6 @@ class BiScriptGeneratorTest {
                 name = "bi_legacy_command_store",
                 kind = BiObjectKind.STORE,
                 aggregate = "bi-service.legacy",
-                identity = oldIdentity,
             ),
         )
 
@@ -631,13 +574,7 @@ class BiScriptGeneratorTest {
 
     @Test
     fun `should reject a non-canonical deployment anchor`() {
-        val rogueAnchor = observed(
-            database = "bi_db_consumer",
-            name = "rogue_deployment_anchor",
-            kind = BiObjectKind.ANCHOR,
-            aggregate = null,
-            phase = BiDeploymentPhase.RESETTING,
-        )
+        val rogueAnchor = anchor(phase = BiDeploymentPhase.RESETTING).copy(name = "rogue_deployment_anchor")
 
         listOf(BiScriptOperation.Deploy, BiScriptOperation.Reset(true)).forEach { operation ->
             assertThrows<IllegalArgumentException> {
@@ -854,45 +791,6 @@ class BiScriptGeneratorTest {
     }
 
     @Test
-    fun `should reject mixed or missing observed consumer identities`() {
-        val firstIdentity = BiConsumerIdentity("1".repeat(32))
-        val secondIdentity = BiConsumerIdentity("2".repeat(32))
-        val mixedInspection = availableInspection(
-            anchor(identity = firstIdentity),
-            observed(
-                database = "bi_db",
-                name = "legacy_view",
-                kind = BiObjectKind.VIEW,
-                aggregate = "bi-service.legacy",
-                identity = secondIdentity,
-            ),
-        )
-
-        assertThrows<IllegalArgumentException> {
-            generator().generate(setOf(aggregate), BiScriptOperation.Deploy, mixedInspection)
-        }.message.assert().contains("mixed consumer identities")
-
-        val descriptor = BiDeploymentDescriptor.from(BiScriptOptions(consumerGroupNamespace = "test"))
-        val missingIdentityInspection = availableInspection(
-            ObservedBiObject(
-                database = "bi_db_consumer",
-                name = "__wow_bi_deployment",
-                engine = "View",
-                metadata = BiObjectMetadata(
-                    deploymentId = descriptor.deploymentId,
-                    configurationFingerprint = descriptor.configurationFingerprint,
-                    topologyFingerprint = descriptor.topologyFingerprint,
-                    kind = BiObjectKind.ANCHOR,
-                ),
-            )
-        )
-
-        assertThrows<IllegalArgumentException> {
-            generator().generate(setOf(aggregate), BiScriptOperation.Deploy, missingIdentityInspection)
-        }.message.assert().contains("missing its consumer identity anchor")
-    }
-
-    @Test
     fun `should reject desired objects with inconsistent ownership metadata`() {
         val inconsistentObjects = listOf(
             observed(
@@ -977,26 +875,6 @@ class BiScriptGeneratorTest {
                 }.message.assert().contains("topology", "cannot be changed")
             }
         }
-    }
-
-    @Test
-    fun `should reject mixed topology fingerprints in one observed deployment`() {
-        val mixedStore = observed(
-            database = "bi_db",
-            name = "example_order_state_store",
-            kind = BiObjectKind.STORE,
-            aggregate = "example.order",
-        ).let { observed ->
-            observed.copy(metadata = observed.metadata!!.copy(topologyFingerprint = "f".repeat(32)))
-        }
-
-        assertThrows<IllegalArgumentException> {
-            generator().generate(
-                setOf(aggregate),
-                BiScriptOperation.Deploy,
-                availableInspection(anchor(), mixedStore),
-            )
-        }.message.assert().contains("mixed topology fingerprints")
     }
 
     @Test
@@ -1191,7 +1069,6 @@ class BiScriptGeneratorTest {
         return BiDeploymentInspection.Available.reconciled(
             deployment = ObservedBiDeployment(listOf(anchor()) + queues + consumers),
             repairableComputedDrifts = emptyList(),
-            ownershipRegistry = null,
             verifiedComputedKeys = verifiedConsumers.mapTo(linkedSetOf()) { BiObjectKey("bi_db_consumer", it) },
         )
     }
@@ -1200,15 +1077,26 @@ class BiScriptGeneratorTest {
         options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
         identity: BiConsumerIdentity = BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
         phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
-    ): ObservedBiObject = observed(
-        database = options.consumerDatabase,
-        name = "__wow_bi_deployment",
-        kind = BiObjectKind.ANCHOR,
-        aggregate = null,
-        options = options,
-        identity = identity,
-        phase = phase,
-    )
+        durableInventory: List<BiDurableEntry> = emptyList(),
+    ): ObservedBiObject {
+        val descriptor = BiDeploymentDescriptor.from(options)
+        return ObservedBiObject(
+            database = options.consumerDatabase,
+            name = "__wow_bi_deployment",
+            engine = "View",
+            metadata = BiObjectMetadata(
+                deploymentId = descriptor.deploymentId,
+                kind = BiObjectKind.ANCHOR,
+                anchor = BiAnchorState(
+                    phase = phase,
+                    configurationFingerprint = descriptor.configurationFingerprint,
+                    topologyFingerprint = descriptor.topologyFingerprint,
+                    consumerIdentity = identity.value,
+                    durableInventory = durableInventory,
+                ),
+            ),
+        )
+    }
 
     private fun observed(
         database: String,
@@ -1216,29 +1104,22 @@ class BiScriptGeneratorTest {
         kind: BiObjectKind,
         aggregate: String?,
         options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
-        identity: BiConsumerIdentity = BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
-        phase: BiDeploymentPhase = BiDeploymentPhase.STABLE,
-    ): ObservedBiObject {
-        val descriptor = BiDeploymentDescriptor.from(options)
-        return ObservedBiObject(
-            database = database,
-            name = name,
-            engine = when (kind) {
-                BiObjectKind.QUEUE -> "Kafka"
-                BiObjectKind.STORE -> "ReplacingMergeTree"
-                else -> "View"
-            },
-            metadata = BiObjectMetadata(
-                deploymentId = descriptor.deploymentId,
-                configurationFingerprint = descriptor.configurationFingerprint,
-                topologyFingerprint = descriptor.topologyFingerprint,
-                phase = phase,
-                aggregate = aggregate,
-                kind = kind,
-                consumerIdentity = identity.value,
-            ),
-        )
-    }
+        layoutVersion: Int = BiObjectMetadata.CURRENT_LAYOUT_VERSION,
+    ): ObservedBiObject = ObservedBiObject(
+        database = database,
+        name = name,
+        engine = when (kind) {
+            BiObjectKind.QUEUE -> "Kafka"
+            BiObjectKind.STORE -> "ReplacingMergeTree"
+            else -> "View"
+        },
+        metadata = BiObjectMetadata(
+            layoutVersion = layoutVersion,
+            deploymentId = BiDeploymentDescriptor.from(options).deploymentId,
+            kind = kind,
+            aggregate = aggregate,
+        ),
+    )
 
     private fun assertSnapshot(name: String, actual: String) {
         val path = Path.of("src/test/resources", name)

@@ -23,59 +23,41 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
         operation: BiScriptOperation,
     ) = with(deployment) {
         val desiredByKey = desiredObjects.associateBy(DesiredBiObject::key)
-        validateDeploymentTopology(descriptor)
+        validateLayout(descriptor, operation)
         validateDeploymentAnchor(descriptor, operation)
         objects.forEach { observed ->
             validateObservedObject(observed, desiredByKey[observed.key], descriptor, operation)
         }
         if (operation == BiScriptOperation.Deploy) {
-            consumerIdentity(this, descriptor)
+            validateDurableInventory(descriptor, desiredByKey.keys)
         }
     }
 
     fun ownedBy(deployment: ObservedBiDeployment, descriptor: BiDeploymentDescriptor): List<ObservedBiObject> =
         deployment.ownedObjects.filter { it.metadata?.deploymentId == descriptor.deploymentId }
 
-    fun resettingAnchor(
-        deployment: ObservedBiDeployment,
-        descriptor: BiDeploymentDescriptor,
-    ): ObservedBiObject? = deployment.objects.firstOrNull { observed ->
-        observed.key == desiredAnchorKey() &&
-            observed.metadata?.deploymentId == descriptor.deploymentId &&
-            observed.metadata.phase == BiDeploymentPhase.RESETTING
-    }
+    fun anchorState(deployment: ObservedBiDeployment, descriptor: BiDeploymentDescriptor): BiAnchorState? =
+        deployment.objects.firstOrNull { observed ->
+            observed.key == desiredAnchorKey() && observed.metadata?.deploymentId == descriptor.deploymentId
+        }?.metadata?.anchor
 
-    fun consumerIdentity(
-        deployment: ObservedBiDeployment,
-        descriptor: BiDeploymentDescriptor,
-    ): BiConsumerIdentity? {
-        val ownedObjects = ownedBy(deployment, descriptor)
-        val identities = ownedObjects.mapNotNull { observed -> observed.metadata?.consumerIdentity }
-            .map(::BiConsumerIdentity)
-            .distinct()
-        require(identities.size <= 1) {
-            "Observed BI deployment contains mixed consumer identities: ${identities.map(BiConsumerIdentity::value)}"
-        }
-        require(ownedObjects.isEmpty() || identities.isNotEmpty()) {
-            "Observed BI deployment is missing its consumer identity anchor"
-        }
-        return identities.singleOrNull()
-    }
+    fun resettingAnchor(deployment: ObservedBiDeployment, descriptor: BiDeploymentDescriptor): BiAnchorState? =
+        anchorState(deployment, descriptor)?.takeIf { it.phase == BiDeploymentPhase.RESETTING }
 
-    private fun ObservedBiDeployment.validateDeploymentTopology(descriptor: BiDeploymentDescriptor) {
-        val currentObjects = ownedBy(this, descriptor)
-        if (currentObjects.isEmpty()) {
+    fun consumerIdentity(deployment: ObservedBiDeployment, descriptor: BiDeploymentDescriptor): BiConsumerIdentity? =
+        anchorState(deployment, descriptor)?.consumerIdentity?.let(::BiConsumerIdentity)
+
+    private fun ObservedBiDeployment.validateLayout(descriptor: BiDeploymentDescriptor, operation: BiScriptOperation) {
+        if (operation != BiScriptOperation.Deploy) {
             return
         }
-        val observedTopologies = currentObjects.map { observed ->
-            requireNotNull(observed.metadata).topologyFingerprint
-        }.distinct()
-        require(observedTopologies.size <= 1) {
-            "Observed BI deployment contains mixed topology fingerprints: $observedTopologies"
-        }
-        require(observedTopologies.single() == descriptor.topologyFingerprint) {
-            "Observed BI deployment topology differs from the requested topology and cannot be changed through " +
-                "DEPLOY or RESET"
+        val foreignLayouts = ownedBy(this, descriptor)
+            .mapNotNull { observed -> observed.metadata?.layoutVersion }
+            .filter { layout -> layout != BiObjectMetadata.CURRENT_LAYOUT_VERSION }
+            .distinct()
+        require(foreignLayouts.isEmpty()) {
+            "Observed BI deployment uses layout $foreignLayouts; RESET is required to rebuild it with layout " +
+                "${BiObjectMetadata.CURRENT_LAYOUT_VERSION}"
         }
     }
 
@@ -99,20 +81,44 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
                     "[${anchor.database}.${anchor.name}]"
             }
         }
-        resettingAnchor(this, descriptor)?.let { anchor ->
-            val metadata = checkNotNull(anchor.metadata)
-            when (operation) {
-                BiScriptOperation.Deploy -> throw IllegalArgumentException(
+        val state = anchorState(this, descriptor) ?: return
+        require(state.topologyFingerprint == descriptor.topologyFingerprint) {
+            "Observed BI deployment topology differs from the requested topology and cannot be changed through " +
+                "DEPLOY or RESET"
+        }
+        when (operation) {
+            BiScriptOperation.Deploy -> {
+                require(state.phase != BiDeploymentPhase.RESETTING) {
                     "Observed BI deployment is RESETTING; retry RESET with the same configuration"
-                )
-
-                is BiScriptOperation.Reset -> require(
-                    metadata.configurationFingerprint == descriptor.configurationFingerprint
-                ) {
-                    "Observed BI deployment is RESETTING with a different configuration; " +
-                        "retry RESET with the original configuration"
+                }
+                require(state.configurationFingerprint == descriptor.configurationFingerprint) {
+                    "Observed BI deployment configuration differs from the requested configuration; use RESET"
                 }
             }
+
+            is BiScriptOperation.Reset -> require(
+                state.phase != BiDeploymentPhase.RESETTING ||
+                    state.configurationFingerprint == descriptor.configurationFingerprint
+            ) {
+                "Observed BI deployment is RESETTING with a different configuration; " +
+                    "retry RESET with the original configuration"
+            }
+        }
+    }
+
+    /** A recorded store or queue that is desired but gone means lost data or lost offsets. */
+    private fun ObservedBiDeployment.validateDurableInventory(
+        descriptor: BiDeploymentDescriptor,
+        desiredKeys: Set<BiObjectKey>,
+    ) {
+        val observedKeys = objects.mapTo(hashSetOf(), ObservedBiObject::key)
+        val lost = anchorState(this, descriptor)?.durableInventory.orEmpty()
+            .map(BiDurableEntry::key)
+            .filter { key -> key in desiredKeys && key !in observedKeys }
+        require(lost.isEmpty()) {
+            "Observed BI deployment lost recorded durable objects " +
+                lost.joinToString(prefix = "[", postfix = "]") { key -> "${key.database}.${key.name}" } +
+                "; RESET is required to rebuild them from Kafka"
         }
     }
 
@@ -149,11 +155,6 @@ internal class BiObservedDeploymentPolicy(private val options: BiScriptOptions) 
             require(metadata.kind.acceptsEngine(observed.engine)) {
                 "BI object [${observed.database}.${observed.name}] kind [${metadata.kind}] has incompatible engine " +
                     "[${observed.engine}]"
-            }
-        }
-        if (metadata?.deploymentId == descriptor.deploymentId && operation == BiScriptOperation.Deploy) {
-            require(metadata.configurationFingerprint == descriptor.configurationFingerprint) {
-                "Observed BI deployment configuration differs from the requested configuration; use RESET"
             }
         }
     }

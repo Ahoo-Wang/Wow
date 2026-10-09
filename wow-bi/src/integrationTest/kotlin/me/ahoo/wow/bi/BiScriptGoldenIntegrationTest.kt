@@ -157,26 +157,13 @@ class BiScriptGoldenIntegrationTest {
         append(script.normalizedResetIdentity(BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options))))
     }
 
-    /**
-     * RESET draws a random consumer identity; pin it, and the ownership-registry digests derived from it, so the
-     * snapshot is deterministic.
-     */
-    private fun String.normalizedResetIdentity(deterministic: BiConsumerIdentity): String {
-        val randomIdentities = CONSUMER_GROUP_IDENTITY.findAll(this)
+    /** RESET draws a random consumer identity; pin it so the snapshot is deterministic. */
+    private fun String.normalizedResetIdentity(deterministic: BiConsumerIdentity): String =
+        CONSUMER_IDENTITY.findAll(this)
             .map { match -> match.groupValues[1].ifEmpty { match.groupValues[2] } }
             .distinct()
             .filter { identity -> identity != deterministic.value }
-            .toList()
-        if (randomIdentities.isEmpty()) {
-            return this
-        }
-        return randomIdentities
             .fold(this) { script, identity -> script.replace(identity, RANDOM_IDENTITY_PLACEHOLDER) }
-            .lines()
-            .joinToString("\n") { line ->
-                if (REGISTRY_ROW.containsMatchIn(line)) line.replace(REGISTRY_ROW_DIGEST, "'$RANDOM_DIGEST_PLACEHOLDER'") else line
-            }
-    }
 
     private fun compareGolden(name: String, actual: String): String? {
         val path = GOLDEN_ROOT.resolve(name)
@@ -222,10 +209,7 @@ class BiScriptGoldenIntegrationTest {
         const val ANCHOR_NAME = "__wow_bi_deployment"
         const val UPDATE_ENV = "WOW_BI_GOLDEN_UPDATE"
         const val RANDOM_IDENTITY_PLACEHOLDER = "0000000000000000000000000000ffff"
-        const val RANDOM_DIGEST_PLACEHOLDER = "0000000000000000000000000000eeee"
-        val CONSUMER_GROUP_IDENTITY = Regex("wow-bi\\.([0-9a-f]{32})\\.|\"consumerIdentity\":\"([0-9a-f]{32})\"")
-        val REGISTRY_ROW = Regex("^\\s*\\('[0-9a-f]{32}', '(HEAD|OBJECT)'")
-        val REGISTRY_ROW_DIGEST = Regex("'[0-9a-f]{32}'(?=\\)[,;]?$|, \\d+, 'ACTIVE')")
+        val CONSUMER_IDENTITY = Regex("wow-bi\\.([0-9a-f]{32})\\.|\"consumerIdentity\":\"([0-9a-f]{32})\"")
         val GOLDEN_ROOT: Path = Path.of("src/integrationTest/resources/golden")
         val NULLABLE: NamedAggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
         val SIBLING: NamedAggregate = aggregateMetadata<BiGoldenSiblingAggregate, BiGoldenSiblingState>()

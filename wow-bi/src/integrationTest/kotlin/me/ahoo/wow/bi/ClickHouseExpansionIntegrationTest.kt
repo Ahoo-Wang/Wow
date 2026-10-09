@@ -669,10 +669,7 @@ class ClickHouseExpansionIntegrationTest {
             is ClickHouseTopology.Cluster -> EXPECTED_CLUSTER_OBJECTS
             ClickHouseTopology.Standalone -> EXPECTED_STANDALONE_OBJECTS
         }
-        val registryName = BiOwnershipRegistry.empty(
-            BiDeploymentDescriptor.from(options).deploymentId,
-        ).name
-        return expected + (CONSUMER_DATABASE to checkNotNull(expected[CONSUMER_DATABASE]) + registryName)
+        return expected
     }
 
     private companion object {

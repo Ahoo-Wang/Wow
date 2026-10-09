@@ -16,7 +16,7 @@ Kafka topic 投影到 ClickHouse。事件存储仍是事实源，ClickHouse 是�
 
 - 应用元数据定义目标 schema 与 view graph；
 - Kafka retention 与 offset 决定可重放范围；
-- ClickHouse 对象 Comment 与 ownership registry 标识当前 BI deployment 管理的对象；
+- ClickHouse 对象 Comment 标识当前 BI deployment 管理的对象，anchor 记录部署状态与已创建的持久对象；
 - BI 行必须与事件/状态源完成对账，才能接受切换。
 
 不要从 BI 表反写领域状态，也不要把 SQL 生成成功当作 ClickHouse 已追平的证据。
@@ -103,10 +103,10 @@ inspection 与 generation 指向不同物理范围。`RESET` 必须提交 `repla
 
 ## 生成的 SQL 契约
 
-当前 renderer 拥有 protocol `3`、layout `7`。每个受管 ClickHouse 对象都带 `wow-bi:` JSON Comment，记录
-deployment/configuration/topology fingerprint、对象 kind、适用时的 aggregate owner 与 consumer identity。
-`__wow_bi_deployment` anchor 记录 deployment phase 与 registry revision。未知 protocol/layout 或不一致
-registry 会 fail-closed；对象名称本身不能证明归属。
+当前 renderer 使用 layout `8`。每个受管 ClickHouse 对象都带 `wow-bi:` JSON Comment，记录 layout、
+`deploymentId`、对象 kind 与适用时的 aggregate owner。`__wow_bi_deployment` anchor 记录 deployment phase、
+configuration/topology fingerprint、consumer identity 与持久对象清单（已创建的 store 与 queue）。其他 layout
+的部署只能由确认的 `RESET` 重建；对象名称本身不能证明归属。运维规则见 [BI 部署与恢复](./bi-operations)。
 
 ### Kafka Offset 生命周期
 
