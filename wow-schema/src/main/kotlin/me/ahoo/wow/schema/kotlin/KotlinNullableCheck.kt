@@ -20,7 +20,7 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.schema.Types.isKotlinElement
 import kotlin.reflect.jvm.kotlinProperty
 
-object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
+internal object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
 
     override fun apply(fieldScope: FieldScope): Boolean {
         if (!fieldScope.declaringType.erasedType.isKotlinElement()) {

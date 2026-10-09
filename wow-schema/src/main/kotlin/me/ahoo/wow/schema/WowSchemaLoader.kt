@@ -17,7 +17,7 @@ import me.ahoo.wow.serialization.toObject
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
-object WowSchemaLoader {
+internal object WowSchemaLoader {
     private const val WOW_SCHEMA_PATH_PREFIX = "META-INF/wow-schema/"
     private val schemas = ConcurrentHashMap<String, ObjectNode>()
 

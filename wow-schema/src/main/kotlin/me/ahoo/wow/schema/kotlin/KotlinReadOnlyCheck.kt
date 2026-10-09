@@ -23,7 +23,7 @@ import kotlin.reflect.KMutableProperty
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
 
-object KotlinReadOnlyCheck : Predicate<FieldScope> {
+internal object KotlinReadOnlyCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
         if (!fieldScope.declaringType.erasedType.isKotlinElement()) {

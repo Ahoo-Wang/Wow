@@ -18,12 +18,12 @@ import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.MethodScope
 import java.util.function.Predicate
 
-open class KotlinIgnoreCheck<M : MemberScope<*, *>> : Predicate<M> {
+internal open class KotlinIgnoreCheck<M : MemberScope<*, *>> : Predicate<M> {
     override fun test(member: M): Boolean {
         return member.rawMember.isSynthetic
     }
 }
 
-object KotlinFieldIgnoreCheck : KotlinIgnoreCheck<FieldScope>()
+internal object KotlinFieldIgnoreCheck : KotlinIgnoreCheck<FieldScope>()
 
-object KotlinMethodIgnoreCheck : KotlinIgnoreCheck<MethodScope>()
+internal object KotlinMethodIgnoreCheck : KotlinIgnoreCheck<MethodScope>()
