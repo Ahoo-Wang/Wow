@@ -53,7 +53,7 @@ val schema: JsonNode = generator.generateSchema(CreateOrder::class.java)
 
 ### 生成 OpenAPI Schema
 
-`OpenAPISchemaBuilder.generateSchema(...)` 返回引用（配置 inline 时返回内联 Schema），同时记录所需 definitions。调用无参数 `build()` 收集 components：
+`OpenAPISchemaBuilder` 位于 `wow-openapi`（包名 `me.ahoo.wow.schema.openapi`）；启用 `openapi-support` 的应用已经依赖它。`OpenAPISchemaBuilder.generateSchema(...)` 返回引用（配置 inline 时返回内联 Schema），同时记录所需 definitions。调用无参数 `build()` 收集 components：
 
 ```kotlin
 val builder = OpenAPISchemaBuilder(defaultSchemaNamePrefix = "example.")

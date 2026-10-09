@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.openapi.converter
 
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.classmate.TypeResolver
 import com.fasterxml.jackson.databind.JavaType
 
-object JavaTypeResolver {
+internal object JavaTypeResolver {
     private val cachedTypeResolver: TypeResolver = TypeResolver()
 
     fun JavaType.toResolvedType(typeResolver: TypeResolver = cachedTypeResolver): ResolvedType {

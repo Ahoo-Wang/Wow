@@ -24,7 +24,6 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
-import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jsonMapper
 import java.util.function.Consumer
@@ -102,13 +101,5 @@ class SchemaGeneratorBuilderTest {
             .customizer { it.without(Option.INLINE_ALL_SCHEMAS) }
             .buildConfig()
         config.shouldInlineAllSchemas().assert().isFalse()
-    }
-
-    @Test
-    fun `openapi schema builder leaves the given builder unchanged`() {
-        val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix = "")
-        val builder = SchemaGeneratorBuilder().schemaNamingModule(schemaNamingModule)
-        OpenAPISchemaBuilder(defaultSchemaNamePrefix = "test.", schemaGeneratorBuilder = builder)
-        builder.schemaNamingModule.assert().isSameAs(schemaNamingModule)
     }
 }

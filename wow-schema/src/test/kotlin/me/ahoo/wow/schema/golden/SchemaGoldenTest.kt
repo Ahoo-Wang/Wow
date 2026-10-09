@@ -15,7 +15,6 @@ package me.ahoo.wow.schema.golden
 
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.SchemaVersion
-import io.swagger.v3.core.util.ObjectMapperFactory
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
@@ -48,7 +47,6 @@ import me.ahoo.wow.schema.TestAggregate
 import me.ahoo.wow.schema.TestAggregateCreated
 import me.ahoo.wow.schema.TestState
 import me.ahoo.wow.schema.TreeNodeFixture
-import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.web.ServerSentEventNonNullData
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -62,7 +60,8 @@ import java.lang.reflect.Type
 
 /**
  * Snapshots the schema of every framework type, Kotlin edge case and fixture under each generator configuration Wow
- * ships: the default builder, the Draft 2020-12 builder without definitions for all objects, and the OpenAPI builder.
+ * ships: the default builder and the Draft 2020-12 builder without definitions for all objects. `wow-openapi` snapshots
+ * the OpenAPI builder.
  */
 class SchemaGoldenTest {
     private class Case(val name: String, val type: Type, vararg val typeParameters: Type)
@@ -135,26 +134,11 @@ class SchemaGoldenTest {
         assertGoldens("draft-2020-12", generator)
     }
 
-    @Test
-    fun `openapi builder matches golden`() {
-        val builder = OpenAPISchemaBuilder(defaultSchemaNamePrefix = "golden.")
-        val references = cases.associate { case ->
-            case.name to builder.generateSchema(case.type, *case.typeParameters)
-        }
-        val output = linkedMapOf("references" to references, "components" to builder.build().toSortedMap())
-        Golden.compare("openapi/components.json", OPENAPI_MAPPER.writeValueAsString(output) + "\n")
-            .assert().isNull()
-    }
-
     private fun assertGoldens(config: String, generator: SchemaGenerator) {
         val mismatches = cases.mapNotNull { case ->
             val schema = generator.generateSchema(case.type, *case.typeParameters)
             Golden.compare("schema/$config/${case.name}.json", schema.toPrettyString() + "\n")
         }
         mismatches.assert().isEmpty()
-    }
-
-    private companion object {
-        val OPENAPI_MAPPER = ObjectMapperFactory.createJson31().writerWithDefaultPrettyPrinter()
     }
 }

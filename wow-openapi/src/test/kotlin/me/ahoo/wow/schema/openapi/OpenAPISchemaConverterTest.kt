@@ -14,14 +14,15 @@
 package me.ahoo.wow.schema.openapi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.schema.WowSchemaLoader
+import me.ahoo.wow.serialization.toObject
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 
 class OpenAPISchemaConverterTest {
 
     @Test
     fun `should convert json schema node to swagger schema`() {
-        val jsonNode = WowSchemaLoader.load("AggregateId")
+        val jsonNode = """{"type":"object","properties":{"aggregateId":{"type":"string"}}}""".toObject<ObjectNode>()
 
         val schema = OpenAPISchemaConverter().toSchema(jsonNode)
 
