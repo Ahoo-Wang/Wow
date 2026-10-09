@@ -1,41 +1,21 @@
-bug:
-  - head-branch:
-      - '^fix/'
-      - '^bugfix/'
-
-enhancement:
-  - head-branch:
-      - '^feature/'
-      - '^feat/'
-
-performance:
-  - head-branch:
-      - '^perf/'
-
-breaking-change:
-  - head-branch:
-      - '^breaking/'
-
-maintenance:
-  - head-branch:
-      - '^chore/'
-      - '^build/'
-      - '^ci/'
-
+# The type labels (enhancement, bug, performance, documentation, maintenance)
+# come from the Conventional Commit title, which the squash commit keeps
+# (.github/scripts/title-label.mjs); branch names do not decide them. Only
+# dependency bots are recognised by branch: their titles are not Conventional
+# Commits.
 dependencies:
   - head-branch:
       - '^renovate/'
       - '^dependabot/'
 
-documentation:
-  - head-branch:
-      - '^docs/'
-
+# One area per top-level module, so every change lands in at least one.
 'area: core':
   - changed-files:
       - any-glob-to-any-file:
           - 'wow-core/**'
           - 'wow-metadata/**'
+          - 'wow-compiler/**'
+          - 'wow-models/**'
 
 'area: api':
   - changed-files:
@@ -43,6 +23,12 @@ documentation:
           - 'wow-api/**'
           - 'wow-openapi/**'
           - 'wow-schema/**'
+          - 'schema/**'
+
+'area: query':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-query/**'
 
 'area: spring':
   - changed-files:
@@ -59,10 +45,61 @@ documentation:
           - 'wow-redis/**'
           - 'wow-elasticsearch/**'
 
+'area: integration':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-cocache/**'
+          - 'wow-cosec/**'
+          - 'wow-opentelemetry/**'
+          - 'wow-apiclient/**'
+
+'area: bi':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'wow-bi/**'
+
+'area: view-store':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'view-store/**'
+
 'area: compensation':
   - changed-files:
       - any-glob-to-any-file:
           - 'compensation/**'
+
+'area: typescript':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'typescript/**'
+
+'area: test':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'test/**'
+          - 'wow-benchmarks/**'
+
+'area: example':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'example/**'
+
+'area: build':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'build-logic/**'
+          - 'config/**'
+          - 'deploy/**'
+          - 'patches/**'
+          - 'gradle/**'
+          - 'wow-bom/**'
+          - 'wow-dependencies/**'
+          - '*.gradle.kts'
+          - 'gradle.properties'
+          - 'package.json'
+          - 'pnpm-lock.yaml'
+          - 'pnpm-workspace.yaml'
 
 'area: documentation':
   - changed-files:
@@ -70,8 +107,10 @@ documentation:
           - '**/*.md'
           - 'documentation/**'
           - 'document/**'
+          - 'docs/**'
 
-'area: typescript':
+skills:
   - changed-files:
       - any-glob-to-any-file:
-          - 'typescript/**'
+          - 'skills/**'
+          - 'scripts/**'
