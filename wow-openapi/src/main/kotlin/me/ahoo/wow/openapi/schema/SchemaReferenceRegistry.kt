@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
+import me.ahoo.wow.openapi.schema.SchemaMerger.mergeTo
 import tools.jackson.databind.node.ObjectNode
 
 internal class SchemaReferenceRegistry(

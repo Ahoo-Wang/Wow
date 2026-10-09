@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
+import me.ahoo.wow.openapi.schema.SchemaMerger.mergeTo
 import org.junit.jupiter.api.Test
 
 class SchemaMergerTest {

@@ -53,7 +53,7 @@ Generation happens from runtime types and registered serializers. KSP's metadata
 
 ### Generate OpenAPI Schema
 
-`OpenAPISchemaBuilder` ships in `wow-openapi` (package `me.ahoo.wow.schema.openapi`); applications with `openapi-support` already have it. `OpenAPISchemaBuilder.generateSchema(...)` returns a reference (or an inline schema when configured) and records all required definitions. Call `build()` with no arguments to collect components:
+`OpenAPISchemaBuilder` ships in `wow-openapi` (package `me.ahoo.wow.openapi.schema`); applications with `openapi-support` already have it. `OpenAPISchemaBuilder.generateSchema(...)` returns a reference (or an inline schema when configured) and records all required definitions. Call `build()` with no arguments to collect components:
 
 ```kotlin
 val builder = OpenAPISchemaBuilder(defaultSchemaNamePrefix = "example.")

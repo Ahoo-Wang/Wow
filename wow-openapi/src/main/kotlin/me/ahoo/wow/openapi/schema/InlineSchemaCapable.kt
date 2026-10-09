@@ -11,17 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
-import io.swagger.v3.core.util.ObjectMapperFactory
-import io.swagger.v3.oas.models.media.Schema
-import me.ahoo.wow.serialization.toLinkedHashMap
-import tools.jackson.databind.JsonNode
-
-internal class OpenAPISchemaConverter {
-    private val openAPIObjectMapper = ObjectMapperFactory.create(null, true)
-
-    fun toSchema(jsonNode: JsonNode): Schema<*> {
-        return openAPIObjectMapper.convertValue(jsonNode.toLinkedHashMap(), Schema::class.java)
-    }
+interface InlineSchemaCapable {
+    val inline: Boolean
 }

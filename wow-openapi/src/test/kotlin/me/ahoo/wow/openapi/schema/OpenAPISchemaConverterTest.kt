@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.serialization.toObject

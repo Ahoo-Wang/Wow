@@ -20,7 +20,6 @@ import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
@@ -30,7 +29,6 @@ import java.util.function.Consumer
 
 class SchemaGeneratorBuilderTest {
 
-    @Suppress("DEPRECATION")
     @Test
     fun `should build schema generator with all modules`() {
         val jacksonModule = WowJacksonModule()
@@ -46,7 +44,6 @@ class SchemaGeneratorBuilderTest {
         val objectMapper = jsonMapper()
         val schemaGeneratorBuilder = SchemaGeneratorBuilder()
             .objectMapper(objectMapper)
-            .openapi31(true)
             .schemaVersion(SchemaVersion.DRAFT_2020_12)
             .optionPreset(OptionPreset.PLAIN_JSON)
             .jacksonModule(jacksonModule)
@@ -58,7 +55,6 @@ class SchemaGeneratorBuilderTest {
             .schemaNamingModule(schemaNamingModule)
             .options(options)
             .customizer(customizer)
-        schemaGeneratorBuilder.openapi31.assert().isTrue()
         schemaGeneratorBuilder.objectMapper.assert().isSameAs(objectMapper)
         schemaGeneratorBuilder.schemaVersion.assert().isEqualTo(SchemaVersion.DRAFT_2020_12)
         schemaGeneratorBuilder.optionPreset.assert().isEqualTo(OptionPreset.PLAIN_JSON)
@@ -71,16 +67,10 @@ class SchemaGeneratorBuilderTest {
         schemaGeneratorBuilder.schemaNamingModule.assert().isSameAs(schemaNamingModule)
         schemaGeneratorBuilder.options.assert().isSameAs(options)
         schemaGeneratorBuilder.customizer.assert().isSameAs(customizer)
-        schemaGeneratorBuilder.typeContext.assert().isNull()
-        assertThrownBy<IllegalStateException> {
-            schemaGeneratorBuilder.requiredTypeContent
-        }
         val schemaGenerator = schemaGeneratorBuilder.build()
 
         schemaGenerator.assert().isNotNull()
         schemaGenerator.config.objectMapper.assert().isSameAs(objectMapper)
-        schemaGeneratorBuilder.typeContext.assert().isNotNull()
-        schemaGeneratorBuilder.requiredTypeContent.assert().isNotNull()
     }
 
     @Test

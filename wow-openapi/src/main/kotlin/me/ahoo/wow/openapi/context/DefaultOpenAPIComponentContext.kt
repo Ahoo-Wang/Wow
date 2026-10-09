@@ -28,8 +28,8 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_RESPONSES_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_SCHEMAS_REF
-import me.ahoo.wow.schema.openapi.InlineSchemaCapable
-import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
+import me.ahoo.wow.openapi.schema.InlineSchemaCapable
+import me.ahoo.wow.openapi.schema.OpenAPISchemaBuilder
 import java.lang.reflect.Type
 
 class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBuilder) :

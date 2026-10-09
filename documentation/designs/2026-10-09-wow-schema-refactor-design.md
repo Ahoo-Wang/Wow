@@ -50,7 +50,7 @@ wow-schema   me.ahoo.wow.schema
 ├── query/       JsonQueryModelSource（公开）；walker、类型节点（internal）
 └── web/、typed/ 占位类型：ServerSentEvent*、AggregatedDomainEventStream（公开）
 
-wow-openapi  me.ahoo.wow.schema.openapi（包名保持不变，物理迁入）
+wow-openapi  me.ahoo.wow.openapi.schema（随模块改名，见 §7 决定 5）
 ├── OpenAPISchemaBuilder / InlineSchemaCapable 公开
 └── OpenAPISchemaConverter / SchemaMerger / SchemaReferenceRegistry / StandaloneSchemaEmbeddingRebaser（internal）
 wow-openapi  me.ahoo.wow.openapi.converter
@@ -81,11 +81,11 @@ wow-openapi  me.ahoo.wow.openapi.converter
 
 ### 3.3 Builder（解决 D4）
 
-- 新增 `buildConfig(): SchemaGeneratorConfig`；需要 `TypeContext` 的调用方（`OpenAPISchemaBuilder`）从 config 自己创建。`build()` 为了弃用期内的兼容仍会记录 `typeContext`，v10 删除。
+- 新增 `buildConfig(): SchemaGeneratorConfig`；需要 `TypeContext` 的调用方（`OpenAPISchemaBuilder`）从 config 自己创建。
 - `OpenAPISchemaBuilder` 不再改写传入的 builder：它在 `copy()` 出来的副本上设置命名模块，再构建自己的配置。`copy()` 复制设置，模块实例共享。
 - builder 仍是可变的 fluent builder。应用代码会调用这些 setter，有的还忽略返回值（例如 `OpenAPIComponentContext.default`），改成不可变会悄悄改变这些代码的行为。
 - `SchemaGeneratorConfigFactory` 并入 builder，删除无效的 `forFields()` 调用。
-- 应用会调用的 fluent 方法保持源码兼容。`openapi31(...)`、`openapi31`、`typeContext`、`requiredTypeContent` 标为 `@Deprecated("Scheduled for removal in 10.0.0. …")`，记入 `docs/compat-debt.md`；`openapi31` 保持无效果，文档改为如实描述（可空形状由 `Option.NULLABLE_ALWAYS_AS_ANYOF` 与 Kotlin 模块决定）。
+- `openapi31(...)`、`openapi31`、`typeContext`、`requiredTypeContent` 在 9.5.0 直接删除（§7 决定 5）：`openapi31` 从未生效，可空形状由 `Option.NULLABLE_ALWAYS_AS_ANYOF` 与 Kotlin 模块决定；`build()` 只是 `SchemaGenerator(buildConfig())`，builder 上不再留任何构建后的状态。#4049 曾把它们弃用到 v10，发版前按用户决定删除。
 
 ### 3.4 Provider 收敛（解决 D5）
 
@@ -114,7 +114,7 @@ internal class WrappedDefinitionProvider private constructor(
 
 - **生成输出**：S0 的 golden 覆盖内置资源、e2e 输出、`wow-openapi` 的 `example-domain-openapi.snapshot.json` 和查询事实。除 S1 的缺陷修复外，每个阶段的 golden 必须不变。S1 只让并发场景下的输出等于单线程输出，单线程 golden 不变。
 - **ABI**：S2、S3、S5 删除或改变公开声明，在 9.5.0 中作为破坏性变更发布，PR 打 `breaking-change` 标签，并写 `## Breaking` 段落。不保留只为二进制链接存在的垫片。
-- **源码**：应用会写的 API 不变。`OpenAPISchemaBuilder` 保持包名 `me.ahoo.wow.schema.openapi`，所以 import 不需要改；直接使用它、但只依赖 `wow-schema` 的应用要加上 `wow-openapi` 依赖（启用 `openapi-support` 的应用已经有这个依赖）。弃用的 builder 成员按 §3.3 保留到 v10。
+- **源码**：按 §7 决定 5 不保留源码兼容。`OpenAPISchemaBuilder` 改到 `me.ahoo.wow.openapi.schema`，使用它的应用改 import，只依赖 `wow-schema` 的再加 `wow-openapi`；`SchemaGeneratorBuilder` 的 4 个弃用成员删除。
 
 ## 5. 实施阶段
 
@@ -144,6 +144,7 @@ internal class WrappedDefinitionProvider private constructor(
 2. S2、S3 的 ABI 破坏放进 9.5.0。
 3. OpenAPI 适配层和 `JavaTypeResolver` 迁到 `wow-openapi`。
 4. 先合并本设计文档，再按 S0–S6 实施。
+5. 发版前（2026-10-09，「保持架构清洁，不考虑二进制兼容」）：源码兼容也不保留。`SchemaGeneratorBuilder` 的 4 个弃用成员在 9.5.0 直接删除；`OpenAPISchemaBuilder` 等改用与模块一致的包名 `me.ahoo.wow.openapi.schema`。
 
 ## 8. 9.5.0 发布说明条目
 
@@ -154,11 +155,11 @@ internal class WrappedDefinitionProvider private constructor(
   - 不再公开：所有 Provider（`AggregateId`、`DomainEventStream`、`CharRange`/`IntRange`/`LongRange`、`CurrencyUnit`/`Money`、消息、状态、`EnumText`、`Map`、`JsonNode`、`ServerSentEvent`、查询相关）、`KotlinCustomDefinitionProvider`、Kotlin 的 nullable/read-only/required/write-only/ignore 检查、`@Summary`/`@Description` 解析器、`IgnoreCommandRouteVariableCheck`、`WowSchemaLoader`、`JsonSchema`、`Types`、`WowJacksonModule` 的 companion、`WowSchemaNamingStrategy` 的 `flattenType`，以及标了 `@InternalWowApi` 的 `isStdType`/`resolveNamePrefix`/`toSchemaName`。
   - 删除且没有替代的扩展基类：`TypedCustomDefinitionProvider`、`MessageDefinitionProvider`、`AbstractStateAggregate`。自定义类型请直接实现 victools 的 `CustomDefinitionProviderV2`，通过 `SchemaGeneratorBuilder.customizer` 注册；需要 Wow 的行为时注册 `WowModule`/`KotlinModule`/`JodaMoneyModule`，不要逐个注册 Provider 或检查。
   - `KotlinCustomDefinitionProvider.resetAfterSchemaGenerationFinished` 随类一起不再公开（#4046）。
-  - `OpenAPISchemaBuilder`、`InlineSchemaCapable` 迁入 `wow-openapi`，包名 `me.ahoo.wow.schema.openapi` 不变；`OpenAPISchemaBuilder.toSchema` 不再公开；`SchemaMerger` 不再公开；`JavaTypeResolver` 改为 `wow-openapi` 内部类（#4050）。
-- **依赖**：直接使用 `OpenAPISchemaBuilder`、但只依赖 `wow-schema` 的应用要加 `me.ahoo.wow:wow-openapi`；启用 `openapi-support` 的应用无需改动。`wow-schema` 的对外依赖不变。
+  - `OpenAPISchemaBuilder`、`InlineSchemaCapable` 迁入 `wow-openapi`，包名从 `me.ahoo.wow.schema.openapi` 改为 `me.ahoo.wow.openapi.schema`；`OpenAPISchemaBuilder.toSchema` 不再公开；`SchemaMerger` 不再公开；`JavaTypeResolver` 改为 `wow-openapi` 内部类（#4050）。
+- **源码与依赖**：使用 `OpenAPISchemaBuilder` 的应用把 import 改为 `me.ahoo.wow.openapi.schema`，只依赖 `wow-schema` 的再加 `me.ahoo.wow:wow-openapi`；启用 `openapi-support` 的应用无需改动。`wow-schema` 的对外依赖不变。
 - **行为变化**：`OpenAPISchemaBuilder(schemaGeneratorBuilder = builder)` 不再改写 `builder` 的 `schemaNamingModule`（#4049）。
 - **新增**：`SchemaGeneratorBuilder.buildConfig()`、`copy()`。生成器与 `OpenAPISchemaBuilder` 都不是线程安全的，每个线程各建一个。
-- **弃用（10.0.0 移除）**：`SchemaGeneratorBuilder.openapi31` 及其 setter（从未生效，直接删掉调用）、`typeContext`、`requiredTypeContent`（改用 `buildConfig()` + `TypeContextFactory.createDefaultTypeContext(config)`）。见 `docs/compat-debt.md`。
+- **删除**：`SchemaGeneratorBuilder.openapi31` 及其 setter（从未生效，删掉调用即可）、`typeContext`、`requiredTypeContent`（改用 `buildConfig()` + `TypeContextFactory.createDefaultTypeContext(config)`）。
 
 ## 9. 实施记录
 
@@ -180,7 +181,8 @@ internal class WrappedDefinitionProvider private constructor(
 - S1：重入保护不能删除，它防止带 getter-only 属性的递归类型栈溢出。#4046 改为按 `SchemaGenerationContext` 划分；发版前审查发现这在多定义构建里改变了输出，最终改回设计原案：每份配置一个 Provider 实例、生成结束时清空（§3.2）。
 - S1：一个生成器跨线程共享时，victools 的 `JsonPropertySorter` 会抛 `ConcurrentModificationException`。这是上游的限制，契约改为"每个线程一个生成器"。
 - S3：builder 保持可变。原因见 §3.3。
-- S5：迁移的单元测试需要的几个 fixture 复制到了 `wow-openapi` 的测试里。组件名前缀随之从 `wow.schema.` 变成 `wow.`，因为前缀取决于各模块测试 classpath 上的元数据。
+- S5：迁移的单元测试需要的几个 fixture 复制到了 `wow-openapi` 的测试里。组件名前缀随之从 `wow.schema.` 变成 `wow.`（改包名后是 `wow.openapi.`），因为前缀取决于各模块测试 classpath 上的元数据。
 - S6：`members` 的遍历顺序决定了 `omitted` 的顺序，而 `omitted` 会出现在输出里，所以 `members` 保留自己的遍历，只共用引用解析。
 - S5：#4050 把 `api("swagger-core-jakarta")` 换成 `swagger-annotations-jakarta`，理由是 swagger-2 模块会传递 `swagger-core`。这个理由不成立，发版前审查后改回原声明（§3）。
 - 发版前审查：`Types` 拆分、`WowSchemaLoader` 移入 `definition/`，包依赖测试纳入根包；`OpenAPISchemaBuilder.toSchema` 改为私有；`TypedDefaultValueDefinitionProvider` 实际是 Module，改名 `TypedDefaultValueModule`；`copy()` 的 `options` 复制为新列表，KDoc 写明模块共享；文档与 compat-debt 措辞修正；迁移指南新增 9.4 → 9.5.0 一节。
+- 发版前用户决定（§7 决定 5）：删除 `SchemaGeneratorBuilder` 的 4 个弃用成员与 compat-debt 条目；`OpenAPISchemaBuilder` 等改包名 `me.ahoo.wow.openapi.schema`。均在 #4054。

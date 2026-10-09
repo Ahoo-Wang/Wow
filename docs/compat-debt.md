@@ -179,13 +179,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `RecoverableExceptionRegistry.DEFAULT.register` / `unregister` / `getRecoverableType`, or a `RecoverableExceptionProvider` (`META-INF/services` or a Spring bean).
 - **Removal in v10**: delete the companion object. Callers stop compiling and use the replacement.
 
-### Wow 9.4 `SchemaGeneratorBuilder` Members
-
-- **Kept compatible**: four `SchemaGeneratorBuilder` members applications could call in 9.4: the `openapi31` property and its setter, `typeContext` and `requiredTypeContent`. `openapi31` and `openapi31(Boolean)` never had an effect: nullable shapes follow `Option.NULLABLE_ALWAYS_AS_ANYOF` and the Kotlin module. They stay as deprecated no-ops. `typeContext` and `requiredTypeContent` expose the type context of the last `build()`, so reading them depends on call order. `build()` still sets them.
-- **Markers**: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorBuilder.kt`
-- **Replacement**: drop the `openapi31` calls. For a type context, call `buildConfig()`, then `TypeContextFactory.createDefaultTypeContext(config)` and `SchemaGenerator(config, typeContext)`.
-- **Removal in v10**: delete the four members, and stop `build()` from recording the type context. Callers stop compiling and use the replacement.
-
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.

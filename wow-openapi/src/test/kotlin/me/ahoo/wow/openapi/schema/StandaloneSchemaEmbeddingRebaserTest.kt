@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test

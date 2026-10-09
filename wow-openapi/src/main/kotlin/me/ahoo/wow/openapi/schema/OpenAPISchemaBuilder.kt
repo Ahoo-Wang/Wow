@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonSubTypes

@@ -24,7 +24,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | CRUD/事务脚本/直接写表，没有 Wow 历史 | [传统架构迁移](./migration/traditional-architecture.md) | 建立 command、aggregate、event、导入与流量所有权 |
 | 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 比较固定平台/API/存储契约，并在需要时执行数据硬切换 |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
-| Wow 9.4.x | [从 9.4 升级到 9.5.0](#从-9-4-升级到-9-5-0) | `wow-schema` 重构，生成的 Schema 不变：重新编译；不经 `wow-openapi` 使用 `OpenAPISchemaBuilder` 的要补上该依赖；改掉对已转为内部的 Provider 与检查的引用 |
+| Wow 9.4.x | [从 9.4 升级到 9.5.0](#从-9-4-升级到-9-5-0) | `wow-schema` 重构，生成的 Schema 不变：重新编译；`OpenAPISchemaBuilder` 的 import 改为 `me.ahoo.wow.openapi.schema`（位于 `wow-openapi`），删掉对已删除 `SchemaGeneratorBuilder` 成员的调用；改掉对已转为内部的 Provider 与检查的引用 |
 | Wow 9.3.x | [从 9.3 升级到 9.4.0](#从-9-3-升级到-9-4-0) | 只有 `wow-bi` 变化：每个 BI 部署用确认后的 `RESET` 重建一次，直接调用已删除 `wow-bi` API 的 Kotlin 代码改用 `BiScriptService` 或 `generate(prepare(…))`；其余部分的 REST、存储与线上格式不变 |
 | Wow 9.2.x | [从 9.2 升级到 9.3.0](#从-9-2-升级到-9-3-0) | 重新编译，迁移已删除与已弃用的 API，先升级处理节点再升级只做网关的服务；REST、存储与线上格式不变 |
 | Wow v8.16.x 使用旧查询 API 或 `SnapshotRepository` | [V9 查询迁移](./query/v9-query-migration.md) | 迁移 Gateway/Backend、Filter、Mask、SnapshotStore 与 Spring Bean 名 |
@@ -63,15 +63,15 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.4 升级到 9.5.0
 
-对 `wow-schema` 与 `wow-openapi` 而言，9.5.0 是一次内部重构（设计见 `documentation/designs/2026-10-09-wow-schema-refactor-design.md`）。生成的 JSON Schema、OpenAPI 文档和查询模型与 9.4.0 逐字节相同，REST、存储与线上格式不变，9.4.x 与 9.5.0 节点可以共用一个集群。基于 9.4 编译的代码需要重新编译。9.5.0 发布说明（[Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
+对 `wow-schema` 与 `wow-openapi` 而言，9.5.0 是一次内部重构（设计见 `documentation/designs/2026-10-09-wow-schema-refactor-design.md`）。生成的 JSON Schema、OpenAPI 文档和查询模型与 9.4.0 逐字节相同，REST、存储与线上格式不变，9.4.x 与 9.5.0 节点可以共用一个集群。基于 9.4 编译的代码需要重新编译；直接使用 Schema builder 的代码可能需要按下表修改源码：为了保持模块整洁，这部分没有保留源码兼容。9.5.0 发布说明（[Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
 | 修复：并发生成 Schema 时，Kotlin getter-only（计算）属性不再随机缺失 | 有时缺少计算属性的查询模型和 OpenAPI 文档 | 无需操作，字段每次都会出现 |
-| `OpenAPISchemaBuilder`、`InlineSchemaCapable` 从 `wow-schema` 迁入 `wow-openapi`，包名不变 | classpath 上只有 `wow-schema` 却使用它们的代码 | 添加 `me.ahoo.wow:wow-openapi`；启用 `openapi-support` 的应用已经有这个依赖 |
+| `OpenAPISchemaBuilder`、`InlineSchemaCapable` 从 `wow-schema`（`me.ahoo.wow.schema.openapi`）迁入 `wow-openapi`（`me.ahoo.wow.openapi.schema`） | 使用它们的代码 | import 改为 `me.ahoo.wow.openapi.schema`；classpath 上只有 `wow-schema` 的要添加 `me.ahoo.wow:wow-openapi`（启用 `openapi-support` 的应用已经有） |
 | Schema 的实现类改为内部：各 definition Provider、Kotlin 检查与 getter Provider、`@Summary`/`@Description` 解析器、`WowSchemaLoader`、`JsonSchema`、`Types`、`SchemaMerger`、`JavaTypeResolver` | 注册或继承过它们的代码，特别是 `TypedCustomDefinitionProvider`、`MessageDefinitionProvider`、`AbstractStateAggregate` | 通过 `SchemaGeneratorBuilder` 注册 `WowModule`、`KotlinModule` 或 `JodaMoneyModule`，不要逐个注册 Provider 或检查；自定义类型实现 victools 的 `CustomDefinitionProviderV2`，在 `customizer { … }` 里添加 |
 | `OpenAPISchemaBuilder` 不再替换传入 builder 的 `schemaNamingModule` | 之后还读取该 builder 命名模块的代码 | 无需操作，builder 保留你的设置 |
-| 弃用到 10.0.0：`SchemaGeneratorBuilder.openapi31` 与 `openapi31(Boolean)`（从未生效）、`typeContext`、`requiredTypeContent` | 调用它们的代码 | 删掉 `openapi31` 调用；需要 type context 时用 `buildConfig()` 加 `TypeContextFactory.createDefaultTypeContext(config)` |
+| 删除：`SchemaGeneratorBuilder.openapi31` 与 `openapi31(Boolean)`（从未生效）、`typeContext`、`requiredTypeContent` | 调用它们的代码会编译失败 | 删掉 `openapi31` 调用；需要 type context 时用 `buildConfig()` 加 `TypeContextFactory.createDefaultTypeContext(config)` |
 | Schema 生成器和 `OpenAPISchemaBuilder` 都不是线程安全的 | 跨线程共享同一个实例的代码 | 每个线程各建一个；`SchemaGeneratorBuilder.copy()` 让每个实例拥有自己的设置 |
 
 ## 从 9.3 升级到 9.4.0

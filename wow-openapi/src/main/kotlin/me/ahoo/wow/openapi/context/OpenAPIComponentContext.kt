@@ -23,9 +23,9 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.RequestBodyBuilder
+import me.ahoo.wow.openapi.schema.InlineSchemaCapable
+import me.ahoo.wow.openapi.schema.OpenAPISchemaBuilder
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import me.ahoo.wow.schema.openapi.InlineSchemaCapable
-import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import java.lang.reflect.Type
 
 interface OpenAPIComponentContext : InlineSchemaCapable {

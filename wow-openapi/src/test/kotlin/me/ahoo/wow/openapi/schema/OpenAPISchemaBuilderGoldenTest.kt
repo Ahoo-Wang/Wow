@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import com.github.victools.jsonschema.generator.Option
 import io.swagger.v3.core.util.ObjectMapperFactory
