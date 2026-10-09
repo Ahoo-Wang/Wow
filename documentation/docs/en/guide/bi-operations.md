@@ -34,8 +34,8 @@ never establish ownership.
 The `__wow_bi_deployment` anchor is the last statement of every script and records the deployment-level facts:
 
 - the phase (`STABLE` or `RESETTING`), configuration fingerprint, topology fingerprint, and consumer identity;
-- the durable inventory: every store and queue that has been created, either `ACTIVE`, or `RETIRED` (the aggregate
-  was removed and the store was kept for its data).
+- the durable inventory: every store and queue that has been created, grouped by database, including the stores
+  kept for their data after their aggregate was removed.
 
 Durable objects are created before they are recorded, so the inventory can lag the catalog but never run ahead of it.
 A recorded store or queue that disappears therefore means lost data or lost Kafka offsets: DEPLOY refuses and asks for
