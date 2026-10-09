@@ -1,0 +1,43 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "created_at" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "INTEGER" ],
+      "nullable" : false,
+      "required" : false,
+      "formats" : [ "int64" ],
+      "member" : {
+        "name" : "private final long me.ahoo.wow.schema.query.AnnotatedTemporalState.createdAt",
+        "type" : "long",
+        "valueType" : "long",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"created_at\")", "@me.ahoo.wow.api.query.annotation.QueryTemporal(unit=SECONDS)" ]
+      }
+    },
+    "timestamps" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "INTEGER" ],
+        "nullable" : false,
+        "formats" : [ "int64" ],
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.AnnotatedTemporalState.timestamps",
+          "type" : "java.lang.Long",
+          "valueType" : "long",
+          "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryTemporal()" ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.AnnotatedTemporalState.timestamps",
+        "type" : "java.util.List",
+        "valueType" : "long",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryTemporal()" ]
+      }
+    }
+  }
+}

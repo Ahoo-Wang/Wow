@@ -1,0 +1,57 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "known" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "value" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final me.ahoo.wow.schema.query.TypeCustomSerializedValue me.ahoo.wow.schema.query.OpaqueValueBranch.value",
+            "type" : "me.ahoo.wow.schema.query.TypeCustomSerializedValue",
+            "valueType" : "me.ahoo.wow.schema.query.TypeCustomSerializedValue",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.RepeatedValue me.ahoo.wow.schema.query.OpaqueAllOfValueTypesState.known",
+        "type" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "valueType" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(allOf={me.ahoo.wow.schema.query.OpaqueValueBranch.class, me.ahoo.wow.schema.query.StringValueBranch.class})" ]
+      }
+    },
+    "opaque" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "value" : {
+          "kind" : "UNKNOWN",
+          "required" : true,
+          "member" : {
+            "name" : "private final me.ahoo.wow.schema.query.TypeCustomSerializedValue me.ahoo.wow.schema.query.OpaqueValueBranch.value",
+            "type" : "me.ahoo.wow.schema.query.TypeCustomSerializedValue",
+            "valueType" : "me.ahoo.wow.schema.query.TypeCustomSerializedValue",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.RepeatedValue me.ahoo.wow.schema.query.OpaqueAllOfValueTypesState.opaque",
+        "type" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "valueType" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(allOf={me.ahoo.wow.schema.query.OpaqueValueBranch.class, me.ahoo.wow.schema.query.SecondOpaqueValueBranch.class})" ]
+      }
+    }
+  }
+}

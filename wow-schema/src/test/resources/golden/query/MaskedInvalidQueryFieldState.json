@@ -1,0 +1,19 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "phone.number" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : false,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedInvalidQueryFieldState.phone",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@com.fasterxml.jackson.annotation.JsonProperty(value=\"phone.number\")", "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+      }
+    }
+  }
+}

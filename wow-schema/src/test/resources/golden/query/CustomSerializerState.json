@@ -1,0 +1,27 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "propertyValue" : {
+      "kind" : "UNKNOWN",
+      "required" : true,
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.PropertyCustomSerializedValue me.ahoo.wow.schema.query.CustomSerializerState.propertyValue",
+        "type" : "me.ahoo.wow.schema.query.PropertyCustomSerializedValue",
+        "valueType" : "me.ahoo.wow.schema.query.PropertyCustomSerializedValue",
+        "annotations" : [ "@tools.jackson.databind.annotation.JsonSerialize(using=me.ahoo.wow.schema.query.PropertyCustomSerializedValueSerializer.class)" ]
+      }
+    },
+    "typeValue" : {
+      "kind" : "UNKNOWN",
+      "required" : true,
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.TypeCustomSerializedValue me.ahoo.wow.schema.query.CustomSerializerState.typeValue",
+        "type" : "me.ahoo.wow.schema.query.TypeCustomSerializedValue",
+        "valueType" : "me.ahoo.wow.schema.query.TypeCustomSerializedValue",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

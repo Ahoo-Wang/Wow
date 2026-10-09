@@ -1,0 +1,56 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "date" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "date" ],
+      "member" : {
+        "name" : "private final java.time.LocalDate me.ahoo.wow.schema.query.NativeTemporalState.date",
+        "type" : "java.time.LocalDate",
+        "valueType" : "java.time.LocalDate",
+        "annotations" : [ ]
+      }
+    },
+    "instant" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "formats" : [ "date-time" ],
+      "member" : {
+        "name" : "private final java.time.Instant me.ahoo.wow.schema.query.NativeTemporalState.instant",
+        "type" : "java.time.Instant",
+        "valueType" : "java.time.Instant",
+        "annotations" : [ ]
+      }
+    },
+    "instants" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "formats" : [ "date-time" ],
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.NativeTemporalState.instants",
+          "type" : "java.time.Instant",
+          "valueType" : "java.time.Instant",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.NativeTemporalState.instants",
+        "type" : "java.util.List",
+        "valueType" : "java.time.Instant",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

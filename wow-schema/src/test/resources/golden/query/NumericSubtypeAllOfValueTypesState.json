@@ -1,0 +1,61 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "forward" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "value" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "INTEGER" ],
+          "nullable" : false,
+          "required" : true,
+          "formats" : [ "int32" ],
+          "member" : {
+            "name" : "private final int me.ahoo.wow.schema.query.IntegerValueBranch.value",
+            "type" : "int",
+            "valueType" : "int",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.RepeatedValue me.ahoo.wow.schema.query.NumericSubtypeAllOfValueTypesState.forward",
+        "type" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "valueType" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(allOf={me.ahoo.wow.schema.query.IntegerValueBranch.class, me.ahoo.wow.schema.query.DecimalValueBranch.class})" ]
+      }
+    },
+    "reverse" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "value" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "INTEGER" ],
+          "nullable" : false,
+          "required" : true,
+          "formats" : [ "int32" ],
+          "member" : {
+            "name" : "private final java.math.BigDecimal me.ahoo.wow.schema.query.DecimalValueBranch.value",
+            "type" : "java.math.BigDecimal",
+            "valueType" : "java.math.BigDecimal",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.RepeatedValue me.ahoo.wow.schema.query.NumericSubtypeAllOfValueTypesState.reverse",
+        "type" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "valueType" : "me.ahoo.wow.schema.query.RepeatedValue",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(allOf={me.ahoo.wow.schema.query.DecimalValueBranch.class, me.ahoo.wow.schema.query.IntegerValueBranch.class})" ]
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "type" : "object",
+  "properties" : {
+    "children" : {
+      "type" : "array",
+      "items" : {
+        "$ref" : "#"
+      }
+    },
+    "code" : {
+      "type" : "string"
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "sortId" : {
+      "type" : "integer",
+      "format" : "int32"
+    },
+    "level" : {
+      "type" : "integer",
+      "format" : "int32",
+      "readOnly" : true
+    }
+  },
+  "required" : [ "children", "code", "name", "sortId" ]
+}

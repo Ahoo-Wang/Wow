@@ -1,0 +1,98 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "child" : {
+      "kind" : "UNION",
+      "nullable" : true,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "NULL",
+        "nullable" : true
+      }, {
+        "kind" : "UNKNOWN",
+        "omitted" : [ {
+          "name" : "private final me.ahoo.wow.schema.query.RecursiveState me.ahoo.wow.schema.query.RecursiveState.child",
+          "type" : "me.ahoo.wow.schema.query.RecursiveState",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.RecursiveState.children",
+          "type" : "java.util.List",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.RecursiveState.children",
+          "type" : "me.ahoo.wow.schema.query.RecursiveState",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.lang.String me.ahoo.wow.schema.query.RecursiveState.name",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        } ]
+      } ],
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.RecursiveState me.ahoo.wow.schema.query.RecursiveState.child",
+        "type" : "me.ahoo.wow.schema.query.RecursiveState",
+        "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+        "annotations" : [ ]
+      }
+    },
+    "children" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "UNKNOWN",
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.RecursiveState.children",
+          "type" : "me.ahoo.wow.schema.query.RecursiveState",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        },
+        "omitted" : [ {
+          "name" : "private final me.ahoo.wow.schema.query.RecursiveState me.ahoo.wow.schema.query.RecursiveState.child",
+          "type" : "me.ahoo.wow.schema.query.RecursiveState",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.RecursiveState.children",
+          "type" : "java.util.List",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.RecursiveState.children",
+          "type" : "me.ahoo.wow.schema.query.RecursiveState",
+          "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+          "annotations" : [ ]
+        }, {
+          "name" : "private final java.lang.String me.ahoo.wow.schema.query.RecursiveState.name",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        } ]
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.RecursiveState.children",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.query.RecursiveState",
+        "annotations" : [ ]
+      }
+    },
+    "name" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.RecursiveState.name",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "name" : {
+      "type" : "string",
+      "title" : "newName",
+      "description" : "The new name to set"
+    },
+    "optionalReason" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "type" : "string"
+      } ]
+    }
+  },
+  "required" : [ "name" ]
+}

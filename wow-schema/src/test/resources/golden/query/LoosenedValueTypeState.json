@@ -1,0 +1,19 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "idCard" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.IdCardNumber me.ahoo.wow.schema.query.LoosenedValueTypeState.idCard",
+        "type" : "me.ahoo.wow.schema.query.IdCardNumber",
+        "valueType" : "me.ahoo.wow.schema.query.IdCardNumber",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+      }
+    }
+  }
+}

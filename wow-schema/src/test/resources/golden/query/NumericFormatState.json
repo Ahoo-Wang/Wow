@@ -1,0 +1,55 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "amount" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.math.BigDecimal me.ahoo.wow.schema.query.NumericFormatState.amount",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryMoney(currencyField=\"currency\", scale=2)" ]
+      }
+    },
+    "currency" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.NumericFormatState.currency",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "rate" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.math.BigDecimal me.ahoo.wow.schema.query.NumericFormatState.rate",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryDecimal(scale=4)" ]
+      }
+    },
+    "total" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "DECIMAL" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.math.BigDecimal me.ahoo.wow.schema.query.NumericFormatState.total",
+        "type" : "java.math.BigDecimal",
+        "valueType" : "java.math.BigDecimal",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.QueryMoney(currency=\"CNY\")" ]
+      }
+    }
+  }
+}

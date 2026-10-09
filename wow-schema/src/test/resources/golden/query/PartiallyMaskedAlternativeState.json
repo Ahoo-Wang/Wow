@@ -1,0 +1,49 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "value" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "shared" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedStringBranch.shared",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+            }
+          }
+        }
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "shared" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.UnmaskedStringBranch.shared",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          }
+        }
+      } ]
+    }
+  }
+}

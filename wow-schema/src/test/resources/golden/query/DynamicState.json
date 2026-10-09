@@ -1,0 +1,89 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "attributeGroups" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "additionalProperties" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "member" : {
+            "name" : "private final java.util.List me.ahoo.wow.schema.query.DynamicState.attributeGroups",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.DynamicState.attributeGroups",
+          "type" : "java.util.Map",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.DynamicState.attributeGroups",
+        "type" : "java.util.List",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "attributes" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "additionalProperties" : {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "member" : {
+          "name" : "private final java.util.Map me.ahoo.wow.schema.query.DynamicState.attributes",
+          "type" : "java.lang.String",
+          "valueType" : "java.lang.String",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.Map me.ahoo.wow.schema.query.DynamicState.attributes",
+        "type" : "java.util.Map",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "closed" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "city" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.query.StructuralAddress.city",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.StructuralAddress me.ahoo.wow.schema.query.DynamicState.closed",
+        "type" : "me.ahoo.wow.schema.query.StructuralAddress",
+        "valueType" : "me.ahoo.wow.schema.query.StructuralAddress",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

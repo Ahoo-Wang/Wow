@@ -1,0 +1,67 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "composed" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.LegacyMaskedState.composed",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.schema.query.ComposedLegacySecret()", "@me.ahoo.wow.api.query.mask.Mask()", "@me.ahoo.wow.api.query.mask.Masking(strategy=me.ahoo.wow.api.query.mask.FullMaskStrategy.class)" ]
+      }
+    },
+    "password" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.LegacyMaskedState.password",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.mask.Mask()", "@me.ahoo.wow.api.query.mask.Masking(strategy=me.ahoo.wow.api.query.mask.FullMaskStrategy.class)" ]
+      }
+    },
+    "phone" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.LegacyMaskedState.phone",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.mask.KeepMask(prefix=3, suffix=4)", "@me.ahoo.wow.api.query.mask.Masking(strategy=me.ahoo.wow.api.query.mask.KeepMaskStrategy.class)" ]
+      }
+    },
+    "plain" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.LegacyMaskedState.plain",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ ]
+      }
+    },
+    "redacted" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.LegacyMaskedState.redacted",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.schema.query.Redact(replacement=\"[gone]\")", "@me.ahoo.wow.api.query.mask.Masking(strategy=me.ahoo.wow.schema.query.RedactStrategy.class)" ]
+      }
+    }
+  }
+}

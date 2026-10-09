@@ -1,0 +1,32 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "object",
+  "properties" : {
+    "id" : {
+      "type" : "string"
+    },
+    "items" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "productId" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "productId" ]
+      }
+    },
+    "size" : {
+      "readOnly" : true,
+      "type" : "integer",
+      "format" : "int32",
+      "description" : "购物车数量"
+    }
+  },
+  "required" : [ "id" ]
+}

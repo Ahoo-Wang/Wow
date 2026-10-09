@@ -1,0 +1,29 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "value" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "enumValues" : [ "FIRST", "SHARED" ]
+      }, {
+        "kind" : "SCALAR",
+        "valueTypes" : [ "STRING" ],
+        "nullable" : false,
+        "enumValues" : [ "SECOND", "SHARED" ]
+      } ],
+      "member" : {
+        "name" : "private final java.lang.Object me.ahoo.wow.schema.query.ForwardEnumState.value",
+        "type" : "java.lang.Object",
+        "valueType" : "java.lang.Object",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(oneOf={me.ahoo.wow.schema.query.FirstChoice.class, me.ahoo.wow.schema.query.SecondChoice.class})" ]
+      }
+    }
+  }
+}

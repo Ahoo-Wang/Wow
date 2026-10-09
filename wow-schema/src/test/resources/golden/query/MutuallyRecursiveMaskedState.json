@@ -1,0 +1,66 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "node" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "parent" : {
+          "kind" : "UNION",
+          "nullable" : true,
+          "required" : true,
+          "alternatives" : [ {
+            "kind" : "NULL",
+            "nullable" : true
+          }, {
+            "kind" : "UNKNOWN",
+            "omitted" : [ {
+              "name" : "private final me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode.parent",
+              "type" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState",
+              "valueType" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState",
+              "annotations" : [ ]
+            }, {
+              "name" : "private final me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState.node",
+              "type" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode",
+              "valueType" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode",
+              "annotations" : [ ]
+            }, {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode.secret",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+            } ]
+          } ],
+          "member" : {
+            "name" : "private final me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode.parent",
+            "type" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState",
+            "valueType" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState",
+            "annotations" : [ ]
+          }
+        },
+        "secret" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode.secret",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode me.ahoo.wow.schema.query.MutuallyRecursiveMaskedState.node",
+        "type" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode",
+        "valueType" : "me.ahoo.wow.schema.query.MutuallyRecursiveMaskedNode",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

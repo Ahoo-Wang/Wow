@@ -1,0 +1,44 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "contacts" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "additionalProperties" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "phone" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedContact.phone",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY, mask=@me.ahoo.wow.api.query.annotation.Mask(keepPrefix=3, keepSuffix=2))" ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final java.util.Map me.ahoo.wow.schema.query.MaskedDynamicState.contacts",
+          "type" : "me.ahoo.wow.schema.query.MaskedContact",
+          "valueType" : "me.ahoo.wow.schema.query.MaskedContact",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.Map me.ahoo.wow.schema.query.MaskedDynamicState.contacts",
+        "type" : "java.util.Map",
+        "valueType" : "me.ahoo.wow.schema.query.MaskedContact",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "value" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "value" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.query.NotAValueType.value",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.NotAValueType me.ahoo.wow.schema.query.NonValueTypeState.value",
+        "type" : "me.ahoo.wow.schema.query.NotAValueType",
+        "valueType" : "me.ahoo.wow.schema.query.NotAValueType",
+        "annotations" : [ ]
+      }
+    }
+  }
+}

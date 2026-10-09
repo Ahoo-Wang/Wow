@@ -1,0 +1,203 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "allOf" : {
+      "kind" : "OBJECT",
+      "valueTypes" : [ "OBJECT" ],
+      "nullable" : false,
+      "required" : true,
+      "properties" : {
+        "own" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.query.AllOfValue.own",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        },
+        "inherited" : {
+          "kind" : "SCALAR",
+          "valueTypes" : [ "STRING" ],
+          "nullable" : false,
+          "required" : true,
+          "member" : {
+            "name" : "private final java.lang.String me.ahoo.wow.schema.query.AllOfInherited.inherited",
+            "type" : "java.lang.String",
+            "valueType" : "java.lang.String",
+            "annotations" : [ ]
+          }
+        }
+      },
+      "member" : {
+        "name" : "private final me.ahoo.wow.schema.query.AllOfValue me.ahoo.wow.schema.query.CompositionState.allOf",
+        "type" : "me.ahoo.wow.schema.query.AllOfValue",
+        "valueType" : "me.ahoo.wow.schema.query.AllOfValue",
+        "annotations" : [ "@io.swagger.v3.oas.annotations.media.Schema(allOf={me.ahoo.wow.schema.query.AllOfInherited.class})" ]
+      }
+    },
+    "anyOf" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "left" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.AnyOfLeft.left",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final me.ahoo.wow.schema.query.AnyOfValue me.ahoo.wow.schema.query.CompositionState.anyOf",
+          "type" : "me.ahoo.wow.schema.query.AnyOfLeft",
+          "valueType" : "me.ahoo.wow.schema.query.AnyOfValue",
+          "annotations" : [ ]
+        }
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "right" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.AnyOfRight.right",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final me.ahoo.wow.schema.query.AnyOfValue me.ahoo.wow.schema.query.CompositionState.anyOf",
+          "type" : "me.ahoo.wow.schema.query.AnyOfRight",
+          "valueType" : "me.ahoo.wow.schema.query.AnyOfValue",
+          "annotations" : [ ]
+        }
+      } ]
+    },
+    "oneOf" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "first" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.OneOfFirst.first",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          }
+        }
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "second" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.OneOfSecond.second",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          }
+        }
+      } ]
+    },
+    "payment" : {
+      "kind" : "UNION",
+      "nullable" : false,
+      "required" : true,
+      "alternatives" : [ {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "cardNumber" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.CardPayment.cardNumber",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          },
+          "kind" : {
+            "kind" : "UNKNOWN",
+            "required" : true
+          }
+        },
+        "member" : {
+          "name" : "private final me.ahoo.wow.schema.query.PaymentValue me.ahoo.wow.schema.query.CompositionState.payment",
+          "type" : "me.ahoo.wow.schema.query.CardPayment",
+          "valueType" : "me.ahoo.wow.schema.query.PaymentValue",
+          "annotations" : [ ]
+        }
+      }, {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "account" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.BankPayment.account",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ ]
+            }
+          },
+          "kind" : {
+            "kind" : "UNKNOWN",
+            "required" : true
+          }
+        },
+        "member" : {
+          "name" : "private final me.ahoo.wow.schema.query.PaymentValue me.ahoo.wow.schema.query.CompositionState.payment",
+          "type" : "me.ahoo.wow.schema.query.BankPayment",
+          "valueType" : "me.ahoo.wow.schema.query.PaymentValue",
+          "annotations" : [ ]
+        }
+      } ]
+    }
+  }
+}

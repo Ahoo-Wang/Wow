@@ -1,0 +1,91 @@
+{
+  "kind" : "OBJECT",
+  "valueTypes" : [ "OBJECT" ],
+  "nullable" : false,
+  "properties" : {
+    "composedSecret" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedStructuralState.composedSecret",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.schema.query.ComposedMask()" ]
+      }
+    },
+    "confidentialSecret" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedStructuralState.confidentialSecret",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=CONFIDENTIAL)" ]
+      }
+    },
+    "contacts" : {
+      "kind" : "ARRAY",
+      "nullable" : false,
+      "required" : true,
+      "items" : {
+        "kind" : "OBJECT",
+        "valueTypes" : [ "OBJECT" ],
+        "nullable" : false,
+        "properties" : {
+          "phone" : {
+            "kind" : "SCALAR",
+            "valueTypes" : [ "STRING" ],
+            "nullable" : false,
+            "required" : true,
+            "member" : {
+              "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedContact.phone",
+              "type" : "java.lang.String",
+              "valueType" : "java.lang.String",
+              "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY, mask=@me.ahoo.wow.api.query.annotation.Mask(keepPrefix=3, keepSuffix=2))" ]
+            }
+          }
+        },
+        "member" : {
+          "name" : "private final java.util.List me.ahoo.wow.schema.query.MaskedStructuralState.contacts",
+          "type" : "me.ahoo.wow.schema.query.MaskedContact",
+          "valueType" : "me.ahoo.wow.schema.query.MaskedContact",
+          "annotations" : [ ]
+        }
+      },
+      "member" : {
+        "name" : "private final java.util.List me.ahoo.wow.schema.query.MaskedStructuralState.contacts",
+        "type" : "java.util.List",
+        "valueType" : "me.ahoo.wow.schema.query.MaskedContact",
+        "annotations" : [ ]
+      }
+    },
+    "getterSecret" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedStructuralState.getterSecret",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY, mask=@me.ahoo.wow.api.query.annotation.Mask(keepPrefix=1, keepSuffix=1))" ]
+      }
+    },
+    "password" : {
+      "kind" : "SCALAR",
+      "valueTypes" : [ "STRING" ],
+      "nullable" : false,
+      "required" : true,
+      "member" : {
+        "name" : "private final java.lang.String me.ahoo.wow.schema.query.MaskedStructuralState.password",
+        "type" : "java.lang.String",
+        "valueType" : "java.lang.String",
+        "annotations" : [ "@me.ahoo.wow.api.query.annotation.Sensitive(level=DISPLAY)" ]
+      }
+    }
+  }
+}
