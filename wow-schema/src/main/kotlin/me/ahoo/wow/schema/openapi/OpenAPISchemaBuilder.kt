@@ -16,8 +16,10 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.github.victools.jsonschema.generator.SchemaGenerator
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfig
 import com.github.victools.jsonschema.generator.TypeContext
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
+import com.github.victools.jsonschema.generator.impl.TypeContextFactory
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
@@ -37,15 +39,16 @@ class OpenAPISchemaBuilder(
     }
 
     private val definitionNames = mutableMapOf<DefinitionKey, String>()
-    private val schemaGenerator: SchemaGenerator = schemaGeneratorBuilder
+    private val config: SchemaGeneratorConfig = schemaGeneratorBuilder.copy()
         .schemaNamingModule(
             SchemaNamingModule(
                 defaultSchemaNamePrefix = defaultSchemaNamePrefix,
                 onDefinitionName = definitionNames::put,
             ),
         )
-        .build()
-    private val typeContext: TypeContext = schemaGeneratorBuilder.requiredTypeContent
+        .buildConfig()
+    private val typeContext: TypeContext = TypeContextFactory.createDefaultTypeContext(config)
+    private val schemaGenerator = SchemaGenerator(config, typeContext)
 
     override val inline: Boolean
         get() = schemaGenerator.config.shouldInlineAllSchemas()

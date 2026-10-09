@@ -45,7 +45,9 @@ val generator = SchemaGeneratorBuilder().build()
 val schema: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
-The default builder uses `SchemaVersion.DRAFT_7`, `OptionPreset.PLAIN_JSON`, and `openapi31 = true`. It installs Wow's Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, naming, and framework modules. Call `build()` before reading `requiredTypeContent`.
+The default builder uses `SchemaVersion.DRAFT_7` and `OptionPreset.PLAIN_JSON`. It installs Wow's Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, naming, and framework modules. `buildConfig()` returns the configuration without building a generator, and `copy()` returns an independent builder with the same settings.
+
+A generator is not thread-safe: build one per thread. Generators built separately may run concurrently.
 
 Generation happens from runtime types and registered serializers. KSP's metadata JSON is not an input to this call.
 
@@ -112,7 +114,6 @@ Override builder properties before `build()`:
 ```kotlin
 val generator = SchemaGeneratorBuilder()
     .schemaVersion(SchemaVersion.DRAFT_2020_12)
-    .openapi31(false)
     .customizer { config ->
         config.without(Option.SCHEMA_VERSION_INDICATOR)
     }
@@ -121,7 +122,6 @@ val generator = SchemaGeneratorBuilder()
 
 | Builder property | Default | Effect |
 |---|---|---|
-| `openapi31` | `true` | OpenAPI 3.1-compatible nullable handling |
 | `schemaVersion` | `DRAFT_7` | JSON Schema keyword dialect |
 | `optionPreset` | `PLAIN_JSON` | baseline field/getter inclusion |
 | `jacksonModule` | Wow Jackson module | Jackson names, ignores, enum values, order |

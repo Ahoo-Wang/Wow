@@ -24,12 +24,14 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
+import me.ahoo.wow.schema.openapi.OpenAPISchemaBuilder
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jsonMapper
 import java.util.function.Consumer
 
 class SchemaGeneratorBuilderTest {
 
+    @Suppress("DEPRECATION")
     @Test
     fun `should build schema generator with all modules`() {
         val jacksonModule = WowJacksonModule()
@@ -80,5 +82,33 @@ class SchemaGeneratorBuilderTest {
         schemaGenerator.config.objectMapper.assert().isSameAs(objectMapper)
         schemaGeneratorBuilder.typeContext.assert().isNotNull()
         schemaGeneratorBuilder.requiredTypeContent.assert().isNotNull()
+    }
+
+    @Test
+    fun `copy keeps the settings and is independent`() {
+        val original = SchemaGeneratorBuilder().schemaVersion(SchemaVersion.DRAFT_2020_12).jodaMoneyModule(null)
+        val copy = original.copy()
+        copy.schemaVersion.assert().isEqualTo(SchemaVersion.DRAFT_2020_12)
+        copy.jodaMoneyModule.assert().isNull()
+        copy.wowModule.assert().isSameAs(original.wowModule)
+        copy.schemaVersion(SchemaVersion.DRAFT_7)
+        original.schemaVersion.assert().isEqualTo(SchemaVersion.DRAFT_2020_12)
+    }
+
+    @Test
+    fun `buildConfig applies the customizer after the options`() {
+        val config = SchemaGeneratorBuilder()
+            .options(listOf(Option.INLINE_ALL_SCHEMAS))
+            .customizer { it.without(Option.INLINE_ALL_SCHEMAS) }
+            .buildConfig()
+        config.shouldInlineAllSchemas().assert().isFalse()
+    }
+
+    @Test
+    fun `openapi schema builder leaves the given builder unchanged`() {
+        val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix = "")
+        val builder = SchemaGeneratorBuilder().schemaNamingModule(schemaNamingModule)
+        OpenAPISchemaBuilder(defaultSchemaNamePrefix = "test.", schemaGeneratorBuilder = builder)
+        builder.schemaNamingModule.assert().isSameAs(schemaNamingModule)
     }
 }
