@@ -15,7 +15,7 @@ package me.ahoo.wow.bi.renderer
 
 import me.ahoo.wow.bi.layout.BiStoreSchema
 
-/** Renders a store from its [BiStoreSchema]: the table, plus its Distributed facade on a cluster. */
+/** Renders a store from its [BiStoreSchema]: the table, plus its Distributed facade on a cluster, as planned. */
 internal fun ClickHouseRenderContext.renderStoreStatements(
     schema: BiStoreSchema,
     store: String,
@@ -23,7 +23,9 @@ internal fun ClickHouseRenderContext.renderStoreStatements(
 ): List<String> {
     val physicalTable = layout.physicalStore(store)
     return buildList {
-        add(renderStoreTable(schema, physicalTable, comment))
+        if (renders(layout.storeKey(physicalTable))) {
+            add(renderStoreTable(schema, physicalTable, comment))
+        }
         topology.distributedFacade(
             DistributedFacadeSpec(
                 database = options.database,
@@ -32,7 +34,7 @@ internal fun ClickHouseRenderContext.renderStoreStatements(
                 shardingKey = "sipHash64(${schema.shardingColumns.joinToString(", ", transform = ::identifier)})",
                 createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
             )
-        )?.withTableComment(comment)?.let(::add)
+        )?.takeIf { renders(layout.storeKey(store)) }?.withTableComment(comment)?.let(::add)
     }
 }
 

@@ -18,7 +18,6 @@ import me.ahoo.wow.bi.BiDeploymentPhase
 import me.ahoo.wow.bi.BiDurableEntry
 import me.ahoo.wow.bi.BiObjectKind
 import me.ahoo.wow.bi.BiOwnedObject
-import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.bi.layout.BiLayout
 
 internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRenderContext) {
@@ -28,16 +27,6 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
             "CREATE DATABASE IF NOT EXISTS ${identifier(options.consumerDatabase)}${scopeClause()};",
         )
     }
-
-    fun renderDropObserved(objects: List<ObservedBiObject>): List<String> =
-        renderDropOwned(
-            objects.map { observed ->
-                val kind = checkNotNull(observed.metadata?.kind) {
-                    "Cannot drop an unowned BI catalog object: ${observed.database}.${observed.name}"
-                }
-                BiOwnedObject(observed.key, kind)
-            }
-        )
 
     fun renderDropOwned(objects: List<BiOwnedObject>): List<String> = with(context) {
         immutableStatements(
@@ -67,7 +56,7 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
         val aggregateLayout = layout.of(namedAggregate)
         immutableStatements(
             listOf(aggregateLayout.command.consumer, aggregateLayout.state.consumer)
-                .filterNot { consumerTable -> isConsumerRetained(consumerTable) }
+                .filter { consumerTable -> replaces(layout.ingressKey(consumerTable)) }
                 .map { consumerTable -> dropView(options.consumerDatabase, consumerTable) }
         )
     }

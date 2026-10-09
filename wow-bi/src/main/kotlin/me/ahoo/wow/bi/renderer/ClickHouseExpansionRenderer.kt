@@ -34,8 +34,10 @@ internal class ClickHouseExpansionRenderer(private val context: ClickHouseRender
         }
     }
 
-    fun render(plan: StateExpansionPlan, aggregate: String): List<String> =
-        immutableStatements(plan.views.map { view -> renderView(view, aggregate) })
+    fun render(plan: StateExpansionPlan, aggregate: String): List<String> = immutableStatements(
+        plan.views.filter { view -> context.renders(context.layout.viewKey(view.targetTableName)) }
+            .map { view -> renderView(view, aggregate) }
+    )
 
     private fun renderView(view: ExpansionViewPlan, aggregate: String): String = with(context) {
         buildString {

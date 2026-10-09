@@ -14,7 +14,6 @@
 package me.ahoo.wow.bi.renderer
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.BiConsumerIdentity
 import me.ahoo.wow.bi.BiDeploymentDescriptor
 import me.ahoo.wow.bi.BiDeploymentPhase
 import me.ahoo.wow.bi.BiDurableEntry
@@ -22,8 +21,8 @@ import me.ahoo.wow.bi.BiObjectKey
 import me.ahoo.wow.bi.BiOwnedObject
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ExpectedBiQuery
-import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
+import me.ahoo.wow.bi.plan.BiChangePlan
 
 internal enum class CatalogMutationMode {
     RECONCILE,
@@ -47,24 +46,12 @@ internal data class ClickHouseAggregateRenderPlan(
 /**
  * Composes the focused renderers that produce the current BI SQL graph.
  */
-@Suppress("TooManyFunctions")
 internal class ClickHouseScriptRenderer(
-    options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
-    consumerIdentity: BiConsumerIdentity =
-        BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
+    options: BiScriptOptions,
+    plan: BiChangePlan,
     deployment: BiDeploymentDescriptor = BiDeploymentDescriptor.from(options),
-    catalogMutationMode: CatalogMutationMode = CatalogMutationMode.RECONCILE,
-    retainedQueueKeys: Set<BiObjectKey> = emptySet(),
-    retainedConsumerKeys: Set<BiObjectKey> = emptySet(),
 ) {
-    private val context = ClickHouseRenderContext(
-        options = options,
-        consumerIdentity = consumerIdentity,
-        deployment = deployment,
-        catalogMutationMode = catalogMutationMode,
-        retainedQueueKeys = retainedQueueKeys,
-        retainedConsumerKeys = retainedConsumerKeys,
-    )
+    private val context = ClickHouseRenderContext(options = options, deployment = deployment, plan = plan)
     private val lifecycle = ClickHouseLifecycleRenderer(context)
     private val command = ClickHouseCommandRenderer(context)
     private val stateEvent = ClickHouseStateEventRenderer(context)
@@ -73,40 +60,14 @@ internal class ClickHouseScriptRenderer(
 
     fun renderGlobalStatements(): List<String> = lifecycle.renderGlobal()
 
-    fun renderDropObservedStatements(objects: List<ObservedBiObject>): List<String> =
-        lifecycle.renderDropObserved(objects)
-
     fun renderDropOwnedStatements(objects: List<BiOwnedObject>): List<String> =
         lifecycle.renderDropOwned(objects)
 
     fun renderAnchorStatement(phase: BiDeploymentPhase, durableInventory: List<BiDurableEntry>): String =
         lifecycle.renderAnchor(phase, durableInventory)
 
-    fun renderCommandStorageStatements(namedAggregate: NamedAggregate): List<String> =
-        command.render(namedAggregate).storage
-
-    fun renderCommandPublicStatements(namedAggregate: NamedAggregate): List<String> =
-        command.render(namedAggregate).publicViews
-
-    fun renderCommandIngressStatements(namedAggregate: NamedAggregate): List<String> =
-        command.render(namedAggregate).ingress
-
-    fun renderStateStorageStatements(namedAggregate: NamedAggregate): List<String> =
-        stateEvent.render(namedAggregate).storage
-
-    fun renderStatePublicStatements(namedAggregate: NamedAggregate): List<String> =
-        stateEvent.render(namedAggregate).publicViews
-
-    fun renderStateIngressStatements(namedAggregate: NamedAggregate): List<String> =
-        stateEvent.render(namedAggregate).ingress
-
     fun renderPauseIngressStatements(namedAggregate: NamedAggregate): List<String> =
         lifecycle.renderPauseIngress(namedAggregate)
-
-    fun renderStateLastStatements(namedAggregate: NamedAggregate): List<String> = stateLast.render(namedAggregate)
-
-    fun renderExpansionStatements(plan: StateExpansionPlan, aggregate: String = "test.aggregate"): List<String> =
-        expansion.render(plan, aggregate)
 
     fun renderAggregate(
         namedAggregate: NamedAggregate,

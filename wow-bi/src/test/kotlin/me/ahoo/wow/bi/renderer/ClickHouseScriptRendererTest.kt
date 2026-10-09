@@ -14,9 +14,12 @@
 package me.ahoo.wow.bi.renderer
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.bi.BiConsumerIdentity
+import me.ahoo.wow.bi.BiDeploymentDescriptor
+import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
-import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.bi.expansion.plan.CollectionCursorPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
@@ -26,6 +29,7 @@ import me.ahoo.wow.bi.expansion.plan.ExpansionRecoveryPlan
 import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
 import me.ahoo.wow.bi.expansion.plan.JsonPointerSegment
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
+import me.ahoo.wow.bi.plan.BiChangePlan
 import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.configuration.MetadataSearcher
 import org.junit.jupiter.api.Test
@@ -33,20 +37,9 @@ import org.junit.jupiter.api.assertThrows
 
 class ClickHouseScriptRendererTest {
     @Test
-    fun `should reject unowned observed objects`() {
-        val renderer = ClickHouseScriptRenderer()
-
-        assertThrows<IllegalStateException> {
-            renderer.renderDropObservedStatements(
-                listOf(ObservedBiObject(database = "bi_db", name = "foreign", engine = "View"))
-            )
-        }.message.assert().contains("Cannot drop an unowned BI catalog object")
-    }
-
-    @Test
     fun `should render a true standalone statement graph`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
-        val renderer = ClickHouseScriptRenderer(
+        val renderer = StreamRenderers(
             BiScriptOptions(topology = ClickHouseTopology.Standalone, consumerGroupNamespace = "test")
         )
         val expansionPlan = StateExpansionPlan(
@@ -72,16 +65,16 @@ class ClickHouseScriptRendererTest {
         val sql = (renderer.renderGlobalStatements() + command + stateEvent + stateLast + expansion)
             .joinToString("\n")
 
-        command.assert().hasSize(5)
-        stateEvent.assert().hasSize(6)
-        stateLast.assert().hasSize(4)
+        command.assert().hasSize(4)
+        stateEvent.assert().hasSize(5)
+        stateLast.assert().hasSize(3)
         sql.assert().doesNotContain("ON CLUSTER", "Replicated", "Distributed", "_local", "/clickhouse/")
         sql.assert().contains("ENGINE = ReplacingMergeTree")
         command.any { it.contains("TO \"bi_db\".\"bi_aggregate_command_store\"") }.assert().isTrue()
         command.last().assert().contains("bi_aggregate_command", "bi_aggregate_command_store", "FINAL")
         stateEvent.any { it.contains("TO \"bi_db\".\"bi_aggregate_state_store\"") }.assert().isTrue()
         stateEvent.any { it.contains("FROM \"bi_db\".\"bi_aggregate_state\"") }.assert().isTrue()
-        stateLast[2].assert()
+        stateLast[1].assert()
             .contains("TO \"bi_db\".\"bi_aggregate_state_last_store\"")
             .contains("FROM \"bi_db\".\"bi_aggregate_state_store\"")
         stateLast.last().assert().contains("bi_aggregate_state_last", "bi_aggregate_state_last_store", "FINAL")
@@ -96,7 +89,7 @@ class ClickHouseScriptRendererTest {
     @Test
     fun `should preserve the lexical JSON of an event body`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
-        val renderer = ClickHouseScriptRenderer()
+        val renderer = StreamRenderers()
         val eventView = (
             renderer.renderStateStorageStatements(aggregate) +
                 renderer.renderStateIngressStatements(aggregate) +
@@ -152,7 +145,7 @@ class ClickHouseScriptRendererTest {
             ),
         )
 
-        val statements = ClickHouseScriptRenderer().renderExpansionStatements(
+        val statements = StreamRenderers().renderExpansionStatements(
             StateExpansionPlan(views = listOf(root, child), diagnostics = emptyList())
         )
 
@@ -182,7 +175,7 @@ class ClickHouseScriptRendererTest {
     @Test
     fun `should render immutable individual statements for every DDL family`() {
         val aggregate = MetadataSearcher.localAggregates.single { it.aggregateName == "aggregate" }
-        val renderer = ClickHouseScriptRenderer()
+        val renderer = StreamRenderers()
         val global = renderer.renderGlobalStatements()
         val commandStorage = renderer.renderCommandStorageStatements(aggregate)
         val command = commandStorage +
@@ -194,9 +187,9 @@ class ClickHouseScriptRendererTest {
         val stateLast = renderer.renderStateLastStatements(aggregate)
 
         global.assert().hasSize(2)
-        command.assert().hasSize(6)
-        stateEvent.assert().hasSize(7)
-        stateLast.assert().hasSize(5)
+        command.assert().hasSize(5)
+        stateEvent.assert().hasSize(6)
+        stateLast.assert().hasSize(4)
         command.joinToString("\n").assert()
             .contains(
                 "simpleJSONExtractRaw(replaceOne(\"data\", " +
@@ -239,7 +232,7 @@ class ClickHouseScriptRendererTest {
             ),
             diagnostics = emptyList(),
         )
-        val renderer = ClickHouseScriptRenderer()
+        val renderer = StreamRenderers()
 
         val statements = renderer.renderExpansionStatements(plan)
 
@@ -306,7 +299,7 @@ class ClickHouseScriptRendererTest {
             diagnostics = emptyList(),
         )
 
-        val script = ClickHouseScriptRenderer(
+        val script = StreamRenderers(
             BiScriptOptions(
                 database = "bi\"db",
                 topology = ClickHouseTopology.Cluster(name = "cluster'name"),
@@ -370,7 +363,7 @@ class ClickHouseScriptRendererTest {
             recovery = rootRecovery(),
         )
 
-        val script = ClickHouseScriptRenderer().renderExpansionStatements(
+        val script = StreamRenderers().renderExpansionStatements(
             StateExpansionPlan(views = listOf(view), diagnostics = emptyList())
         ).joinToString("\n\n")
 
@@ -403,7 +396,7 @@ class ClickHouseScriptRendererTest {
             recovery = rootRecovery(),
         )
 
-        val script = ClickHouseScriptRenderer().renderExpansionStatements(
+        val script = StreamRenderers().renderExpansionStatements(
             StateExpansionPlan(views = listOf(view), diagnostics = emptyList())
         ).joinToString("\n\n")
 
@@ -423,7 +416,7 @@ class ClickHouseScriptRendererTest {
             recovery = rootRecovery(),
         )
 
-        val script = ClickHouseScriptRenderer().renderExpansionStatements(
+        val script = StreamRenderers().renderExpansionStatements(
             StateExpansionPlan(views = listOf(emptyView), diagnostics = emptyList())
         ).joinToString("\n\n")
 
@@ -473,4 +466,41 @@ class ClickHouseScriptRendererTest {
         pointer = emptyList(),
         currentIndex = null,
     )
+}
+
+/** Drives each focused renderer directly, as an authoritative plan that creates every object would. */
+private class StreamRenderers(options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test")) {
+    private val context = ClickHouseRenderContext(
+        options = options,
+        deployment = BiDeploymentDescriptor.from(options),
+        plan = BiChangePlan.creatingAll(
+            BiScriptOperation.Deploy,
+            BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
+        ).copy(authoritative = true),
+    )
+    private val lifecycle = ClickHouseLifecycleRenderer(context)
+    private val command = ClickHouseCommandRenderer(context)
+    private val stateEvent = ClickHouseStateEventRenderer(context)
+    private val stateLast = ClickHouseStateLastRenderer(context)
+    private val expansion = ClickHouseExpansionRenderer(context)
+
+    fun renderGlobalStatements(): List<String> = lifecycle.renderGlobal()
+
+    fun renderCommandStorageStatements(aggregate: NamedAggregate): List<String> = command.render(aggregate).storage
+
+    fun renderCommandIngressStatements(aggregate: NamedAggregate): List<String> = command.render(aggregate).ingress
+
+    fun renderCommandPublicStatements(aggregate: NamedAggregate): List<String> = command.render(aggregate).publicViews
+
+    fun renderStateStorageStatements(aggregate: NamedAggregate): List<String> = stateEvent.render(aggregate).storage
+
+    fun renderStateIngressStatements(aggregate: NamedAggregate): List<String> = stateEvent.render(aggregate).ingress
+
+    fun renderStatePublicStatements(aggregate: NamedAggregate): List<String> =
+        stateEvent.render(aggregate).publicViews
+
+    fun renderStateLastStatements(aggregate: NamedAggregate): List<String> = stateLast.render(aggregate)
+
+    fun renderExpansionStatements(plan: StateExpansionPlan, aggregate: String = "test.aggregate"): List<String> =
+        expansion.render(plan, aggregate)
 }
