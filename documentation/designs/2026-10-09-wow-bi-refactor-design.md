@@ -151,7 +151,7 @@ anchor 在脚本最后写入，晚于所有持久对象的创建。规则全部�
 | 计算对象 | — | 只看观测：`Missing`→`Create`，`Drifted`→`Replace`，`Verified`→`Keep` |
 | anchor 的 `layout` 不是当前值，或对象 comment 无法解码 | — | 失败关闭，要求 RESET |
 
-中断恢复的论证：每条语句可重跑；持久对象先建后记，清单只会落后、不会超前，落后由第三行补上。原 registry 的 `PENDING_*` 状态因此不再需要。RESET 删除本部署拥有的全部对象后按当前 layout 重建，清单从空开始。
+中断恢复的论证：每条语句可重跑；持久对象先建后记，清单只会落后、不会超前，落后由第三行补上。原 registry 的 `PENDING_*` 状态因此不再需要。RESET 删除本部署拥有的全部对象后按当前 layout 重建；它的 `STABLE` anchor 写在 Kafka ingress 之前，因此只记录 store，随后的 DEPLOY 再把 queue 记入清单，清单同样不会超前。
 
 ## 5. 实施阶段
 
