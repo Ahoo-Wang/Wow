@@ -381,6 +381,11 @@ class KeyedDispatchTest {
                 .contextWrite(Context.of(ON_ERROR_DROPPED_KEY, Consumer<Throwable> { dropped += it }))
 
             StepVerifier.create(failing).expectErrorMatches { it.cause === fatal }.verify(Duration.ofSeconds(5))
+            // The error is signalled before the worker finishes the abandoned head (it discards it afterwards): a
+            // dispatch on the same single worker runs only once that turn is over, so the late signals below reach a
+            // finished head.
+            StepVerifier.create(Flux.just(2).dispatchKeyed(shared, { it }) { Mono.empty() })
+                .verifyComplete()
             abandoned.get().onComplete()
             abandoned.get().onError(late)
 
