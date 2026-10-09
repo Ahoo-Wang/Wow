@@ -264,6 +264,7 @@ Wow 文档站（wow.ahoo.me，VitePress）已经这样挂了一份 dokka：放�
 | F2 = 第 3′ 步               | fetcher 删掉迁走的路径、viewer、dataMonitor、generator-test.yml；CI 只剩 core；依赖方向检查与 `downstream-wow.yml`；冻结解除，main 在 6.0 前不发布                                                                                                                                                                                                                | Ahoo-Wang/fetcher#1905                             |
 | ruleset                     | 16907411 的 `allowed_merge_methods` 恢复为 `[squash, rebase]`，与备份逐条一致（2026-09-24，用户确认）                                                                                                                                                                                                                                                             | —                                                  |
 | C′ = 第 4a 步之 rc 试用     | 2026-10-03 在 `9.2.0-rc.0` 上通过，9.2.0 照发；记录见表下「C′ 试用记录」                                                                                                                                                                                                                                                                                          |
+| 9.3.0 控制台试用            | 2026-10-08 在 main 的本地构建上通过（不发 rc），#4022、#4023 合并后；记录见表下「9.3.0 控制台试用记录」                                                                                                                                                                                                                                                           |
 | 首发 = 第 4a 步之 9.2.0     | 2026-10-03 发布 Wow 9.2.0，五个发布包在 npm 上的首个正式版；记录见表下「首发记录」                                                                                                                                                                                                                                                                                | Wow #3869                                          |
 | F3 准备 = 4a 之 fetcher 6.0 | fetcher main 上的 6.0 又过一轮按第一性原理的审查与重构：fetcher-react 围绕取消重新设计（破坏性；wow-react 已用自有状态机，不受影响）、核心错误契约与可注入 `fetch`、其余各包的缺陷修复、cosec 刷新不可达时保留会话；发版说明草稿与两项发版阻塞见 fetcher `docs/releases/v6.0.0.md`                                                                                | Ahoo-Wang/fetcher#1956、#1957、#1958、#1959、#1960 |
 | F3 = 第 4a 步之 fetcher 6.0 | 2026-10-04 fetcher 6.0.0 发布（[Ahoo-Wang/fetcher v6.0.0](https://github.com/Ahoo-Wang/fetcher/releases/tag/v6.0.0)）；同日用户对 fetcher-wow、fetcher-generator、fetcher-viewer 的全部版本执行 `npm deprecate` 并核对。Wow 的开发与测试改用 fetcher 6（默认 catalog `^6.0.0`），`typescript.yml` 新增 `fetcher-floor` 任务在 `peers` 下限 5.1.5 上跑测试与包检查 | Wow #3899                                          |
@@ -274,6 +275,13 @@ C′ 试用记录（2026-10-03，[RELEASING.md](RELEASING.md)「C′」第 7 步
 - **结果**：解析核对通过（只用 npm 上的 rc 包，没有任何工作区 `dist`）；generate、tsc、lint、build、coverage（176 个）、打桩的 `test:browser`（129 个）退出码都为 0；用 `@next` 照快速开始走一遍，打印出页面上的三行，TypeScript 7.0.2 与 6.0.3 都编译通过，生成器报 `9.2.0-rc.0`，`fetcher-openapi` 不存在；视图存储端口一致性在独立服务端与示例服务端上都是 82/82；对着真实服务端人工走查通过：首页、`/active`、带尝试记录与全部事件的详情，一个共享视图另存、改名、刷新后仍在，没有 4xx、5xx，控制台没有错误。
 - **发现的问题**：都在发布包之外，已在 main 上由 #3870 修好——两条真实服务端冒烟用例还对着 #3710 之前的详情面板；控制台提交的生成客户端自 #3854 起过期；pnpm 11 不认 `.npmrc` 里的 `save-prefix`（文档改为在 `pnpm-workspace.yaml` 里写 `savePrefix`）；手册里的两步。
 - **结论**：按用户的决定（不发 rc.1，规则写进 C′ 第 7 步），在同一台 rc.0 服务端上重跑真实服务端冒烟：9/9。9.2.0 照发。
+
+9.3.0 控制台试用记录（2026-10-08；9.3.0 不发 rc，用 main 的本地构建代替 C′，步骤同 [RELEASING.md](RELEASING.md)「C′」第 3～5 步）：
+
+- **验证对象**：main @ `ba948f915` 的本地工作区构建（控制台保持 `workspace:*`，五个发布包都从源码构建），**不是 npm 上的 rc**；版本号 9.2.3（未改）。补偿服务端从同一提交 `installDist`，只绑 loopback，MongoDB 7.0。
+- **结果**：用工作区生成器对真实服务端的 `/v3/api-docs` 生成，结果与提交的 `src/generated` 逐字节一致；tsc、lint、build、coverage（176 个）退出码都为 0。打桩的 `test:browser` 在 main 上 29 个失败（#4000 把 axe-core 升到 4.14 后，`label-content-name-mismatch` 规则命中版本链接与视图切换器），#4022 修复后 129 个通过，#4023 的 Dashboard Test 在 #4022 之后的 main 上重跑也通过；真实服务端冒烟 9/9。人工走查通过：概览、「活动中」、详情（尝试记录、全部事件）、标记可恢复性、准备、应用重试规格（都等到 SNAPSHOT，行与详情随之刷新），共享视图另存、改名、刷新后仍在；没有 4xx、5xx，控制台没有错误。
+- **发现的问题**：#4022（发布包 wow-view-engine 的视图切换器可访问名称，加上控制台的版本链接；在发布包内容里，写进 9.3.0 发布说明）；#4023（新克隆里构建生成器后要再 `pnpm install`，控制台 README 与 RELEASING；在发布包之外）。
+- **结论**：#4022（`28b352e21`）、#4023（`d91cde896`）合并后通过。
 
 首发记录（2026-10-03，[RELEASING.md](RELEASING.md)「E」）：
 
