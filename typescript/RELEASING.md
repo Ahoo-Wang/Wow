@@ -9,7 +9,7 @@ Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIG
 
 **9.3.0 已发布**（2026-10-09，tag `v9.3.0` → `e71384074`（#4025 的合并提交），[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.3.0)，[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37882720912)）：整体重构的次版本，按用户决定**不发 rc**——五个发布包自 9.2.3 起源码没有变化，rc 只发 npm 验证不到 JVM 侧；C′ 改在 main 的本地构建上做（[MIGRATION.md](MIGRATION.md)「9.3.0 控制台试用记录」）。`admission`（27 个破坏性 PR 都点名）、`preflight`、`github-deploy`、`central-deploy`、`npm-deploy`（五个包都带 provenance，`latest: 9.3.0`）、两个 `npm-smoke` 全部成功；三个镜像的 `9.3.0`、`9.3`、`latest` 在 Docker Hub、ghcr、阿里云 digest 一致。发布说明就是那个 release，草稿已删。
 
-下一个版本按「发版准入」第 3 条定：上一个 tag 以来没有破坏性改动就是下一个补丁版本；有就只能是下一个次版本（`x.Y.0`），准入拒绝补丁版本。`v9.3.0` 以来有三个破坏性 PR（#4031、#4034、#4035，都在 wow-bi），所以下一个版本是 **9.4.0**，草稿在 [release-notes/v9.4.0.md](release-notes/v9.4.0.md)。
+下一个版本按「发版准入」第 3 条定：上一个 tag 以来没有破坏性改动就是下一个补丁版本；有就只能是下一个次版本（`x.Y.0`），准入拒绝补丁版本。`v9.4.0` 以来有五个破坏性 PR（#4046、#4047、#4050、#4051、#4054，都在 wow-schema 重构里），所以下一个版本是 **9.5.0**，草稿在 [release-notes/v9.5.0.md](release-notes/v9.5.0.md)。
 
 「发布包」在本文里一律指 `.github/scripts/publish-npm.mjs` 的 `PUBLISHED`，9.2.0 起是五个：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store。下面的循环都从 `node .github/scripts/publish-npm.mjs --list` 取包名，不在文中手写名单。
 
