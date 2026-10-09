@@ -149,10 +149,10 @@ internal class JsonSchemaWalker(
             shapes.union(field)
         }
         reference()?.let { reference ->
-            val target = rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-            val referenced = if (reference in resolvingReferences || target.isMissingNode) {
+            val target = referencedNode(reference)
+            val referenced = if (reference in resolvingReferences || target == null) {
                 // A recursive reference is not expanded again; the members below it are still reported.
-                JsonTypeNode(kind = QueryValueKind.UNKNOWN, omitted = target.members())
+                JsonTypeNode(kind = QueryValueKind.UNKNOWN, omitted = target?.members().orEmpty())
             } else {
                 target.toTree(field, resolvingReferences + reference, source.referenced(), collectMetadata = false)
             }
@@ -298,7 +298,7 @@ internal class JsonSchemaWalker(
         field: String,
         containerSource: DescriptiveMetadataSource,
     ) {
-        sourcedMetadataNodes().forEach { (node, localSource) ->
+        expand().forEach { (node, localSource) ->
             mapOf(
                 METADATA_TITLE to node.textValueOrNull(JsonSchemaProperty.TITLE),
                 METADATA_DESCRIPTION to node.textValueOrNull(JsonSchemaProperty.DESCRIPTION),
@@ -312,21 +312,23 @@ internal class JsonSchemaWalker(
         }
     }
 
-    private fun JsonNode.sourcedMetadataNodes(
+    /**
+     * This node, then the target of its local `$ref` and every `allOf`/`anyOf`/`oneOf` branch, recursively, each with
+     * the descriptive-metadata source it is reached through. A reference already being resolved is not followed again.
+     */
+    private fun JsonNode.expand(
         source: DescriptiveMetadataSource = MEMBER_METADATA_SOURCE,
         resolvingReferences: Set<String> = emptySet(),
     ): List<SourcedJsonNode> = buildList {
-        add(SourcedJsonNode(this@sourcedMetadataNodes, source))
+        add(SourcedJsonNode(this@expand, source))
         reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-                .takeUnless(JsonNode::isMissingNode)
-                ?.let {
-                    addAll(it.sourcedMetadataNodes(source.referenced(), resolvingReferences + reference))
-                }
+            referencedNode(reference)?.let {
+                addAll(it.expand(source.referenced(), resolvingReferences + reference))
+            }
         }
         COMPOSITIONS.forEach { composition ->
             get(composition)?.forEach { branch ->
-                addAll(branch.sourcedMetadataNodes(source.composed(composition), resolvingReferences))
+                addAll(branch.expand(source.composed(composition), resolvingReferences))
             }
         }
     }
@@ -377,28 +379,16 @@ internal class JsonSchemaWalker(
         return selected.value
     }
 
-    private fun JsonNode.effectiveNodes(
-        resolvingReferences: Set<String> = emptySet(),
-    ): List<JsonNode> = buildList {
-        add(this@effectiveNodes)
-        reference()?.takeIf { it !in resolvingReferences }?.let { reference ->
-            rootSchema.at(reference.removePrefix(ROOT_REFERENCE))
-                .takeUnless(JsonNode::isMissingNode)
-                ?.let { addAll(it.effectiveNodes(resolvingReferences + reference)) }
-        }
-        COMPOSITIONS.forEach { composition ->
-            get(composition)?.forEach { alternative ->
-                addAll(alternative.effectiveNodes(resolvingReferences))
-            }
-        }
-    }
-
     private fun JsonNode.reference(): String? =
         get(JsonSchemaProperty.REF)?.takeIf(JsonNode::isString)?.stringValue()
             ?.takeIf { it == ROOT_REFERENCE || it.startsWith(LOCAL_REFERENCE_PREFIX) }
 
-    private fun JsonNode.isWriteOnly(): Boolean = effectiveNodes().any {
-        it.get(JsonSchemaProperty.WRITE_ONLY)?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
+    /** The schema node a local reference points to, or `null` when it points nowhere. */
+    private fun referencedNode(reference: String): JsonNode? =
+        rootSchema.at(reference.removePrefix(ROOT_REFERENCE)).takeUnless(JsonNode::isMissingNode)
+
+    private fun JsonNode.isWriteOnly(): Boolean = expand().any { (node) ->
+        node.get(JsonSchemaProperty.WRITE_ONLY)?.takeIf(JsonNode::isBoolean)?.booleanValue() == true
     }
 
     /** Every member fact recorded at or below this schema node, following local references once. */
@@ -413,8 +403,7 @@ internal class JsonSchemaWalker(
             get(JsonSchemaProperty.ADDITIONAL_PROPERTIES)?.takeIf(JsonNode::isObject)
                 ?.let { addAll(it.members(visitedReferences)) }
             reference()?.takeIf { it !in visitedReferences }?.let { reference ->
-                rootSchema.at(reference.removePrefix(ROOT_REFERENCE)).takeUnless(JsonNode::isMissingNode)
-                    ?.let { addAll(it.members(visitedReferences + reference)) }
+                referencedNode(reference)?.let { addAll(it.members(visitedReferences + reference)) }
             }
             COMPOSITIONS.forEach { composition ->
                 get(composition)?.forEach { branch -> addAll(branch.members(visitedReferences)) }
