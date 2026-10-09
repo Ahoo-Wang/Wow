@@ -19,9 +19,6 @@ CREATE DATABASE IF NOT EXISTS "bi_golden_consumer" ON CLUSTER 'test_cluster';
 -- global --
 -- lifecycle --
 -- bi-it.nullable.pause-ingress --
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_command_consumer" ON CLUSTER 'test_cluster' SYNC;
-
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_consumer" ON CLUSTER 'test_cluster' SYNC;
 -- bi-it.nullable.pause-ingress --
 -- lifecycle --
 -- bi-it.nullable.commandStorage --
@@ -118,8 +115,6 @@ AS "bi_golden"."bi_it_nullable_state_last_store_local"
 ENGINE = Distributed('test_cluster', "bi_golden",
                      'bi_it_nullable_state_last_store_local', sipHash64("tenant_id", "aggregate_id"))
 COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
-
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_last_consumer" ON CLUSTER 'test_cluster' SYNC;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_golden_consumer"."bi_it_nullable_state_last_consumer" ON CLUSTER 'test_cluster'
 TO "bi_golden"."bi_it_nullable_state_last_store"
@@ -474,8 +469,6 @@ FROM "bi_golden"."bi_it_nullable_state"
 ) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"VIEW","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.statePublic --
 -- bi-it.nullable.commandIngress --
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_command_consumer" ON CLUSTER 'test_cluster' SYNC;
-
 CREATE TABLE "bi_golden_consumer"."bi_it_nullable_command_queue" ON CLUSTER 'test_cluster'
 ("data" String)
 ENGINE = Kafka('localhost:9093', 'wow.bi-it.nullable.command',
@@ -506,8 +499,6 @@ FROM "bi_golden_consumer"."bi_it_nullable_command_queue"
 ) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"CONSUMER","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.commandIngress --
 -- bi-it.nullable.stateIngress --
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_consumer" ON CLUSTER 'test_cluster' SYNC;
-
 CREATE TABLE "bi_golden_consumer"."bi_it_nullable_state_queue" ON CLUSTER 'test_cluster'
 (
     "data" String

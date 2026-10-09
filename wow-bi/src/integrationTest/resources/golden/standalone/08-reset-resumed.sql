@@ -139,8 +139,6 @@ CREATE TABLE IF NOT EXISTS "bi_golden"."bi_it_nullable_state_last_store"
   ORDER BY ("tenant_id", "aggregate_id")
   COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"STORE","aggregate":"bi-it.nullable"}';
 
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_last_consumer" SYNC;
-
 CREATE MATERIALIZED VIEW IF NOT EXISTS "bi_golden_consumer"."bi_it_nullable_state_last_consumer"
 TO "bi_golden"."bi_it_nullable_state_last_store"
 AS (
@@ -497,8 +495,6 @@ FROM "bi_golden"."bi_it_nullable_state"
 CREATE OR REPLACE VIEW "bi_golden_consumer"."__wow_bi_deployment" AS (SELECT 1 AS "alive" WHERE 0) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"ANCHOR","anchor":{"phase":"STABLE","configurationFingerprint":"04e164f980daedb379f00846a78ae7d1","topologyFingerprint":"4d8cb427323ced3b5bf32b79b1f5e58a","consumerIdentity":"0000000000000000000000000000ffff","durableInventory":[{"key":{"database":"bi_golden","name":"bi_it_nullable_command_store"},"status":"ACTIVE"},{"key":{"database":"bi_golden","name":"bi_it_nullable_state_last_store"},"status":"ACTIVE"},{"key":{"database":"bi_golden","name":"bi_it_nullable_state_store"},"status":"ACTIVE"}]}}';
 -- deployment-anchor --
 -- bi-it.nullable.commandIngress --
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_command_consumer" SYNC;
-
 CREATE TABLE "bi_golden_consumer"."bi_it_nullable_command_queue"
 ("data" String)
 ENGINE = Kafka('localhost:9093', 'wow.bi-it.nullable.command',
@@ -529,8 +525,6 @@ FROM "bi_golden_consumer"."bi_it_nullable_command_queue"
 ) COMMENT 'wow-bi:{"layoutVersion":8,"deploymentId":"623dfbee6748cde26fc115e6da93e2e5","kind":"CONSUMER","aggregate":"bi-it.nullable"}';
 -- bi-it.nullable.commandIngress --
 -- bi-it.nullable.stateIngress --
-DROP VIEW IF EXISTS "bi_golden_consumer"."bi_it_nullable_state_consumer" SYNC;
-
 CREATE TABLE "bi_golden_consumer"."bi_it_nullable_state_queue"
 (
     "data" String

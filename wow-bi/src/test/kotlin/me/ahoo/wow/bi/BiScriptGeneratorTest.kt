@@ -312,10 +312,11 @@ class BiScriptGeneratorTest {
 
         result.script.assert()
             .contains(
-                "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\"",
-                "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\"",
+                "CREATE MATERIALIZED VIEW IF NOT EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\"",
+                "CREATE MATERIALIZED VIEW IF NOT EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\"",
             )
             .doesNotContain(
+                "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\"",
                 "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_queue\"",
                 "DROP TABLE IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_queue\"",
                 "CREATE TABLE \"bi_db_consumer\".\"bi_aggregate_command_queue\"",

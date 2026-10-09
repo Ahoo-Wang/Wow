@@ -57,23 +57,20 @@ internal class ClickHouseStateEventRenderer(private val context: ClickHouseRende
             storage = immutableStatements(renderStoreStatements(stream.schema, storeTable, storeComment)),
             ingress = immutableStatements(
                 buildList {
-                    if (isConsumerRetained(consumerTable)) {
-                        return@buildList
-                    }
-                    if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
-                        add(dropView(options.consumerDatabase, consumerTable))
-                    }
-                    if (!isQueueRetained(queueTable)) {
+                    if (renders(layout.ingressKey(queueTable))) {
                         add(renderQueue(queueTable, topic, consumerTable, queueComment))
                     }
-                    add(renderConsumer(consumerTable, storeTable, queueTable, consumerComment))
+                    // A replaced consumer was dropped when its stream was paused.
+                    if (renders(layout.ingressKey(consumerTable))) {
+                        add(renderConsumer(consumerTable, storeTable, queueTable, consumerComment))
+                    }
                 }
             ),
             publicViews = immutableStatements(
-                listOf(
-                    renderStateView(table, storeTable, viewComment),
-                    renderEventView(eventTable, table, viewComment),
-                )
+                buildList {
+                    if (renders(layout.viewKey(table))) add(renderStateView(table, storeTable, viewComment))
+                    if (renders(layout.viewKey(eventTable))) add(renderEventView(eventTable, table, viewComment))
+                }
             ),
         )
     }

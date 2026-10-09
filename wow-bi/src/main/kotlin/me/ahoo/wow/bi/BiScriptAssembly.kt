@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.bi
 
-import me.ahoo.wow.bi.layout.BiLayout
-import me.ahoo.wow.bi.renderer.CatalogMutationMode
+import me.ahoo.wow.bi.plan.BiChangePlan
+import me.ahoo.wow.bi.plan.BiReconciler
 import me.ahoo.wow.bi.renderer.ClickHouseAggregateRenderPlan
 import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.modeling.toStringWithAlias
@@ -22,6 +22,7 @@ import java.util.Collections
 
 internal class BiScriptAssembler(private val options: BiScriptOptions) {
     private val policy = BiOperationPolicy(options)
+    private val reconciler = BiReconciler(options)
     private val diagnostics = BiScriptDiagnostics(options, policy)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -39,30 +40,20 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         val desiredObjects = preparation.desiredObjects
         val availableInspection = inspection as? BiDeploymentInspection.Available
         val observed = availableInspection?.deployment
-        observed?.let { deployment -> policy.validate(deployment, descriptor, desiredObjects, operation) }
-        val consumerIdentity = resolveConsumerIdentity(operation, descriptor, observed)
-        val retainedQueueKeys = resolveRetainedQueueKeys(operation, desiredObjects, descriptor, observed)
-        val retainedConsumerKeys = resolveRetainedConsumerKeys(
-            plannedAggregates,
-            retainedQueueKeys,
-            availableInspection?.reconciliation?.verifiedComputedKeys.orEmpty(),
+        val plan = reconciler.plan(
+            plannedAggregates = plannedAggregates,
+            desiredObjects = desiredObjects,
+            operation = operation,
+            observed = observed,
+            verifiedComputedKeys = availableInspection?.reconciliation?.verifiedComputedKeys.orEmpty(),
         )
-        val renderer = ClickHouseScriptRenderer(
-            options,
-            consumerIdentity,
-            descriptor,
-            if (observed == null) CatalogMutationMode.CREATE_ONLY else CatalogMutationMode.RECONCILE,
-            retainedQueueKeys,
-            retainedConsumerKeys,
-        )
+        val renderer = ClickHouseScriptRenderer(options, plan, descriptor)
         val renderedAggregates = plannedAggregates.map { planned ->
             val aggregate = planned.namedAggregate.toStringWithAlias()
             renderer.renderAggregate(planned.namedAggregate, planned.plan, aggregate)
         }
 
-        val lifecycleSections = renderLifecycle(
-            LifecycleRenderContext(operation, plannedAggregates, desiredObjects, descriptor, observed, renderer)
-        )
+        val lifecycleSections = renderLifecycle(plannedAggregates, plan, observed != null, renderer)
         val resetIntent = if (operation is BiScriptOperation.Reset) {
             ScriptSection(
                 "deployment-reset-intent",
@@ -75,10 +66,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             ScriptSection(
                 "deployment-anchor",
                 listOf(
-                    renderer.renderAnchorStatement(
-                        BiDeploymentPhase.STABLE,
-                        durableInventory(operation, desiredObjects, descriptor, observed),
-                    )
+                    renderer.renderAnchorStatement(BiDeploymentPhase.STABLE, plan.durableInventory)
                 ),
             )
         } else {
@@ -138,158 +126,26 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         )
     }
 
-    private fun resolveRetainedQueueKeys(
-        operation: BiScriptOperation,
-        desiredObjects: List<DesiredBiObject>,
-        descriptor: BiDeploymentDescriptor,
-        observed: ObservedBiDeployment?,
-    ): Set<BiObjectKey> {
-        if (operation != BiScriptOperation.Deploy || observed == null) {
-            return emptySet()
-        }
-        val desiredQueueKeys = desiredObjects.asSequence()
-            .filter { it.kind == BiObjectKind.QUEUE }
-            .map(DesiredBiObject::key)
-            .toSet()
-        return policy.ownedBy(observed, descriptor).asSequence()
-            .filter { it.metadata?.kind == BiObjectKind.QUEUE && it.key in desiredQueueKeys }
-            .map(ObservedBiObject::key)
-            .toSet()
-    }
-
-    /**
-     * Keeps a verified ingress chain attached across DEPLOY instead of dropping and recreating it.
-     *
-     * Kafka-engine streaming resolves its attached views before each poll cycle and commits what that cycle
-     * reads; a consumer dropped inside that window lets the cycle commit messages without writing them.
-     * Retaining a chain is all-or-nothing per stream: the state consumer feeds `state_last` through the state
-     * store, so `state_last` may only be recreated while state ingress is paused.
-     */
-    private fun resolveRetainedConsumerKeys(
+    private fun renderLifecycle(
         plannedAggregates: List<PlannedAggregate>,
-        retainedQueueKeys: Set<BiObjectKey>,
-        verifiedComputedKeys: Set<BiObjectKey>,
-    ): Set<BiObjectKey> {
-        if (retainedQueueKeys.isEmpty()) {
-            return emptySet()
-        }
-        val layout = BiLayout(options)
-        return plannedAggregates.flatMapTo(linkedSetOf()) { planned ->
-            val names = layout.of(planned.namedAggregate)
-            listOf(
-                names.command to listOf(names.command.consumer),
-                names.state to listOf(names.state.consumer, names.stateLastConsumer),
-            ).filter { (stream, chain) ->
-                layout.ingressKey(stream.queue) in retainedQueueKeys &&
-                    chain.all { consumer -> layout.ingressKey(consumer) in verifiedComputedKeys }
-            }.flatMap { (_, chain) -> chain.map(layout::ingressKey) }
-        }
-    }
-
-    private fun renderLifecycle(context: LifecycleRenderContext): List<ScriptSection> = with(context) {
-        buildList {
-            when (operation) {
-                BiScriptOperation.Deploy -> {
-                    if (observed != null) {
-                        plannedAggregates.forEach { planned ->
-                            add(
-                                ScriptSection(
-                                    "${planned.namedAggregate.toStringWithAlias()}.pause-ingress",
-                                    renderer.renderPauseIngressStatements(planned.namedAggregate),
-                                )
-                            )
-                        }
-                    }
-                    val desiredKeys = desiredObjects.map(DesiredBiObject::key).toSet()
-                    val staleObjects = observed?.let { deployment ->
-                        resolveOwnedCatalogObjects(deployment, descriptor)
-                    }
-                        .orEmpty()
-                        .filter { it.key !in desiredKeys && it.kind != BiObjectKind.STORE }
-                    if (staleObjects.isNotEmpty()) {
-                        add(
-                            ScriptSection(
-                                "reconcile-observed-catalog",
-                                renderer.renderDropOwnedStatements(staleObjects),
-                            )
-                        )
-                    }
-                }
-
-                is BiScriptOperation.Reset -> {
-                    val anchorKey = BiLayout(options).anchor
-                    val ownedObjects = resolveOwnedCatalogObjects(
-                        deployment = checkNotNull(observed),
-                        descriptor = descriptor,
+        plan: BiChangePlan,
+        observed: Boolean,
+        renderer: ClickHouseScriptRenderer,
+    ): List<ScriptSection> = buildList {
+        if (plan.operation == BiScriptOperation.Deploy && observed) {
+            plannedAggregates.forEach { planned ->
+                add(
+                    ScriptSection(
+                        "${planned.namedAggregate.toStringWithAlias()}.pause-ingress",
+                        renderer.renderPauseIngressStatements(planned.namedAggregate),
                     )
-                        .filterNot { it.key == anchorKey }
-                    if (ownedObjects.isNotEmpty()) {
-                        add(
-                            ScriptSection(
-                                "reset-observed-catalog",
-                                renderer.renderDropOwnedStatements(ownedObjects),
-                            )
-                        )
-                    }
-                }
+                )
             }
         }
-    }
-
-    private fun resolveOwnedCatalogObjects(
-        deployment: ObservedBiDeployment,
-        descriptor: BiDeploymentDescriptor,
-    ): List<BiOwnedObject> = policy.ownedBy(deployment, descriptor).map { observed ->
-        BiOwnedObject(key = observed.key, kind = checkNotNull(observed.metadata).kind)
-    }
-
-    /**
-     * The stores and queues that exist when the anchor is written, so the inventory never runs ahead of the catalog.
-     *
-     * DEPLOY writes the anchor last: every desired store and queue, plus the stores it keeps for their data after
-     * their aggregate left. RESET writes it before Kafka ingress, so it records the stores only; the next DEPLOY
-     * records the queues.
-     */
-    private fun durableInventory(
-        operation: BiScriptOperation,
-        desiredObjects: List<DesiredBiObject>,
-        descriptor: BiDeploymentDescriptor,
-        observed: ObservedBiDeployment?,
-    ): List<BiDurableEntry> {
-        val recorded = if (operation == BiScriptOperation.Deploy) {
-            setOf(BiObjectKind.STORE, BiObjectKind.QUEUE)
-        } else {
-            setOf(BiObjectKind.STORE)
+        if (plan.drops.isNotEmpty()) {
+            val name = if (plan.operation is BiScriptOperation.Reset) "reset-observed-catalog" else "reconcile-observed-catalog"
+            add(ScriptSection(name, renderer.renderDropOwnedStatements(plan.drops)))
         }
-        val desired = desiredObjects.filter { it.kind in recorded }.map {
-            BiDurableEntry(
-                it.key,
-                BiDurableStatus.ACTIVE
-            )
-        }
-        val desiredKeys = desired.mapTo(hashSetOf(), BiDurableEntry::key)
-        val retired = if (operation == BiScriptOperation.Deploy && observed != null) {
-            policy.ownedBy(observed, descriptor)
-                .filter { it.metadata?.kind == BiObjectKind.STORE && it.key !in desiredKeys }
-                .map { BiDurableEntry(it.key, BiDurableStatus.RETIRED) }
-        } else {
-            emptyList()
-        }
-        return (desired + retired).sortedWith(compareBy({ it.key.database }, { it.key.name }))
-    }
-
-    private fun resolveConsumerIdentity(
-        operation: BiScriptOperation,
-        descriptor: BiDeploymentDescriptor,
-        observed: ObservedBiDeployment?,
-    ): BiConsumerIdentity = when (operation) {
-        BiScriptOperation.Deploy -> observed?.let { deployment ->
-            policy.consumerIdentity(deployment, descriptor)
-        } ?: BiConsumerIdentity.deterministic(descriptor)
-
-        is BiScriptOperation.Reset -> observed?.let { deployment ->
-            policy.resettingAnchor(deployment, descriptor)?.consumerIdentity
-        }?.let(::BiConsumerIdentity) ?: BiConsumerIdentity.random()
     }
 
     private fun StringBuilder.appendBlock(block: ScriptBlock) {
@@ -309,15 +165,6 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             }
         }
     }
-
-    private data class LifecycleRenderContext(
-        val operation: BiScriptOperation,
-        val plannedAggregates: List<PlannedAggregate>,
-        val desiredObjects: List<DesiredBiObject>,
-        val descriptor: BiDeploymentDescriptor,
-        val observed: ObservedBiDeployment?,
-        val renderer: ClickHouseScriptRenderer,
-    )
 
     /** One ordered list of blocks yields both [BiScriptResult.statements] and [BiScriptResult.script]. */
     private sealed interface ScriptBlock {

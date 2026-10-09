@@ -17,12 +17,21 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlanner
 import me.ahoo.wow.bi.layout.BiEngine
 import me.ahoo.wow.bi.layout.BiLayout
+import me.ahoo.wow.bi.plan.BiChangePlan
 import me.ahoo.wow.bi.renderer.ClickHouseScriptRenderer
 import me.ahoo.wow.modeling.toStringWithAlias
 
 internal class BiPreparationPlanner(private val options: BiScriptOptions) {
     private val layout = BiLayout(options)
-    private val definitionRenderer = ClickHouseScriptRenderer(options)
+
+    /** Renders definitions only, so a plan that creates everything stands in for an observed catalog. */
+    private val definitionRenderer = ClickHouseScriptRenderer(
+        options,
+        BiChangePlan.creatingAll(
+            BiScriptOperation.Deploy,
+            BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
+        ),
+    )
 
     fun plan(namedAggregates: Set<NamedAggregate>): BiScriptPreparation {
         val plannedAggregates = planAggregates(namedAggregates)

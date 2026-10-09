@@ -30,16 +30,20 @@ import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
 import me.ahoo.wow.bi.expansion.plan.ColumnPlan
 import me.ahoo.wow.bi.expansion.plan.ColumnReference
 import me.ahoo.wow.bi.layout.BiLayout
+import me.ahoo.wow.bi.plan.BiChangePlan
 import me.ahoo.wow.bi.type.ClickHouseType
 
 internal class ClickHouseRenderContext(
     val options: BiScriptOptions,
-    val consumerIdentity: BiConsumerIdentity,
     val deployment: BiDeploymentDescriptor,
-    val catalogMutationMode: CatalogMutationMode,
-    private val retainedQueueKeys: Set<BiObjectKey>,
-    private val retainedConsumerKeys: Set<BiObjectKey> = emptySet(),
+    val plan: BiChangePlan,
 ) {
+    val consumerIdentity: BiConsumerIdentity = plan.consumerIdentity
+
+    /** Authoritative scripts use idempotent forms; an offline preview fails on any object that already exists. */
+    val catalogMutationMode: CatalogMutationMode =
+        if (plan.authoritative) CatalogMutationMode.RECONCILE else CatalogMutationMode.CREATE_ONLY
+
     val layout = BiLayout(options)
     val topology = options.topology.toDdl()
     val metadataColumns = buildMetadataColumns(options.timezone)
@@ -95,11 +99,11 @@ internal class ClickHouseRenderContext(
         )
     )
 
-    fun isQueueRetained(queueTable: String): Boolean =
-        BiObjectKey(options.consumerDatabase, queueTable) in retainedQueueKeys
+    /** Whether the plan renders a statement for the object. */
+    fun renders(key: BiObjectKey): Boolean = plan.renders(key)
 
-    fun isConsumerRetained(consumerTable: String): Boolean =
-        BiObjectKey(options.consumerDatabase, consumerTable) in retainedConsumerKeys
+    /** Whether the plan drops the object before recreating it. */
+    fun replaces(key: BiObjectKey): Boolean = plan.replaces(key)
 
     fun epochMillis(source: String, property: String): String =
         "toDateTime64(${jsonInt(source, property)} / 1000.0, 3, ${literal(options.timezone)})"

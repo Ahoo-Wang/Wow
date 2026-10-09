@@ -43,7 +43,7 @@ Kafka offset 已丢失，DEPLOY 会拒绝并要求 RESET，而不是悄悄重建
 | 观测到的 catalog 状态 | 操作 | 原因 |
 |---|---|---|
 | 空目标 scope | `DEPLOY` | 安装 store、ingress、view 与 `STABLE` anchor |
-| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账；已验证的 ingress（queue 与 consumer materialized view）保持挂载，不暂停摄入 |
+| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账：已存在且定义一致的 store、queue、view 与 consumer 都保持不动，脚本只重写 anchor；摄入不暂停 |
 | 计算 view/materialized-view 漂移 | `DEPLOY` | 替换漂移的定义；consumer 漂移时暂停并重建该 stream 的整条 consumer 链 |
 | 期望的 store/queue 缺失且不在清单中 | `DEPLOY` | 首次创建或中断后补齐 |
 | 清单中的 store/queue 缺失 | 备份后确认 `RESET` | 数据或 offset 已丢失 |

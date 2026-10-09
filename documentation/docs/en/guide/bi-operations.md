@@ -46,7 +46,7 @@ RESET instead of quietly creating an empty table.
 | Observed catalog state | Operation | Reason |
 |---|---|---|
 | Empty target scope | `DEPLOY` | Installs stores, ingress, views, and a `STABLE` anchor |
-| Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation; verified ingress (queues and consumer materialized views) stays attached, so ingestion is not paused |
+| Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation: stores, queues, views, and consumers that exist with matching definitions stay untouched and the script only rewrites the anchor; ingestion is not paused |
 | Computed view/materialized-view drift | `DEPLOY` | Replaces the drifted definitions; consumer drift pauses and recreates that stream's whole consumer chain |
 | A desired store/queue is missing and not recorded | `DEPLOY` | First creation, or completion after an interruption |
 | A recorded store/queue is missing | Back up, then confirmed `RESET` | Data or offsets were lost |

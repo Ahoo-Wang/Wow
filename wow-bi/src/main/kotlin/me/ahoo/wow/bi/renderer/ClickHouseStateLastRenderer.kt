@@ -48,13 +48,17 @@ internal class ClickHouseStateLastRenderer(private val context: ClickHouseRender
         immutableStatements(
             buildList {
                 addAll(renderStoreStatements(BiStoreSchema.STATE_LAST, storeTable, storeComment))
-                if (!isConsumerRetained(consumerTable)) {
-                    if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
-                        add(dropView(options.consumerDatabase, consumerTable))
-                    }
+                val consumerKey = layout.ingressKey(consumerTable)
+                if (replaces(consumerKey)) {
+                    // Only while state ingress is paused: the state consumer feeds this one through the state store.
+                    add(dropView(options.consumerDatabase, consumerTable))
+                }
+                if (renders(consumerKey)) {
                     add(renderConsumer(consumerTable, storeTable, stateStoreTable, consumerComment))
                 }
-                add(renderPublicView(table, storeTable, viewComment))
+                if (renders(layout.viewKey(table))) {
+                    add(renderPublicView(table, storeTable, viewComment))
+                }
             }
         )
     }
