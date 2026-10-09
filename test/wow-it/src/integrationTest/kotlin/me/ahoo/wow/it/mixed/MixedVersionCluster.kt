@@ -143,8 +143,8 @@ class MixedVersionCluster(
     }
 
     /**
-     * The topic sets of the members [clientId] runs in [group], one set per consumer: 9.2 runs one consumer per
-     * aggregate topic, 9.3 one per bounded context (design X7), in the same group.
+     * The topic sets of the members [clientId] runs in [group], one set per consumer: since 9.3.0 one consumer per
+     * bounded context (design X7); up to 9.2 one per aggregate topic.
      */
     fun memberTopics(group: String, clientId: String): List<Set<String>> =
         describe(group).members()

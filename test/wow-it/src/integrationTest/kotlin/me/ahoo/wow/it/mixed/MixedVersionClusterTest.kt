@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * so every scenario provably crosses versions in both directions instead of depending on chance.
  *
  * It runs only when `WOW_MIXED_CURRENT_HOME` names the build under test (`example-server` `installDist`) and either
- * `WOW_MIXED_PREVIOUS_IMAGE` names the released image (CI: `ahoowang/wow-example-server:9.2.4`) or
+ * `WOW_MIXED_PREVIOUS_IMAGE` names the released image (CI: `ahoowang/wow-example-server:9.3.0`) or
  * `WOW_MIXED_PREVIOUS_HOME` names another `installDist` (a local dry run of the harness without pulling the image).
  * The `Mixed-Version` workflow sets them; `allIntegrationTest` skips it.
  */
@@ -134,7 +134,7 @@ class MixedVersionClusterTest {
      * Local-first on both versions: a command, its state events and the events a saga reacts to are processed on the
      * node that sent them, and the other version must filter their `local_first` copies, not process them a second
      * time (which the request-ID check would only partly hide). Each node's own `wow.operation` counters tell who
-     * processed what; both the released 9.2.x (9.2.4 in CI) and the current build meter handlers there.
+     * processed what; both the released 9.3.x (9.3.0 in CI) and the current build meter handlers there.
      */
     @Test
     fun `with local-first on, each version filters the other's locally handled copies`() {
@@ -194,13 +194,12 @@ class MixedVersionClusterTest {
     }
 
     /**
-     * Rolling upgrade (design X7): the build under test consumes each bounded context with one consumer per dispatcher
-     * (all of the context's topics), the released node with one consumer per aggregate topic, in the same consumer
-     * groups. In two phases, one node is stopped (SIGTERM: graceful shutdown with commands in flight, the member leaves
-     * every group) and started again while commands and saga-driven orders flow through the other node: first the node
-     * under test restarts (the released node takes over and gives back), then the released node (the node under test
-     * takes over all partitions with its per-context consumers). Each phase's carts are chosen so both nodes own some of
-     * them before the restart, so both versions process commands.
+     * Rolling upgrade: both nodes consume each bounded context with one consumer per dispatcher (all of the context's
+     * topics, design X7, since 9.3.0) in the same consumer groups. In two phases, one node is stopped (SIGTERM: graceful
+     * shutdown with commands in flight, the member leaves every group) and started again while commands and saga-driven
+     * orders flow through the other node: first the node under test restarts (the released node takes over all
+     * partitions and gives them back), then the released node (the node under test takes over all partitions). Each
+     * phase's carts are chosen so both nodes own some of them before the restart, so both versions process commands.
      *
      * Every command must take effect exactly once: the event store's request-ID check turns a redelivery
      * (at-least-once) into a duplicate-free result, so each cart's quantity and event count equal the commands accepted.
@@ -209,7 +208,7 @@ class MixedVersionClusterTest {
      */
     @Test
     @Order(Int.MAX_VALUE)
-    fun `a rolling restart across per-aggregate and per-context consumers loses and duplicates no command`() {
+    fun `a rolling restart of per-context consumers in shared groups loses and duplicates no command`() {
         val cartCommandTopic = cluster.awaitTopic(CART_COMMAND)
         val orderCommandTopic = cluster.awaitTopic(ORDER_COMMAND)
         val orderEventTopic = cluster.awaitTopic(ORDER_EVENT)
@@ -223,14 +222,19 @@ class MixedVersionClusterTest {
         rollingPhase(restarted = cluster.previous, sender = cluster.current, commandGroup, cartCommandTopic, "b")
     }
 
-    /** The node under test runs one consumer per bounded context: the one owning [topics] owns all of them. */
+    /**
+     * Each node runs one consumer per bounded context, so the member owning the first of [topics] (one context's) owns
+     * all of them. Since the released node is 9.3.x this holds on both nodes; against 9.2.x, which runs one consumer per
+     * aggregate topic, the released node fails it (9.3.0 proved that pairing against 9.2.4 before its release).
+     */
     private fun assertPerContextMembership(group: String, vararg topics: String) {
-        val members = cluster.memberTopics(group, cluster.current.name)
-        members.single { topics.first() in it }.assert()
-            .describedAs("members of [${cluster.current.name}] in $group: $members")
-            .contains(*topics)
-        println("[$group] ${cluster.previous.name}: ${cluster.memberTopics(group, cluster.previous.name)}")
-        println("[$group] ${cluster.current.name}: $members")
+        cluster.nodes.forEach { node ->
+            val members = cluster.memberTopics(group, node.name)
+            println("[$group] ${node.name}: $members")
+            members.single { topics.first() in it }.assert()
+                .describedAs("members of [${node.name}] in $group: $members")
+                .contains(*topics)
+        }
     }
 
     private fun rollingPhase(
