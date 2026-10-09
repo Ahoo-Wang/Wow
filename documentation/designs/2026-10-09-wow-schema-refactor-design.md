@@ -153,9 +153,9 @@ internal class WrappedDefinitionProvider(
 | S0 | #4045 | 80 个 Schema golden（默认与 Draft 2020-12 两种配置）、OpenAPI golden、68 个查询事实 golden、包依赖 DAG 测试 |
 | S1 | #4046 | 重入保护按生成划分；并发回归测试修复前失败、修复后通过；golden 不变 |
 | S4 | #4047 | 新增 225 行、删除 827 行；golden 不变；ABI 只有删除 |
-| S6 | 待定 | 三处遍历合成一个展开器（`expand`）和一个引用解析（`referencedNode`）；查询事实 golden 不变 |
-| S3 | 待定 | `buildConfig()`、`copy()`；`openapi31`、`typeContext`、`requiredTypeContent` 弃用并记入 compat-debt；ConfigFactory 并入 builder |
-| S5 | 待定 | 迁移前先在 `wow-openapi` 用迁移前的代码生成 OpenAPI golden，迁移后不变；main 代码只有重命名，外加可见性调整 |
+| S6 | #4048 | 三处遍历合成一个展开器（`expand`）和一个引用解析（`referencedNode`）；查询事实 golden 不变 |
+| S3 | #4049 | `buildConfig()`、`copy()`；`openapi31`、`typeContext`、`requiredTypeContent` 弃用并记入 compat-debt；ConfigFactory 并入 builder |
+| S5 | #4050 | 迁移前先在 `wow-openapi` 用迁移前的代码生成 OpenAPI golden，迁移后不变；main 代码只有重命名，外加可见性调整 |
 | S2 | 待定 | 公开类从 63 个降到 19 个 |
 
 实施中对设计的修正：

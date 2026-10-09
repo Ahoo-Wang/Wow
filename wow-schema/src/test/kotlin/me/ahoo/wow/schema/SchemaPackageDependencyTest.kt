@@ -30,6 +30,17 @@ class SchemaPackageDependencyTest {
         cycles(graph).assert().isEqualTo(KNOWN_CYCLES)
     }
 
+    /** OpenAPI models and Jackson 2 belong to `wow-openapi`; this module reads only Swagger annotations. */
+    @Test
+    fun `main code references neither OpenAPI models nor Jackson 2 databind`() {
+        val offenders = SOURCE_ROOT.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { file -> FOREIGN_IMPORT.containsMatchIn(file.readText()) }
+            .map { it.name }
+            .toList()
+        offenders.assert().isEmpty()
+    }
+
     private fun implementationGraph(): Map<String, Set<String>> {
         val files = SOURCE_ROOT.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
         val sources = files.map { file ->
@@ -81,5 +92,9 @@ class SchemaPackageDependencyTest {
         val IMPORT = Regex("""^\s*import\s+(me\.ahoo\.wow\.schema\.[\w.]+)""", RegexOption.MULTILINE)
 
         val KNOWN_CYCLES: Set<Set<String>> = emptySet()
+        val FOREIGN_IMPORT = Regex(
+            """^\s*import\s+(io\.swagger\.v3\.oas\.models|com\.fasterxml\.jackson\.databind)\.""",
+            RegexOption.MULTILINE
+        )
     }
 }
