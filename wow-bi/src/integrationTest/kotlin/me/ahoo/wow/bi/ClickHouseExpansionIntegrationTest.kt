@@ -193,12 +193,19 @@ class ClickHouseExpansionIntegrationTest {
         }.assert().isTrue()
         val before = logicalStoreCounts()
         val queueUuids = queueUuids()
-        queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
+        val consumerUuids = consumerUuids()
+        (queueUuids.values + consumerUuids.values).forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
         val script = result.statements.joinToString("\n")
         queueUuids.keys.forEach { queue ->
             script.assert().doesNotContain(
                 "DROP TABLE IF EXISTS ${qualified(CONSUMER_DATABASE, queue)}",
                 "CREATE TABLE ${qualified(CONSUMER_DATABASE, queue)}",
+            )
+        }
+        consumerUuids.keys.forEach { consumer ->
+            script.assert().doesNotContain(
+                "DROP VIEW IF EXISTS ${qualified(CONSUMER_DATABASE, consumer)}",
+                "CREATE MATERIALIZED VIEW IF NOT EXISTS ${qualified(CONSUMER_DATABASE, consumer)}",
             )
         }
 
@@ -207,6 +214,7 @@ class ClickHouseExpansionIntegrationTest {
         assertGeneratedObjects(case)
         logicalStoreCounts().assert().isEqualTo(before)
         queueUuids().assert().isEqualTo(queueUuids)
+        consumerUuids().assert().isEqualTo(consumerUuids)
     }
 
     private fun Connection.assertComputedViewDriftIsRepaired(
@@ -260,6 +268,8 @@ class ClickHouseExpansionIntegrationTest {
         val driftTarget = "__wow_bi_drift_target"
         val before = logicalStoreCounts()
         val queueUuids = queueUuids()
+        val commandConsumer = "${COMMAND_TABLE}_consumer"
+        val commandConsumerUuid = consumerUuids().getValue(commandConsumer)
         val comment = queryRows(
             "SELECT comment FROM system.tables WHERE database = ${literal(CONSUMER_DATABASE)} " +
                 "AND name = ${literal(consumer)}",
@@ -288,6 +298,7 @@ class ClickHouseExpansionIntegrationTest {
 
         logicalStoreCounts().assert().isEqualTo(before)
         queueUuids().assert().isEqualTo(queueUuids)
+        consumerUuids().getValue(commandConsumer).assert().isEqualTo(commandConsumerUuid)
         val converged = generator.generate(
             preparation,
             inspection = inspector.inspect(options, BiScriptOperation.Deploy, preparation).block()!!,
@@ -305,6 +316,16 @@ class ClickHouseExpansionIntegrationTest {
                 listOf("uuid"),
             ).single().getValue("uuid")
         }
+
+    private fun Connection.consumerUuids(): Map<String, String> =
+        listOf(COMMAND_TABLE, STATE_TABLE, STATE_LAST_TABLE).map { table -> "${table}_consumer" }
+            .associateWith { consumer ->
+                queryRows(
+                    "SELECT toString(uuid) AS uuid FROM system.tables " +
+                        "WHERE database = ${literal(CONSUMER_DATABASE)} AND name = ${literal(consumer)}",
+                    listOf("uuid"),
+                ).single().getValue("uuid")
+            }
 
     private fun Connection.logicalStoreCounts(): Map<String, Long> =
         listOf(COMMAND_STORE_TABLE, STATE_STORE_TABLE, STATE_LAST_STORE_TABLE).associateWith { table ->

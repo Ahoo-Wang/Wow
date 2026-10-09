@@ -30,8 +30,8 @@ SQL executor 必须保持 statement 顺序，并在第一条错误时停止。�
 | 观测到的 catalog/registry 状态 | 操作 | 原因 |
 |---|---|---|
 | 空目标 scope | `DEPLOY` | 安装 registry、store、ingress、view 与 `STABLE` anchor |
-| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账 |
-| 计算 view/materialized-view 漂移 | `DEPLOY` | 先记录 `PENDING_UPDATE`，替换并验证定义，再回到 `ACTIVE` |
+| 当前 scope 且持久契约一致 | `DEPLOY` | 幂等对账；已验证的 ingress（queue 与 consumer materialized view）保持挂载，不暂停摄入 |
+| 计算 view/materialized-view 漂移 | `DEPLOY` | 先记录 `PENDING_UPDATE`，替换并验证定义，再回到 `ACTIVE`；consumer 漂移时暂停并重建该 stream 的整条 consumer 链 |
 | 受管 `PENDING_CREATE`、`PENDING_UPDATE` 或 `PENDING_DROP` | 重新生成同一 `DEPLOY` | registry 是 write-ahead 恢复证据 |
 | 缺失 `ACTIVE`/`RETIRED` 对象或仍存在 `TOMBSTONE` | 备份后确认 `RESET` | catalog 已不符合可恢复归属状态 |
 | Store、Kafka queue 或 topology 契约漂移 | 确认 `RESET` | generator 不原地修改这些持久契约 |

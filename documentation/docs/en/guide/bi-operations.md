@@ -30,8 +30,8 @@ replay an old file after catalog state changes.
 | Observed catalog/registry state | Action | Reason |
 |---|---|---|
 | Empty target scope | `DEPLOY` | Installs registry, stores, ingress, views, and a `STABLE` anchor |
-| Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation |
-| Computed view/materialized-view drift | `DEPLOY` | Records `PENDING_UPDATE`, replaces definition, verifies, then returns to `ACTIVE` |
+| Current scope and matching durable contracts | `DEPLOY` | Idempotent reconciliation; verified ingress (queues and consumer materialized views) stays attached, so ingestion is not paused |
+| Computed view/materialized-view drift | `DEPLOY` | Records `PENDING_UPDATE`, replaces definition, verifies, then returns to `ACTIVE`; consumer drift pauses and recreates that stream's whole consumer chain |
 | Owned `PENDING_CREATE`, `PENDING_UPDATE`, or `PENDING_DROP` | Regenerate the same `DEPLOY` | Registry is write-ahead recovery evidence |
 | Missing `ACTIVE`/`RETIRED` object or surviving `TOMBSTONE` | Confirmed `RESET` after backup | Catalog no longer matches recoverable ownership state |
 | Store, Kafka queue, or topology contract drift | Confirmed `RESET` | The generator does not mutate these durable contracts in place |

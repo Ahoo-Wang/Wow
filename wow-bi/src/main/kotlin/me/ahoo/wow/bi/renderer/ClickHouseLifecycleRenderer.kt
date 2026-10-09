@@ -65,8 +65,9 @@ internal class ClickHouseLifecycleRenderer(private val context: ClickHouseRender
         val commandTable = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
         val stateTable = naming.toTableName(namedAggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
         immutableStatements(
-            dropView(options.consumerDatabase, "${commandTable}_consumer"),
-            dropView(options.consumerDatabase, "${stateTable}_consumer"),
+            listOf("${commandTable}_consumer", "${stateTable}_consumer")
+                .filterNot { consumerTable -> isConsumerRetained(consumerTable) }
+                .map { consumerTable -> dropView(options.consumerDatabase, consumerTable) }
         )
     }
 }
