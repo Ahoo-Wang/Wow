@@ -11,9 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.ObservedBiObject
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows

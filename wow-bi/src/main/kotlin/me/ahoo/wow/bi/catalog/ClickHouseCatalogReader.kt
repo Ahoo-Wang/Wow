@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
+import me.ahoo.wow.bi.BI_OBJECT_METADATA_PREFIX
+import me.ahoo.wow.bi.BiDeploymentDescriptor
+import me.ahoo.wow.bi.BiDeploymentPhase
+import me.ahoo.wow.bi.BiObjectKey
+import me.ahoo.wow.bi.BiObjectKind
+import me.ahoo.wow.bi.BiObjectMetadata
+import me.ahoo.wow.bi.BiScriptOperation
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.CanonicalExpectedBiQuery
+import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.DesiredBiObject
 import me.ahoo.wow.serialization.JsonSerializer
-
-private const val DATABASE_TABLES_PREDICATE = "__DATABASE_TABLES_PREDICATE__"
-private const val CONSUMER_DATABASE_TABLES_PREDICATE = "__CONSUMER_DATABASE_TABLES_PREDICATE__"
-private const val TABLES_PREDICATE = "__TABLES_PREDICATE__"
-private const val EXPECTED_DEFINITIONS_EXPRESSION = "__EXPECTED_DEFINITIONS_EXPRESSION__"
 
 internal class ClickHouseCatalogReader(private val catalogClient: ClickHouseCatalogClient) {
     fun read(request: ClickHouseCatalogReadRequest): ClickHouseCatalogSnapshot = with(request) {
@@ -283,140 +289,6 @@ internal class ClickHouseCatalogReader(private val catalogClient: ClickHouseCata
     private data class NodeObject(val node: ClickHouseCatalogNode, val objectValue: ClickHouseCatalogObject)
     private data class NodeColumn(val node: ClickHouseCatalogNode, val column: ClickHouseCatalogColumn)
     private data class NodeColumnKey(val node: ClickHouseCatalogNode, val key: BiObjectKey)
-
-    private companion object {
-        val NODE_COLUMNS = listOf("host_name", "tcp_port")
-        val CATALOG_COLUMNS = listOf(
-            "database",
-            "name",
-            "engine",
-            "engine_full",
-            "create_table_query",
-            "as_select",
-            "comment",
-            "partition_key",
-            "sorting_key",
-        )
-        val EXPECTED_QUERY_COLUMNS = listOf("database", "name", "canonical_select")
-        val OBJECT_KEY_COLUMNS = listOf("database", "name")
-        val COLUMN_COLUMNS = listOf("database", "table", "name", "type", "position")
-
-        val STANDALONE_CATALOG_QUERY: String = """
-            SELECT database, name, engine, engine_full, create_table_query,
-                   formatQuerySingleLineOrNull(as_select) AS as_select,
-                   comment, partition_key, sorting_key
-            FROM system.tables
-            WHERE database IN ({database:String}, {consumerDatabase:String})
-            SETTINGS show_table_uuid_in_table_create_query_if_not_nil = 0
-        """.trimIndent()
-
-        val STANDALONE_CATALOG_DISCOVERY_QUERY: String = """
-            SELECT database, name
-            FROM system.tables
-            WHERE database IN ({database:String}, {consumerDatabase:String})
-              AND (startsWith(comment, {ownershipPrefix:String})
-                   OR (database = {database:String} AND $DATABASE_TABLES_PREDICATE)
-                   OR (database = {consumerDatabase:String}
-                       AND $CONSUMER_DATABASE_TABLES_PREDICATE))
-        """.trimIndent()
-
-        val STANDALONE_SCOPED_CATALOG_QUERY: String = """
-            SELECT database, name, engine, engine_full, create_table_query,
-                   formatQuerySingleLineOrNull(as_select) AS as_select,
-                   comment, partition_key, sorting_key
-            FROM system.tables
-            WHERE (database = {database:String} AND $DATABASE_TABLES_PREDICATE)
-               OR (database = {consumerDatabase:String} AND $CONSUMER_DATABASE_TABLES_PREDICATE)
-            SETTINGS show_table_uuid_in_table_create_query_if_not_nil = 0
-        """.trimIndent()
-
-        val CLUSTER_NODES_QUERY: String = """
-            SELECT hostName() AS host_name, tcpPort() AS tcp_port
-            FROM clusterAllReplicas({cluster:String}, system.one)
-            SETTINGS skip_unavailable_shards = 0,
-                     show_table_uuid_in_table_create_query_if_not_nil = 0
-        """.trimIndent()
-
-        val CLUSTER_CATALOG_QUERY: String = """
-            SELECT hostName() AS host_name,
-                   tcpPort() AS tcp_port,
-                   database,
-                   name,
-                   engine,
-                   engine_full,
-                   create_table_query,
-                   formatQuerySingleLineOrNull(as_select) AS as_select,
-                   comment,
-                   partition_key,
-                   sorting_key
-            FROM clusterAllReplicas({cluster:String}, system.tables)
-            WHERE database IN ({database:String}, {consumerDatabase:String})
-            SETTINGS skip_unavailable_shards = 0,
-                     show_table_uuid_in_table_create_query_if_not_nil = 0
-        """.trimIndent()
-
-        val CLUSTER_CATALOG_DISCOVERY_QUERY: String = """
-            SELECT DISTINCT database, name
-            FROM clusterAllReplicas({cluster:String}, system.tables)
-            WHERE database IN ({database:String}, {consumerDatabase:String})
-              AND (startsWith(comment, {ownershipPrefix:String})
-                   OR (database = {database:String} AND $DATABASE_TABLES_PREDICATE)
-                   OR (database = {consumerDatabase:String}
-                       AND $CONSUMER_DATABASE_TABLES_PREDICATE))
-            SETTINGS skip_unavailable_shards = 0,
-                     max_parallel_replicas = 1
-        """.trimIndent()
-
-        val CLUSTER_SCOPED_CATALOG_QUERY: String = """
-            SELECT hostName() AS host_name,
-                   tcpPort() AS tcp_port,
-                   database,
-                   name,
-                   engine,
-                   engine_full,
-                   create_table_query,
-                   formatQuerySingleLineOrNull(as_select) AS as_select,
-                   comment,
-                   partition_key,
-                   sorting_key
-            FROM clusterAllReplicas({cluster:String}, system.tables)
-            WHERE (database = {database:String} AND $DATABASE_TABLES_PREDICATE)
-               OR (database = {consumerDatabase:String} AND $CONSUMER_DATABASE_TABLES_PREDICATE)
-            SETTINGS skip_unavailable_shards = 0,
-                     show_table_uuid_in_table_create_query_if_not_nil = 0
-        """.trimIndent()
-
-        val STANDALONE_COLUMNS_QUERY: String = """
-            SELECT database, table, name, type, position
-            FROM system.columns
-            WHERE database = {database:String}
-              AND $TABLES_PREDICATE
-        """.trimIndent()
-
-        val CLUSTER_COLUMNS_QUERY: String = """
-            SELECT hostName() AS host_name,
-                   tcpPort() AS tcp_port,
-                   database,
-                   table,
-                   name,
-                   type,
-                   position
-            FROM clusterAllReplicas({cluster:String}, system.columns)
-            WHERE database = {database:String}
-              AND $TABLES_PREDICATE
-            SETTINGS skip_unavailable_shards = 0,
-                     max_parallel_replicas = 1
-        """.trimIndent()
-
-        val EXPECTED_QUERY_CANONICALIZATION_QUERY: String = """
-            SELECT JSONExtractString(definition, 'database') AS database,
-                   JSONExtractString(definition, 'name') AS name,
-                   formatQuerySingleLineOrNull(JSONExtractString(definition, 'selectSql')) AS canonical_select
-            FROM (
-                SELECT arrayJoin($EXPECTED_DEFINITIONS_EXPRESSION) AS definition
-            )
-        """.trimIndent()
-    }
 }
 
 internal data class ClickHouseCatalogReadRequest(

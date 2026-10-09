@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
+import me.ahoo.wow.bi.BiObjectKey
 /** Extracts the `TO database.table` header from ClickHouse's canonical MATERIALIZED VIEW DDL. */
 internal object ClickHouseMaterializedViewTargetParser {
     fun parse(createTableQuery: String): BiObjectKey? {

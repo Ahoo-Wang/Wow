@@ -21,8 +21,8 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import java.util.Collections
 
 internal class BiScriptAssembler(private val options: BiScriptOptions) {
-    private val observedPolicy = BiObservedDeploymentPolicy(options)
-    private val diagnostics = BiScriptDiagnostics(options, observedPolicy)
+    private val policy = BiOperationPolicy(options)
+    private val diagnostics = BiScriptDiagnostics(options, policy)
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun assemble(
@@ -39,7 +39,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         val desiredObjects = preparation.desiredObjects
         val availableInspection = inspection as? BiDeploymentInspection.Available
         val observed = availableInspection?.deployment
-        observed?.let { deployment -> observedPolicy.validate(deployment, descriptor, desiredObjects, operation) }
+        observed?.let { deployment -> policy.validate(deployment, descriptor, desiredObjects, operation) }
         val consumerIdentity = resolveConsumerIdentity(operation, descriptor, observed)
         val retainedQueueKeys = resolveRetainedQueueKeys(operation, desiredObjects, descriptor, observed)
         val retainedConsumerKeys = resolveRetainedConsumerKeys(
@@ -151,7 +151,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             .filter { it.kind == BiObjectKind.QUEUE }
             .map(DesiredBiObject::key)
             .toSet()
-        return observedPolicy.ownedBy(observed, descriptor).asSequence()
+        return policy.ownedBy(observed, descriptor).asSequence()
             .filter { it.metadata?.kind == BiObjectKind.QUEUE && it.key in desiredQueueKeys }
             .map(ObservedBiObject::key)
             .toSet()
@@ -239,7 +239,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
     private fun resolveOwnedCatalogObjects(
         deployment: ObservedBiDeployment,
         descriptor: BiDeploymentDescriptor,
-    ): List<BiOwnedObject> = observedPolicy.ownedBy(deployment, descriptor).map { observed ->
+    ): List<BiOwnedObject> = policy.ownedBy(deployment, descriptor).map { observed ->
         BiOwnedObject(key = observed.key, kind = checkNotNull(observed.metadata).kind)
     }
 
@@ -269,7 +269,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         }
         val desiredKeys = desired.mapTo(hashSetOf(), BiDurableEntry::key)
         val retired = if (operation == BiScriptOperation.Deploy && observed != null) {
-            observedPolicy.ownedBy(observed, descriptor)
+            policy.ownedBy(observed, descriptor)
                 .filter { it.metadata?.kind == BiObjectKind.STORE && it.key !in desiredKeys }
                 .map { BiDurableEntry(it.key, BiDurableStatus.RETIRED) }
         } else {
@@ -284,11 +284,11 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         observed: ObservedBiDeployment?,
     ): BiConsumerIdentity = when (operation) {
         BiScriptOperation.Deploy -> observed?.let { deployment ->
-            observedPolicy.consumerIdentity(deployment, descriptor)
+            policy.consumerIdentity(deployment, descriptor)
         } ?: BiConsumerIdentity.deterministic(descriptor)
 
         is BiScriptOperation.Reset -> observed?.let { deployment ->
-            observedPolicy.resettingAnchor(deployment, descriptor)?.consumerIdentity
+            policy.resettingAnchor(deployment, descriptor)?.consumerIdentity
         }?.let(::BiConsumerIdentity) ?: BiConsumerIdentity.random()
     }
 
@@ -335,7 +335,7 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
 
 internal class BiScriptDiagnostics(
     private val options: BiScriptOptions,
-    private val observedPolicy: BiObservedDeploymentPolicy,
+    private val policy: BiOperationPolicy,
 ) {
     fun collect(context: BiScriptDiagnosticsContext): List<BiScriptDiagnostic> = with(context) {
         buildList {
@@ -387,7 +387,7 @@ internal class BiScriptDiagnostics(
             return emptyList()
         }
         val desiredKeys = desiredObjects.map(DesiredBiObject::key).toSet()
-        return observed?.let { deployment -> observedPolicy.ownedBy(deployment, descriptor) }.orEmpty()
+        return observed?.let { deployment -> policy.ownedBy(deployment, descriptor) }.orEmpty()
             .filter { it.key !in desiredKeys && it.metadata?.kind == BiObjectKind.STORE }
             .mapNotNull { it.metadata?.aggregate }
             .distinct()

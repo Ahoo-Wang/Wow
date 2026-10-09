@@ -11,15 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
 import com.clickhouse.client.api.Client
 import com.clickhouse.client.api.ClientException
 import com.clickhouse.client.api.query.QueryResponse
 import com.clickhouse.client.api.query.QuerySettings
 import com.clickhouse.data.ClickHouseFormat
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
+import me.ahoo.wow.bi.BiDeploymentInspectionException
+import me.ahoo.wow.bi.BiObjectKey
+import me.ahoo.wow.bi.BiObjectMetadataCodec
+import me.ahoo.wow.bi.ClickHouseClientOptions
+import me.ahoo.wow.bi.ObservedBiObject
 import tools.jackson.core.JacksonException
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -30,17 +33,6 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
-
-private const val CLICKHOUSE_CATALOG_CLEANUP_THREADS: Int = 4
-private const val CLICKHOUSE_CATALOG_CLEANUP_TTL_SECONDS: Int = 60
-private val CLICKHOUSE_CATALOG_CLEANUP_SCHEDULER: Scheduler = Schedulers.newBoundedElastic(
-    CLICKHOUSE_CATALOG_CLEANUP_THREADS,
-    Schedulers.DEFAULT_BOUNDED_ELASTIC_QUEUESIZE,
-    "wow-bi-catalog-cleanup",
-    CLICKHOUSE_CATALOG_CLEANUP_TTL_SECONDS,
-    true,
-)
 
 internal interface ClickHouseCatalogClient : AutoCloseable {
     fun query(
@@ -275,109 +267,6 @@ internal class NativeClickHouseCatalogClient internal constructor(
 
     private fun throwCancelledQuery(cause: CancellationException): Nothing =
         throw ClientException("ClickHouse BI catalog query was cancelled", cause)
-
-    private class QueryResponseLifecycle(
-        responseFuture: CompletableFuture<QueryResponse>,
-    ) : AutoCloseable {
-        private val state = AtomicReference(QueryResponseState.PENDING)
-        private val response = AtomicReference<QueryResponse?>()
-        private val responseClosed = AtomicBoolean()
-        private val cleanupScheduled = AtomicBoolean()
-
-        init {
-            responseFuture.whenComplete { completedResponse, _ ->
-                if (completedResponse != null) {
-                    response.compareAndSet(null, completedResponse)
-                    if (state.get() == QueryResponseState.CANCELLED) {
-                        cleanupCancelled()
-                    }
-                }
-            }
-        }
-
-        fun claim(completedResponse: QueryResponse): Boolean {
-            response.compareAndSet(null, completedResponse)
-            if (state.compareAndSet(QueryResponseState.PENDING, QueryResponseState.CLAIMED)) {
-                return true
-            }
-            closeResponse(propagateFailure = false)
-            return false
-        }
-
-        fun abandon() {
-            if (transitionToCancelled()) {
-                cleanupCancelled()
-            }
-        }
-
-        fun cancel(): Boolean = transitionToCancelled()
-
-        fun cleanupCancelled() {
-            if (state.get() != QueryResponseState.CANCELLED || response.get() == null) {
-                return
-            }
-            if (cleanupScheduled.compareAndSet(false, true)) {
-                CLICKHOUSE_CATALOG_CLEANUP_SCHEDULER.schedule {
-                    closeResponse(propagateFailure = false)
-                }
-            }
-        }
-
-        private fun transitionToCancelled(): Boolean {
-            while (true) {
-                when (val currentState = state.get()) {
-                    QueryResponseState.PENDING,
-                    QueryResponseState.CLAIMED,
-                    -> if (state.compareAndSet(currentState, QueryResponseState.CANCELLED)) {
-                        return true
-                    }
-
-                    QueryResponseState.CANCELLED,
-                    QueryResponseState.COMPLETED,
-                    -> return false
-                }
-            }
-        }
-
-        override fun close() {
-            while (true) {
-                when (val currentState = state.get()) {
-                    QueryResponseState.PENDING,
-                    QueryResponseState.CLAIMED,
-                    -> if (state.compareAndSet(currentState, QueryResponseState.COMPLETED)) {
-                        closeResponse(propagateFailure = true)
-                        return
-                    }
-
-                    QueryResponseState.CANCELLED -> {
-                        closeResponse(propagateFailure = false)
-                        return
-                    }
-
-                    QueryResponseState.COMPLETED -> return
-                }
-            }
-        }
-
-        private fun closeResponse(propagateFailure: Boolean) {
-            val claimedResponse = response.get() ?: return
-            if (!responseClosed.compareAndSet(false, true)) {
-                return
-            }
-            if (propagateFailure) {
-                claimedResponse.close()
-            } else {
-                runCatching { claimedResponse.close() }
-            }
-        }
-    }
-
-    private enum class QueryResponseState {
-        PENDING,
-        CLAIMED,
-        CANCELLED,
-        COMPLETED,
-    }
 
     override fun close() {
         client.close()

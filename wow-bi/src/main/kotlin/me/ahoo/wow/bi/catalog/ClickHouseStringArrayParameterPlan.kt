@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax
 

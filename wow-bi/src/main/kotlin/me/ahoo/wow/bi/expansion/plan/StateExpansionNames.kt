@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.bi.expansion.plan
 
+import me.ahoo.wow.bi.biDigest
 import me.ahoo.wow.naming.NamingConverter
-import java.security.MessageDigest
 
 internal const val RAW_TARGET_PREFIX: String = "__raw__"
 
@@ -45,11 +45,5 @@ internal fun String.toObjectNameSegment(): String {
     if (all { it.isLetterOrDigit() || it == '_' || it == '-' }) {
         return this
     }
-    val digest = MessageDigest.getInstance("SHA-256")
-        .digest(toByteArray(Charsets.UTF_8))
-        .take(OBJECT_NAME_HASH_BYTES)
-        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
-    return "field_$digest"
+    return "field_${biDigest(this)}"
 }
-
-private const val OBJECT_NAME_HASH_BYTES: Int = 16

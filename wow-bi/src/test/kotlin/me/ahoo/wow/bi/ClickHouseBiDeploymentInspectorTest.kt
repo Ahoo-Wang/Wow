@@ -23,6 +23,14 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.bi.catalog.CATALOG_COLUMNS
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogClient
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogNode
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogRecord
+import me.ahoo.wow.bi.catalog.ClickHouseQueryCancellation
+import me.ahoo.wow.bi.catalog.NODE_COLUMNS
+import me.ahoo.wow.bi.catalog.NativeClickHouseCatalogClient
+import me.ahoo.wow.bi.catalog.OBJECT_KEY_COLUMNS
 import me.ahoo.wow.configuration.MetadataSearcher
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

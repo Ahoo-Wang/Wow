@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.bi
 
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogClient
+import me.ahoo.wow.bi.catalog.ClickHouseStringArrayParameterPlan
+import me.ahoo.wow.bi.catalog.NativeClickHouseCatalogClient
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll

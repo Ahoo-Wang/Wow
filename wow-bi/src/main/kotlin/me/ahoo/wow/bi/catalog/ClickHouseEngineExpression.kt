@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
 internal fun String.functionArguments(functionName: String): List<String>? =
     FunctionArgumentsParser(trim(), functionName).parse()
