@@ -27,8 +27,8 @@ This page answers two questions: which module owns code, and which capability an
 | `wow-opentelemetry` | OpenTelemetry instrumenters for Wow flows | Tracing without the Starter |
 | `wow-cosec` | CoSec request-context propagation and query-space rewriting | Applications already using CoSec |
 | `wow-compiler` | KSP metadata and API-contract generation; depends on `wow-metadata`, not on the runtime | Use with `ksp(...)`, never as a runtime dependency |
-| `wow-schema` | JSON Schema generation | Schema/OpenAPI tooling extensions |
-| `wow-openapi` | Built-in route and OpenAPI contract generation | OpenAPI extensions |
+| `wow-schema` | JSON Schema generation | JSON Schema tooling and query-model inference |
+| `wow-openapi` | Built-in route and OpenAPI contract generation, including `OpenAPISchemaBuilder` | OpenAPI extensions |
 | `wow-bi` | BI/ClickHouse synchronization script generation | BI script generation or deployment |
 | `wow-test` | `AggregateSpec` and `SagaSpec` DSL | Domain tests |
 | `wow-tck` | Adapter contracts and Testcontainers fixtures | Adapter implementation/verification |

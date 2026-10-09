@@ -19,7 +19,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import me.ahoo.wow.schema.WowSchemaLoader
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 

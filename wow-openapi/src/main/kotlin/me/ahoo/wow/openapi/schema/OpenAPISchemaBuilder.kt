@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -56,7 +56,7 @@ class OpenAPISchemaBuilder(
     private val schemaConverter = OpenAPISchemaConverter()
     private val schemaReferences = SchemaReferenceRegistry(schemaConverter)
 
-    fun JsonNode.toSchema(): Schema<*> {
+    private fun JsonNode.toSchema(): Schema<*> {
         return schemaConverter.toSchema(this)
     }
 

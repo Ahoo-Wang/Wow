@@ -18,6 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.KotlinFixture
 import me.ahoo.wow.schema.RecursiveGetterFixture
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
+import me.ahoo.wow.schema.UnwrappedAddressFixture
+import me.ahoo.wow.schema.UnwrappedHolderFixture
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
@@ -43,6 +45,20 @@ class KotlinCustomDefinitionProviderConcurrencyTest {
     @Test
     fun `concurrent generators match a lone generation`() {
         assertConcurrentGenerations { SchemaGeneratorBuilder().build() }
+    }
+
+    /**
+     * A multi-definition build (the OpenAPI path) keeps one generation context across `createSchemaReference` calls.
+     * A Kotlin type expanded by an earlier call must still get its getter-only properties when a later call inlines it.
+     */
+    @Test
+    fun `a multi-definition build expands a Kotlin type again for each schema reference`() {
+        val builder = SchemaGeneratorBuilder().build().buildMultipleSchemaDefinitions()
+        builder.createSchemaReference(UnwrappedAddressFixture::class.java)
+        builder.createSchemaReference(UnwrappedHolderFixture::class.java)
+        val definitions = builder.collectDefinitions("definitions")
+        val holder = definitions.properties().first { (name) -> name.endsWith("UnwrappedHolderFixture") }.value
+        holder.get("properties").has("full").assert().isTrue()
     }
 
     private fun assertConcurrentGenerations(generator: () -> SchemaGenerator) {

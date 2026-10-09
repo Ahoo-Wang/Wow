@@ -19,7 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import org.junit.jupiter.api.Test
 
-class TypedDefaultValueDefinitionProviderTest {
+class TypedDefaultValueModuleTest {
 
     @Test
     fun `should generate defaults using declared json types`() {

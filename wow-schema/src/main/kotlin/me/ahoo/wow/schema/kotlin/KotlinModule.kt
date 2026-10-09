@@ -33,7 +33,7 @@ class KotlinModule : Module {
         val methodConfigPart = builder.forMethods()
         methodConfigPart.withIgnoreCheck(KotlinMethodIgnoreCheck)
         val generalConfigPart = builder.forTypesInGeneral()
-        generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider())
         RANGES.forEach(generalConfigPart::withCustomDefinitionProvider)
     }
 }

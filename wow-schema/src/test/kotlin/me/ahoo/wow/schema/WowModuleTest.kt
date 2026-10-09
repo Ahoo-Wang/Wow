@@ -20,6 +20,7 @@ import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.RelativeTimeFilter
+import me.ahoo.wow.schema.definition.WowSchemaLoader
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import org.junit.jupiter.api.Test
 

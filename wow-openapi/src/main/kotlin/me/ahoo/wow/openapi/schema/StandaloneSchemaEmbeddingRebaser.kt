@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode

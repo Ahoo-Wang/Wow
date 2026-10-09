@@ -28,7 +28,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
-internal object TypedDefaultValueDefinitionProvider : Module {
+internal object TypedDefaultValueModule : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         builder.forFields()
             .withCustomDefinitionProvider(FieldProvider)

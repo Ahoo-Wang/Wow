@@ -16,6 +16,7 @@ package me.ahoo.wow.schema
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
@@ -215,3 +216,15 @@ data class RecursiveGetterFixture(
     val size: Int get() = children.size
     val first: RecursiveGetterFixture? get() = children.firstOrNull()
 }
+
+// ── A type reached twice in one multi-definition build (OpenAPI mode) ──
+
+data class UnwrappedAddressFixture(val street: String) {
+    val full: String get() = "full $street"
+}
+
+data class UnwrappedHolderFixture(
+    @field:JsonUnwrapped
+    val address: UnwrappedAddressFixture,
+    val name: String,
+)

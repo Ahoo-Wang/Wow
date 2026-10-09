@@ -30,6 +30,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.schema.definition.WowSchemaLoader
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream

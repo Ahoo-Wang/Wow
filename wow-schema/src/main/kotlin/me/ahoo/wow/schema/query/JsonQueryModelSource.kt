@@ -30,7 +30,7 @@ import me.ahoo.wow.query.schema.QueryMemberFact
 import me.ahoo.wow.query.schema.QueryModelSource
 import me.ahoo.wow.query.schema.QueryTypeFact
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.isStdType
 import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonSerialize

@@ -22,7 +22,7 @@ KSP 还会为聚合状态导航生成 `*Properties` 路径常量。这些常量�
 - 读取 Jackson、Jakarta Validation、Swagger、Kotlin 与 Joda Money 元数据。
 - 支持 OpenAPI 3.1 兼容的 nullable 形状。
 - 对不应依赖反射实现细节的框架类型使用稳定内置定义。
-- 把累积 definitions 转换为 OpenAPI `Schema` components 与引用。
+- 供 `wow-openapi` 使用：其中的 `OpenAPISchemaBuilder` 把累积 definitions 转换为 OpenAPI `Schema` components 与引用。
 
 Schema 生成描述序列化形状，不会注册路由、创建数据库映射、授权字段，也不能证明 MongoDB/Elasticsearch 能执行某个操作符。
 
@@ -32,7 +32,7 @@ Schema 生成描述序列化形状，不会注册路由、创建数据库映射�
 implementation("me.ahoo.wow:wow-schema")
 ```
 
-应用通常通过相关 Wow capability 间接获得该模块。只有应用代码直接调用 Builder 或消费其类型时才需要显式添加。
+应用通常通过相关 Wow capability 间接获得该模块。只有应用代码直接调用 `SchemaGeneratorBuilder` 或消费其类型时才需要显式添加；`OpenAPISchemaBuilder` 需要 `wow-openapi`。
 
 ## 使用
 
@@ -45,15 +45,15 @@ val generator = SchemaGeneratorBuilder().build()
 val schema: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
-默认 Builder 使用 `SchemaVersion.DRAFT_7` 与 `OptionPreset.PLAIN_JSON`，并安装 Wow 的 Jackson、Jakarta Validation、Swagger2、Kotlin、Joda Money、命名和框架模块。`buildConfig()` 只返回配置、不创建生成器；`copy()` 返回一个设置相同、彼此独立的 Builder。
+默认 Builder 使用 `SchemaVersion.DRAFT_7` 与 `OptionPreset.PLAIN_JSON`，并安装 Wow 的 Jackson、Jakarta Validation、Swagger2、Kotlin、Joda Money、命名和框架模块。`buildConfig()` 只返回配置、不创建生成器；`copy()` 返回一个设置相同、可以各自修改设置的 Builder；两者共用同一批模块实例，模块本身不复制。
 
-生成器不是线程安全的：每个线程各建一个。分别创建的生成器可以并发运行。
+生成器不是线程安全的：每个线程各建一个。分别创建的生成器可以并发运行。`OpenAPISchemaBuilder` 同样有状态、只能用一次：一份文档一个，在一个线程里用。
 
 生成过程基于运行时类型与已注册序列化器。KSP 元数据 JSON 不是该调用的输入。
 
 ### 生成 OpenAPI Schema
 
-`OpenAPISchemaBuilder` 位于 `wow-openapi`（包名 `me.ahoo.wow.schema.openapi`）；启用 `openapi-support` 的应用已经依赖它。`OpenAPISchemaBuilder.generateSchema(...)` 返回引用（配置 inline 时返回内联 Schema），同时记录所需 definitions。调用无参数 `build()` 收集 components：
+`OpenAPISchemaBuilder` 位于 `wow-openapi`（包名 `me.ahoo.wow.openapi.schema`）；启用 `openapi-support` 的应用已经依赖它。`OpenAPISchemaBuilder.generateSchema(...)` 返回引用（配置 inline 时返回内联 Schema），同时记录所需 definitions。调用无参数 `build()` 收集 components：
 
 ```kotlin
 val builder = OpenAPISchemaBuilder(defaultSchemaNamePrefix = "example.")
@@ -130,6 +130,10 @@ val generator = SchemaGeneratorBuilder()
 | `kotlinModule` | 启用 | Kotlin nullability、required/read-only/write-only |
 | `jodaMoneyModule` | 启用 | Joda Money 线类型 |
 | `wowModule` | 启用 | 框架定义与查询判别字段处理 |
+| `schemaNamingModule` | Wow 命名，无前缀 | definition 命名（`OpenAPISchemaBuilder` 会设置自己的） |
+| `objectMapper` | 无（victools 默认） | Jackson 相关模块内省时使用的 mapper |
+| `options` | Wow 默认（plain definition key、内联 nullable `anyOf` 等） | 在模块之后应用的 victools 选项 |
+| `customizer` | 添加 `DEFINITIONS_FOR_ALL_OBJECTS` | 对配置 builder 的最后一次修改 |
 
 传入 `null` 会禁用可选模块。这会改变生成合同；发布前应使用 Schema snapshot 或聚焦断言覆盖自定义配置。
 

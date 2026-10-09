@@ -18,6 +18,7 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.configuration.namedBoundedContext
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
@@ -32,6 +33,14 @@ class WowSchemaNamingStrategy @JvmOverloads constructor(
     SchemaDefinitionNamingStrategy {
     companion object {
         private const val ARRAY_SCHEMA_NAME = "Array"
+        private val STD_PACKAGE_PREFIXES = listOf("java.", "javax.", "kotlin.", "kotlinx.")
+
+        /** Arrays, primitives, enums and JDK/Kotlin library types: the types Wow neither describes nor names itself. */
+        @InternalWowApi
+        fun Class<*>.isStdType(): Boolean =
+            isArray || isPrimitive || isEnum || STD_PACKAGE_PREFIXES.any(name::startsWith)
+
+        @InternalWowApi
         fun Class<*>.resolveNamePrefix(): String? {
             this.namedAggregate()?.let {
                 return "${it.toStringWithAlias()}."
@@ -42,6 +51,7 @@ class WowSchemaNamingStrategy @JvmOverloads constructor(
             return null
         }
 
+        @InternalWowApi
         fun Class<*>.toSchemaName(): String {
             kotlin.scanAnnotation<Schema>()?.let {
                 if (it.name.isNotBlank()) {
@@ -57,7 +67,7 @@ class WowSchemaNamingStrategy @JvmOverloads constructor(
             return "${enclosingClass.toSchemaName()}.$simpleName"
         }
 
-        fun ResolvedType.flattenType(result: MutableList<Class<*>> = mutableListOf()): List<Class<*>> {
+        internal fun ResolvedType.flattenType(result: MutableList<Class<*>> = mutableListOf()): List<Class<*>> {
             if (this.isArray) {
                 this.arrayElementType?.flattenType(result)
                 result.add(Array::class.java)
@@ -75,6 +85,7 @@ class WowSchemaNamingStrategy @JvmOverloads constructor(
          * `me.ahoo.wow.api.query.PagedList<me.ahoo.wow.api.query.MaterializedSnapshot<me.ahoo.wow.example.domain.order.OrderState>>`
          *  >> `order.order.OrderStateMaterializedSnapshotPagedList`
          */
+        @InternalWowApi
         fun ResolvedType.toSchemaName(defaultSchemaNamePrefix: String = ""): String {
             val flatTypes = flattenType()
             val namePrefix = flatTypes.firstNotNullOfOrNull {

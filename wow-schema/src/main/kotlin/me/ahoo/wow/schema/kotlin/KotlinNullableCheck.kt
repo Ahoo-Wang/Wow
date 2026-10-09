@@ -17,7 +17,6 @@ import com.github.victools.jsonschema.generator.ConfigFunction
 import com.github.victools.jsonschema.generator.FieldScope
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import me.ahoo.wow.schema.Types.isKotlinElement
 import kotlin.reflect.jvm.kotlinProperty
 
 internal object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {

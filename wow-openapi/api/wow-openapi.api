@@ -428,8 +428,8 @@ public final class me/ahoo/wow/openapi/catalog/RouteContributors {
 	public final fun sort (Ljava/lang/Iterable;)Ljava/util/List;
 }
 
-public final class me/ahoo/wow/openapi/context/DefaultOpenAPIComponentContext : me/ahoo/wow/openapi/context/OpenAPIComponentContext, me/ahoo/wow/schema/openapi/InlineSchemaCapable {
-	public fun <init> (Lme/ahoo/wow/schema/openapi/OpenAPISchemaBuilder;)V
+public final class me/ahoo/wow/openapi/context/DefaultOpenAPIComponentContext : me/ahoo/wow/openapi/context/OpenAPIComponentContext, me/ahoo/wow/openapi/schema/InlineSchemaCapable {
+	public fun <init> (Lme/ahoo/wow/openapi/schema/OpenAPISchemaBuilder;)V
 	public fun arraySchema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
 	public fun componentSchema (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lio/swagger/v3/oas/models/media/Schema;
 	public fun finish ()V
@@ -448,7 +448,7 @@ public final class me/ahoo/wow/openapi/context/DefaultOpenAPIComponentContext : 
 	public fun setSchemas (Ljava/util/Map;)V
 }
 
-public abstract interface class me/ahoo/wow/openapi/context/OpenAPIComponentContext : me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+public abstract interface class me/ahoo/wow/openapi/context/OpenAPIComponentContext : me/ahoo/wow/openapi/schema/InlineSchemaCapable {
 	public static final field COMPONENTS_HEADERS_REF Ljava/lang/String;
 	public static final field COMPONENTS_PARAMETERS_REF Ljava/lang/String;
 	public static final field COMPONENTS_PREFIX Ljava/lang/String;
@@ -1195,12 +1195,12 @@ public final class me/ahoo/wow/openapi/render/OpenApiRenderer {
 public final class me/ahoo/wow/openapi/render/OpenApiRenderer$Companion {
 }
 
-public abstract interface class me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+public abstract interface class me/ahoo/wow/openapi/schema/InlineSchemaCapable {
 	public abstract fun getInline ()Z
 }
 
-public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder : me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable, me/ahoo/wow/schema/openapi/InlineSchemaCapable {
-	public static final field Companion Lme/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion;
+public final class me/ahoo/wow/openapi/schema/OpenAPISchemaBuilder : me/ahoo/wow/openapi/schema/InlineSchemaCapable, me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable {
+	public static final field Companion Lme/ahoo/wow/openapi/schema/OpenAPISchemaBuilder$Companion;
 	public static final field DEFAULT_DEFINITION_PATH Ljava/lang/String;
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/schema/SchemaGeneratorBuilder;Ljava/lang/String;)V
@@ -1210,9 +1210,8 @@ public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder : me/ahoo/wow
 	public fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
 	public fun getInline ()Z
 	public final fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
-	public final fun toSchema (Ltools/jackson/databind/JsonNode;)Lio/swagger/v3/oas/models/media/Schema;
 }
 
-public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion {
+public final class me/ahoo/wow/openapi/schema/OpenAPISchemaBuilder$Companion {
 }
 

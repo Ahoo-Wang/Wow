@@ -27,8 +27,8 @@ outline: deep
 | `wow-opentelemetry` | Wow 链路的 OpenTelemetry instrumenter | 非 Starter 的追踪集成 |
 | `wow-cosec` | CoSec 请求上下文传播与查询 space 改写 | 应用已使用 CoSec 时 |
 | `wow-compiler` | KSP 元数据与 API 合同生成；依赖 `wow-metadata`，不依赖运行时 | 使用 `ksp(...)`，不放进运行时 |
-| `wow-schema` | JSON Schema 生成 | 扩展 Schema/OpenAPI 工具时 |
-| `wow-openapi` | 内置 route/OpenAPI 合同生成 | 扩展 OpenAPI 时 |
+| `wow-schema` | JSON Schema 生成 | 扩展 JSON Schema 工具、推断查询模型时 |
+| `wow-openapi` | 内置 route/OpenAPI 合同生成，包括 `OpenAPISchemaBuilder` | 扩展 OpenAPI 时 |
 | `wow-bi` | BI/ClickHouse 同步脚本生成 | 生成或部署 BI 脚本时 |
 | `wow-test` | `AggregateSpec`、`SagaSpec` 测试 DSL | 领域测试 |
 | `wow-tck` | Adapter 合同与 Testcontainers 夹具 | 实现或验证 Adapter |

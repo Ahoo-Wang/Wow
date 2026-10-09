@@ -1,4 +1,4 @@
-package me.ahoo.wow.schema.openapi
+package me.ahoo.wow.openapi.schema
 
 import com.fasterxml.classmate.TypeResolver
 import com.github.victools.jsonschema.generator.Option
@@ -217,7 +217,7 @@ class OpenAPISchemaBuilderTest {
         val openAPISchemaBuilder = OpenAPISchemaBuilder(definitionPath = definitionPath)
         openAPISchemaBuilder.generateSchema(TreeNodeFixture::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.TreeNodeFixture"]
+        val schema = componentsSchemas["wow.openapi.TreeNodeFixture"]
         val childrenItem = schema?.properties[TreeNodeFixture::children.name]?.items
         childrenItem.assert().isNotNull()
         childrenItem?.`$ref`.assert().startsWith("#/$definitionPath")
@@ -229,7 +229,7 @@ class OpenAPISchemaBuilderTest {
         val arrayType = TypeResolver().arrayType(AnnotationFixture::class.java)
         val arrayTypeSchema = openAPISchemaBuilder.generateSchema(arrayType)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.AnnotationFixture"]
+        val schema = componentsSchemas["wow.openapi.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
     }
 }
