@@ -28,36 +28,23 @@ object Types {
         return getAnnotation(Metadata::class.java) != null
     }
 
-    internal fun Class<*>.isInstanceOf(clazz: Class<*>): Boolean {
-        return clazz.isAssignableFrom(this)
-    }
+    private val WOW_TYPES = listOf(
+        AggregateId::class.java,
+        CommandMessage::class.java,
+        DomainEvent::class.java,
+        DomainEventStream::class.java,
+        Snapshot::class.java,
+        StateAggregate::class.java,
+        StateEvent::class.java,
+    )
 
-    internal fun Class<*>.isWowType(): Boolean {
-        return isInstanceOf(AggregateId::class.java) ||
-            isInstanceOf(CommandMessage::class.java) ||
-            isInstanceOf(DomainEvent::class.java) ||
-            isInstanceOf(DomainEventStream::class.java) ||
-            isInstanceOf(Snapshot::class.java) ||
-            isInstanceOf(StateAggregate::class.java) ||
-            isInstanceOf(StateEvent::class.java) ||
-            this == FilterExpression::class.java
-    }
+    /** Framework types whose schema comes from a bundled definition rather than Kotlin reflection. */
+    internal fun Class<*>.isWowType(): Boolean =
+        this == FilterExpression::class.java || WOW_TYPES.any { it.isAssignableFrom(this) }
 
-    @Suppress("ComplexCondition")
-    fun Class<*>.isStdType(): Boolean {
-        if (this.isArray || this.isPrimitive || this.isEnum) {
-            return true
-        }
+    private val STD_PACKAGE_PREFIXES = listOf("java.", "javax.", "kotlin.", "kotlinx.")
 
-        if (name.startsWith("java.") || name.startsWith("javax.") ||
-            name.startsWith("kotlin.") || name.startsWith("kotlinx.")
-        ) {
-            return true
-        }
-
-        return when (this) {
-            String::class.java -> true
-            else -> false
-        }
-    }
+    /** Arrays, primitives, enums and JDK/Kotlin library types, which never get a Wow schema name. */
+    fun Class<*>.isStdType(): Boolean =
+        isArray || isPrimitive || isEnum || STD_PACKAGE_PREFIXES.any(name::startsWith)
 }
