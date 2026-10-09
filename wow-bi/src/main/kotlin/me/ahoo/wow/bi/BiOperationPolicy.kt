@@ -16,7 +16,15 @@ package me.ahoo.wow.bi
 import me.ahoo.wow.bi.layout.BiEngine
 import me.ahoo.wow.bi.layout.BiLayout
 
-internal class BiObservedDeploymentPolicy(options: BiScriptOptions) {
+/**
+ * Decides whether the requested operation may run on the observed catalog, and reads the deployment's recorded state.
+ *
+ * It assumes an intact catalog, which [me.ahoo.wow.bi.catalog.ClickHouseCatalogValidator] has already verified.
+ * The two fail differently: a broken catalog is [BiDeploymentInspectionException.Inconsistent] (a gateway error),
+ * while a policy violation, such as a changed configuration, a deployment still RESETTING or a lost durable object,
+ * is an [IllegalArgumentException] that tells the operator which operation to run instead (a bad request).
+ */
+internal class BiOperationPolicy(options: BiScriptOptions) {
     private val layout = BiLayout(options)
 
     fun validate(

@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.bi.BiObjectKey
 import org.junit.jupiter.api.Test
 
 class ClickHouseMaterializedViewTargetParserTest {

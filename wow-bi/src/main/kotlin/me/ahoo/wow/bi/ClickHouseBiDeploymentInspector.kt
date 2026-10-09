@@ -14,6 +14,12 @@
 package me.ahoo.wow.bi
 
 import com.clickhouse.client.api.ClientException
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogClient
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogReadRequest
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogReader
+import me.ahoo.wow.bi.catalog.ClickHouseCatalogValidator
+import me.ahoo.wow.bi.catalog.ClickHouseQueryCancellation
+import me.ahoo.wow.bi.catalog.NativeClickHouseCatalogClient
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
@@ -115,7 +121,7 @@ class ClickHouseBiDeploymentInspector internal constructor(
                     cancellation = cancellation,
                 )
             )
-            val validated = ClickHouseBiDeploymentValidator.validate(
+            val validated = ClickHouseCatalogValidator.validate(
                 options,
                 operation,
                 snapshot,

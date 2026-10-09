@@ -11,13 +11,35 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
+import me.ahoo.wow.bi.BiComputedDefinitionField
+import me.ahoo.wow.bi.BiConsumerIdentity
+import me.ahoo.wow.bi.BiDeploymentDescriptor
+import me.ahoo.wow.bi.BiObjectKey
+import me.ahoo.wow.bi.BiObjectKind
+import me.ahoo.wow.bi.BiObjectMetadata
+import me.ahoo.wow.bi.BiScriptOperation
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.CanonicalExpectedBiQuery
+import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.DesiredBiObject
+import me.ahoo.wow.bi.KafkaOffsetStorage
+import me.ahoo.wow.bi.ObservedBiDeployment
+import me.ahoo.wow.bi.ObservedBiObject
+import me.ahoo.wow.bi.RepairableBiObjectDrift
 import me.ahoo.wow.bi.layout.BiEngine
 import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax
 
-internal object ClickHouseBiDeploymentValidator {
+/**
+ * Verifies that the observed ClickHouse catalog is intact: replicas agree, owned stores and queues have their
+ * expected shape and identity, and each computed object is classified as verified or drifted.
+ *
+ * Any violation means the catalog cannot be trusted and surfaces as an inconsistent inspection. Whether the requested
+ * operation may run on an intact catalog is [me.ahoo.wow.bi.BiOperationPolicy]'s decision.
+ */
+internal object ClickHouseCatalogValidator {
     fun validate(
         options: BiScriptOptions,
         operation: BiScriptOperation,

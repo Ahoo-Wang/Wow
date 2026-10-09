@@ -11,8 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi
+package me.ahoo.wow.bi.catalog
 
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.ClickHouseTopology
+import me.ahoo.wow.bi.ObservedBiObject
 import me.ahoo.wow.bi.layout.BiEngine
 import me.ahoo.wow.bi.layout.BiLayout
 import me.ahoo.wow.bi.layout.BiStoreSchema

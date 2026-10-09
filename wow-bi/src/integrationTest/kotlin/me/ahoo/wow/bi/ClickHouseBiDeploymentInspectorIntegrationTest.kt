@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.bi
 
+import me.ahoo.wow.bi.catalog.NativeClickHouseCatalogClient
 import com.clickhouse.client.api.ClientException
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy

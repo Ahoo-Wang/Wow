@@ -19,7 +19,6 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfoCapable
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Mono
-import java.security.MessageDigest
 import java.util.Collections
 import java.util.UUID
 
@@ -284,7 +283,7 @@ value class BiConsumerIdentity(val value: String) {
             BiConsumerIdentity(descriptor.configurationFingerprint)
 
         fun random(): BiConsumerIdentity =
-            BiConsumerIdentity(sha256(UUID.randomUUID().toString()))
+            BiConsumerIdentity(biDigest(UUID.randomUUID().toString()))
     }
 }
 
@@ -296,14 +295,14 @@ data class BiDeploymentDescriptor(
     companion object {
         fun from(options: BiScriptOptions): BiDeploymentDescriptor {
             val cluster = options.topology as? ClickHouseTopology.Cluster
-            val deploymentId = sha256(
+            val deploymentId = biDigest(
                 listOf(
                     options.consumerGroupNamespace.orEmpty(),
                     options.database,
                     options.consumerDatabase,
                 ).joinToString("\u0000")
             )
-            val configurationFingerprint = sha256(
+            val configurationFingerprint = biDigest(
                 listOf(
                     options.database,
                     options.consumerDatabase,
@@ -318,7 +317,7 @@ data class BiDeploymentDescriptor(
                     options.kafkaKeeperPathPrefix,
                 ).joinToString("\u0000")
             )
-            val topologyFingerprint = sha256(
+            val topologyFingerprint = biDigest(
                 listOf(
                     options.database,
                     options.consumerDatabase,
@@ -331,9 +330,3 @@ data class BiDeploymentDescriptor(
         }
     }
 }
-
-private fun sha256(value: String): String =
-    MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8))
-        .take(16)
-        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
