@@ -31,6 +31,8 @@ import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.Types.isWowType
 import tools.jackson.databind.node.ObjectNode
+import java.util.Collections
+import java.util.WeakHashMap
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
@@ -39,7 +41,14 @@ import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.javaType
 
 object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
-    private val cachedTypes = mutableSetOf<ResolvedType>()
+    /**
+     * The types this provider has already expanded, per generation. It stops the recursion through
+     * `createStandardDefinition` for a recursive type with getter-only properties. Keying by the generation context
+     * keeps concurrent generations, and other generators sharing this provider, from seeing each other's types.
+     */
+    private val expandedTypes: MutableMap<SchemaGenerationContext, MutableSet<ResolvedType>> =
+        Collections.synchronizedMap(WeakHashMap())
+
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
@@ -57,18 +66,18 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         if (kotlinGettersIfNonFields.isEmpty()) {
             return null
         }
-        if (cachedTypes.contains(javaType)) {
+        val expanded = expandedTypes.getOrPut(context, ::mutableSetOf)
+        if (!expanded.add(javaType)) {
             return null
         }
         val declarationDetails = DeclarationDetails(javaType, context.typeContext.resolveWithMembers(javaType))
-        cachedTypes.add(javaType)
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
         rootSchema.ensureProperties()
         val propertiesNode: ObjectNode = rootSchema.getProperties() ?: return null
         for (kotlinGetter in kotlinGettersIfNonFields) {
             if (propertiesNode.get(kotlinGetter.name) == null) {
                 val kotlinGetterMethod = declarationDetails.declaringTypeMembers.memberMethods.firstOrNull {
-                    it.name === kotlinGetter.javaGetter!!.name
+                    it.name == kotlinGetter.javaGetter!!.name
                 } ?: continue
                 val resolvedMethod = copyResolvedMethod(kotlinGetter, kotlinGetterMethod, context)
                 val methodScope: MethodScope =
@@ -115,9 +124,5 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
             returnType,
             argumentTypes
         )
-    }
-
-    override fun resetAfterSchemaGenerationFinished() {
-        this.cachedTypes.clear()
     }
 }

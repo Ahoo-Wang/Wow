@@ -173,6 +173,9 @@ class SchemaGeneratorBuilder {
     /**
      * Builds and returns a SchemaGenerator instance with the configured modules and options.
      * This method must be called before accessing requiredTypeContent.
+     *
+     * The generator is not thread-safe (victools' Jackson module sorts properties with unsynchronized state); build one
+     * generator per thread. Generators built separately may run concurrently.
      */
     fun build(): SchemaGenerator {
         val config = SchemaGeneratorConfigFactory.create(this).build()

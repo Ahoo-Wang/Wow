@@ -156,7 +156,6 @@ public final class me/ahoo/wow/schema/joda/money/MoneyDefinitionProvider : me/ah
 public final class me/ahoo/wow/schema/kotlin/KotlinCustomDefinitionProvider : com/github/victools/jsonschema/generator/CustomDefinitionProviderV2 {
 	public static final field INSTANCE Lme/ahoo/wow/schema/kotlin/KotlinCustomDefinitionProvider;
 	public fun provideCustomSchemaDefinition (Lcom/fasterxml/classmate/ResolvedType;Lcom/github/victools/jsonschema/generator/SchemaGenerationContext;)Lcom/github/victools/jsonschema/generator/CustomDefinition;
-	public fun resetAfterSchemaGenerationFinished ()V
 }
 
 public final class me/ahoo/wow/schema/kotlin/KotlinFieldIgnoreCheck : me/ahoo/wow/schema/kotlin/KotlinIgnoreCheck {

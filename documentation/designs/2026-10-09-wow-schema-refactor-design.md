@@ -72,8 +72,9 @@ wow-openapi  me.ahoo.wow.schema.openapi（包名保持不变，物理迁入）
 
 ### 3.2 每次生成的状态（解决 D1）
 
-- `KotlinCustomDefinitionProvider` 改成实例类，由 `KotlinModule.applyToConfigBuilder` 为每份配置新建一个；重入保护按 `SchemaGenerationContext` 的身份划分，不再有全局集合。
-- 回归测试：多线程、多生成器并发生成 `KotlinFixture` 和一个递归类型，断言每次输出都与单线程的 golden 相同。修复前这个测试会失败。
+- `KotlinCustomDefinitionProvider` 的重入保护按 `SchemaGenerationContext` 划分（弱引用表，生成结束后随上下文回收），不再有全局集合，也不再需要 `resetAfterSchemaGenerationFinished`。这个保护不能去掉：去掉后，带 getter-only 属性的递归类型会栈溢出。单线程语义与原来完全相同，所以 golden 不变。
+- 回归测试：多线程、每个线程一个生成器，并发生成 `KotlinFixture` 和一个带 getter-only 属性的递归类型，断言每次输出都与单线程相同。修复前这个测试会失败。
+- 一个生成器不能跨线程共享：victools Jackson 模块的属性排序器不是线程安全的。`build()` 的文档写明"每个线程一个生成器"；生产代码本来就是每次 `describe` 新建生成器。
 
 ### 3.3 Builder（解决 D4）
 
