@@ -14,7 +14,7 @@
 package me.ahoo.wow.bi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -85,7 +85,7 @@ class ClickHouseCatalogScaleIntegrationTest {
                 installation = "catalog-scale",
             ),
         )
-        val aggregate = MetadataSearcher.localAggregates.first()
+        val aggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
         val latencies = ConcurrentLinkedQueue<Long>()
         ClickHouseBiDeploymentInspector(
             clientOptions = clientOptions(primary),
