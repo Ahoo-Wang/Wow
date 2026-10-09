@@ -83,7 +83,7 @@ internal class ClickHouseOwnershipRegistryRenderer(
     }
 
     fun renderDropStatement(registryName: String): String =
-        "DROP TABLE IF EXISTS ${qualified(options.consumerDatabase, registryName)}${scopeClause()};"
+        "DROP TABLE IF EXISTS ${qualified(options.consumerDatabase, registryName)}${scopeClause()} SYNC;"
 
     private fun BiOwnershipRegistry.renderHeadValues(): String = listOf(
         literal(deploymentId),
