@@ -36,6 +36,7 @@ internal class ClickHouseRenderContext(
     val deployment: BiDeploymentDescriptor,
     val catalogMutationMode: CatalogMutationMode,
     private val retainedQueueKeys: Set<BiObjectKey>,
+    private val retainedConsumerKeys: Set<BiObjectKey> = emptySet(),
 ) {
     val naming = BiTableNaming(options)
     val topology = options.topology.toDdl()
@@ -92,6 +93,9 @@ internal class ClickHouseRenderContext(
 
     fun isQueueRetained(queueTable: String): Boolean =
         BiObjectKey(options.consumerDatabase, queueTable) in retainedQueueKeys
+
+    fun isConsumerRetained(consumerTable: String): Boolean =
+        BiObjectKey(options.consumerDatabase, consumerTable) in retainedConsumerKeys
 
     fun epochMillis(source: String, property: String): String =
         "toDateTime64(${jsonInt(source, property)} / 1000.0, 3, ${literal(options.timezone)})"

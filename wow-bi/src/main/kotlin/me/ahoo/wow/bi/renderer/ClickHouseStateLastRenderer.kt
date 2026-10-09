@@ -63,10 +63,12 @@ internal class ClickHouseStateLastRenderer(private val context: ClickHouseRender
                         createIfNotExists = catalogMutationMode == CatalogMutationMode.RECONCILE,
                     )
                 )?.withTableComment(storeComment)?.let(::add)
-                if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
-                    add(dropView(options.consumerDatabase, consumerTable))
+                if (!isConsumerRetained(consumerTable)) {
+                    if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
+                        add(dropView(options.consumerDatabase, consumerTable))
+                    }
+                    add(renderConsumer(consumerTable, storeTable, stateStoreTable, consumerComment))
                 }
-                add(renderConsumer(consumerTable, storeTable, stateStoreTable, consumerComment))
                 add(renderPublicView(table, storeTable, viewComment))
             }
         )

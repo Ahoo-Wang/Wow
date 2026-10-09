@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.bi
 
+import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.renderer.CatalogMutationMode
 import me.ahoo.wow.bi.renderer.ClickHouseAggregateRenderPlan
 import me.ahoo.wow.bi.renderer.ClickHouseOwnershipRegistryRenderer
@@ -43,12 +44,18 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
         observed?.let { deployment -> observedPolicy.validate(deployment, descriptor, desiredObjects, operation) }
         val consumerIdentity = resolveConsumerIdentity(operation, descriptor, observed)
         val retainedQueueKeys = resolveRetainedQueueKeys(operation, desiredObjects, descriptor, observed)
+        val retainedConsumerKeys = resolveRetainedConsumerKeys(
+            plannedAggregates,
+            retainedQueueKeys,
+            availableInspection?.reconciliation?.verifiedComputedKeys.orEmpty(),
+        )
         val renderer = ClickHouseScriptRenderer(
             options,
             consumerIdentity,
             descriptor,
             if (observed == null) CatalogMutationMode.CREATE_ONLY else CatalogMutationMode.RECONCILE,
             retainedQueueKeys,
+            retainedConsumerKeys,
         )
         val registryPlan = if (operation == BiScriptOperation.Deploy && shouldRenderDeploymentAnchor) {
             BiOwnershipRegistryPlan.create(
@@ -239,6 +246,39 @@ internal class BiScriptAssembler(private val options: BiScriptOptions) {
             .filter { it.metadata?.kind == BiObjectKind.QUEUE && it.key in desiredQueueKeys }
             .map(ObservedBiObject::key)
             .toSet()
+    }
+
+    /**
+     * Keeps a verified ingress chain attached across DEPLOY instead of dropping and recreating it.
+     *
+     * Kafka-engine streaming resolves its attached views before each poll cycle and commits what that cycle
+     * reads; a consumer dropped inside that window lets the cycle commit messages without writing them.
+     * Retaining a chain is all-or-nothing per stream: the state consumer feeds `state_last` through the state
+     * store, so `state_last` may only be recreated while state ingress is paused.
+     */
+    private fun resolveRetainedConsumerKeys(
+        plannedAggregates: List<PlannedAggregate>,
+        retainedQueueKeys: Set<BiObjectKey>,
+        verifiedComputedKeys: Set<BiObjectKey>,
+    ): Set<BiObjectKey> {
+        if (retainedQueueKeys.isEmpty()) {
+            return emptySet()
+        }
+        val naming = BiTableNaming(options)
+        fun consumerKey(table: String) = BiObjectKey(options.consumerDatabase, "${table}_consumer")
+        return plannedAggregates.flatMapTo(linkedSetOf()) { planned ->
+            val aggregate = planned.namedAggregate
+            val command = naming.toTableName(aggregate, ClickHouseScriptRenderer.COMMAND_SUFFIX)
+            val state = naming.toTableName(aggregate, ClickHouseScriptRenderer.STATE_SUFFIX)
+            val stateLast = naming.toTableName(aggregate, ClickHouseScriptRenderer.STATE_LAST_SUFFIX)
+            listOf(
+                command to listOf(consumerKey(command)),
+                state to listOf(consumerKey(state), consumerKey(stateLast)),
+            ).filter { (stream, chain) ->
+                BiObjectKey(options.consumerDatabase, "${stream}_queue") in retainedQueueKeys &&
+                    chain.all { key -> key in verifiedComputedKeys }
+            }.flatMap { (_, chain) -> chain }
+        }
     }
 
     private fun renderLifecycle(context: LifecycleRenderContext): List<ScriptSection> = with(context) {

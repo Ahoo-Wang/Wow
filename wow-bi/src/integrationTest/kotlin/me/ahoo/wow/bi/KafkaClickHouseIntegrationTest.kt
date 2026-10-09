@@ -109,30 +109,32 @@ class KafkaClickHouseIntegrationTest {
                                     "WHERE __aggregate_id = '$AGGREGATE_ID'",
                                 2,
                             )
-                            val queueUuids = listOf("command", "state").associateWith { suffix ->
+                            val ingressUuids = INGRESS_OBJECT_SUFFIXES.associateWith { suffix ->
                                 connection.queryString(
                                     "SELECT toString(uuid) FROM system.tables " +
                                         "WHERE database = '$CONSUMER_DATABASE' AND " +
-                                        "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                                        "name = '${naming.toTableName(aggregate, suffix)}'",
                                 )
                             }
-                            queueUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
+                            ingressUuids.values.forEach { uuid -> uuid.assert().isNotEqualTo(NIL_UUID) }
 
                             val redeploy = generator.generate(
                                 setOf(aggregate),
                                 BiScriptOperation.Deploy,
                                 inspector.inspectAvailable(options),
                             )
-                            redeploy.assertDoesNotMutateQueues(naming, aggregate)
+                            // A no-op redeploy must keep live ingress attached: dropping a consumer while the
+                            // Kafka engine is between its view check and its insert lets it commit unwritten messages.
+                            redeploy.assertDoesNotMutateIngress(naming, aggregate)
                             redeploy.statements.forEach { statement -> connection.executeStatement(statement) }
                             connection.queryLong(
                                 "SELECT count() FROM $DATABASE.${naming.toTableName(aggregate, "state_store")}"
                             ).assert().isEqualTo(2)
-                            queueUuids.forEach { (suffix, uuid) ->
+                            ingressUuids.forEach { (suffix, uuid) ->
                                 connection.queryString(
                                     "SELECT toString(uuid) FROM system.tables " +
                                         "WHERE database = '$CONSUMER_DATABASE' AND " +
-                                        "name = '${naming.toTableName(aggregate, "${suffix}_queue")}'",
+                                        "name = '${naming.toTableName(aggregate, suffix)}'",
                                 ).assert().isEqualTo(uuid)
                             }
 
@@ -369,17 +371,19 @@ class KafkaClickHouseIntegrationTest {
             check(index >= 0) { "Deployment anchor in phase [$phase] was not generated." }
         }
 
-    private fun BiScriptResult.assertDoesNotMutateQueues(
+    private fun BiScriptResult.assertDoesNotMutateIngress(
         naming: BiTableNaming,
         aggregate: me.ahoo.wow.api.modeling.NamedAggregate,
     ) {
         val script = statements.joinToString("\n")
-        listOf("command", "state").forEach { suffix ->
-            val queue = naming.toTableName(aggregate, "${suffix}_queue")
+        INGRESS_OBJECT_SUFFIXES.forEach { suffix ->
+            val name = "\"$CONSUMER_DATABASE\".\"${naming.toTableName(aggregate, suffix)}\""
             script.assert()
                 .doesNotContain(
-                    "DROP TABLE IF EXISTS \"$CONSUMER_DATABASE\".\"$queue\"",
-                    "CREATE TABLE \"$CONSUMER_DATABASE\".\"$queue\"",
+                    "DROP TABLE IF EXISTS $name",
+                    "CREATE TABLE $name",
+                    "DROP VIEW IF EXISTS $name",
+                    "CREATE MATERIALIZED VIEW IF NOT EXISTS $name",
                 )
         }
     }
@@ -449,5 +453,12 @@ class KafkaClickHouseIntegrationTest {
         const val AGGREGATE_ID = "aggregate-kafka"
         val AWAIT_TIMEOUT: Duration = Duration.ofSeconds(30)
         val AWAIT_INTERVAL: Duration = Duration.ofMillis(250)
+        val INGRESS_OBJECT_SUFFIXES = listOf(
+            "command_queue",
+            "command_consumer",
+            "state_queue",
+            "state_consumer",
+            "state_last_consumer",
+        )
     }
 }

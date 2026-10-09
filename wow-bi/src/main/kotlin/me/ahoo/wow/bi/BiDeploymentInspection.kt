@@ -58,11 +58,13 @@ sealed interface BiDeploymentInspection {
                 deployment: ObservedBiDeployment,
                 repairableComputedDrifts: List<RepairableBiObjectDrift>,
                 ownershipRegistry: BiOwnershipRegistry?,
+                verifiedComputedKeys: Set<BiObjectKey> = emptySet(),
             ): Available = Available(
                 deployment,
                 BiReconciliationSnapshot(
                     Collections.unmodifiableList(ArrayList(repairableComputedDrifts)),
                     ownershipRegistry,
+                    Collections.unmodifiableSet(LinkedHashSet(verifiedComputedKeys)),
                 ),
             )
         }
@@ -72,6 +74,8 @@ sealed interface BiDeploymentInspection {
 internal data class BiReconciliationSnapshot(
     val repairableComputedDrifts: List<RepairableBiObjectDrift>,
     val ownershipRegistry: BiOwnershipRegistry?,
+    /** Computed objects whose observed SELECT and target match the requested deployment exactly. */
+    val verifiedComputedKeys: Set<BiObjectKey> = emptySet(),
 ) {
     companion object {
         val EMPTY = BiReconciliationSnapshot(emptyList(), null)

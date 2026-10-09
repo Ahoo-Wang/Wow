@@ -338,6 +338,54 @@ class BiScriptGeneratorTest {
     }
 
     @Test
+    fun `should keep verified ingress consumers attached during an authoritative deploy`() {
+        val result = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy,
+            verifiedIngressInspection(verifiedConsumers = INGRESS_CONSUMERS),
+        )
+
+        INGRESS_CONSUMERS.forEach { consumer ->
+            result.script.assert().doesNotContain(
+                "DROP VIEW IF EXISTS \"bi_db_consumer\".\"$consumer\"",
+                "CREATE MATERIALIZED VIEW IF NOT EXISTS \"bi_db_consumer\".\"$consumer\"",
+            )
+        }
+    }
+
+    @Test
+    fun `should recreate the whole state ingress chain when state last drifted`() {
+        val result = generator().generate(
+            setOf(aggregate),
+            BiScriptOperation.Deploy,
+            verifiedIngressInspection(
+                verifiedConsumers = INGRESS_CONSUMERS - "bi_aggregate_state_last_consumer",
+            ),
+        )
+
+        result.script.assert()
+            .doesNotContain(
+                "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\"",
+                "CREATE MATERIALIZED VIEW IF NOT EXISTS \"bi_db_consumer\".\"bi_aggregate_command_consumer\"",
+            )
+        val pauseState = indexOfStatement(
+            result.statements,
+            "DROP VIEW IF EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\"",
+        )
+        val recreateStateLast = indexOfStatement(
+            result.statements,
+            "CREATE MATERIALIZED VIEW IF NOT EXISTS \"bi_db_consumer\".\"bi_aggregate_state_last_consumer\"",
+        )
+        val resumeState = result.statements.indexOfLast { statement ->
+            statement.contains(
+                "CREATE MATERIALIZED VIEW IF NOT EXISTS \"bi_db_consumer\".\"bi_aggregate_state_consumer\""
+            )
+        }
+        pauseState.assert().isLessThan(recreateStateLast)
+        recreateStateLast.assert().isLessThan(resumeState)
+    }
+
+    @Test
     fun `should create an authoritatively missing Kafka queue without an existence guard`() {
         val result = generator().generate(
             setOf(aggregate),
@@ -1132,6 +1180,22 @@ class BiScriptGeneratorTest {
     private fun availableInspection(vararg objects: ObservedBiObject): BiDeploymentInspection.Available =
         BiDeploymentInspection.Available(ObservedBiDeployment(objects.toList()))
 
+    private fun verifiedIngressInspection(verifiedConsumers: Set<String>): BiDeploymentInspection.Available {
+        val queues = listOf("bi_aggregate_command_queue", "bi_aggregate_state_queue").map { queue ->
+            observed("bi_db_consumer", queue, BiObjectKind.QUEUE, "bi.aggregate")
+        }
+        val consumers = INGRESS_CONSUMERS.map { consumer ->
+            observed("bi_db_consumer", consumer, BiObjectKind.CONSUMER, "bi.aggregate")
+                .copy(engine = "MaterializedView")
+        }
+        return BiDeploymentInspection.Available.reconciled(
+            deployment = ObservedBiDeployment(listOf(anchor()) + queues + consumers),
+            repairableComputedDrifts = emptyList(),
+            ownershipRegistry = null,
+            verifiedComputedKeys = verifiedConsumers.mapTo(linkedSetOf()) { BiObjectKey("bi_db_consumer", it) },
+        )
+    }
+
     private fun anchor(
         options: BiScriptOptions = BiScriptOptions(consumerGroupNamespace = "test"),
         identity: BiConsumerIdentity = BiConsumerIdentity.deterministic(BiDeploymentDescriptor.from(options)),
@@ -1200,4 +1264,12 @@ class BiScriptGeneratorTest {
         }.also { index ->
             check(index >= 0) { "Deployment anchor in phase [$phase] was not generated." }
         }
+
+    private companion object {
+        val INGRESS_CONSUMERS = setOf(
+            "bi_aggregate_command_consumer",
+            "bi_aggregate_state_consumer",
+            "bi_aggregate_state_last_consumer",
+        )
+    }
 }

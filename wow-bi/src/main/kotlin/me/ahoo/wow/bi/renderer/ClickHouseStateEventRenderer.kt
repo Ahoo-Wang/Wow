@@ -69,6 +69,9 @@ internal class ClickHouseStateEventRenderer(private val context: ClickHouseRende
             ),
             ingress = immutableStatements(
                 buildList {
+                    if (isConsumerRetained(consumerTable)) {
+                        return@buildList
+                    }
                     if (catalogMutationMode == CatalogMutationMode.RECONCILE) {
                         add(dropView(options.consumerDatabase, consumerTable))
                     }

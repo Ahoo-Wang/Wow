@@ -34,18 +34,22 @@ internal object ClickHouseBiDeploymentValidator {
         )
         validateStores(validationContext, objects)
         validateQueues(validationContext, uniqueObjects)
+        val computedDefinitions = computedDefinitions(
+            ComputedDriftValidationContext(
+                operation = operation,
+                requestedDeploymentIsStable = deploymentStable,
+                descriptor = descriptor,
+                objects = uniqueObjects,
+                desiredObjects = desiredObjects,
+                expectedQueries = snapshot.expectedQueries,
+            )
+        )
         return ValidatedBiDeployment(
             deployment = ObservedBiDeployment(uniqueObjects.map(ClickHouseCatalogObject::observed)),
-            repairableDrifts = repairableComputedDrifts(
-                ComputedDriftValidationContext(
-                    operation = operation,
-                    requestedDeploymentIsStable = deploymentStable,
-                    descriptor = descriptor,
-                    objects = uniqueObjects,
-                    desiredObjects = desiredObjects,
-                    expectedQueries = snapshot.expectedQueries,
-                )
-            ),
+            repairableDrifts = computedDefinitions.filterIsInstance<ComputedDefinition.Drifted>()
+                .map(ComputedDefinition.Drifted::drift),
+            verifiedComputedKeys = computedDefinitions.filterIsInstance<ComputedDefinition.Verified>()
+                .mapTo(linkedSetOf(), ComputedDefinition.Verified::key),
         )
     }
 
@@ -94,7 +98,8 @@ internal object ClickHouseBiDeploymentValidator {
             }
     }
 
-    private fun repairableComputedDrifts(context: ComputedDriftValidationContext): List<RepairableBiObjectDrift> =
+    /** Compares each comparable computed object with its expected definition: verified or drifted. */
+    private fun computedDefinitions(context: ComputedDriftValidationContext): List<ComputedDefinition> =
         with(context) {
             if (operation != BiScriptOperation.Deploy || !requestedDeploymentIsStable || desiredObjects == null) {
                 return emptyList()
@@ -120,13 +125,15 @@ internal object ClickHouseBiDeploymentValidator {
                     }
                 }
                 if (mismatches.isEmpty()) {
-                    null
+                    ComputedDefinition.Verified(observed.key)
                 } else {
-                    RepairableBiObjectDrift(
-                        key = observed.key,
-                        aggregate = checkNotNull(desired.aggregate),
-                        kind = desired.kind,
-                        mismatches = mismatches,
+                    ComputedDefinition.Drifted(
+                        RepairableBiObjectDrift(
+                            key = observed.key,
+                            aggregate = checkNotNull(desired.aggregate),
+                            kind = desired.kind,
+                            mismatches = mismatches,
+                        )
                     )
                 }
             }
@@ -251,4 +258,10 @@ private data class CatalogObjectValidationContext(
 internal data class ValidatedBiDeployment(
     val deployment: ObservedBiDeployment,
     val repairableDrifts: List<RepairableBiObjectDrift>,
+    val verifiedComputedKeys: Set<BiObjectKey> = emptySet(),
 )
+
+private sealed interface ComputedDefinition {
+    data class Verified(val key: BiObjectKey) : ComputedDefinition
+    data class Drifted(val drift: RepairableBiObjectDrift) : ComputedDefinition
+}

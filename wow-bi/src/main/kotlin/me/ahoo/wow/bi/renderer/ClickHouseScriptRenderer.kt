@@ -54,6 +54,7 @@ internal class ClickHouseScriptRenderer(
     deployment: BiDeploymentDescriptor = BiDeploymentDescriptor.from(options),
     catalogMutationMode: CatalogMutationMode = CatalogMutationMode.RECONCILE,
     retainedQueueKeys: Set<BiObjectKey> = emptySet(),
+    retainedConsumerKeys: Set<BiObjectKey> = emptySet(),
 ) {
     private val context = ClickHouseRenderContext(
         options = options,
@@ -61,6 +62,7 @@ internal class ClickHouseScriptRenderer(
         deployment = deployment,
         catalogMutationMode = catalogMutationMode,
         retainedQueueKeys = retainedQueueKeys,
+        retainedConsumerKeys = retainedConsumerKeys,
     )
     private val lifecycle = ClickHouseLifecycleRenderer(context)
     private val command = ClickHouseCommandRenderer(context)
