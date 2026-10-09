@@ -15,7 +15,7 @@ package me.ahoo.wow.schema.openapi
 
 import io.swagger.v3.oas.models.media.Schema
 
-object SchemaMerger {
+internal object SchemaMerger {
     @Suppress("LongMethod")
     fun Schema<*>.mergeTo(target: Schema<*>) {
         target.name(name)

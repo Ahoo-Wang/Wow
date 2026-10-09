@@ -12,12 +12,8 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.schema.AnnotationFixture
-import me.ahoo.wow.schema.ChangeTestName
-import me.ahoo.wow.schema.CreateTestAggregate
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import me.ahoo.wow.schema.TestState
-import me.ahoo.wow.schema.TreeNodeFixture
+import me.ahoo.wow.schema.naming.SchemaNamingModule
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
@@ -208,12 +204,20 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
+    fun `should leave the given generator builder unchanged`() {
+        val schemaNamingModule = SchemaNamingModule(defaultSchemaNamePrefix = "")
+        val builder = SchemaGeneratorBuilder().schemaNamingModule(schemaNamingModule)
+        OpenAPISchemaBuilder(defaultSchemaNamePrefix = "test.", schemaGeneratorBuilder = builder)
+        builder.schemaNamingModule.assert().isSameAs(schemaNamingModule)
+    }
+
+    @Test
     fun `should build tree node schema with recursive ref`() {
         val definitionPath = "${'$'}defs"
         val openAPISchemaBuilder = OpenAPISchemaBuilder(definitionPath = definitionPath)
         openAPISchemaBuilder.generateSchema(TreeNodeFixture::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.schema.TreeNodeFixture"]
+        val schema = componentsSchemas["wow.TreeNodeFixture"]
         val childrenItem = schema?.properties[TreeNodeFixture::children.name]?.items
         childrenItem.assert().isNotNull()
         childrenItem?.`$ref`.assert().startsWith("#/$definitionPath")
@@ -225,7 +229,7 @@ class OpenAPISchemaBuilderTest {
         val arrayType = TypeResolver().arrayType(AnnotationFixture::class.java)
         val arrayTypeSchema = openAPISchemaBuilder.generateSchema(arrayType)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.schema.AnnotationFixture"]
+        val schema = componentsSchemas["wow.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
     }
 }

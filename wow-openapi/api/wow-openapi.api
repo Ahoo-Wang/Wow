@@ -1195,3 +1195,24 @@ public final class me/ahoo/wow/openapi/render/OpenApiRenderer {
 public final class me/ahoo/wow/openapi/render/OpenApiRenderer$Companion {
 }
 
+public abstract interface class me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+	public abstract fun getInline ()Z
+}
+
+public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder : me/ahoo/wow/schema/naming/DefaultSchemaNamePrefixCapable, me/ahoo/wow/schema/openapi/InlineSchemaCapable {
+	public static final field Companion Lme/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion;
+	public static final field DEFAULT_DEFINITION_PATH Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/schema/SchemaGeneratorBuilder;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/schema/SchemaGeneratorBuilder;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun build ()Ljava/util/Map;
+	public final fun generateSchema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+	public fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
+	public fun getInline ()Z
+	public final fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
+	public final fun toSchema (Ltools/jackson/databind/JsonNode;)Lio/swagger/v3/oas/models/media/Schema;
+}
+
+public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion {
+}
+

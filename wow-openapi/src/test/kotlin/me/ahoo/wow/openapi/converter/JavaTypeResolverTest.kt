@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.openapi.converter
 
 import com.fasterxml.classmate.types.ResolvedArrayType
 import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.schema.JavaTypeResolver.toResolvedType
+import me.ahoo.wow.openapi.converter.JavaTypeResolver.toResolvedType
 import org.junit.jupiter.api.Test
 
 class JavaTypeResolverTest {
