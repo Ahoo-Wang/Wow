@@ -1,69 +1,7 @@
-public final class me/ahoo/wow/bi/BiAnchorState {
-	public fun <init> (Lme/ahoo/wow/bi/BiDeploymentPhase;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
-	public synthetic fun <init> (Lme/ahoo/wow/bi/BiDeploymentPhase;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Lme/ahoo/wow/bi/BiDeploymentPhase;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Ljava/util/List;
-	public final fun copy (Lme/ahoo/wow/bi/BiDeploymentPhase;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/bi/BiAnchorState;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiAnchorState;Lme/ahoo/wow/bi/BiDeploymentPhase;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiAnchorState;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getConfigurationFingerprint ()Ljava/lang/String;
-	public final fun getConsumerIdentity ()Ljava/lang/String;
-	public final fun getDurableInventory ()Ljava/util/List;
-	public final fun getPhase ()Lme/ahoo/wow/bi/BiDeploymentPhase;
-	public final fun getTopologyFingerprint ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiConsumerIdentity {
-	public static final field Companion Lme/ahoo/wow/bi/BiConsumerIdentity$Companion;
-	public static final synthetic fun box-impl (Ljava/lang/String;)Lme/ahoo/wow/bi/BiConsumerIdentity;
-	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
-	public fun equals (Ljava/lang/Object;)Z
-	public static fun equals-impl (Ljava/lang/String;Ljava/lang/Object;)Z
-	public static final fun equals-impl0 (Ljava/lang/String;Ljava/lang/String;)Z
-	public final fun getValue ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static fun hashCode-impl (Ljava/lang/String;)I
-	public fun toString ()Ljava/lang/String;
-	public static fun toString-impl (Ljava/lang/String;)Ljava/lang/String;
-	public final synthetic fun unbox-impl ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiConsumerIdentity$Companion {
-	public final fun deterministic-ePep7XI (Lme/ahoo/wow/bi/BiDeploymentDescriptor;)Ljava/lang/String;
-	public final fun random-hzimII4 ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiDeploymentDescriptor {
-	public static final field Companion Lme/ahoo/wow/bi/BiDeploymentDescriptor$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/bi/BiDeploymentDescriptor;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiDeploymentDescriptor;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiDeploymentDescriptor;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getConfigurationFingerprint ()Ljava/lang/String;
-	public final fun getDeploymentId ()Ljava/lang/String;
-	public final fun getTopologyFingerprint ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiDeploymentDescriptor$Companion {
-	public final fun from (Lme/ahoo/wow/bi/BiScriptOptions;)Lme/ahoo/wow/bi/BiDeploymentDescriptor;
-}
-
 public abstract interface class me/ahoo/wow/bi/BiDeploymentInspection {
 }
 
 public final class me/ahoo/wow/bi/BiDeploymentInspection$Available : me/ahoo/wow/bi/BiDeploymentInspection {
-	public fun <init> (Lme/ahoo/wow/bi/ObservedBiDeployment;)V
-	public final fun getDeployment ()Lme/ahoo/wow/bi/ObservedBiDeployment;
 }
 
 public final class me/ahoo/wow/bi/BiDeploymentInspection$Unavailable : me/ahoo/wow/bi/BiDeploymentInspection {
@@ -111,91 +49,6 @@ public final class me/ahoo/wow/bi/BiDeploymentInspector$DefaultImpls {
 	public static fun getAllowsDynamicScope (Lme/ahoo/wow/bi/BiDeploymentInspector;)Z
 }
 
-public final class me/ahoo/wow/bi/BiDeploymentPhase : java/lang/Enum {
-	public static final field RESETTING Lme/ahoo/wow/bi/BiDeploymentPhase;
-	public static final field STABLE Lme/ahoo/wow/bi/BiDeploymentPhase;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/bi/BiDeploymentPhase;
-	public static fun values ()[Lme/ahoo/wow/bi/BiDeploymentPhase;
-}
-
-public final class me/ahoo/wow/bi/BiDurableEntry {
-	public fun <init> (Lme/ahoo/wow/bi/BiObjectKey;Lme/ahoo/wow/bi/BiDurableStatus;)V
-	public final fun component1 ()Lme/ahoo/wow/bi/BiObjectKey;
-	public final fun component2 ()Lme/ahoo/wow/bi/BiDurableStatus;
-	public final fun copy (Lme/ahoo/wow/bi/BiObjectKey;Lme/ahoo/wow/bi/BiDurableStatus;)Lme/ahoo/wow/bi/BiDurableEntry;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiDurableEntry;Lme/ahoo/wow/bi/BiObjectKey;Lme/ahoo/wow/bi/BiDurableStatus;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiDurableEntry;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getKey ()Lme/ahoo/wow/bi/BiObjectKey;
-	public final fun getStatus ()Lme/ahoo/wow/bi/BiDurableStatus;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiDurableStatus : java/lang/Enum {
-	public static final field ACTIVE Lme/ahoo/wow/bi/BiDurableStatus;
-	public static final field RETIRED Lme/ahoo/wow/bi/BiDurableStatus;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/bi/BiDurableStatus;
-	public static fun values ()[Lme/ahoo/wow/bi/BiDurableStatus;
-}
-
-public final class me/ahoo/wow/bi/BiObjectKey {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/bi/BiObjectKey;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiObjectKey;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiObjectKey;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getDatabase ()Ljava/lang/String;
-	public final fun getName ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiObjectKind : java/lang/Enum {
-	public static final field ANCHOR Lme/ahoo/wow/bi/BiObjectKind;
-	public static final field CONSUMER Lme/ahoo/wow/bi/BiObjectKind;
-	public static final field QUEUE Lme/ahoo/wow/bi/BiObjectKind;
-	public static final field STORE Lme/ahoo/wow/bi/BiObjectKind;
-	public static final field VIEW Lme/ahoo/wow/bi/BiObjectKind;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/bi/BiObjectKind;
-	public static fun values ()[Lme/ahoo/wow/bi/BiObjectKind;
-}
-
-public final class me/ahoo/wow/bi/BiObjectMetadata {
-	public static final field CURRENT_LAYOUT_VERSION I
-	public static final field Companion Lme/ahoo/wow/bi/BiObjectMetadata$Companion;
-	public fun <init> (ILjava/lang/String;Lme/ahoo/wow/bi/BiObjectKind;Ljava/lang/String;Lme/ahoo/wow/bi/BiAnchorState;)V
-	public synthetic fun <init> (ILjava/lang/String;Lme/ahoo/wow/bi/BiObjectKind;Ljava/lang/String;Lme/ahoo/wow/bi/BiAnchorState;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()I
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Lme/ahoo/wow/bi/BiObjectKind;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Lme/ahoo/wow/bi/BiAnchorState;
-	public final fun copy (ILjava/lang/String;Lme/ahoo/wow/bi/BiObjectKind;Ljava/lang/String;Lme/ahoo/wow/bi/BiAnchorState;)Lme/ahoo/wow/bi/BiObjectMetadata;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/BiObjectMetadata;ILjava/lang/String;Lme/ahoo/wow/bi/BiObjectKind;Ljava/lang/String;Lme/ahoo/wow/bi/BiAnchorState;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiObjectMetadata;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAggregate ()Ljava/lang/String;
-	public final fun getAnchor ()Lme/ahoo/wow/bi/BiAnchorState;
-	public final fun getDeploymentId ()Ljava/lang/String;
-	public final fun getKind ()Lme/ahoo/wow/bi/BiObjectKind;
-	public final fun getLayoutVersion ()I
-	public fun hashCode ()I
-	public final fun isCurrentLayout ()Z
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/BiObjectMetadata$Companion {
-}
-
-public final class me/ahoo/wow/bi/BiObjectMetadataCodec {
-	public static final field INSTANCE Lme/ahoo/wow/bi/BiObjectMetadataCodec;
-	public final fun decode (Ljava/lang/String;)Lme/ahoo/wow/bi/BiObjectMetadata;
-	public final fun encode (Lme/ahoo/wow/bi/BiObjectMetadata;)Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/bi/BiScriptDiagnostic {
 	public fun <init> (Lme/ahoo/wow/bi/BiScriptDiagnosticCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/BiScriptMappingDecision;Ljava/lang/String;)V
 	public final fun component1 ()Lme/ahoo/wow/bi/BiScriptDiagnosticCode;
@@ -234,9 +87,7 @@ public final class me/ahoo/wow/bi/BiScriptGenerator {
 	public fun <init> ()V
 	public fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;)V
 	public synthetic fun <init> (Lme/ahoo/wow/bi/BiScriptOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun generate (Ljava/util/Set;Lme/ahoo/wow/bi/BiScriptOperation;Lme/ahoo/wow/bi/BiDeploymentInspection;)Lme/ahoo/wow/bi/BiScriptResult;
 	public final fun generate (Lme/ahoo/wow/bi/BiScriptPreparation;Lme/ahoo/wow/bi/BiScriptOperation;Lme/ahoo/wow/bi/BiDeploymentInspection;)Lme/ahoo/wow/bi/BiScriptResult;
-	public static synthetic fun generate$default (Lme/ahoo/wow/bi/BiScriptGenerator;Ljava/util/Set;Lme/ahoo/wow/bi/BiScriptOperation;Lme/ahoo/wow/bi/BiDeploymentInspection;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiScriptResult;
 	public static synthetic fun generate$default (Lme/ahoo/wow/bi/BiScriptGenerator;Lme/ahoo/wow/bi/BiScriptPreparation;Lme/ahoo/wow/bi/BiScriptOperation;Lme/ahoo/wow/bi/BiDeploymentInspection;ILjava/lang/Object;)Lme/ahoo/wow/bi/BiScriptResult;
 	public final fun prepare (Ljava/util/Set;)Lme/ahoo/wow/bi/BiScriptPreparation;
 }
@@ -338,6 +189,14 @@ public final class me/ahoo/wow/bi/BiScriptResult {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/bi/BiScriptService {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/bi/BiDeploymentInspector;Lreactor/core/scheduler/Scheduler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/bi/BiDeploymentInspector;Lreactor/core/scheduler/Scheduler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun generate (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiScriptOperation;Lkotlin/jvm/functions/Function0;)Lreactor/core/publisher/Mono;
+	public static synthetic fun generate$default (Lme/ahoo/wow/bi/BiScriptService;Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiScriptOperation;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)Lreactor/core/publisher/Mono;
+}
+
 public final class me/ahoo/wow/bi/ClickHouseBiDeploymentInspector : java/lang/AutoCloseable, me/ahoo/wow/bi/BiDeploymentInspector {
 	public fun <init> (Lme/ahoo/wow/bi/ClickHouseClientOptions;Ljava/time/Duration;)V
 	public synthetic fun <init> (Lme/ahoo/wow/bi/ClickHouseClientOptions;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -420,41 +279,6 @@ public final class me/ahoo/wow/bi/NoOpBiDeploymentInspector : me/ahoo/wow/bi/BiD
 	public fun getAllowsDynamicScope ()Z
 	public fun hashCode ()I
 	public fun inspect (Lme/ahoo/wow/bi/BiScriptOptions;Lme/ahoo/wow/bi/BiScriptOperation;Lme/ahoo/wow/bi/BiScriptPreparation;)Lreactor/core/publisher/Mono;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/ObservedBiDeployment {
-	public fun <init> (Ljava/util/List;)V
-	public final fun component1 ()Ljava/util/List;
-	public final fun copy (Ljava/util/List;)Lme/ahoo/wow/bi/ObservedBiDeployment;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/ObservedBiDeployment;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/bi/ObservedBiDeployment;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getObjects ()Ljava/util/List;
-	public final fun getOwnedObjects ()Ljava/util/List;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/bi/ObservedBiObject {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/BiObjectMetadata;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/BiObjectMetadata;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Ljava/lang/String;
-	public final fun component6 ()Lme/ahoo/wow/bi/BiObjectMetadata;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/BiObjectMetadata;)Lme/ahoo/wow/bi/ObservedBiObject;
-	public static synthetic fun copy$default (Lme/ahoo/wow/bi/ObservedBiObject;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/bi/BiObjectMetadata;ILjava/lang/Object;)Lme/ahoo/wow/bi/ObservedBiObject;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCreateTableQuery ()Ljava/lang/String;
-	public final fun getDatabase ()Ljava/lang/String;
-	public final fun getEngine ()Ljava/lang/String;
-	public final fun getEngineFull ()Ljava/lang/String;
-	public final fun getKey ()Lme/ahoo/wow/bi/BiObjectKey;
-	public final fun getMetadata ()Lme/ahoo/wow/bi/BiObjectMetadata;
-	public final fun getName ()Ljava/lang/String;
-	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 

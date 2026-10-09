@@ -537,7 +537,11 @@ internal class WebFluxAutoConfigurationTest {
                             topology = ClickHouseTopology.Cluster(),
                             consumerGroupNamespace = "test",
                         )
-                    ).generate(MetadataSearcher.localAggregates).script
+                    ).let { generator ->
+                        generator.generate(
+                            generator.prepare(MetadataSearcher.localAggregates)
+                        )
+                    }.script
                 )
             }
     }
@@ -1015,7 +1019,8 @@ internal class WebFluxAutoConfigurationTest {
                 script.assert().contains("-- global --")
                 script.assert().isEqualTo(
                     BiScriptGenerator(BiScriptOptions(consumerGroupNamespace = "test"))
-                        .generate(MetadataSearcher.localAggregates).script
+                        .let { generator -> generator.generate(generator.prepare(MetadataSearcher.localAggregates)) }
+                        .script
                 )
             }
     }
@@ -1044,7 +1049,7 @@ internal class WebFluxAutoConfigurationTest {
     @Test
     fun `should back off the default BI deployment inspector`() {
         val customInspector = BiDeploymentInspector { _, _, _ ->
-            Mono.just(BiDeploymentInspection.Available(me.ahoo.wow.bi.ObservedBiDeployment(emptyList())))
+            Mono.just(BiDeploymentInspection.Unavailable)
         }
         webFluxContextRunner()
             .withBean(BiDeploymentInspector::class.java, { customInspector })
@@ -1423,7 +1428,8 @@ internal class WebFluxAutoConfigurationTest {
         }.build()
 
     private fun String.assertExplicitBiScript(expectedOptions: BiScriptOptions) {
-        assert().isEqualTo(BiScriptGenerator(expectedOptions).generate(MetadataSearcher.localAggregates).script)
+        val generator = BiScriptGenerator(expectedOptions)
+        assert().isEqualTo(generator.generate(generator.prepare(MetadataSearcher.localAggregates)).script)
         assert().contains(
             "CREATE DATABASE IF NOT EXISTS \"analytics\" ON CLUSTER 'production'",
             "CREATE DATABASE IF NOT EXISTS \"analytics_consumer\" ON CLUSTER 'production'",

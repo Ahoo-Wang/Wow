@@ -67,7 +67,7 @@ class ClickHouseBiDeploymentInspectorIntegrationTest {
             val descriptor = BiDeploymentDescriptor.from(options)
             val identity = BiConsumerIdentity.deterministic(descriptor)
             val aggregate = aggregateMetadata<ClickHouseExpansionAggregate, ClickHouseExpansionState>()
-            val desiredForeignKey = BiScriptGenerator(options).desiredObjectKeys(setOf(aggregate))
+            val desiredForeignKey = BiScriptGenerator(options).prepare(setOf(aggregate)).desiredObjectKeys
                 .first()
             val storeMetadata = BiObjectMetadata(
                 deploymentId = descriptor.deploymentId,

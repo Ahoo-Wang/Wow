@@ -34,11 +34,6 @@ class BiPublicApiTest {
             .sorted()
 
         publicTypes.assert().containsExactly(
-            BiAnchorState::class.qualifiedName,
-            BiConsumerIdentity::class.qualifiedName,
-            BiConsumerIdentity.Companion::class.qualifiedName,
-            BiDeploymentDescriptor::class.qualifiedName,
-            BiDeploymentDescriptor.Companion::class.qualifiedName,
             BiDeploymentInspection::class.qualifiedName,
             BiDeploymentInspection.Available::class.qualifiedName,
             BiDeploymentInspection.Unavailable::class.qualifiedName,
@@ -48,14 +43,6 @@ class BiPublicApiTest {
             BiDeploymentInspectionException.Timeout::class.qualifiedName,
             BiDeploymentInspectionException.Unavailable::class.qualifiedName,
             BiDeploymentInspector::class.qualifiedName,
-            BiDeploymentPhase::class.qualifiedName,
-            BiDurableEntry::class.qualifiedName,
-            BiDurableStatus::class.qualifiedName,
-            BiObjectKey::class.qualifiedName,
-            BiObjectKind::class.qualifiedName,
-            BiObjectMetadata::class.qualifiedName,
-            BiObjectMetadata.Companion::class.qualifiedName,
-            BiObjectMetadataCodec::class.qualifiedName,
             BiScriptDiagnostic::class.qualifiedName,
             BiScriptDiagnosticCode::class.qualifiedName,
             BiScriptGenerator::class.qualifiedName,
@@ -67,6 +54,7 @@ class BiPublicApiTest {
             BiScriptOptions.Companion::class.qualifiedName,
             BiScriptPreparation::class.qualifiedName,
             BiScriptResult::class.qualifiedName,
+            BiScriptService::class.qualifiedName,
             ClickHouseBiDeploymentInspector::class.qualifiedName,
             ClickHouseClientOptions::class.qualifiedName,
             ClickHouseTopology::class.qualifiedName,
@@ -75,8 +63,6 @@ class BiPublicApiTest {
             ClickHouseTopology.Standalone::class.qualifiedName,
             KafkaOffsetStorage::class.qualifiedName,
             NoOpBiDeploymentInspector::class.qualifiedName,
-            ObservedBiDeployment::class.qualifiedName,
-            ObservedBiObject::class.qualifiedName,
             UnsupportedTypeStrategy::class.qualifiedName,
         )
     }

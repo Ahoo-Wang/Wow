@@ -22,6 +22,7 @@ import me.ahoo.wow.bi.BiScriptDiagnosticCode
 import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptMappingDecision
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.generate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.QueryTypeFact
 import me.ahoo.wow.query.schema.effectiveSensitivityLevel

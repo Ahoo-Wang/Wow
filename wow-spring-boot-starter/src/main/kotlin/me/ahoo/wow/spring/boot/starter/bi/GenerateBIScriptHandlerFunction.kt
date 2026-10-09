@@ -15,13 +15,12 @@ package me.ahoo.wow.spring.boot.starter.bi
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
-import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.BiScriptResult
+import me.ahoo.wow.bi.BiScriptService
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -38,24 +37,10 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
-import java.util.concurrent.RejectedExecutionException
 import java.util.function.Predicate
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 private val SUPPORTED_RESPONSE_MEDIA_TYPES = listOf(APPLICATION_SQL_MEDIA_TYPE, MediaType.APPLICATION_JSON)
-private const val BI_SCRIPT_GENERATION_THREADS: Int = 4
-private const val BI_SCRIPT_GENERATION_QUEUE_SIZE: Int = 256
-private const val BI_SCRIPT_GENERATION_TTL_SECONDS: Int = 60
-private val BI_SCRIPT_GENERATION_SCHEDULER: Scheduler = Schedulers.newBoundedElastic(
-    BI_SCRIPT_GENERATION_THREADS,
-    BI_SCRIPT_GENERATION_QUEUE_SIZE,
-    "wow-bi-script-generation",
-    BI_SCRIPT_GENERATION_TTL_SECONDS,
-    true,
-)
-
 private val ALL_AGGREGATES: Predicate<NamedAggregate> = Predicate { true }
 
 /**
@@ -65,7 +50,7 @@ internal class GenerateBIScriptHandlerFunction(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
-    private val generationScheduler: Scheduler = BI_SCRIPT_GENERATION_SCHEDULER,
+    private val scriptService: BiScriptService = BiScriptService(deploymentInspector),
     private val aggregateFilter: Predicate<NamedAggregate> = ALL_AGGREGATES,
 ) : HandlerFunction<ServerResponse> {
 
@@ -88,20 +73,10 @@ internal class GenerateBIScriptHandlerFunction(
         operation: BiScriptOperation,
         responseMediaType: MediaType,
     ): Mono<ServerResponse> {
-        val generator = BiScriptGenerator(requestOptions)
-        return Mono.fromCallable {
-            generator.prepare(MetadataSearcher.localAggregates.filterTo(linkedSetOf()) { aggregateFilter.test(it) })
+        return scriptService.generate(requestOptions, operation) {
+            MetadataSearcher.localAggregates.filterTo(linkedSetOf()) { aggregateFilter.test(it) }
         }
-            .subscribeOn(generationScheduler)
-            .mapGenerationOverload()
-            .flatMap { preparation ->
-                deploymentInspector.inspect(requestOptions, operation, preparation).flatMap { inspection ->
-                    Mono.fromCallable {
-                        generator.generate(preparation, operation, inspection)
-                    }.subscribeOn(generationScheduler)
-                        .mapGenerationOverload()
-                }
-            }.flatMap { result ->
+            .flatMap { result ->
                 logDiagnostics(result.diagnostics)
                 val response = ServerResponse.ok()
                     .header(BiScriptHeaders.DIAGNOSTIC_COUNT, result.diagnostics.size.toString())
@@ -112,14 +87,6 @@ internal class GenerateBIScriptHandlerFunction(
                 }
             }
     }
-
-    private fun <T : Any> Mono<T>.mapGenerationOverload(): Mono<T> =
-        onErrorMap(RejectedExecutionException::class.java) { error ->
-            BiDeploymentInspectionException.Unavailable(
-                message = "Wow BI script generation is overloaded",
-                cause = error,
-            )
-        }
 
     private fun BiScriptResult.toResponse(): BiScriptResponse = BiScriptResponse(
         script = script,
@@ -169,7 +136,6 @@ internal class GenerateBIScriptHandlerFunctionFactory(
             options = options,
             deploymentInspector = deploymentInspector,
             exceptionHandler = exceptionHandler,
-            generationScheduler = BI_SCRIPT_GENERATION_SCHEDULER,
             aggregateFilter = aggregateFilter,
         )
     }
