@@ -15,6 +15,7 @@ package me.ahoo.wow.execution
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import java.time.Duration
 
 /**
  * The execution resource every dispatcher of one [me.ahoo.wow.runtime.WowRuntime] shares (design X7): one set of
@@ -40,17 +41,29 @@ import kotlinx.coroutines.asCoroutineDispatcher
  * @param name the worker thread name prefix.
  * @param throughput the most messages of one aggregate a worker runs in one turn (while they complete synchronously)
  * before it moves on to other aggregates, so one hot aggregate cannot starve the others.
+ * @param spin the longest a worker that ran out of messages spins before it parks, at most [MAX_SPIN]; the default,
+ * [Duration.ZERO], parks at once (no spin). Worth setting only for in-memory, high-rate dispatch whose messages keep
+ * arriving within microseconds of each other; with a real store the gain is within noise. A worker spins only when its last wait was shorter than this; after a longer wait it
+ * parks at once. A spinning worker takes the next message without the wake-up a park costs (an OS call by the sender
+ * and the scheduling delay of the woken thread). CPU cost: while messages keep arriving at intervals shorter than the
+ * spin, a worker can stay busy on one core the whole time; after each short interval, the next wait can cost up to
+ * the spin in CPU even when no message follows. The worst case is [workers] cores. In a container with a CPU quota
+ * (cgroup limit), set it to [Duration.ZERO].
  */
 class KeyedExecutor(
     val workers: Int = DEFAULT_WORKERS,
     val maxInFlight: Int = DEFAULT_MAX_IN_FLIGHT,
     val name: String = DEFAULT_NAME,
     val throughput: Int = DEFAULT_THROUGHPUT,
+    val spin: Duration = DEFAULT_SPIN,
 ) : AutoCloseable {
     init {
         require(workers > 0) { "workers must be positive." }
         require(maxInFlight > 0) { "maxInFlight must be positive." }
         require(throughput > 0) { "throughput must be positive." }
+        require(!spin.isNegative && spin <= MAX_SPIN) {
+            "spin must be between 0 and ${MAX_SPIN.toNanos() / 1_000} microseconds, but was ${spin.toNanos()} ns."
+        }
     }
 
     /**
@@ -60,7 +73,7 @@ class KeyedExecutor(
      * thread starts on its first task, so an executor that never dispatches starts none; a failing task, even with a
      * JVM-fatal error, does not end its worker.
      */
-    internal val dispatchWorkers: DispatchWorkers = DispatchWorkers(workers, name)
+    internal val dispatchWorkers: DispatchWorkers = DispatchWorkers(workers, name, spin.toNanos())
 
     /** The workers as a coroutine dispatcher, for `suspend` and `Flow` message functions. */
     val coroutineDispatcher: CoroutineDispatcher = dispatchWorkers.asCoroutineDispatcher()
@@ -83,7 +96,7 @@ class KeyedExecutor(
     }
 
     override fun toString(): String =
-        "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight, throughput=$throughput)"
+        "KeyedExecutor(name=$name, workers=$workers, maxInFlight=$maxInFlight, throughput=$throughput, spin=$spin)"
 
     companion object {
         const val DEFAULT_NAME: String = "wow-dispatch"
@@ -96,6 +109,19 @@ class KeyedExecutor(
 
         /** Messages of one aggregate per turn; a turn also ends when a handler does not complete synchronously. */
         const val DEFAULT_THROUGHPUT: Int = 16
+
+        /**
+         * The default [spin]: zero, workers park at once. Spinning is an opt-in optimization for in-memory, high-rate
+         * dispatch where messages keep arriving within microseconds of each other: on 4-vCPU CI runners a 20 µs spin
+         * made the closed-loop event-dispatch benchmark 0 to 6% faster, 100 µs 16 to 63% faster. With a real store
+         * (MongoDB, Redis) the gain was within noise, so it is off by default.
+         */
+        @JvmField
+        val DEFAULT_SPIN: Duration = Duration.ZERO
+
+        /** The longest [spin] accepted: 1 ms. */
+        @JvmField
+        val MAX_SPIN: Duration = Duration.ofMillis(1)
 
         /**
          * The executor of a [me.ahoo.wow.runtime.RuntimeContext] that does not bring its own (a dispatcher prepared

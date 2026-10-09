@@ -16,6 +16,7 @@ package me.ahoo.wow.benchmark.e2e
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.command.InMemoryCommandBus
@@ -65,7 +66,7 @@ open class CommandIngressE2EDiagnosticBenchmark {
             snapshotStore = InMemorySnapshotStore(),
             domainEventBus = InMemoryDomainEventBus(),
             stateEventBus = InMemoryStateEventBus(),
-            keyedExecutor = KeyedExecutor(workers = resolveSchedulerPoolSize()),
+            keyedExecutor = BenchmarkKeyedExecutors.create(workers = resolveSchedulerPoolSize()),
             validator = NoOpValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                 NoOpIdempotencyChecker

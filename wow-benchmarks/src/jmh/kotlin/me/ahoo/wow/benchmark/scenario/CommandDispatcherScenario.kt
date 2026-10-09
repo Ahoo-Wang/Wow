@@ -17,6 +17,7 @@ import jakarta.validation.Validator
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultRequestIdChecker
@@ -71,7 +72,7 @@ class CommandDispatcherScenario private constructor(
             snapshotStore: SnapshotStore = InMemorySnapshotStore(),
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
-            keyedExecutor: KeyedExecutor = KeyedExecutor(),
+            keyedExecutor: KeyedExecutor = BenchmarkKeyedExecutors.create(),
             idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider =
                 DefaultAggregateIdempotencyCheckerProvider {
                     BenchmarkIdempotency.bloomFilterChecker()

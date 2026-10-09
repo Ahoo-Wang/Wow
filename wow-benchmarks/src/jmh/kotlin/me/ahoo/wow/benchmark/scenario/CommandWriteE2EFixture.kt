@@ -18,6 +18,7 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
+import me.ahoo.wow.benchmark.fixture.BenchmarkKeyedExecutors
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
@@ -65,7 +66,7 @@ class CommandWriteE2EFixture private constructor(
 
         fun create(
             scenarioId: String,
-            keyedExecutor: KeyedExecutor = KeyedExecutor(),
+            keyedExecutor: KeyedExecutor = BenchmarkKeyedExecutors.create(),
         ): CommandWriteE2EFixture {
             val dispatcherScenario = when (scenarioId) {
                 CEILING_SCENARIO -> createDispatcherScenario(

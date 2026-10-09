@@ -104,8 +104,10 @@ class AggregateEventDispatcherAckTest {
         listOf(emptyMap(), mapOf("trace" to "t-1")).forEach { streamAttributes ->
             val exchange = AckCountingExchange().apply { attributes.putAll(streamAttributes) }
             val seen = CopyOnWriteArrayList<Map<String, Any>>()
+            val maps = CopyOnWriteArrayList<MutableMap<String, Any>>()
 
             dispatcher { functionExchange ->
+                maps.add(functionExchange.attributes)
                 functionExchange.attributes.filterKeys { it == "trace" }.let(seen::add)
                 functionExchange.attributes["written-by-function"] = true
                 Mono.empty()
@@ -113,6 +115,10 @@ class AggregateEventDispatcherAckTest {
 
             seen.assert().hasSize(2)
             seen.forEach { it.assert().isEqualTo(streamAttributes) }
+            // Each function has a map of its own: not one shared by both, nor the stream exchange's.
+            maps.assert().hasSize(2)
+            maps[0].assert().isNotSameAs(maps[1])
+            maps.forEach { it.assert().isNotSameAs(exchange.attributes) }
             exchange.attributes.assert().isEqualTo(streamAttributes)
         }
     }

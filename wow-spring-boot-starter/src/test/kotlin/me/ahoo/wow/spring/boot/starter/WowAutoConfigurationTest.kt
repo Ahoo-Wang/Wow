@@ -121,12 +121,14 @@ internal class WowAutoConfigurationTest {
                 "wow.dispatch.workers=3",
                 "wow.dispatch.max-in-flight=32",
                 "wow.dispatch.throughput=8",
+                "wow.dispatch.spin=50us",
             )
             .run { context ->
                 val keyedExecutor = context.getBean(WowRuntime::class.java).keyedExecutor
                 keyedExecutor.workers.assert().isEqualTo(3)
                 keyedExecutor.maxInFlight.assert().isEqualTo(32)
                 keyedExecutor.throughput.assert().isEqualTo(8)
+                keyedExecutor.spin.assert().isEqualTo(Duration.ofNanos(50_000))
             }
     }
 

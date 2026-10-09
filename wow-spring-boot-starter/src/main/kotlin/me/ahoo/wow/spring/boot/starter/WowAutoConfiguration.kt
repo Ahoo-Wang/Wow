@@ -178,6 +178,7 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
             workers = wowProperties.dispatch.workers,
             maxInFlight = wowProperties.dispatch.maxInFlight,
             throughput = wowProperties.dispatch.throughput,
+            spin = wowProperties.dispatch.spin,
         )
 
     @Bean(WOW_RUNTIME_BEAN_NAME, destroyMethod = "")

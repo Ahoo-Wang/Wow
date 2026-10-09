@@ -2332,17 +2332,20 @@ public final class me/ahoo/wow/execution/KeyedExecutor : java/lang/AutoCloseable
 	public static final field Companion Lme/ahoo/wow/execution/KeyedExecutor$Companion;
 	public static final field DEFAULT_MAX_IN_FLIGHT I
 	public static final field DEFAULT_NAME Ljava/lang/String;
+	public static final field DEFAULT_SPIN Ljava/time/Duration;
 	public static final field DEFAULT_THROUGHPUT I
 	public static final field DEFAULT_WORKERS I
+	public static final field MAX_SPIN Ljava/time/Duration;
 	public fun <init> ()V
-	public fun <init> (IILjava/lang/String;I)V
-	public synthetic fun <init> (IILjava/lang/String;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (IILjava/lang/String;ILjava/time/Duration;)V
+	public synthetic fun <init> (IILjava/lang/String;ILjava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public final fun forceClose ()V
 	public final fun getCoroutineDispatcher ()Lkotlinx/coroutines/CoroutineDispatcher;
 	public final fun getMaxInFlight ()I
 	public final fun getName ()Ljava/lang/String;
 	public static final fun getShared ()Lme/ahoo/wow/execution/KeyedExecutor;
+	public final fun getSpin ()Ljava/time/Duration;
 	public final fun getThroughput ()I
 	public final fun getWorkers ()I
 	public final fun isDisposed ()Z

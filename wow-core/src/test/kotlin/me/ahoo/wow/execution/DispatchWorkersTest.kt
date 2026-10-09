@@ -16,6 +16,8 @@ package me.ahoo.wow.execution
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -24,6 +26,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class DispatchWorkersTest {
 
@@ -32,9 +35,10 @@ class DispatchWorkersTest {
      * unparks it; one that arrives while the worker is about to park is seen by the worker's re-check. A lost wake-up
      * would leave a task queued forever and the latch short.
      */
-    @Test
-    fun `no wake-up is lost when producers race with workers going idle`() {
-        val workers = DispatchWorkers(4, "dispatch-workers-race")
+    @ParameterizedTest
+    @ValueSource(longs = [0L, SMALL_SPIN_NANOS])
+    fun `no wake-up is lost when producers race with workers going idle`(spinNanos: Long) {
+        val workers = DispatchWorkers(4, "dispatch-workers-race", spinNanos)
         val producers = Executors.newFixedThreadPool(4)
         try {
             repeat(20) { round ->
@@ -114,10 +118,11 @@ class DispatchWorkersTest {
      * `close` racing submissions: every task is either run or rejected. Before the fix a task queued just after its
      * worker saw `closed` with an empty queue (and exited) was neither — its completion never fired.
      */
-    @Test
-    fun `a task submitted while the workers close is run or rejected, never stranded`() {
+    @ParameterizedTest
+    @ValueSource(longs = [0L, SMALL_SPIN_NANOS])
+    fun `a task submitted while the workers close is run or rejected, never stranded`(spinNanos: Long) {
         repeat(200) { round ->
-            val workers = DispatchWorkers(2, "dispatch-workers-close-race")
+            val workers = DispatchWorkers(2, "dispatch-workers-close-race", spinNanos)
             val submitters = Executors.newFixedThreadPool(3)
             val ran = AtomicInteger()
             val rejected = AtomicInteger()
@@ -221,6 +226,62 @@ class DispatchWorkersTest {
         drained.await(5, TimeUnit.SECONDS).assert().isTrue()
         ran.get().assert().isEqualTo(10)
         workers.close()
+    }
+
+    @Test
+    fun `a worker spins for the next task while tasks arrive back to back, and stops spinning when it closes`() {
+        val prefix = "dispatch-workers-spin-"
+        val workers = DispatchWorkers(1, prefix.dropLast(1), spinNanos = TimeUnit.SECONDS.toNanos(30))
+        val worker = startSpinning(workers)
+
+        Thread.sleep(100)
+        worker.state.assert().isEqualTo(Thread.State.RUNNABLE)
+        // A spinning worker takes a task without being unparked.
+        val third = CountDownLatch(1)
+        workers.execute({ third.countDown() }, 0)
+        third.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+        // Closing ends the spin at once instead of after the 30 s budget.
+        workers.close()
+        worker.join(TimeUnit.SECONDS.toMillis(5))
+        worker.isAlive.assert().isFalse()
+    }
+
+    @Test
+    fun `a force close ends a spinning worker at once`() {
+        val workers = DispatchWorkers(1, "dispatch-workers-spin-force", spinNanos = TimeUnit.SECONDS.toNanos(30))
+        val worker = startSpinning(workers)
+        Thread.sleep(50)
+        worker.state.assert().isEqualTo(Thread.State.RUNNABLE)
+
+        workers.forceClose()
+        worker.join(TimeUnit.SECONDS.toMillis(5))
+        worker.isAlive.assert().isFalse()
+    }
+
+    @Test
+    fun `a worker whose last wait outlasted the spin budget parks at once`() {
+        val prefix = "dispatch-workers-spin-idle-"
+        val spin = TimeUnit.MILLISECONDS.toNanos(200)
+        val workers = DispatchWorkers(1, prefix.dropLast(1), spinNanos = spin)
+        try {
+            val first = CountDownLatch(1)
+            workers.execute({ first.countDown() }, 0)
+            first.await(5, TimeUnit.SECONDS).assert().isTrue()
+            // The first wait has no history, so it parks at once; then a wait far longer than the budget.
+            awaitParked(prefix, 1)
+            Thread.sleep(TimeUnit.NANOSECONDS.toMillis(spin) * 2)
+            val second = CountDownLatch(1)
+            workers.execute({ second.countDown() }, 0)
+            second.await(5, TimeUnit.SECONDS).assert().isTrue()
+
+            // That wait was long, so this one parks well within the budget instead of spinning through it.
+            val started = System.nanoTime()
+            awaitParked(prefix, 1)
+            (System.nanoTime() - started).assert().isLessThan(spin / 2)
+        } finally {
+            workers.close()
+        }
     }
 
     @Test
@@ -394,6 +455,31 @@ private fun awaitTrue(condition: () -> Boolean) {
         Thread.sleep(5)
     }
 }
+
+/**
+ * Runs tasks on worker 0 one after another, each submitted right after the previous one ran, until the worker spins:
+ * its first wait has no history and parks, but that wait is short, so a later wait spins. (A task submitted before the
+ * worker started waiting is taken without a wait, so it may take more than two.) Returns the spinning worker thread.
+ */
+private fun startSpinning(workers: DispatchWorkers): Thread {
+    val worker = AtomicReference<Thread>()
+    repeat(50) {
+        val ran = CountDownLatch(1)
+        workers.execute({
+            worker.set(Thread.currentThread())
+            ran.countDown()
+        }, 0)
+        ran.await(5, TimeUnit.SECONDS).assert().isTrue()
+        Thread.sleep(20)
+        if (worker.get().state == Thread.State.RUNNABLE) {
+            return worker.get()
+        }
+    }
+    error("The worker never spun.")
+}
+
+/** A spin budget like the default: short waits spin, so the race tests also cover workers that spin. */
+private const val SMALL_SPIN_NANOS = 20_000L
 
 private fun workerThreads(prefix: String): Int =
     Thread.getAllStackTraces().keys.count { it.name.startsWith(prefix) && it.isAlive }

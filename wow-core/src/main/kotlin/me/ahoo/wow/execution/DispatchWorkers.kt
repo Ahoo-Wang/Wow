@@ -29,6 +29,12 @@ import java.util.concurrent.locks.LockSupport
  * busy worker picks up newly queued tasks without being woken; an idle worker is unparked only by the submission that
  * finds it parked. There is no shared queue: no lock, and no cascade of wake-ups between workers.
  *
+ * A worker that runs out of tasks spins for up to [spinNanos] before it parks, but only when its last wait was shorter
+ * than that; after a longer wait it parks at once. While it spins it counts as running, so [nextAffinity] picks it and
+ * a submission needs no wake-up. CPU cost: while tasks keep arriving at intervals shorter than [spinNanos], a worker
+ * can stay busy on one core the whole time; after each short interval, the next wait can cost up to [spinNanos] of
+ * CPU even when no task follows; the worst case is one core per worker.
+ *
  * A worker thread starts on its first submission, so a runtime that never dispatches (a gateway-only service) starts
  * none. A task's failure, a JVM-fatal error included, is contained: the worker logs it and goes on, so the mailboxes
  * pinned to it are never stranded on a dead thread.
@@ -36,6 +42,8 @@ import java.util.concurrent.locks.LockSupport
 internal class DispatchWorkers(
     size: Int,
     name: String,
+    /** The longest a worker spins for a task before it parks; 0 parks at once. */
+    private val spinNanos: Long = 0L,
     /** Starts a worker thread; a test replaces it to make a start fail. */
     private val startThread: (Thread) -> Unit = Thread::start,
 ) : Executor {
@@ -132,6 +140,9 @@ internal class DispatchWorkers(
 
     private inner class Worker(name: String) : Thread(name), NonBlocking {
         private val queue = ConcurrentLinkedQueue<Runnable>()
+
+        /** How long this worker's last wait for a task took; read and written by the worker thread only. */
+        private var lastWaitNanos = Long.MAX_VALUE
 
         /** Set once the worker has decided to exit; a submission seeing it takes its task back. */
         @Volatile
@@ -240,10 +251,38 @@ internal class DispatchWorkers(
         }
 
         /**
-         * The next task, parking until one is queued; `null` once closed and drained. (Spinning before parking was
-         * measured: it did not pay for the CPU it burns.)
+         * The next task; `null` once closed and drained. A worker whose last wait was shorter than [spinNanos] first
+         * spins that long (tasks arrive faster than a park and wake-up would take), else it parks at once.
          */
         private fun awaitTask(): Runnable? {
+            if (spinNanos == 0L) {
+                return parkForTask()
+            }
+            val start = System.nanoTime()
+            val task = (if (lastWaitNanos < spinNanos) spinForTask(start) else null) ?: parkForTask()
+            lastWaitNanos = System.nanoTime() - start
+            return task
+        }
+
+        /**
+         * Polls the queue until [spinNanos] after [start]; `null` when nothing came (or the workers closed: the park
+         * loop then drains and exits). `idle` stays 0, so a submission does not unpark this worker.
+         */
+        private fun spinForTask(start: Long): Runnable? {
+            var spins = 0
+            while (!closed) {
+                queue.poll()?.let { return it }
+                Thread.onSpinWait()
+                spins++
+                if (spins and SPIN_CLOCK_MASK == 0 && System.nanoTime() - start >= spinNanos) {
+                    return null
+                }
+            }
+            return null
+        }
+
+        /** Parks until a task is queued; `null` once closed and drained. */
+        private fun parkForTask(): Runnable? {
             while (true) {
                 idle = 1
                 // Re-check after publishing idle: a submission either sees idle == 1 (and unparks) or was queued first.
@@ -294,6 +333,9 @@ internal class DispatchWorkers(
 
     private companion object {
         private val log = KotlinLogging.logger {}
+
+        /** A spinning worker reads the clock once per 32 polls. */
+        const val SPIN_CLOCK_MASK = 31
         val STARTED: AtomicIntegerFieldUpdater<Worker> =
             AtomicIntegerFieldUpdater.newUpdater(Worker::class.java, "started")
         val IDLE: AtomicIntegerFieldUpdater<Worker> =
