@@ -20,14 +20,14 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import kotlin.reflect.jvm.kotlinProperty
 
-object SummaryTitleFieldResolver : ConfigFunction<FieldScope, String> {
+internal object SummaryTitleFieldResolver : ConfigFunction<FieldScope, String> {
     override fun apply(fieldScope: FieldScope): String? {
         val property = fieldScope.rawMember.kotlinProperty ?: return null
         return property.scanAnnotation<Summary>()?.value
     }
 }
 
-object SummaryTitleTypeResolver : ConfigFunction<TypeScope, String> {
+internal object SummaryTitleTypeResolver : ConfigFunction<TypeScope, String> {
     override fun apply(typeScope: TypeScope): String? {
         return typeScope.type.erasedType.kotlin.scanAnnotation<Summary>()?.value
     }

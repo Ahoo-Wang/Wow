@@ -21,7 +21,7 @@ import java.util.function.Predicate
 import kotlin.reflect.KVisibility
 import kotlin.reflect.jvm.kotlinProperty
 
-object KotlinWriteOnlyCheck : Predicate<FieldScope> {
+internal object KotlinWriteOnlyCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
         if (!fieldScope.declaringType.erasedType.isKotlinElement()) {

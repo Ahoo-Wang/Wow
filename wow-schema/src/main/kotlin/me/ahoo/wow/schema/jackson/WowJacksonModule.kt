@@ -25,7 +25,7 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 
 class WowJacksonModule(vararg options: JacksonOption) : JacksonSchemaModule(*options) {
-    companion object {
+    private companion object {
         val NESTED_ANNOTATION_CHECK: (Annotation) -> Boolean = { annotation ->
             annotation.javaClass.isAnnotationPresent(JacksonAnnotationsInside::class.java)
         }

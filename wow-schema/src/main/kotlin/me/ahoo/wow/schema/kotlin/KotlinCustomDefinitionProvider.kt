@@ -37,7 +37,7 @@ import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.javaType
 
-object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
+internal object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
     /**
      * The types this provider has already expanded, per generation. It stops the recursion through
      * `createStandardDefinition` for a recursive type with getter-only properties. Keying by the generation context

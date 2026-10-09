@@ -70,7 +70,7 @@ Do not call `build()` after every type in an application pipeline. Let all route
 
 | Type / module | Schema behavior |
 |---|---|
-| `AggregateId`, messages, event streams, snapshots, state aggregates | bundled framework definitions loaded through `WowSchemaLoader` |
+| `AggregateId`, messages, event streams, snapshots, state aggregates | bundled framework definitions under `META-INF/wow-schema/` |
 | `FilterExpression` | canonical v2 query schema bundled as `META-INF/wow-schema/FilterExpression.json` |
 | `AggregationExpression`, `QuerySemanticType` | polymorphic schemas with explicit `type` discriminator |
 | `Map<K, V>` | object with additional properties |
@@ -135,7 +135,7 @@ Passing `null` disables an optional module. This changes generated contracts; co
 
 ## Framework Type Schemas
 
-`WowSchemaLoader` reads `META-INF/wow-schema/{TypeName}.json`. Bundled files keep stable public shapes for framework wrappers whose internal class graph is not the wire contract.
+Framework definitions are bundled as `META-INF/wow-schema/{TypeName}.json`. Bundled files keep stable public shapes for framework wrappers whose internal class graph is not the wire contract.
 
 This stability is scoped to the schema resource and its serialized contract. It does not promise source or binary compatibility for every implementation class. When a schema resource changes, validate:
 

@@ -24,15 +24,15 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import java.lang.reflect.AnnotatedElement
 
 object Types {
-    fun AnnotatedElement.isKotlinElement(): Boolean {
+    internal fun AnnotatedElement.isKotlinElement(): Boolean {
         return getAnnotation(Metadata::class.java) != null
     }
 
-    fun Class<*>.isInstanceOf(clazz: Class<*>): Boolean {
+    internal fun Class<*>.isInstanceOf(clazz: Class<*>): Boolean {
         return clazz.isAssignableFrom(this)
     }
 
-    fun Class<*>.isWowType(): Boolean {
+    internal fun Class<*>.isWowType(): Boolean {
         return isInstanceOf(AggregateId::class.java) ||
             isInstanceOf(CommandMessage::class.java) ||
             isInstanceOf(DomainEvent::class.java) ||

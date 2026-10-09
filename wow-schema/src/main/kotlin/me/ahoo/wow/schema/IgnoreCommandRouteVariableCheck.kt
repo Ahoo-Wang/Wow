@@ -19,7 +19,7 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import java.util.function.Predicate
 import kotlin.reflect.jvm.kotlinProperty
 
-object IgnoreCommandRouteVariableCheck : Predicate<FieldScope> {
+internal object IgnoreCommandRouteVariableCheck : Predicate<FieldScope> {
     override fun test(fieldScope: FieldScope): Boolean {
         val property = fieldScope.rawMember.kotlinProperty!!
         val pathVariable = property.scanAnnotation<CommandRoute.PathVariable>()

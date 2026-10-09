@@ -21,7 +21,7 @@ import me.ahoo.wow.schema.kotlin.KotlinReadOnlyCheck.primaryConstructor
 import java.util.function.Predicate
 import kotlin.reflect.jvm.kotlinProperty
 
-object KotlinRequiredCheck : Predicate<FieldScope> {
+internal object KotlinRequiredCheck : Predicate<FieldScope> {
 
     override fun test(fieldScope: FieldScope): Boolean {
         if (!fieldScope.declaringType.erasedType.isKotlinElement()) {

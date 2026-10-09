@@ -70,7 +70,7 @@ val components: Map<String, Schema<*>> = builder.build()
 
 | 类型 / 模块 | Schema 行为 |
 |---|---|
-| `AggregateId`、消息、事件流、快照、状态聚合 | 通过 `WowSchemaLoader` 加载内置框架定义 |
+| `AggregateId`、消息、事件流、快照、状态聚合 | `META-INF/wow-schema/` 下的内置框架定义 |
 | `FilterExpression` | 以 `META-INF/wow-schema/FilterExpression.json` 打包的规范 v2 查询 Schema |
 | `AggregationExpression`、`QuerySemanticType` | 带显式 `type` 判别字段的多态 Schema |
 | `Map<K, V>` | 带 additional properties 的 object |
@@ -135,7 +135,7 @@ val generator = SchemaGeneratorBuilder()
 
 ## 框架类型 Schema
 
-`WowSchemaLoader` 读取 `META-INF/wow-schema/{TypeName}.json`。内置文件为框架 wrapper 保持稳定公共形状，其内部类图并不是线协议合同。
+框架定义以 `META-INF/wow-schema/{TypeName}.json` 的形式内置。内置文件为框架 wrapper 保持稳定公共形状，其内部类图并不是线协议合同。
 
 这种稳定性只覆盖 Schema 资源及其序列化合同，并不承诺每个实现类的源码或二进制兼容性。Schema 资源变化时应验证：
 

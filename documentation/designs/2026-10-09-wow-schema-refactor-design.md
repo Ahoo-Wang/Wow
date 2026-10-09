@@ -1,6 +1,6 @@
 # wow-schema 重构设计
 
-日期：2026-10-09。状态：设计已确认（§7），待实施。随 9.5.0 发布。
+日期：2026-10-09。状态：已实施（2026-10-09，见 §9）。随 9.5.0 发布。
 
 依据：对 `wow-schema`（`main` 代码 3.6k 行、测试 5.5k 行）及其调用方 `wow-openapi`、`wow-spring-boot-starter`、`wow-tck`、`wow-bi` 做的只读审查，基于 `main` `c19a9354a`。文中路径都相对 `wow-schema/src/main/kotlin/me/ahoo/wow/schema/`，行号指该提交。
 
@@ -144,3 +144,24 @@ internal class WrappedDefinitionProvider(
 - **修复**：并发生成 Schema 时，Kotlin 只读计算属性会随机缺失（影响查询模型与 OpenAPI）。
 - **破坏性（ABI）**：`wow-schema` 的 Provider、Check、Resolver、`JsonSchema`、`WowSchemaLoader`、`Types`、`SchemaMerger` 不再公开；`OpenAPISchemaBuilder` 及相关类迁入 `wow-openapi`（包名不变）。
 - **弃用**：`SchemaGeneratorBuilder.openapi31`、`typeContext`、`requiredTypeContent`，在 10.0.0 移除。
+
+## 9. 实施记录
+
+| 阶段 | PR | 结果 |
+|---|---|---|
+| 设计 | #4044 | 本文档 |
+| S0 | #4045 | 80 个 Schema golden（默认与 Draft 2020-12 两种配置）、OpenAPI golden、68 个查询事实 golden、包依赖 DAG 测试 |
+| S1 | #4046 | 重入保护按生成划分；并发回归测试修复前失败、修复后通过；golden 不变 |
+| S4 | #4047 | 新增 225 行、删除 827 行；golden 不变；ABI 只有删除 |
+| S6 | #4048 | 三处遍历合成一个展开器（`expand`）和一个引用解析（`referencedNode`）；查询事实 golden 不变 |
+| S3 | #4049 | `buildConfig()`、`copy()`；`openapi31`、`typeContext`、`requiredTypeContent` 弃用并记入 compat-debt；ConfigFactory 并入 builder |
+| S5 | #4050 | 迁移前先在 `wow-openapi` 用迁移前的代码生成 OpenAPI golden，迁移后不变；main 代码只有重命名，外加可见性调整 |
+| S2 | #4051 | 公开类从 63 个降到 19 个 |
+
+实施中对设计的修正：
+
+- S1：重入保护不能删除，它防止带 getter-only 属性的递归类型栈溢出。改为按 `SchemaGenerationContext` 划分，所以不再需要"每个 Module 一个实例"。
+- S1：一个生成器跨线程共享时，victools 的 `JsonPropertySorter` 会抛 `ConcurrentModificationException`。这是上游的限制，契约改为"每个线程一个生成器"。
+- S3：builder 保持可变。原因见 §3.3。
+- S5：迁移的单元测试需要的几个 fixture 复制到了 `wow-openapi` 的测试里。组件名前缀随之从 `wow.schema.` 变成 `wow.`，因为前缀取决于各模块测试 classpath 上的元数据。
+- S6：`members` 的遍历顺序决定了 `omitted` 的顺序，而 `omitted` 会出现在输出里，所以 `members` 保留自己的遍历，只共用引用解析。
