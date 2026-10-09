@@ -21,8 +21,8 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.schema.Types.isStdType
-import me.ahoo.wow.schema.Types.isWowType
+import me.ahoo.wow.schema.kotlin.isWowType
+import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.isStdType
 import org.junit.jupiter.api.Test
 
 class TypesTest {

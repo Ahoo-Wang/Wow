@@ -22,7 +22,7 @@ import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.openapi.converter.JavaTypeResolver.toResolvedType
-import me.ahoo.wow.schema.Types.isStdType
+import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.isStdType
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.resolveNamePrefix
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
 

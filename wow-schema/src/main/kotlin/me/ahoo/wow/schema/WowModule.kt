@@ -34,7 +34,7 @@ import me.ahoo.wow.schema.definition.MapDefinitionProvider
 import me.ahoo.wow.schema.definition.QueryFieldDefinitionProvider
 import me.ahoo.wow.schema.definition.QuerySchemaValueDefinitionProvider
 import me.ahoo.wow.schema.definition.ServerSentEventCustomDefinitionProvider
-import me.ahoo.wow.schema.definition.TypedDefaultValueDefinitionProvider
+import me.ahoo.wow.schema.definition.TypedDefaultValueModule
 import me.ahoo.wow.schema.definition.WrappedDefinitionProvider
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 
@@ -66,7 +66,7 @@ class WowModule(
     }
 
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
-        TypedDefaultValueDefinitionProvider.applyToConfigBuilder(builder)
+        TypedDefaultValueModule.applyToConfigBuilder(builder)
         val generalConfigPart = builder.forTypesInGeneral()
         generalConfigPart.withCustomDefinitionProvider(FilterExpressionDefinitionProvider)
         val fieldConfigPart = builder.forFields()

@@ -20,7 +20,7 @@ import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
-import me.ahoo.wow.schema.Types.isKotlinElement
+import me.ahoo.wow.schema.kotlin.isKotlinElement
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 

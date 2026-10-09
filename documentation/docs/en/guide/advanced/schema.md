@@ -22,7 +22,7 @@ KSP also generates `*Properties` path constants for aggregate state navigation. 
 - Respects Jackson, Jakarta Validation, Swagger, Kotlin, and Joda Money metadata.
 - Supports OpenAPI 3.1-compatible nullable shapes.
 - Uses stable bundled definitions for framework types whose wire contract should not depend on reflection internals.
-- Converts accumulated definitions into OpenAPI `Schema` components and references.
+- Feeds `wow-openapi`, whose `OpenAPISchemaBuilder` converts accumulated definitions into OpenAPI `Schema` components and references.
 
 Schema generation describes serialization shape. It does not register a route, create a database mapping, authorize a field, or prove that MongoDB/Elasticsearch can execute an operator.
 
@@ -32,7 +32,7 @@ Schema generation describes serialization shape. It does not register a route, c
 implementation("me.ahoo.wow:wow-schema")
 ```
 
-Applications normally receive it through the relevant Wow capabilities. Add it directly only when application code calls the builders or consumes their types.
+Applications normally receive it through the relevant Wow capabilities. Add it directly only when application code calls `SchemaGeneratorBuilder` or consumes its types; `OpenAPISchemaBuilder` needs `wow-openapi`.
 
 ## Usage
 
@@ -45,9 +45,9 @@ val generator = SchemaGeneratorBuilder().build()
 val schema: JsonNode = generator.generateSchema(CreateOrder::class.java)
 ```
 
-The default builder uses `SchemaVersion.DRAFT_7` and `OptionPreset.PLAIN_JSON`. It installs Wow's Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, naming, and framework modules. `buildConfig()` returns the configuration without building a generator, and `copy()` returns an independent builder with the same settings.
+The default builder uses `SchemaVersion.DRAFT_7` and `OptionPreset.PLAIN_JSON`. It installs Wow's Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, naming, and framework modules. `buildConfig()` returns the configuration without building a generator, and `copy()` returns a builder with the same settings that can be changed independently; the module instances are shared, not copied.
 
-A generator is not thread-safe: build one per thread. Generators built separately may run concurrently.
+A generator is not thread-safe: build one per thread. Generators built separately may run concurrently. An `OpenAPISchemaBuilder` is stateful and single-use for the same reason: one per document, on one thread.
 
 Generation happens from runtime types and registered serializers. KSP's metadata JSON is not an input to this call.
 
@@ -130,6 +130,10 @@ val generator = SchemaGeneratorBuilder()
 | `kotlinModule` | enabled | Kotlin nullability, required/read-only/write-only details |
 | `jodaMoneyModule` | enabled | Joda Money wire types |
 | `wowModule` | enabled | framework definitions and query discriminator handling |
+| `schemaNamingModule` | Wow naming, no prefix | definition names (`OpenAPISchemaBuilder` sets its own) |
+| `objectMapper` | none (victools default) | the mapper Jackson-based modules introspect with |
+| `options` | Wow defaults (plain definition keys, inline nullable `anyOf`, …) | victools options applied after the modules |
+| `customizer` | adds `DEFINITIONS_FOR_ALL_OBJECTS` | last change to the configuration builder |
 
 Passing `null` disables an optional module. This changes generated contracts; cover custom settings with schema snapshots or focused assertions before publishing them.
 

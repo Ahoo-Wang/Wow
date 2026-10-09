@@ -15,7 +15,7 @@ package me.ahoo.wow.schema.joda.money
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
-import me.ahoo.wow.schema.WowSchemaLoader
+import me.ahoo.wow.schema.definition.WowSchemaLoader
 import org.joda.money.CurrencyUnit
 import org.joda.money.Money
 import org.junit.jupiter.api.Test

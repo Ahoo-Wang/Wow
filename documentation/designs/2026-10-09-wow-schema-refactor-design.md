@@ -42,21 +42,23 @@
 wow-schema   me.ahoo.wow.schema
 ├── SchemaGeneratorBuilder / WowOption        公开入口
 ├── WowModule                                  Wow 注解与框架类型（公开 Module，内部实现）
-├── kotlin/      KotlinModule                  Kotlin 语义（公开 Module，内部实现）
+├── kotlin/      KotlinModule                  Kotlin 语义（公开 Module，内部实现；isKotlinElement、isWowType）
 ├── jackson/     WowJacksonModule              Jackson 忽略规则
 ├── joda/money/  JodaMoneyModule
 ├── naming/      SchemaNamingModule、WowSchemaNamingStrategy 及命名函数
-├── definition/  内置资源与包装类型的 Provider（全部 internal）
+├── definition/  内置资源加载（WowSchemaLoader）、内置资源与包装类型的 Provider（全部 internal）
 ├── query/       JsonQueryModelSource（公开）；walker、类型节点（internal）
 └── web/、typed/ 占位类型：ServerSentEvent*、AggregatedDomainEventStream（公开）
 
 wow-openapi  me.ahoo.wow.schema.openapi（包名保持不变，物理迁入）
 ├── OpenAPISchemaBuilder / InlineSchemaCapable 公开
-├── JavaTypeResolver                           Jackson 2 → classmate，只服务 swagger ModelConverter
 └── OpenAPISchemaConverter / SchemaMerger / SchemaReferenceRegistry / StandaloneSchemaEmbeddingRebaser（internal）
+wow-openapi  me.ahoo.wow.openapi.converter
+└── JavaTypeResolver（internal）                Jackson 2 → classmate，只服务 swagger ModelConverter
 ```
 
-依赖方向：`wow-openapi → wow-schema → wow-query / wow-core`。`wow-schema` 的代码只读 Swagger 注解（Kotlin 检查用到 `@Schema`），不再引用 Swagger 模型和 Jackson 2。类路径不会因此变小：victools 的 swagger-2 模块本身依赖 `swagger-core-jakarta`。这一步的收益在内聚，不在依赖体积。
+依赖方向：`wow-openapi → wow-schema → wow-query / wow-core`。`wow-schema` 的代码只读 Swagger 注解（Kotlin 检查用到 `@Schema`），不再引用 Swagger 模型和 Jackson 2。对外的依赖声明不变，仍是 `api("io.swagger.core.v3:swagger-core-jakarta")`：victools 的 swagger-2 模块只以 `provided` 范围声明 `swagger-annotations`，去掉这条声明会把 `swagger-models` 和 Jackson 2 从下游的编译 classpath 上拿走，成为一个未记录的破坏。这一步的收益在内聚，不在依赖体积。
+包之间单向依赖：根包（builder 与各 Module）组装其他包，其他包不依赖根包的辅助类，只有 `query` 用到 builder。`SchemaPackageDependencyTest` 把根包也算进图里检查无环。
 
 ### 3.1 公开面（解决 D2）
 
@@ -64,22 +66,23 @@ wow-openapi  me.ahoo.wow.schema.openapi（包名保持不变，物理迁入）
 
 - `SchemaGeneratorBuilder`、`WowOption`；
 - builder 接受的 Module：`WowModule`、`KotlinModule`、`JodaMoneyModule`、`WowJacksonModule`、`SchemaNamingModule`；
-- 命名：`WowSchemaNamingStrategy` 和 `wow-openapi` 使用的命名函数。`Types.isStdType` 并入命名函数，作为 `Class<*>` 能否获得 Wow 命名的判定，不再单独公开 `Types`；
+- 命名：`WowSchemaNamingStrategy`、`DefaultSchemaNamePrefixCapable`。`wow-openapi` 使用的命名函数（`isStdType`、`resolveNamePrefix`、`toSchemaName`）标 `@InternalWowApi`：仓库内可用，不进 ABI dump，也不承诺兼容。`Types` 删除：`isStdType` 并入命名函数，`isKotlinElement`、`isWowType` 移到 `kotlin/`；
 - `JsonQueryModelSource`；
 - 占位类型：`AggregatedDomainEventStream`、`ServerSentEvent`、`ServerSentEventNonNullData`。
 
-其余一律 `internal`，包括所有 Provider、Check、Resolver、`JsonSchema`、`WowSchemaLoader`。公开类从 63 个降到约 15 个。
+其余一律 `internal`，包括所有 Provider、Check、Resolver、`JsonSchema`、`WowSchemaLoader`。公开类从 63 个降到 17 个（ABI dump 计数，含 companion 类）。
 
 ### 3.2 每次生成的状态（解决 D1）
 
-- `KotlinCustomDefinitionProvider` 的重入保护按 `SchemaGenerationContext` 划分（弱引用表，生成结束后随上下文回收），不再有全局集合，也不再需要 `resetAfterSchemaGenerationFinished`。这个保护不能去掉：去掉后，带 getter-only 属性的递归类型会栈溢出。单线程语义与原来完全相同，所以 golden 不变。
+- `KotlinCustomDefinitionProvider` 改为实例类，`KotlinModule.applyToConfigBuilder` 为每份配置新建一个；重入保护是这个实例自己的集合，victools 每次 `resetAfterSchemaGenerationFinished`（每次 `generateSchema`，以及多定义构建里每次 `createSchemaReference` 之后）清空。语义与 9.4 完全相同，只是不再跨生成器共享。这个保护不能去掉：去掉后，带 getter-only 属性的递归类型会栈溢出。
+- 曾经的做法（#4046）按 `SchemaGenerationContext` 划分。发版前审查发现它在多定义构建（OpenAPI 路径）里改变了输出：一个上下文跨多次 `createSchemaReference` 存活，先展开过的类型在之后内联展开时会丢掉 getter-only 属性。回归测试 `a multi-definition build expands a Kotlin type again for each schema reference` 锁住这一点。
 - 回归测试：多线程、每个线程一个生成器，并发生成 `KotlinFixture` 和一个带 getter-only 属性的递归类型，断言每次输出都与单线程相同。修复前这个测试会失败。
 - 一个生成器不能跨线程共享：victools Jackson 模块的属性排序器不是线程安全的。`build()` 的文档写明"每个线程一个生成器"；生产代码本来就是每次 `describe` 新建生成器。
 
 ### 3.3 Builder（解决 D4）
 
-- `build()` 只返回 `SchemaGenerator`，不再在 builder 上留下 `typeContext`。新增 `buildConfig(): SchemaGeneratorConfig`；需要 `TypeContext` 的调用方（`OpenAPISchemaBuilder`）从 config 自己创建。
-- `OpenAPISchemaBuilder` 不再改写传入的 builder：它在 `copy()` 出来的副本上设置命名模块，再构建自己的配置。
+- 新增 `buildConfig(): SchemaGeneratorConfig`；需要 `TypeContext` 的调用方（`OpenAPISchemaBuilder`）从 config 自己创建。`build()` 为了弃用期内的兼容仍会记录 `typeContext`，v10 删除。
+- `OpenAPISchemaBuilder` 不再改写传入的 builder：它在 `copy()` 出来的副本上设置命名模块，再构建自己的配置。`copy()` 复制设置，模块实例共享。
 - builder 仍是可变的 fluent builder。应用代码会调用这些 setter，有的还忽略返回值（例如 `OpenAPIComponentContext.default`），改成不可变会悄悄改变这些代码的行为。
 - `SchemaGeneratorConfigFactory` 并入 builder，删除无效的 `forFields()` 调用。
 - 应用会调用的 fluent 方法保持源码兼容。`openapi31(...)`、`openapi31`、`typeContext`、`requiredTypeContent` 标为 `@Deprecated("Scheduled for removal in 10.0.0. …")`，记入 `docs/compat-debt.md`；`openapi31` 保持无效果，文档改为如实描述（可空形状由 `Option.NULLABLE_ALWAYS_AS_ANYOF` 与 Kotlin 模块决定）。
@@ -87,12 +90,15 @@ wow-openapi  me.ahoo.wow.schema.openapi（包名保持不变，物理迁入）
 ### 3.4 Provider 收敛（解决 D5）
 
 ```kotlin
-internal class BundledDefinitionProvider(private val type: Class<*>, resource: String = type.simpleName)
-internal class WrappedDefinitionProvider(
-    private val type: Class<*>,
-    private val slot: String,            // MessageRecords.BODY 或 StateAggregateRecords.STATE
-    private val constBodyType: Boolean,  // 消息额外把 bodyType 写成 const
-)
+internal open class BundledDefinitionProvider(type: Class<*>, excludedSubtypes: Set<Class<*>> = emptySet())
+internal class WrappedDefinitionProvider private constructor(
+    type: Class<*>,
+    slot: String,                // MessageRecords.BODY 或 StateAggregateRecords.STATE
+    typeNameProperty: String?,   // 消息把 bodyType 写成 T 的类名 const
+    keepTitle: Boolean,          // 状态类包装去掉自身 title
+) : BundledDefinitionProvider(type) {
+    companion object { fun message(type: Class<*>); fun state(type: Class<*>) }
+}
 ```
 
 - 8 个"类型 → 资源"的 `object` 合成 `BundledDefinitionProvider` 的 8 个实例；`Command`、`DomainEvent`、`StateAggregate`、`Snapshot`、`StateEvent` 五个 Provider 合成 `WrappedDefinitionProvider` 的 5 个实例。类型由构造参数传入，不再反射父类泛型。
@@ -119,7 +125,7 @@ internal class WrappedDefinitionProvider(
 | S2 | 公开面收缩（§3.1），更新 ABI dump | ABI diff 只删除或改为 internal；golden 不变 |
 | S3 | Builder（§3.3），更新文档与 compat-debt | golden 不变；`pnpm check:compat-debt` 通过 |
 | S4 | Provider 收敛（§3.4） | golden 不变 |
-| S5 | OpenAPI 适配层与 `JavaTypeResolver` 迁入 `wow-openapi`，对应测试一起迁移；去掉 `wow-schema` 对 `swagger-core-jakarta` 的直接声明（由 swagger-2 模块传递） | `wow-openapi` 快照不变；包依赖测试断言 `wow-schema` 的 main 代码不引用 `io.swagger.v3.oas.models` 和 `com.fasterxml.jackson.databind` |
+| S5 | OpenAPI 适配层与 `JavaTypeResolver` 迁入 `wow-openapi`，对应测试一起迁移；`wow-schema` 的依赖声明不变 | `wow-openapi` 快照不变；包依赖测试断言 `wow-schema` 的 main 代码不引用 `io.swagger.v3.oas.models` 和 `com.fasterxml.jackson.databind` |
 | S6 | Walker 展开器（§3.5） | 查询事实 golden 不变；`JsonQueryModelSourceTest` 全部通过 |
 
 每个阶段一个 PR，按顺序合并。S4、S6 与 S2、S3 没有依赖，可以并行。
@@ -141,9 +147,18 @@ internal class WrappedDefinitionProvider(
 
 ## 8. 9.5.0 发布说明条目
 
-- **修复**：并发生成 Schema 时，Kotlin 只读计算属性会随机缺失（影响查询模型与 OpenAPI）。
-- **破坏性（ABI）**：`wow-schema` 的 Provider、Check、Resolver、`JsonSchema`、`WowSchemaLoader`、`Types`、`SchemaMerger` 不再公开；`OpenAPISchemaBuilder` 及相关类迁入 `wow-openapi`（包名不变）。
-- **弃用**：`SchemaGeneratorBuilder.openapi31`、`typeContext`、`requiredTypeContent`，在 10.0.0 移除。
+发布说明须点名标了 `breaking-change` 的 PR：#4046、#4047、#4050、#4051，以及发版前审查的修复 PR。生成的 Schema、OpenAPI 文档和查询事实逐字节不变；REST、存储、线格式不变，9.4/9.5 混合集群不受影响。
+
+- **修复**：并发生成 Schema 时，Kotlin getter-only（计算）属性会随机缺失，影响查询模型与 OpenAPI（#4046）。
+- **破坏性（ABI）**，都不影响生成结果：
+  - 不再公开：所有 Provider（`AggregateId`、`DomainEventStream`、`CharRange`/`IntRange`/`LongRange`、`CurrencyUnit`/`Money`、消息、状态、`EnumText`、`Map`、`JsonNode`、`ServerSentEvent`、查询相关）、`KotlinCustomDefinitionProvider`、Kotlin 的 nullable/read-only/required/write-only/ignore 检查、`@Summary`/`@Description` 解析器、`IgnoreCommandRouteVariableCheck`、`WowSchemaLoader`、`JsonSchema`、`Types`、`WowJacksonModule` 的 companion、`WowSchemaNamingStrategy` 的 `flattenType`，以及标了 `@InternalWowApi` 的 `isStdType`/`resolveNamePrefix`/`toSchemaName`。
+  - 删除且没有替代的扩展基类：`TypedCustomDefinitionProvider`、`MessageDefinitionProvider`、`AbstractStateAggregate`。自定义类型请直接实现 victools 的 `CustomDefinitionProviderV2`，通过 `SchemaGeneratorBuilder.customizer` 注册；需要 Wow 的行为时注册 `WowModule`/`KotlinModule`/`JodaMoneyModule`，不要逐个注册 Provider 或检查。
+  - `KotlinCustomDefinitionProvider.resetAfterSchemaGenerationFinished` 随类一起不再公开（#4046）。
+  - `OpenAPISchemaBuilder`、`InlineSchemaCapable` 迁入 `wow-openapi`，包名 `me.ahoo.wow.schema.openapi` 不变；`OpenAPISchemaBuilder.toSchema` 不再公开；`SchemaMerger` 不再公开；`JavaTypeResolver` 改为 `wow-openapi` 内部类（#4050）。
+- **依赖**：直接使用 `OpenAPISchemaBuilder`、但只依赖 `wow-schema` 的应用要加 `me.ahoo.wow:wow-openapi`；启用 `openapi-support` 的应用无需改动。`wow-schema` 的对外依赖不变。
+- **行为变化**：`OpenAPISchemaBuilder(schemaGeneratorBuilder = builder)` 不再改写 `builder` 的 `schemaNamingModule`（#4049）。
+- **新增**：`SchemaGeneratorBuilder.buildConfig()`、`copy()`。生成器与 `OpenAPISchemaBuilder` 都不是线程安全的，每个线程各建一个。
+- **弃用（10.0.0 移除）**：`SchemaGeneratorBuilder.openapi31` 及其 setter（从未生效，直接删掉调用）、`typeContext`、`requiredTypeContent`（改用 `buildConfig()` + `TypeContextFactory.createDefaultTypeContext(config)`）。见 `docs/compat-debt.md`。
 
 ## 9. 实施记录
 
@@ -157,11 +172,15 @@ internal class WrappedDefinitionProvider(
 | S3 | #4049 | `buildConfig()`、`copy()`；`openapi31`、`typeContext`、`requiredTypeContent` 弃用并记入 compat-debt；ConfigFactory 并入 builder |
 | S5 | #4050 | 迁移前先在 `wow-openapi` 用迁移前的代码生成 OpenAPI golden，迁移后不变；main 代码只有重命名，外加可见性调整 |
 | S2 | #4051 | 公开类从 63 个降到 19 个 |
+| 清理 | #4052 | `Types` 去掉死分支和只用一次的辅助函数 |
+| 发版前审查 | 见下 | 两个独立 reviewer（正确性；架构/API/兼容/文档），无阻塞项；修复见下方修正与本 PR |
 
 实施中对设计的修正：
 
-- S1：重入保护不能删除，它防止带 getter-only 属性的递归类型栈溢出。改为按 `SchemaGenerationContext` 划分，所以不再需要"每个 Module 一个实例"。
+- S1：重入保护不能删除，它防止带 getter-only 属性的递归类型栈溢出。#4046 改为按 `SchemaGenerationContext` 划分；发版前审查发现这在多定义构建里改变了输出，最终改回设计原案：每份配置一个 Provider 实例、生成结束时清空（§3.2）。
 - S1：一个生成器跨线程共享时，victools 的 `JsonPropertySorter` 会抛 `ConcurrentModificationException`。这是上游的限制，契约改为"每个线程一个生成器"。
 - S3：builder 保持可变。原因见 §3.3。
 - S5：迁移的单元测试需要的几个 fixture 复制到了 `wow-openapi` 的测试里。组件名前缀随之从 `wow.schema.` 变成 `wow.`，因为前缀取决于各模块测试 classpath 上的元数据。
 - S6：`members` 的遍历顺序决定了 `omitted` 的顺序，而 `omitted` 会出现在输出里，所以 `members` 保留自己的遍历，只共用引用解析。
+- S5：#4050 把 `api("swagger-core-jakarta")` 换成 `swagger-annotations-jakarta`，理由是 swagger-2 模块会传递 `swagger-core`。这个理由不成立，发版前审查后改回原声明（§3）。
+- 发版前审查：`Types` 拆分、`WowSchemaLoader` 移入 `definition/`，包依赖测试纳入根包；`OpenAPISchemaBuilder.toSchema` 改为私有；`TypedDefaultValueDefinitionProvider` 实际是 Module，改名 `TypedDefaultValueModule`；`copy()` 的 `options` 复制为新列表，KDoc 写明模块共享；文档与 compat-debt 措辞修正；迁移指南新增 9.4 → 9.5.0 一节。

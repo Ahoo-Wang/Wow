@@ -33,11 +33,6 @@ public final class me/ahoo/wow/schema/SchemaGeneratorBuilder {
 	public final fun wowModule (Lme/ahoo/wow/schema/WowModule;)Lme/ahoo/wow/schema/SchemaGeneratorBuilder;
 }
 
-public final class me/ahoo/wow/schema/Types {
-	public static final field INSTANCE Lme/ahoo/wow/schema/Types;
-	public final fun isStdType (Ljava/lang/Class;)Z
-}
-
 public final class me/ahoo/wow/schema/WowModule : com/github/victools/jsonschema/generator/Module {
 	public fun <init> ()V
 	public fun <init> (Ljava/util/Set;)V
@@ -97,12 +92,6 @@ public final class me/ahoo/wow/schema/naming/WowSchemaNamingStrategy : com/githu
 }
 
 public final class me/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion {
-	public final fun flattenType (Lcom/fasterxml/classmate/ResolvedType;Ljava/util/List;)Ljava/util/List;
-	public static synthetic fun flattenType$default (Lme/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion;Lcom/fasterxml/classmate/ResolvedType;Ljava/util/List;ILjava/lang/Object;)Ljava/util/List;
-	public final fun resolveNamePrefix (Ljava/lang/Class;)Ljava/lang/String;
-	public final fun toSchemaName (Lcom/fasterxml/classmate/ResolvedType;Ljava/lang/String;)Ljava/lang/String;
-	public final fun toSchemaName (Ljava/lang/Class;)Ljava/lang/String;
-	public static synthetic fun toSchemaName$default (Lme/ahoo/wow/schema/naming/WowSchemaNamingStrategy$Companion;Lcom/fasterxml/classmate/ResolvedType;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/schema/query/JsonQueryModelSource : me/ahoo/wow/query/schema/QueryModelSource {

@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.schema.QuerySemanticType
-import me.ahoo.wow.schema.WowSchemaLoader
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 

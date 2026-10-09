@@ -24,6 +24,7 @@ A green local build can close the source gate. It does not close the other four.
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow 9.4.x | [Upgrading from 9.4 to 9.5.0](#upgrading-from-9-4-to-9-5-0) | `wow-schema` is refactored: generated schemas are unchanged; recompile, add `wow-openapi` if you use `OpenAPISchemaBuilder` without it, and replace any use of the now-internal schema providers and checks |
 | Wow 9.3.x | [Upgrading from 9.3 to 9.4.0](#upgrading-from-9-3-to-9-4-0) | Only `wow-bi` changes: rebuild each BI deployment once with a confirmed `RESET`, and move Kotlin callers of the removed `wow-bi` API to `BiScriptService` or `generate(prepare(…))`; REST, storage and wire formats of everything else are unchanged |
 | Wow 9.2.x | [Upgrading from 9.2 to 9.3.0](#upgrading-from-9-2-to-9-3-0) | Recompile, migrate the removed and deprecated APIs, and roll out processing nodes before gateway-only services; REST, storage and wire formats are unchanged |
 | Wow v8.16.x using old query APIs or `SnapshotRepository` | [V9 Query Migration](./query/v9-query-migration.md) | Migrate Gateway/Backend, filters, masking, SnapshotStore, and Spring bean names |
@@ -61,6 +62,19 @@ Advance only when the current gate has reproducible evidence:
 
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
+
+## Upgrading from 9.4 to 9.5.0
+
+For `wow-schema` and `wow-openapi`, 9.5.0 is an internal refactor (design: `documentation/designs/2026-10-09-wow-schema-refactor-design.md`). Every generated JSON Schema, OpenAPI document and query model is byte-for-byte the same as in 9.4.0, and REST, storage and wire formats are unchanged, so 9.4.x and 9.5.0 nodes can share one cluster. Code compiled against 9.4 must be recompiled. The 9.5.0 release notes on the [releases page](https://github.com/Ahoo-Wang/Wow/releases) list every change with its pull request.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| Fix: Kotlin getter-only (computed) properties no longer go missing when schemas are generated concurrently | Query models and OpenAPI documents that sometimes lacked computed properties | Nothing; the fields now appear every time |
+| `OpenAPISchemaBuilder` and `InlineSchemaCapable` moved from `wow-schema` to `wow-openapi`, same package | Code that uses them with only `wow-schema` on the classpath | Add `me.ahoo.wow:wow-openapi`; `openapi-support` applications already have it |
+| Schema implementation classes are internal: the definition providers, the Kotlin checks and getter provider, the `@Summary`/`@Description` resolvers, `WowSchemaLoader`, `JsonSchema`, `Types`, `SchemaMerger`, `JavaTypeResolver` | Code that registered or subclassed them, notably `TypedCustomDefinitionProvider`, `MessageDefinitionProvider` and `AbstractStateAggregate` | Register `WowModule`, `KotlinModule` or `JodaMoneyModule` through `SchemaGeneratorBuilder` instead of single providers or checks; for a type of your own, implement victools' `CustomDefinitionProviderV2` and add it in `customizer { … }` |
+| `OpenAPISchemaBuilder` no longer replaces the `schemaNamingModule` of the builder you pass in | Code that read that builder's naming module afterwards | Nothing to do; the builder keeps your settings |
+| Deprecated until 10.0.0: `SchemaGeneratorBuilder.openapi31` and `openapi31(Boolean)` (they never had an effect), `typeContext`, `requiredTypeContent` | Code that calls them | Drop the `openapi31` calls; for a type context, use `buildConfig()` with `TypeContextFactory.createDefaultTypeContext(config)` |
+| A schema generator, and an `OpenAPISchemaBuilder`, are not thread-safe | Code that shares one across threads | Build one per thread; `SchemaGeneratorBuilder.copy()` gives each its own settings |
 
 ## Upgrading from 9.3 to 9.4.0
 

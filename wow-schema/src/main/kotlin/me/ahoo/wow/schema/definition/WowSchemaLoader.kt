@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.definition
 
 import me.ahoo.wow.serialization.toObject
 import tools.jackson.databind.node.ObjectNode

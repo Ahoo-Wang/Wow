@@ -181,10 +181,10 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 9.4 `SchemaGeneratorBuilder` Members
 
-- **Kept compatible**: three `SchemaGeneratorBuilder` members applications could call in 9.4. `openapi31` and `openapi31(Boolean)` never had an effect: nullable shapes follow `Option.NULLABLE_ALWAYS_AS_ANYOF` and the Kotlin module. They stay as deprecated no-ops. `typeContext` and `requiredTypeContent` expose the type context of the last `build()`, so reading them depends on call order. `build()` still sets them.
+- **Kept compatible**: four `SchemaGeneratorBuilder` members applications could call in 9.4: the `openapi31` property and its setter, `typeContext` and `requiredTypeContent`. `openapi31` and `openapi31(Boolean)` never had an effect: nullable shapes follow `Option.NULLABLE_ALWAYS_AS_ANYOF` and the Kotlin module. They stay as deprecated no-ops. `typeContext` and `requiredTypeContent` expose the type context of the last `build()`, so reading them depends on call order. `build()` still sets them.
 - **Markers**: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorBuilder.kt`
 - **Replacement**: drop the `openapi31` calls. For a type context, call `buildConfig()`, then `TypeContextFactory.createDefaultTypeContext(config)` and `SchemaGenerator(config, typeContext)`.
-- **Removal in v10**: delete the three members, and stop `build()` from recording the type context. Callers stop compiling and use the replacement.
+- **Removal in v10**: delete the four members, and stop `build()` from recording the type context. Callers stop compiling and use the replacement.
 
 ## Held Until v10
 

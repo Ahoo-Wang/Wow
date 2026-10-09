@@ -189,7 +189,11 @@ class SchemaGeneratorBuilder {
         return this
     }
 
-    /** A builder with the same settings; changing either one leaves the other as it is. */
+    /**
+     * A builder with the same settings: changing a setting of either one leaves the other as it is. The module
+     * instances are shared, not copied, and a module such as [WowJacksonModule] keeps the object mapper of the last
+     * configuration it was applied to, so build at most one of the two when they use different object mappers.
+     */
     @Suppress("DEPRECATION")
     fun copy(): SchemaGeneratorBuilder {
         val copy = SchemaGeneratorBuilder()
@@ -204,7 +208,7 @@ class SchemaGeneratorBuilder {
         copy.jodaMoneyModule = jodaMoneyModule
         copy.wowModule = wowModule
         copy.schemaNamingModule = schemaNamingModule
-        copy.options = options
+        copy.options = options.toList()
         copy.customizer = customizer
         return copy
     }

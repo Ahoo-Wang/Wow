@@ -17,7 +17,6 @@ import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
-import me.ahoo.wow.schema.WowSchemaLoader
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.node.ObjectNode

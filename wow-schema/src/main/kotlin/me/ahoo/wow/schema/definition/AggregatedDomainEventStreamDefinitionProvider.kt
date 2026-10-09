@@ -25,7 +25,6 @@ import me.ahoo.wow.event.annotation.toEventMetadata
 import me.ahoo.wow.event.metadata.EventMetadata
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.schema.WowSchemaLoader
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.MessageRecords
 import tools.jackson.databind.node.ArrayNode

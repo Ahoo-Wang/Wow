@@ -18,15 +18,16 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * The packages below `me.ahoo.wow.schema` must form a DAG. The root package holds the builder and the modules that
- * assemble every other package, so it is left out of the graph.
+ * The packages of `wow-schema` must form a DAG, the root package included: the root holds the builder and the modules
+ * that assemble every other package, so no other package may depend on a root helper, only `query` on the builder.
+ * Edges come from `import` lines; a fully qualified reference in code is not seen.
  */
 class SchemaPackageDependencyTest {
     @Test
     fun `implementation packages form a DAG`() {
         val graph = implementationGraph()
         // An unresolved source root would yield an empty graph that is trivially acyclic.
-        graph.keys.assert().contains("definition", "kotlin", "naming", "query", "typed")
+        graph.keys.assert().contains(ROOT_NODE, "definition", "kotlin", "naming", "query", "typed")
         cycles(graph).assert().isEqualTo(KNOWN_CYCLES)
     }
 
@@ -49,14 +50,12 @@ class SchemaPackageDependencyTest {
         }
         val packages = sources.mapTo(sortedSetOf()) { (name, _) -> name }
         return sources.groupBy({ it.first }, { it.second })
-            .filterKeys { name -> name != ROOT }
             .mapKeys { (name, _) -> name.relative() }
             .mapValues { (name, codes) ->
                 codes.flatMap { code -> IMPORT.findAll(code).map { it.groupValues[1] } }
                     .mapNotNull { reference ->
                         packages.filter { reference.startsWith("$it.") }.maxByOrNull(String::length)
                     }
-                    .filter { target -> target != ROOT }
                     .map { target -> target.relative() }
                     .filterTo(sortedSetOf()) { target -> target != name }
             }
@@ -83,10 +82,11 @@ class SchemaPackageDependencyTest {
         }.filterTo(linkedSetOf()) { component -> component.size > 1 }
     }
 
-    private fun String.relative(): String = removePrefix("$ROOT.")
+    private fun String.relative(): String = if (this == ROOT) ROOT_NODE else removePrefix("$ROOT.")
 
     private companion object {
         const val ROOT = "me.ahoo.wow.schema"
+        const val ROOT_NODE = "(root)"
         val SOURCE_ROOT = File("src/main/kotlin")
         val PACKAGE = Regex("""^\s*package\s+([\w.]+)""", RegexOption.MULTILINE)
         val IMPORT = Regex("""^\s*import\s+(me\.ahoo\.wow\.schema\.[\w.]+)""", RegexOption.MULTILINE)

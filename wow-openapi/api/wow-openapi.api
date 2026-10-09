@@ -1210,7 +1210,6 @@ public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder : me/ahoo/wow
 	public fun getDefaultSchemaNamePrefix ()Ljava/lang/String;
 	public fun getInline ()Z
 	public final fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
-	public final fun toSchema (Ltools/jackson/databind/JsonNode;)Lio/swagger/v3/oas/models/media/Schema;
 }
 
 public final class me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder$Companion {

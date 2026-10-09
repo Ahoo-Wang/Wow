@@ -56,7 +56,7 @@ class OpenAPISchemaBuilder(
     private val schemaConverter = OpenAPISchemaConverter()
     private val schemaReferences = SchemaReferenceRegistry(schemaConverter)
 
-    fun JsonNode.toSchema(): Schema<*> {
+    private fun JsonNode.toSchema(): Schema<*> {
         return schemaConverter.toSchema(this)
     }
 

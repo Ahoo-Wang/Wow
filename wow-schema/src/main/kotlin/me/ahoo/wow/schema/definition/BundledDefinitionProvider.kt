@@ -17,7 +17,6 @@ import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import me.ahoo.wow.schema.WowSchemaLoader
 
 /**
  * Describes every type assignable to [type], except [excludedSubtypes], with the bundled resource

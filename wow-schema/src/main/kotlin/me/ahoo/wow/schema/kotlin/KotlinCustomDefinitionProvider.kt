@@ -24,12 +24,8 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import me.ahoo.wow.schema.Types.isKotlinElement
-import me.ahoo.wow.schema.Types.isStdType
-import me.ahoo.wow.schema.Types.isWowType
+import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.isStdType
 import tools.jackson.databind.node.ObjectNode
-import java.util.Collections
-import java.util.WeakHashMap
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
@@ -37,14 +33,18 @@ import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.javaType
 
-internal object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
+/**
+ * Adds a Kotlin type's getter-only properties to its schema. [KotlinModule] creates one per generator configuration,
+ * because the provider remembers which types the current generation has expanded.
+ */
+internal class KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
     /**
-     * The types this provider has already expanded, per generation. It stops the recursion through
-     * `createStandardDefinition` for a recursive type with getter-only properties. Keying by the generation context
-     * keeps concurrent generations, and other generators sharing this provider, from seeing each other's types.
+     * The types expanded since victools last called [resetAfterSchemaGenerationFinished]: after each
+     * `generateSchema`, and after each `createSchemaReference` of a multi-definition build. It stops the recursion
+     * through `createStandardDefinition` for a recursive type with getter-only properties. A generator is used by one
+     * thread at a time, so a plain set is enough; separate generators never share it.
      */
-    private val expandedTypes: MutableMap<SchemaGenerationContext, MutableSet<ResolvedType>> =
-        Collections.synchronizedMap(WeakHashMap())
+    private val expandedTypes = mutableSetOf<ResolvedType>()
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
@@ -63,8 +63,7 @@ internal object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         if (kotlinGettersIfNonFields.isEmpty()) {
             return null
         }
-        val expanded = expandedTypes.getOrPut(context, ::mutableSetOf)
-        if (!expanded.add(javaType)) {
+        if (!expandedTypes.add(javaType)) {
             return null
         }
         val declarationDetails = DeclarationDetails(javaType, context.typeContext.resolveWithMembers(javaType))
@@ -121,5 +120,9 @@ internal object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
             returnType,
             argumentTypes
         )
+    }
+
+    override fun resetAfterSchemaGenerationFinished() {
+        expandedTypes.clear()
     }
 }

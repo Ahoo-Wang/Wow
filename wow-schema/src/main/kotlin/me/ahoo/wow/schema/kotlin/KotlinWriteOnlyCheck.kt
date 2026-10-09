@@ -16,7 +16,6 @@ package me.ahoo.wow.schema.kotlin
 import com.github.victools.jsonschema.generator.FieldScope
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
-import me.ahoo.wow.schema.Types.isKotlinElement
 import java.util.function.Predicate
 import kotlin.reflect.KVisibility
 import kotlin.reflect.jvm.kotlinProperty
