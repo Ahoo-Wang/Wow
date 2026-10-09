@@ -26,7 +26,7 @@ class SchemaPackageDependencyTest {
     fun `implementation packages form a DAG`() {
         val graph = implementationGraph()
         // An unresolved source root would yield an empty graph that is trivially acyclic.
-        graph.keys.assert().contains("kotlin", "naming", "openapi", "query", "typed")
+        graph.keys.assert().contains("definition", "kotlin", "naming", "openapi", "query", "typed")
         cycles(graph).assert().isEqualTo(KNOWN_CYCLES)
     }
 

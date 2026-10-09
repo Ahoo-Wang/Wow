@@ -15,9 +15,11 @@ package me.ahoo.wow.schema
 
 import me.ahoo.wow.serialization.toObject
 import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.ConcurrentHashMap
 
 object WowSchemaLoader {
     private const val WOW_SCHEMA_PATH_PREFIX = "META-INF/wow-schema/"
+    private val schemas = ConcurrentHashMap<String, ObjectNode>()
 
     private fun resourcePath(resourceName: String): String {
         return "$WOW_SCHEMA_PATH_PREFIX$resourceName.json"
@@ -34,8 +36,9 @@ object WowSchemaLoader {
         }
     }
 
+    /** A copy of the bundled schema, which the caller may change. Each resource is read and parsed once. */
     fun load(resourceName: String): ObjectNode {
-        return loadAsString(resourceName).toObject<ObjectNode>()
+        return schemas.computeIfAbsent(resourceName) { loadAsString(it).toObject<ObjectNode>() }.deepCopy()
     }
 
     fun load(resourceType: Class<*>): ObjectNode {

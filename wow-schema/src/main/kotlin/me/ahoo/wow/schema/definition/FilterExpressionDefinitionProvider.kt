@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed.query
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -20,9 +20,7 @@ import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclus
 import com.github.victools.jsonschema.generator.CustomDefinition.DefinitionType
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.MemberScope
-import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
-import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.DerivedExpression
@@ -33,17 +31,11 @@ import me.ahoo.wow.schema.WowSchemaLoader
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
-object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
+internal object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2 {
     private const val TYPE_PROPERTY = "type"
     private val semanticTypeNames = QuerySemanticType::class.java
         .getDeclaredAnnotation(JsonSubTypes::class.java)
         .value.associate { it.value.java to it.name }
-
-    override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
-        builder.forTypesInGeneral().withCustomDefinitionProvider(this)
-        builder.forFields().withTargetTypeOverridesResolver(::skipSubtypeLookup)
-        builder.forMethods().withTargetTypeOverridesResolver(::skipSubtypeLookup)
-    }
 
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
@@ -70,7 +62,8 @@ object FilterExpressionDefinitionProvider : CustomDefinitionProviderV2, Module {
         return CustomDefinition(definition)
     }
 
-    private fun skipSubtypeLookup(scope: MemberScope<*, *>): List<ResolvedType>? =
+    /** Query expressions are described by their own schemas, so members of these types skip subtype lookup. */
+    fun skipSubtypeLookup(scope: MemberScope<*, *>): List<ResolvedType>? =
         when (scope.type.erasedType) {
             FilterExpression::class.java,
             AggregationExpression::class.java,

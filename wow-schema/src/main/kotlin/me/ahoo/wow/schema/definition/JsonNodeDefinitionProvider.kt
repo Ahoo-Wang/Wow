@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
@@ -19,7 +19,7 @@ import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import tools.jackson.databind.JsonNode
 
-object JsonNodeDefinitionProvider : CustomDefinitionProviderV2 {
+internal object JsonNodeDefinitionProvider : CustomDefinitionProviderV2 {
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext,

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.schema.typed
+package me.ahoo.wow.schema.definition
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.CustomDefinition
@@ -25,15 +25,13 @@ import me.ahoo.wow.event.annotation.toEventMetadata
 import me.ahoo.wow.event.metadata.EventMetadata
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
-import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowSchemaLoader
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.serialization.MessageRecords
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
-object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV2 {
+internal object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV2 {
     private const val DOMAIN_EVENT_STREAM_BODY_RESOURCE_NAME = "DomainEventStreamBody"
     private val type: Class<*> = AggregatedDomainEventStream::class.java
 
@@ -48,32 +46,33 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         if (commandAggregateType == null || commandAggregateType == Any::class.java) {
             return domainEventStreamNode()
         }
-        val schemaVersion = context.generatorConfig.schemaVersion
         val eventMetadataSet = resolveEvents(commandAggregateType)
         if (eventMetadataSet.isEmpty()) {
             return domainEventStreamNode()
         }
-        val rootSchema = WowSchemaLoader.load(type).asJsonSchema(schemaVersion)
-        val rootPropertiesNode = rootSchema.requiredGetProperties()
-        val rootPropertiesBodyNode = rootPropertiesNode[DomainEventStream::body.name] as ObjectNode
-        val itemsNode = rootPropertiesBodyNode[SchemaKeyword.TAG_ITEMS.toPropertyName()] as ObjectNode
-        val itemsAnyOfNode = itemsNode[SchemaKeyword.TAG_ANYOF.toPropertyName(schemaVersion)] as ArrayNode
+        val propertiesKey = context.getKeyword(SchemaKeyword.TAG_PROPERTIES)
+        val titleKey = context.getKeyword(SchemaKeyword.TAG_TITLE)
+        val constKey = context.getKeyword(SchemaKeyword.TAG_CONST)
+        val rootSchema = WowSchemaLoader.load(type)
+        val rootBodyNode = rootSchema[propertiesKey][DomainEventStream::body.name] as ObjectNode
+        val itemsNode = rootBodyNode[context.getKeyword(SchemaKeyword.TAG_ITEMS)] as ObjectNode
+        val itemsAnyOfNode = itemsNode[context.getKeyword(SchemaKeyword.TAG_ANYOF)] as ArrayNode
         val eventBodyNodeTemplate = WowSchemaLoader.load(DOMAIN_EVENT_STREAM_BODY_RESOURCE_NAME)
         eventMetadataSet.forEach { eventMetadata ->
-            val eventBodySchema = eventBodyNodeTemplate.deepCopy().asJsonSchema(schemaVersion)
+            val eventBodySchema = eventBodyNodeTemplate.deepCopy()
             val title = eventMetadata.eventType.getAnnotation(Summary::class.java)?.value ?: eventMetadata.name
-            eventBodySchema.actual.put(SchemaKeyword.TAG_TITLE.toPropertyName(schemaVersion), title)
-            val eventBodyPropertiesNode = eventBodySchema.requiredGetProperties()
+            eventBodySchema.put(titleKey, title)
+            val eventBodyPropertiesNode = eventBodySchema[propertiesKey] as ObjectNode
             val eventBodyNameNode = eventBodyPropertiesNode[MessageRecords.NAME] as ObjectNode
-            eventBodyNameNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventMetadata.name)
+            eventBodyNameNode.put(constKey, eventMetadata.name)
             val eventBodyTypeNode = eventBodyPropertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
-            eventBodyTypeNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventMetadata.eventType.name)
+            eventBodyTypeNode.put(constKey, eventMetadata.eventType.name)
             val eventNode = createEventTypeDefinition(eventMetadata, context)
             eventBodyPropertiesNode.set(MessageRecords.BODY, eventNode)
-            itemsAnyOfNode.add(eventBodySchema.actual)
+            itemsAnyOfNode.add(eventBodySchema)
         }
 
-        return rootSchema.asCustomDefinition()
+        return CustomDefinition(rootSchema)
     }
 
     private fun createEventTypeDefinition(

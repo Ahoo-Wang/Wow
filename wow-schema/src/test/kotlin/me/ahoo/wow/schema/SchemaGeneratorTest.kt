@@ -6,7 +6,6 @@ import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
-import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
@@ -31,7 +30,6 @@ import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
@@ -41,7 +39,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import tools.jackson.databind.JsonNode
 import java.util.stream.Stream
 
 class SchemaGeneratorTest {
@@ -141,28 +138,28 @@ class SchemaGeneratorTest {
 
     @Test
     fun `should ignore command path route variable in schema`() {
-        val schema = jsonSchemaGenerator.generateSchema(CommandRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNull()
+        val schema = jsonSchemaGenerator.generateSchema(CommandRouteFixture::class.java)
+        schema.get("properties").assert().isNull()
     }
 
     @Test
     fun `should ignore command header route variable in schema`() {
-        val schema = jsonSchemaGenerator.generateSchema(HeaderRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNull()
+        val schema = jsonSchemaGenerator.generateSchema(HeaderRouteFixture::class.java)
+        schema.get("properties").assert().isNull()
     }
 
     @Test
     fun `should not ignore path route variable when wow module is empty`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().wowModule(WowModule(setOf())).build()
-        val schema = jsonSchemaGenerator.generateSchema(CommandRouteFixture::class.java).asJsonSchema()
-        schema.getProperties().assert().isNotNull()
+        val schema = jsonSchemaGenerator.generateSchema(CommandRouteFixture::class.java)
+        schema.get("properties").assert().isNotNull()
     }
 
     @Test
     fun `should generate enum schema without properties`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
-        val schema = jsonSchemaGenerator.generateSchema(CommandStage::class.java).asJsonSchema()
-        schema.getProperties().assert().isNull()
+        val schema = jsonSchemaGenerator.generateSchema(CommandStage::class.java)
+        schema.get("properties").assert().isNull()
     }
 
     @Test
@@ -188,9 +185,9 @@ class SchemaGeneratorTest {
         val schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
 
         val openAPISchemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
-        val schema = openAPISchemaBuilder.createSchemaReference(CreateTestAggregate::class.java).asJsonSchema()
+        val schema = openAPISchemaBuilder.createSchemaReference(CreateTestAggregate::class.java)
         val componentsSchemas = openAPISchemaBuilder.collectDefinitions("components/schemas")
-        schema.get<JsonNode>(SchemaKeyword.TAG_REF).assert().isNotNull()
+        schema.get("\$ref").assert().isNotNull()
         componentsSchemas.assert().hasSize(3)
     }
 

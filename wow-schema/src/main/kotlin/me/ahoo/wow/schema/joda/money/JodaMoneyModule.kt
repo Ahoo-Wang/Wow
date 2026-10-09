@@ -15,11 +15,14 @@ package me.ahoo.wow.schema.joda.money
 
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import me.ahoo.wow.schema.definition.BundledDefinitionProvider
+import org.joda.money.CurrencyUnit
+import org.joda.money.Money
 
 class JodaMoneyModule : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val generalConfigPart = builder.forTypesInGeneral()
-        generalConfigPart.withCustomDefinitionProvider(CurrencyUnitDefinitionProvider)
-        generalConfigPart.withCustomDefinitionProvider(MoneyDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(BundledDefinitionProvider(CurrencyUnit::class.java))
+        generalConfigPart.withCustomDefinitionProvider(BundledDefinitionProvider(Money::class.java))
     }
 }
