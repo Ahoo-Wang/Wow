@@ -137,7 +137,7 @@ describe('model doc comments', () => {
       }),
     );
     expect(file('com/example/types.ts').getFullText()).toBe(
-      '/**\n * An order\n * - key: com.example.Order\n */\nexport interface Order {\n    /** Its id */\n    id: string;\n}\n',
+      '/**\n * An order\n * - key: com.example.Order\n * - required: (none)\n */\nexport interface Order {\n    /** Its id */\n    id: string;\n}\n',
     );
   });
 

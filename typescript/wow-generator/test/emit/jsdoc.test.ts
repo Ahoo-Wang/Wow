@@ -12,7 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { addJSDoc, addSchemaJSDoc, jsDoc } from '../../src/emit/jsdoc';
+import {
+  addJSDoc,
+  addMainSchemaJSDoc,
+  addSchemaJSDoc,
+  jsDoc,
+} from '../../src/emit/jsdoc';
 
 /** A declaration structure the doc comments are added to. */
 type Documented = { docs?: string[] };
@@ -237,6 +242,96 @@ describe('jsdoc', () => {
       expect(mockNode.docs).toEqual([
         'Test Title\n- Numeric Constraints\n  - exclusiveMinimum: 0\n  - exclusiveMaximum: 100',
       ]);
+    });
+
+    it('documents a nullable value from its non-null branch', () => {
+      const mockNode: Documented = {};
+
+      addSchemaJSDoc(mockNode, {
+        title: 'Gender',
+        anyOf: [{ type: 'null' }, { type: 'integer', format: 'int32' }],
+      });
+
+      expect(mockNode.docs).toEqual(['Gender\n- format: int32']);
+    });
+
+    it('lets the schema win over its non-null branch', () => {
+      const mockNode: Documented = {};
+
+      addSchemaJSDoc(mockNode, {
+        exclusiveMinimum: 0,
+        oneOf: [
+          { type: 'integer', format: 'int64', title: 'Branch', minimum: 1 },
+          { type: 'null' },
+        ],
+        title: 'Shipped at',
+      });
+
+      expect(mockNode.docs).toEqual([
+        'Shipped at\n- format: int64 (a value beyond Number.MAX_SAFE_INTEGER loses precision)\n- Numeric Constraints\n  - minimum: 1\n  - exclusiveMinimum: 0',
+      ]);
+    });
+
+    it('does not read a branch that is a reference or one of several', () => {
+      const mockNode: Documented = {};
+
+      addSchemaJSDoc(mockNode, {
+        title: 'Reference',
+        anyOf: [{ type: 'null' }, { $ref: '#/components/schemas/Money' }],
+      });
+      addSchemaJSDoc(mockNode, {
+        title: 'Several',
+        anyOf: [
+          { type: 'null' },
+          { type: 'integer', format: 'int32' },
+          { type: 'string', format: 'date' },
+        ],
+      });
+
+      expect(mockNode.docs).toEqual(['Reference', 'Several']);
+    });
+  });
+
+  describe('addMainSchemaJSDoc', () => {
+    it('lists the properties the schema requires', () => {
+      const mockNode: Documented = {};
+
+      addMainSchemaJSDoc(
+        mockNode,
+        {
+          type: 'object',
+          properties: {
+            alias: { type: 'string' },
+            city: { type: 'string' },
+            priceEnd: { anyOf: [{ type: 'null' }, { type: 'number' }] },
+          },
+          required: ['city', 'priceEnd'],
+        },
+        'crm.customer.DeliveryAddress',
+      );
+
+      expect(mockNode.docs).toEqual([
+        '- key: crm.customer.DeliveryAddress\n- required: city, priceEnd',
+      ]);
+    });
+
+    it('says when an object requires no property', () => {
+      const mockNode: Documented = {};
+
+      addMainSchemaJSDoc(mockNode, {
+        type: 'object',
+        properties: { alias: { type: 'string' } },
+      });
+
+      expect(mockNode.docs).toEqual(['- required: (none)']);
+    });
+
+    it('lists nothing for a schema without properties', () => {
+      const mockNode: Documented = {};
+
+      addMainSchemaJSDoc(mockNode, { type: 'string', title: 'Name' });
+
+      expect(mockNode.docs).toEqual(['Name']);
     });
   });
 });

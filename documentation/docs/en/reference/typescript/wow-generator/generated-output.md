@@ -29,7 +29,7 @@ Imports are written explicitly while generating, so the output is byte-for-byte 
 
 A name that two sibling modules both export, such as a model of the same name in two packages, is left out of their common `index.ts` with a warning; import it from its own module.
 
-Model doc comments carry a summary: title, description, schema key, format, default, example and constraints. `--schema-docs full` (option `schemaDocs: 'full'`) also embeds the complete JSON schema.
+Model doc comments carry a summary: title, description, schema key, format, default, example and constraints. A model of an object also lists the properties its schema requires (`- required: a, b`, or `- required: (none)`), since every generated property is declared without `?`. A nullable value written as `anyOf: [{type: null}, X]` is documented from `X`, so a nullable integer keeps its `format`. `--schema-docs full` (option `schemaDocs: 'full'`) also embeds the complete JSON schema.
 
 ## Methods
 
