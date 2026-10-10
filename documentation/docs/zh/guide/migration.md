@@ -24,6 +24,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | CRUD/事务脚本/直接写表，没有 Wow 历史 | [传统架构迁移](./migration/traditional-architecture.md) | 建立 command、aggregate、event、导入与流量所有权 |
 | 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 比较固定平台/API/存储契约，并在需要时执行数据硬切换 |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
+| Wow 9.5.x | [从 9.5 升级到 9.6.0](#从-9-5-升级到-9-6-0) | `wow-openapi` 路由合同改为纯数据，OpenAPI 文档不变：重新编译，修改自定义 `RouteContributor` 与 `mergeOpenAPIFromCatalog` 的调用 |
 | Wow 9.4.x | [从 9.4 升级到 9.5.0](#从-9-4-升级到-9-5-0) | `wow-schema` 重构，生成的 Schema 不变：重新编译；`OpenAPISchemaBuilder` 的 import 改为 `me.ahoo.wow.openapi.schema`（位于 `wow-openapi`），删掉对已删除 `SchemaGeneratorBuilder` 成员的调用；改掉对已转为内部的 Provider 与检查的引用 |
 | Wow 9.3.x | [从 9.3 升级到 9.4.0](#从-9-3-升级到-9-4-0) | 只有 `wow-bi` 变化：每个 BI 部署用确认后的 `RESET` 重建一次，直接调用已删除 `wow-bi` API 的 Kotlin 代码改用 `BiScriptService` 或 `generate(prepare(…))`；其余部分的 REST、存储与线上格式不变 |
 | Wow 9.2.x | [从 9.2 升级到 9.3.0](#从-9-2-升级到-9-3-0) | 重新编译，迁移已删除与已弃用的 API，先升级处理节点再升级只做网关的服务；REST、存储与线上格式不变 |
@@ -60,6 +61,21 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 回滚计划必须区分“目标版本第一次生产写入之前”和“之后”。新存储格式已经写入时，只恢复旧 binary
 不是回滚。
+
+## 从 9.5 升级到 9.6.0
+
+`wow-openapi` 在 9.6.0 中把路由合同改为纯数据（设计：`documentation/designs/2026-10-09-wow-openapi-refactor-design.md`）。路由、route id 与生成的 OpenAPI 文档不变。针对 9.5 编译的代码需要重新编译；实现 `RouteContributor` 或构造路由合同的代码需要按下表修改源码。
+
+| 变化 | 影响谁 | 怎么做 |
+|---|---|---|
+| 修复：`RouterSpecs.mergeOpenAPI` 可以并发调用：文档只渲染一次（启动时由 `buildDocumentation()` 完成），每次调用合并其副本，不生成 Schema、不阻塞 | 从多个线程渲染文档的服务，例如多个 Springdoc 分组 | 无需操作 |
+| 修复：上下文内联 Schema 时（`OpenAPIComponentContext.default(inline = true)`），组件被内联，而不是输出指向从未登记的组件的 `$ref` | 使用内联上下文渲染的文档 | 无需操作 |
+| `RouteContributor.contributeGlobal(currentContext)` 与 `contributeAggregate(currentContext, aggregateRouteMetadata)` 去掉 `componentContext` 参数；删除 `id`、`order`、`category` 以及 `RouteContributors`、`RouteCategory` | 自定义贡献者 | 删除该参数与三个属性（目录自己排序路由）。构造合同时不再登记组件或生成 Schema，而是引用它们：Schema 用 `HttpSchema.TypeRef(type, typeArguments)`，组件用 `HttpComponent.parameter(key) { … }`（或 `header`、`requestBody`、`response`） |
+| `HttpParameter`、`HttpHeader`、`HttpRequestBody`、`HttpResponse` 的 `componentRef: String?` 改为 `component: HttpComponent<…>?`；删除 `HttpRouteContract.pathSummary`、`pathDescription` | 构造或读取合同的代码 | 传入由工厂函数创建的 `HttpComponent`，渲染器以其 key 登记，组件 key 必须唯一。不能再为 path item 设置与第一个路由不同的 summary 或 description：path item 取第一个路由的 summary 与 description |
+| `HttpSchema.TypeRef(mainTargetType, typeParameters: List<Type>)` 改为 `TypeRef(type, typeArguments: List<TypeRef>)`；删除 `HttpSchema.ComponentRef`、`Long`、`Boolean`、`Formatted`、`Unspecified` | 构造合同 Schema 的代码 | 类型参数包成 `TypeRef`；按类型用 `TypeRef` 引用 Schema 组件；静态 Schema 用 `Raw` |
+| 删除 `RouterSpecs.mergeOpenAPIFromCatalog` | 调用方 | 改用 `mergeOpenAPI` |
+| 删除 `CommonComponent`、`BatchComponent`、`QueryComponent`、`CommandComponent`、`EventComponent` 中生成组件的函数（`errorCodeHeader()`、`badRequestResponse()` 等），常量保留 | 调用这些函数的代码 | 通过内置贡献者的合同引用这些组件，或定义自己的 `HttpComponent` |
+| `OpenAPIComponentContext.componentSchema` 不再有默认实现；`OpenApiRenderer` 必须传入上下文 | 自定义 `OpenAPIComponentContext` 实现 | 实现 `componentSchema` |
 
 ## 从 9.4 升级到 9.5.0
 

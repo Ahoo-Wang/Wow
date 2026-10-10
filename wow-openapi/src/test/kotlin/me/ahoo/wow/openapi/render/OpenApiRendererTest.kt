@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -38,7 +39,7 @@ internal class OpenApiRendererTest {
     fun `should render route catalog to open api paths`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
@@ -59,7 +60,7 @@ internal class OpenApiRendererTest {
     fun `should render parameters`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
@@ -74,12 +75,12 @@ internal class OpenApiRendererTest {
                             HttpParameter(
                                 name = "filter",
                                 location = HttpParameterLocation.QUERY,
-                                schema = HttpSchema.Boolean
+                                schema = HttpSchema.Integer
                             ),
                             HttpParameter(
                                 name = "X-Test",
                                 location = HttpParameterLocation.HEADER,
-                                schema = HttpSchema.Long
+                                schema = HttpSchema.Object
                             )
                         )
                     )
@@ -94,17 +95,16 @@ internal class OpenApiRendererTest {
         parameters["id"]!!.schema.type.assert().isEqualTo("string")
         parameters["filter"]!!.`in`.assert().isEqualTo("query")
         parameters["filter"]!!.required.assert().isFalse()
-        parameters["filter"]!!.schema.type.assert().isEqualTo("boolean")
+        parameters["filter"]!!.schema.type.assert().isEqualTo("integer")
         parameters["X-Test"]!!.`in`.assert().isEqualTo("header")
-        parameters["X-Test"]!!.schema.type.assert().isEqualTo("integer")
-        parameters["X-Test"]!!.schema.format.assert().isEqualTo("int64")
+        parameters["X-Test"]!!.schema.type.assert().isEqualTo("object")
     }
 
     @Test
     fun `should render request and response content`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
@@ -114,7 +114,7 @@ internal class OpenApiRendererTest {
                             content = listOf(
                                 HttpContent(
                                     mediaType = Https.MediaType.APPLICATION_JSON,
-                                    schema = HttpSchema.ComponentRef("RequestBodySchema")
+                                    schema = HttpSchema.TypeRef(TypeRefFixture::class.java)
                                 )
                             )
                         ),
@@ -124,7 +124,17 @@ internal class OpenApiRendererTest {
                                 content = listOf(
                                     HttpContent(
                                         mediaType = Https.MediaType.TEXT_EVENT_STREAM,
-                                        schema = HttpSchema.Array(HttpSchema.ComponentRef("EventSchema"))
+                                        schema = HttpSchema.Array(
+                                            HttpSchema.TypeRef(
+                                                GenericFixture::class.java,
+                                                listOf(
+                                                    HttpSchema.TypeRef(
+                                                        GenericFixture::class.java,
+                                                        listOf(HttpSchema.TypeRef(TypeRefFixture::class.java))
+                                                    )
+                                                )
+                                            )
+                                        )
                                     )
                                 )
                             )
@@ -138,11 +148,12 @@ internal class OpenApiRendererTest {
         val operation = openAPI.paths["/test"]!!.post
         operation.requestBody.required.assert().isTrue()
         operation.requestBody.content[Https.MediaType.APPLICATION_JSON]!!
-            .schema.`$ref`.assert().isEqualTo("#/components/schemas/RequestBodySchema")
+            .schema.`$ref`.assert().startsWith("#/components/schemas/")
         val arraySchema = operation.responses[Https.Code.OK]!!
             .content[Https.MediaType.TEXT_EVENT_STREAM]!!.schema
         arraySchema.type.assert().isEqualTo("array")
-        arraySchema.items.`$ref`.assert().isEqualTo("#/components/schemas/EventSchema")
+        arraySchema.items.`$ref`.assert().contains("GenericFixture")
+        openAPI.components.schemas.keys.filter { it.contains("GenericFixture") }.assert().hasSize(2)
     }
 
     @Test
@@ -168,18 +179,54 @@ internal class OpenApiRendererTest {
             ),
             openAPI
         )
-        componentContext.finish()
 
         openAPI.paths["/test"]!!.post.requestBody.content[Https.MediaType.APPLICATION_JSON]!!
             .schema.`$ref`.assert().startsWith("#/components/schemas/")
-        componentContext.schemas.keys.any { it.contains("TypeRefFixture") }.assert().isTrue()
+        openAPI.components.schemas.keys.any { it.contains("TypeRefFixture") }.assert().isTrue()
+    }
+
+    @Test
+    fun `should inline components when the context inlines schemas`() {
+        val openAPI = OpenAPI()
+        var creations = 0
+        val component = HttpComponent.parameter("PathParameter") {
+            creations++
+            name = "id"
+        }
+        val parameter = HttpParameter(
+            name = "id",
+            location = HttpParameterLocation.PATH,
+            required = true,
+            component = component
+        )
+
+        OpenApiRenderer(OpenAPIComponentContext.default(inline = true)).render(
+            RouteCatalog(
+                listOf(
+                    route(path = "/test/{id}", parameters = listOf(parameter)),
+                    route(
+                        routeId = "test.post",
+                        method = Https.Method.POST,
+                        path = "/test/{id}",
+                        parameters = listOf(parameter)
+                    )
+                )
+            ),
+            openAPI
+        )
+
+        creations.assert().isEqualTo(1)
+        val inlined = openAPI.paths["/test/{id}"]!!.get.parameters.single()
+        inlined.name.assert().isEqualTo("id")
+        inlined.`$ref`.assert().isNull()
+        openAPI.components.parameters.assert().isNull()
     }
 
     @Test
     fun `should render response headers`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
@@ -189,7 +236,7 @@ internal class OpenApiRendererTest {
                                 headers = listOf(
                                     HttpHeader(
                                         name = "X-Result",
-                                        schema = HttpSchema.ComponentRef("HeaderSchema")
+                                        schema = HttpSchema.TypeRef(TypeRefFixture::class.java)
                                     )
                                 )
                             )
@@ -201,14 +248,14 @@ internal class OpenApiRendererTest {
         )
 
         val header = openAPI.paths["/test"]!!.get.responses[Https.Code.OK]!!.headers["X-Result"]!!
-        header.schema.`$ref`.assert().isEqualTo("#/components/schemas/HeaderSchema")
+        header.schema.`$ref`.assert().startsWith("#/components/schemas/")
     }
 
     @Test
     fun `should preserve operation component references`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
@@ -218,21 +265,23 @@ internal class OpenApiRendererTest {
                                 name = "id",
                                 location = HttpParameterLocation.PATH,
                                 required = true,
-                                componentRef = "PathParameter"
+                                component = HttpComponent.parameter("PathParameter") { name = "id" }
                             )
                         ),
-                        requestBody = HttpRequestBody(componentRef = "TestRequestBody"),
+                        requestBody = HttpRequestBody(
+                            component = HttpComponent.requestBody("TestRequestBody") {}
+                        ),
                         responses = listOf(
                             HttpResponse(
                                 statusCode = Https.Code.OK,
-                                componentRef = "TestResponse"
+                                component = HttpComponent.response("TestResponse") {}
                             ),
                             HttpResponse(
                                 statusCode = Https.Code.BAD_REQUEST,
                                 headers = listOf(
                                     HttpHeader(
                                         name = "X-Error",
-                                        componentRef = "ErrorHeader"
+                                        component = HttpComponent.header("ErrorHeader") {}
                                     )
                                 )
                             )
@@ -252,13 +301,17 @@ internal class OpenApiRendererTest {
             .isEqualTo("#/components/responses/TestResponse")
         operation.responses[Https.Code.BAD_REQUEST]!!.headers["X-Error"]!!.`$ref`.assert()
             .isEqualTo("#/components/headers/ErrorHeader")
+        openAPI.components.parameters.assert().containsKey("PathParameter")
+        openAPI.components.requestBodies.assert().containsKey("TestRequestBody")
+        openAPI.components.responses.assert().containsKey("TestResponse")
+        openAPI.components.headers.assert().containsKey("ErrorHeader")
     }
 
     @Test
     fun `should render route and path descriptions`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
@@ -266,18 +319,14 @@ internal class OpenApiRendererTest {
                         method = Https.Method.POST,
                         path = "/test",
                         summary = "Post summary",
-                        description = "Post description",
-                        pathSummary = "Path summary",
-                        pathDescription = "Path description"
+                        description = "Post description"
                     ),
                     route(
                         routeId = "test.get",
                         method = Https.Method.GET,
                         path = "/test",
                         summary = "Get summary",
-                        description = "Get description",
-                        pathSummary = "Path summary",
-                        pathDescription = "Path description"
+                        description = "Get description"
                     )
                 )
             ),
@@ -285,8 +334,8 @@ internal class OpenApiRendererTest {
         )
 
         val pathItem = openAPI.paths["/test"]!!
-        pathItem.summary.assert().isEqualTo("Path summary")
-        pathItem.description.assert().isEqualTo("Path description")
+        pathItem.summary.assert().isEqualTo("Get summary")
+        pathItem.description.assert().isEqualTo("Get description")
         pathItem.post.summary.assert().isEqualTo("Post summary")
         pathItem.post.description.assert().isEqualTo("Post description")
         pathItem.get.summary.assert().isEqualTo("Get summary")
@@ -300,7 +349,7 @@ internal class OpenApiRendererTest {
             .description("Existing description")
         val openAPI = OpenAPI().paths(Paths().addPathItem("/test", existingPathItem))
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(listOf(route())),
             openAPI
         )
@@ -311,28 +360,13 @@ internal class OpenApiRendererTest {
     }
 
     @Test
-    fun `should render inline schema shape and declared empty content`() {
+    fun `should render declared empty content`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 listOf(
                     route(
-                        path = "/test/{id}/{customerId}",
-                        parameters = listOf(
-                            HttpParameter(
-                                name = "id",
-                                location = HttpParameterLocation.PATH,
-                                required = true,
-                                schema = HttpSchema.Unspecified
-                            ),
-                            HttpParameter(
-                                name = "customerId",
-                                location = HttpParameterLocation.PATH,
-                                required = true,
-                                schema = HttpSchema.Formatted("int32")
-                            )
-                        ),
                         requestBody = HttpRequestBody(contentDeclared = true),
                         responses = listOf(HttpResponse(statusCode = Https.Code.OK, contentDeclared = true))
                     )
@@ -341,11 +375,7 @@ internal class OpenApiRendererTest {
             openAPI
         )
 
-        val operation = openAPI.paths["/test/{id}/{customerId}"]!!.get
-        val parameters = operation.parameters.associateBy { it.name }
-        parameters["id"]!!.schema.type.assert().isNull()
-        parameters["customerId"]!!.schema.type.assert().isNull()
-        parameters["customerId"]!!.schema.format.assert().isEqualTo("int32")
+        val operation = openAPI.paths["/test"]!!.get
         operation.requestBody.content.assert().isEmpty()
         operation.responses[Https.Code.OK]!!.content.assert().isEmpty()
     }
@@ -354,7 +384,7 @@ internal class OpenApiRendererTest {
     fun `should not render empty response headers and content`() {
         val openAPI = OpenAPI()
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(listOf(route())),
             openAPI
         )
@@ -378,7 +408,7 @@ internal class OpenApiRendererTest {
             Https.Method.TRACE
         )
 
-        OpenApiRenderer().render(
+        OpenApiRenderer(OpenAPIComponentContext.default()).render(
             RouteCatalog(
                 methods.map { method ->
                     route(
@@ -407,8 +437,6 @@ internal class OpenApiRendererTest {
         path: String = "/test",
         summary: String = "",
         description: String = "",
-        pathSummary: String = summary,
-        pathDescription: String = description,
         parameters: List<HttpParameter> = emptyList(),
         requestBody: HttpRequestBody? = null,
         responses: List<HttpResponse> = listOf(HttpResponse(statusCode = Https.Code.OK)),
@@ -421,8 +449,6 @@ internal class OpenApiRendererTest {
             handlerKey = routeId,
             summary = summary,
             description = description,
-            pathSummary = pathSummary,
-            pathDescription = pathDescription,
             parameters = parameters,
             requestBody = requestBody,
             responses = responses,
@@ -431,4 +457,6 @@ internal class OpenApiRendererTest {
     }
 
     private data class TypeRefFixture(val value: String = "")
+
+    private data class GenericFixture<T>(val value: T)
 }

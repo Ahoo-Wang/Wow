@@ -16,9 +16,11 @@ package me.ahoo.wow.openapi.contributor.aggregate.event
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.BatchComponents
+import me.ahoo.wow.openapi.component.CommonComponents
+import me.ahoo.wow.openapi.component.EventComponents
+import me.ahoo.wow.openapi.component.QueryComponents
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpRequestBody
@@ -32,28 +34,12 @@ import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
 import me.ahoo.wow.openapi.contributor.aggregate.tenantOwnerSummary
 import me.ahoo.wow.openapi.contributor.aggregate.tenantOwnerVariants
-import me.ahoo.wow.openapi.contributor.aggregate.versionPathParameterRef
-import me.ahoo.wow.openapi.contributor.aggregationQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregationResponse
-import me.ahoo.wow.openapi.contributor.badRequestResponseRef
-import me.ahoo.wow.openapi.contributor.batchAfterIdPathParameterRef
-import me.ahoo.wow.openapi.contributor.batchLimitPathParameterRef
-import me.ahoo.wow.openapi.contributor.batchResultResponseRef
-import me.ahoo.wow.openapi.contributor.compensationTargetRequestBodyRef
-import me.ahoo.wow.openapi.contributor.compensationTargetResponseRef
-import me.ahoo.wow.openapi.contributor.countQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.countQueryResponseRef
-import me.ahoo.wow.openapi.contributor.cursorQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.eventStreamCursorResponse
 import me.ahoo.wow.openapi.contributor.eventStreamListResponse
 import me.ahoo.wow.openapi.contributor.eventStreamPagedResponse
-import me.ahoo.wow.openapi.contributor.headVersionPathParameterRef
-import me.ahoo.wow.openapi.contributor.listQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.pagedQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.querySchemaParameters
 import me.ahoo.wow.openapi.contributor.querySchemaResponses
-import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
-import me.ahoo.wow.openapi.contributor.tailVersionPathParameterRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.rest.RouteSuffixes
 
@@ -62,24 +48,19 @@ import me.ahoo.wow.rest.RouteSuffixes
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
 object EventRouteContributor : RouteContributor {
-    override val id: String = "aggregate.event"
-    override val category: RouteCategory = RouteCategory.EVENT
-    override val order: Int = 400
-
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> {
         return buildList {
-            add(eventSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(eventSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(eventSchemaRoute(currentContext, aggregateRouteMetadata))
+            add(eventSchemaRefreshRoute(currentContext, aggregateRouteMetadata))
             aggregateRouteMetadata.tenantOwnerVariants().forEach { variant ->
-                addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
+                addAll(queryRoutes(currentContext, aggregateRouteMetadata, variant))
             }
-            add(loadEventStreamRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(eventCompensateRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(resendStateEventRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(loadEventStreamRoute(currentContext, aggregateRouteMetadata))
+            add(eventCompensateRoute(currentContext, aggregateRouteMetadata))
+            add(resendStateEventRoute(currentContext, aggregateRouteMetadata))
         }
     }
 
@@ -90,12 +71,10 @@ object EventRouteContributor : RouteContributor {
      */
     private fun eventSchemaRefreshRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract = eventRoute(
         currentContext = currentContext,
         aggregateRouteMetadata = aggregateRouteMetadata,
-        componentContext = componentContext,
         handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
         resourceName = "event_schema",
         operation = "refresh",
@@ -104,17 +83,15 @@ object EventRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = RouteSuffixes.EVENT_SCHEMA_REFRESH,
-        responses = componentContext.querySchemaResponses(),
+        responses = querySchemaResponses,
     )
 
     private fun eventSchemaRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract = eventRoute(
         currentContext = currentContext,
         aggregateRouteMetadata = aggregateRouteMetadata,
-        componentContext = componentContext,
         handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
         resourceName = "event_schema",
         operation = "get",
@@ -124,14 +101,13 @@ object EventRouteContributor : RouteContributor {
         appendOwnerPath = false,
         appendPathSuffix = RouteSuffixes.EVENT_SCHEMA,
         extraParameters = querySchemaParameters,
-        responses = componentContext.querySchemaResponses(),
+        responses = querySchemaResponses,
     )
 
     @Suppress("LongMethod")
     private fun queryRoutes(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): List<HttpRouteContract> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
@@ -139,7 +115,6 @@ object EventRouteContributor : RouteContributor {
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
-                componentContext = componentContext,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.AGGREGATION,
                 resourceName = EVENT,
                 operation = "aggregation",
@@ -148,13 +123,12 @@ object EventRouteContributor : RouteContributor {
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = RouteSuffixes.EVENT_AGGREGATION,
                 accept = STREAMING_ACCEPT,
-                requestBody = componentContext.aggregationQueryRequestBodyRef(),
-                responses = listOf(componentContext.aggregationResponse()),
+                requestBody = QueryComponents.aggregationQueryRequestBody,
+                responses = listOf(aggregationResponse),
             ),
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
-                componentContext = componentContext,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.COUNT,
                 resourceName = EVENT,
                 operation = "count",
@@ -162,13 +136,12 @@ object EventRouteContributor : RouteContributor {
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = RouteSuffixes.EVENT_COUNT,
-                requestBody = componentContext.countQueryRequestBodyRef(),
-                responses = listOf(componentContext.countQueryResponseRef())
+                requestBody = QueryComponents.countQueryRequestBody,
+                responses = listOf(QueryComponents.countQueryResponse)
             ),
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
-                componentContext = componentContext,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
                 resourceName = EVENT,
                 operation = "list_query",
@@ -177,13 +150,12 @@ object EventRouteContributor : RouteContributor {
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = RouteSuffixes.EVENT_LIST,
                 accept = STREAMING_ACCEPT,
-                requestBody = componentContext.listQueryRequestBodyRef(),
-                responses = listOf(componentContext.eventStreamListResponse(aggregateMetadata))
+                requestBody = QueryComponents.listQueryRequestBody,
+                responses = listOf(eventStreamListResponse(aggregateMetadata))
             ),
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
-                componentContext = componentContext,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY,
                 resourceName = EVENT,
                 operation = "paged_query",
@@ -191,13 +163,12 @@ object EventRouteContributor : RouteContributor {
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = RouteSuffixes.EVENT_PAGED,
-                requestBody = componentContext.pagedQueryRequestBodyRef(),
-                responses = listOf(componentContext.eventStreamPagedResponse(aggregateMetadata))
+                requestBody = QueryComponents.pagedQueryRequestBody,
+                responses = listOf(eventStreamPagedResponse(aggregateMetadata))
             ),
             eventRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
-                componentContext = componentContext,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Event.CURSOR_QUERY,
                 resourceName = EVENT,
                 operation = "cursor_query",
@@ -205,21 +176,19 @@ object EventRouteContributor : RouteContributor {
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = RouteSuffixes.EVENT_CURSOR,
-                requestBody = componentContext.cursorQueryRequestBodyRef(),
-                responses = listOf(componentContext.eventStreamCursorResponse(aggregateMetadata))
+                requestBody = QueryComponents.cursorQueryRequestBody,
+                responses = listOf(eventStreamCursorResponse(aggregateMetadata))
             )
         )
     }
 
     private fun loadEventStreamRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return eventRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Event.LOAD,
             resourceName = EVENT_STREAM,
             operation = "load",
@@ -231,22 +200,20 @@ object EventRouteContributor : RouteContributor {
             appendPathSuffix = RouteSuffixes.EVENT_RANGE,
             accept = STREAMING_ACCEPT,
             extraParameters = listOf(
-                componentContext.headVersionPathParameterRef(),
-                componentContext.tailVersionPathParameterRef()
+                BatchComponents.headVersionPathParameter,
+                BatchComponents.tailVersionPathParameter
             ),
-            responses = listOf(componentContext.eventStreamListResponse(aggregateRouteMetadata.aggregateMetadata))
+            responses = listOf(eventStreamListResponse(aggregateRouteMetadata.aggregateMetadata))
         )
     }
 
     private fun eventCompensateRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return eventRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Event.COMPENSATE,
             operation = "compensate",
             operationSummary = "Event Compensate",
@@ -255,24 +222,22 @@ object EventRouteContributor : RouteContributor {
             appendOwnerPath = false,
             appendIdPath = true,
             appendPathSuffix = RouteSuffixes.EVENT_COMPENSATE,
-            extraParameters = listOf(componentContext.versionPathParameterRef()),
-            requestBody = componentContext.compensationTargetRequestBodyRef(),
+            extraParameters = listOf(CommonComponents.versionPathParameter),
+            requestBody = EventComponents.compensationTargetRequestBody,
             responses = listOf(
-                componentContext.compensationTargetResponseRef(),
-                componentContext.badRequestResponseRef()
+                EventComponents.compensationTargetResponse,
+                CommonComponents.badRequestResponse
             )
         )
     }
 
     private fun resendStateEventRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return eventRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
             resourceName = STATE_EVENT,
             operation = "resend",
@@ -281,12 +246,12 @@ object EventRouteContributor : RouteContributor {
             appendOwnerPath = false,
             appendPathSuffix = RouteSuffixes.STATE_BATCH,
             extraParameters = listOf(
-                componentContext.batchAfterIdPathParameterRef(),
-                componentContext.batchLimitPathParameterRef()
+                BatchComponents.batchAfterIdPathParameter,
+                BatchComponents.batchLimitPathParameter
             ),
             responses = listOf(
-                componentContext.batchResultResponseRef(),
-                componentContext.requestTimeoutResponseRef()
+                BatchComponents.batchResultResponse,
+                CommonComponents.requestTimeoutResponse
             )
         )
     }
@@ -294,7 +259,6 @@ object EventRouteContributor : RouteContributor {
     private fun eventRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         handlerKey: String,
         operation: String,
         operationSummary: String,
@@ -329,7 +293,7 @@ object EventRouteContributor : RouteContributor {
             handlerKey = handlerKey,
             summary = tenantOwnerSummary(operationSummary, appendTenantPath, appendOwnerPath),
             accept = accept,
-            parameters = componentContext.aggregateParameters(
+            parameters = aggregateParameters(
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 appendTenantPath = appendTenantPath,
                 appendOwnerPath = appendOwnerPath,

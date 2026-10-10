@@ -80,9 +80,9 @@ wow-openapi         me.ahoo.wow.openapi
 
 ### 3.2 渲染（解决 D3）
 
-`RouterSpecs.mergeOpenAPI(openAPI)` 是唯一的渲染入口（`mergeOpenAPIFromCatalog` 并入）。渲染器遍历目录：遇到组件引用时在上下文中登记一次（同一次渲染内按 key 去重），遇到 `TypeRef` 时生成 Schema，最后 `finish()` 并把组件合入文档。
+`RouterSpecs.mergeOpenAPI(openAPI)` 是唯一的合并入口（`mergeOpenAPIFromCatalog` 并入）。渲染器遍历目录：遇到组件引用时以其 key 登记一次（同 key 的不同组件报错），遇到 `TypeRef` 时生成 Schema，最后 `finish()` 并把组件合入文档。
 
-`mergeOpenAPI` 对同一 `RouterSpecs` 串行执行（实例锁）。Schema 定义由上下文生成一次，之后的渲染只复用定义、重新组装路径与操作，所以每次合并得到新的 `Operation` 对象，调用方的定制器可以修改它们而不互相影响——这与现状一致。`buildDocumentation()` 保留，作用是在启动时完成第一次渲染，使 Schema 生成不落在请求线程上。
+文档只渲染一次：启动时由 `buildDocumentation()`（或第一次 `mergeOpenAPI`）在实例锁内完成，结果缓存为模板。之后每次 `mergeOpenAPI` 只合并模板的副本：path item、operation 及其参数、请求体、响应、请求头与组件（parameters/headers/requestBodies/responses）都复制，只有 Schema 实例共享。合并不生成 Schema、不阻塞、不增长内存，可并发调用；调用方的定制器修改 operation 与组件不会互相影响，修改 Schema 前需自行复制。
 
 ### 3.3 声明式聚合路由（解决 D6）
 
@@ -145,4 +145,6 @@ P1 → P2 → P4 依次进行；P3 与 P1 并行（只在 `CommandComponent.Head
 
 ## 9. 实施记录
 
+- P0（#4057）：路由目录构建不再推断查询字段。
+- P1：`RouteContributor` 去掉 `componentContext`、`id`、`order`、`category`；契约部件以 `component: HttpComponent<…>?` 引用组件，内置组件在 `component/` 包（internal）中各定义一次，`CommonComponent` 等对象只留常量；`HttpSchema.TypeRef(type, typeArguments)` 嵌套，删除 `ComponentRef`、`Long`、`Boolean`、`Formatted`、`Unspecified` 与 `pathSummary`/`pathDescription`；删除 `RoutingComponentContext`、双目录、`RouteContributors`、`RouteCategory`、`mergeOpenAPIFromCatalog`；`HttpComponent` 只能由工厂函数（`parameter`/`header`/`requestBody`/`response`）创建，渲染器以 key 登记，同 key 不同组件报错；文档只渲染一次（`buildDocumentation()` 或第一次 `mergeOpenAPI`，加锁），之后每次 `mergeOpenAPI` 合并其副本（path item、operation 及其部件复制，Schema 与组件共享），不再生成 Schema、不阻塞请求线程、不增长内存。两个快照不变；4 线程 × 5 轮并发渲染与单线程结果一致。
 - P3：新模块 `wow-rest-contract`（`me.ahoo.wow.rest`，只依赖 `wow-api`）收纳 `CommandHeaders`、`WowHeaders`、`RoutePaths`、`RouteSuffixes`、`RouteVariables`、`BatchResult` 与 `bi/` DTO。`CommandComponent.Header`、`CommonComponent.Header` 的常量与 `me.ahoo.wow.openapi.BatchResult` 保留为弃用别名（compat-debt 条目「Wow 9.5 REST Header Names And `BatchResult` In `wow-openapi`」），其余声明直接迁移。Schema 名由新模块的 `META-INF/wow-metadata.json` 固定：把 `me.ahoo.wow.rest` 并入 `wow.openapi` 上下文，组件名仍是 `wow.openapi.BatchResult`、`wow.openapi.BiScriptRequest` 等，OpenAPI 快照不变。`wow-apiclient` 改为依赖 `wow-rest-contract`，并以 api 依赖 `wow-query`（此前经 `wow-openapi` 传递得到，查询 DSL 仍对调用方可见），不再传递引入 `wow-openapi`。`GET /wow/metadata` 的 `wow.openapi` 上下文因此多列出作用域 `me.ahoo.wow.rest`（增量）。

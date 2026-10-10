@@ -13,16 +13,19 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
+import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.render.OpenApiRenderer
 import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.rest.bi.BiScriptHeaders
@@ -31,13 +34,11 @@ import org.junit.jupiter.api.Test
 
 internal class GenerateBIScriptRouteContributorTest {
     private val currentContext = MaterializedNamedBoundedContext("example-service")
-    private val componentContext = OpenAPIComponentContext.default(false)
 
     @Test
     fun `should contribute parameterized BI script POST contract`() {
-        GenerateBIScriptRouteContributor.id.assert().isEqualTo("global.bi-script")
         val contract = GenerateBIScriptRouteContributor
-            .contributeGlobal(currentContext, componentContext)
+            .contributeGlobal(currentContext)
             .single()
 
         contract.method.assert().isEqualTo(Https.Method.POST)
@@ -74,16 +75,22 @@ internal class GenerateBIScriptRouteContributorTest {
             name.assert().isEqualTo(BiScriptHeaders.DIAGNOSTIC_COUNT)
             schema.assert().isEqualTo(HttpSchema.Integer)
         }
-        contract.responses.single { it.statusCode == Https.Code.UNSUPPORTED_MEDIA_TYPE }.componentRef.assert()
+        contract.responses.single { it.statusCode == Https.Code.UNSUPPORTED_MEDIA_TYPE }.component?.key.assert()
             .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
 
         assertInspectionErrorResponses(contract.responses)
 
-        val unsupportedMediaTypeResponse = componentContext.responses[
+        val openAPI = OpenApiRenderer(OpenAPIComponentContext.default(false))
+            .render(RouteCatalog(listOf(contract)), OpenAPI())
+        openAPI.paths.getValue(RoutePaths.BI_SCRIPT).post
+            .responses.getValue(Https.Code.UNSUPPORTED_MEDIA_TYPE).`$ref`.assert().isEqualTo(
+                "#/components/responses/${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
+            )
+        val registered = openAPI.components.responses[
             "${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
         ]!!
-        unsupportedMediaTypeResponse.headers.assert().containsKey(WowHeaders.ERROR_CODE)
-        unsupportedMediaTypeResponse.content.assert().containsKey(Https.MediaType.APPLICATION_JSON)
+        registered.headers.assert().containsKey(WowHeaders.ERROR_CODE)
+        registered.content.assert().containsKey(Https.MediaType.APPLICATION_JSON)
     }
 
     private fun assertInspectionErrorResponses(responses: List<HttpResponse>) {
@@ -98,7 +105,7 @@ internal class GenerateBIScriptRouteContributorTest {
                 description.assert().isNotNull()
                 headers.single().run {
                     name.assert().isEqualTo(WowHeaders.ERROR_CODE)
-                    componentRef.assert().isEqualTo("${Wow.WOW_PREFIX}${WowHeaders.ERROR_CODE}")
+                    component?.key.assert().isEqualTo("${Wow.WOW_PREFIX}${WowHeaders.ERROR_CODE}")
                 }
                 content.assert().containsExactly(
                     HttpContent(

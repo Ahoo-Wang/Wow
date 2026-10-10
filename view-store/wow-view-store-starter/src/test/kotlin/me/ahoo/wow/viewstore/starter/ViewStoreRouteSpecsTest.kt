@@ -241,7 +241,7 @@ class ViewStoreRouteSpecsTest {
     @Test
     fun `OpenAPI shows the custom and the scoped routes`() {
         val openApi = OpenAPI()
-        routerSpecs.mergeOpenAPIFromCatalog(openApi)
+        routerSpecs.mergeOpenAPI(openApi)
         ViewStoreOpenApi(paths, hostPrefix).withoutClosedRoutes(openApi, guard.closedContracts)
         ViewStoreOpenApi(paths, hostPrefix).merge(openApi)
         openApi.paths.keys.assert().doesNotContain(
@@ -282,7 +282,7 @@ class ViewStoreRouteSpecsTest {
     @Test
     fun `OpenAPI adds no unprefixed schema at the root`() {
         val openApi = OpenAPI()
-        routerSpecs.mergeOpenAPIFromCatalog(openApi)
+        routerSpecs.mergeOpenAPI(openApi)
         val before = openApi.components.schemas.keys.toSet()
         ViewStoreOpenApi(paths, hostPrefix).merge(openApi)
         val added = openApi.components.schemas.keys - before

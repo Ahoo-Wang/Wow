@@ -13,9 +13,20 @@
 
 package me.ahoo.wow.openapi.contract
 
+import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.parameters.RequestBody
+import io.swagger.v3.oas.models.responses.ApiResponse
 import java.lang.reflect.Type
 
+/**
+ * One HTTP route: what the router dispatches by and what the OpenAPI document describes. It is pure data: building it
+ * generates no schema and registers no component. Schemas ([HttpSchema.TypeRef]) and components ([HttpComponent]) are
+ * references the renderer resolves when the document is rendered.
+ *
+ * The path item of [path] takes the summary and description of the first route on it.
+ */
 data class HttpRouteContract(
     val routeId: String,
     val method: String,
@@ -23,8 +34,6 @@ data class HttpRouteContract(
     val handlerKey: String,
     val summary: String = "",
     val description: String = "",
-    val pathSummary: String = summary,
-    val pathDescription: String = description,
     val accept: List<String> = listOf("application/json"),
     val parameters: List<HttpParameter> = emptyList(),
     val requestBody: HttpRequestBody? = null,
@@ -48,7 +57,8 @@ data class HttpParameter(
     val schema: HttpSchema = HttpSchema.String,
     val description: String? = null,
     val example: Any? = null,
-    val componentRef: kotlin.String? = null
+    /** When set, the document references this component instead of describing the parameter inline. */
+    val component: HttpComponent<Parameter>? = null
 )
 
 enum class HttpParameterLocation {
@@ -62,7 +72,8 @@ data class HttpRequestBody(
     val description: String? = null,
     val content: List<HttpContent> = emptyList(),
     val contentDeclared: Boolean = content.isNotEmpty(),
-    val componentRef: kotlin.String? = null
+    /** When set, the document references this component instead of describing the request body inline. */
+    val component: HttpComponent<RequestBody>? = null
 )
 
 data class HttpResponse(
@@ -71,14 +82,16 @@ data class HttpResponse(
     val headers: List<HttpHeader> = emptyList(),
     val content: List<HttpContent> = emptyList(),
     val contentDeclared: Boolean = content.isNotEmpty(),
-    val componentRef: kotlin.String? = null
+    /** When set, the document references this component instead of describing the response inline. */
+    val component: HttpComponent<ApiResponse>? = null
 )
 
 data class HttpHeader(
     val name: String,
     val schema: HttpSchema = HttpSchema.String,
     val description: String? = null,
-    val componentRef: kotlin.String? = null
+    /** When set, the document references this component instead of describing the header inline. */
+    val component: HttpComponent<Header>? = null
 )
 
 data class HttpContent(
@@ -86,16 +99,22 @@ data class HttpContent(
     val schema: HttpSchema
 )
 
+/**
+ * The schema of a parameter, header or content. A contract never holds a generated schema: [TypeRef] names a type
+ * whose schema the renderer generates, and [Raw] holds a static schema that needs no generation.
+ */
 sealed interface HttpSchema {
     data object String : HttpSchema
     data object Integer : HttpSchema
-    data object Boolean : HttpSchema
-    data object Long : HttpSchema
     data object Object : HttpSchema
-    data object Unspecified : HttpSchema
-    data class Formatted(val format: kotlin.String) : HttpSchema
-    data class TypeRef(val mainTargetType: Type, val typeParameters: List<Type> = emptyList()) : HttpSchema
+
+    /**
+     * The schema generated for [type], parameterized by [typeArguments], themselves type references, so nested
+     * generics such as `PagedList<MaterializedSnapshot<S>>` need no type resolution while the contract is built.
+     */
+    data class TypeRef(val type: Type, val typeArguments: List<TypeRef> = emptyList()) : HttpSchema
     data class Array(val item: HttpSchema) : HttpSchema
-    data class ComponentRef(val key: kotlin.String) : HttpSchema
+
+    /** A static schema that does not depend on schema generation, such as an untyped aggregation row. */
     data class Raw(val schema: Schema<*>) : HttpSchema
 }

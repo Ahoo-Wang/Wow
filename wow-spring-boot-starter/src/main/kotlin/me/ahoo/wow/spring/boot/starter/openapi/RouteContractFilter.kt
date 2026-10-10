@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot.starter.openapi
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -26,15 +25,12 @@ internal class RouteContractFilter(
     private val delegate: RouteContributor,
     private val keep: (HttpRouteContract) -> Boolean,
 ) : RouteContributor by delegate {
-    override fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext,
-    ): List<HttpRouteContract> = delegate.contributeGlobal(currentContext, componentContext).filter(keep)
+    override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> =
+        delegate.contributeGlobal(currentContext).filter(keep)
 
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> =
-        delegate.contributeAggregate(currentContext, aggregateRouteMetadata, componentContext).filter(keep)
+        delegate.contributeAggregate(currentContext, aggregateRouteMetadata).filter(keep)
 }

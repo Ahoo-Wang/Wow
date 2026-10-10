@@ -14,23 +14,23 @@
 package me.ahoo.wow.openapi.catalog
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
+/**
+ * Describes routes. A contributor only builds [HttpRouteContract]s, which are pure data: it generates no schema and
+ * registers no component (it references them, see [me.ahoo.wow.openapi.contract.HttpComponent] and
+ * [me.ahoo.wow.openapi.contract.HttpSchema.TypeRef]).
+ *
+ * [me.ahoo.wow.openapi.RouterSpecs] calls [contributeGlobal] on every contributor, then [contributeAggregate] on every
+ * contributor for each aggregate whose routes are enabled. The order routes are contributed in does not matter: the
+ * route catalog orders them itself.
+ */
 interface RouteContributor {
-    val id: String
-    val category: RouteCategory
-    val order: Int
-
-    fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext
-    ): List<HttpRouteContract> = emptyList()
+    fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> = emptyList()
 
     fun contributeAggregate(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> = emptyList()
 }

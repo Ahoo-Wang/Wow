@@ -17,8 +17,8 @@ import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.openapi.RouterSpecs
 import org.springdoc.core.customizers.OpenApiCustomizer
 
-class WowOpenApiCustomizer(private var routerSpecs: RouterSpecs) : OpenApiCustomizer {
+class WowOpenApiCustomizer(private val routerSpecs: RouterSpecs) : OpenApiCustomizer {
     override fun customise(openApi: OpenAPI) {
-        routerSpecs.mergeOpenAPIFromCatalog(openApi)
+        routerSpecs.mergeOpenAPI(openApi)
     }
 }

@@ -16,9 +16,7 @@ package me.ahoo.wow.openapi.contributor.global
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.WowMetadata
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
@@ -27,15 +25,7 @@ import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.rest.RoutePaths
 
 object GetWowMetadataRouteContributor : RouteContributor {
-    override val id: String = "global.metadata"
-    override val category: RouteCategory = RouteCategory.GLOBAL
-    override val order: Int = 30
-
-    override fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext
-    ): List<HttpRouteContract> {
-        componentContext.schema(WowMetadata::class.java)
+    override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(
             HttpRouteContract(
                 routeId = wowRouteId("metadata", "get"),
@@ -50,7 +40,7 @@ object GetWowMetadataRouteContributor : RouteContributor {
                         content = listOf(
                             HttpContent(
                                 Https.MediaType.APPLICATION_JSON,
-                                HttpSchema.ComponentRef("wow.configuration.WowMetadata")
+                                HttpSchema.TypeRef(WowMetadata::class.java)
                             )
                         )
                     )

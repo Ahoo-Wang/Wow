@@ -81,7 +81,8 @@ class OpenAPIAutoConfiguration {
             componentContext = openAPIComponentContext,
             routeContributors = contributors,
         )
-        // Schemas are generated only when the document is served; then the router reuses the documented contracts.
+        // The document is rendered (and its schemas generated) only when it is served, and then once, at startup:
+        // every request merges a copy of it and never blocks.
         if (openAPIProperties.enabled && ClassUtils.isPresent(SPRINGDOC_CUSTOMIZER, null)) {
             routerSpecs.buildDocumentation()
         }

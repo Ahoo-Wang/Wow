@@ -16,9 +16,8 @@ package me.ahoo.wow.openapi.contributor.global
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.CommonComponents
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
@@ -26,9 +25,6 @@ import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.contributor.badRequestResponseRef
-import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
-import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
 import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.rest.bi.BiScriptHeaders
 import me.ahoo.wow.rest.bi.BiScriptRequest
@@ -39,14 +35,7 @@ import me.ahoo.wow.rest.bi.BiScriptResponse
  * whoever wires BI (the Spring Boot starter, when `wow-bi` is on the classpath) adds it next to the handler.
  */
 object GenerateBIScriptRouteContributor : RouteContributor {
-    override val id: String = "global.bi-script"
-    override val category: RouteCategory = RouteCategory.GLOBAL
-    override val order: Int = 50
-
-    override fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext
-    ): List<HttpRouteContract> {
+    override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(
             HttpRouteContract(
                 routeId = wowRouteId("bi_script", "generate"),
@@ -70,30 +59,25 @@ object GenerateBIScriptRouteContributor : RouteContributor {
                 ),
                 responses = listOf(
                     successResponse(),
-                    componentContext.badRequestResponseRef(),
+                    CommonComponents.badRequestResponse,
                     errorResponse(
-                        componentContext,
                         Https.Code.NOT_ACCEPTABLE,
                         "None of the requested response media types is supported.",
                     ),
-                    componentContext.unsupportedMediaTypeResponseRef(),
+                    CommonComponents.unsupportedMediaTypeResponse,
                     errorResponse(
-                        componentContext,
                         Https.Code.BAD_GATEWAY,
                         "ClickHouse catalog is inconsistent.",
                     ),
                     errorResponse(
-                        componentContext,
                         Https.Code.SERVICE_UNAVAILABLE,
                         "ClickHouse catalog inspection is unavailable.",
                     ),
                     errorResponse(
-                        componentContext,
                         Https.Code.GATEWAY_TIMEOUT,
                         "ClickHouse catalog inspection timed out.",
                     ),
                     errorResponse(
-                        componentContext,
                         Https.Code.INTERNAL_SERVER_ERROR,
                         "Unexpected BI script generation failure.",
                     ),
@@ -123,13 +107,12 @@ object GenerateBIScriptRouteContributor : RouteContributor {
     )
 
     private fun errorResponse(
-        componentContext: OpenAPIComponentContext,
         statusCode: String,
         description: String,
     ): HttpResponse = HttpResponse(
         statusCode = statusCode,
         description = description,
-        headers = listOf(componentContext.errorCodeHeaderRef()),
+        headers = listOf(CommonComponents.errorCodeHeader),
         content = listOf(
             HttpContent(
                 Https.MediaType.APPLICATION_JSON,

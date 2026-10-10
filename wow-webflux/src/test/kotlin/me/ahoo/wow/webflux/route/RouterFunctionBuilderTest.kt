@@ -18,9 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -88,14 +86,7 @@ private fun routerSpecsWith(contract: HttpRouteContract): RouterSpecs {
 }
 
 private class StaticRouteContributor(private val contract: HttpRouteContract) : RouteContributor {
-    override val id: String = "test-static"
-    override val category: RouteCategory = RouteCategory.GLOBAL
-    override val order: Int = 0
-
-    override fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext
-    ): List<HttpRouteContract> {
+    override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(contract)
     }
 }

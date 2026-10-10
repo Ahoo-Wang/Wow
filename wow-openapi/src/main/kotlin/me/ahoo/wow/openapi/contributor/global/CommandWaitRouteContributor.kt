@@ -17,9 +17,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
@@ -29,15 +27,7 @@ import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.rest.RoutePaths
 
 object CommandWaitRouteContributor : RouteContributor {
-    override val id: String = "global.command-wait"
-    override val category: RouteCategory = RouteCategory.GLOBAL
-    override val order: Int = 10
-
-    override fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext
-    ): List<HttpRouteContract> {
-        componentContext.schema(SimpleWaitSignal::class.java)
+    override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(
             HttpRouteContract(
                 routeId = wowRouteId("command", "wait"),
@@ -49,7 +39,7 @@ object CommandWaitRouteContributor : RouteContributor {
                     content = listOf(
                         HttpContent(
                             Https.MediaType.APPLICATION_JSON,
-                            HttpSchema.ComponentRef("wow.command.SimpleWaitSignal")
+                            HttpSchema.TypeRef(SimpleWaitSignal::class.java)
                         )
                     )
                 ),

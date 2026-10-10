@@ -13,10 +13,7 @@
 
 package me.ahoo.wow.openapi
 
-import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.Paths
-import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
@@ -24,16 +21,22 @@ import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.catalog.RouteContributors
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.context.RoutingComponentContext
-import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.render.DocumentTemplate
 import me.ahoo.wow.openapi.render.OpenApiRenderer
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
+/**
+ * The routes of a service and their OpenAPI document.
+ *
+ * The route catalog ([toRouteCatalog]) is built once, from the [routeContributors], and generates no schema. The
+ * document is rendered from it once, generating the schemas and components with [componentContext]; [mergeOpenAPI]
+ * merges copies of it and may be called concurrently.
+ */
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
     val componentContext: OpenAPIComponentContext =
@@ -44,25 +47,16 @@ class RouterSpecs(
         const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
     }
 
-    private val orderedRouteContributors: List<RouteContributor> = RouteContributors.sort(routeContributors)
-
-    /** The routes built with [componentContext], which generates and registers their components. */
-    private val documentedRouteCatalogLazy: Lazy<RouteCatalog> = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        toRouteCatalog(collectContributedRoutes(componentContext))
-    }
-    private val documentedRouteCatalog: RouteCatalog by documentedRouteCatalogLazy
-
-    /**
-     * What the router dispatches by: the documented routes when they are already built (the routing facts are the
-     * same), otherwise the routes built without generating any schema.
-     */
     private val routeCatalog: RouteCatalog by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        if (documentedRouteCatalogLazy.isInitialized()) {
-            documentedRouteCatalog
-        } else {
-            toRouteCatalog(collectContributedRoutes(RoutingComponentContext))
-        }
+        collectContributedRoutes()
     }
+
+    /** Serializes the one render. */
+    private val renderLock = ReentrantLock()
+
+    /** The document rendered once, by the first [mergeOpenAPI] or [buildDocumentation]. */
+    @Volatile
+    private var template: DocumentTemplate? = null
 
     private fun serviceVersion(): String? {
         val firstLocalAggregateType = MetadataSearcher.namedAggregateType.filter {
@@ -92,48 +86,27 @@ class RouterSpecs(
         this.info = info
     }
 
-    private fun prepareOpenAPI(openAPI: OpenAPI) {
-        openAPI.apply {
-            specVersion(SpecVersion.V31)
-            ensureInfo()
-            if (paths == null) {
-                paths = Paths()
-            }
-            if (components == null) {
-                components = Components()
-            }
-        }
-    }
-
-    private fun mergeFinishedComponents(openAPI: OpenAPI) {
-        componentContext.schemas.forEach { (name, schema) ->
-            openAPI.components.addSchemas(name, schema)
-        }
-        componentContext.parameters.forEach { (name, parameter) ->
-            openAPI.components.addParameters(name, parameter)
-        }
-        componentContext.headers.forEach { (name, header) ->
-            openAPI.components.addHeaders(name, header)
-        }
-        componentContext.requestBodies.forEach { (name, requestBody) ->
-            openAPI.components.addRequestBodies(name, requestBody)
-        }
-        componentContext.responses.forEach { (name, response) ->
-            openAPI.components.addResponses(name, response)
-        }
-    }
-
+    /**
+     * Merges the routes into [openAPI]: its info, a fresh copy of the path item and operations of every route, the
+     * tags, and the schemas and components the routes reference.
+     *
+     * The document is rendered once, by the first call (or by [buildDocumentation]); that render generates the schemas
+     * and may block. Every call merges a copy of it, so a caller may change the path items and operations it gets
+     * without affecting other documents; the components are shared. It may be called concurrently.
+     */
     fun mergeOpenAPI(openAPI: OpenAPI) {
-        mergeOpenAPIFromCatalog(openAPI)
+        val template = documentTemplate()
+        openAPI.ensureInfo()
+        template.mergeInto(openAPI)
     }
 
-    fun mergeOpenAPIFromCatalog(openAPI: OpenAPI) {
-        prepareOpenAPI(openAPI)
-        val catalog = documentedRouteCatalog
-        componentContext.finish()
-        OpenApiRenderer(componentContext).render(catalog, openAPI)
-        componentContext.finish()
-        mergeFinishedComponents(openAPI)
+    private fun documentTemplate(): DocumentTemplate {
+        template?.let { return it }
+        return renderLock.withLock {
+            template ?: DocumentTemplate(
+                OpenApiRenderer(componentContext).render(routeCatalog, OpenAPI())
+            ).also { template = it }
+        }
     }
 
     /** Builds the route catalog. No schema is generated: that happens when the OpenAPI document is rendered. */
@@ -143,49 +116,34 @@ class RouterSpecs(
     }
 
     /**
-     * Builds the documented contracts now, generating and registering their components, so that the first
-     * [mergeOpenAPIFromCatalog] does not. Call it at startup when the OpenAPI document is served: schema generation
-     * may block (it reads query schemas), so it must not first run on a request thread. Called before [build], the
-     * router reuses these contracts instead of building the routes a second time.
+     * Renders the document now, unless it is rendered already. Call it at startup when the OpenAPI document is
+     * served: rendering generates the schemas, which may block (it infers query fields), so it must not run on a
+     * request thread. Later [mergeOpenAPI] calls only copy the rendered document and never block.
      */
     fun buildDocumentation(): RouterSpecs {
-        documentedRouteCatalog
+        documentTemplate()
         return this
     }
 
-    /**
-     * The route catalog the router dispatches by. Its contracts carry every routing fact; the schemas they embed are
-     * placeholders, since schemas are generated only by [mergeOpenAPIFromCatalog].
-     */
+    /** The route catalog the router dispatches by. */
     fun toRouteCatalog(): RouteCatalog {
         return routeCatalog
     }
 
-    private fun toRouteCatalog(contributedRoutes: Iterable<HttpRouteContract>): RouteCatalog {
-        return RouteCatalogBuilder().addAll(contributedRoutes).build()
-    }
-
-    private fun collectContributedRoutes(componentContext: OpenAPIComponentContext): List<HttpRouteContract> {
+    private fun collectContributedRoutes(): RouteCatalog {
         val builder = RouteCatalogBuilder()
-        orderedRouteContributors.filter { it.category == RouteCategory.GLOBAL }.forEach { contributor ->
-            builder.addAll(contributor.contributeGlobal(currentContext, componentContext))
-        }
-        val aggregateContributors = orderedRouteContributors.filter { it.category != RouteCategory.GLOBAL }
-        if (aggregateContributors.isEmpty()) {
-            return builder.build().routes
+        routeContributors.forEach { contributor ->
+            builder.addAll(contributor.contributeGlobal(currentContext))
         }
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
-            val aggregateType = aggregateEntry.value
-            val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
+            val aggregateRouteMetadata = aggregateEntry.value.aggregateRouteMetadata()
             if (aggregateRouteMetadata.enabled.not()) {
                 return@forEach
             }
-            aggregateContributors.forEach { contributor ->
-                builder.addAll(
-                    contributor.contributeAggregate(currentContext, aggregateRouteMetadata, componentContext)
-                )
+            routeContributors.forEach { contributor ->
+                builder.addAll(contributor.contributeAggregate(currentContext, aggregateRouteMetadata))
             }
         }
-        return builder.build().routes
+        return builder.build()
     }
 }

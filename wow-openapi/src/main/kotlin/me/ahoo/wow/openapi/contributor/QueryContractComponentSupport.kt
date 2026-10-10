@@ -23,134 +23,40 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.QueryComponent
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedAggregationQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCursorQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregationQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.cursorQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.RequestBody.singleQueryRequestBody
-import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.CommonComponents.errorCodeHeader
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
-import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.web.ServerSentEventNonNullData
-import java.lang.reflect.Type
 
-internal fun OpenAPIComponentContext.countQueryRequestBodyRef(): HttpRequestBody {
-    countQueryRequestBody()
-    return HttpRequestBody(componentRef = QueryComponent.COUNT_QUERY_KEY)
-}
+private val aggregationRowSchema = ObjectSchema().additionalProperties(Schema<Any>().nullable(true))
 
-internal fun OpenAPIComponentContext.listQueryRequestBodyRef(): HttpRequestBody {
-    listQueryRequestBody()
-    return HttpRequestBody(componentRef = QueryComponent.LIST_QUERY_KEY)
-}
-
-internal fun OpenAPIComponentContext.pagedQueryRequestBodyRef(): HttpRequestBody {
-    pagedQueryRequestBody()
-    return HttpRequestBody(componentRef = QueryComponent.PAGED_QUERY_KEY)
-}
-
-internal fun OpenAPIComponentContext.cursorQueryRequestBodyRef(): HttpRequestBody {
-    cursorQueryRequestBody()
-    return HttpRequestBody(componentRef = QueryComponent.CURSOR_QUERY_KEY)
-}
-
-internal fun OpenAPIComponentContext.singleQueryRequestBodyRef(): HttpRequestBody {
-    singleQueryRequestBody()
-    return HttpRequestBody(componentRef = QueryComponent.SINGLE_QUERY_KEY)
-}
-
-internal fun OpenAPIComponentContext.aggregationQueryRequestBodyRef(): HttpRequestBody {
-    aggregationQueryRequestBody()
-    return HttpRequestBody(componentRef = QueryComponent.AGGREGATION_QUERY_KEY)
-}
-
-internal fun OpenAPIComponentContext.aggregatedCountQueryRequestBodyRef(
-    aggregateMetadata: AggregateMetadata<*, *>,
-): HttpRequestBody {
-    aggregatedCountQueryRequestBody(aggregateMetadata)
-    return aggregateMetadata.queryRequestBodyRef(QueryComponent.COUNT_QUERY_SUFFIX)
-}
-
-internal fun OpenAPIComponentContext.aggregatedAggregationQueryRequestBodyRef(
-    aggregateMetadata: AggregateMetadata<*, *>,
-): HttpRequestBody {
-    aggregatedAggregationQueryRequestBody(aggregateMetadata)
-    return aggregateMetadata.queryRequestBodyRef(QueryComponent.AGGREGATION_QUERY_SUFFIX)
-}
-
-internal fun OpenAPIComponentContext.aggregatedListQueryRequestBodyRef(
-    aggregateMetadata: AggregateMetadata<*, *>,
-): HttpRequestBody {
-    aggregatedListQueryRequestBody(aggregateMetadata)
-    return aggregateMetadata.queryRequestBodyRef(QueryComponent.LIST_QUERY_SUFFIX)
-}
-
-internal fun OpenAPIComponentContext.aggregatedPagedQueryRequestBodyRef(
-    aggregateMetadata: AggregateMetadata<*, *>,
-): HttpRequestBody {
-    aggregatedPagedQueryRequestBody(aggregateMetadata)
-    return aggregateMetadata.queryRequestBodyRef(QueryComponent.PAGED_QUERY_SUFFIX)
-}
-
-internal fun OpenAPIComponentContext.aggregatedCursorQueryRequestBodyRef(
-    aggregateMetadata: AggregateMetadata<*, *>,
-): HttpRequestBody {
-    aggregatedCursorQueryRequestBody(aggregateMetadata)
-    return aggregateMetadata.queryRequestBodyRef(QueryComponent.CURSOR_QUERY_SUFFIX)
-}
-
-internal fun OpenAPIComponentContext.aggregatedSingleQueryRequestBodyRef(
-    aggregateMetadata: AggregateMetadata<*, *>,
-): HttpRequestBody {
-    aggregatedSingleQueryRequestBody(aggregateMetadata)
-    return aggregateMetadata.queryRequestBodyRef(QueryComponent.SINGLE_QUERY_SUFFIX)
-}
-
-internal fun OpenAPIComponentContext.countQueryResponseRef(): HttpResponse {
-    countQueryResponse()
-    return HttpResponse(
-        statusCode = Https.Code.OK,
-        componentRef = QueryComponent.COUNT_QUERY_KEY
-    )
-}
-
-internal fun OpenAPIComponentContext.aggregationResponse(): HttpResponse {
-    val rowSchema = ObjectSchema().additionalProperties(Schema<Any>().nullable(true))
-    val responseSchema = ArraySchema().items(rowSchema)
-    val eventStreamSchema = ArraySchema().items(
-        ObjectSchema()
-            .addProperty("id", StringSchema().nullable(true))
-            .addProperty("event", StringSchema().nullable(true))
-            .addProperty("data", rowSchema)
-            .addProperty("retry", IntegerSchema().nullable(true))
-            .required(listOf("data"))
-    )
-    return HttpResponse(
-        statusCode = Https.Code.OK,
-        headers = listOf(errorCodeHeaderRef()),
-        content = listOf(
-            HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Raw(responseSchema)),
-            HttpContent(Https.MediaType.TEXT_EVENT_STREAM, HttpSchema.Raw(eventStreamSchema))
+/** The aggregation routes answer untyped rows, as a JSON array or as server-sent events. */
+internal val aggregationResponse: HttpResponse = HttpResponse(
+    statusCode = Https.Code.OK,
+    headers = listOf(errorCodeHeader),
+    content = listOf(
+        HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Raw(ArraySchema().items(aggregationRowSchema))),
+        HttpContent(
+            Https.MediaType.TEXT_EVENT_STREAM,
+            HttpSchema.Raw(
+                ArraySchema().items(
+                    ObjectSchema()
+                        .addProperty("id", StringSchema().nullable(true))
+                        .addProperty("event", StringSchema().nullable(true))
+                        .addProperty("data", aggregationRowSchema)
+                        .addProperty("retry", IntegerSchema().nullable(true))
+                        .required(listOf("data"))
+                )
+            )
         )
     )
-}
+)
 
 private val QUERY_SCHEMA_ETAG = HttpHeader(
     name = "ETag",
@@ -167,10 +73,10 @@ internal val querySchemaParameters: List<HttpParameter> = listOf(
     ),
 )
 
-internal fun OpenAPIComponentContext.querySchemaResponses(): List<HttpResponse> = listOf(
+internal val querySchemaResponses: List<HttpResponse> = listOf(
     HttpResponse(
         statusCode = Https.Code.OK,
-        headers = listOf(errorCodeHeaderRef(), QUERY_SCHEMA_ETAG),
+        headers = listOf(errorCodeHeader, QUERY_SCHEMA_ETAG),
         content = listOf(
             HttpContent(
                 Https.MediaType.APPLICATION_JSON,
@@ -188,144 +94,77 @@ internal fun OpenAPIComponentContext.querySchemaResponses(): List<HttpResponse> 
     HttpResponse(Https.Code.SERVICE_UNAVAILABLE),
 )
 
-internal fun OpenAPIComponentContext.eventStreamListResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return listResponse(
+private val AggregateMetadata<*, *>.eventStream: HttpSchema.TypeRef
+    get() = HttpSchema.TypeRef(
         AggregatedDomainEventStream::class.java,
-        aggregateMetadata.command.aggregateType
+        listOf(HttpSchema.TypeRef(command.aggregateType))
     )
-}
 
-internal fun OpenAPIComponentContext.eventStreamPagedResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.Raw(
-            schema(
-                PagedList::class.java,
-                resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
-            )
-        )
-    )
-}
-
-internal fun OpenAPIComponentContext.eventStreamCursorResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.Raw(
-            schema(
-                CursorPage::class.java,
-                resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
-            )
-        )
-    )
-}
-
-internal fun OpenAPIComponentContext.materializedSnapshotListResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return listResponse(
+private val AggregateMetadata<*, *>.materializedSnapshot: HttpSchema.TypeRef
+    get() = HttpSchema.TypeRef(
         MaterializedSnapshot::class.java,
-        aggregateMetadata.state.aggregateType
+        listOf(HttpSchema.TypeRef(state.aggregateType))
     )
-}
 
-internal fun OpenAPIComponentContext.stateListResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return listResponse(mainTargetType = aggregateMetadata.state.aggregateType)
-}
+private val AggregateMetadata<*, *>.stateType: HttpSchema.TypeRef
+    get() = HttpSchema.TypeRef(state.aggregateType)
 
-internal fun OpenAPIComponentContext.materializedSnapshotPagedResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.Raw(
-            schema(
-                PagedList::class.java,
-                resolveType(MaterializedSnapshot::class.java, aggregateMetadata.state.aggregateType)
-            )
-        )
-    )
-}
+internal fun eventStreamListResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    listResponse(aggregateMetadata.eventStream)
 
-internal fun OpenAPIComponentContext.materializedSnapshotCursorResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.Raw(
-            schema(
-                CursorPage::class.java,
-                resolveType(MaterializedSnapshot::class.java, aggregateMetadata.state.aggregateType)
-            )
-        )
-    )
-}
+internal fun eventStreamPagedResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(pagedList(aggregateMetadata.eventStream))
 
-internal fun OpenAPIComponentContext.statePagedResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.Raw(schema(PagedList::class.java, aggregateMetadata.state.aggregateType))
-    )
-}
+internal fun eventStreamCursorResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(cursorPage(aggregateMetadata.eventStream))
 
-internal fun OpenAPIComponentContext.stateCursorResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.Raw(schema(CursorPage::class.java, aggregateMetadata.state.aggregateType))
-    )
-}
+internal fun materializedSnapshotListResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    listResponse(aggregateMetadata.materializedSnapshot)
 
-internal fun OpenAPIComponentContext.materializedSnapshotSingleResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(
-        schema = HttpSchema.TypeRef(
-            MaterializedSnapshot::class.java,
-            listOf(aggregateMetadata.state.aggregateType)
-        )
-    )
-}
+internal fun stateListResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    listResponse(aggregateMetadata.stateType)
 
-internal fun OpenAPIComponentContext.stateSingleResponse(
-    aggregateMetadata: AggregateMetadata<*, *>
-): HttpResponse {
-    return responseWithJson(schema = schemaRef(aggregateMetadata.state.aggregateType))
-}
+internal fun materializedSnapshotPagedResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(pagedList(aggregateMetadata.materializedSnapshot))
 
-private fun AggregateMetadata<*, *>.queryRequestBodyRef(suffix: String): HttpRequestBody =
-    HttpRequestBody(componentRef = toStringWithAlias() + suffix)
+internal fun materializedSnapshotCursorResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(cursorPage(aggregateMetadata.materializedSnapshot))
 
-private fun OpenAPIComponentContext.listResponse(
-    mainTargetType: Type,
-    vararg typeParameter: Type
-): HttpResponse {
-    val resolvedType = resolveType(mainTargetType, *typeParameter)
-    val serverSentEventType = resolveType(ServerSentEventNonNullData::class.java, resolvedType)
+internal fun statePagedResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(pagedList(aggregateMetadata.stateType))
+
+internal fun stateCursorResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(cursorPage(aggregateMetadata.stateType))
+
+internal fun materializedSnapshotSingleResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(aggregateMetadata.materializedSnapshot)
+
+internal fun stateSingleResponse(aggregateMetadata: AggregateMetadata<*, *>): HttpResponse =
+    responseWithJson(aggregateMetadata.stateType)
+
+private fun pagedList(item: HttpSchema.TypeRef) = HttpSchema.TypeRef(PagedList::class.java, listOf(item))
+
+private fun cursorPage(item: HttpSchema.TypeRef) = HttpSchema.TypeRef(CursorPage::class.java, listOf(item))
+
+/** A list as a JSON array, or as server-sent events each carrying one item. */
+private fun listResponse(item: HttpSchema.TypeRef): HttpResponse {
     return HttpResponse(
         statusCode = Https.Code.OK,
-        headers = listOf(errorCodeHeaderRef()),
+        headers = listOf(errorCodeHeader),
         content = listOf(
-            HttpContent(
-                Https.MediaType.APPLICATION_JSON,
-                HttpSchema.Raw(arraySchema(resolvedType))
-            ),
+            HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Array(item)),
             HttpContent(
                 Https.MediaType.TEXT_EVENT_STREAM,
-                HttpSchema.Raw(arraySchema(serverSentEventType))
+                HttpSchema.Array(HttpSchema.TypeRef(ServerSentEventNonNullData::class.java, listOf(item)))
             )
         )
     )
 }
 
-private fun OpenAPIComponentContext.responseWithJson(schema: HttpSchema): HttpResponse {
+private fun responseWithJson(schema: HttpSchema): HttpResponse {
     return HttpResponse(
         statusCode = Https.Code.OK,
-        headers = listOf(errorCodeHeaderRef()),
+        headers = listOf(errorCodeHeader),
         content = listOf(HttpContent(Https.MediaType.APPLICATION_JSON, schema))
     )
 }

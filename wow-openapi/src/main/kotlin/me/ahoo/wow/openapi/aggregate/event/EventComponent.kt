@@ -13,40 +13,9 @@
 
 package me.ahoo.wow.openapi.aggregate.event
 
-import io.swagger.v3.oas.models.media.IntegerSchema
-import io.swagger.v3.oas.models.parameters.RequestBody
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.openapi.CommonComponent.Response.withErrorCodeHeader
-import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.event.EventComponent.Schema.compensationTargetSchema
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 
 object EventComponent {
 
     const val COMPENSATION_TARGET_KEY = Wow.WOW_PREFIX + "CompensationTarget"
-
-    object Schema {
-        fun OpenAPIComponentContext.compensationTargetSchema(): io.swagger.v3.oas.models.media.Schema<*> {
-            return schema(CompensationTarget::class.java)
-        }
-    }
-
-    object Request {
-        fun OpenAPIComponentContext.compensationTargetRequestBody(): RequestBody {
-            return requestBody(COMPENSATION_TARGET_KEY) {
-                content(schema = compensationTargetSchema())
-            }
-        }
-    }
-
-    object Response {
-        fun OpenAPIComponentContext.compensationTargetResponse(): io.swagger.v3.oas.models.responses.ApiResponse {
-            return response(COMPENSATION_TARGET_KEY) {
-                withErrorCodeHeader(this@compensationTargetResponse)
-                description("Number of event streams compensated")
-                content(Https.MediaType.APPLICATION_JSON, schema = IntegerSchema())
-            }
-        }
-    }
 }

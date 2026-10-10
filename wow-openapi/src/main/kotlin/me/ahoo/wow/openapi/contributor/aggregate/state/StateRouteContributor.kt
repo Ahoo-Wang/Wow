@@ -20,10 +20,10 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.CommonComponents
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
@@ -34,14 +34,8 @@ import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contributor.aggregate.aggregateParameters
 import me.ahoo.wow.openapi.contributor.aggregate.aggregatePath
 import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
-import me.ahoo.wow.openapi.contributor.aggregate.createTimePathParameterRef
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
-import me.ahoo.wow.openapi.contributor.aggregate.versionPathParameterRef
-import me.ahoo.wow.openapi.contributor.badRequestResponseRef
-import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
-import me.ahoo.wow.openapi.contributor.notFoundResponseRef
-import me.ahoo.wow.openapi.contributor.schemaRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.rest.RouteSuffixes
 
@@ -50,32 +44,25 @@ import me.ahoo.wow.rest.RouteSuffixes
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
 object StateRouteContributor : RouteContributor {
-    override val id: String = "aggregate.state"
-    override val category: RouteCategory = RouteCategory.STATE
-    override val order: Int = 200
-
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> {
         return listOf(
-            aggregateTracingRoute(currentContext, aggregateRouteMetadata, componentContext),
-            loadAggregateRoute(currentContext, aggregateRouteMetadata, componentContext),
-            loadVersionedAggregateRoute(currentContext, aggregateRouteMetadata, componentContext),
-            loadTimeBasedAggregateRoute(currentContext, aggregateRouteMetadata, componentContext)
+            aggregateTracingRoute(currentContext, aggregateRouteMetadata),
+            loadAggregateRoute(currentContext, aggregateRouteMetadata),
+            loadVersionedAggregateRoute(currentContext, aggregateRouteMetadata),
+            loadTimeBasedAggregateRoute(currentContext, aggregateRouteMetadata)
         )
     }
 
     private fun aggregateTracingRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return stateRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING,
             resourceName = "aggregate_tracing",
             operation = "get",
@@ -83,23 +70,20 @@ object StateRouteContributor : RouteContributor {
             appendOwnerPath = false,
             appendIdPath = true,
             appendPathSuffix = RouteSuffixes.STATE_TRACING,
-            extraParameters = tracingQueryParameters(componentContext),
+            extraParameters = tracingQueryParameters,
             responses = tracingResponses(
-                aggregateRouteMetadata,
-                componentContext
+                aggregateRouteMetadata
             )
         )
     }
 
     private fun loadAggregateRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return stateRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
             resourceName = "aggregate",
             operation = "load",
@@ -109,21 +93,18 @@ object StateRouteContributor : RouteContributor {
             appendPathSuffix = RouteSuffixes.STATE,
             responses = loadAggregateResponses(
                 "Load State Aggregate",
-                aggregateRouteMetadata,
-                componentContext
+                aggregateRouteMetadata
             )
         )
     }
 
     private fun loadVersionedAggregateRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return stateRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_VERSIONED_AGGREGATE,
             resourceName = "versioned_aggregate",
             operation = "load",
@@ -131,24 +112,21 @@ object StateRouteContributor : RouteContributor {
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = RouteSuffixes.STATE_VERSIONED,
-            extraParameters = listOf(componentContext.versionPathParameterRef()),
+            extraParameters = listOf(CommonComponents.versionPathParameter),
             responses = loadAggregateResponses(
                 "Load Versioned State Aggregate",
-                aggregateRouteMetadata,
-                componentContext
+                aggregateRouteMetadata
             )
         )
     }
 
     private fun loadTimeBasedAggregateRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return stateRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE,
             resourceName = "time_based_aggregate",
             operation = "load",
@@ -156,11 +134,10 @@ object StateRouteContributor : RouteContributor {
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = RouteSuffixes.STATE_TIME_BASED,
-            extraParameters = listOf(componentContext.createTimePathParameterRef()),
+            extraParameters = listOf(CommonComponents.createTimePathParameter),
             responses = loadAggregateResponses(
                 "Load Time Based State Aggregate",
-                aggregateRouteMetadata,
-                componentContext
+                aggregateRouteMetadata
             )
         )
     }
@@ -168,7 +145,6 @@ object StateRouteContributor : RouteContributor {
     private fun stateRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         handlerKey: String,
         resourceName: String,
         operation: String,
@@ -198,7 +174,7 @@ object StateRouteContributor : RouteContributor {
             ),
             handlerKey = handlerKey,
             summary = summary,
-            parameters = componentContext.aggregateParameters(
+            parameters = aggregateParameters(
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 appendTenantPath = appendTenantPath,
                 appendOwnerPath = appendOwnerPath,
@@ -210,60 +186,50 @@ object StateRouteContributor : RouteContributor {
         )
     }
 
-    private fun tracingQueryParameters(componentContext: OpenAPIComponentContext): List<HttpParameter> {
-        return listOf(
-            componentContext.tracingQueryParameter(
-                key = HEAD_VERSION_PARAMETER_KEY,
-                name = HEAD_VERSION,
-                description = "The first aggregate version to emit."
-            ),
-            componentContext.tracingQueryParameter(
-                key = TAIL_VERSION_PARAMETER_KEY,
-                name = TAIL_VERSION,
-                description = "The last aggregate version to replay and emit."
-            ),
-            componentContext.tracingQueryParameter(
-                key = LIMIT_PARAMETER_KEY,
-                name = LIMIT,
-                description = "The maximum number of tail versions to emit."
-            )
+    private val tracingQueryParameters: List<HttpParameter> = listOf(
+        tracingQueryParameter(
+            name = HEAD_VERSION,
+            description = "The first aggregate version to emit."
+        ),
+        tracingQueryParameter(
+            name = TAIL_VERSION,
+            description = "The last aggregate version to replay and emit."
+        ),
+        tracingQueryParameter(
+            name = LIMIT,
+            description = "The maximum number of tail versions to emit."
         )
-    }
+    )
 
-    private fun OpenAPIComponentContext.tracingQueryParameter(
-        key: String,
-        name: String,
-        description: String
-    ): HttpParameter {
-        parameter(key) {
-            this.name = name
-            schema = IntegerSchema().description(description)
-            `in`(ParameterIn.QUERY.toString())
-            required = false
-        }
+    /** An optional query parameter registered as the `wow.aggregate-tracing.{name}` component. */
+    private fun tracingQueryParameter(name: String, description: String): HttpParameter {
         return HttpParameter(
             name = name,
             location = HttpParameterLocation.QUERY,
-            componentRef = key
+            component = HttpComponent.parameter("$TRACING_PARAMETER_KEY_PREFIX$name") {
+                this.name = name
+                schema = IntegerSchema().description(description)
+                `in`(ParameterIn.QUERY.toString())
+                required = false
+            }
         )
     }
 
     private fun tracingResponses(
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpResponse> {
         return listOf(
             HttpResponse(
                 statusCode = Https.Code.OK,
                 description = "Get Aggregate Tracing",
-                headers = listOf(componentContext.errorCodeHeaderRef()),
+                headers = listOf(CommonComponents.errorCodeHeader),
                 content = listOf(
                     HttpContent(
                         Https.MediaType.APPLICATION_JSON,
                         HttpSchema.Array(
                             HttpSchema.TypeRef(
                                 StateEvent::class.java,
-                                listOf(aggregateRouteMetadata.aggregateMetadata.state.aggregateType)
+                                listOf(HttpSchema.TypeRef(aggregateRouteMetadata.aggregateMetadata.state.aggregateType))
                             )
                         )
                     )
@@ -274,30 +240,27 @@ object StateRouteContributor : RouteContributor {
 
     private fun loadAggregateResponses(
         summary: String,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpResponse> {
         return listOf(
             HttpResponse(
                 statusCode = Https.Code.OK,
                 description = summary,
-                headers = listOf(componentContext.errorCodeHeaderRef()),
+                headers = listOf(CommonComponents.errorCodeHeader),
                 content = listOf(
                     HttpContent(
                         Https.MediaType.APPLICATION_JSON,
-                        schemaRef(aggregateRouteMetadata.aggregateMetadata.state.aggregateType)
+                        HttpSchema.TypeRef(aggregateRouteMetadata.aggregateMetadata.state.aggregateType)
                     )
                 )
             ),
-            componentContext.badRequestResponseRef(),
-            componentContext.notFoundResponseRef()
+            CommonComponents.badRequestResponse,
+            CommonComponents.notFoundResponse
         )
     }
 
     private const val HEAD_VERSION = "headVersion"
     private const val TAIL_VERSION = "tailVersion"
     private const val LIMIT = "limit"
-    private const val HEAD_VERSION_PARAMETER_KEY = "wow.aggregate-tracing.headVersion"
-    private const val TAIL_VERSION_PARAMETER_KEY = "wow.aggregate-tracing.tailVersion"
-    private const val LIMIT_PARAMETER_KEY = "wow.aggregate-tracing.limit"
+    private const val TRACING_PARAMETER_KEY_PREFIX = "wow.aggregate-tracing."
 }

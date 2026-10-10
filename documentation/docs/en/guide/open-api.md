@@ -55,6 +55,29 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 `OpenAPIAutoConfiguration` creates `RouterSpecs`; `WebFluxAutoConfiguration` materializes the catalog into `RouterFunction`; `WowOpenApiCustomizer` merges the same catalog into Springdoc. `wow.openapi.enabled=false` disables Springdoc customization, not the WebFlux route catalog itself. The route catalog is built without generating any JSON Schema; schemas and components are generated only when the document is served (at startup, when Springdoc is present and `wow.openapi.enabled` is not `false`), so a service without the document pays no schema generation.
 
+`RouterSpecs` renders the catalog into a document once, by `buildDocumentation()` at startup (or the first `RouterSpecs.mergeOpenAPI(openAPI)`); that render generates the schemas, which may block. Every `mergeOpenAPI` call then merges a copy of that document: it never generates a schema or blocks, may be called concurrently (for example by several Springdoc groups), and gets its own path items and operations, which a customizer may change without affecting other documents. Schemas and components are shared.
+
+A custom route is added by a `RouteContributor` bean. A contributor only returns route contracts, which are plain data: it generates no schema and registers no component. A body or response type is referenced with `HttpSchema.TypeRef` (nested generics through `typeArguments`), and a reusable parameter, header, request body or response with an `HttpComponent` (`HttpComponent.parameter`, `header`, `requestBody`, `response`): its key is written once, the renderer builds and registers it once, and keys must be unique (two different components with one key are rejected):
+
+```kotlin
+val reportResponse = HttpComponent.response("example.ReportResponse") { context ->
+    content(schema = context.schema(Report::class.java))
+}
+
+@Bean
+fun reportRouteContributor(): RouteContributor = object : RouteContributor {
+    override fun contributeGlobal(currentContext: NamedBoundedContext) = listOf(
+        HttpRouteContract(
+            routeId = "example.report.get",
+            method = Https.Method.GET,
+            path = "/report",
+            handlerKey = "example.report",
+            responses = listOf(HttpResponse(Https.Code.OK, component = reportResponse)),
+        )
+    )
+}
+```
+
 Modules containing Wow annotations still need KSP plus `wow-compiler`, and their generated `META-INF/wow-metadata.json` resources must be present on the service runtime classpath. Do not hand-write or commit generated resources.
 
 ## Swagger-UI

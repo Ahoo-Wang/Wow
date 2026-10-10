@@ -11,11 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.contributor
+package me.ahoo.wow.openapi.context
 
-import me.ahoo.wow.openapi.contract.HttpSchema
-import java.lang.reflect.Type
+import me.ahoo.wow.openapi.contract.HttpComponent
 
-internal fun schemaRef(mainTargetType: Type): HttpSchema {
-    return HttpSchema.TypeRef(mainTargetType)
+/**
+ * What an [HttpComponent] is built with: the component context, which generates schemas, plus [ref] for referencing
+ * another component from inside this one.
+ */
+interface HttpComponentContext : OpenAPIComponentContext {
+    /**
+     * A reference to [component] (a `$ref`, or the component itself when schemas are inlined), building it first
+     * unless the render already did.
+     */
+    fun <T : Any> ref(component: HttpComponent<T>): T
 }
