@@ -20,6 +20,7 @@ import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
@@ -125,6 +126,24 @@ class ViewStoreStarterTest {
         applicationContext.containsBean(ViewStoreAutoConfiguration.ROUTER_FUNCTION_BEAN_NAME).assert().isTrue()
         applicationContext.getBeansOfType(CommandBuilderExtractor::class.java).assert().hasSize(1)
         applicationContext.getBeansOfType(CommandMessageExtractor::class.java).assert().hasSize(1)
+    }
+
+    /**
+     * The host's component scan covers this package; the nested configurations still come only through the
+     * auto-configuration, so they are registered after the auto-configurations it runs after, as in a host that does
+     * not scan it. Scanned, they would be registered before every auto-configuration.
+     */
+    @Test
+    fun `registers the nested configurations through the auto-configuration only`() {
+        val beanNames = applicationContext.beanDefinitionNames.toList()
+        val autoConfigurationIndex = beanNames.indexOf(WowAutoConfiguration::class.java.name)
+        autoConfigurationIndex.assert().isNotNegative()
+        listOf(
+            ViewStoreAutoConfiguration.ViewStoreOpenApiConfiguration::class.java,
+            ViewStoreAutoConfiguration.ViewStoreSharedTopicsConfiguration::class.java,
+        ).forEach {
+            beanNames.indexOf(it.name).assert().isGreaterThan(autoConfigurationIndex)
+        }
     }
 
     @Test

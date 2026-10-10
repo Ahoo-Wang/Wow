@@ -1,0 +1,2 @@
+org.springframework.context.ApplicationContextInitializer=\
+me.ahoo.wow.spring.boot.starter.NestedAutoConfigurationExcludeFilterInitializer
