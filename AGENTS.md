@@ -123,6 +123,7 @@ wow-opentelemetry/          Tracing and metrics integration
 wow-cosec/                  CoSec authorization integration
 wow-cocache/                CoCache projection caching
 wow-apiclient/              REST API client using CoApi
+wow-rest-contract/          REST wire vocabulary: header names, route paths, BatchResult, BI script DTOs
 wow-openapi/                Route contracts and runtime OpenAPI generation
 wow-schema/                 JSON Schema generation
 wow-bi/                     BI sync script generation

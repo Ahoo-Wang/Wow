@@ -23,66 +23,170 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_AGGREGATE_NAME
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_TYPE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.LOCAL_FIRST
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.OWNER_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.TENANT_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_FUNCTION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_PROCESSOR
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_STAGE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_FUNCTION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_PROCESSOR
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_STAGE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TIME_OUT
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Schema.commandResultSchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.CommandHeaders.AGGREGATE_ID
+import me.ahoo.wow.rest.CommandHeaders.AGGREGATE_VERSION
+import me.ahoo.wow.rest.CommandHeaders.COMMAND_AGGREGATE_CONTEXT
+import me.ahoo.wow.rest.CommandHeaders.COMMAND_AGGREGATE_NAME
+import me.ahoo.wow.rest.CommandHeaders.COMMAND_TYPE
+import me.ahoo.wow.rest.CommandHeaders.LOCAL_FIRST
+import me.ahoo.wow.rest.CommandHeaders.OWNER_ID
+import me.ahoo.wow.rest.CommandHeaders.REQUEST_ID
+import me.ahoo.wow.rest.CommandHeaders.TENANT_ID
+import me.ahoo.wow.rest.CommandHeaders.WAIT_CONTEXT
+import me.ahoo.wow.rest.CommandHeaders.WAIT_FUNCTION
+import me.ahoo.wow.rest.CommandHeaders.WAIT_PROCESSOR
+import me.ahoo.wow.rest.CommandHeaders.WAIT_STAGE
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_CONTEXT
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_FUNCTION
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_PROCESSOR
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_STAGE
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TIME_OUT
+import me.ahoo.wow.rest.WowHeaders
 
 object CommandComponent {
     object Header {
-        const val COMMAND_HEADERS_PREFIX = "Command-"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.COMMAND_HEADERS_PREFIX.",
+            ReplaceWith("CommandHeaders.COMMAND_HEADERS_PREFIX", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val COMMAND_HEADERS_PREFIX = CommandHeaders.COMMAND_HEADERS_PREFIX
 
-        const val TENANT_ID = "${COMMAND_HEADERS_PREFIX}Tenant-Id"
-        const val OWNER_ID = "${COMMAND_HEADERS_PREFIX}Owner-Id"
-        const val AGGREGATE_ID = "${COMMAND_HEADERS_PREFIX}Aggregate-Id"
-        const val AGGREGATE_VERSION = "${COMMAND_HEADERS_PREFIX}Aggregate-Version"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.TENANT_ID.",
+            ReplaceWith("CommandHeaders.TENANT_ID", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val TENANT_ID = CommandHeaders.TENANT_ID
 
-        const val WAIT_PREFIX = "${COMMAND_HEADERS_PREFIX}Wait-"
-        const val WAIT_TIME_OUT = "${WAIT_PREFIX}Timeout"
-        const val LEGACY_WAIT_TIME_OUT = "${WAIT_PREFIX}Timout"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.OWNER_ID.",
+            ReplaceWith("CommandHeaders.OWNER_ID", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val OWNER_ID = CommandHeaders.OWNER_ID
 
-        //region Wait Stage
-        const val WAIT_STAGE = "${WAIT_PREFIX}Stage"
-        const val WAIT_CONTEXT = "${WAIT_PREFIX}Context"
-        const val WAIT_PROCESSOR = "${WAIT_PREFIX}Processor"
-        const val WAIT_FUNCTION = "${WAIT_PREFIX}Function"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.AGGREGATE_ID.",
+            ReplaceWith("CommandHeaders.AGGREGATE_ID", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val AGGREGATE_ID = CommandHeaders.AGGREGATE_ID
 
-        //endregion
-        //region Wait Chain Tail
-        const val WAIT_TAIL_PREFIX = "${WAIT_PREFIX}Tail-"
-        const val WAIT_TAIL_STAGE = "${WAIT_TAIL_PREFIX}Stage"
-        const val WAIT_TAIL_CONTEXT = "${WAIT_TAIL_PREFIX}Context"
-        const val WAIT_TAIL_PROCESSOR = "${WAIT_TAIL_PREFIX}Processor"
-        const val WAIT_TAIL_FUNCTION = "${WAIT_TAIL_PREFIX}Function"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.AGGREGATE_VERSION.",
+            ReplaceWith("CommandHeaders.AGGREGATE_VERSION", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val AGGREGATE_VERSION = CommandHeaders.AGGREGATE_VERSION
 
-        //endregion
-        const val REQUEST_ID = "${COMMAND_HEADERS_PREFIX}Request-Id"
-        const val LOCAL_FIRST = "${COMMAND_HEADERS_PREFIX}Local-First"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_PREFIX.",
+            ReplaceWith("CommandHeaders.WAIT_PREFIX", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_PREFIX = CommandHeaders.WAIT_PREFIX
 
-        const val COMMAND_AGGREGATE_CONTEXT = "${COMMAND_HEADERS_PREFIX}Aggregate-Context"
-        const val COMMAND_AGGREGATE_NAME = "${COMMAND_HEADERS_PREFIX}Aggregate-Name"
-        const val COMMAND_TYPE = "${COMMAND_HEADERS_PREFIX}Type"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_TIME_OUT.",
+            ReplaceWith("CommandHeaders.WAIT_TIME_OUT", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_TIME_OUT = CommandHeaders.WAIT_TIME_OUT
 
-        const val COMMAND_HEADER_X_PREFIX = "${COMMAND_HEADERS_PREFIX}Header-"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.LEGACY_WAIT_TIME_OUT.",
+            ReplaceWith("CommandHeaders.LEGACY_WAIT_TIME_OUT", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val LEGACY_WAIT_TIME_OUT = CommandHeaders.LEGACY_WAIT_TIME_OUT
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_STAGE.",
+            ReplaceWith("CommandHeaders.WAIT_STAGE", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_STAGE = CommandHeaders.WAIT_STAGE
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_CONTEXT.",
+            ReplaceWith("CommandHeaders.WAIT_CONTEXT", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_CONTEXT = CommandHeaders.WAIT_CONTEXT
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_PROCESSOR.",
+            ReplaceWith("CommandHeaders.WAIT_PROCESSOR", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_PROCESSOR = CommandHeaders.WAIT_PROCESSOR
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_FUNCTION.",
+            ReplaceWith("CommandHeaders.WAIT_FUNCTION", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_FUNCTION = CommandHeaders.WAIT_FUNCTION
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_TAIL_PREFIX.",
+            ReplaceWith("CommandHeaders.WAIT_TAIL_PREFIX", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_TAIL_PREFIX = CommandHeaders.WAIT_TAIL_PREFIX
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_TAIL_STAGE.",
+            ReplaceWith("CommandHeaders.WAIT_TAIL_STAGE", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_TAIL_STAGE = CommandHeaders.WAIT_TAIL_STAGE
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_TAIL_CONTEXT.",
+            ReplaceWith("CommandHeaders.WAIT_TAIL_CONTEXT", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_TAIL_CONTEXT = CommandHeaders.WAIT_TAIL_CONTEXT
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_TAIL_PROCESSOR.",
+            ReplaceWith("CommandHeaders.WAIT_TAIL_PROCESSOR", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_TAIL_PROCESSOR = CommandHeaders.WAIT_TAIL_PROCESSOR
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.WAIT_TAIL_FUNCTION.",
+            ReplaceWith("CommandHeaders.WAIT_TAIL_FUNCTION", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val WAIT_TAIL_FUNCTION = CommandHeaders.WAIT_TAIL_FUNCTION
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.REQUEST_ID.",
+            ReplaceWith("CommandHeaders.REQUEST_ID", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val REQUEST_ID = CommandHeaders.REQUEST_ID
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.LOCAL_FIRST.",
+            ReplaceWith("CommandHeaders.LOCAL_FIRST", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val LOCAL_FIRST = CommandHeaders.LOCAL_FIRST
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.COMMAND_AGGREGATE_CONTEXT.",
+            ReplaceWith("CommandHeaders.COMMAND_AGGREGATE_CONTEXT", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val COMMAND_AGGREGATE_CONTEXT = CommandHeaders.COMMAND_AGGREGATE_CONTEXT
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.COMMAND_AGGREGATE_NAME.",
+            ReplaceWith("CommandHeaders.COMMAND_AGGREGATE_NAME", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val COMMAND_AGGREGATE_NAME = CommandHeaders.COMMAND_AGGREGATE_NAME
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.COMMAND_TYPE.",
+            ReplaceWith("CommandHeaders.COMMAND_TYPE", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val COMMAND_TYPE = CommandHeaders.COMMAND_TYPE
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use CommandHeaders.COMMAND_HEADER_X_PREFIX.",
+            ReplaceWith("CommandHeaders.COMMAND_HEADER_X_PREFIX", "me.ahoo.wow.rest.CommandHeaders"),
+        )
+        const val COMMAND_HEADER_X_PREFIX = CommandHeaders.COMMAND_HEADER_X_PREFIX
     }
 
     object Schema {
@@ -269,7 +373,7 @@ object CommandComponent {
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.SUCCEEDED}") {
                 val commandResultSchema = commandResultSchema()
                 description(ErrorCodes.SUCCEEDED_MESSAGE)
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema)
                 val textEventStreamSchema = io.swagger.v3.oas.models.media.Schema<Any>()
                     .addAnyOfItem(commandResultSchema)
@@ -284,42 +388,42 @@ object CommandComponent {
         fun OpenAPIComponentContext.badRequestCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.BAD_REQUEST}") {
                 description("Command Bad Request")
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
 
         fun OpenAPIComponentContext.notFoundCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.NOT_FOUND}") {
                 description("Aggregate Not Found")
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
 
         fun OpenAPIComponentContext.requestTimeoutCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.REQUEST_TIMEOUT}") {
                 description("Command Request Timeout")
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
 
         fun OpenAPIComponentContext.tooManyRequestsCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.TOO_MANY_REQUESTS}") {
                 description("Command Too Many Requests")
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
 
         fun OpenAPIComponentContext.versionConflictCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}CommandVersionConflict") {
                 description("Command Version Conflict")
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
 
         fun OpenAPIComponentContext.illegalAccessDeletedAggregateCommandResponse(): ApiResponse =
             response("${Wow.WOW_PREFIX}Command${ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE}") {
                 description("Illegal Access Deleted Aggregate")
-                header(CommonComponent.Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = commandResultSchema())
             }
 

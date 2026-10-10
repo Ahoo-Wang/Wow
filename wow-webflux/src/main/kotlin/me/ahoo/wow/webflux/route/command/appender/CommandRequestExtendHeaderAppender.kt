@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.command.appender
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
@@ -25,7 +25,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * [IllegalArgumentException] (`IllegalArgument`, 400) instead of being copied.
  */
 object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {
-    private const val PREFIX = CommandComponent.Header.COMMAND_HEADER_X_PREFIX
+    private const val PREFIX = CommandHeaders.COMMAND_HEADER_X_PREFIX
 
     override fun append(request: ServerRequest, header: Header) {
         val extendedHeaders = request.headers().asHttpHeaders().headerSet()

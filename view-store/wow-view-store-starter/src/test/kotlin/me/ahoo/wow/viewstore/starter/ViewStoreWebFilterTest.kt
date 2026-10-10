@@ -17,8 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
@@ -166,25 +166,25 @@ class ViewStoreWebFilterTest {
     fun `drops an aggregate id a caller picks, on view store paths only`() {
         run(
             MockServerHttpRequest.post("/view-store/tenant/t1/owner/alice/view")
-                .header(CommandComponent.Header.AGGREGATE_ID, "chosen").build()
-        ).second.exchange!!.request.headers.getFirst(CommandComponent.Header.AGGREGATE_ID).assert().isNull()
+                .header(CommandHeaders.AGGREGATE_ID, "chosen").build()
+        ).second.exchange!!.request.headers.getFirst(CommandHeaders.AGGREGATE_ID).assert().isNull()
         run(
-            MockServerHttpRequest.post("/cart").header(CommandComponent.Header.AGGREGATE_ID, "chosen").build()
-        ).second.exchange!!.request.headers.getFirst(CommandComponent.Header.AGGREGATE_ID).assert().isEqualTo("chosen")
+            MockServerHttpRequest.post("/cart").header(CommandHeaders.AGGREGATE_ID, "chosen").build()
+        ).second.exchange!!.request.headers.getFirst(CommandHeaders.AGGREGATE_ID).assert().isEqualTo("chosen")
     }
 
     @Test
     fun `drops an application a caller sends as a command header, on view store paths only`() {
-        val header = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER
+        val header = CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER
         val passed = run(
             MockServerHttpRequest.post("/view-store/tenant/t1/owner/alice/view")
                 .header(header, "portal")
                 .header(header.uppercase(), "portal")
-                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + "other", "kept")
+                .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + "other", "kept")
                 .build()
         ).second.exchange!!.request.headers
         passed.headerNames().none { it.equals(header, ignoreCase = true) }.assert().isTrue()
-        passed.getFirst(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + "other").assert().isNull()
+        passed.getFirst(CommandHeaders.COMMAND_HEADER_X_PREFIX + "other").assert().isNull()
         run(MockServerHttpRequest.post("/cart").header(header, "portal").build())
             .second.exchange!!.request.headers.getFirst(header).assert().isEqualTo("portal")
     }
@@ -215,19 +215,19 @@ class ViewStoreWebFilterTest {
 
     @Test
     fun `refuses the view store's commands on the command facade`() {
-        val facade = BuiltInHttpRoutePaths.Global.COMMAND_SEND
+        val facade = RoutePaths.COMMAND_SEND
         listOf(
             MockServerHttpRequest.post(
                 facade
-            ).header(CommandComponent.Header.COMMAND_TYPE, CreateView::class.java.name),
+            ).header(CommandHeaders.COMMAND_TYPE, CreateView::class.java.name),
             MockServerHttpRequest.post(facade)
-                .header(CommandComponent.Header.COMMAND_TYPE, "me.ahoo.wow.viewstore.api.view.Unknown"),
+                .header(CommandHeaders.COMMAND_TYPE, "me.ahoo.wow.viewstore.api.view.Unknown"),
             MockServerHttpRequest.post(facade)
-                .header(CommandComponent.Header.COMMAND_TYPE, SetViewPreferences::class.java.name),
+                .header(CommandHeaders.COMMAND_TYPE, SetViewPreferences::class.java.name),
             MockServerHttpRequest.post(facade)
-                .header(CommandComponent.Header.COMMAND_TYPE, "any")
-                .header(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, ViewStoreService.SERVICE_NAME)
-                .header(CommandComponent.Header.COMMAND_AGGREGATE_NAME, ViewStoreService.VIEW_AGGREGATE_NAME),
+                .header(CommandHeaders.COMMAND_TYPE, "any")
+                .header(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, ViewStoreService.SERVICE_NAME)
+                .header(CommandHeaders.COMMAND_AGGREGATE_NAME, ViewStoreService.VIEW_AGGREGATE_NAME),
         ).forEach { request ->
             val (exchange, chain) = run(request.build())
             chain.exchange.assert().isNull()
@@ -236,7 +236,7 @@ class ViewStoreWebFilterTest {
         run(
             MockServerHttpRequest.post(
                 facade
-            ).header(CommandComponent.Header.COMMAND_TYPE, AddCartItem::class.java.name).build()
+            ).header(CommandHeaders.COMMAND_TYPE, AddCartItem::class.java.name).build()
         )
             .second.exchange.assert().isNotNull()
     }
@@ -254,8 +254,8 @@ class ViewStoreWebFilterTest {
         ).forEach { request ->
             val (exchange, chain) = run(
                 request.header(ViewStoreService.APP_ID_HEADER, "console")
-                    .header(CommandComponent.Header.OWNER_ID, "alice")
-                    .header(CommandComponent.Header.TENANT_ID, "t1")
+                    .header(CommandHeaders.OWNER_ID, "alice")
+                    .header(CommandHeaders.TENANT_ID, "t1")
                     .build()
             )
             chain.exchange.assert().isNull()
@@ -268,34 +268,34 @@ class ViewStoreWebFilterTest {
     fun `drops a tenant and owner a caller sends as headers, on view store paths only`() {
         val passed = run(
             MockServerHttpRequest.put("/view-store/tenant/t1/owner/alice/view/v1/rename")
-                .header(CommandComponent.Header.OWNER_ID, "bob")
-                .header(CommandComponent.Header.OWNER_ID.uppercase(), "bob")
-                .header(CommandComponent.Header.TENANT_ID.lowercase(), "t9")
+                .header(CommandHeaders.OWNER_ID, "bob")
+                .header(CommandHeaders.OWNER_ID.uppercase(), "bob")
+                .header(CommandHeaders.TENANT_ID.lowercase(), "t9")
                 .build()
         ).second.exchange!!.request.headers
         passed.headerNames().none {
-            it.equals(CommandComponent.Header.OWNER_ID, ignoreCase = true) ||
-                it.equals(CommandComponent.Header.TENANT_ID, ignoreCase = true)
+            it.equals(CommandHeaders.OWNER_ID, ignoreCase = true) ||
+                it.equals(CommandHeaders.TENANT_ID, ignoreCase = true)
         }.assert().isTrue()
-        run(MockServerHttpRequest.post("/cart").header(CommandComponent.Header.OWNER_ID, "bob").build())
-            .second.exchange!!.request.headers.getFirst(CommandComponent.Header.OWNER_ID).assert().isEqualTo("bob")
+        run(MockServerHttpRequest.post("/cart").header(CommandHeaders.OWNER_ID, "bob").build())
+            .second.exchange!!.request.headers.getFirst(CommandHeaders.OWNER_ID).assert().isEqualTo("bob")
     }
 
     @Test
     fun `drops every command header a caller sends, on view store paths only`() {
-        val prefix = CommandComponent.Header.COMMAND_HEADER_X_PREFIX
+        val prefix = CommandHeaders.COMMAND_HEADER_X_PREFIX
         val passed = run(
             MockServerHttpRequest.post("/view-store/tenant/t1/OWNER/alice/view")
                 .header(prefix + "command_operator", "bob")
                 .header(prefix.lowercase() + "app_id", "portal")
                 .header(prefix.uppercase() + "ANY", "x")
-                .header(CommandComponent.Header.AGGREGATE_ID, "chosen")
-                .header(CommandComponent.Header.REQUEST_ID, "r1")
+                .header(CommandHeaders.AGGREGATE_ID, "chosen")
+                .header(CommandHeaders.REQUEST_ID, "r1")
                 .build()
         ).second.exchange!!.request.headers
         passed.headerNames().none { it.startsWith(prefix, ignoreCase = true) }.assert().isTrue()
-        passed.getFirst(CommandComponent.Header.AGGREGATE_ID).assert().isNull()
-        passed.getFirst(CommandComponent.Header.REQUEST_ID).assert().isEqualTo("r1")
+        passed.getFirst(CommandHeaders.AGGREGATE_ID).assert().isNull()
+        passed.getFirst(CommandHeaders.REQUEST_ID).assert().isEqualTo("r1")
         run(MockServerHttpRequest.post("/cart").header(prefix + "command_operator", "bob").build())
             .second.exchange!!.request.headers.getFirst(prefix + "command_operator").assert().isEqualTo("bob")
     }
@@ -306,7 +306,7 @@ class ViewStoreWebFilterTest {
             raw(HttpMethod.GET, "/view-store/tenant/t1/owner/alice/VIEW/v1/state"),
             raw(HttpMethod.GET, "/VIEW-STORE/tenant/t1/OWNER/alice/view/v1/snapshot"),
             raw(HttpMethod.POST, "/WOW/command/SEND")
-                .header(CommandComponent.Header.COMMAND_TYPE, CreateView::class.java.name),
+                .header(CommandHeaders.COMMAND_TYPE, CreateView::class.java.name),
         ).forEach { request ->
             val (exchange, chain) = run(request.header(ViewStoreService.APP_ID_HEADER, "console").build())
             chain.exchange.assert().isNull()

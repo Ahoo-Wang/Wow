@@ -15,7 +15,6 @@ package me.ahoo.wow.openapi.contributor
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE
 import me.ahoo.wow.openapi.CommonComponent.Response.badRequestResponse
@@ -27,6 +26,7 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpResponse
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 
 internal fun OpenAPIComponentContext.errorCodeHeaderRef(): HttpHeader {
     errorCodeHeader()

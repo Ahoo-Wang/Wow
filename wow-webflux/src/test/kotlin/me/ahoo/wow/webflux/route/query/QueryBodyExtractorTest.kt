@@ -27,12 +27,12 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.getRawRequest
@@ -176,7 +176,7 @@ class QueryBodyExtractorTest {
         }
 
         countClient(queryGateway).post().uri("/sku/snapshot/count")
-            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .header(CommandHeaders.TENANT_ID, "tenant-1")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{}")
             .exchange()
@@ -248,7 +248,7 @@ class QueryBodyExtractorTest {
             }
         }
         countClient(queryGateway).post().uri("/sku/snapshot/count")
-            .header(CommandComponent.Header.TENANT_ID, "tenant-1")
+            .header(CommandHeaders.TENANT_ID, "tenant-1")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"field":"state.name","operator":"EQ","value":"Wow"}""")
             .exchange()

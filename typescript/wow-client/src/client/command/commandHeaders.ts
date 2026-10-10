@@ -21,8 +21,8 @@ import { WowHeaders } from '../../error/headers.js';
  * name. {@link commandHeaders} and {@link waitStrategy} build them from typed
  * options.
  *
- * Mirrors `CommandComponent.Header` in
- * `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/CommandComponent.kt`.
+ * Mirrors `CommandHeaders` in
+ * `wow-rest-contract/src/main/kotlin/me/ahoo/wow/rest/CommandHeaders.kt`.
  *
  * @example
  * ```typescript

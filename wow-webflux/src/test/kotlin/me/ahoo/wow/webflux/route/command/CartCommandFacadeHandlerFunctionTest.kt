@@ -25,9 +25,9 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -66,8 +66,8 @@ class CartCommandFacadeHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, aggregateId)
             .principal(UserPrincipal(generateGlobalId()))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
-            .header(CommandComponent.Header.COMMAND_TYPE, AddCartItem::class.java.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.COMMAND_TYPE, AddCartItem::class.java.name)
             .body(
                 Tuples.of(
                     AddCartItem(

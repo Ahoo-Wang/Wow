@@ -28,9 +28,9 @@ import me.ahoo.wow.command.wait.StageWaitTarget
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.route.identity.identity
@@ -52,7 +52,7 @@ class AggregateRequestTest {
     @Test
     fun `should get owner id from header`() {
         val ownerId = generateGlobalId()
-        val request = MockServerRequest.builder().header(CommandComponent.Header.OWNER_ID, ownerId).build()
+        val request = MockServerRequest.builder().header(CommandHeaders.OWNER_ID, ownerId).build()
         request.getOwnerId().assert().isEqualTo(ownerId)
     }
 
@@ -66,7 +66,7 @@ class AggregateRequestTest {
     @Test
     fun `should get space id from header`() {
         val spaceId = generateGlobalId()
-        val request = MockServerRequest.builder().header(CommonComponent.Header.SPACE_ID, spaceId).build()
+        val request = MockServerRequest.builder().header(WowHeaders.SPACE_ID, spaceId).build()
         request.getSpaceId().assert().isEqualTo(spaceId)
     }
 
@@ -90,7 +90,7 @@ class AggregateRequestTest {
     @Test
     fun `should get wait stage from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name).build()
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name).build()
         request.getWaitStage().assert().isEqualTo(CommandStage.SENT)
     }
 
@@ -103,28 +103,28 @@ class AggregateRequestTest {
     @Test
     fun `should get wait context from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_CONTEXT, "test").build()
+            .header(CommandHeaders.WAIT_CONTEXT, "test").build()
         request.getWaitContext().assert().isEqualTo("test")
     }
 
     @Test
     fun `should get wait processor from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_PROCESSOR, "test").build()
+            .header(CommandHeaders.WAIT_PROCESSOR, "test").build()
         request.getWaitProcessor().assert().isEqualTo("test")
     }
 
     @Test
     fun `should get wait function from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_FUNCTION, "test").build()
+            .header(CommandHeaders.WAIT_FUNCTION, "test").build()
         request.getWaitFunction().assert().isEqualTo("test")
     }
 
     @Test
     fun `should get wait tail stage from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_TAIL_STAGE, CommandStage.SENT.name).build()
+            .header(CommandHeaders.WAIT_TAIL_STAGE, CommandStage.SENT.name).build()
         request.getWaitTailStage().assert().isEqualTo(CommandStage.SENT)
     }
 
@@ -137,21 +137,21 @@ class AggregateRequestTest {
     @Test
     fun `should get wait tail context from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_TAIL_CONTEXT, "test").build()
+            .header(CommandHeaders.WAIT_TAIL_CONTEXT, "test").build()
         request.getWaitTailContext().assert().isEqualTo("test")
     }
 
     @Test
     fun `should get wait tail processor from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_TAIL_PROCESSOR, "test").build()
+            .header(CommandHeaders.WAIT_TAIL_PROCESSOR, "test").build()
         request.getWaitTailProcessor().assert().isEqualTo("test")
     }
 
     @Test
     fun `should get wait tail function from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_TAIL_FUNCTION, "test").build()
+            .header(CommandHeaders.WAIT_TAIL_FUNCTION, "test").build()
         request.getWaitTailFunction().assert().isEqualTo("test")
     }
 
@@ -159,7 +159,7 @@ class AggregateRequestTest {
     fun `should get tenant id from header`() {
         val tenantId = generateGlobalId()
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.TENANT_ID, tenantId)
+            .header(CommandHeaders.TENANT_ID, tenantId)
             .build()
         request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo(tenantId)
     }
@@ -168,7 +168,7 @@ class AggregateRequestTest {
     fun `should get aggregate id from header`() {
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.AGGREGATE_ID, aggregateId)
+            .header(CommandHeaders.AGGREGATE_ID, aggregateId)
             .build()
         request.getAggregateId().assert().isEqualTo(aggregateId)
     }
@@ -176,7 +176,7 @@ class AggregateRequestTest {
     @Test
     fun `should get local first flag from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.LOCAL_FIRST, "true")
+            .header(CommandHeaders.LOCAL_FIRST, "true")
             .build()
         request.getLocalFirst().assert().isEqualTo(true)
     }
@@ -192,14 +192,14 @@ class AggregateRequestTest {
     @Test
     fun `should get wait timeout from header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_TIME_OUT, "5000")
+            .header(CommandHeaders.WAIT_TIME_OUT, "5000")
             .build()
         request.getWaitTimeout().assert().isEqualTo(Duration.ofMillis(5000))
     }
 
     @Test
     fun `should expose documented wait timeout header`() {
-        CommandComponent.Header.WAIT_TIME_OUT.assert().isEqualTo("Command-Wait-Timeout")
+        CommandHeaders.WAIT_TIME_OUT.assert().isEqualTo("Command-Wait-Timeout")
     }
 
     @Test
@@ -250,7 +250,7 @@ class AggregateRequestTest {
         }
 
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SAGA_HANDLED.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SAGA_HANDLED.name)
             .build()
         val waitPlan = request.extractWaitPlan(commandMessage)
         waitPlan.waitCommandId.assert().isEqualTo(commandMessage.commandId)
@@ -268,8 +268,8 @@ class AggregateRequestTest {
         }
 
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SAGA_HANDLED.name)
-            .header(CommandComponent.Header.WAIT_TAIL_STAGE, CommandStage.PROJECTED.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SAGA_HANDLED.name)
+            .header(CommandHeaders.WAIT_TAIL_STAGE, CommandStage.PROJECTED.name)
             .build()
         val waitPlan = request.extractWaitPlan(commandMessage)
         waitPlan.waitCommandId.assert().isEqualTo(commandMessage.commandId)
@@ -286,9 +286,9 @@ class AggregateRequestTest {
             .pathVariable(MessageRecords.TENANT_ID, blank)
             .pathVariable(MessageRecords.OWNER_ID, blank)
             .pathVariable(MessageRecords.ID, blank)
-            .header(CommandComponent.Header.TENANT_ID, "victim")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
-            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .header(CommandHeaders.TENANT_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
+            .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
 
         assertThrownBy<IllegalArgumentException> { request.getTenantId(MOCK_AGGREGATE_METADATA) }
@@ -309,9 +309,9 @@ class AggregateRequestTest {
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
             .pathVariable(MessageRecords.ID, "id-a")
-            .header(CommandComponent.Header.TENANT_ID, "tenant-a")
+            .header(CommandHeaders.TENANT_ID, "tenant-a")
             // The aggregate ID is not a fact a header may contradict: the path wins, the header is ignored.
-            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
 
         request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-a")
@@ -324,7 +324,7 @@ class AggregateRequestTest {
     fun `the deprecated owner-policy aggregate id reader keeps 9_2 behaviour`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, "a")
-            .header(CommandComponent.Header.OWNER_ID, "b")
+            .header(CommandHeaders.OWNER_ID, "b")
             .build()
         request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID).assert().isEqualTo("b")
         request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, "c").assert().isEqualTo("c")
@@ -337,8 +337,8 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
-            .header(CommandComponent.Header.TENANT_ID, "victim")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandHeaders.TENANT_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
             .build()
 
         assertThrownBy<IllegalArgumentException> {
@@ -352,9 +352,9 @@ class AggregateRequestTest {
     @Test
     fun `a route without the variable reads the header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.TENANT_ID, "tenant-h")
-            .header(CommandComponent.Header.OWNER_ID, "owner-h")
-            .header(CommandComponent.Header.AGGREGATE_ID, "id-h")
+            .header(CommandHeaders.TENANT_ID, "tenant-h")
+            .header(CommandHeaders.OWNER_ID, "owner-h")
+            .header(CommandHeaders.AGGREGATE_ID, "id-h")
             .build()
 
         request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-h")
@@ -366,7 +366,7 @@ class AggregateRequestTest {
 
     @Test
     fun `the space reader of a route reads the header only for a spaced aggregate`() {
-        val request = MockServerRequest.builder().header(CommonComponent.Header.SPACE_ID, "space-a").build()
+        val request = MockServerRequest.builder().header(WowHeaders.SPACE_ID, "space-a").build()
 
         request.getSpaceId(Order::class.java.aggregateRouteMetadata()).assert().isEqualTo("space-a")
         request.getSpaceId(Cart::class.java.aggregateRouteMetadata()).assert().isNull()
@@ -378,8 +378,8 @@ class AggregateRequestTest {
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
             .pathVariable(MessageRecords.ID, "id-a")
-            .header(CommonComponent.Header.SPACE_ID, "space-a")
-            .header(CommandComponent.Header.REQUEST_ID, "request-a")
+            .header(WowHeaders.SPACE_ID, "space-a")
+            .header(CommandHeaders.REQUEST_ID, "request-a")
             .build()
         val order = Order::class.java.aggregateRouteMetadata()
         val identity = request.identity(order.aggregateMetadata)
@@ -400,8 +400,8 @@ class AggregateRequestTest {
         // Cart: static tenant, owner = aggregate ID, not spaced.
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, "cart-a")
-            .header(CommandComponent.Header.TENANT_ID, "ignored")
-            .header(CommonComponent.Header.SPACE_ID, "space-a")
+            .header(CommandHeaders.TENANT_ID, "ignored")
+            .header(WowHeaders.SPACE_ID, "space-a")
             .build()
         val cart = Cart::class.java.aggregateRouteMetadata()
         val identity = request.identity(cart)

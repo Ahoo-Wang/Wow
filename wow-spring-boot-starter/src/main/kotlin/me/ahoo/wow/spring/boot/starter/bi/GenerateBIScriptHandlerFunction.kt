@@ -24,10 +24,10 @@ import me.ahoo.wow.bi.BiScriptService
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.bi.BiScriptDiagnosticResponse
-import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
+import me.ahoo.wow.rest.bi.BiScriptDiagnosticResponse
+import me.ahoo.wow.rest.bi.BiScriptHeaders
+import me.ahoo.wow.rest.bi.BiScriptRequest
+import me.ahoo.wow.rest.bi.BiScriptResponse
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException

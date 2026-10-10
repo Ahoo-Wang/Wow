@@ -20,9 +20,9 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
@@ -38,7 +38,7 @@ class DefaultCommandBuilderExtractorTest {
 
     private fun spaceIdOf(aggregateRouteMetadata: AggregateRouteMetadata<*>, spaceId: String?): String {
         val request = MockServerRequest.builder()
-            .apply { spaceId?.let { header(CommonComponent.Header.SPACE_ID, it) } }
+            .apply { spaceId?.let { header(WowHeaders.SPACE_ID, it) } }
             .build()
         var actual: String? = null
         extractor.extract(

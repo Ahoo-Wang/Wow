@@ -23,9 +23,9 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -66,8 +66,8 @@ class CommandFacadeHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
             .principal(UserPrincipal(generateGlobalId()))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
-            .header(CommandComponent.Header.COMMAND_TYPE, MockCreateAggregate::class.java.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.COMMAND_TYPE, MockCreateAggregate::class.java.name)
             .body(
                 Tuples.of(
                     MockCreateAggregate(

@@ -25,15 +25,26 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.CommonComponent.Schema.errorInfoSchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 
 object CommonComponent {
 
     object Header {
-        const val ERROR_CODE = "Wow-Error-Code"
-        const val SPACE_ID = "Wow-Space-Id"
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use WowHeaders.ERROR_CODE.",
+            ReplaceWith("WowHeaders.ERROR_CODE", "me.ahoo.wow.rest.WowHeaders"),
+        )
+        const val ERROR_CODE = WowHeaders.ERROR_CODE
+
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use WowHeaders.SPACE_ID.",
+            ReplaceWith("WowHeaders.SPACE_ID", "me.ahoo.wow.rest.WowHeaders"),
+        )
+        const val SPACE_ID = WowHeaders.SPACE_ID
+
         fun OpenAPIComponentContext.errorCodeHeader(): io.swagger.v3.oas.models.headers.Header =
-            header("${Wow.WOW_PREFIX}${ERROR_CODE}") {
+            header("${Wow.WOW_PREFIX}${WowHeaders.ERROR_CODE}") {
                 schema = StringSchema().example(ErrorCodes.SUCCEEDED)
                 description = "Error code"
             }
@@ -47,7 +58,7 @@ object CommonComponent {
     object Parameter {
         fun OpenAPIComponentContext.spaceIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
-                name = Header.SPACE_ID
+                name = WowHeaders.SPACE_ID
                 schema = StringSchema().description("aggregate space id").example(SpaceIdCapable.DEFAULT_SPACE_ID)
                 `in`(ParameterIn.HEADER.toString())
             }
@@ -92,7 +103,7 @@ object CommonComponent {
         const val UNSUPPORTED_MEDIA_TYPE_ERROR_CODE = "UnsupportedMediaType"
 
         fun ApiResponseBuilder.withErrorCodeHeader(componentContext: OpenAPIComponentContext): ApiResponseBuilder {
-            return header(Header.ERROR_CODE, componentContext.errorCodeHeader())
+            return header(WowHeaders.ERROR_CODE, componentContext.errorCodeHeader())
         }
 
         fun OpenAPIComponentContext.badRequestResponse(): io.swagger.v3.oas.models.responses.ApiResponse =

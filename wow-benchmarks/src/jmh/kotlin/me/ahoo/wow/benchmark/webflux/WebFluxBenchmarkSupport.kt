@@ -25,11 +25,11 @@ import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
@@ -61,7 +61,7 @@ internal object WebFluxBenchmarkSupport {
             .pathVariable(MessageRecords.TENANT_ID, "benchmark-tenant")
             .pathVariable(MessageRecords.OWNER_ID, BenchmarkAggregates.FIXED_AGGREGATE_ID)
             .principal(UserPrincipal("benchmark-user"))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .body(addCartItemCommandBody().toMono())
     }
 

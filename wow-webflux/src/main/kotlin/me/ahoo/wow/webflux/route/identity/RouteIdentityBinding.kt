@@ -19,12 +19,12 @@ import me.ahoo.wow.identity.IdentityFact
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.util.concurrent.ConcurrentHashMap
@@ -217,9 +217,9 @@ data class RouteIdentityBinding(
         val IDENTITY_PATH_VARIABLES: Set<String> =
             setOf(MessageRecords.TENANT_ID, MessageRecords.OWNER_ID, MessageRecords.ID)
 
-        private val TENANT_HEADERS = listOf(CommandComponent.Header.TENANT_ID)
-        private val OWNER_HEADERS = listOf(CommandComponent.Header.OWNER_ID)
-        private val AGGREGATE_ID_HEADERS = listOf(CommandComponent.Header.AGGREGATE_ID)
+        private val TENANT_HEADERS = listOf(CommandHeaders.TENANT_ID)
+        private val OWNER_HEADERS = listOf(CommandHeaders.OWNER_ID)
+        private val AGGREGATE_ID_HEADERS = listOf(CommandHeaders.AGGREGATE_ID)
         private val FROM_OWNER = FactBinding(RouteIdentitySource.OWNER, headers = AGGREGATE_ID_HEADERS)
 
         fun of(
@@ -231,7 +231,7 @@ data class RouteIdentityBinding(
         ): RouteIdentityBinding {
             val identityPathVariables = pathVariables.intersect(IDENTITY_PATH_VARIABLES)
             val ownerIsAggregateId = ownerPolicy == OwnerPolicy.AGGREGATE_ID
-            val spaceHeaders = listOf(CommonComponent.Header.SPACE_ID) + aliases.spaceId
+            val spaceHeaders = listOf(WowHeaders.SPACE_ID) + aliases.spaceId
             return RouteIdentityBinding(
                 pathVariables = identityPathVariables,
                 tenantId = tenantBinding(identityPathVariables, staticTenantId),
@@ -240,7 +240,7 @@ data class RouteIdentityBinding(
                 spaceId = if (spaced) spaceHeaders.headerBinding() else FactBinding.NONE,
                 requestId = FactBinding(
                     RouteIdentitySource.HEADER,
-                    headers = listOf(CommandComponent.Header.REQUEST_ID) + aliases.requestId
+                    headers = listOf(CommandHeaders.REQUEST_ID) + aliases.requestId
                 ),
                 spaceHeaders = spaceHeaders,
             )

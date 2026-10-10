@@ -36,9 +36,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryEntryPolicy
@@ -46,6 +44,8 @@ import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.querySelection
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
@@ -200,8 +200,8 @@ class IdentityConflictTest {
     @Test
     fun `a body may differ from a header when nothing fixes the fact`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.TENANT_ID, "header-tenant")
-            .header(CommandComponent.Header.OWNER_ID, "header-owner")
+            .header(CommandHeaders.TENANT_ID, "header-tenant")
+            .header(CommandHeaders.OWNER_ID, "header-owner")
             .build()
         extract(
             orderRoute,
@@ -250,7 +250,7 @@ class IdentityConflictTest {
 
         val contradicting = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, "cart-a")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
             .build()
         extract(cartRoute, IdentityCommand(id = "cart-a"), contradicting)
             .test()
@@ -369,7 +369,7 @@ class IdentityConflictTest {
             .bodyValue("""{"op":"MATCH_ALL"}""")
             .exchange()
             .expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             .expectBody(String::class.java)
             .returnResult()
         result.responseBody.assert()
@@ -379,7 +379,7 @@ class IdentityConflictTest {
     @Test
     fun `a tenant header is ignored on a static tenant route, as in 9_2`() {
         client.post().uri("/cart/snapshot/count")
-            .header(CommandComponent.Header.TENANT_ID, VICTIM)
+            .header(CommandHeaders.TENANT_ID, VICTIM)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"op":"MATCH_ALL"}""")
             .exchange()

@@ -28,6 +28,7 @@ This page answers two questions: which module owns code, and which capability an
 | `wow-cosec` | CoSec request-context propagation and query-space rewriting | Applications already using CoSec |
 | `wow-compiler` | KSP metadata and API-contract generation; depends on `wow-metadata`, not on the runtime | Use with `ksp(...)`, never as a runtime dependency |
 | `wow-schema` | JSON Schema generation | JSON Schema tooling and query-model inference |
+| `wow-rest-contract` | The REST wire vocabulary: header names (`CommandHeaders`, `WowHeaders`), route paths, suffixes and path variables, `BatchResult`, and the BI script request and response types | Comes with `wow-openapi` and `wow-apiclient`; depend on it directly for an HTTP client that names Wow's headers or routes |
 | `wow-openapi` | Built-in route and OpenAPI contract generation, including `OpenAPISchemaBuilder` | OpenAPI extensions |
 | `wow-bi` | BI/ClickHouse synchronization script generation | BI script generation or deployment |
 | `wow-test` | `AggregateSpec` and `SagaSpec` DSL | Domain tests |
@@ -61,7 +62,9 @@ graph LR
     CORE --> ES[wow-elasticsearch]
     QUERY --> ES
 
-    CORE --> OPENAPI[wow-openapi]
+    API --> REST[wow-rest-contract]
+    REST --> OPENAPI[wow-openapi]
+    CORE --> OPENAPI
     QUERY --> OPENAPI
     SCHEMA[wow-schema] --> OPENAPI
     CORE --> WEBFLUX[wow-webflux]
@@ -156,9 +159,13 @@ Infrastructure modules implement Core interfaces. Production suitability depends
 
 `wow-schema` depends on `wow-api`, `wow-core`, and `wow-query` and combines JSON Schema Generator with Jackson, Validation, and Swagger modules. It also packages the query FilterExpression schema.
 
+#### wow-rest-contract
+
+`wow-rest-contract` depends only on `wow-api`. It holds the names and types both sides of Wow's REST API share: the command and Wow headers, the global route paths, the aggregate route suffixes and path variable names, `BatchResult`, and the BI script DTOs. Its types keep the `wow.openapi.` schema-name prefix in the OpenAPI document.
+
 #### wow-openapi
 
-`wow-openapi` exposes `wow-core`, `wow-query`, and `wow-schema` to generate built-in HTTP route contracts. `wow-webflux` provides the actual handlers.
+`wow-openapi` exposes `wow-core`, `wow-query`, `wow-schema`, and `wow-rest-contract` to generate built-in HTTP route contracts. `wow-webflux` provides the actual handlers.
 
 #### wow-bi
 
@@ -179,7 +186,7 @@ A passing TCK does not prove capacity, upgrade safety, or disaster recovery for 
 
 #### wow-apiclient
 
-`wow-apiclient` exposes `wow-core`, `wow-openapi`, and Reactor and uses CoApi and Spring Web/WebFlux as implementation dependencies. It is a JVM HTTP client and does not start server routes.
+`wow-apiclient` exposes `wow-core`, `wow-rest-contract`, `wow-query`, and Reactor and uses CoApi and Spring Web/WebFlux as implementation dependencies. It does not bring `wow-openapi`. It is a JVM HTTP client and does not start server routes.
 
 #### wow-cocache
 

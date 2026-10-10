@@ -27,8 +27,8 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.command.wait.timeout
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -52,15 +52,15 @@ class CommandHandlerTest {
     @Test
     fun `should handle command with sent wait stage`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
-            .header(CommandComponent.Header.WAIT_CONTEXT, "test")
-            .header(CommandComponent.Header.WAIT_PROCESSOR, "test")
-            .header(CommandComponent.Header.WAIT_TIME_OUT, "1000")
-            .header(CommandComponent.Header.TENANT_ID, generateGlobalId())
-            .header(CommandComponent.Header.OWNER_ID, generateGlobalId())
-            .header(CommandComponent.Header.LOCAL_FIRST, true.toString())
-            .header(CommandComponent.Header.AGGREGATE_ID, generateGlobalId())
-            .header(CommandComponent.Header.REQUEST_ID, generateGlobalId())
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_CONTEXT, "test")
+            .header(CommandHeaders.WAIT_PROCESSOR, "test")
+            .header(CommandHeaders.WAIT_TIME_OUT, "1000")
+            .header(CommandHeaders.TENANT_ID, generateGlobalId())
+            .header(CommandHeaders.OWNER_ID, generateGlobalId())
+            .header(CommandHeaders.LOCAL_FIRST, true.toString())
+            .header(CommandHeaders.AGGREGATE_ID, generateGlobalId())
+            .header(CommandHeaders.REQUEST_ID, generateGlobalId())
             .principal(UserPrincipal(generateGlobalId()))
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())
         val commandHandler = CommandHandler(
@@ -86,15 +86,15 @@ class CommandHandlerTest {
     @Test
     fun `should handle command with processed wait stage`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.PROCESSED.name)
-            .header(CommandComponent.Header.WAIT_CONTEXT, "test")
-            .header(CommandComponent.Header.WAIT_PROCESSOR, "test")
-            .header(CommandComponent.Header.WAIT_TIME_OUT, "1000")
-            .header(CommandComponent.Header.TENANT_ID, generateGlobalId())
-            .header(CommandComponent.Header.OWNER_ID, generateGlobalId())
-            .header(CommandComponent.Header.LOCAL_FIRST, true.toString())
-            .header(CommandComponent.Header.AGGREGATE_ID, generateGlobalId())
-            .header(CommandComponent.Header.REQUEST_ID, generateGlobalId())
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.PROCESSED.name)
+            .header(CommandHeaders.WAIT_CONTEXT, "test")
+            .header(CommandHeaders.WAIT_PROCESSOR, "test")
+            .header(CommandHeaders.WAIT_TIME_OUT, "1000")
+            .header(CommandHeaders.TENANT_ID, generateGlobalId())
+            .header(CommandHeaders.OWNER_ID, generateGlobalId())
+            .header(CommandHeaders.LOCAL_FIRST, true.toString())
+            .header(CommandHeaders.AGGREGATE_ID, generateGlobalId())
+            .header(CommandHeaders.REQUEST_ID, generateGlobalId())
             .principal(UserPrincipal(generateGlobalId()))
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())
         val commandHandler = CommandHandler(
@@ -170,15 +170,15 @@ class CommandHandlerTest {
     @Test
     fun `should handle command with event stream response`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.PROCESSED.name)
-            .header(CommandComponent.Header.WAIT_CONTEXT, "test")
-            .header(CommandComponent.Header.WAIT_PROCESSOR, "test")
-            .header(CommandComponent.Header.WAIT_TIME_OUT, "2000")
-            .header(CommandComponent.Header.TENANT_ID, generateGlobalId())
-            .header(CommandComponent.Header.OWNER_ID, generateGlobalId())
-            .header(CommandComponent.Header.LOCAL_FIRST, true.toString())
-            .header(CommandComponent.Header.AGGREGATE_ID, generateGlobalId())
-            .header(CommandComponent.Header.REQUEST_ID, generateGlobalId())
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.PROCESSED.name)
+            .header(CommandHeaders.WAIT_CONTEXT, "test")
+            .header(CommandHeaders.WAIT_PROCESSOR, "test")
+            .header(CommandHeaders.WAIT_TIME_OUT, "2000")
+            .header(CommandHeaders.TENANT_ID, generateGlobalId())
+            .header(CommandHeaders.OWNER_ID, generateGlobalId())
+            .header(CommandHeaders.LOCAL_FIRST, true.toString())
+            .header(CommandHeaders.AGGREGATE_ID, generateGlobalId())
+            .header(CommandHeaders.REQUEST_ID, generateGlobalId())
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM.toString())
             .principal(UserPrincipal(generateGlobalId()))
             .body(MockCreateAggregate(generateGlobalId(), generateGlobalId()).toJsonString())

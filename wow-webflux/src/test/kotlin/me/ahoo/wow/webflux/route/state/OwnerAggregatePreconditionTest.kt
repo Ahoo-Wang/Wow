@@ -22,7 +22,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.command.IllegalAccessOwnerAggregateException
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.toNamedAggregate
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -70,7 +70,7 @@ class OwnerAggregatePreconditionTest {
     fun `a blank owner path segment does not let the owner header pass the check`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.OWNER_ID, " ")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
             .build()
         val stateAggregate = mockk<StateAggregate<Any>> {
             every { ownerId } returns "victim"

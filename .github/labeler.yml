@@ -22,6 +22,7 @@ dependencies:
       - any-glob-to-any-file:
           - 'wow-api/**'
           - 'wow-openapi/**'
+          - 'wow-rest-contract/**'
           - 'wow-schema/**'
           - 'schema/**'
 

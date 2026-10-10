@@ -17,9 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -45,7 +45,7 @@ class CompositeQueryRequestScopeTest {
         val scope = CompositeQueryRequestScope.of(DefaultQueryRequestScope, listOf(appScope, authenticatedTenant))
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, "t1")
-            .header(CommandComponent.Header.OWNER_ID, "alice")
+            .header(CommandHeaders.OWNER_ID, "alice")
             .header("App-Id", "console")
             .build()
         scope.resolve(MOCK_AGGREGATE_METADATA, request).assert().isEqualTo(
@@ -59,7 +59,7 @@ class CompositeQueryRequestScopeTest {
     @Test
     fun `a contributor with nothing to add leaves the host's scope unchanged`() {
         val scope = CompositeQueryRequestScope.of(DefaultQueryRequestScope, listOf(appScope))
-        val request = MockServerRequest.builder().header(CommandComponent.Header.TENANT_ID, "t1").build()
+        val request = MockServerRequest.builder().header(CommandHeaders.TENANT_ID, "t1").build()
         scope.resolve(MOCK_AGGREGATE_METADATA, request)
             .assert().isEqualTo(DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request))
     }

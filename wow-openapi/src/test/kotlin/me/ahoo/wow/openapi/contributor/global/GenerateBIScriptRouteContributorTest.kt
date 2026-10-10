@@ -20,12 +20,13 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
+import me.ahoo.wow.rest.RoutePaths
+import me.ahoo.wow.rest.WowHeaders
+import me.ahoo.wow.rest.bi.BiScriptHeaders
+import me.ahoo.wow.rest.bi.BiScriptRequest
 import org.junit.jupiter.api.Test
 
 internal class GenerateBIScriptRouteContributorTest {
@@ -40,7 +41,7 @@ internal class GenerateBIScriptRouteContributorTest {
             .single()
 
         contract.method.assert().isEqualTo(Https.Method.POST)
-        contract.path.assert().isEqualTo(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+        contract.path.assert().isEqualTo(RoutePaths.BI_SCRIPT)
         contract.accept.assert().containsExactly(
             Https.MediaType.APPLICATION_SQL,
             Https.MediaType.APPLICATION_JSON,
@@ -81,7 +82,7 @@ internal class GenerateBIScriptRouteContributorTest {
         val unsupportedMediaTypeResponse = componentContext.responses[
             "${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
         ]!!
-        unsupportedMediaTypeResponse.headers.assert().containsKey(CommonComponent.Header.ERROR_CODE)
+        unsupportedMediaTypeResponse.headers.assert().containsKey(WowHeaders.ERROR_CODE)
         unsupportedMediaTypeResponse.content.assert().containsKey(Https.MediaType.APPLICATION_JSON)
     }
 
@@ -96,8 +97,8 @@ internal class GenerateBIScriptRouteContributorTest {
             responses.single { it.statusCode == statusCode }.run {
                 description.assert().isNotNull()
                 headers.single().run {
-                    name.assert().isEqualTo(CommonComponent.Header.ERROR_CODE)
-                    componentRef.assert().isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Header.ERROR_CODE}")
+                    name.assert().isEqualTo(WowHeaders.ERROR_CODE)
+                    componentRef.assert().isEqualTo("${Wow.WOW_PREFIX}${WowHeaders.ERROR_CODE}")
                 }
                 content.assert().containsExactly(
                     HttpContent(

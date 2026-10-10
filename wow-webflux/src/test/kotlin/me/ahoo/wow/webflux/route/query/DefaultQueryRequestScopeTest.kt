@@ -21,10 +21,10 @@ import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.QueryScopeProvenance
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -45,7 +45,7 @@ class DefaultQueryRequestScopeTest {
     fun `should resolve tenant scope from header`() {
         val tenantId = "tenant-123"
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.TENANT_ID, tenantId)
+            .header(CommandHeaders.TENANT_ID, tenantId)
             .build()
 
         DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
@@ -68,7 +68,7 @@ class DefaultQueryRequestScopeTest {
     fun `should resolve space scope from header for a spaced aggregate`() {
         val spaceId = "space-123"
         val request = MockServerRequest.builder()
-            .header(CommonComponent.Header.SPACE_ID, spaceId)
+            .header(WowHeaders.SPACE_ID, spaceId)
             .build()
 
         DefaultQueryRequestScope.resolve(spacedMetadata, request)
@@ -78,7 +78,7 @@ class DefaultQueryRequestScopeTest {
     @Test
     fun `should ignore the space header for a non-spaced aggregate`() {
         val request = MockServerRequest.builder()
-            .header(CommonComponent.Header.SPACE_ID, "space-123")
+            .header(WowHeaders.SPACE_ID, "space-123")
             .build()
 
         DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
@@ -89,7 +89,7 @@ class DefaultQueryRequestScopeTest {
     fun `a static tenant is authenticated, request-stated values are declared`() {
         val metadata = MOCK_AGGREGATE_METADATA.copy(staticTenantId = "static-tenant")
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.OWNER_ID, "owner-123")
+            .header(CommandHeaders.OWNER_ID, "owner-123")
             .build()
 
         DefaultQueryRequestScope.resolve(metadata, request).assert().isEqualTo(
@@ -106,8 +106,8 @@ class DefaultQueryRequestScopeTest {
             ): QueryScopeProvenance = QueryScopeProvenance.AUTHENTICATED
         }
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.TENANT_ID, "tenant-123")
-            .header(CommonComponent.Header.SPACE_ID, "space-123")
+            .header(CommandHeaders.TENANT_ID, "tenant-123")
+            .header(WowHeaders.SPACE_ID, "space-123")
             .build()
 
         trustedTenantHeader.resolve(spacedMetadata, request).assert().isEqualTo(

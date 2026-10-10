@@ -22,8 +22,8 @@ import me.ahoo.wow.identity.IdentityFact
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.messaging.withLocalFirst
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders.AGGREGATE_VERSION
 import me.ahoo.wow.webflux.route.command.getLocalFirst
 import me.ahoo.wow.webflux.route.identity.identity
 import org.springframework.web.reactive.function.server.ServerRequest

@@ -28,7 +28,6 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -49,6 +48,7 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.query.FIXED_STORAGE
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
@@ -82,7 +82,7 @@ class QueryPolicyWebFluxTest {
                     backend.received.clear()
                     client.post().uri(route.path)
                         .header(PRINCIPAL, principal)
-                        .header(CommandComponent.Header.TENANT_ID, "trusted-tenant")
+                        .header(CommandHeaders.TENANT_ID, "trusted-tenant")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                         .bodyValue(route.body).exchange()
                         .expectStatus().isOk
@@ -105,7 +105,7 @@ class QueryPolicyWebFluxTest {
             ROUTES.forEach { route ->
                 client.post().uri(route.path)
                     .header(PRINCIPAL, "alice")
-                    .header(CommandComponent.Header.TENANT_ID, "trusted-tenant")
+                    .header(CommandHeaders.TENANT_ID, "trusted-tenant")
                     .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                     .bodyValue(route.body).exchange()
                     .expectStatus().isForbidden
@@ -126,7 +126,7 @@ class QueryPolicyWebFluxTest {
                 backend.received.clear()
                 client.post().uri(route.path)
                     .header(PRINCIPAL, "alice")
-                    .header(CommandComponent.Header.TENANT_ID, "trusted-tenant")
+                    .header(CommandHeaders.TENANT_ID, "trusted-tenant")
                     .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                     .bodyValue(route.body).exchange()
                     .expectStatus().isOk

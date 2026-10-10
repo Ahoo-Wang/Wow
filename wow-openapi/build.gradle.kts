@@ -2,6 +2,7 @@ description = "Wow OpenAPI Specification"
 
 dependencies {
     api(project(":wow-core"))
+    api(project(":wow-rest-contract"))
     api(project(":wow-query"))
     api(project(":wow-schema"))
     implementation(kotlin("reflect"))

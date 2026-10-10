@@ -24,8 +24,8 @@ import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import me.ahoo.wow.webflux.route.identity.identity
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -95,7 +95,7 @@ fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?):
 fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? = getAggregateId(owner, getOwnerId())
 
 fun ServerRequest.getLocalFirst(): Boolean? {
-    headers().firstHeader(CommandComponent.Header.LOCAL_FIRST).ifNotBlank<String> {
+    headers().firstHeader(CommandHeaders.LOCAL_FIRST).ifNotBlank<String> {
         return it.toBoolean()
     }
     return null
@@ -106,8 +106,8 @@ fun ServerRequest.isSse(): Boolean {
 }
 
 fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
-    val waitTimeout = headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)
-        ?: headers().firstHeader(CommandComponent.Header.LEGACY_WAIT_TIME_OUT)
+    val waitTimeout = headers().firstHeader(CommandHeaders.WAIT_TIME_OUT)
+        ?: headers().firstHeader(CommandHeaders.LEGACY_WAIT_TIME_OUT)
     return waitTimeout?.toLongOrNull()?.let {
         Duration.ofMillis(it)
     } ?: default
@@ -115,41 +115,41 @@ fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration
 
 //region Wait Stage
 fun ServerRequest.getWaitStage(): CommandStage {
-    return headers().firstHeader(CommandComponent.Header.WAIT_STAGE).ifNotBlank { stage ->
+    return headers().firstHeader(CommandHeaders.WAIT_STAGE).ifNotBlank { stage ->
         CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
     } ?: CommandStage.PROCESSED
 }
 
 fun ServerRequest.getWaitContext(): String {
-    return headers().firstHeader(CommandComponent.Header.WAIT_CONTEXT).orEmpty()
+    return headers().firstHeader(CommandHeaders.WAIT_CONTEXT).orEmpty()
 }
 
 fun ServerRequest.getWaitProcessor(): String {
-    return headers().firstHeader(CommandComponent.Header.WAIT_PROCESSOR).orEmpty()
+    return headers().firstHeader(CommandHeaders.WAIT_PROCESSOR).orEmpty()
 }
 
 fun ServerRequest.getWaitFunction(): String {
-    return headers().firstHeader(CommandComponent.Header.WAIT_FUNCTION).orEmpty()
+    return headers().firstHeader(CommandHeaders.WAIT_FUNCTION).orEmpty()
 }
 
 //endregion
 //region Wait Chain Tail
 fun ServerRequest.getWaitTailStage(): CommandStage? {
-    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_STAGE).ifNotBlank { stage ->
+    return headers().firstHeader(CommandHeaders.WAIT_TAIL_STAGE).ifNotBlank { stage ->
         CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
     }
 }
 
 fun ServerRequest.getWaitTailContext(): String {
-    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_CONTEXT).orEmpty()
+    return headers().firstHeader(CommandHeaders.WAIT_TAIL_CONTEXT).orEmpty()
 }
 
 fun ServerRequest.getWaitTailProcessor(): String {
-    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_PROCESSOR).orEmpty()
+    return headers().firstHeader(CommandHeaders.WAIT_TAIL_PROCESSOR).orEmpty()
 }
 
 fun ServerRequest.getWaitTailFunction(): String {
-    return headers().firstHeader(CommandComponent.Header.WAIT_TAIL_FUNCTION).orEmpty()
+    return headers().firstHeader(CommandHeaders.WAIT_TAIL_FUNCTION).orEmpty()
 }
 //endregion
 

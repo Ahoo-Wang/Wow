@@ -14,7 +14,7 @@
 package me.ahoo.wow.apiclient.query
 
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.openapi.RouteSuffixes
+import me.ahoo.wow.rest.RouteSuffixes
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 

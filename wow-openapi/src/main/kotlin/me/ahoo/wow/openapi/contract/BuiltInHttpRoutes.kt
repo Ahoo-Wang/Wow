@@ -13,18 +13,6 @@
 
 package me.ahoo.wow.openapi.contract
 
-import me.ahoo.wow.api.Wow
-
-object BuiltInHttpRoutePaths {
-    object Global {
-        const val COMMAND_WAIT = "/${Wow.WOW}/command/wait"
-        const val COMMAND_SEND = "/${Wow.WOW}/command/send"
-        const val METADATA = "/${Wow.WOW}/metadata"
-        const val GLOBAL_ID = "/${Wow.WOW}/id/global"
-        const val BI_SCRIPT = "/${Wow.WOW}/bi/script"
-    }
-}
-
 object BuiltInHttpRouteHandlerKeys {
     private const val OPENAPI = "wow.openapi"
     private const val GLOBAL = "$OPENAPI.global"

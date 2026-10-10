@@ -10,6 +10,7 @@ dependencies {
     testImplementation(project(":wow-api"))
     testImplementation(project(":wow-apiclient"))
     testImplementation(project(":wow-core"))
+    testImplementation(project(":wow-models"))
     testImplementation(project(":wow-spring"))
     testImplementation("me.ahoo.coapi:coapi-api")
     testImplementation("org.springframework:spring-web")

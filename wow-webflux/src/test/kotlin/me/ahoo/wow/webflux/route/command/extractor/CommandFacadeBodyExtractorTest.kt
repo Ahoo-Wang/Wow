@@ -19,8 +19,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -58,7 +58,7 @@ class CommandFacadeBodyExtractorTest {
 
         val httpHeaders = HttpHeaders()
         httpHeaders.contentType = MediaType.APPLICATION_JSON
-        httpHeaders.set(CommandComponent.Header.COMMAND_TYPE, MockCreateAggregate::class.java.name)
+        httpHeaders.set(CommandHeaders.COMMAND_TYPE, MockCreateAggregate::class.java.name)
         val inputMessage = mockk<ReactiveHttpInputMessage> {
             every { headers } returns httpHeaders
             every { body } returns Flux.just(
@@ -94,9 +94,9 @@ class CommandFacadeBodyExtractorTest {
 
         val httpHeaders = HttpHeaders()
         httpHeaders.contentType = MediaType.APPLICATION_JSON
-        httpHeaders.set(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, aggregateMetadata.contextName)
-        httpHeaders.set(CommandComponent.Header.COMMAND_AGGREGATE_NAME, aggregateMetadata.aggregateName)
-        httpHeaders.set(CommandComponent.Header.COMMAND_TYPE, DefaultDeleteAggregate::class.java.name)
+        httpHeaders.set(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, aggregateMetadata.contextName)
+        httpHeaders.set(CommandHeaders.COMMAND_AGGREGATE_NAME, aggregateMetadata.aggregateName)
+        httpHeaders.set(CommandHeaders.COMMAND_TYPE, DefaultDeleteAggregate::class.java.name)
         val inputMessage = mockk<ReactiveHttpInputMessage> {
             every { headers } returns httpHeaders
             every { body } returns Flux.empty()
@@ -126,13 +126,13 @@ class CommandFacadeBodyExtractorTest {
 
         val httpHeaders = HttpHeaders()
         httpHeaders.contentType = MediaType.APPLICATION_JSON
-        httpHeaders.set(CommandComponent.Header.COMMAND_TYPE, MockCreateAggregate::class.java.name)
+        httpHeaders.set(CommandHeaders.COMMAND_TYPE, MockCreateAggregate::class.java.name)
         httpHeaders.set(
-            CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT,
+            CommandHeaders.COMMAND_AGGREGATE_CONTEXT,
             MockCreateAggregate::class.java.requiredNamedAggregate().contextName
         )
         httpHeaders.set(
-            CommandComponent.Header.COMMAND_AGGREGATE_NAME,
+            CommandHeaders.COMMAND_AGGREGATE_NAME,
             MockCreateAggregate::class.java.requiredNamedAggregate().aggregateName
         )
         val inputMessage = mockk<ReactiveHttpInputMessage> {

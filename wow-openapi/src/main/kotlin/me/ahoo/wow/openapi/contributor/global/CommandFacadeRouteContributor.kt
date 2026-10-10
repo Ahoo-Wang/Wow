@@ -19,13 +19,13 @@ import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contributor.commandFacadeParameterRefs
 import me.ahoo.wow.openapi.contributor.commandResponseRefs
+import me.ahoo.wow.rest.RoutePaths
 
 object CommandFacadeRouteContributor : RouteContributor {
     override val id: String = "global.command-facade"
@@ -40,7 +40,7 @@ object CommandFacadeRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("command", "send"),
                 method = Https.Method.POST,
-                path = BuiltInHttpRoutePaths.Global.COMMAND_SEND,
+                path = RoutePaths.COMMAND_SEND,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
                 summary = "Unified Sending Endpoint For Command Messages",
                 parameters = componentContext.commandFacadeParameterRefs(),

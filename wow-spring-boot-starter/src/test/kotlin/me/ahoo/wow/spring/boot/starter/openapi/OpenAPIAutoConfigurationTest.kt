@@ -5,7 +5,7 @@ import io.swagger.v3.oas.models.SpecVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
+import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -117,7 +117,7 @@ class OpenAPIAutoConfigurationTest {
                     val openAPI = OpenAPI()
                     context.getBean(WowOpenApiCustomizer::class.java).customise(openAPI)
 
-                    openAPI.paths.containsKey(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    openAPI.paths.containsKey(RoutePaths.BI_SCRIPT)
                         .assert().isEqualTo(enabled != false)
                 }
         }
@@ -132,10 +132,10 @@ class OpenAPIAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
                 context.getBean(RouterSpecs::class.java).toRouteCatalog().routes.map { it.path }.assert()
-                    .doesNotContain(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .doesNotContain(RoutePaths.BI_SCRIPT)
                 val openAPI = OpenAPI()
                 context.getBean(WowOpenApiCustomizer::class.java).customise(openAPI)
-                openAPI.paths.containsKey(BuiltInHttpRoutePaths.Global.BI_SCRIPT).assert().isFalse()
+                openAPI.paths.containsKey(RoutePaths.BI_SCRIPT).assert().isFalse()
             }
     }
 }

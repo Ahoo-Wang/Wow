@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.contract.bi
+package me.ahoo.wow.rest.bi
 
 data class BiScriptRequest(
     val operation: BiScriptOperationMode = BiScriptOperationMode.DEPLOY,

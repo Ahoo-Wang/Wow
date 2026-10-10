@@ -16,8 +16,8 @@ package me.ahoo.wow.viewstore.starter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.namedAggregate
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemViewSource
@@ -180,18 +180,18 @@ class ViewStoreStarterTest {
         DefaultDeleteAggregate::class.java.namedAggregate().assert().isNull()
         val cartId = "facade-delete-cart"
         client.post().uri("/owner/$cartId/cart/add_cart_item")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"productId":"p1","quantity":1}""")
             .exchange()
             .expectStatus().isOk
-        client.post().uri(BuiltInHttpRoutePaths.Global.COMMAND_SEND)
-            .header(CommandComponent.Header.COMMAND_TYPE, DefaultDeleteAggregate::class.java.name)
-            .header(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, "example-service")
-            .header(CommandComponent.Header.COMMAND_AGGREGATE_NAME, "cart")
-            .header(CommandComponent.Header.AGGREGATE_ID, cartId)
-            .header(CommandComponent.Header.OWNER_ID, cartId)
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+        client.post().uri(RoutePaths.COMMAND_SEND)
+            .header(CommandHeaders.COMMAND_TYPE, DefaultDeleteAggregate::class.java.name)
+            .header(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, "example-service")
+            .header(CommandHeaders.COMMAND_AGGREGATE_NAME, "cart")
+            .header(CommandHeaders.AGGREGATE_ID, cartId)
+            .header(CommandHeaders.OWNER_ID, cartId)
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("{}")
             .exchange()
@@ -208,7 +208,7 @@ class ViewStoreStarterTest {
     @Test
     fun `a command needs the application it is written in`() {
         client.post().uri("/view-store/tenant/t1/owner/alice/view")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"definitionId":"orders","title":"Mine","config":{"kind":"record"}}""")
             .exchange()

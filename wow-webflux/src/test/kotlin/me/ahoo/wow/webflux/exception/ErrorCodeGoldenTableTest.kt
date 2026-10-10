@@ -23,7 +23,7 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.route.response.errorResume

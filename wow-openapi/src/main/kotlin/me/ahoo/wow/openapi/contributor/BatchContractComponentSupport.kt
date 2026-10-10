@@ -18,16 +18,16 @@ import me.ahoo.wow.openapi.BatchComponent.Parameter.batchAfterIdPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.batchLimitPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.headVersionPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.tailVersionPathParameter
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.HEAD_VERSION
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.TAIL_VERSION
 import me.ahoo.wow.openapi.BatchComponent.Response.batchResultResponse
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpResponse
+import me.ahoo.wow.rest.RouteVariables.BATCH_AFTER_ID
+import me.ahoo.wow.rest.RouteVariables.BATCH_LIMIT
+import me.ahoo.wow.rest.RouteVariables.HEAD_VERSION
+import me.ahoo.wow.rest.RouteVariables.TAIL_VERSION
 
 internal fun OpenAPIComponentContext.batchAfterIdPathParameterRef(): HttpParameter {
     batchAfterIdPathParameter()

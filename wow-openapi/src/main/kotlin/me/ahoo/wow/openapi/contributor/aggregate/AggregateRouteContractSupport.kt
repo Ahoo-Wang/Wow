@@ -18,7 +18,6 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.openapi.CommonComponent.Header.SPACE_ID
 import me.ahoo.wow.openapi.CommonComponent.Parameter.createTimePathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.ownerIdPathParameter
@@ -32,6 +31,7 @@ import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpTag
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.WowHeaders.SPACE_ID
 import me.ahoo.wow.serialization.MessageRecords
 
 private const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"

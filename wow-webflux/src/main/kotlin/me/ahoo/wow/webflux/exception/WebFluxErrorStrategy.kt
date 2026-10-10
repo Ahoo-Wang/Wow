@@ -18,7 +18,7 @@ import me.ahoo.wow.api.exception.ErrorInfoCapable
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.springframework.http.HttpStatusCode
@@ -59,7 +59,7 @@ object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
         val errorInfo = toErrorInfo(throwable)
         return ServerResponse.status(throwable.httpStatus(errorInfo))
             .contentType(MediaType.APPLICATION_JSON)
-            .header(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
+            .header(WowHeaders.ERROR_CODE, errorInfo.errorCode)
             .bodyValue(errorInfo.toJsonString())
     }
 
@@ -72,7 +72,7 @@ object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
         val errorInfo = toErrorInfo(throwable)
         response.statusCode = throwable.httpStatus(errorInfo)
         response.headers.contentType = MediaType.APPLICATION_JSON
-        response.headers.set(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
+        response.headers.set(WowHeaders.ERROR_CODE, errorInfo.errorCode)
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
 }

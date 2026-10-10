@@ -17,7 +17,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.rest.WowHeaders
 import org.springframework.http.HttpStatusCode
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -69,7 +69,7 @@ class WebFluxRequestExceptionHandler(
                         log.requestFailure(
                             request.formatRequest(),
                             response.statusCode(),
-                            response.headers().getFirst(CommonComponent.Header.ERROR_CODE),
+                            response.headers().getFirst(WowHeaders.ERROR_CODE),
                             throwable
                         )
                     }

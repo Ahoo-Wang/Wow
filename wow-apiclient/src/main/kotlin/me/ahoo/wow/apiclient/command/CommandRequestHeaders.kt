@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.apiclient.command
 
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 
 /**
  * The headers of this command request, as one value: the same headers the `@RequestHeader` parameters of
@@ -25,20 +25,20 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent
  * once.
  */
 fun CommandRequest.toRequestHeaders(): Map<String, String> = buildMap {
-    put(CommandComponent.Header.COMMAND_TYPE, commandType)
-    put(CommandComponent.Header.WAIT_STAGE, waitPlan.waitStage.name)
-    putIfPresent(CommandComponent.Header.WAIT_CONTEXT, waitPlan.waitContext)
-    putIfPresent(CommandComponent.Header.WAIT_PROCESSOR, waitPlan.waitProcessor)
-    putIfPresent(CommandComponent.Header.WAIT_TIME_OUT, waitPlan.waitTimeout)
-    putIfPresent(CommandComponent.Header.TENANT_ID, tenantId)
-    putIfPresent(CommandComponent.Header.OWNER_ID, ownerId)
-    putIfPresent(CommonComponent.Header.SPACE_ID, spaceId)
-    putIfPresent(CommandComponent.Header.AGGREGATE_ID, aggregateId)
-    putIfPresent(CommandComponent.Header.AGGREGATE_VERSION, aggregateVersion)
-    putIfPresent(CommandComponent.Header.REQUEST_ID, requestId)
-    putIfPresent(CommandComponent.Header.LOCAL_FIRST, localFirst)
-    putIfPresent(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, context)
-    putIfPresent(CommandComponent.Header.COMMAND_AGGREGATE_NAME, aggregate)
+    put(CommandHeaders.COMMAND_TYPE, commandType)
+    put(CommandHeaders.WAIT_STAGE, waitPlan.waitStage.name)
+    putIfPresent(CommandHeaders.WAIT_CONTEXT, waitPlan.waitContext)
+    putIfPresent(CommandHeaders.WAIT_PROCESSOR, waitPlan.waitProcessor)
+    putIfPresent(CommandHeaders.WAIT_TIME_OUT, waitPlan.waitTimeout)
+    putIfPresent(CommandHeaders.TENANT_ID, tenantId)
+    putIfPresent(CommandHeaders.OWNER_ID, ownerId)
+    putIfPresent(WowHeaders.SPACE_ID, spaceId)
+    putIfPresent(CommandHeaders.AGGREGATE_ID, aggregateId)
+    putIfPresent(CommandHeaders.AGGREGATE_VERSION, aggregateVersion)
+    putIfPresent(CommandHeaders.REQUEST_ID, requestId)
+    putIfPresent(CommandHeaders.LOCAL_FIRST, localFirst)
+    putIfPresent(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, context)
+    putIfPresent(CommandHeaders.COMMAND_AGGREGATE_NAME, aggregate)
 }
 
 private fun MutableMap<String, String>.putIfPresent(name: String, value: Any?) {

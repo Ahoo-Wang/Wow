@@ -21,13 +21,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertContractSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertOpenApiSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.resourcePath
+import me.ahoo.wow.rest.RoutePaths
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -47,10 +47,10 @@ internal class OpenApiCompatibilitySnapshotTest {
     fun `default routes should leave out the BI script route`() {
         val catalog = RouterSpecs(currentContext).build().toRouteCatalog()
 
-        catalog.routes.map { it.path }.assert().doesNotContain(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+        catalog.routes.map { it.path }.assert().doesNotContain(RoutePaths.BI_SCRIPT)
         val openAPI = OpenAPI()
         RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
-        openAPI.paths.keys.assert().doesNotContain(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+        openAPI.paths.keys.assert().doesNotContain(RoutePaths.BI_SCRIPT)
         openAPI.components.schemas.keys.filter { it.startsWith("wow.openapi.BiScript") }.assert().isEmpty()
     }
 

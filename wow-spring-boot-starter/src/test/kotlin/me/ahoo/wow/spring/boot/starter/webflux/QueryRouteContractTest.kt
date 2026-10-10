@@ -43,7 +43,6 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -70,6 +69,7 @@ import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.bi.BiAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
@@ -191,7 +191,7 @@ class QueryRouteContractTest {
         // Since 9.3.0 a tenant header that contradicts the `{tenantId}` path is rejected (V3), so only a route without
         // the variable gets one.
         if ("{$TENANT_ID_VARIABLE}" !in route.path) {
-            spec.header(CommandComponent.Header.TENANT_ID, HEADER_TENANT)
+            spec.header(CommandHeaders.TENANT_ID, HEADER_TENANT)
         }
         val body = BODIES[route.handlerKey]
         val exchange = if (body == null) {

@@ -24,8 +24,6 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -35,6 +33,8 @@ import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.querySelection
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
@@ -134,16 +134,16 @@ class AggregateIdOwnerReadTest {
         client.get().uri("/cart/cart-a/state")
             .exchange()
             .expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
     }
 
     @Test
     fun `a contradicting owner header is still rejected on a read`() {
         client.get().uri("/cart/cart-a/snapshot")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
             .exchange()
             .expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
     }
 
     private companion object {

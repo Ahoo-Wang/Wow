@@ -59,12 +59,8 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
@@ -83,6 +79,10 @@ import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.rest.RoutePaths
+import me.ahoo.wow.rest.bi.BiScriptRequest
+import me.ahoo.wow.rest.bi.BiScriptTopologyMode
+import me.ahoo.wow.rest.bi.BiScriptTopologyRequest
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -638,7 +638,7 @@ internal class WebFluxAutoConfigurationTest {
         webFluxContextRunner().run { context ->
             context.biScriptClient()
                 .get()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .accept(MediaType.parseMediaType(Https.MediaType.APPLICATION_SQL))
                 .exchange()
                 .expectStatus().isNotFound
@@ -649,7 +649,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject a missing BI request body`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .exchange()
                 .expectStatus().isBadRequest
@@ -660,7 +660,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject malformed BI request JSON`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{")
                 .exchange()
@@ -672,7 +672,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject domain-invalid BI request values`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"maxExpansionDepth":0}""")
                 .exchange()
@@ -684,7 +684,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject BI reset when the default inspector is no-op`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"operation":"RESET","replayFromEarliestConfirmed":true}""")
                 .exchange()
@@ -700,7 +700,7 @@ internal class WebFluxAutoConfigurationTest {
 
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"database":"$database"}""")
                 .exchange()
@@ -718,7 +718,7 @@ internal class WebFluxAutoConfigurationTest {
 
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"database":"$database"}""")
                 .exchange()
@@ -732,7 +732,7 @@ internal class WebFluxAutoConfigurationTest {
             .withPropertyValues("${BiScriptProperties.PREFIX}.max-expansion-depth=3")
             .run { context ->
                 context.biScriptClient().post()
-                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .uri(RoutePaths.BI_SCRIPT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue("""{"maxExpansionDepth":4}""")
                     .exchange()
@@ -744,7 +744,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject cluster details in a standalone BI request`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"topology":{"mode":"STANDALONE","cluster":{}}}""")
                 .exchange()
@@ -756,7 +756,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject a BI topology without mode`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"topology":{}}""")
                 .exchange()
@@ -768,7 +768,7 @@ internal class WebFluxAutoConfigurationTest {
     fun `should reject unsupported BI request media type`() {
         webFluxContextRunner().run { context ->
             context.biScriptClient().post()
-                .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                .uri(RoutePaths.BI_SCRIPT)
                 .contentType(MediaType.TEXT_PLAIN)
                 .bodyValue("{}")
                 .exchange()
@@ -785,7 +785,7 @@ internal class WebFluxAutoConfigurationTest {
                 MediaType.TEXT_PLAIN_VALUE,
             ).forEach { accept ->
                 context.biScriptClient().post()
-                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .uri(RoutePaths.BI_SCRIPT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Accept", accept)
                     .bodyValue("{}")
@@ -940,7 +940,7 @@ internal class WebFluxAutoConfigurationTest {
             .run { context ->
                 context.assert().doesNotHaveBean(WebExceptionHandler::class.java)
                 context.biScriptClient().post()
-                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .uri(RoutePaths.BI_SCRIPT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue("{}")
                     .exchange()
@@ -987,7 +987,7 @@ internal class WebFluxAutoConfigurationTest {
                     .assert()
                     .isNull()
                 context.biScriptClient().post()
-                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .uri(RoutePaths.BI_SCRIPT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue("{}")
                     .exchange()
@@ -1038,7 +1038,7 @@ internal class WebFluxAutoConfigurationTest {
                     .assert()
                     .isNull()
                 context.biScriptClient().post()
-                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .uri(RoutePaths.BI_SCRIPT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue("{}")
                     .exchange()
@@ -1087,7 +1087,7 @@ internal class WebFluxAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert().hasNotFailed()
                 context.biScriptClient().post()
-                    .uri(BuiltInHttpRoutePaths.Global.BI_SCRIPT)
+                    .uri(RoutePaths.BI_SCRIPT)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue("{}")
                     .exchange()
@@ -1399,7 +1399,7 @@ internal class WebFluxAutoConfigurationTest {
         val contract = HttpRouteContract(
             routeId = "bi-script",
             method = Https.Method.POST,
-            path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
+            path = RoutePaths.BI_SCRIPT,
             handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
             accept = listOf(Https.MediaType.APPLICATION_SQL),
         )

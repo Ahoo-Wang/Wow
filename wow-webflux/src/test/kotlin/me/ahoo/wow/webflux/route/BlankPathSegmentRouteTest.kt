@@ -24,12 +24,12 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
@@ -173,14 +173,14 @@ class BlankPathSegmentRouteTest {
 
     private fun assertRejected(client: WebTestClient, method: String, path: String, variable: String) {
         val result = client.method(HttpMethod.valueOf(method)).uri(URI.create(path))
-            .header(CommandComponent.Header.TENANT_ID, VICTIM)
-            .header(CommandComponent.Header.OWNER_ID, VICTIM)
-            .header(CommandComponent.Header.AGGREGATE_ID, VICTIM)
+            .header(CommandHeaders.TENANT_ID, VICTIM)
+            .header(CommandHeaders.OWNER_ID, VICTIM)
+            .header(CommandHeaders.AGGREGATE_ID, VICTIM)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"op":"MATCH_ALL"}""")
             .exchange()
             .expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             .expectBody(String::class.java)
             .returnResult()
         result.responseBody.assert().contains("Path variable [$variable] must not be blank.")

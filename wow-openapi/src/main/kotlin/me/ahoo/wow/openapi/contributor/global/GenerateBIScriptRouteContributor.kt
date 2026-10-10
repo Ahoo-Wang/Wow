@@ -20,19 +20,19 @@ import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.contract.bi.BiScriptHeaders
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptResponse
 import me.ahoo.wow.openapi.contributor.badRequestResponseRef
 import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
 import me.ahoo.wow.openapi.contributor.unsupportedMediaTypeResponseRef
+import me.ahoo.wow.rest.RoutePaths
+import me.ahoo.wow.rest.bi.BiScriptHeaders
+import me.ahoo.wow.rest.bi.BiScriptRequest
+import me.ahoo.wow.rest.bi.BiScriptResponse
 
 /**
  * The contract of the BI script route. It is not one of [me.ahoo.wow.openapi.contributor.DefaultRouteContributors]:
@@ -51,7 +51,7 @@ object GenerateBIScriptRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("bi_script", "generate"),
                 method = Https.Method.POST,
-                path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
+                path = RoutePaths.BI_SCRIPT,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 summary = "Generate BI Sync Script",
                 accept = listOf(

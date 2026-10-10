@@ -22,8 +22,8 @@ import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -42,9 +42,9 @@ class DefaultCommandMessageExtractorTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .pathVariable(CommandComponent.Header.AGGREGATE_VERSION, 1.toString())
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
-            .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
+            .pathVariable(CommandHeaders.AGGREGATE_VERSION, 1.toString())
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.toString())
+            .header(CommandHeaders.LOCAL_FIRST, false.toString())
             .build()
         val commandMessageExtractor =
             DefaultCommandMessageExtractor(
@@ -69,15 +69,15 @@ class DefaultCommandMessageExtractorTest {
     @Test
     fun `should inject extension headers into command message`() {
         val headerKey = "app"
-        val key = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + headerKey
+        val key = CommandHeaders.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
 
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .pathVariable(CommandComponent.Header.AGGREGATE_VERSION, 1.toString())
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
-            .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
+            .pathVariable(CommandHeaders.AGGREGATE_VERSION, 1.toString())
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.toString())
+            .header(CommandHeaders.LOCAL_FIRST, false.toString())
             .header(key, value)
             .build()
         val commandMessageExtractor =

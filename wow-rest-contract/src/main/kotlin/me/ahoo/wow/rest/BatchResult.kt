@@ -11,8 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.contract.bi
+package me.ahoo.wow.rest
 
-object BiScriptHeaders {
-    const val DIAGNOSTIC_COUNT: String = "Wow-BI-Diagnostic-Count"
-}
+import me.ahoo.wow.api.exception.ErrorInfo
+
+/**
+ * The result of a batch operation.
+ *
+ * @property afterId The ID of the last record successfully executed in batch processing.
+ * @property size Number of records successfully processed in the batch.
+ * @property errorCode The result error code.
+ * @property errorMsg The result error message.
+ */
+data class BatchResult(
+    val afterId: String,
+    val size: Int,
+    override val errorCode: String = ErrorInfo.SUCCEEDED,
+    override val errorMsg: String = ErrorInfo.SUCCEEDED_MESSAGE
+) : ErrorInfo

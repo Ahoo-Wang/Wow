@@ -32,9 +32,9 @@ import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
@@ -126,9 +126,9 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
         errorInfo,
         ok(context.schema(CommandResult::class.java)),
     ).addParametersItem(pathParameter(ViewStorePaths.DEFINITION_ID))
-        .addParametersItem(header(CommandComponent.Header.REQUEST_ID, false))
-        .addParametersItem(header(CommandComponent.Header.AGGREGATE_VERSION, false, IntegerSchema()))
-        .addParametersItem(header(CommandComponent.Header.WAIT_STAGE, false))
+        .addParametersItem(header(CommandHeaders.REQUEST_ID, false))
+        .addParametersItem(header(CommandHeaders.AGGREGATE_VERSION, false, IntegerSchema()))
+        .addParametersItem(header(CommandHeaders.WAIT_STAGE, false))
         .requestBody(
             RequestBody().required(true).content(
                 Content().addMediaType(JSON, MediaType().schema(context.schema(ViewPreferencesInput::class.java)))
@@ -141,9 +141,9 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
         errorInfo,
         ok(context.schema(CommandResult::class.java)),
     ).addParametersItem(pathParameter(ViewStorePaths.ID))
-        .addParametersItem(header(CommandComponent.Header.REQUEST_ID, false))
-        .addParametersItem(header(CommandComponent.Header.AGGREGATE_VERSION, false, IntegerSchema()))
-        .addParametersItem(header(CommandComponent.Header.WAIT_STAGE, false))
+        .addParametersItem(header(CommandHeaders.REQUEST_ID, false))
+        .addParametersItem(header(CommandHeaders.AGGREGATE_VERSION, false, IntegerSchema()))
+        .addParametersItem(header(CommandHeaders.WAIT_STAGE, false))
 
     private fun replay(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
         "view-store.replay",

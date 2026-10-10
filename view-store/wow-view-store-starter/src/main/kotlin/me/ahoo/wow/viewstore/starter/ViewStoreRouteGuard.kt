@@ -19,11 +19,11 @@ import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.RoutePaths
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.ViewStoreService.VIEW_AGGREGATE_NAME
 import me.ahoo.wow.viewstore.api.view.CreateView
@@ -99,7 +99,7 @@ internal class ViewStoreRouteGuard(
     private val closedRoutes: List<Route> = closedContracts.map {
         Route(HttpMethod.valueOf(it.method), it.path.toPattern())
     }
-    private val commandFacade: PathPattern = BuiltInHttpRoutePaths.Global.COMMAND_SEND.toPattern()
+    private val commandFacade: PathPattern = RoutePaths.COMMAND_SEND.toPattern()
 
     /**
      * Whether [path] is a closed route of the view store's aggregates. An open route (the starter's own routes are
@@ -124,11 +124,11 @@ internal class ViewStoreRouteGuard(
         if (method != HttpMethod.POST || !commandFacade.matches(path)) {
             return false
         }
-        val context = headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT)?.trim()
+        val context = headers.getFirst(CommandHeaders.COMMAND_AGGREGATE_CONTEXT)?.trim()
         if (!context.isNullOrEmpty() && context.equals(ViewStoreService.SERVICE_NAME, ignoreCase = true)) {
             return true
         }
-        val aggregateName = headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_NAME)?.trim()
+        val aggregateName = headers.getFirst(CommandHeaders.COMMAND_AGGREGATE_NAME)?.trim()
         if (!context.isNullOrEmpty() && !aggregateName.isNullOrEmpty()) {
             val aggregateType = runCatching {
                 MaterializedNamedAggregate(context, aggregateName).requiredAggregateType<Any>()
@@ -137,7 +137,7 @@ internal class ViewStoreRouteGuard(
                 return true
             }
         }
-        val commandType = headers.getFirst(CommandComponent.Header.COMMAND_TYPE)?.trim()
+        val commandType = headers.getFirst(CommandHeaders.COMMAND_TYPE)?.trim()
         if (commandType.isNullOrEmpty()) {
             return false
         }

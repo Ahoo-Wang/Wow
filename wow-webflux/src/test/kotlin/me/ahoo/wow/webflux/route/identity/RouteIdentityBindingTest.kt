@@ -19,11 +19,11 @@ import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.identity.RouteIdentitySource.HEADER
 import me.ahoo.wow.webflux.route.identity.RouteIdentitySource.NONE
@@ -87,8 +87,8 @@ class RouteIdentityBindingTest {
         binding.pathVariables.assert()
             .containsExactlyInAnyOrder(MessageRecords.TENANT_ID, MessageRecords.OWNER_ID, MessageRecords.ID)
         binding.tenantId.assert()
-            .isEqualTo(FactBinding(PATH, MessageRecords.TENANT_ID, listOf(CommandComponent.Header.TENANT_ID)))
-        binding.spaceId.assert().isEqualTo(FactBinding(HEADER, headers = listOf(CommonComponent.Header.SPACE_ID)))
+            .isEqualTo(FactBinding(PATH, MessageRecords.TENANT_ID, listOf(CommandHeaders.TENANT_ID)))
+        binding.spaceId.assert().isEqualTo(FactBinding(HEADER, headers = listOf(WowHeaders.SPACE_ID)))
         // A static tenant ignores the tenant header, as in 9.2: no header to check against it.
         bindingOf("POST", "/owner/{ownerId}/cart/add_cart_item").tenantId.assert()
             .isEqualTo(FactBinding(STATIC, Cart::class.java.aggregateRouteMetadata().aggregateMetadata.staticTenantId))
@@ -103,11 +103,11 @@ class RouteIdentityBindingTest {
             spaced = true,
             aliases = IdentityHeaderAliases(spaceId = listOf("X-Space"), requestId = listOf("X-Request")),
         )
-        binding.spaceId.headers.assert().containsExactly(CommonComponent.Header.SPACE_ID, "X-Space")
-        binding.requestId.headers.assert().containsExactly(CommandComponent.Header.REQUEST_ID, "X-Request")
+        binding.spaceId.headers.assert().containsExactly(WowHeaders.SPACE_ID, "X-Space")
+        binding.requestId.headers.assert().containsExactly(CommandHeaders.REQUEST_ID, "X-Request")
 
         val aliasOnly = MockServerRequest.builder()
-            .header(CommonComponent.Header.SPACE_ID, " ")
+            .header(WowHeaders.SPACE_ID, " ")
             .header("X-Space", "alias-space")
             .header("X-Request", "alias-request")
             .build()
@@ -115,9 +115,9 @@ class RouteIdentityBindingTest {
         binding.requestId(aliasOnly).assert().isEqualTo("alias-request")
 
         val both = MockServerRequest.builder()
-            .header(CommonComponent.Header.SPACE_ID, "wow-space")
+            .header(WowHeaders.SPACE_ID, "wow-space")
             .header("X-Space", "alias-space")
-            .header(CommandComponent.Header.REQUEST_ID, "wow-request")
+            .header(CommandHeaders.REQUEST_ID, "wow-request")
             .header("X-Request", "alias-request")
             .build()
         binding.spaceId(both).assert().isEqualTo("wow-space")
@@ -157,7 +157,7 @@ class RouteIdentityBindingTest {
 
         val agreeing = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, "cart-1")
-            .header(CommandComponent.Header.OWNER_ID, "cart-1")
+            .header(CommandHeaders.OWNER_ID, "cart-1")
             .build()
         binding.aggregateId(agreeing).assert().isEqualTo("cart-1")
         binding.readOwnerId(agreeing).assert().isEqualTo("cart-1")
@@ -226,7 +226,7 @@ class RouteIdentityBindingTest {
     fun `a request identity reads the owner once and still checks every body against it`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
-            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
         val identity = request.identity(Cart::class.java.aggregateRouteMetadata())
         identity.ownerId(body = "owner-a").assert().isEqualTo("owner-a")
@@ -238,7 +238,7 @@ class RouteIdentityBindingTest {
         }.hasMessage("Conflicting ownerId: the route fixes [owner-a], but the command body gives [victim].")
 
         val withoutOwner = MockServerRequest.builder()
-            .header(CommandComponent.Header.AGGREGATE_ID, "cart-h")
+            .header(CommandHeaders.AGGREGATE_ID, "cart-h")
             .build()
             .identity(Cart::class.java.aggregateRouteMetadata())
         withoutOwner.aggregateId().assert().isEqualTo("cart-h")
@@ -268,9 +268,9 @@ class RouteIdentityBindingTest {
             .pathVariable(MessageRecords.TENANT_ID, blank)
             .pathVariable(MessageRecords.OWNER_ID, blank)
             .pathVariable(MessageRecords.ID, blank)
-            .header(CommandComponent.Header.TENANT_ID, "victim")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
-            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .header(CommandHeaders.TENANT_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
+            .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
         val binding = orderBinding(request)
 
@@ -288,9 +288,9 @@ class RouteIdentityBindingTest {
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
             .pathVariable(MessageRecords.ID, "id-a")
-            .header(CommandComponent.Header.TENANT_ID, "tenant-a")
+            .header(CommandHeaders.TENANT_ID, "tenant-a")
             // The aggregate ID is not a fact a header may contradict: the path wins, the header is ignored.
-            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
         val binding = orderBinding(request)
 
@@ -304,8 +304,8 @@ class RouteIdentityBindingTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
-            .header(CommandComponent.Header.TENANT_ID, "victim")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandHeaders.TENANT_ID, "victim")
+            .header(CommandHeaders.OWNER_ID, "victim")
             .build()
         val binding = orderBinding(request)
 
@@ -320,10 +320,10 @@ class RouteIdentityBindingTest {
     @Test
     fun `a route without the variable reads the header`() {
         val request = MockServerRequest.builder()
-            .header(CommandComponent.Header.TENANT_ID, "tenant-h")
-            .header(CommandComponent.Header.OWNER_ID, "owner-h")
-            .header(CommandComponent.Header.AGGREGATE_ID, "id-h")
-            .header(CommonComponent.Header.SPACE_ID, "space-h")
+            .header(CommandHeaders.TENANT_ID, "tenant-h")
+            .header(CommandHeaders.OWNER_ID, "owner-h")
+            .header(CommandHeaders.AGGREGATE_ID, "id-h")
+            .header(WowHeaders.SPACE_ID, "space-h")
             .build()
         val binding = orderBinding(request)
 
