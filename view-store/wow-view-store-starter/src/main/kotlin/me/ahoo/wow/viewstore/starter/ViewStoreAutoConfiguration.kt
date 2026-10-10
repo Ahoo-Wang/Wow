@@ -14,7 +14,6 @@
 package me.ahoo.wow.viewstore.starter
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
@@ -33,7 +32,7 @@ import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURREN
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.openapi.ConditionalOnOpenAPIEnabled
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.openapi.WowOpenApiCustomizer
+import me.ahoo.wow.spring.boot.starter.openapi.OpenApiDocumentFilter
 import me.ahoo.wow.spring.boot.starter.webflux.ConditionalOnWebfluxEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.spring.query.eventStreamQueryGatewayBeanName
@@ -64,7 +63,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Lazy
-import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
@@ -285,8 +283,8 @@ class ViewStoreAutoConfiguration {
     /**
      * Documents the view store's own routes when Wow's OpenAPI document is served (as Wow's springdoc customizer). The
      * customizer is created eagerly, even under `spring.main.lazy-initialization`, so their schemas are generated at
-     * startup and never on a request thread. It runs after [WowOpenApiCustomizer], so the routes it takes out of the
-     * document as closed are already there.
+     * startup and never on a request thread. The routes the view store closes are taken out of the document by an
+     * [OpenApiDocumentFilter], which Wow's customizer applies after merging them.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnOpenAPIEnabled
@@ -297,18 +295,15 @@ class ViewStoreAutoConfiguration {
         internal fun viewStoreOpenApiCustomizer(
             @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext,
             viewStorePaths: ViewStorePaths,
-            viewStoreRouteGuard: ViewStoreRouteGuard,
         ): OpenApiCustomizer {
             // Generates the schemas at startup, so a document built on a request thread generates none.
             val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix()).render()
-            return object : OpenApiCustomizer, Ordered {
-                override fun customise(document: OpenAPI) {
-                    openApi.withoutClosedRoutes(document, viewStoreRouteGuard.closedContracts)
-                    openApi.merge(document)
-                }
-
-                override fun getOrder(): Int = WowOpenApiCustomizer.ORDER + 1
-            }
+            return OpenApiCustomizer { openApi.merge(it) }
         }
+
+        /** Applied by Wow's customizer right after it merges Wow's routes, whatever order the customizers run in. */
+        @Bean("viewStoreClosedRoutesFilter")
+        internal fun viewStoreClosedRoutesFilter(viewStoreRouteGuard: ViewStoreRouteGuard): OpenApiDocumentFilter =
+            ViewStoreClosedRoutesFilter(viewStoreRouteGuard.closedContracts)
     }
 }

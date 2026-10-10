@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.starter
 
+import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.configuration.namedAggregate
@@ -30,6 +31,7 @@ import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import org.junit.jupiter.api.Test
+import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -82,6 +84,10 @@ class ViewStoreStarterTest {
                     .copy(source = SystemViewSource.STORED, version = 2)
             )
         }
+
+        /** A common springdoc customizer without an order: it replaces the document's info. */
+        @Bean
+        fun hostInfoCustomizer(): OpenApiCustomizer = OpenApiCustomizer { it.info(Info().title("Host")) }
     }
 
     @Autowired
@@ -173,7 +179,9 @@ class ViewStoreStarterTest {
     /**
      * The document shows only what is served: the routes [ViewStoreRouteGuard] closes are taken out of it after Wow's
      * customizer has merged them, and every open one stays. This host's component scan covers the starter's package,
-     * so the view store's customizer is registered before Wow's: only their orders put it after.
+     * so the view store's customizer is registered, and runs, before Wow's: Wow's customizer applies the view store's
+     * [me.ahoo.wow.spring.boot.starter.openapi.OpenApiDocumentFilter] itself. The host's unordered customizer still
+     * runs before Wow's, which keeps the host's info and adds its extensions.
      */
     @Test
     fun `the document leaves out the routes the view store closes`() {
@@ -191,6 +199,9 @@ class ViewStoreStarterTest {
         documented.assert()
             .doesNotContain("DELETE $scope/view_preferences/{id}", "PUT $scope/view/{id}/recover")
             .contains("POST $scope/view", "PUT $scope/view/{id}/claim", "GET $scope/system-views")
+        document.at("/info/title").asString().assert().isEqualTo("Host")
+        document.at("/info/x-wow-context-alias").isMissingNode.assert().isFalse()
+        document.at("/info/x-wow-context-name").asString().assert().isEqualTo("example-service")
     }
 
     /**

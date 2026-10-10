@@ -33,7 +33,6 @@ import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemView
@@ -108,18 +107,6 @@ internal class ViewStoreOpenApi(
     fun render(): ViewStoreOpenApi {
         rendered.value
         return this
-    }
-
-    /** Takes the routes [ViewStoreRouteGuard] closes out of the document, so it shows only what is served. */
-    fun withoutClosedRoutes(openApi: OpenAPI, closedContracts: List<HttpRouteContract>) {
-        val documented = openApi.paths ?: return
-        closedContracts.forEach { contract ->
-            val item = documented[contract.path] ?: return@forEach
-            item.operation(PathItem.HttpMethod.valueOf(contract.method), null)
-            if (item.readOperations().isEmpty()) {
-                documented.remove(contract.path)
-            }
-        }
     }
 
     /**

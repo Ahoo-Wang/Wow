@@ -14,20 +14,12 @@
 package me.ahoo.wow.spring.boot.starter.openapi
 
 import io.swagger.v3.oas.models.OpenAPI
-import me.ahoo.wow.openapi.RouterSpecs
-import org.springdoc.core.customizers.OpenApiCustomizer
 
 /**
- * Merges Wow's routes into the OpenAPI document, then applies the [documentFilters] in their order.
+ * Changes the OpenAPI document right after [WowOpenApiCustomizer] has merged Wow's routes into it, so it sees those
+ * routes whatever order springdoc runs its customizers in. Declare one as a bean; several run in their order
+ * ([org.springframework.core.Ordered] or [org.springframework.core.annotation.Order]).
  */
-class WowOpenApiCustomizer(
-    private val routerSpecs: RouterSpecs,
-    private val documentFilters: List<OpenApiDocumentFilter>,
-) : OpenApiCustomizer {
-    constructor(routerSpecs: RouterSpecs) : this(routerSpecs, emptyList())
-
-    override fun customise(openApi: OpenAPI) {
-        routerSpecs.mergeOpenAPI(openApi)
-        documentFilters.forEach { it.filter(openApi) }
-    }
+fun interface OpenApiDocumentFilter {
+    fun filter(openApi: OpenAPI)
 }

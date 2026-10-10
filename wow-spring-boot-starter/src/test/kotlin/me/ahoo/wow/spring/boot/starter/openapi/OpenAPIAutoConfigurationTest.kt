@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.core.Ordered
+import java.util.function.Supplier
 
 class OpenAPIAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -121,6 +123,30 @@ class OpenAPIAutoConfigurationTest {
                         .assert().isEqualTo(enabled != false)
                 }
         }
+    }
+
+    @Test
+    fun `should apply the document filters in their order after merging Wow's routes`() {
+        val applied = mutableListOf<String>()
+
+        class NamedFilter(private val name: String, private val order: Int) : OpenApiDocumentFilter, Ordered {
+            override fun filter(openApi: OpenAPI) {
+                // Wow's routes are already merged.
+                openApi.paths.assert().isNotEmpty()
+                applied += name
+            }
+
+            override fun getOrder(): Int = order
+        }
+        contextRunner
+            .enableWow()
+            .withBean("second", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("second", 2) })
+            .withBean("first", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("first", 1) })
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(WowOpenApiCustomizer::class.java).customise(OpenAPI())
+                applied.assert().containsExactly("first", "second")
+            }
     }
 
     @Test

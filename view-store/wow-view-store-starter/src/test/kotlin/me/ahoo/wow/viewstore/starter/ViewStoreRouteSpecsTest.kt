@@ -242,7 +242,7 @@ class ViewStoreRouteSpecsTest {
     fun `OpenAPI shows the custom and the scoped routes`() {
         val openApi = OpenAPI()
         routerSpecs.mergeOpenAPI(openApi)
-        ViewStoreOpenApi(paths, hostPrefix).withoutClosedRoutes(openApi, guard.closedContracts)
+        ViewStoreClosedRoutesFilter(guard.closedContracts).filter(openApi)
         ViewStoreOpenApi(paths, hostPrefix).merge(openApi)
         openApi.paths.keys.assert().doesNotContain(
             "$scope/view/{id}/state",
