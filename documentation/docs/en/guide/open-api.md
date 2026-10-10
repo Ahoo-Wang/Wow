@@ -61,6 +61,8 @@ A custom route is added by a `RouteContributor` bean. A contributor only returns
 
 ```kotlin
 val reportResponse = HttpComponent.response("example.ReportResponse") { context ->
+    description("Report")
+    header(WowHeaders.ERROR_CODE, context.ref(WowComponents.errorCodeHeaderComponent))
     content(schema = context.schema(Report::class.java))
 }
 
@@ -72,7 +74,11 @@ fun reportRouteContributor(): RouteContributor = object : RouteContributor {
             method = "GET",
             path = "/report",
             handlerKey = "example.report",
-            responses = listOf(HttpResponse("200", component = reportResponse)),
+            responses = listOf(
+                HttpResponse("200", component = reportResponse),
+                WowComponents.badRequestResponse,
+                WowComponents.notFoundResponse,
+            ),
         )
     )
 }
@@ -86,7 +92,9 @@ fun reportHandlerFunctionFactory(reportService: ReportService): HttpRouteHandler
     }
 ```
 
-A contract's method, status codes and media types are plain strings (`"GET"`, `"200"`, `"application/json"`). The public API of `wow-openapi` is `RouterSpecs`, `RouteContributor`, `RouteCatalog`, the contract types in `me.ahoo.wow.openapi.contract` (with `BuiltInHttpRouteHandlerKeys` and `HttpComponent`), the route metadata (`aggregateRouteMetadata()`, `commandRouteMetadata()`), `DefaultRouteContributors` (the built-in routes, to combine with your own contributors when building `RouterSpecs` yourself), `OpenAPIComponentContext`, the component builders `ApiResponseBuilder` and `RequestBodyBuilder`, `OpenAPISchemaBuilder` and `BoundedContextSchemaNameConverter`. The renderer, the catalog builder and the helpers behind the built-in routes are internal; the built-in contributor objects are internal or `@InternalWowApi`, shared with the Spring Boot starter but not part of the API.
+The components the built-in routes share are public in `WowComponents` (`me.ahoo.wow.openapi.contract`): the error responses `badRequestResponse`, `notFoundResponse`, `requestTimeoutResponse`, `tooManyRequestsResponse` and `unsupportedMediaTypeResponse` (`HttpResponse`s with the `DefaultErrorInfo` body and the `Wow-Error-Code` header), the `errorCodeHeader` response header and its `errorCodeHeaderComponent` (to reference with `context.ref` in your own response), the `spaceIdHeaderParameter` request header and the `idPathParameter`, `tenantIdPathParameter`, `ownerIdPathParameter` and `versionPathParameter` path parameters. They are the instances the built-in routes use, so a custom route that references them shares `wow.BadRequest`, `wow.Wow-Error-Code` and the rest instead of redefining them under the same key. In the builders, `ApiResponseBuilder` sets `description`, `header`, `content` and `extension`, and `RequestBodyBuilder` sets `description`, `required`, `content` and `extension`.
+
+A contract's method, status codes and media types are plain strings (`"GET"`, `"200"`, `"application/json"`). The public API of `wow-openapi` is `RouterSpecs`, `RouteContributor`, `RouteCatalog`, the contract types in `me.ahoo.wow.openapi.contract` (with `BuiltInHttpRouteHandlerKeys` and `HttpComponent`), the route metadata (`aggregateRouteMetadata()`, `commandRouteMetadata()`), `DefaultRouteContributors` (the built-in routes, to combine with your own contributors when building `RouterSpecs` yourself), `OpenAPIComponentContext`, the built-in shared components `WowComponents`, the component builders `ApiResponseBuilder` and `RequestBodyBuilder`, `OpenAPISchemaBuilder` and `BoundedContextSchemaNameConverter`. The renderer, the catalog builder and the helpers behind the built-in routes are internal; the built-in contributor objects are internal or `@InternalWowApi`, shared with the Spring Boot starter but not part of the API.
 
 Modules containing Wow annotations still need KSP plus `wow-compiler`, and their generated `META-INF/wow-metadata.json` resources must be present on the service runtime classpath. Do not hand-write or commit generated resources.
 

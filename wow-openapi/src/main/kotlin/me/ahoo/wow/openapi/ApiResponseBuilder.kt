@@ -30,6 +30,12 @@ class ApiResponseBuilder {
         return this
     }
 
+    /** Adds the extension [name] with [value]. Swagger ignores a name that does not start with `x-`. */
+    fun extension(name: String, value: Any): ApiResponseBuilder {
+        apiResponse.addExtension(name, value)
+        return this
+    }
+
     fun header(headerName: String, header: Header): ApiResponseBuilder {
         apiResponse.addHeaderObject(headerName, header)
         return this
