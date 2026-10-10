@@ -258,7 +258,7 @@ Spring 注册的 Snapshot 与 EventStream Gateway 都执行准入各步：入口
 
 ### State 点读
 
-State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此默认不执行准入各步、范围、`QueryPolicy` 与脱敏；拥有者路由上的拥有者前置检查照常生效。设 `wow.webflux.state.point-read-admission=true` 后，每个读取的状态先转换为快照形状的记录，然后：
+State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此默认不执行准入各步、范围、`QueryPolicy` 与脱敏；按 id、按版本、按时间加载的路由带拥有者路径段时，拥有者前置检查照常生效；tracing 的路径不含拥有者，不做该检查，见[运维路由](#运维路由)。设 `wow.webflux.state.point-read-admission=true` 后，每个读取的状态先转换为快照形状的记录，然后：
 
 - Gateway 的入口策略接受 `HTTP` 入口；开启 `wow.query.require-authenticated-scope` 时，已认证范围未固定租户的调用方与查询路由一样被拒绝（`403`）。这些路由只在点读准入下执行该开关，所以只开该开关、不开 `point-read-admission` 时启动失败；
 - 由查询准入（`QueryAdmission.admitRecord`）在内存中对它执行查询的范围、策略与默认范围三步：`QueryRequestScope` 给出的调用方范围、每个 `QueryPolicy` 的限制条件，以及快照的默认范围（读取未声明删除范围时隐藏已删除的状态；tracing 读取全部版本，含已删除）。策略与 Gateway 使用的是同一组 Bean，顺序相同，看到的是来自 `HTTP` 入口、按 id 的 `SINGLE` 查询。不满足的状态视为不存在：加载返回 `404`，tracing 返回 `[]`。限制条件先与查询一样规范化（字段别名替换为规范字段，`null` 的 `EQ`/`NE` 降级），再按所有后端遵循的语义判定（数值按值比较；值为 `null` 的字段视为存在）。内存判定支持范围与 ABAC 策略会产生的节点：id、租户、拥有者、空间与删除状态过滤，`AND`/`OR`/`NOR`，以及字段上的 `EQ`/`NE`/`IN`/`NOT_IN`/`IS_NULL`/`IS_NOT_NULL`/`EXISTS`/`NOT_EXISTS`/`IS_EMPTY`；其他节点按失败关闭处理；
@@ -266,6 +266,23 @@ State 路由（按 id、按版本、按时间加载与 tracing）通过事件回
 - tracing 最多返回 `wow.webflux.state.tracing-max-versions` 个版本（默认 `1000`，`0` 关闭上限）。超出的范围在响应开始前以 `400` 拒绝，可用 `headVersion`、`tailVersion` 或 `limit` 缩小；只有全部被追踪的状态都获准入时才输出结果。
 
 开关默认关闭，保持现有行为。
+
+### 运维路由
+
+以下路由的路径只有租户与聚合 ID，没有拥有者路径段，不按拥有者隔离，面向运维而非终端用户：
+
+| 路由 | 拥有者处理 |
+|---|---|
+| State tracing | 不做拥有者前置检查；开启点读准入后由调用方范围与 `QueryPolicy` 判定 |
+| 事件流加载（按版本区间） | 经 EventStream Gateway 执行准入；拥有者过滤只来自自报的 `Command-Owner-Id` 请求头 |
+| 快照重建（单个与批量）、事件补偿、批量重发 State 事件 | 不读取拥有者 |
+
+`Command-Owner-Id` 是客户端自报的值，不是安全边界：知道拥有者 ID 的调用方可以照填。所以不要把这些路由直接开放给终端用户：
+
+1. 在网关按路径或角色只放行运维调用方；
+2. 需要按调用方读取 tracing 时，开启 `wow.webflux.state.point-read-admission`，并配合 `wow.query.require-authenticated-scope` 与失败关闭的 `QueryPolicy`。事件流加载经过 Gateway，同样遵循这两项。
+
+需要终端用户按拥有者访问的数据，请用带拥有者路径段的加载与查询路由。
 
 ## 必须完成的安全闭环
 
