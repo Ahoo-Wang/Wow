@@ -96,6 +96,8 @@ fun reportHandlerFunctionFactory(reportService: ReportService): HttpRouteHandler
 
 合同的方法、状态码与媒体类型都是普通字符串（`"GET"`、`"200"`、`"application/json"`）。`wow-openapi` 的公开 API 是 `RouterSpecs`、`RouteContributor`、`RouteCatalog`、`me.ahoo.wow.openapi.contract` 中的合同类型（含 `BuiltInHttpRouteHandlerKeys` 与 `HttpComponent`）、路由元数据（`aggregateRouteMetadata()`、`commandRouteMetadata()`）、`DefaultRouteContributors`（内置路由，自行构建 `RouterSpecs` 时与自己的贡献者组合）、`OpenAPIComponentContext`、内置共用组件 `WowComponents`、组件构建器 `ApiResponseBuilder` 与 `RequestBodyBuilder`、`OpenAPISchemaBuilder` 与 `BoundedContextSchemaNameConverter`。渲染器、目录构建器与内置路由背后的辅助类型是 internal；内置贡献者对象为 internal 或标为 `@InternalWowApi`，供 Spring Boot Starter 使用，不属于 API。
 
+`OpenAPIComponentContext.default(inline = true)` 把 Schema、参数、响应头、请求体与响应都写在原处，文档没有组件。包含自身的 Schema 无法写在原处，生成时失败（`Option.INLINE_ALL_SCHEMAS cannot be fulfilled`）。内置路由含有这样的 Schema（聚合查询的 `AggregationExpression`），所以内联模式不能渲染 `DefaultRouteContributors.all()`，只用于 Schema 无循环引用的路由；Spring Boot Starter 不开内联。
+
 包含 Wow 注解的模块仍需应用 KSP 与 `wow-compiler`，并确保生成的 `META-INF/wow-metadata.json` 位于服务运行时 classpath。不要手写或提交生成资源。
 
 ## Swagger-UI
