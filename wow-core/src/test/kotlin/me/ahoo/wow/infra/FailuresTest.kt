@@ -23,13 +23,15 @@ class FailuresTest {
     fun `merge keeps the first failure and suppresses each later one once`() {
         val first = IllegalStateException("first")
         val second = IllegalArgumentException("second")
+        val third = UnsupportedOperationException("third")
 
         (null as Throwable?).mergeFailure(first).assert().isSameAs(first)
         first.mergeFailure(second).assert().isSameAs(first)
         first.mergeFailure(second).assert().isSameAs(first)
         first.mergeFailure(first).assert().isSameAs(first)
+        first.mergeFailure(third).assert().isSameAs(first)
 
-        first.suppressed.assert().containsExactly(second)
+        first.suppressed.assert().containsExactly(second, third)
     }
 
     @Test

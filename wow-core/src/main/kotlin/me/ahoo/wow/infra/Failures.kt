@@ -46,7 +46,7 @@ internal fun Throwable?.mergeFailure(next: Throwable): Throwable {
  * A fatal error ([Exceptions.throwIfFatal]) propagates at once.
  */
 @Suppress("TooGenericExceptionCaught")
-internal inline fun <T> Iterable<T>.forEachThenThrow(action: (T) -> Unit) {
+internal fun <T> Iterable<T>.forEachThenThrow(action: (T) -> Unit) {
     var failure: Throwable? = null
     for (element in this) {
         try {
