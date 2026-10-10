@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.contributor.aggregate.command
 
 import me.ahoo.wow.api.abac.DefaultApplyResourceTags
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
@@ -42,6 +43,7 @@ import me.ahoo.wow.openapi.metadata.VariableMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.rest.RouteVariables
 
+@InternalWowApi
 object CommandRouteContributor : RouteContributor {
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,

@@ -18,7 +18,7 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.naming.getContextAlias
 
-object OpenAPIExtensions {
+internal object OpenAPIExtensions {
     const val WOW_EXTENSIONS_PREFIX = "x-wow-"
     const val WOW_VERSION = WOW_EXTENSIONS_PREFIX + "version"
     const val WOW_CONTEXT_NAME = WOW_EXTENSIONS_PREFIX + "context-name"

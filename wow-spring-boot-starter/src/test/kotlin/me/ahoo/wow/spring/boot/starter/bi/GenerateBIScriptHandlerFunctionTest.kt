@@ -41,7 +41,6 @@ import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
 import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.rest.bi.BiScriptOperationMode
@@ -707,7 +706,7 @@ private class ThreadRecordingNamedAggregate(
 
 private fun biScriptRouteContract(): HttpRouteContract = HttpRouteContract(
     routeId = "test.route",
-    method = Https.Method.POST,
+    method = "POST",
     path = "/test",
     handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
 )

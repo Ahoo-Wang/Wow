@@ -41,7 +41,7 @@ private const val TRACING_PARAMETER_KEY_PREFIX = "wow.aggregate-tracing."
  * The state routes of an aggregate. Their paths come from [me.ahoo.wow.rest.RouteSuffixes]; their resource and
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
-object StateRouteContributor : RouteContributor {
+internal object StateRouteContributor : RouteContributor {
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>

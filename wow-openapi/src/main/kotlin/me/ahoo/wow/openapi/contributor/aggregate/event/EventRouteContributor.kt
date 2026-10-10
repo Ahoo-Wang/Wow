@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.aggregate.event
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.Https
@@ -44,6 +45,7 @@ private const val STATE_EVENT = "state_event"
  * The event routes of an aggregate. Their paths come from [me.ahoo.wow.rest.RouteSuffixes]; their resource and
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
+@InternalWowApi
 object EventRouteContributor : RouteContributor {
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,

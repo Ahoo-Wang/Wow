@@ -20,7 +20,7 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import kotlin.jvm.optionals.getOrDefault
 import io.swagger.v3.oas.annotations.tags.Tag as AnnotationTag
 
-object Tags {
+internal object Tags {
     fun Class<*>.toTags(): Set<Tag> {
         val annotationTags = mutableSetOf<AnnotationTag>()
 

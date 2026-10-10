@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.openapi
 
-object Https {
+internal object Https {
     object Header {
         const val ACCEPT = "Accept"
     }

@@ -32,7 +32,7 @@ import me.ahoo.wow.openapi.schema.InlineSchemaCapable
 import me.ahoo.wow.openapi.schema.OpenAPISchemaBuilder
 import java.lang.reflect.Type
 
-class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBuilder) :
+internal class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPISchemaBuilder) :
     OpenAPIComponentContext,
     InlineSchemaCapable by schemaBuilder {
     override var schemas: Map<String, Schema<*>> = emptyMap()

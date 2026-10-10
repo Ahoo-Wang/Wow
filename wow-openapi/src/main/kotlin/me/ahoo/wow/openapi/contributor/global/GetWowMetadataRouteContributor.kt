@@ -24,7 +24,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.rest.RoutePaths
 
-object GetWowMetadataRouteContributor : RouteContributor {
+internal object GetWowMetadataRouteContributor : RouteContributor {
     override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(
             HttpRouteContract(

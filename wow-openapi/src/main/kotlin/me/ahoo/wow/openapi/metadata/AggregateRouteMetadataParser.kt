@@ -21,7 +21,7 @@ import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
-object AggregateRouteMetadataParser : CacheableMetadataParser() {
+internal object AggregateRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = AggregateRouteMetadataVisitor(type)
         type.kotlin.visit(visitor)

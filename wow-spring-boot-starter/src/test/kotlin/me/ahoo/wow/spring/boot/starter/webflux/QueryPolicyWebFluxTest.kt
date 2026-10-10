@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.example.domain.order.Order
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -180,7 +179,7 @@ class QueryPolicyWebFluxTest {
                 ROUTES.forEach { route ->
                     val contract = HttpRouteContract(
                         routeId = route.handlerKey,
-                        method = Https.Method.POST,
+                        method = "POST",
                         path = route.path,
                         handlerKey = route.handlerKey,
                         handlerMetadata = HttpRouteHandlerMetadata.Aggregate(metadata),

@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi.catalog
 
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 
-class RouteCatalogBuilder {
+internal class RouteCatalogBuilder {
     private val routes = mutableListOf<HttpRouteContract>()
 
     fun add(route: HttpRouteContract): RouteCatalogBuilder {

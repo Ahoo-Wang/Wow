@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
@@ -34,6 +35,7 @@ import me.ahoo.wow.rest.bi.BiScriptResponse
  * The contract of the BI script route. It is not one of [me.ahoo.wow.openapi.contributor.DefaultRouteContributors]:
  * whoever wires BI (the Spring Boot starter, when `wow-bi` is on the classpath) adds it next to the handler.
  */
+@InternalWowApi
 object GenerateBIScriptRouteContributor : RouteContributor {
     override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(
