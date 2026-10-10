@@ -24,7 +24,7 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 internal class RouteContractFilter(
     private val delegate: RouteContributor,
     private val keep: (HttpRouteContract) -> Boolean,
-) : RouteContributor by delegate {
+) : RouteContributor {
     override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> =
         delegate.contributeGlobal(currentContext).filter(keep)
 

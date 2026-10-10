@@ -22,6 +22,7 @@ import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.openapi.component.aggregatedFieldsSchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.asHttpComponentContext
 import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
@@ -34,7 +35,8 @@ class QueryComponentTest {
     fun `aggregated fields should list getter fields once under their stored names`() {
         val stateSource = InferredQuerySchemaSource(JsonQueryModelSource(), typeResolver = { GetterState::class.java })
         val context = OpenAPIComponentContext.default()
-        val fieldsRef = context.aggregatedFieldsSchema(aggregateMetadata<Cart, CartState>(), stateSource).`$ref`
+        val fieldsRef = context.asHttpComponentContext { error("no component") }
+            .aggregatedFieldsSchema(aggregateMetadata<Cart, CartState>(), stateSource).`$ref`
         context.finish()
         val stateFields = context.schemas.getValue(
             fieldsRef.removePrefix(OpenAPIComponentContext.COMPONENTS_SCHEMAS_REF)

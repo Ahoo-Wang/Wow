@@ -27,7 +27,9 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
@@ -282,6 +284,61 @@ internal class RouterSpecsTest {
         assertThrows<IllegalStateException> {
             routerSpecs.mergeOpenAPI(OpenAPI())
         }.message.assert().contains("test.Shared")
+    }
+
+    @Test
+    fun `merge should reject two components that share a key and differ only in a generated schema`() {
+        val first = HttpComponent.response("test.Typed") { context ->
+            description("typed")
+            content(schema = context.schema(CommandResult::class.java))
+        }
+        val second = HttpComponent.response("test.Typed") { context ->
+            description("typed")
+            content(schema = context.schema(DefaultErrorInfo::class.java))
+        }
+        val routerSpecs = RouterSpecs(
+            namedContext,
+            routeContributors = listOf(responseContributor(first, "/first"), responseContributor(second, "/second"))
+        )
+
+        assertThrows<IllegalStateException> {
+            routerSpecs.mergeOpenAPI(OpenAPI())
+        }.message.assert().contains("test.Typed")
+    }
+
+    @Test
+    fun `merge should accept two components that share a key and generate the same schema`() {
+        val first = HttpComponent.response("test.Typed") { context ->
+            content(schema = context.schema(CommandResult::class.java))
+        }
+        val second = HttpComponent.response("test.Typed") { context ->
+            content(schema = context.schema(CommandResult::class.java))
+        }
+        val openAPI = OpenAPI()
+
+        RouterSpecs(
+            namedContext,
+            routeContributors = listOf(responseContributor(first, "/first"), responseContributor(second, "/second"))
+        ).mergeOpenAPI(openAPI)
+
+        openAPI.components.responses["test.Typed"]!!.content.values.single().schema.`$ref`.assert()
+            .contains("CommandResult")
+    }
+
+    @Test
+    fun `merge should keep the first of two different components that share a key registered`() {
+        val first = HttpComponent.response("test.Shared") { description("first") }
+        val second = HttpComponent.response("test.Shared") { description("second") }
+        val componentContext = OpenAPIComponentContext.default(false)
+
+        assertThrows<IllegalStateException> {
+            RouterSpecs(
+                namedContext,
+                componentContext,
+                routeContributors = listOf(responseContributor(first, "/first"), responseContributor(second, "/second"))
+            ).mergeOpenAPI(OpenAPI())
+        }
+        componentContext.responses["test.Shared"]!!.description.assert().isEqualTo("first")
     }
 
     @Test

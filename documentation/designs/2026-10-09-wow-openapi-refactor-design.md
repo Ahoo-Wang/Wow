@@ -142,6 +142,10 @@ P1 → P2 → P4 依次进行；P3 与 P1 并行（只在 `CommandComponent.Head
 - 修复：路由目录构建不再推断查询字段（P0）；文档渲染可并发调用（P1）。
 - Breaking：`RouteContributor` 签名；路由契约模型；`RouterSpecs.mergeOpenAPIFromCatalog` → `mergeOpenAPI`；`wow-openapi` 公开面收缩；线格式词汇迁入 `wow-rest-contract`。
 - 弃用：`CommandComponent.Header`、`CommonComponent.Header`、`me.ahoo.wow.openapi.BatchResult`（v10 删除）。
+- 依赖：`wow-apiclient` 改为依赖 `wow-rest-contract` 与 `wow-query`，不再带来 `wow-openapi`、`wow-schema`、swagger-core/annotations、victools jsonschema 模块（编译）与 `wow-models`（运行时）；用到它们的客户端（包括依赖 `wow-openapi` 注册的 `BoundedContextSchemaNameConverter` 的 Springdoc BFF）需自行声明。
+- 增量：`GET /wow/metadata` 的 `wow.openapi` 上下文多列出作用域 `me.ahoo.wow.rest`。
+- 行为变化：渲染错误（如同类同 key 的不同组件）在存在 Springdoc 时让启动失败，而不是第一次 `/v3/api-docs` 请求失败；文档尚未渲染时在事件循环线程上首次 `mergeOpenAPI` 失败并提示 `buildDocumentation()`；合并结果共享 `Schema` 实例，原始 `/v3/api-docs` 中 `components` 的 key 顺序变化（JSON 等价）。
+- REST、OpenAPI、线格式不变，9.5.x 与 9.6.0 节点可共处一个集群。
 
 ## 9. 实施记录
 
@@ -150,3 +154,10 @@ P1 → P2 → P4 依次进行；P3 与 P1 并行（只在 `CommandComponent.Head
 - P2（#4062）：`contributor/aggregate/AggregateRouteScope`（internal）统一产生聚合路由的路径、route id、聚合参数、tags 与 tenant/owner summary；快照、事件流、状态路由写成 `AggregateRoute` 行，查询路由表按 `tenantOwnerVariants` 展开，route id 与 summary 的作用域写法由 `ScopeNaming` 按路由族固定为已发布的写法（快照/事件 `TENANT_OWNER`，状态 `TENANT_ID_ONLY`）；命令路由复用同一作用域。删除 `AggregateRouteContractSupport`。四个聚合贡献者加支持文件由 1499 行降到 1050 行（快照、事件、状态 1091 → 596）。路径变量名改用 `RouteVariables`（wow-openapi、wow-webflux 的 main 代码），`MessageRecords` 只用于消息体字段。删除无调用方的 `ApiResponseBuilder.listContent`；`ApiResponseBuilder`、`RequestBodyBuilder` 的其余方法是组件 DSL，保留。`QueryComponent`、`EventComponent`、`CommonComponent.Response` 的常量移入 `component/` 的 internal 对象（`CommonComponent.Header`、`CommandComponent.Header` 弃用别名保留）。两个快照不变；逐条比对重构前后各贡献者产出的契约（含 handler key、summary、参数顺序），完全一致，只有聚合内命令路由的相对顺序可能不同：它在 `main` 上本就不确定（`registeredCommands` 按 order 排序，同序的保持以 `Class` 为键的 `HashMap` 的顺序），本次未改变它，`RouteCatalog` 会重新排序，没有任何东西依赖它。
 - P3（#4059）：新模块 `wow-rest-contract`（`me.ahoo.wow.rest`，只依赖 `wow-api`）收纳 `CommandHeaders`、`WowHeaders`、`RoutePaths`、`RouteSuffixes`、`RouteVariables`、`BatchResult` 与 `bi/` DTO。`CommandComponent.Header`、`CommonComponent.Header` 的常量与 `me.ahoo.wow.openapi.BatchResult` 保留为弃用别名（compat-debt 条目「Wow 9.5 REST Header Names And `BatchResult` In `wow-openapi`」），其余声明直接迁移。Schema 名由新模块的 `META-INF/wow-metadata.json` 固定：把 `me.ahoo.wow.rest` 并入 `wow.openapi` 上下文，组件名仍是 `wow.openapi.BatchResult`、`wow.openapi.BiScriptRequest` 等，OpenAPI 快照不变。`wow-apiclient` 改为依赖 `wow-rest-contract`，并以 api 依赖 `wow-query`（此前经 `wow-openapi` 传递得到，查询 DSL 仍对调用方可见），不再传递引入 `wow-openapi`。`GET /wow/metadata` 的 `wow.openapi` 上下文因此多列出作用域 `me.ahoo.wow.rest`（增量）。
 - P4（#4063）：公开面收缩。逐个核对 ABI dump 中的公开声明在仓库内（各模块 main 与 test、文档、`wow-benchmarks`、`example`、`compensation`、`view-store`）的使用者：只在 `wow-openapi` 内使用的改为 `internal`——`Https`、`PathBuilder`、`RouteIdSpec`、`Tags`、`OpenAPIExtensions`、`RouteCatalogBuilder`、`OpenApiRenderer`、`DefaultOpenAPIComponentContext`、两个元数据解析器、`BoundedContextSchemaNameConverter` 的 companion，以及状态、命令门面、命令等待、全局 ID、元数据五个内置贡献者；被 Starter 或其他模块测试使用、但不面向应用的标 `@InternalWowApi`——命令、快照、事件、BI 脚本四个贡献者；`DefaultRouteContributors` 保持公开（不经 Spring 构建 `RouterSpecs` 的应用用 `DefaultRouteContributors.all()` 加自己的贡献者）。其他模块测试中的 `Https` 常量改为字符串字面量，文档示例同样改写。ABI dump 的公开类由 78 个降到 53 个，只有删除行。`spring-web` 依赖仍被 `CommandRouteMetadataParser`（`UriTemplate`）使用，保留。两个快照不变。
+- 发布前审查修复（`fix(openapi)!: pre-release review fixes for the wow-openapi refactor`）：两位审查者的结论。`HttpComponentContext` 改为独立接口，只暴露 `inline`、`schema`、`arraySchema`、`resolveType`、`componentSchema`、`ref`（不能登记组件或 `finish()`），渲染器提供适配；`RouterSpecs.componentContext` 改为 private；`HttpComponent` 按 kind 与 key 判等。同类同 key 的组件改为在 `finish()` 之后比较：此前比较发生在 Schema 生成完成之前（占位 `$ref`），只在生成的 Schema 上不同的两个组件不会被拒绝；重复的组件构建时不再覆盖已登记的组件。契约快照加入 `handlerKey`（只有新增字段，OpenAPI 快照不变）。文件改名 `QueryContracts.kt`、`BuiltInHttpRouteHandlerKeys.kt`；迁移指南补全 #4059 的迁移表、`wow-apiclient` 依赖变化与 `BatchComponent` 的删除；`docs/compat-debt.md` 「Held Until v10」记录状态路由 `ScopeNaming.TENANT_ID_ONLY`。
+
+后续（不在 9.6.0）：
+
+- `ViewStoreOpenApi`（`wow-view-store-starter`）改为 `RouteContributor` 加 `HttpComponent`，不再自建 `OpenAPIComponentContext` 并调用 `finish()`。
+- 为自定义贡献者公开内置的通用组件（错误响应、错误码头等），使其不必复制定义。
+- `ApiResponseBuilder` 与 `RequestBodyBuilder` 的 DSL 对称：媒体类型参数名不同（`mediaTypeName` 与 `name`），`extension` 只有请求体有，`required` 都没有。

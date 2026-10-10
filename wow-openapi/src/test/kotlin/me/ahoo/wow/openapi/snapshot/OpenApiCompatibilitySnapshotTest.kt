@@ -178,6 +178,7 @@ internal class OpenApiCompatibilitySnapshotTest {
                 "id" to route.routeId,
                 "path" to route.path,
                 "method" to route.method,
+                "handlerKey" to route.handlerKey,
                 "accept" to route.accept,
                 "parameterNames" to route.parameters.map(::parameterIdentity),
                 "requestBody" to (route.requestBody != null),

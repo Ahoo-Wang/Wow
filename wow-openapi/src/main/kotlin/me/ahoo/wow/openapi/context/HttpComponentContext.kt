@@ -13,18 +13,63 @@
 
 package me.ahoo.wow.openapi.context
 
+import com.fasterxml.classmate.ResolvedType
+import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.openapi.contract.HttpComponent
+import java.lang.reflect.Type
 
 /**
- * What an [HttpComponent] is built with: the component context, which generates schemas, plus [ref] for referencing
- * another component from inside this one. Reference another component with [ref] rather than registering it with the
- * context's `parameter`, `header`, `requestBody` or `response`: [ref] builds it once per render and keeps its key
- * checked for uniqueness.
+ * What an [HttpComponent] is built with: schema generation, plus [ref] for referencing another component from inside
+ * this one. The renderer registers the built component under its key; the context exposes no way to register, build
+ * or finish components itself.
  */
-interface HttpComponentContext : OpenAPIComponentContext {
+interface HttpComponentContext {
+    /** Whether schemas (and components) are inlined rather than referenced. */
+    val inline: Boolean
+
+    fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType
+
+    /** The schema of the type, usually a `$ref` that the renderer resolves when the document is finished. */
+    fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
+
+    /** An array schema whose items are the schema of the type. */
+    fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*>
+
+    /** Registers [schema] as the schema component [key] and returns a `$ref` to it. */
+    fun componentSchema(key: String, schema: Schema<*>): Schema<*>
+
     /**
      * A reference to [component] (a `$ref`, or the component itself when schemas are inlined), building it first
      * unless the render already did.
      */
     fun <T : Any> ref(component: HttpComponent<T>): T
+}
+
+/**
+ * This context seen as an [HttpComponentContext]: schema generation delegates to it, and [ref] resolves a component
+ * reference.
+ */
+internal fun OpenAPIComponentContext.asHttpComponentContext(
+    ref: (HttpComponent<*>) -> Any
+): HttpComponentContext {
+    val context = this
+    return object : HttpComponentContext {
+        override val inline: Boolean
+            get() = context.inline
+
+        override fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType =
+            context.resolveType(mainTargetType, *typeParameters)
+
+        override fun schema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> =
+            context.schema(mainTargetType, *typeParameters)
+
+        override fun arraySchema(mainTargetType: Type, vararg typeParameters: Type): Schema<*> =
+            context.arraySchema(mainTargetType, *typeParameters)
+
+        override fun componentSchema(key: String, schema: Schema<*>): Schema<*> =
+            context.componentSchema(key, schema)
+
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : Any> ref(component: HttpComponent<T>): T = ref(component) as T
+    }
 }

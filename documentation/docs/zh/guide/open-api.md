@@ -57,7 +57,7 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 `RouterSpecs` 只把目录渲染为文档一次：启动时由 `buildDocumentation()`（或第一次 `RouterSpecs.mergeOpenAPI(openAPI)`）完成，这次渲染生成 Schema，可能阻塞。之后每次 `mergeOpenAPI` 合并该文档的副本：不生成 Schema、不阻塞，可以并发调用（例如多个 Springdoc 分组），并得到自己的 path item、operation 与组件，定制器修改它们不会影响其他文档。只有 `Schema` 实例是共享的：修改 Schema 前请先复制。文档尚未渲染时在事件循环线程上调用 `mergeOpenAPI` 会失败，并提示先调用 `buildDocumentation()`。
 
-自定义路由通过 `RouteContributor` Bean 添加。贡献者只返回路由合同，合同是纯数据：不生成 Schema，也不登记组件。请求体或响应类型用 `HttpSchema.TypeRef` 引用（嵌套泛型用 `typeArguments`），可复用的参数、请求头、请求体或响应用 `HttpComponent`（`HttpComponent.parameter`、`header`、`requestBody`、`response`）引用：key 只写一次，渲染器构建并登记一次；key 必须唯一（同一 key 的两个不同组件会被拒绝）：
+自定义路由通过 `RouteContributor` Bean 添加。贡献者只返回路由合同，合同是纯数据：不生成 Schema，也不登记组件。请求体或响应类型用 `HttpSchema.TypeRef` 引用（嵌套泛型用 `typeArguments`），可复用的参数、请求头、请求体或响应用 `HttpComponent`（`HttpComponent.parameter`、`header`、`requestBody`、`response`）引用：key 只写一次，渲染器构建并登记一次。构建函数的 `context`（`HttpComponentContext`）负责生成 Schema（`schema`、`arraySchema`、`resolveType`、`componentSchema`），并用 `ref` 引用另一个组件；它不能自行登记组件。同一类组件的 key 必须唯一：同类同 key 的两个组件实例都会被构建，Schema 生成完成后，除非两者构建出的组件（包括其引用的 Schema）相等，否则渲染失败。路由的 `handlerKey` 指向处理它的 `HttpRouteHandlerFunctionFactory` Bean（来自 `wow-webflux`）；缺少该 Bean 时路由器在启动时失败：
 
 ```kotlin
 val reportResponse = HttpComponent.response("example.ReportResponse") { context ->
@@ -76,6 +76,14 @@ fun reportRouteContributor(): RouteContributor = object : RouteContributor {
         )
     )
 }
+
+@Bean
+fun reportHandlerFunctionFactory(reportService: ReportService): HttpRouteHandlerFunctionFactory =
+    object : NoMetadataRouteHandlerFunctionFactorySupport("example.report") {
+        override fun create(contract: HttpRouteContract) = HandlerFunction { _ ->
+            ServerResponse.ok().body(reportService.report(), Report::class.java)
+        }
+    }
 ```
 
 合同的方法、状态码与媒体类型都是普通字符串（`"GET"`、`"200"`、`"application/json"`）。`wow-openapi` 的公开 API 是 `RouterSpecs`、`RouteContributor`、`RouteCatalog`、`me.ahoo.wow.openapi.contract` 中的合同类型（含 `BuiltInHttpRouteHandlerKeys` 与 `HttpComponent`）、路由元数据（`aggregateRouteMetadata()`、`commandRouteMetadata()`）、`DefaultRouteContributors`（内置路由，自行构建 `RouterSpecs` 时与自己的贡献者组合）、`OpenAPIComponentContext`、组件构建器 `ApiResponseBuilder` 与 `RequestBodyBuilder`、`OpenAPISchemaBuilder` 与 `BoundedContextSchemaNameConverter`。渲染器、目录构建器与内置路由背后的辅助类型是 internal；内置贡献者对象为 internal 或标为 `@InternalWowApi`，供 Spring Boot Starter 使用，不属于 API。

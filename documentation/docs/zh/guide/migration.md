@@ -64,7 +64,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.5 升级到 9.6.0
 
-`wow-openapi` 在 9.6.0 中把路由合同改为纯数据（设计：`documentation/designs/2026-10-09-wow-openapi-refactor-design.md`）。路由、route id 与生成的 OpenAPI 文档不变。针对 9.5 编译的代码需要重新编译；实现 `RouteContributor` 或构造路由合同的代码需要按下表修改源码。
+`wow-openapi` 在 9.6.0 中把路由合同改为纯数据（设计：`documentation/designs/2026-10-09-wow-openapi-refactor-design.md`）。路由、route id 与生成的 OpenAPI 文档不变；REST、OpenAPI 与线格式不变，9.5.x 与 9.6.0 节点可以共处一个集群。针对 9.5 编译的代码需要重新编译；实现 `RouteContributor` 或构造路由合同的代码需要按下表修改源码。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
@@ -72,15 +72,33 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 渲染错误（例如同一 key 的两个不同组件）在存在 Springdoc 时会让应用启动失败（文档由 `buildDocumentation()` 渲染），而不是在第一次请求 `/v3/api-docs` 时出错；在事件循环线程上首次调用 `mergeOpenAPI` 会失败并提示调用 `buildDocumentation()` | 提供 OpenAPI 文档的应用；自行调用 `mergeOpenAPI` 的库代码 | 修正报错的路由合同；在请求线程上合并之前，启动时先调用 `buildDocumentation()` |
 | 修复：上下文内联 Schema 时（`OpenAPIComponentContext.default(inline = true)`），组件被内联，而不是输出指向从未登记的组件的 `$ref` | 使用内联上下文渲染的文档 | 无需操作 |
 | `RouteContributor.contributeGlobal(currentContext)` 与 `contributeAggregate(currentContext, aggregateRouteMetadata)` 去掉 `componentContext` 参数；删除 `id`、`order`、`category` 以及 `RouteContributors`、`RouteCategory` | 自定义贡献者 | 删除该参数与三个属性（目录自己排序路由）。构造合同时不再登记组件或生成 Schema，而是引用它们：Schema 用 `HttpSchema.TypeRef(type, typeArguments)`，组件用 `HttpComponent.parameter(key) { … }`（或 `header`、`requestBody`、`response`） |
-| `HttpParameter`、`HttpHeader`、`HttpRequestBody`、`HttpResponse` 的 `componentRef: String?` 改为 `component: HttpComponent<…>?`；删除 `HttpRouteContract.pathSummary`、`pathDescription` | 构造或读取合同的代码 | 传入由工厂函数创建的 `HttpComponent`，渲染器以其 key 登记，组件 key 必须唯一。不能再为 path item 设置与第一个路由不同的 summary 或 description：path item 取第一个路由的 summary 与 description |
+| `HttpParameter`、`HttpHeader`、`HttpRequestBody`、`HttpResponse` 的 `componentRef: String?` 改为 `component: HttpComponent<…>?`；删除 `HttpRouteContract.pathSummary`、`pathDescription` | 构造或读取合同的代码 | 传入由工厂函数创建的 `HttpComponent`，渲染器以其 key 登记。同一类组件的 key 必须唯一：同类同 key 的两个组件实例，除非构建出的组件相等（在 Schema 生成之后比较），否则渲染失败。不能再为 path item 设置与第一个路由不同的 summary 或 description：path item 取第一个路由的 summary 与 description |
 | `HttpSchema.TypeRef(mainTargetType, typeParameters: List<Type>)` 改为 `TypeRef(type, typeArguments: List<TypeRef>)`；删除 `HttpSchema.ComponentRef`、`Long`、`Boolean`、`Formatted`、`Unspecified` | 构造合同 Schema 的代码 | 类型参数包成 `TypeRef`；按类型用 `TypeRef` 引用 Schema 组件；静态 Schema 用 `Raw` |
 | 删除 `RouterSpecs.mergeOpenAPIFromCatalog` | 调用方 | 改用 `mergeOpenAPI` |
-| 删除 `CommonComponent`、`BatchComponent`、`QueryComponent`、`CommandComponent`、`EventComponent` 中生成组件的函数（`errorCodeHeader()`、`badRequestResponse()` 等）；`BatchComponent` 的常量与弃用别名 `CommonComponent.Header`、`CommandComponent.Header` 保留 | 调用这些函数的代码 | 通过内置贡献者的合同引用这些组件，或定义自己的 `HttpComponent` |
+| 删除 `CommonComponent`、`QueryComponent`、`CommandComponent`、`EventComponent` 中生成组件的函数（`errorCodeHeader()`、`badRequestResponse()` 等），删除 `BatchComponent`（其 `PathVariable` 常量移到 `me.ahoo.wow.rest.RouteVariables`，见下表）；弃用别名 `CommonComponent.Header`、`CommandComponent.Header` 保留 | 调用这些函数的代码 | 通过内置贡献者的合同引用这些组件，或定义自己的 `HttpComponent` |
 | 删除 `me.ahoo.wow.openapi.QueryComponent`、`me.ahoo.wow.openapi.aggregate.event.EventComponent` 与 `CommonComponent.Response`：它们只是内置路由的组件名 | 读取这些常量的代码 | 直接写出取值：查询请求体为 `wow.SingleQuery`、`wow.CountQuery`、`wow.ListQuery`、`wow.PagedQuery`、`wow.CursorQuery`、`wow.AggregationQuery`（聚合专属的为 `{context}.{aggregate}` 加 `.SingleQuery` 等，字段枚举为 `{context}.{aggregate}.{Aggregate}AggregatedFields`）；查询字段扩展为 `x-wow-query-fields`；`COMPENSATION_TARGET_KEY` 为 `wow.CompensationTarget`；`UNSUPPORTED_MEDIA_TYPE_ERROR_CODE` 为 `UnsupportedMediaType` |
 | 删除 `ApiResponseBuilder.listContent(context, type, …)` | 调用它的代码 | 用 `content(mediaType, schema)` 分别加入 JSON 数组与 `text/event-stream` 媒体类型 |
 | `OpenAPIComponentContext.componentSchema` 不再有默认实现 | 自定义 `OpenAPIComponentContext` 实现 | 实现 `componentSchema` |
 | 改为 internal：`Https`、`PathBuilder`、`RouteIdSpec`、`Tags`、`OpenAPIExtensions`、`RouteCatalogBuilder`、`OpenApiRenderer`、`DefaultOpenAPIComponentContext`、`AggregateRouteMetadataParser`、`CommandRouteMetadataParser`、`BoundedContextSchemaNameConverter` 的 companion（`resolveName`），以及内置贡献者 `StateRouteContributor`、`CommandFacadeRouteContributor`、`CommandWaitRouteContributor`、`GenerateGlobalIdRouteContributor`、`GetWowMetadataRouteContributor` | 使用它们的代码 | `Https` 常量：直接写字符串（`"GET"`、`"200"`、`"application/json"`）；route id、路径与 tag：直接写在合同里；文档：`RouterSpecs.mergeOpenAPI`；目录：`RouterSpecs.toRouteCatalog()` 或 `RouteCatalog(routes)`；上下文：`OpenAPIComponentContext.default(…)`；路由元数据：`aggregateRouteMetadata()` 与 `commandRouteMetadata()`；内置路由：`DefaultRouteContributors.all()`。info 扩展 `x-wow-version`、`x-wow-context-name`、`x-wow-context-alias` 不变 |
 | 标为 `@InternalWowApi`（供 Spring Boot Starter 使用，需要 opt-in，不属于 API）：`CommandRouteContributor`、`SnapshotRouteContributor`、`EventRouteContributor`、`GenerateBIScriptRouteContributor` | 引用它们的代码 | 内置路由用公开的 `DefaultRouteContributors.all()`，用 `RouteContributor`（Spring 中为 Bean）添加路由；否则可以 `@OptIn(InternalWowApi::class)`，自担风险 |
+| `HttpComponent` 构建函数的 `context`（`HttpComponentContext`）只生成 Schema（`inline`、`schema`、`arraySchema`、`resolveType`、`componentSchema`）并引用其他组件（`ref`），不再继承 `OpenAPIComponentContext`；`RouterSpecs.componentContext` 改为 private（构造参数保留） | 通过 `context.parameter(…)` 等登记组件的构建函数；读取 `RouterSpecs.componentContext` 的代码 | 用 `context.ref(component)` 引用其他组件；自行保留传给 `RouterSpecs` 的上下文 |
+| 文档中的 `Schema` 实例由每次 `mergeOpenAPI` 共享；原始 `/v3/api-docs` 中 `components` 各 Map 的 key 顺序有变化（JSON 等价） | 原地修改 Schema 的 `OpenApiCustomizer`；比较原始文档文本的工具 | 修改 Schema 前先复制；按 JSON 比较文档 |
+
+REST 线格式词汇从 `wow-openapi` 移到新模块 `wow-rest-contract`（包 `me.ahoo.wow.rest`），`wow-openapi` 以 `api` 依赖引入它：
+
+| 9.5 | 9.6.0 |
+|---|---|
+| `me.ahoo.wow.openapi.RouteSuffixes` | `me.ahoo.wow.rest.RouteSuffixes` |
+| `me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths.Global` | `me.ahoo.wow.rest.RoutePaths` |
+| `me.ahoo.wow.openapi.BatchComponent.PathVariable`（`BatchComponent` 已删除） | `me.ahoo.wow.rest.RouteVariables` |
+| `me.ahoo.wow.openapi.contract.bi.*` | `me.ahoo.wow.rest.bi.*` |
+| `CommandComponent.Header`（弃用别名，v10 删除） | `me.ahoo.wow.rest.CommandHeaders` |
+| `CommonComponent.Header`（弃用别名，v10 删除） | `me.ahoo.wow.rest.WowHeaders` |
+| `me.ahoo.wow.openapi.BatchResult`（弃用 `typealias`，v10 删除；类本身已迁移，需要重新编译） | `me.ahoo.wow.rest.BatchResult` |
+
+没有弃用别名的声明需要修改 import。OpenAPI Schema 名仍是 `wow.openapi.*`；`GET /wow/metadata` 的 `wow.openapi` 上下文多列出作用域 `me.ahoo.wow.rest`。
+
+`wow-apiclient` 改为依赖 `wow-rest-contract` 与 `wow-query`，不再依赖 `wow-openapi`。它不再带来 `wow-openapi`、`wow-schema`、swagger-core 与 swagger-annotations、victools jsonschema 模块（编译 classpath），也不再带来 `wow-models`（运行时 classpath）。用到其中任何一个的客户端需自行声明：`io.swagger.core.v3:swagger-core-jakarta`、`me.ahoo.wow:wow-openapi` 或 `me.ahoo.wow:wow-models`。用 Springdoc 提供自身文档、依赖 `wow-openapi` 以服务形式注册的 `BoundedContextSchemaNameConverter` 模型转换器的 BFF 也是如此：加入 `wow-openapi` 以保留 Wow 的 Schema 名。
 
 ## 从 9.4 升级到 9.5.0
 
