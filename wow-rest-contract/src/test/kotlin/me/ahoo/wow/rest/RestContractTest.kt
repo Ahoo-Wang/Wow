@@ -15,6 +15,7 @@ package me.ahoo.wow.rest
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
 
 /** The names are the REST contract: these tests pin the values clients send and servers read. */
 internal class RestContractTest {
@@ -76,9 +77,17 @@ internal class RestContractTest {
         RouteVariables.OWNER_ID.assert().isEqualTo("ownerId")
     }
 
+    /**
+     * The module's `META-INF/wow-metadata.json` puts `me.ahoo.wow.rest` in the `wow.openapi` bounded context, so the
+     * OpenAPI schema names of these types keep the `wow.openapi.` prefix they had in wow-openapi
+     * (`wow.openapi.BatchResult`, `wow.openapi.BiScriptRequest`, …). Its context name and alias must stay equal to the
+     * ones wow-openapi's own `wow-metadata.json` declares: metadata merging fails on two aliases for one context.
+     */
     @Test
     fun `wow metadata names the contract types under the wow openapi context`() {
-        val metadata = requireNotNull(javaClass.classLoader.getResource("META-INF/wow-metadata.json")).readText()
-        metadata.assert().contains("\"alias\": \"wow.openapi\"").contains("\"me.ahoo.wow.rest\"")
+        val resource = requireNotNull(javaClass.classLoader.getResource("META-INF/wow-metadata.json"))
+        val context = JsonMapper().readTree(resource.readText()).path("contexts").path("wow.openapi")
+        context.path("alias").asString().assert().isEqualTo("wow.openapi")
+        context.path("scopes").values().map { it.asString() }.assert().containsExactly("me.ahoo.wow.rest")
     }
 }

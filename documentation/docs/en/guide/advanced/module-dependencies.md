@@ -186,7 +186,7 @@ A passing TCK does not prove capacity, upgrade safety, or disaster recovery for 
 
 #### wow-apiclient
 
-`wow-apiclient` exposes `wow-core`, `wow-rest-contract`, and Reactor and uses `wow-query`, CoApi, and Spring Web/WebFlux as implementation dependencies. It does not bring `wow-openapi`. It is a JVM HTTP client and does not start server routes.
+`wow-apiclient` exposes `wow-core`, `wow-rest-contract`, `wow-query`, and Reactor and uses CoApi and Spring Web/WebFlux as implementation dependencies. It does not bring `wow-openapi`. It is a JVM HTTP client and does not start server routes.
 
 #### wow-cocache
 

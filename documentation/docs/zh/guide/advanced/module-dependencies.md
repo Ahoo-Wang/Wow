@@ -186,7 +186,7 @@ TCK 通过不等于应用拓扑的容量、升级或灾难恢复已经验证；�
 
 #### wow-apiclient
 
-`wow-apiclient` 通过 API 暴露 `wow-core`、`wow-rest-contract` 与 Reactor，以 implementation 使用 `wow-query`、CoApi 和 Spring Web/WebFlux，不再引入 `wow-openapi`。它是 JVM HTTP client，不启动服务端 route。
+`wow-apiclient` 通过 API 暴露 `wow-core`、`wow-rest-contract`、`wow-query` 与 Reactor，以 implementation 使用 CoApi 和 Spring Web/WebFlux，不再引入 `wow-openapi`。它是 JVM HTTP client，不启动服务端 route。
 
 #### wow-cocache
 
