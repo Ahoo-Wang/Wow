@@ -258,7 +258,7 @@ Aggregation in both models runs the same admission steps, scope, and `QueryPolic
 
 ### State Point Reads
 
-The state routes (load by id, by version, by time, and tracing) replay events and never pass through the Gateway, so by default the admission steps, scope, `QueryPolicy` and masking do not apply to them. The owner precondition still applies on owner routes. With `wow.webflux.state.point-read-admission=true`, each state read is turned into its snapshot-shaped record, and then:
+The state routes (load by id, by version, by time, and tracing) replay events and never pass through the Gateway, so by default the admission steps, scope, `QueryPolicy` and masking do not apply to them. The owner precondition still applies to loads by id, version or time on routes with an owner path segment; the tracing path has no owner, so tracing does not check it (see [Operations Routes](#operations-routes)). With `wow.webflux.state.point-read-admission=true`, each state read is turned into its snapshot-shaped record, and then:
 
 - the gateways' entry policy accepts the `HTTP` entry; with `wow.query.require-authenticated-scope` on, a caller whose authenticated scope does not pin the tenant is rejected (`403`), as on a query route. That switch is enforced on these routes only under point-read admission, so turning it on without `point-read-admission` fails at startup;
 - the query admission (`QueryAdmission.admitRecord`) runs the scope, policy and default-scope steps of a query on it in memory: the caller scope from `QueryRequestScope`, every `QueryPolicy` restriction, and the snapshot default that hides deleted states unless the read states a deletion scope (tracing reads all versions, deleted included). The policies are the same beans, in the same order, as the gateways use, and they see a `SINGLE` query by id from an `HTTP` entry. A state outside them reads as absent: `404` for a load, `[]` for tracing. The restriction is first put in canonical form, as a query's is (field aliases replaced, `EQ`/`NE` of `null` lowered), and evaluated with the semantics every backend follows (numbers compare by value; a field set to `null` exists). The in-memory evaluation supports what scopes and ABAC policies produce: id, tenant, owner, space and deletion filters, `AND`/`OR`/`NOR`, and `EQ`/`NE`/`IN`/`NOT_IN`/`IS_NULL`/`IS_NOT_NULL`/`EXISTS`/`NOT_EXISTS`/`IS_EMPTY` on a field. Any other node fails closed;
@@ -266,6 +266,23 @@ The state routes (load by id, by version, by time, and tracing) replay events an
 - tracing emits at most `wow.webflux.state.tracing-max-versions` versions (default `1000`, `0` disables the cap). A larger range is rejected with `400` before the response starts; narrow it with `headVersion`, `tailVersion` or `limit`. The trace is emitted only when every traced state is admitted.
 
 The switch is off by default, which keeps the existing behavior.
+
+### Operations Routes
+
+These routes have only the tenant and aggregate ID in their path, no owner path segment. They are not isolated by owner and are meant for operators, not end users:
+
+| Route | Owner handling |
+|---|---|
+| State tracing | No owner precondition; under point-read admission the caller scope and `QueryPolicy` decide |
+| Event stream load (by version range) | Admitted by the EventStream Gateway; the only owner filter is the declared `Command-Owner-Id` header |
+| Snapshot regenerate (single and batch), event compensate, batch state event resend | Owner not read |
+
+`Command-Owner-Id` is a value the client declares, not a security boundary: a caller who knows an owner ID can send it. Do not expose these routes to end users directly:
+
+1. let only operator callers through, by path or role, at the gateway;
+2. when tracing must be read per caller, enable `wow.webflux.state.point-read-admission` together with `wow.query.require-authenticated-scope` and a fail-closed `QueryPolicy`. The event stream load passes through the Gateway and follows both as well.
+
+For data end users read by owner, use the load and query routes with an owner path segment.
 
 ## Required Security Closure
 

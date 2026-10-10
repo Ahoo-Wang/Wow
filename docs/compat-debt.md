@@ -1,8 +1,23 @@
 # Compatibility Debt
 
-Wow 9.x keeps compatibility with what it replaced. The TypeScript packages still reach Wow 8.x servers, keep the deprecated Condition API, and keep the names they had in [fetcher](https://github.com/Ahoo-Wang/fetcher). The Kotlin query API and its HTTP endpoints still accept that Condition API. All of it is removed in v10, together, as one breaking release. Dropping any of it earlier is a breaking change that 9.x does not take, not even in an `x.Y.0` release. Binary-only shims, JVM declarations kept only so that bytecode compiled against an older 9.x still links, are the exception: an `x.Y.0` removes them, as 9.3.0 did.
+Only Wow's public entry APIs wait for a major release to change. Internal implementation does not.
 
-This ledger lists every piece of that debt. Each entry says what is kept compatible, where its markers are, what replaces it, and how v10 removes it.
+## Scope
+
+A public entry API is what an application, or a client outside the process, is written against:
+
+- the REST API: route paths and methods, parameters, request and response bodies, headers, status and error codes;
+- the gateways an application calls: `CommandGateway` and the snapshot and event-stream query gateways;
+- the domain programming model: the `wow-api` annotations and contracts, and the DSLs applications and their tests write (the query DSL, the `wow-test` DSL);
+- configuration properties (`wow.*`);
+- storage and message formats: event streams, snapshots, messages on the bus, wait signals;
+- the published TypeScript packages.
+
+Changing or removing a public entry API is a breaking change for a major release. 9.x keeps it compatible: a replaced one is deprecated and keeps working, and v10 removes the deprecated ones together. The TypeScript packages still reach Wow 8.x servers, keep the deprecated Condition API, and keep the names they had in [fetcher](https://github.com/Ahoo-Wang/fetcher); the Kotlin query API and its HTTP endpoints still accept that Condition API. Dropping any of it before v10 is not taken, not even in an `x.Y.0` release.
+
+Everything else is internal implementation, even when its JVM signature is public: the Spring auto-configuration, the WebFlux route factories, handler functions and extractors, the runtime classes behind the gateways. It changes in any `x.Y.0` release without a deprecation cycle and without an entry here. Such a change still updates the module's ABI dump and is marked breaking, so release admission keeps it out of a patch, and its `## Breaking` section tells integrations built on those classes what to use instead. Binary-only shims, JVM declarations kept only so that bytecode compiled against an older 9.x still links, are not kept either: an `x.Y.0` removes them, as 9.3.0 did.
+
+This ledger lists every piece of the public entry debt. Each entry says what is kept compatible, where its markers are, what replaces it, and how v10 removes it.
 
 ## Marker Rules
 
