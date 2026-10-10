@@ -16,4 +16,3 @@
 
 ## 待议
 
-- **`x-wow-query-fields` 只用推断的查询 Schema**：OpenAPI 里聚合查询请求体的字段枚举（`{context}.{aggregate}.{Aggregate}AggregatedFields`）由进程级的静态 `InferredQuerySchemaSource` 推断，不读应用配置的查询 Schema 来源；应用声明了优先级更高的 Schema 时，文档列出的字段可能与运行时能查询的字段不一致。这关系到查询能力的语义（[wow-openapi 重构设计](../documentation/designs/2026-10-09-wow-openapi-refactor-design.md) §6 未处理），由维护者在几个方案中选定后再成为条目：沿用推断并在文档里写明；改为读取运行时的查询 Schema 目录；或两者合并。落点：`wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/component/QueryComponents.kt`。

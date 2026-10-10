@@ -22,7 +22,7 @@
     "view-store/view/commandClient.ts": "8032eba0dd9642ac264a9fe3cd2b6fdcff87309dfe1b31bf55b48577f86e3ab6",
     "view-store/view/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
     "view-store/view/queryClient.ts": "7a203b2caf76f30e2b10290bc122e40ee65307e4bf55d22095f0a4075703a0c8",
-    "view-store/view/types.ts": "ea0007aeb73ce01e10da47cf8335e5e1343a1d1b86d6a9aa73054e6b8b3f4e9c",
+    "view-store/view/types.ts": "f9ec74391957c36e9784529e24f645dee21d20a1f46d9e1c9a1acb14e5f1a61f",
     "view-store/view_preferences/index.ts": "9290d80d831fb97b4a2ba6876347ca6a02eec9a34eeb3b0a93ab19eb9a205a32",
     "view-store/view_preferences/queryClient.ts": "7ea59d55bcdd6eb2f9f60b832bbeee55ba91274dc497bb818d6bdf831b6ba7bb",
     "view-store/view_preferences/types.ts": "ae07b1585a509293bc406893ad59883366e304409e3444e9d6483de454655969"

@@ -286,7 +286,7 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 Query contracts appear in three distinct layers:
 
 1. Generic query component schemas define the canonical request JSON shapes.
-2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `InferredQuerySchemaSource`.
+2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with the fields the application's query schema sources declare (inferred, classpath, working directory and bean declarations, merged as the query schema Catalog merges them), without storage facts; fields under a map (`values`), named by the caller's keys, are not listed. The Spring Boot starter passes the application's `QuerySchemaSource` beans and `QuerySensitivityPolicy`; a `RouterSpecs` built by hand does so only when given `querySchemaSources`, and otherwise uses `InferredQuerySchemaSource` alone.
 3. The runtime `snapshot/schema` and `event/schema` routes publish the capability descriptor of the HTTP entry, derived from the merged schema and backend-proven capabilities.
 
 `x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.

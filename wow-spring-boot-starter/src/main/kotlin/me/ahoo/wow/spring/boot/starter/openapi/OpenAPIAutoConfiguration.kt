@@ -22,6 +22,8 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.contributor.aggregate.event.EventRouteContributor
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import org.springframework.beans.factory.ObjectProvider
@@ -40,6 +42,12 @@ import org.springframework.util.ClassUtils
 @ConditionalOnClass(name = ["me.ahoo.wow.openapi.RouterSpecs"])
 @EnableConfigurationProperties(OpenAPIProperties::class)
 class OpenAPIAutoConfiguration {
+    /** Injected into fields so that [routerSpecs] keeps its signature. */
+    @Autowired
+    private lateinit var querySchemaSources: ObjectProvider<QuerySchemaSource>
+
+    @Autowired
+    private lateinit var querySensitivity: ObjectProvider<QuerySensitivityPolicy>
 
     @Bean
     @ConditionalOnMissingBean(OpenAPIComponentContext::class)
@@ -58,7 +66,9 @@ class OpenAPIAutoConfiguration {
      * The route catalog: the default routes plus every [RouteContributor] bean (the BI script route, for one, comes
      * from the BI auto-configuration when `wow-bi` is on the classpath). The event compensate route needs an
      * [EventCompensateSupporter] (registered by the compensation auto-configuration); without one its contract is left
-     * out, so neither the router nor the OpenAPI document offers a route that has no handler.
+     * out, so neither the router nor the OpenAPI document offers a route that has no handler. The aggregated query
+     * request bodies list the fields the [QuerySchemaSource] beans declare, under the [QuerySensitivityPolicy], as the
+     * query schema Catalog merges them.
      */
     @Bean
     fun routerSpecs(
@@ -81,6 +91,8 @@ class OpenAPIAutoConfiguration {
             boundedContext,
             componentContext = openAPIComponentContext,
             routeContributors = contributors,
+            querySchemaSources = querySchemaSources.orderedStream().toList(),
+            querySensitivity = querySensitivity.getIfAvailable { QuerySensitivityPolicy.DEFAULT },
         )
         // The document is rendered (and its schemas generated) only when it is served, and then once, at startup:
         // every request merges a copy of it and never blocks. The customizer bean renders too (a no-op once this ran)

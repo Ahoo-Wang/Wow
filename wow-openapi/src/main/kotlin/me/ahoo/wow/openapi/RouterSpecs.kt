@@ -23,10 +23,13 @@ import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.QueryFieldSources
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.render.DocumentTemplate
 import me.ahoo.wow.openapi.render.OpenApiRenderer
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -37,6 +40,10 @@ import kotlin.concurrent.withLock
  * The route catalog ([toRouteCatalog]) is built once, from the [routeContributors], and generates no schema. The
  * document is rendered from it once, generating the schemas and components with [componentContext]; [mergeOpenAPI]
  * merges copies of it and may be called concurrently.
+ *
+ * The queryable fields each aggregated query request body names (`x-wow-query-fields`) are those of the aggregate's
+ * state, from Wow's type inference, unless the query schema sources are given: then they are the fields those sources
+ * declare, as the query schema Catalog merges them.
  */
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
@@ -44,6 +51,24 @@ class RouterSpecs(
         OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()),
     val routeContributors: List<RouteContributor> = DefaultRouteContributors.all()
 ) {
+    /**
+     * Routes whose aggregated query request bodies list the fields [querySchemaSources] declare, merged under
+     * [querySensitivity]: the sources and policy the application's query schema Catalog compiles, so the document
+     * names the fields its queries accept. Storage facts are not read; what the storage supports for each field is the
+     * query capability descriptor's.
+     */
+    constructor(
+        currentContext: NamedBoundedContext,
+        componentContext: OpenAPIComponentContext,
+        routeContributors: List<RouteContributor>,
+        querySchemaSources: List<QuerySchemaSource>,
+        querySensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+    ) : this(currentContext, componentContext, routeContributors) {
+        queryFieldSources = QueryFieldSources(querySchemaSources.toList(), querySensitivity)
+    }
+
+    private var queryFieldSources: QueryFieldSources = QueryFieldSources.INFERRED
+
     companion object {
         const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
     }
@@ -114,7 +139,7 @@ class RouterSpecs(
         template?.let { return it }
         return renderLock.withLock {
             template ?: DocumentTemplate(
-                OpenApiRenderer(componentContext).render(routeCatalog, OpenAPI())
+                OpenApiRenderer(componentContext, queryFieldSources).render(routeCatalog, OpenAPI())
             ).also { template = it }
         }
     }

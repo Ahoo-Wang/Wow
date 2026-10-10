@@ -42,6 +42,8 @@ public final class me/ahoo/wow/openapi/RouterSpecs {
 	public static final field DEFAULT_OPENAPI_INFO_TITLE Ljava/lang/String;
 	public fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun build ()Lme/ahoo/wow/openapi/RouterSpecs;
 	public final fun buildDocumentation ()Lme/ahoo/wow/openapi/RouterSpecs;
 	public final fun getRouteContributors ()Ljava/util/List;
