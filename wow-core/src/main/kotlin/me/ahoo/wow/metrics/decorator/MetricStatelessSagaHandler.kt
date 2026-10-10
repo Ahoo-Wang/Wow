@@ -11,24 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.projection.ProjectionHandler
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import reactor.core.publisher.Mono
 
-internal class MetricProjectionHandler(
-    delegate: ProjectionHandler,
+internal class MetricStatelessSagaHandler(
+    delegate: StatelessSagaHandler,
     metrics: WowMetrics,
     source: String,
-) : MetricComponentDecorator<ProjectionHandler>(delegate, metrics, source),
-    ProjectionHandler {
+) : MetricComponentDecorator<StatelessSagaHandler>(delegate, metrics, source),
+    StatelessSagaHandler {
     override fun handle(context: DomainEventExchange<*>): Mono<Void> {
         val processor = context.getEventFunction()?.processorName ?: MetricDescriptor.NONE
         return metrics.operation(
             delegate.handle(context),
             descriptor(
-                component = "projection_handler",
+                component = "stateless_saga_handler",
                 operation = "handle",
                 context = context.message.contextName,
                 aggregate = context.message.aggregateName,

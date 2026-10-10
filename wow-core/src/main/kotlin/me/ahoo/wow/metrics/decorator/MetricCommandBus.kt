@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -20,6 +20,7 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.LocalHandoff
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
 internal open class MetricCommandBus<T : CommandBus>(

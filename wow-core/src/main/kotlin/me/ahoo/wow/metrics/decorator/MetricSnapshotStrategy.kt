@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
 internal class MetricSnapshotStrategy(

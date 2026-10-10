@@ -29,7 +29,7 @@ import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.metrics.decorator.metered
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.event.MockDomainEventStreams

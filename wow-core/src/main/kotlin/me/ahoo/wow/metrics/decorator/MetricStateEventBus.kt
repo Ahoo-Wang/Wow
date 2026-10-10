@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
@@ -20,6 +20,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.LocalHandoff
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
 internal open class MetricStateEventBus<T : StateEventBus>(

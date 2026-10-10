@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DistributedDomainEventBus
@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.messaging.LocalHandoff
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
 internal open class MetricDomainEventBus<T : DomainEventBus>(

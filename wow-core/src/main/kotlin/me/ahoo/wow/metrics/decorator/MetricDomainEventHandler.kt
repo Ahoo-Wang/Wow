@@ -11,10 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.dispatcher.DomainEventHandler
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
 internal class MetricDomainEventHandler(

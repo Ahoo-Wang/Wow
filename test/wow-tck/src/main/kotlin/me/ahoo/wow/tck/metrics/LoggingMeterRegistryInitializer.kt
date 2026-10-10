@@ -27,7 +27,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.metrics.decorator.metered
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
@@ -90,7 +90,7 @@ fun ProjectionHandler.meteredForTck(): ProjectionHandler = metered(TCK_METRICS, 
 
 @Suppress("UNCHECKED_CAST")
 fun <M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> BUS.meteredForTck(): BUS =
-    me.ahoo.wow.metrics.MetricDecoratorFactory(TCK_METRICS).decorate(
+    me.ahoo.wow.metrics.decorator.MetricDecoratorFactory(TCK_METRICS).decorate(
         component = this,
         source = source(this),
     ) as BUS

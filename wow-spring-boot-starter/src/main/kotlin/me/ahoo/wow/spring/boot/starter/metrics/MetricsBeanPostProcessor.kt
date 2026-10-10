@@ -16,8 +16,8 @@ package me.ahoo.wow.spring.boot.starter.metrics
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.metrics.MetricDecoratorFactory
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.decorator.MetricDecoratorFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import org.springframework.beans.factory.config.BeanPostProcessor

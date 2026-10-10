@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
@@ -33,6 +33,7 @@ import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler

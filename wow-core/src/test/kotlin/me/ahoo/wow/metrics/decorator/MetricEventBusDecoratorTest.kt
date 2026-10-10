@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.Runs
@@ -29,6 +29,10 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.LocalHandoff
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.MetricOutcome
+import me.ahoo.wow.metrics.WowMetricNames
+import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux

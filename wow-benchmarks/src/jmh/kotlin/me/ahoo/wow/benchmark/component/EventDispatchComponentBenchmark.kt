@@ -38,9 +38,9 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.messaging.shouldLocalFirst
-import me.ahoo.wow.metrics.MetricDecoratorFactory
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.metrics.decorator.MetricDecoratorFactory
+import me.ahoo.wow.metrics.decorator.metered
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.runtime.WowRuntime
 import org.openjdk.jmh.annotations.Benchmark
