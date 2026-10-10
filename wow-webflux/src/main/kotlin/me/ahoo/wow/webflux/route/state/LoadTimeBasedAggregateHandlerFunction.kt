@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.identity.identity
@@ -46,7 +46,7 @@ class LoadTimeBasedAggregateHandlerFunction(
             val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
             val id = requireNotNull(identity.aggregateId())
             val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
-            val tailEventTime = request.pathVariable(MessageRecords.CREATE_TIME).toLong()
+            val tailEventTime = request.pathVariable(RouteVariables.CREATE_TIME).toLong()
             stateAggregateRepository
                 .load(aggregateId, aggregateMetadata.state, tailEventTime)
                 .filter {

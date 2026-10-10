@@ -14,9 +14,9 @@
 package me.ahoo.wow.openapi.component
 
 import io.swagger.v3.oas.models.media.IntegerSchema
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.event.EventComponent.COMPENSATION_TARGET_KEY
 import me.ahoo.wow.openapi.component.CommonComponents.withErrorCodeHeader
 import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
@@ -24,6 +24,8 @@ import me.ahoo.wow.openapi.contract.HttpResponse
 
 /** The components of the event compensation route. */
 internal object EventComponents {
+    const val COMPENSATION_TARGET_KEY = Wow.WOW_PREFIX + "CompensationTarget"
+
     val compensationTargetRequestBody = HttpRequestBody(
         component = HttpComponent.requestBody(COMPENSATION_TARGET_KEY) { context ->
             content(schema = context.schema(CompensationTarget::class.java))

@@ -18,9 +18,6 @@ import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.responses.ApiResponse
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.schema.web.ServerSentEventNonNullData
-import java.lang.reflect.Type
 
 class ApiResponseBuilder {
     companion object {
@@ -38,31 +35,8 @@ class ApiResponseBuilder {
         return this
     }
 
-    fun content(mediaTypeName: String = DEFAULT_MEDIA_TYPE_NAME, mediaType: MediaType): ApiResponseBuilder {
-        apiResponse.content.addMediaType(mediaTypeName, mediaType)
-        return this
-    }
-
     fun content(mediaTypeName: String = DEFAULT_MEDIA_TYPE_NAME, schema: Schema<*>): ApiResponseBuilder {
         apiResponse.content.addMediaType(mediaTypeName, MediaType().schema(schema))
-        return this
-    }
-
-    fun listContent(
-        context: OpenAPIComponentContext,
-        mainTargetType: Type,
-        vararg typeParameters: Type
-    ): ApiResponseBuilder {
-        val resolvedType = context.resolveType(mainTargetType, *typeParameters)
-        apiResponse.content.addMediaType(
-            Https.MediaType.APPLICATION_JSON,
-            MediaType().schema(context.arraySchema(resolvedType))
-        )
-        val serverSentEventType = context.resolveType(ServerSentEventNonNullData::class.java, resolvedType)
-        apiResponse.content.addMediaType(
-            Https.MediaType.TEXT_EVENT_STREAM,
-            MediaType().schema(context.arraySchema(serverSentEventType))
-        )
         return this
     }
 

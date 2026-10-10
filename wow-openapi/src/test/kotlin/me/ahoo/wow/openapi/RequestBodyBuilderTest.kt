@@ -26,13 +26,4 @@ internal class RequestBodyBuilderTest {
             .build()
         requestBody.content.containsKey(Https.MediaType.APPLICATION_JSON).assert().isTrue()
     }
-
-    @Test
-    fun `should build request body with description`() {
-        val requestBody = RequestBodyBuilder()
-            .description("command body")
-            .content(schema = StringSchema())
-            .build()
-        requestBody.description.assert().isEqualTo("command body")
-    }
 }

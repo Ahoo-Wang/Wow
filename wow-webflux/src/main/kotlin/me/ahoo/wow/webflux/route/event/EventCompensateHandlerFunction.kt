@@ -21,7 +21,7 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.identity.identity
@@ -42,13 +42,13 @@ class EventCompensateHandlerFunction(
         // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
         Mono.defer {
             val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
-            val id = request.pathVariable(MessageRecords.ID)
+            val id = request.pathVariable(RouteVariables.ID)
             request.bodyToMono(CompensationTarget::class.java).mapRequestBodyDecodingException()
                 .flatMap {
                     requireNotNull(it) {
                         "CompensationTarget is required!"
                     }
-                    val version = request.pathVariable(MessageRecords.VERSION).toInt()
+                    val version = request.pathVariable(RouteVariables.VERSION).toInt()
                     val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
 
                     eventCompensateSupporter.compensate(

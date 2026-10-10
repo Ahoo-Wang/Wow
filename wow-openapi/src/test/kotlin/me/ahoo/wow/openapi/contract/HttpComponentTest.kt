@@ -63,13 +63,13 @@ internal class HttpComponentTest {
 
         HttpComponent.parameter("wow.Parameter") { name = "p" }.build(buildContext).`$ref`.assert()
             .isEqualTo("#/components/parameters/wow.Parameter")
-        HttpComponent.requestBody("wow.Body") { description("body") }.build(buildContext).`$ref`.assert()
+        HttpComponent.requestBody("wow.Body") { extension("x-test", "body") }.build(buildContext).`$ref`.assert()
             .isEqualTo("#/components/requestBodies/wow.Body")
         HttpComponent.response("wow.Response") { header("X-Header", it.ref(header)) }.build(buildContext).`$ref`
             .assert().isEqualTo("#/components/responses/wow.Response")
 
         context.parameters.getValue("wow.Parameter").name.assert().isEqualTo("p")
-        context.requestBodies.getValue("wow.Body").description.assert().isEqualTo("body")
+        context.requestBodies.getValue("wow.Body").extensions["x-test"].assert().isEqualTo("body")
         context.headers.getValue("wow.Header").description.assert().isEqualTo("header")
         context.responses.getValue("wow.Response").headers.getValue("X-Header").`$ref`.assert()
             .isEqualTo("#/components/headers/wow.Header")

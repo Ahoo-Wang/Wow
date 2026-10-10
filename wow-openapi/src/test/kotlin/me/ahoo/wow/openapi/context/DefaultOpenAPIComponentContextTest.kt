@@ -54,7 +54,7 @@ internal class DefaultOpenAPIComponentContextTest {
     @Test
     fun `should register and retrieve request body`() {
         context.requestBody("test-body") {
-            description("test body")
+            extension("x-test", "test body")
         }
         context.requestBodies.assert().containsKey("test-body")
     }

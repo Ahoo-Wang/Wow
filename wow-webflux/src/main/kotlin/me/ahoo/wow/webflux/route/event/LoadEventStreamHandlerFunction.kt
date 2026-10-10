@@ -51,7 +51,7 @@ class LoadEventStreamHandlerFunction(
             val identity = request.identity(aggregateMetadata)
             val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
             val ownerId = identity.readOwnerId()
-            val id = request.pathVariable(MessageRecords.ID)
+            val id = request.pathVariable(RouteVariables.ID)
             val headVersion = request.versionVariable(RouteVariables.HEAD_VERSION)
             val tailVersion = request.versionVariable(RouteVariables.TAIL_VERSION)
             if (headVersion > tailVersion) {

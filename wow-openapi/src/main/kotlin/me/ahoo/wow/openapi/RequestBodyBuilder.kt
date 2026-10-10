@@ -21,18 +21,8 @@ import me.ahoo.wow.openapi.ApiResponseBuilder.Companion.DEFAULT_MEDIA_TYPE_NAME
 
 class RequestBodyBuilder {
     private val requestBody = RequestBody().content(Content())
-    fun description(description: String): RequestBodyBuilder {
-        requestBody.description = description
-        return this
-    }
-
     fun extension(name: String, value: Any): RequestBodyBuilder {
         requestBody.addExtension(name, value)
-        return this
-    }
-
-    fun content(name: String = DEFAULT_MEDIA_TYPE_NAME, mediaType: MediaType): RequestBodyBuilder {
-        requestBody.content.addMediaType(name, mediaType)
         return this
     }
 

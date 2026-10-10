@@ -24,8 +24,8 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.rest.WowHeaders
-import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.util.concurrent.ConcurrentHashMap
 
@@ -215,7 +215,7 @@ data class RouteIdentityBinding(
     companion object {
         /** The identity path variables a route may declare. */
         val IDENTITY_PATH_VARIABLES: Set<String> =
-            setOf(MessageRecords.TENANT_ID, MessageRecords.OWNER_ID, MessageRecords.ID)
+            setOf(RouteVariables.TENANT_ID, RouteVariables.OWNER_ID, RouteVariables.ID)
 
         private val TENANT_HEADERS = listOf(CommandHeaders.TENANT_ID)
         private val OWNER_HEADERS = listOf(CommandHeaders.OWNER_ID)
@@ -251,25 +251,25 @@ data class RouteIdentityBinding(
         private fun tenantBinding(pathVariables: Set<String>, staticTenantId: String?): FactBinding = when {
             // A tenant header is ignored here, as in 9.2; a contradicting command body is still rejected.
             !staticTenantId.isNullOrBlank() -> FactBinding(RouteIdentitySource.STATIC, staticTenantId)
-            MessageRecords.TENANT_ID in pathVariables ->
-                FactBinding(RouteIdentitySource.PATH, MessageRecords.TENANT_ID, TENANT_HEADERS)
+            RouteVariables.TENANT_ID in pathVariables ->
+                FactBinding(RouteIdentitySource.PATH, RouteVariables.TENANT_ID, TENANT_HEADERS)
 
             else -> FactBinding(RouteIdentitySource.HEADER, headers = TENANT_HEADERS)
         }
 
         private fun ownerBinding(pathVariables: Set<String>, ownerIsAggregateId: Boolean): FactBinding = when {
-            MessageRecords.OWNER_ID in pathVariables ->
-                FactBinding(RouteIdentitySource.PATH, MessageRecords.OWNER_ID, OWNER_HEADERS)
+            RouteVariables.OWNER_ID in pathVariables ->
+                FactBinding(RouteIdentitySource.PATH, RouteVariables.OWNER_ID, OWNER_HEADERS)
             // The owner is the aggregate ID, which the path states.
-            ownerIsAggregateId && MessageRecords.ID in pathVariables ->
-                FactBinding(RouteIdentitySource.PATH, MessageRecords.ID, OWNER_HEADERS, derived = true)
+            ownerIsAggregateId && RouteVariables.ID in pathVariables ->
+                FactBinding(RouteIdentitySource.PATH, RouteVariables.ID, OWNER_HEADERS, derived = true)
 
             else -> FactBinding(RouteIdentitySource.HEADER, headers = OWNER_HEADERS)
         }
 
         private fun aggregateIdBinding(pathVariables: Set<String>, ownerIsAggregateId: Boolean): FactBinding = when {
-            ownerIsAggregateId && MessageRecords.OWNER_ID in pathVariables -> FROM_OWNER
-            MessageRecords.ID in pathVariables -> FactBinding(RouteIdentitySource.PATH, MessageRecords.ID)
+            ownerIsAggregateId && RouteVariables.OWNER_ID in pathVariables -> FROM_OWNER
+            RouteVariables.ID in pathVariables -> FactBinding(RouteIdentitySource.PATH, RouteVariables.ID)
             ownerIsAggregateId -> FROM_OWNER
             else -> FactBinding(RouteIdentitySource.HEADER, headers = AGGREGATE_ID_HEADERS)
         }
@@ -562,18 +562,18 @@ internal class IdentityPathValues(
 ) {
     /** The value of the identity path variable [variable], `null` when the request did not match it. */
     operator fun get(variable: String): String? = when (variable) {
-        MessageRecords.TENANT_ID -> tenantId
-        MessageRecords.OWNER_ID -> ownerId
-        MessageRecords.ID -> id
+        RouteVariables.TENANT_ID -> tenantId
+        RouteVariables.OWNER_ID -> ownerId
+        RouteVariables.ID -> id
         else -> null
     }
 
     /** The value of the declared identity path variable [variable]; a blank one is rejected (400). */
     fun require(variable: String): String {
         val value = when (variable) {
-            MessageRecords.TENANT_ID -> tenantId
-            MessageRecords.OWNER_ID -> ownerId
-            MessageRecords.ID -> id
+            RouteVariables.TENANT_ID -> tenantId
+            RouteVariables.OWNER_ID -> ownerId
+            RouteVariables.ID -> id
             // A binding declares only identity path variables (RouteIdentityBinding.IDENTITY_PATH_VARIABLES): any
             // other name is a programming error, not a blank segment of the request.
             else -> error("[$variable] is not an identity path variable.")
@@ -585,9 +585,9 @@ internal class IdentityPathValues(
         fun of(request: ServerRequest): IdentityPathValues {
             val pathVariables = request.pathVariables()
             return IdentityPathValues(
-                pathVariables[MessageRecords.TENANT_ID],
-                pathVariables[MessageRecords.OWNER_ID],
-                pathVariables[MessageRecords.ID],
+                pathVariables[RouteVariables.TENANT_ID],
+                pathVariables[RouteVariables.OWNER_ID],
+                pathVariables[RouteVariables.ID],
             )
         }
     }

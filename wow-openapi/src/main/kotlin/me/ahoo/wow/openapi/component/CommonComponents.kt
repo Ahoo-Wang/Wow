@@ -24,7 +24,6 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.ApiResponseBuilder
-import me.ahoo.wow.openapi.CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.HttpComponentContext
 import me.ahoo.wow.openapi.contract.HttpComponent
@@ -32,12 +31,14 @@ import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpResponse
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.rest.WowHeaders.SPACE_ID
-import me.ahoo.wow.serialization.MessageRecords
 
 /** The components every Wow service shares: the error code header, the error responses and the path parameters. */
 internal object CommonComponents {
+    const val UNSUPPORTED_MEDIA_TYPE_ERROR_CODE = "UnsupportedMediaType"
+
     val ERROR_CODE_HEADER = HttpComponent.header(Wow.WOW_PREFIX + ERROR_CODE) {
         schema = StringSchema().example(ErrorCodes.SUCCEEDED)
         description = "Error code"
@@ -80,23 +81,23 @@ internal object CommonComponents {
         }
     )
 
-    val idPathParameter = pathParameter(MessageRecords.ID) {
+    val idPathParameter = pathParameter(RouteVariables.ID) {
         schema = StringSchema().description("aggregate id")
     }
 
-    val ownerIdPathParameter = pathParameter(MessageRecords.OWNER_ID) {
+    val ownerIdPathParameter = pathParameter(RouteVariables.OWNER_ID) {
         schema = StringSchema().description("aggregate owner id")
     }
 
-    val tenantIdPathParameter = pathParameter(MessageRecords.TENANT_ID) {
+    val tenantIdPathParameter = pathParameter(RouteVariables.TENANT_ID) {
         schema = StringSchema().description("aggregate tenant id").example(TenantId.DEFAULT_TENANT_ID)
     }
 
-    val versionPathParameter = pathParameter(MessageRecords.VERSION) {
+    val versionPathParameter = pathParameter(RouteVariables.VERSION) {
         schema = IntegerSchema().description("aggregate version").example(EventStore.DEFAULT_TAIL_VERSION)
     }
 
-    val createTimePathParameter = pathParameter(MessageRecords.CREATE_TIME) {
+    val createTimePathParameter = pathParameter(RouteVariables.CREATE_TIME) {
         schema = IntegerSchema()
     }
 }

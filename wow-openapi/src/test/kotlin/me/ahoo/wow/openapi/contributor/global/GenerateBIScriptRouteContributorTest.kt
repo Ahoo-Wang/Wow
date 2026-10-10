@@ -18,9 +18,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCatalog
+import me.ahoo.wow.openapi.component.CommonComponents
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
@@ -76,7 +76,7 @@ internal class GenerateBIScriptRouteContributorTest {
             schema.assert().isEqualTo(HttpSchema.Integer)
         }
         contract.responses.single { it.statusCode == Https.Code.UNSUPPORTED_MEDIA_TYPE }.component?.key.assert()
-            .isEqualTo("${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
+            .isEqualTo("${Wow.WOW_PREFIX}${CommonComponents.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}")
 
         assertInspectionErrorResponses(contract.responses)
 
@@ -84,10 +84,10 @@ internal class GenerateBIScriptRouteContributorTest {
             .render(RouteCatalog(listOf(contract)), OpenAPI())
         openAPI.paths.getValue(RoutePaths.BI_SCRIPT).post
             .responses.getValue(Https.Code.UNSUPPORTED_MEDIA_TYPE).`$ref`.assert().isEqualTo(
-                "#/components/responses/${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
+                "#/components/responses/${Wow.WOW_PREFIX}${CommonComponents.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
             )
         val registered = openAPI.components.responses[
-            "${Wow.WOW_PREFIX}${CommonComponent.Response.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
+            "${Wow.WOW_PREFIX}${CommonComponents.UNSUPPORTED_MEDIA_TYPE_ERROR_CODE}"
         ]!!
         registered.headers.assert().containsKey(WowHeaders.ERROR_CODE)
         registered.content.assert().containsKey(Https.MediaType.APPLICATION_JSON)
