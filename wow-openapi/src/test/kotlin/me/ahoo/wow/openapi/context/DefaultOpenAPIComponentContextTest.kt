@@ -80,6 +80,26 @@ internal class DefaultOpenAPIComponentContextTest {
     }
 
     @Test
+    fun `should accept an equal explicit schema registered twice`() {
+        context.componentSchema("example.TestFields", StringSchema()._enum(listOf("state.id")))
+        context.componentSchema("example.TestFields", StringSchema()._enum(listOf("state.id")))
+        context.finish()
+
+        context.schemas["example.TestFields"]!!.enum.assert().containsExactly("state.id")
+    }
+
+    @Test
+    fun `should reject a different explicit schema under a registered key`() {
+        context.componentSchema("example.TestFields", StringSchema()._enum(listOf("state.id")))
+
+        val error = assertThrows<IllegalArgumentException> {
+            context.componentSchema("example.TestFields", StringSchema()._enum(listOf("state.name")))
+        }
+
+        error.message.assert().contains("example.TestFields")
+    }
+
+    @Test
     fun `should reject blank explicit schema key`() {
         val error = assertThrows<IllegalArgumentException> {
             context.componentSchema("", StringSchema())

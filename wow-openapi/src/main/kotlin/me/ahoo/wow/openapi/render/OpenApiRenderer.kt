@@ -181,7 +181,7 @@ internal class OpenApiRenderer(private val componentContext: OpenAPIComponentCon
                 component.registered().getValue(component.key)
             }
             check(built == registered) {
-                "Two different components share the key [${component.key}]: component keys must be unique."
+                "Two different components share the key [${component.refPrefix() + component.key}]: component keys must be unique."
             }
         }
     }

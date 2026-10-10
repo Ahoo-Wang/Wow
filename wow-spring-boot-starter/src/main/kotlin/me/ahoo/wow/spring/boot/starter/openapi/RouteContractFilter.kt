@@ -20,6 +20,8 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
 /**
  * [delegate] without the routes [keep] rejects, for a route whose handler this application does not provide.
+ *
+ * It overrides every member of [RouteContributor]; a member added to that interface must be forwarded here too.
  */
 internal class RouteContractFilter(
     private val delegate: RouteContributor,
