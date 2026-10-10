@@ -386,7 +386,7 @@ private fun QueryRequestScope.with(scopeContributors: ObjectProvider<ScopeContri
     CompositeQueryRequestScope.of(this, scopeContributors.orderedStream().toList())
 
 /** Reads [model]'s schema from this catalog, for a model that has a backend; a model without one has nothing to mask by. */
-private fun QuerySchemaCatalog?.schemaOf(
+internal fun QuerySchemaCatalog?.schemaOf(
     model: QueryModel,
     hasBackend: Boolean,
 ): ((AggregateMetadata<*, *>) -> Mono<QueryModelSchema>)? {
