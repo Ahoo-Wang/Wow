@@ -15,20 +15,20 @@ package me.ahoo.wow.benchmark.infrastructure.snapshot
 
 import co.elastic.clients.elasticsearch.core.CountRequest
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.infrastructure.elasticsearch.ElasticsearchBenchmarkFixture
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
-import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.mongo.MongoEventStore
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandler
 import org.openjdk.jmh.annotations.Benchmark

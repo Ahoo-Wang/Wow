@@ -22,7 +22,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchItemResult
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono

@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
-import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchItemResult
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 

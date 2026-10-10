@@ -63,11 +63,11 @@ public final class me/ahoo/wow/mongo/MongoDatabaseContextGuard$Companion {
 }
 
 public final class me/ahoo/wow/mongo/MongoEventStore : me/ahoo/wow/eventsourcing/AbstractEventStore, java/io/Closeable {
-	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
-	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun getBatchOptions ()Lme/ahoo/wow/batch/BatchOptions;
 	public final fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
 	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
@@ -85,10 +85,10 @@ public final class me/ahoo/wow/mongo/MongoRecoverableExceptionProvider : me/ahoo
 public final class me/ahoo/wow/mongo/MongoSnapshotStore : me/ahoo/wow/eventsourcing/snapshot/SnapshotStore {
 	public static final field Companion Lme/ahoo/wow/mongo/MongoSnapshotStore$Companion;
 	public static final field NAME Ljava/lang/String;
-	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;)V
-	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
-	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun getBatchOptions ()Lme/ahoo/wow/batch/BatchOptions;
 	public fun getName ()Ljava/lang/String;
 	public final fun getRuntimeResource ()Lme/ahoo/wow/runtime/RuntimeResource;
 	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;

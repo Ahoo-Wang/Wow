@@ -5,8 +5,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
 import me.ahoo.wow.event.compensation.DomainEventCompensator
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.event.compensation.StateEventCompensator
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.processing.failure.FailureRecorder
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test

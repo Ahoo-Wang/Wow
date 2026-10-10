@@ -16,13 +16,13 @@ package me.ahoo.wow.webflux.route.compensation
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SNAPSHOT_FUNCTION
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata

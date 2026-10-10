@@ -64,6 +64,17 @@ Advance only when the current gate has reproducible evidence:
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
 
+## Upgrading from 9.7 to 9.8.0
+
+9.8.0 moves classes out of `wow-core`'s generic `messaging` package into the domain package each belongs to, and moves the storage batching package out of `infra`, so `messaging` imports no command, event or event-sourcing package and `infra` imports no metrics. These are internal implementation (see the scope in `docs/compat-debt.md`): only the package changes; class names, constructors, behaviour, configuration, header keys and wire formats are unchanged, so 9.7.x and 9.8.0 nodes can share one cluster. Applications that use only the starter and the public entry APIs need no change; code that imports these classes recompiles with the new imports.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| `TransportCommandBus` and `TransportServerCommandExchange` move from `me.ahoo.wow.messaging.transport` to `me.ahoo.wow.command.transport`; `TransportDomainEventBus` and `TransportEventStreamExchange` to `me.ahoo.wow.event.transport`; `TransportStateEventBus` and `TransportStateEventExchange` to `me.ahoo.wow.eventsourcing.state.transport`. `Transport`, `TransportMessageBus` and the rest of the Transport SPI stay in `me.ahoo.wow.messaging.transport` | Custom transports and buses | Change the imports |
+| `EventCompensator` and `EventCompensateSupporter` move from `me.ahoo.wow.messaging.compensation` to `me.ahoo.wow.event.compensation`. `CompensationMatcher` and `CompensationTarget` stay | Code that compensates events itself | Change the imports |
+| `CommandOperatorMessagePropagator` and `WaitPlanMessagePropagator` move from `me.ahoo.wow.messaging.propagation` to `me.ahoo.wow.command.propagation`. `MessagePropagator`, `MessagePropagators` and the other propagators stay | Code that builds a `MessagePropagators` list by hand, or lists these classes in a `META-INF/services` file | Change the imports and the service file entries |
+| `me.ahoo.wow.infra.batch` (`BatchOptions`, `BatchCoordinator`, `BatchWriter`, `BatchItemResult`, the batch exceptions) moves to `me.ahoo.wow.batch` | Code that builds MongoDB or Elasticsearch stores with `BatchOptions`, or uses the batch coordinator | Change the imports |
+
 ## Upgrading from 9.6 to 9.7.0
 
 9.7.0 cleans up `wow-webflux` internals and removes the deprecated helpers that are internal implementation, not public entry APIs, so they change without waiting for v10 (see the scope in `docs/compat-debt.md`). Routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes can share one cluster. Applications that build their routes through the starter and use none of the removed helpers need no change; other code needs the changes below.

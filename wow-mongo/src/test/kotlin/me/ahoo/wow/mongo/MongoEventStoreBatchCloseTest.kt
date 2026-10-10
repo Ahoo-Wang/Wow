@@ -23,11 +23,11 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.batch.BatchCloseTimeoutException
+import me.ahoo.wow.batch.BatchClosedException
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.infra.batch.BatchCloseTimeoutException
-import me.ahoo.wow.infra.batch.BatchClosedException
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.metrics.decorator.metered
 import me.ahoo.wow.modeling.MaterializedNamedAggregate

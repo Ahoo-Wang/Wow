@@ -16,12 +16,12 @@ package me.ahoo.wow.spring.boot.starter
 import jakarta.annotation.PreDestroy
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.batch.BatchClosedException
+import me.ahoo.wow.batch.BatchCoordinator
+import me.ahoo.wow.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchOptions
+import me.ahoo.wow.batch.BatchWriter
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
-import me.ahoo.wow.infra.batch.BatchClosedException
-import me.ahoo.wow.infra.batch.BatchCoordinator
-import me.ahoo.wow.infra.batch.BatchItemResult
-import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.runtime.RuntimeComponent
 import me.ahoo.wow.runtime.RuntimeContext

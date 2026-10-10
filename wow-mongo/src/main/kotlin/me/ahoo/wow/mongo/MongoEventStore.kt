@@ -20,9 +20,9 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName

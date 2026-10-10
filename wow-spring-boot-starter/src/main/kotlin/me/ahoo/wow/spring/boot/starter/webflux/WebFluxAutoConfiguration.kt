@@ -16,10 +16,10 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository

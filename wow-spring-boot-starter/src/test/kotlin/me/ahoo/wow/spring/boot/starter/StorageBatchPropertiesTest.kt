@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchEventStoreBatchProperties
 import me.ahoo.wow.spring.boot.starter.elasticsearch.ElasticsearchSnapshotStoreBatchProperties
 import me.ahoo.wow.spring.boot.starter.mongo.MongoEventStoreBatchProperties

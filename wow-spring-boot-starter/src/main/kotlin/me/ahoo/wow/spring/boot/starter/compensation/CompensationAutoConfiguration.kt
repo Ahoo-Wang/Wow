@@ -17,8 +17,8 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
 import me.ahoo.wow.compensation.core.CompensationFailureRecorder
 import me.ahoo.wow.event.compensation.DomainEventCompensator
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.event.compensation.StateEventCompensator
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.processing.failure.FailureRecorder
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

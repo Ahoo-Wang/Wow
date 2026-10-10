@@ -143,6 +143,36 @@ object DependencyRules {
         )
     }
 
+    private val DOMAIN_PACKAGES = listOf(
+        "me.ahoo.wow.command",
+        "me.ahoo.wow.event",
+        "me.ahoo.wow.eventsourcing",
+        "me.ahoo.wow.projection",
+        "me.ahoo.wow.saga",
+    )
+
+    private fun inPackage(basePackage: String): (String) -> Boolean =
+        { it == basePackage || it.startsWith("$basePackage.") }
+
+    /**
+     * The generic messaging runtime (buses, dispatchers, transports, propagation, compensation matching) imports no
+     * domain package; each domain package registers its specialisations, such as its transport bus or propagator.
+     */
+    val MESSAGING_HAS_NO_DOMAIN = DependencyRule(
+        name = "wow-core messaging imports no domain package",
+        modules = listOf("wow-core"),
+        forbidden = DOMAIN_PACKAGES,
+        appliesToPackage = inPackage("me.ahoo.wow.messaging"),
+    )
+
+    /** `infra` is the bottom layer of wow-core: it imports no domain, messaging or metrics package. */
+    val INFRA_HAS_NO_UPPER_LAYERS = DependencyRule(
+        name = "wow-core infra imports no domain, messaging or metrics package",
+        modules = listOf("wow-core"),
+        forbidden = DOMAIN_PACKAGES + "me.ahoo.wow.messaging" + "me.ahoo.wow.metrics",
+        appliesToPackage = inPackage("me.ahoo.wow.infra"),
+    )
+
     /**
      * The metrics port (`me.ahoo.wow.metrics`) is what the runtime instruments itself with, so it depends on no domain
      * package; the decorators that wrap buses, stores and handlers live in `me.ahoo.wow.metrics.decorator`.
@@ -151,21 +181,18 @@ object DependencyRules {
     val METRICS_PORT_HAS_NO_DOMAIN = DependencyRule(
         name = "wow-core metrics port imports no domain or messaging package",
         modules = listOf("wow-core"),
-        forbidden = listOf(
-            "me.ahoo.wow.command",
-            "me.ahoo.wow.event",
-            "me.ahoo.wow.eventsourcing",
-            "me.ahoo.wow.saga",
-            "me.ahoo.wow.projection",
-            "me.ahoo.wow.modeling",
-            "me.ahoo.wow.messaging",
-            "me.ahoo.wow.metrics.decorator",
-        ),
+        forbidden = DOMAIN_PACKAGES + "me.ahoo.wow.modeling" + "me.ahoo.wow.messaging" + "me.ahoo.wow.metrics.decorator",
         appliesToPackage = { it == "me.ahoo.wow.metrics" },
     )
 
     val ALL: List<DependencyRule> =
-        listOf(CORE_HAS_NO_HTTP_OR_DRIVERS, QUERY_CORE_HAS_NO_HTTP_OR_DRIVERS, METRICS_PORT_HAS_NO_DOMAIN) +
+        listOf(
+            CORE_HAS_NO_HTTP_OR_DRIVERS,
+            QUERY_CORE_HAS_NO_HTTP_OR_DRIVERS,
+            MESSAGING_HAS_NO_DOMAIN,
+            INFRA_HAS_NO_UPPER_LAYERS,
+            METRICS_PORT_HAS_NO_DOMAIN,
+        ) +
             BACKENDS_ARE_INDEPENDENT +
             STORES_HAVE_NO_QUERY
 }

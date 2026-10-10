@@ -80,7 +80,7 @@ spring:
 
 `max-size` 必须在 `2` 到 `536870911` 之间（Reactor 预取计算上限），`max-delay` 必须为正数，pending 上限不得小于 `max-size`，`lane-count` 必须在 `1` 到 `max-pending-items` 之间。同一聚合始终进入同一 lane；Writer 忙碌时保留单项积压，恢复写入需求后按不超过 `max-size` 重新合批，不足一批时也可能立即发出，无需再等待一个 `max-delay`；增加 lane 只能在有吞吐证据时进行。`auto-init-schema=true` 负责 Wow schema 初始化，不替代数据库备份、分片设计或业务查询索引验证。
 
-MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.infra.batch.BatchOptions`；`batchOptions = null` 表示禁用批处理。Spring 默认仍为 `enabled=false`。容量字段统一为 `max-pending-items`，原 `max-pending-appends` 和 `max-pending-saves` 不再受支持。批处理溢出、已关闭和关闭超时统一使用核心异常类型。
+MongoDB/Elasticsearch 的四个 Store 构造器统一使用 `me.ahoo.wow.batch.BatchOptions`；`batchOptions = null` 表示禁用批处理。Spring 默认仍为 `enabled=false`。容量字段统一为 `max-pending-items`，原 `max-pending-appends` 和 `max-pending-saves` 不再受支持。批处理溢出、已关闭和关闭超时统一使用核心异常类型。
 
 ## Redis
 

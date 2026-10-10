@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.openapi
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.catalog.RouteContributor

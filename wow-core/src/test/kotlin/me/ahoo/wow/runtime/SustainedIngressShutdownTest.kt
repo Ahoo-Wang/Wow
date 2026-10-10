@@ -18,9 +18,9 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.transport.TransportCommandBus
+import me.ahoo.wow.command.transport.TransportServerCommandExchange
 import me.ahoo.wow.messaging.transport.TopicNaming
-import me.ahoo.wow.messaging.transport.TransportCommandBus
-import me.ahoo.wow.messaging.transport.TransportServerCommandExchange
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.metadata.AggregateMetadata

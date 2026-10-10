@@ -21,7 +21,7 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import co.elastic.clients.elasticsearch.core.bulk.OperationType
 import co.elastic.clients.json.JsonData
-import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchItemResult
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 

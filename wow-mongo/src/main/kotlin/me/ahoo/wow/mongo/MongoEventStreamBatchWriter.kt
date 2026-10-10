@@ -16,7 +16,7 @@ package me.ahoo.wow.mongo
 import com.mongodb.MongoBulkWriteException
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchItemResult
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono

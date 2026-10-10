@@ -16,7 +16,7 @@ package me.ahoo.wow.kafka
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.messaging.transport.TransportServerCommandExchange
+import me.ahoo.wow.command.transport.TransportServerCommandExchange
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import me.ahoo.wow.modeling.metadata.AggregateMetadata

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.mongo
 
-import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.batch.BatchOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
