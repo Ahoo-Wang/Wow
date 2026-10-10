@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.modeling.materializeMessageAggregate
 import me.ahoo.wow.serialization.JsonSerializer
 import java.net.URL
 
@@ -122,7 +123,7 @@ object MetadataSearcher {
      *
      * @return true if the aggregate is local, false otherwise.
      */
-    fun NamedAggregate.isLocal(): Boolean = localAggregates.contains(this.materialize())
+    fun NamedAggregate.isLocal(): Boolean = localAggregates.contains(materializeMessageAggregate())
 
     /**
      * Retrieves the aggregate configuration for the given named aggregate.

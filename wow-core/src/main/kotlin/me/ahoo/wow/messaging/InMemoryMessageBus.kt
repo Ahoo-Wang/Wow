@@ -17,10 +17,12 @@ import com.google.errorprone.annotations.ThreadSafe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.mergeFailure
 import me.ahoo.wow.infra.sink.CloseSettlementAware
 import me.ahoo.wow.infra.sink.prepareConcurrentSink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.modeling.materializeMessageAggregate
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -122,7 +124,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     @Suppress("TooGenericExceptionCaught")
     override fun handOff(message: M): Mono<LocalHandoff> =
         Mono.defer {
-            val materialized = message.materialize()
+            val materialized = message.materializeMessageAggregate()
             val messageWritable = !message.header.isReadOnly
             if (closing) {
                 return@defer Mono.just(LocalHandoff.REFUSED)
@@ -176,7 +178,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      */
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable {
-            val sink = computeSink(message)
+            val sink = computeSink(message.materializeMessageAggregate())
             message.withReadOnly()
             if (sink == null) {
                 log.debug {
@@ -254,7 +256,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return Flux.merge(sources).map { message ->
             message.createExchange().also { exchange ->
                 if (routingSubscription != null) {
-                    routingStates[message.materialize()]
+                    routingStates[message.materializeMessageAggregate()]
                         ?.ticket(message, routingSubscription.target)
                         ?.let(exchange::attachLocalDeliveryTicket)
                 }
@@ -399,7 +401,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             val attempt = tryCloseSink(aggregate, many)
             attempt.settledSink?.let(settledSinks::add)
             attempt.pendingSettlement?.let(pendingSettlements::add)
-            attempt.failure?.let { closeFailure = mergeCloseFailure(closeFailure, it) }
+            attempt.failure?.let { closeFailure = closeFailure.mergeFailure(it) }
         }
         if (pendingSettlements.isEmpty()) {
             finishClose(settledSinks)
@@ -487,16 +489,6 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 failure = error,
             )
         }
-
-    private fun mergeCloseFailure(current: Throwable?, next: Throwable): Throwable {
-        if (current == null) {
-            return next
-        }
-        if (current !== next) {
-            current.addSuppressed(next)
-        }
-        return current
-    }
 
     private fun Sinks.Many<M>.closeSettlement(): CompletableFuture<Unit>? =
         (this as? CloseSettlementAware)?.closeSettled

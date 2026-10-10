@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.addSuppressedIfAbsent
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.WowMetrics
@@ -22,7 +23,6 @@ import me.ahoo.wow.metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.runtime.RuntimeContext
 import me.ahoo.wow.runtime.internal.RuntimeComponentGroup
-import me.ahoo.wow.runtime.internal.addSuppressedIfAbsent
 import me.ahoo.wow.runtime.internal.forceAllReporting
 import me.ahoo.wow.runtime.internal.stopAllReporting
 import me.ahoo.wow.serialization.toJsonString

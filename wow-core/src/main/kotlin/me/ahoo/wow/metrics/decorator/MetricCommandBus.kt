@@ -20,9 +20,6 @@ import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.LocalHandoff
-import me.ahoo.wow.messaging.MessageReceiver
-import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.metrics.MetricDescriptor
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
@@ -30,49 +27,9 @@ internal open class MetricCommandBus<T : CommandBus>(
     delegate: T,
     metrics: WowMetrics,
     source: String,
-) : MetricComponentDecorator<T>(delegate, metrics, source),
+) : MetricMessageBus<CommandMessage<*>, ServerCommandExchange<*>, T>(delegate, metrics, source, "command_bus"),
     CommandBus {
-    override fun send(message: CommandMessage<*>): Mono<Void> =
-        metrics.operation(
-            delegate.send(message),
-            messageDescriptor(message, "send"),
-        )
-
-    override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
-        metricReceiver(delegate.receiver(subscription), subscription)
-
-    private fun metricReceiver(
-        receiver: MessageReceiver<ServerCommandExchange<*>>,
-        subscription: MessageSubscription,
-    ): MessageReceiver<ServerCommandExchange<*>> =
-        receiver.mapMessages { messages ->
-            metrics.stream(messages, receiveDescriptor(subscription), subscription.namedAggregates) { it.message }
-        }
-
-    protected fun messageDescriptor(
-        message: CommandMessage<*>,
-        operation: String,
-    ): MetricDescriptor = descriptor(
-        component = COMPONENT,
-        operation = operation,
-        context = message.contextName,
-        aggregate = message.aggregateName,
-        message = message.name,
-    )
-
-    private fun receiveDescriptor(subscription: MessageSubscription): MetricDescriptor = descriptor(
-        component = COMPONENT,
-        operation = "receive",
-        context = subscription.metricContext(),
-        aggregate = subscription.metricAggregate(),
-        subscriber = subscription.receiverGroup,
-    )
-
-    override fun close() = delegate.close()
-
-    private companion object {
-        const val COMPONENT = "command_bus"
-    }
+    override fun messageName(message: CommandMessage<*>): String = message.name
 }
 
 internal class MetricLocalCommandBus(
@@ -82,10 +39,7 @@ internal class MetricLocalCommandBus(
 ) : MetricCommandBus<LocalCommandBus>(delegate, metrics, source),
     LocalCommandBus {
     override fun handOff(message: CommandMessage<*>): Mono<LocalHandoff> =
-        metrics.operation(
-            delegate.handOff(message),
-            messageDescriptor(message, "send_if_subscribed"),
-        )
+        meteredHandOff(message, delegate.handOff(message))
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }

@@ -20,6 +20,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
 
@@ -39,7 +40,7 @@ import reactor.core.publisher.Mono
  * @see ServiceProvider
  */
 @FilterType(DomainEventDispatcher::class)
-@Order(ORDER_DEFAULT)
+@Order(ORDER_DEFAULT, after = [RetryableFilter::class])
 open class DomainEventFunctionFilter(
     private val serviceProvider: ServiceProvider
 ) : ExchangeFilter<DomainEventExchange<*>> {

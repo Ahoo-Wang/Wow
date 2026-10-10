@@ -20,9 +20,6 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.LocalHandoff
-import me.ahoo.wow.messaging.MessageReceiver
-import me.ahoo.wow.messaging.MessageSubscription
-import me.ahoo.wow.metrics.MetricDescriptor
 import me.ahoo.wow.metrics.WowMetrics
 import reactor.core.publisher.Mono
 
@@ -30,49 +27,8 @@ internal open class MetricStateEventBus<T : StateEventBus>(
     delegate: T,
     metrics: WowMetrics,
     source: String,
-) : MetricComponentDecorator<T>(delegate, metrics, source),
-    StateEventBus {
-    override fun send(message: StateEvent<*>): Mono<Void> =
-        metrics.operation(
-            delegate.send(message),
-            messageDescriptor(message, "send"),
-        )
-
-    override fun receiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
-        metricReceiver(delegate.receiver(subscription), subscription)
-
-    private fun metricReceiver(
-        receiver: MessageReceiver<StateEventExchange<*>>,
-        subscription: MessageSubscription,
-    ): MessageReceiver<StateEventExchange<*>> =
-        receiver.mapMessages { messages ->
-            metrics.stream(messages, receiveDescriptor(subscription), subscription.namedAggregates) { it.message }
-        }
-
-    protected fun messageDescriptor(
-        message: StateEvent<*>,
-        operation: String,
-    ): MetricDescriptor = descriptor(
-        component = COMPONENT,
-        operation = operation,
-        context = message.contextName,
-        aggregate = message.aggregateName,
-    )
-
-    private fun receiveDescriptor(subscription: MessageSubscription): MetricDescriptor = descriptor(
-        component = COMPONENT,
-        operation = "receive",
-        context = subscription.metricContext(),
-        aggregate = subscription.metricAggregate(),
-        subscriber = subscription.receiverGroup,
-    )
-
-    override fun close() = delegate.close()
-
-    private companion object {
-        const val COMPONENT = "state_event_bus"
-    }
-}
+) : MetricMessageBus<StateEvent<*>, StateEventExchange<*>, T>(delegate, metrics, source, "state_event_bus"),
+    StateEventBus
 
 internal class MetricLocalStateEventBus(
     delegate: LocalStateEventBus,
@@ -81,10 +37,7 @@ internal class MetricLocalStateEventBus(
 ) : MetricStateEventBus<LocalStateEventBus>(delegate, metrics, source),
     LocalStateEventBus {
     override fun handOff(message: StateEvent<*>): Mono<LocalHandoff> =
-        metrics.operation(
-            delegate.handOff(message),
-            messageDescriptor(message, "send_if_subscribed"),
-        )
+        meteredHandOff(message, delegate.handOff(message))
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
