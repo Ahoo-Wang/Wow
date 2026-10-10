@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling
 
+import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.naming.Materialized
@@ -79,6 +80,13 @@ fun NamedAggregate.materialize(): MaterializedNamedAggregate {
 /**
  * The delimiter used to separate context name and aggregate name in string representations.
  */
+/**
+ * Materializes the aggregate of a message on the delivery path. A message that carries its aggregate ID is named by that
+ * ID, so this reuses the ID's materialized aggregate instead of allocating one for every message.
+ */
+internal fun NamedAggregate.materializeMessageAggregate(): MaterializedNamedAggregate =
+    (this as? AggregateIdCapable)?.aggregateId?.materialize() ?: materialize()
+
 const val NAMED_AGGREGATE_DELIMITER = "."
 
 /**

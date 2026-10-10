@@ -23,6 +23,7 @@ import me.ahoo.wow.configuration.MetadataSearcher.isLocal
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.modeling.materializeMessageAggregate
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -187,7 +188,7 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
             // Queued before the hand-off, so the copies of one aggregate keep the send order.
             val copy = distributedCopies.enqueue(
                 key = (message as? AggregateIdCapable)?.aggregateId ?: message.materialize(),
-                namedAggregate = message,
+                namedAggregate = message.materializeMessageAggregate(),
                 context = context,
                 description = { "message[${message.id}] (via $localBusName)" },
             ) { admitted ->

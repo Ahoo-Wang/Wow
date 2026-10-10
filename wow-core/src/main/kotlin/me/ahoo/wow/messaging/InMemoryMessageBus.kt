@@ -21,6 +21,7 @@ import me.ahoo.wow.infra.sink.CloseSettlementAware
 import me.ahoo.wow.infra.sink.prepareConcurrentSink
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.modeling.materializeMessageAggregate
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -122,7 +123,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     @Suppress("TooGenericExceptionCaught")
     override fun handOff(message: M): Mono<LocalHandoff> =
         Mono.defer {
-            val materialized = message.materialize()
+            val materialized = message.materializeMessageAggregate()
             val messageWritable = !message.header.isReadOnly
             if (closing) {
                 return@defer Mono.just(LocalHandoff.REFUSED)
@@ -176,7 +177,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      */
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable {
-            val sink = computeSink(message)
+            val sink = computeSink(message.materializeMessageAggregate())
             message.withReadOnly()
             if (sink == null) {
                 log.debug {
@@ -254,7 +255,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return Flux.merge(sources).map { message ->
             message.createExchange().also { exchange ->
                 if (routingSubscription != null) {
-                    routingStates[message.materialize()]
+                    routingStates[message.materializeMessageAggregate()]
                         ?.ticket(message, routingSubscription.target)
                         ?.let(exchange::attachLocalDeliveryTicket)
                 }
