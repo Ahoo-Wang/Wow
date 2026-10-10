@@ -20,57 +20,14 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.messaging.LocalHandoff
-import me.ahoo.wow.messaging.MessageReceiver
-import me.ahoo.wow.messaging.MessageSubscription
 import reactor.core.publisher.Mono
 
 internal open class MetricDomainEventBus<T : DomainEventBus>(
     delegate: T,
     metrics: WowMetrics,
     source: String,
-) : MetricComponentDecorator<T>(delegate, metrics, source),
-    DomainEventBus {
-    override fun send(message: DomainEventStream): Mono<Void> =
-        metrics.operation(
-            delegate.send(message),
-            messageDescriptor(message, "send"),
-        )
-
-    override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
-        metricReceiver(delegate.receiver(subscription), subscription)
-
-    private fun metricReceiver(
-        receiver: MessageReceiver<EventStreamExchange>,
-        subscription: MessageSubscription,
-    ): MessageReceiver<EventStreamExchange> =
-        receiver.mapMessages { messages ->
-            metrics.stream(messages, receiveDescriptor(subscription), subscription.namedAggregates) { it.message }
-        }
-
-    protected fun messageDescriptor(
-        message: DomainEventStream,
-        operation: String,
-    ): MetricDescriptor = descriptor(
-        component = COMPONENT,
-        operation = operation,
-        context = message.contextName,
-        aggregate = message.aggregateName,
-    )
-
-    private fun receiveDescriptor(subscription: MessageSubscription): MetricDescriptor = descriptor(
-        component = COMPONENT,
-        operation = "receive",
-        context = subscription.metricContext(),
-        aggregate = subscription.metricAggregate(),
-        subscriber = subscription.receiverGroup,
-    )
-
-    override fun close() = delegate.close()
-
-    private companion object {
-        const val COMPONENT = "domain_event_bus"
-    }
-}
+) : MetricMessageBus<DomainEventStream, EventStreamExchange, T>(delegate, metrics, source, "domain_event_bus"),
+    DomainEventBus
 
 internal class MetricLocalDomainEventBus(
     delegate: LocalDomainEventBus,
@@ -79,10 +36,7 @@ internal class MetricLocalDomainEventBus(
 ) : MetricDomainEventBus<LocalDomainEventBus>(delegate, metrics, source),
     LocalDomainEventBus {
     override fun handOff(message: DomainEventStream): Mono<LocalHandoff> =
-        metrics.operation(
-            delegate.handOff(message),
-            messageDescriptor(message, "send_if_subscribed"),
-        )
+        meteredHandOff(message, delegate.handOff(message))
 
     override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
