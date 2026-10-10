@@ -29,7 +29,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 
 两个同级模块都导出的名字（例如两个包里同名的模型）不会进入它们共同的 `index.ts`，并给出警告；请从它自己的模块导入。
 
-模型的文档注释默认只含摘要：标题、描述、schema 键、format、默认值、示例和约束。`--schema-docs full`（选项 `schemaDocs: 'full'`）还会嵌入完整的 JSON schema。
+模型的文档注释默认只含摘要：标题、描述、schema 键、format、默认值、示例和约束。对象模型还会列出其 schema 要求的属性（`- required: a, b`，没有时为 `- required: (none)`），因为生成的属性都不带 `?`。以 `anyOf: [{type: null}, X]` 表示的可空值按 `X` 生成注释，因此可空整数也保留 `format`。`--schema-docs full`（选项 `schemaDocs: 'full'`）还会嵌入完整的 JSON schema。
 
 ## 方法
 

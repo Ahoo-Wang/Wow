@@ -16,8 +16,8 @@ import type { Logger } from './logger';
 /**
  * How much of each schema a generated model's doc comment carries.
  *
- * - `summary`: title, description, schema key, format, default, example and
- *   constraints.
+ * - `summary`: title, description, schema key, the required properties of an
+ *   object, format, default, example and constraints.
  * - `full`: the summary plus the complete JSON schema.
  */
 export type SchemaDocs = 'summary' | 'full';

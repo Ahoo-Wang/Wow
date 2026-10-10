@@ -5,15 +5,15 @@
     "example/cart/commandClient.ts": "5575b91d018703bffd4f573974fd3b24bb7e6b5932f026109f38ff6740899248",
     "example/cart/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
     "example/cart/queryClient.ts": "2c44fa21381eff68d1865991fe3bb423cf44bdb5c8058f3523239265401cd70f",
-    "example/cart/types.ts": "e8e66500f7ed21293534a3e01c93c8c78322a7b6279954dfda90be996f24604e",
+    "example/cart/types.ts": "97d69e2dec648d5d1b1c99a593b2cf4927b7b4e101f1bc05101b1f0b067f8daa",
     "example/cartApiClient.ts": "62fe12245d1e8b0895558b35a8472bc2c3aceabc741d63e7eb5e8a94032df7c6",
     "example/index.ts": "85f0ed3b499962dace724d9f18e8edba1841cb5708de5584bcb50925738d31c5",
     "example/order/commandClient.ts": "ead5f98238cee8289cb9ec4f2e6fe051aa01ad95618dd2b6c2d14a804dd44039",
     "example/order/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
     "example/order/queryClient.ts": "4bd12d48ae1773fd15e797ca8c7a13e38779a4567bad87d7a93c936d597e8295",
-    "example/order/types.ts": "b4aab91c4b8b82af3f5ba8cf521680297069577192fb2c69bb8055e934920c61",
+    "example/order/types.ts": "5b11ca12a0213402689b5a310b4ef5a29666980984d20785384f3347c4fe33e9",
     "example/orderApiClient.ts": "470576de400c0f53a29e12de3a1ef96e63fe302e4f90e7dd183e0ea233534c87",
-    "example/types.ts": "89a74fdc7b92f9798ca25063cb8aff3f860d464500edd6da125f5ea8182fbd7e",
+    "example/types.ts": "3645f9d10a3fe87fa47c7868c0aecb6075f89961bb0c7f7e0d882ab4d14b36d1",
     "index.ts": "a038f2638a1400632f624de0a6409f14e75a36544496f7b7ad39bcf350bc9204"
   }
 }

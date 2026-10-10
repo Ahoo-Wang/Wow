@@ -58,13 +58,29 @@ export function addJSDoc(
   node.docs = [...(node.docs ?? []), jsdoc];
 }
 
-export function schemaJSDoc(schema: Schema, key?: string) {
+/**
+ * The doc comment lines of a schema.
+ *
+ * A nullable value written as `anyOf: [{type: null}, X]` (or `oneOf`) is
+ * documented from its non-null branch too, so its `format` and constraints
+ * are not lost; what the schema itself says comes first.
+ *
+ * @param schema - The schema
+ * @param key - The schema's component key, given for a model
+ * @param main - Whether the comment is a model's, which also lists the
+ * properties its schema requires
+ */
+export function schemaJSDoc(schema: Schema, key?: string, main = false) {
+  schema = withNonNullBranch(schema);
   const descriptions: (string | undefined)[] = [
     schema.title,
     schema.description,
   ];
   if (key) {
     descriptions.push(`- key: ${key}`);
+  }
+  if (main) {
+    addRequiredJsDoc(descriptions, schema);
   }
   if (schema.format) {
     descriptions.push(
@@ -111,11 +127,53 @@ export function addMainSchemaJSDoc(
   key?: string,
   includeSchema = false,
 ) {
-  const descriptions = schemaJSDoc(schema as Schema, key);
+  const descriptions = schemaJSDoc(schema as Schema, key, true);
   if (includeSchema) {
     jsonJsDoc(descriptions, 'schema', schema);
   }
   addJSDoc(node, descriptions);
+}
+
+/**
+ * Merges the single non-null branch of a nullable composition under the
+ * schema, so the schema's own keywords win. Any other schema is returned as
+ * it is: a branch that is a reference documents itself.
+ */
+function withNonNullBranch(schema: Schema): Schema {
+  for (const keyword of ['anyOf', 'oneOf'] as const) {
+    const members = schema[keyword];
+    if (!Array.isArray(members) || members.length < 2) continue;
+    const nonNull = members.filter(
+      member => '$ref' in member || member.type !== 'null',
+    );
+    const [branch] = nonNull;
+    if (nonNull.length !== 1 || '$ref' in branch) continue;
+    const merged: Schema = { ...branch };
+    for (const [name, value] of Object.entries(schema)) {
+      if (name !== keyword && value !== undefined) {
+        (merged as Record<string, unknown>)[name] = value;
+      }
+    }
+    return merged;
+  }
+  return schema;
+}
+
+/**
+ * Lists the properties an object schema requires, which the generated type
+ * does not tell: every generated property is declared without `?`.
+ */
+function addRequiredJsDoc(
+  descriptions: (string | undefined)[],
+  schema: Schema,
+) {
+  const required = schema.required ?? [];
+  if (!required.length && !Object.keys(schema.properties ?? {}).length) {
+    return;
+  }
+  descriptions.push(
+    `- required: ${required.length ? required.join(', ') : '(none)'}`,
+  );
 }
 
 function addJsonJsDoc(
