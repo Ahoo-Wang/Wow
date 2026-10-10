@@ -13,9 +13,17 @@
 
 package me.ahoo.wow.messaging.handler
 
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.annotation.sortedByOrder
+import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.TestNamedMessage
+import me.ahoo.wow.projection.ProjectionFunctionFilter
+import me.ahoo.wow.saga.stateless.StatelessSagaFunctionFilter
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -26,6 +34,21 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 class RetryableExchangeFilterTest {
+
+    @Test
+    fun `retry wraps every function filter whatever the registration order`() {
+        val serviceProvider = SimpleServiceProvider()
+        listOf(
+            DomainEventFunctionFilter(serviceProvider),
+            ProjectionFunctionFilter(serviceProvider),
+            StatelessSagaFunctionFilter(serviceProvider),
+            SnapshotFunctionFilter(SimpleSnapshotStrategy(mockk())),
+        ).forEach { functionFilter ->
+            val retryableFilter = RetryableFilter<RetryableExchange>()
+            listOf(functionFilter, retryableFilter).sortedByOrder()
+                .assert().containsExactly(retryableFilter, functionFilter)
+        }
+    }
 
     @Test
     fun `filter retries next chain until it completes`() {
