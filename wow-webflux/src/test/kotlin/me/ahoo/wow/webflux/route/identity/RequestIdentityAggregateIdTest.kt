@@ -62,4 +62,13 @@ class RequestIdentityAggregateIdTest {
             request.identity(MOCK_AGGREGATE_METADATA).aggregateId(MOCK_AGGREGATE_METADATA)
         }
     }
+
+    @Test
+    fun `should reject a request that names no aggregate`() {
+        assertThrownBy<IllegalArgumentException> {
+            MockServerRequest.builder().build()
+                .identity(MOCK_AGGREGATE_METADATA)
+                .aggregateId(MOCK_AGGREGATE_METADATA)
+        }
+    }
 }

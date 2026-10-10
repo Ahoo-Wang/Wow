@@ -257,6 +257,36 @@ class AggregateTracingHandlerFunctionTest {
     }
 
     @Test
+    fun `a head version past the stream's tail emits an empty history`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "test-data"))
+            .expectNoError()
+            .verify()
+        // Built directly, with the default admission.
+        val handlerFunction = AggregateTracingHandlerFunction(
+            aggregateMetadata = MockCommandAggregate::class.java.aggregateMetadata<MockCommandAggregate, MockStateAggregate>(),
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            tracingPolicy = TracingPolicy(),
+        )
+
+        val response = handlerFunction.handle(
+            MockServerRequest.builder()
+                .pathVariable(MessageRecords.ID, aggregateId)
+                .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+                .queryParam(TracingPolicy.HEAD_VERSION, "5")
+                .queryParam(TracingPolicy.LIMIT, "1")
+                .build()
+        ).block()!!
+
+        response.statusCode().assert().isEqualTo(HttpStatus.OK)
+        response.writeToString().assert().isEqualTo("[]")
+    }
+
+    @Test
     fun `handler tracing response should remain streaming server response`() {
         val eventStore = InMemoryEventStore()
         val aggregateId = generateGlobalId()

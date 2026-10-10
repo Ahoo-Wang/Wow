@@ -121,4 +121,15 @@ class CommandBodyBindingErrorTest {
             .send("/members/member-1", """{"reason":"left"}""")
             .expectStatus().isEqualTo(HttpStatus.OK)
     }
+
+    @Test
+    fun `a request without a body is a 400`() {
+        val body = client(withoutVariables).post().uri("/members")
+            .contentType(MediaType.APPLICATION_JSON)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
+            .exchange()
+            .expectBadRequestBody()
+
+        body.assert().contains("Command can not be empty.")
+    }
 }
