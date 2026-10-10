@@ -8197,10 +8197,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "9.6.1",
+    "version" : "9.6.2",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "9.6.1"
+    "x-wow-version" : "9.6.2"
   },
   "openapi" : "3.1.0",
   "paths" : {
