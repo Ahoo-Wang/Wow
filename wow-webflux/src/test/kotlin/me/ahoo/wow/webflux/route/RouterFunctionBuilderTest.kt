@@ -16,7 +16,6 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -69,7 +68,7 @@ class RouterFunctionBuilderTest {
 private fun loadAggregateContract(): HttpRouteContract {
     return HttpRouteContract(
         routeId = "test.load",
-        method = Https.Method.GET,
+        method = "GET",
         path = "/test",
         handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
         handlerMetadata = HttpRouteHandlerMetadata.Aggregate(

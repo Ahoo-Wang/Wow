@@ -69,14 +69,16 @@ fun reportRouteContributor(): RouteContributor = object : RouteContributor {
     override fun contributeGlobal(currentContext: NamedBoundedContext) = listOf(
         HttpRouteContract(
             routeId = "example.report.get",
-            method = Https.Method.GET,
+            method = "GET",
             path = "/report",
             handlerKey = "example.report",
-            responses = listOf(HttpResponse(Https.Code.OK, component = reportResponse)),
+            responses = listOf(HttpResponse("200", component = reportResponse)),
         )
     )
 }
 ```
+
+A contract's method, status codes and media types are plain strings (`"GET"`, `"200"`, `"application/json"`). The public API of `wow-openapi` is `RouterSpecs`, `RouteContributor`, `RouteCatalog`, the contract types in `me.ahoo.wow.openapi.contract` (with `BuiltInHttpRouteHandlerKeys` and `HttpComponent`), the route metadata (`aggregateRouteMetadata()`, `commandRouteMetadata()`), `OpenAPIComponentContext`, the component builders `ApiResponseBuilder` and `RequestBodyBuilder`, `OpenAPISchemaBuilder` and `BoundedContextSchemaNameConverter`. The renderer, the catalog builder and the helpers behind the built-in routes are internal; the built-in contributors and `DefaultRouteContributors` are `@InternalWowApi`, shared with the Spring Boot starter but not part of the API.
 
 Modules containing Wow annotations still need KSP plus `wow-compiler`, and their generated `META-INF/wow-metadata.json` resources must be present on the service runtime classpath. Do not hand-write or commit generated resources.
 

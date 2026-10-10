@@ -60,7 +60,7 @@ import java.lang.reflect.Type
  * must not run concurrently. Rendering generates schemas, which may block: `RouterSpecs` renders once and merges
  * copies of that document.
  */
-class OpenApiRenderer(private val componentContext: OpenAPIComponentContext) {
+internal class OpenApiRenderer(private val componentContext: OpenAPIComponentContext) {
     /** The components built in this render, and what they built, by `$ref`. */
     private val builtComponents = mutableMapOf<String, Pair<HttpComponent<*>, Any>>()
 

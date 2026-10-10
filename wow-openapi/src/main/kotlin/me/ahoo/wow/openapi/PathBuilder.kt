@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi
 
 private const val PATH_SEPARATOR = "/"
 
-class PathBuilder {
+internal class PathBuilder {
     private val segments = StringBuilder()
     fun append(segment: String): PathBuilder {
         if (segment.isBlank()) {

@@ -56,7 +56,6 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -639,7 +638,7 @@ internal class WebFluxAutoConfigurationTest {
             context.biScriptClient()
                 .get()
                 .uri(RoutePaths.BI_SCRIPT)
-                .accept(MediaType.parseMediaType(Https.MediaType.APPLICATION_SQL))
+                .accept(MediaType.parseMediaType("application/sql"))
                 .exchange()
                 .expectStatus().isNotFound
         }
@@ -1398,10 +1397,10 @@ internal class WebFluxAutoConfigurationTest {
         val factory = biScriptRouteFactory()
         val contract = HttpRouteContract(
             routeId = "bi-script",
-            method = Https.Method.POST,
+            method = "POST",
             path = RoutePaths.BI_SCRIPT,
             handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
-            accept = listOf(Https.MediaType.APPLICATION_SQL),
+            accept = listOf("application/sql"),
         )
         val routerFunction = RouterFunctions.route()
             .POST(contract.path, factory.create(contract))
@@ -1412,11 +1411,11 @@ internal class WebFluxAutoConfigurationTest {
             .post()
             .uri(contract.path)
             .contentType(MediaType.APPLICATION_JSON)
-            .accept(MediaType.parseMediaType(Https.MediaType.APPLICATION_SQL))
+            .accept(MediaType.parseMediaType("application/sql"))
             .bodyValue(request)
             .exchange()
             .expectStatus().isOk
-            .expectHeader().contentType(Https.MediaType.APPLICATION_SQL)
+            .expectHeader().contentType("application/sql")
             .expectBody(String::class.java)
             .returnResult()
             .responseBody!!
@@ -1452,7 +1451,7 @@ internal class WebFluxAutoConfigurationTest {
     private fun queryContract(name: String, metadata: AggregateRouteMetadata<*>): HttpRouteContract =
         HttpRouteContract(
             routeId = "query-$name",
-            method = Https.Method.POST,
+            method = "POST",
             path = "/$name",
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             handlerMetadata = HttpRouteHandlerMetadata.Aggregate(metadata),

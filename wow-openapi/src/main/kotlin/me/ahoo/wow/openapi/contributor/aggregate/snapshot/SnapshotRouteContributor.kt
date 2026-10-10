@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.aggregate.snapshot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -51,6 +52,7 @@ private const val SNAPSHOT_SCHEMA = "snapshot_schema"
  * The snapshot routes of an aggregate. Their paths come from [me.ahoo.wow.rest.RouteSuffixes]; their resource and
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
+@InternalWowApi
 object SnapshotRouteContributor : RouteContributor {
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,

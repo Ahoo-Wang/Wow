@@ -50,7 +50,7 @@ import kotlin.reflect.jvm.javaField
  * println(metadata) // Outputs the metadata, assuming it has a toString implementation
  * ```
  */
-object CommandRouteMetadataParser : CacheableMetadataParser() {
+internal object CommandRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = CommandRouteMetadataVisitor(type)
         type.kotlin.visit(visitor)

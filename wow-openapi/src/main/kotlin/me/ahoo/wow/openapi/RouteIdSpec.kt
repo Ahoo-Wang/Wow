@@ -28,7 +28,7 @@ import me.ahoo.wow.modeling.toStringWithAlias
  * (`snapshot`, `snapshot_state`, `event`, `list_query`, `single`, `count`, …) change only with the generator, in a
  * major version. The committed contract snapshot (`example-domain-contract.snapshot.json`) pins every id.
  */
-class RouteIdSpec {
+internal class RouteIdSpec {
 
     private var prefix: String = ""
     private var appendTenant: Boolean = false

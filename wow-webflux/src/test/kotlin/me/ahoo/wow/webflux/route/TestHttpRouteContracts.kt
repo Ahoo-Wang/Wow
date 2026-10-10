@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
@@ -53,7 +52,7 @@ private fun testRouteContract(
 ): HttpRouteContract {
     return HttpRouteContract(
         routeId = "test.route",
-        method = Https.Method.GET,
+        method = "GET",
         path = "/test",
         handlerKey = handlerKey,
         handlerMetadata = handlerMetadata

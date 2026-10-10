@@ -27,7 +27,7 @@ import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.resolveNamePr
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
 
 class BoundedContextSchemaNameConverter : ModelConverter {
-    companion object {
+    internal companion object {
         fun AnnotatedType.resolveName(rawClass: Class<*>) {
             if (name.isNullOrBlank().not()) {
                 return

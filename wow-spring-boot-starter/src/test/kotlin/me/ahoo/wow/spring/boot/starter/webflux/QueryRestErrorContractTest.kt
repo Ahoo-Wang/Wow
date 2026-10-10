@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.example.domain.order.Order
-import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -79,7 +78,7 @@ class QueryRestErrorContractTest {
         withClients { clients ->
             CASES.forEach { case ->
                 val client = clients.getValue(case.guard)
-                val request = if (case.route.method == Https.Method.GET) {
+                val request = if (case.route.method == "GET") {
                     client.get().uri(case.uri).accept(MediaType.APPLICATION_JSON)
                 } else {
                     client.post().uri(case.uri)
@@ -169,7 +168,7 @@ class QueryRestErrorContractTest {
                             handlerMetadata = HttpRouteHandlerMetadata.Aggregate(metadata),
                         )
                         val handler = module.httpFactories.single { it.handlerKey == route.handlerKey }.create(contract)
-                        if (route.method == Https.Method.GET) {
+                        if (route.method == "GET") {
                             router.GET(route.template, handler)
                         } else {
                             router.POST(route.template, handler)
@@ -195,7 +194,7 @@ class QueryRestErrorContractTest {
         AUTHENTICATED_SCOPE(QueryEntryPolicy(requireAuthenticatedScope = true)),
     }
 
-    private enum class Route(val handlerKey: String, val method: String = Https.Method.POST, pathVariables: String = "") {
+    private enum class Route(val handlerKey: String, val method: String = "POST", pathVariables: String = "") {
         SNAPSHOT_SINGLE(BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE),
         SNAPSHOT_LIST(BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY),
         SNAPSHOT_PAGED(BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY),
@@ -209,10 +208,10 @@ class QueryRestErrorContractTest {
         SNAPSHOT_LIST_STATE(BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE),
         SNAPSHOT_PAGED_STATE(BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY_STATE),
         SNAPSHOT_CURSOR_STATE(BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE),
-        SNAPSHOT_LOAD(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD, Https.Method.GET, "/{id}"),
+        SNAPSHOT_LOAD(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD, "GET", "/{id}"),
         EVENT_PAGED(BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY),
         EVENT_AGGREGATION(BuiltInHttpRouteHandlerKeys.Event.AGGREGATION),
-        EVENT_LOAD(BuiltInHttpRouteHandlerKeys.Event.LOAD, Https.Method.GET, "/{id}/{headVersion}/{tailVersion}"),
+        EVENT_LOAD(BuiltInHttpRouteHandlerKeys.Event.LOAD, "GET", "/{id}/{headVersion}/{tailVersion}"),
         ;
 
         val path = "/$handlerKey"
