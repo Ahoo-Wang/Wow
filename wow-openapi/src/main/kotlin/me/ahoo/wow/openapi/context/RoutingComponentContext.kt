@@ -57,8 +57,11 @@ internal object RoutingComponentContext : OpenAPIComponentContext {
 
     override fun header(key: String, builder: Header.() -> Unit): Header = Header().also(builder)
 
-    override fun requestBody(key: String, builder: RequestBodyBuilder.() -> Unit): RequestBody =
-        RequestBodyBuilder().also(builder).build()
+    /**
+     * A placeholder: the builder is not run, since a request body component carries no routing fact and building one
+     * may infer an aggregate's query fields, a schema generation.
+     */
+    override fun requestBody(key: String, builder: RequestBodyBuilder.() -> Unit): RequestBody = RequestBody()
 
     override fun response(key: String, builder: ApiResponseBuilder.() -> Unit): ApiResponse =
         ApiResponseBuilder().also(builder).build()

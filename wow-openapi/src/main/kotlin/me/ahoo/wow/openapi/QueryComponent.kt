@@ -192,9 +192,9 @@ object QueryComponent {
             suffix: String,
             schema: io.swagger.v3.oas.models.media.Schema<*>,
         ): io.swagger.v3.oas.models.parameters.RequestBody {
-            val queryFields = aggregatedFieldsSchema(aggregateMetadata)
+            // The query fields are inferred inside the builder, which only a documenting context runs.
             return requestBody(aggregateMetadata.toStringWithAlias() + suffix) {
-                extension(QUERY_FIELDS_EXTENSION, queryFields)
+                extension(QUERY_FIELDS_EXTENSION, aggregatedFieldsSchema(aggregateMetadata))
                 content(schema = schema)
             }
         }
