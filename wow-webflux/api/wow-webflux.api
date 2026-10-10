@@ -160,8 +160,6 @@ public final class me/ahoo/wow/webflux/route/RawRequestContextKt {
 public final class me/ahoo/wow/webflux/route/ResponsesKt {
 	public static final fun errorResume (Lreactor/core/publisher/Flux;Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)Lreactor/core/publisher/Flux;
 	public static final fun toEventStreamResponse (Lreactor/core/publisher/Flux;Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)Lreactor/core/publisher/Mono;
-	public static final fun toResponseEntity (Ljava/lang/Throwable;)Lorg/springframework/http/ResponseEntity;
-	public static final fun toServerResponse (Lme/ahoo/wow/api/exception/ErrorInfo;)Lreactor/core/publisher/Mono;
 	public static final fun toServerResponse (Lreactor/core/publisher/Flux;Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)Lreactor/core/publisher/Mono;
 	public static final fun toServerResponse (Lreactor/core/publisher/Mono;Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)Lreactor/core/publisher/Mono;
 }
@@ -190,15 +188,7 @@ public final class me/ahoo/wow/webflux/route/StringServerSentEventType : org/spr
 
 public final class me/ahoo/wow/webflux/route/command/AggregateRequestKt {
 	public static final fun extractWaitPlan (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/command/wait/WaitPlan;
-	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
-	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;)Ljava/lang/String;
-	public static final fun getAggregateId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;Ljava/lang/String;)Ljava/lang/String;
 	public static final fun getLocalFirst (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/Boolean;
-	public static final fun getOwnerId (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
-	public static final fun getSpaceId (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
-	public static final fun getSpaceId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;)Ljava/lang/String;
-	public static final fun getTenantId (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Ljava/lang/String;
-	public static final fun getTenantIdOrDefault (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Ljava/lang/String;
 	public static final fun getWaitContext (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
 	public static final fun getWaitFunction (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;
 	public static final fun getWaitProcessor (Lorg/springframework/web/reactive/function/server/ServerRequest;)Ljava/lang/String;

@@ -146,24 +146,10 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 9.2 Aggregate Policies On `@AggregateRoute`
 
-- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property, and the deprecated `ServerRequest.getAggregateId(AggregateRoute.Owner…)` overloads (entry "Wow 9.2 Request Identity Readers").
+- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property.
 - **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregatePolicyResolver.kt`, `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/metadata/AggregateRouteMetadata.kt`
 - **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`.
 - **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute` and the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes); `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
-
-### Wow 9.2 WebFlux Error Helpers
-
-- **Kept compatible**: `Throwable.toResponseEntity()` and `ErrorInfo.toServerResponse()`, helpers an application may call to map an error outside `WebFluxErrorStrategy`, which 9.3.0 made the one mapping of every route error. They still map with the core converter (no caller in Wow), so an unexpected exception is `BadRequest` with its own message there.
-- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/Responses.kt`
-- **Replacement**: `WebFluxErrorStrategy.toServerResponse` (or the `RequestExceptionHandler` bean).
-- **Removal in v10**: delete the two functions. Callers move to the replacement; nothing on the wire changes.
-
-### Wow 9.2 Request Identity Readers
-
-- **Kept compatible**: 9.2 read a request's tenant, owner, space and aggregate ID through eight `ServerRequest` extensions: `getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId` (two overloads) and `getAggregateId` (three overloads, two of them taking `AggregateRoute.Owner`). 9.3 decides every identity fact from the route's binding, so they are deprecated and delegate to it: same rules as the built-in handlers, V3 conflict checks and header aliases included. The ones without aggregate metadata read as for an aggregate with no static tenant and `OwnerPolicy.NEVER`; `getSpaceId()` reads the space header whatever the aggregate. Each now rejects a blank identity path variable the route declares (400), whichever fact it reads: `getTenantId` on a route with a blank `{id}`, for example.
-- **Markers**: `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt`
-- **Replacement**: `ServerRequest.identity(aggregateMetadata)` (or `identity(aggregateRouteMetadata)`) from `me.ahoo.wow.webflux.route.identity`, which returns a `RequestIdentity`: `tenantId()`, `ownerId()`, `aggregateId()`, `spaceId()`, `requestId()`.
-- **Removal in v10**: delete the eight extensions. Code still calling them stops compiling; the migration guide maps each to its `RequestIdentity` reader.
 
 ### Wow 9.2 `MessageBus.receive`
 
