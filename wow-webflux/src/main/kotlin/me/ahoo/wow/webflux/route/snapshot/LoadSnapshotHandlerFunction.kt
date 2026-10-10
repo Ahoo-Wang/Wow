@@ -77,10 +77,7 @@ class LoadSnapshotHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(aggregateRouteMetadata(metadata))
-    }
-
-    private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
+        val aggregateRouteMetadata = aggregateRouteMetadata(metadata)
         return LoadSnapshotHandlerFunction(
             aggregateRouteMetadata,
             snapshotQueryGateway(aggregateRouteMetadata.aggregateMetadata),

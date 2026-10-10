@@ -59,12 +59,8 @@ class ResendStateEventFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return ResendStateEventFunction(
-            aggregateMetadata = aggregateMetadata,
+            aggregateMetadata = aggregateMetadata(metadata),
             eventStore = eventStore,
             stateEventCompensator = stateEventCompensator,
             exceptionHandler = exceptionHandler,

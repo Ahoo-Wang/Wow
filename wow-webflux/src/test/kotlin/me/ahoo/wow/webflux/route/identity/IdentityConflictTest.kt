@@ -37,6 +37,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryEntryPolicy
@@ -56,12 +57,11 @@ import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
-import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
+import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
-import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
@@ -322,8 +322,18 @@ class IdentityConflictTest {
             ),
             LoadEventStreamHandlerFunctionFactory({ countEventGateway }, DefaultQueryRequestScope, exceptionHandler),
             EventCompensateHandlerFunctionFactory(mockk<EventCompensateSupporter>(), exceptionHandler),
-            CountSnapshotHandlerFunctionFactory({ countGateway }, DefaultQueryRequestScope, exceptionHandler),
-            CountEventStreamHandlerFunctionFactory({ countEventGateway }, DefaultQueryRequestScope, exceptionHandler),
+            CountQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                { countGateway },
+                DefaultQueryRequestScope,
+                exceptionHandler
+            ),
+            CountQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Event.COUNT,
+                { countEventGateway },
+                DefaultQueryRequestScope,
+                exceptionHandler
+            ),
         )
         val handlerKeys = factories.map { it.handlerKey }.toSet()
         val materializer = HttpRouteMaterializer(RouteHandlerFunctionRegistrar(factories))

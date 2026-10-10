@@ -20,11 +20,13 @@ import me.ahoo.wow.command.wait.timeout
 import me.ahoo.wow.command.wait.withTimeout
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.reactivestreams.Publisher
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Duration
 
 class CommandHandler(
@@ -76,3 +78,9 @@ class CommandHandler(
             timeout(commandWaitTimeout)
         }
 }
+
+/** The command a command route read from its body: an unreadable body is the client's error (400), and so is none. */
+internal fun <T : Any> Mono<T>.requireCommandBody(): Mono<T> =
+    mapRequestBodyDecodingException().switchIfEmpty {
+        Mono.error(IllegalArgumentException("Command can not be empty."))
+    }

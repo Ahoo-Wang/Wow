@@ -20,8 +20,8 @@ import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.StringServerSentEventType
 import me.ahoo.wow.webflux.route.acceptsEventStream
-import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -29,36 +29,9 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-private object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
-
-internal interface WebFluxResponseStrategy {
+/** How Wow's routes render a result: one JSON value, a JSON array or an event stream, command results included. */
+internal object DefaultWebFluxResponseStrategy {
     fun singleJson(
-        body: Mono<*>,
-        request: ServerRequest,
-        exceptionHandler: RequestExceptionHandler
-    ): Mono<ServerResponse>
-
-    fun <T : Any> jsonArray(
-        body: Flux<T>,
-        request: ServerRequest,
-        exceptionHandler: RequestExceptionHandler
-    ): Mono<ServerResponse>
-
-    fun commandResult(
-        body: Flux<CommandResult>,
-        request: ServerRequest,
-        exceptionHandler: RequestExceptionHandler
-    ): Mono<ServerResponse>
-
-    fun sse(
-        body: Flux<ServerSentEvent<String>>,
-        request: ServerRequest,
-        exceptionHandler: RequestExceptionHandler
-    ): Mono<ServerResponse>
-}
-
-internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
-    override fun singleJson(
         body: Mono<*>,
         request: ServerRequest,
         exceptionHandler: RequestExceptionHandler
@@ -76,7 +49,7 @@ internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
         }
     }
 
-    override fun <T : Any> jsonArray(
+    fun <T : Any> jsonArray(
         body: Flux<T>,
         request: ServerRequest,
         exceptionHandler: RequestExceptionHandler
@@ -93,7 +66,7 @@ internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
         return Mono.just(StreamingJsonArrayResponse(body, request, exceptionHandler))
     }
 
-    override fun commandResult(
+    fun commandResult(
         body: Flux<CommandResult>,
         request: ServerRequest,
         exceptionHandler: RequestExceptionHandler
@@ -112,7 +85,7 @@ internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
         return sse(serverSentEventStream, request, exceptionHandler)
     }
 
-    override fun sse(
+    fun sse(
         body: Flux<ServerSentEvent<String>>,
         request: ServerRequest,
         exceptionHandler: RequestExceptionHandler

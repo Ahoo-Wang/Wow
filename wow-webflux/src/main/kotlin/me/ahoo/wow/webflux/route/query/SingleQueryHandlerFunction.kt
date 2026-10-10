@@ -44,7 +44,7 @@ class SingleQueryHandlerFunction(
         }
 }
 
-open class SingleQueryHandlerFunctionFactory(
+class SingleQueryHandlerFunctionFactory(
     handlerKey: String,
     queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     queryRequestScope: QueryRequestScope,

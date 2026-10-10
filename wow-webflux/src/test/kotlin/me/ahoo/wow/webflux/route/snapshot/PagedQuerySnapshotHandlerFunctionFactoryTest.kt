@@ -22,6 +22,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -33,7 +34,8 @@ class PagedQuerySnapshotHandlerFunctionFactoryTest {
 
     @Test
     fun `should handle paged query snapshot request`() {
-        val handlerFunction = PagedQuerySnapshotHandlerFunctionFactory(
+        val handlerFunction = PagedQueryHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
             { RouteTestFixtures.snapshotQueryGateway },
             DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),

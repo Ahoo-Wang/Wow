@@ -13,9 +13,13 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -50,4 +54,21 @@ internal class QuerySchemaHandlerFunction(
                 }
             }
             .onErrorResume { exceptionHandler.handle(request, it) }
+}
+
+/** Creates the `GET …/schema` handler of the route identified by [handlerKey], for snapshot and event stream alike. */
+class QuerySchemaHandlerFunctionFactory(
+    handlerKey: String,
+    private val queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
+    private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
+) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata.Aggregate,
+    ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
+        queryGateway = queryGateway(aggregateMetadata(metadata)),
+        exceptionHandler = exceptionHandler,
+        guard = guard,
+    )
 }

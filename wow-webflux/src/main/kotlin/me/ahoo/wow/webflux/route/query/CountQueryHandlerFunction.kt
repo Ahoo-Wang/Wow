@@ -42,7 +42,7 @@ class CountQueryHandlerFunction(
         support.mono(request, extractor) { queryGateway.count(it) }
 }
 
-open class CountQueryHandlerFunctionFactory(
+class CountQueryHandlerFunctionFactory(
     handlerKey: String,
     queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     queryRequestScope: QueryRequestScope,

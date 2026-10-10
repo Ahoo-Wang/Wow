@@ -36,13 +36,14 @@ class LoadVersionedAggregateHandlerFunctionTest {
 
     @Test
     fun `should handle load versioned aggregate request`() {
-        val handlerFunction = LoadVersionedAggregateHandlerFunctionFactory(
+        val handlerFunction = LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 snapshotStore = NoOpSnapshotStore,
                 eventStore = InMemoryEventStore(),
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
+            route = StateLoadRoute.VERSIONED,
         ).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_VERSIONED_AGGREGATE,

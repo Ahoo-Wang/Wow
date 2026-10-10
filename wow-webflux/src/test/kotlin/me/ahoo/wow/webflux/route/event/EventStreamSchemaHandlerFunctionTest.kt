@@ -30,6 +30,7 @@ import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -43,7 +44,8 @@ class EventStreamSchemaHandlerFunctionTest {
     fun `get should return event stream schema`() {
         val provider = RecordingSchemaProvider()
         val factory = RecordingEventStreamQueryBackendFactory(provider)
-        val handler = EventStreamSchemaHandlerFunctionFactory(
+        val handler = QuerySchemaHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
             queryGateway = factory::gateway,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
@@ -69,7 +71,8 @@ class EventStreamSchemaHandlerFunctionTest {
         val factory = RecordingEventStreamQueryBackendFactory(
             UnavailableSchemaProvider,
         )
-        val schemaHandler = EventStreamSchemaHandlerFunctionFactory(
+        val schemaHandler = QuerySchemaHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
             queryGateway = factory::gateway,
             exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))

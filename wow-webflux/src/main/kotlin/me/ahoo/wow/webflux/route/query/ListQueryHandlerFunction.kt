@@ -45,7 +45,7 @@ class ListQueryHandlerFunction(
         }
 }
 
-open class ListQueryHandlerFunctionFactory(
+class ListQueryHandlerFunctionFactory(
     handlerKey: String,
     queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     queryRequestScope: QueryRequestScope,

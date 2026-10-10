@@ -21,6 +21,9 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class RegenerateSnapshotHandler(
@@ -29,6 +32,16 @@ class RegenerateSnapshotHandler(
     private val eventStore: EventStore,
     private val snapshotStore: SnapshotStore
 ) {
+
+    /**
+     * Regenerates the snapshots of up to [limit] aggregates after [afterId], [batchExecutionPolicy] bounding how many
+     * run at once; emits each aggregate it went through. A failed aggregate fails the batch with a
+     * [BatchTaskException][me.ahoo.wow.webflux.exception.BatchTaskException] naming it.
+     */
+    fun regenerate(afterId: String, limit: Int, batchExecutionPolicy: BatchExecutionPolicy): Flux<AggregateId> =
+        batchExecutionPolicy.apply(eventStore.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)) {
+            handle(it).thenReturn(it).onErrorMapBatchTaskException(it)
+        }
 
     fun handle(aggregateId: AggregateId): Mono<Snapshot<*>> {
         return stateAggregateFactory.createAsMono(aggregateMetadata.state, aggregateId).flatMap { stateAggregate ->

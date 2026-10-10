@@ -21,9 +21,8 @@ import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.state.LoadTimeBasedAggregateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.PointReadAdmission
+import me.ahoo.wow.webflux.route.state.StateLoadRoute
 
 class StateRouteModule(
     stateAggregateRepository: StateAggregateRepository,
@@ -33,28 +32,13 @@ class StateRouteModule(
     tracingPolicy: TracingPolicy,
     admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : WebFluxRouteModule {
-    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        LoadAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler,
-            admission = admission,
-        ),
-        LoadVersionedAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler,
-            admission = admission,
-        ),
-        LoadTimeBasedAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler,
-            admission = admission,
-        ),
-        AggregateTracingHandlerFunctionFactory(
-            stateAggregateFactory = stateAggregateFactory,
-            eventStore = eventStore,
-            exceptionHandler = exceptionHandler,
-            tracingPolicy = tracingPolicy,
-            admission = admission,
-        ),
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = StateLoadRoute.entries.map {
+        LoadAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler, admission, it)
+    } + AggregateTracingHandlerFunctionFactory(
+        stateAggregateFactory = stateAggregateFactory,
+        eventStore = eventStore,
+        exceptionHandler = exceptionHandler,
+        tracingPolicy = tracingPolicy,
+        admission = admission,
     )
 }

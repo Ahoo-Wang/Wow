@@ -36,6 +36,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.QuerySchemaRefreshHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -50,7 +51,8 @@ class SnapshotSchemaHandlerFunctionFactoryTest {
     @Test
     fun `get should return the capability descriptor without physical bindings`() {
         val provider = RecordingSchemaProvider(SCHEMA)
-        val handler = SnapshotSchemaHandlerFunctionFactory(
+        val handler = QuerySchemaHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA,
             queryGateway = RecordingSnapshotQueryBackendFactory(provider)::gateway,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA))
@@ -109,7 +111,8 @@ class SnapshotSchemaHandlerFunctionFactoryTest {
             UnavailableSchemaProvider,
         )
         val exceptionHandler = WebFluxRequestExceptionHandler()
-        val schemaHandler = SnapshotSchemaHandlerFunctionFactory(
+        val schemaHandler = QuerySchemaHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA,
             queryGateway = backendFactory::gateway,
             exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA))

@@ -25,6 +25,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
@@ -35,16 +36,15 @@ import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandTestFixtures
 import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
-import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
+import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
-import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.state.LoadTimeBasedAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.StateLoadRoute
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.http.HttpMethod
@@ -87,7 +87,11 @@ class BlankPathSegmentRouteTest {
                 commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT)
             ),
             LoadAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler),
-            LoadTimeBasedAggregateHandlerFunctionFactory(stateAggregateRepository, exceptionHandler),
+            LoadAggregateHandlerFunctionFactory(
+                stateAggregateRepository,
+                exceptionHandler,
+                route = StateLoadRoute.TIME_BASED
+            ),
             LoadSnapshotHandlerFunctionFactory({ snapshotGateway }, DefaultQueryRequestScope, exceptionHandler),
             RegenerateSnapshotHandlerFunctionFactory(
                 stateAggregateFactory = mockk<StateAggregateFactory>(),
@@ -97,8 +101,18 @@ class BlankPathSegmentRouteTest {
             ),
             LoadEventStreamHandlerFunctionFactory({ eventGateway }, DefaultQueryRequestScope, exceptionHandler),
             EventCompensateHandlerFunctionFactory(mockk<EventCompensateSupporter>(), exceptionHandler),
-            CountSnapshotHandlerFunctionFactory({ snapshotGateway }, DefaultQueryRequestScope, exceptionHandler),
-            CountEventStreamHandlerFunctionFactory({ eventGateway }, DefaultQueryRequestScope, exceptionHandler),
+            CountQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                { snapshotGateway },
+                DefaultQueryRequestScope,
+                exceptionHandler
+            ),
+            CountQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Event.COUNT,
+                { eventGateway },
+                DefaultQueryRequestScope,
+                exceptionHandler
+            ),
         )
         val handlerKeys = factories.map { it.handlerKey }.toSet()
         val materializer = HttpRouteMaterializer(RouteHandlerFunctionRegistrar(factories))

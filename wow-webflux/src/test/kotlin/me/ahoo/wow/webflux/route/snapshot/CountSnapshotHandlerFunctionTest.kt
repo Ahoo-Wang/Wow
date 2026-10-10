@@ -20,6 +20,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -32,7 +33,8 @@ class CountSnapshotHandlerFunctionTest {
 
     @Test
     fun `should handle count snapshot query`() {
-        val handlerFunction = CountSnapshotHandlerFunctionFactory(
+        val handlerFunction = CountQueryHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             { RouteTestFixtures.snapshotQueryGateway },
             DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),

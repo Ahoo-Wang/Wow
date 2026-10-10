@@ -20,13 +20,11 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.extractor.CommandFacadeBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
-import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.switchIfEmpty
 
 /**
  * [org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping]
@@ -34,10 +32,10 @@ import reactor.kotlin.core.publisher.switchIfEmpty
  * [org.springframework.web.reactive.function.server.support.RouterFunctionMapping]
  */
 class CommandFacadeHandlerFunction(
-    private val commandGateway: CommandGateway,
-    private val commandMessageExtractor: CommandMessageExtractor,
+    commandGateway: CommandGateway,
+    commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
-    private val commandWaitPolicy: CommandWaitPolicy
+    commandWaitPolicy: CommandWaitPolicy
 ) : HandlerFunction<ServerResponse> {
     private val handler = CommandHandler(
         commandGateway = commandGateway,
@@ -46,9 +44,7 @@ class CommandFacadeHandlerFunction(
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.body(CommandFacadeBodyExtractor).mapRequestBodyDecodingException().switchIfEmpty {
-            Mono.error(IllegalArgumentException("Command can not be empty."))
-        }.flatMapMany {
+        return request.body(CommandFacadeBodyExtractor).requireCommandBody().flatMapMany {
             handler.handle(request, it.t1, it.t2)
         }.toCommandResponse(request, exceptionHandler)
     }

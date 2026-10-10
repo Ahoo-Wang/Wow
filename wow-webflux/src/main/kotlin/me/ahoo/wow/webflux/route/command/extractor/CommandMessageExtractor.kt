@@ -35,22 +35,13 @@ interface CommandMessageExtractor {
 class DefaultCommandMessageExtractor(
     private val commandMessageFactory: CommandMessageFactory,
     private val commandBuilderExtractor: CommandBuilderExtractor,
-    private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf()
-) : CommandMessageExtractor {
-    private var identityHeaderAliases: IdentityHeaderAliases = IdentityHeaderAliases.NONE
-
+    private val commandRequestHeaderAppends: List<CommandRequestHeaderAppender> = listOf(),
     /**
-     * With [identityHeaderAliases] (CoSec's, say) applied also to a request whose handler was invoked outside the
-     * router, such as a downstream module calling `CommandHandler` directly. Since 9.3.0.
+     * Applied (CoSec's, say) also to a request whose handler was invoked outside the router, such as a downstream
+     * module calling `CommandHandler` directly.
      */
-    constructor(
-        commandMessageFactory: CommandMessageFactory,
-        commandBuilderExtractor: CommandBuilderExtractor,
-        commandRequestHeaderAppends: List<CommandRequestHeaderAppender>,
-        identityHeaderAliases: IdentityHeaderAliases,
-    ) : this(commandMessageFactory, commandBuilderExtractor, commandRequestHeaderAppends) {
-        this.identityHeaderAliases = identityHeaderAliases
-    }
+    private val identityHeaderAliases: IdentityHeaderAliases = IdentityHeaderAliases.NONE,
+) : CommandMessageExtractor {
 
     override fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
