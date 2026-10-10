@@ -73,14 +73,3 @@ internal fun forceAllReporting(
     }
     return firstFailure
 }
-
-internal fun Throwable.addSuppressedIfAbsent(error: Throwable) {
-    if (this === error) {
-        return
-    }
-    synchronized(this) {
-        if (suppressedExceptions.none { suppressed -> suppressed === error }) {
-            addSuppressed(error)
-        }
-    }
-}

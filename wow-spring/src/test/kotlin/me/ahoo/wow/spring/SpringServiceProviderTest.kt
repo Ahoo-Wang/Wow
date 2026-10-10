@@ -35,4 +35,10 @@ class SpringServiceProviderTest {
 
         serviceProvider.getService<SpringServiceProviderTest>("named").assert().isSameAs(this)
     }
+
+    @Test
+    fun `a missing named service is null`() {
+        SpringServiceProvider(DefaultListableBeanFactory()).getService<SpringServiceProviderTest>("missing")
+            .assert().isNull()
+    }
 }

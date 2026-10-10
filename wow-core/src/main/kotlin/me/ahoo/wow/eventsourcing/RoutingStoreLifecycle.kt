@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.eventsourcing
 
+import me.ahoo.wow.infra.forEachThenThrow
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -22,24 +23,11 @@ internal class RoutingStoreLifecycle(
     private val stores = stores.distinctByIdentity()
     private val closed = AtomicBoolean()
 
-    @Suppress("TooGenericExceptionCaught")
     override fun close() {
         if (!closed.compareAndSet(false, true)) {
             return
         }
-        var failure: Throwable? = null
-        stores.forEach { store ->
-            try {
-                store.close()
-            } catch (closeFailure: Throwable) {
-                if (failure == null) {
-                    failure = closeFailure
-                } else if (failure !== closeFailure) {
-                    failure.addSuppressed(closeFailure)
-                }
-            }
-        }
-        failure?.let { throw it }
+        stores.forEachThenThrow(AutoCloseable::close)
     }
 }
 

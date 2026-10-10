@@ -13,77 +13,52 @@
 
 package me.ahoo.wow.spring.query
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.JsonSerializer
-import org.springframework.beans.factory.support.BeanDefinitionBuilder
-import org.springframework.beans.factory.support.BeanDefinitionRegistry
+import org.springframework.beans.factory.getBean
 import org.springframework.core.ResolvableType
 
+/** Registers each aggregate's [SnapshotQueryGateway], typed by its state so it can be injected by generics. */
 @OptIn(WowSpi::class) // Binds each aggregate's gateway to its routed query backend.
-class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
+class SnapshotQueryGatewayRegistrar :
+    QueryGatewayRegistrar(QueryModel.SNAPSHOT, SNAPSHOT_QUERY_OBSERVER_BEAN_NAME) {
     companion object {
         /** Bean name for the snapshot observer shared by aggregate gateways; also used for custom overrides. */
         const val SNAPSHOT_QUERY_OBSERVER_BEAN_NAME = "snapshotQueryObserver"
-
-        private val log = KotlinLogging.logger {}
     }
 
-    override fun registerQueryGateway(
-        entry: Map.Entry<MaterializedNamedAggregate, Class<*>>,
-        registry: BeanDefinitionRegistry,
-    ) {
-        val namedAggregate = entry.key
-        val beanName = namedAggregate.snapshotQueryGatewayBeanName()
-        log.info {
-            "Register SnapshotQueryGateway [$beanName]."
-        }
-        if (registry.containsBeanDefinition(beanName)) {
-            log.warn {
-                "SnapshotQueryGateway [$beanName] already exists - use it as-is."
-            }
-            return
-        }
+    override fun gatewayBeanName(namedAggregate: NamedAggregate): String =
+        namedAggregate.snapshotQueryGatewayBeanName()
 
-        val stateType = entry.value.aggregateMetadata<Any, Any>().state.aggregateType
-        val gatewayType = ResolvableType.forClassWithGenerics(SnapshotQueryGateway::class.java, stateType)
-        val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(gatewayType) {
-            val backend = appContext.getBean(SnapshotQueryBackendFactory::class.java).create(namedAggregate).backend
-            val schema = appContext.getBean(QuerySchemaCatalog::class.java)
-                .provider(namedAggregate, QueryModel.SNAPSHOT)
-
-            val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
-            val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
-            val entryPolicy = appContext.getBeanProvider(QueryEntryPolicy::class.java)
-                .getIfAvailable { QueryEntryPolicy.DEFAULT }
-            val observer = appContext.getBean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME, QueryObserver::class.java)
+    override fun gatewayDefinition(
+        namedAggregate: MaterializedNamedAggregate,
+        aggregateType: Class<*>,
+    ): QueryGatewayDefinition {
+        val stateType = aggregateType.aggregateMetadata<Any, Any>().state.aggregateType
+        return QueryGatewayDefinition(
+            type = ResolvableType.forClassWithGenerics(SnapshotQueryGateway::class.java, stateType),
+        ) { beanFactory, collaborators ->
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
-                backend = backend,
-                schemaProvider = schema,
+                backend = beanFactory.getBean<SnapshotQueryBackendFactory>().create(namedAggregate).backend,
+                schemaProvider = collaborators.schemaProvider,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
                     stateType,
                 ),
-                filters = filters,
-                policies = policies,
-                observer = observer,
-                entryPolicy = entryPolicy,
+                filters = collaborators.filters,
+                policies = collaborators.policies,
+                observer = collaborators.observer,
+                entryPolicy = collaborators.entryPolicy,
             )
-        }.beanDefinition
-
-        registry.registerBeanDefinition(beanName, beanDefinition)
+        }
     }
 }
