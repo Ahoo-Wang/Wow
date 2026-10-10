@@ -64,6 +64,17 @@ Advance only when the current gate has reproducible evidence:
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
 
+## Upgrading from 9.6 to 9.7.0
+
+9.7.0 cleans up `wow-webflux` internals. They are internal implementation, not public entry APIs, so they change without a deprecation cycle (see the scope in `docs/compat-debt.md`). Routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes can share one cluster. Applications that build their routes through the starter need no change; code that builds `wow-webflux` routes itself needs the changes below.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| The query factories that only bound a handler key are removed: `Count`/`List`/`Paged`/`CursorQuery`/`Single` `…SnapshotHandlerFunctionFactory`, their `…SnapshotState…` variants, `Count`/`List`/`Paged`/`CursorQueryEventStreamHandlerFunctionFactory`, `SnapshotSchemaHandlerFunctionFactory` and `EventStreamSchemaHandlerFunctionFactory`. The `*QueryHandlerFunctionFactory` classes are final | Code that builds query routes itself | Use `CountQueryHandlerFunctionFactory`, `ListQueryHandlerFunctionFactory`, … with `BuiltInHttpRouteHandlerKeys.Snapshot.*` or `Event.*`; for a `*_STATE` route also pass `rewriteResult = { it.toStateDocument() }` (`toStateDocumentPagedList()` for paged, `toStateDocumentCursorPage()` for cursor). Use `QuerySchemaHandlerFunctionFactory(handlerKey, …)` for the schema routes |
+| `AbstractLoadAggregateHandlerFunction`, `LoadVersionedAggregateHandlerFunction(Factory)` and `LoadTimeBasedAggregateHandlerFunction(Factory)` are removed | Code that builds state load routes itself | Use `LoadAggregateHandlerFunction(Factory)` with `route = StateLoadRoute.VERSIONED` or `StateLoadRoute.TIME_BASED` |
+| `DefaultCommandMessageExtractor` and `RouterFunctionBuilder` lose their secondary constructors; `EMPTY_OK` is private | Code compiled against them | Recompile: the same arguments work through the primary constructor |
+| A tracing request with a `limit` whose read of the stream's tail fails answers with the error's own status before the response starts, instead of `200` and an error event on an event stream | SSE clients of the tracing route | Nothing |
+
 ## Upgrading from 9.5 to 9.6.0
 
 For `wow-openapi`, 9.6.0 makes route contracts pure data (design: `documentation/designs/2026-10-09-wow-openapi-refactor-design.md`). Routes, route ids and the generated OpenAPI document are unchanged, and REST, OpenAPI and wire formats are unchanged, so 9.5.x and 9.6.0 nodes can share one cluster. Code compiled against 9.5 must be recompiled; code that implements `RouteContributor` or builds route contracts needs the source changes below.
