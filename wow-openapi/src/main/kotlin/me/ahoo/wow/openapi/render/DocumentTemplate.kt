@@ -30,8 +30,9 @@ import io.swagger.v3.oas.models.tags.Tag
 /**
  * A rendered document that is merged into other documents, as many times as needed and from any thread, without
  * rendering again. Each merge gets its own copy of the path items, operations, parameters, request bodies, responses,
- * headers and media types, so changing them affects no other document. Schemas and the components (schemas,
- * parameters, headers, request bodies, responses) are shared, as they are generated once.
+ * headers and media types, and of the parameter, header, request body and response components, so changing them
+ * affects no other document. Only the [io.swagger.v3.oas.models.media.Schema] instances are shared, as they are
+ * generated once: copy a schema before changing it.
  */
 internal class DocumentTemplate(rendered: OpenAPI) {
     private val openapi: String? = rendered.openapi
@@ -65,10 +66,10 @@ internal class DocumentTemplate(rendered: OpenAPI) {
     private fun mergeComponents(openAPI: OpenAPI) {
         val target = openAPI.components ?: Components().also { openAPI.components = it }
         components.schemas.orEmpty().forEach { (name, schema) -> target.addSchemas(name, schema) }
-        components.parameters.orEmpty().forEach { (name, parameter) -> target.addParameters(name, parameter) }
-        components.headers.orEmpty().forEach { (name, header) -> target.addHeaders(name, header) }
-        components.requestBodies.orEmpty().forEach { (name, body) -> target.addRequestBodies(name, body) }
-        components.responses.orEmpty().forEach { (name, response) -> target.addResponses(name, response) }
+        components.parameters.orEmpty().forEach { (name, parameter) -> target.addParameters(name, parameter.copy()) }
+        components.headers.orEmpty().forEach { (name, header) -> target.addHeaders(name, header.copy()) }
+        components.requestBodies.orEmpty().forEach { (name, body) -> target.addRequestBodies(name, body.copy()) }
+        components.responses.orEmpty().forEach { (name, response) -> target.addResponses(name, response.copy()) }
     }
 
     private companion object {
@@ -159,7 +160,9 @@ internal class DocumentTemplate(rendered: OpenAPI) {
         fun MediaType.copy(): MediaType = MediaType().also { copy ->
             copy.schema = schema
             copy.examples = examples?.let(::LinkedHashMap)
-            example?.let { copy.example = it }
+            if (exampleSetFlag) {
+                copy.example = example
+            }
             copy.encoding = encoding?.let(::LinkedHashMap)
             copy.extensions = extensions?.let(::LinkedHashMap)
         }

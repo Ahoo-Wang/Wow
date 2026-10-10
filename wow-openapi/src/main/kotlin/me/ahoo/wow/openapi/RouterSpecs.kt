@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.render.DocumentTemplate
 import me.ahoo.wow.openapi.render.OpenApiRenderer
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -91,11 +92,20 @@ class RouterSpecs(
      * tags, and the schemas and components the routes reference.
      *
      * The document is rendered once, by the first call (or by [buildDocumentation]); that render generates the schemas
-     * and may block. Every call merges a copy of it, so a caller may change the path items and operations it gets
-     * without affecting other documents; the components are shared. It may be called concurrently.
+     * and may block, so on a non-blocking thread (an event loop) the first call fails with [IllegalStateException]:
+     * call [buildDocumentation] at startup. Every call merges a copy of the rendered document, so a caller may change
+     * the path items, operations and components it gets without affecting other documents; only the
+     * [io.swagger.v3.oas.models.media.Schema] instances are shared, so copy a schema before changing it. It may be
+     * called concurrently.
      */
     fun mergeOpenAPI(openAPI: OpenAPI) {
-        val template = documentTemplate()
+        val template = template ?: run {
+            check(!Schedulers.isInNonBlockingThread()) {
+                "The OpenAPI document is not rendered yet, and rendering it may block, which " +
+                    "${Thread.currentThread().name} does not allow: call RouterSpecs.buildDocumentation() at startup."
+            }
+            documentTemplate()
+        }
         openAPI.ensureInfo()
         template.mergeInto(openAPI)
     }

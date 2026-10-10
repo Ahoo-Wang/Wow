@@ -324,10 +324,69 @@ internal class RouterSpecsTest {
             operation.parameters?.forEach { it.description = "changed" }
             operation.responses?.values?.forEach { it.description = "changed" }
             operation.requestBody?.description = "changed"
+            operation.requestBody?.content?.values?.forEach { it.example = "changed" }
             operation.responses?.values?.forEach { response -> response.headers?.values?.forEach { it.description = "changed" } }
         }
 
+        first.components.responses.values.forEach { it.description = "changed" }
+        first.components.parameters.values.forEach { it.description = "changed" }
+        first.components.headers.values.forEach { it.description = "changed" }
+        first.components.requestBodies.values.forEach { it.description = "changed" }
+
         render(routerSpecs).assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `merge should keep the operations already on a path`() {
+        val routerSpecs = RouterSpecs(namedContext).buildDocumentation()
+        val path = routerSpecs.toRouteCatalog().routes.first().path
+        val existingOperation = Operation().operationId("springdoc.trace")
+        val existing = PathItem().summary("Existing").trace(existingOperation)
+        val openAPI = OpenAPI().paths(Paths().addPathItem(path, existing))
+
+        routerSpecs.mergeOpenAPI(openAPI)
+
+        val pathItem = openAPI.paths.getValue(path)
+        pathItem.assert().isSameAs(existing)
+        pathItem.trace.assert().isSameAs(existingOperation)
+        pathItem.readOperations().size.assert().isGreaterThan(1)
+        pathItem.summary.assert().isEqualTo(routerSpecs.toRouteCatalog().routes.first().summary)
+    }
+
+    @Test
+    fun `inline merges should copy the inlined components`() {
+        val component = HttpComponent.response("test.Inline") { description("inline") }
+        val routerSpecs = RouterSpecs(
+            namedContext,
+            OpenAPIComponentContext.default(inline = true),
+            routeContributors = listOf(responseContributor(component, "/inline"))
+        ).buildDocumentation()
+        val first = OpenAPI()
+        val second = OpenAPI()
+
+        routerSpecs.mergeOpenAPI(first)
+        routerSpecs.mergeOpenAPI(second)
+
+        val response = first.paths.getValue("/inline").get.responses.getValue(Https.Code.OK)
+        val other = second.paths.getValue("/inline").get.responses.getValue(Https.Code.OK)
+        response.`$ref`.assert().isNull()
+        response.description.assert().isEqualTo("inline")
+        other.assert().isEqualTo(response)
+        other.assert().isNotSameAs(response)
+        first.components.responses.assert().isNull()
+    }
+
+    @Test
+    fun `the first merge on a non-blocking thread should ask for build documentation`() {
+        val routerSpecs = RouterSpecs(namedContext).build()
+
+        val error = assertThrows<IllegalStateException> {
+            Mono.fromCallable { routerSpecs.mergeOpenAPI(OpenAPI()) }
+                .subscribeOn(Schedulers.parallel())
+                .block(Duration.ofMinutes(1))
+        }
+
+        error.message.assert().contains("buildDocumentation()")
     }
 
     @Test

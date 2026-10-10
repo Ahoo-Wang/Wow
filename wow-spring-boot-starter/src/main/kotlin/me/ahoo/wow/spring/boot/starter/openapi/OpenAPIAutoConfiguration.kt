@@ -82,7 +82,8 @@ class OpenAPIAutoConfiguration {
             routeContributors = contributors,
         )
         // The document is rendered (and its schemas generated) only when it is served, and then once, at startup:
-        // every request merges a copy of it and never blocks.
+        // every request merges a copy of it and never blocks. The customizer bean renders too (a no-op once this ran)
+        // because an application may define its own RouterSpecs bean, which this method then does not create.
         if (openAPIProperties.enabled && ClassUtils.isPresent(SPRINGDOC_CUSTOMIZER, null)) {
             routerSpecs.buildDocumentation()
         }
@@ -95,7 +96,8 @@ class OpenAPIAutoConfiguration {
     class SpringdocConfiguration {
         @Bean
         fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
-            // The document is served: its schemas are generated at startup, not on the first (event loop) request.
+            // The document is served: render it at startup, not on the first (event loop) request. A no-op when the
+            // routerSpecs bean above already rendered it; needed when the application supplies its own RouterSpecs.
             return WowOpenApiCustomizer(routerSpecs.buildDocumentation())
         }
     }

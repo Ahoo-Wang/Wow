@@ -17,7 +17,9 @@ import me.ahoo.wow.openapi.contract.HttpComponent
 
 /**
  * What an [HttpComponent] is built with: the component context, which generates schemas, plus [ref] for referencing
- * another component from inside this one.
+ * another component from inside this one. Reference another component with [ref] rather than registering it with the
+ * context's `parameter`, `header`, `requestBody` or `response`: [ref] builds it once per render and keeps its key
+ * checked for uniqueness.
  */
 interface HttpComponentContext : OpenAPIComponentContext {
     /**

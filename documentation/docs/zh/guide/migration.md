@@ -69,6 +69,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
 | 修复：`RouterSpecs.mergeOpenAPI` 可以并发调用：文档只渲染一次（启动时由 `buildDocumentation()` 完成），每次调用合并其副本，不生成 Schema、不阻塞 | 从多个线程渲染文档的服务，例如多个 Springdoc 分组 | 无需操作 |
+| 渲染错误（例如同一 key 的两个不同组件）在存在 Springdoc 时会让应用启动失败（文档由 `buildDocumentation()` 渲染），而不是在第一次请求 `/v3/api-docs` 时出错；在事件循环线程上首次调用 `mergeOpenAPI` 会失败并提示调用 `buildDocumentation()` | 提供 OpenAPI 文档的应用；自行调用 `mergeOpenAPI` 的库代码 | 修正报错的路由合同；在请求线程上合并之前，启动时先调用 `buildDocumentation()` |
 | 修复：上下文内联 Schema 时（`OpenAPIComponentContext.default(inline = true)`），组件被内联，而不是输出指向从未登记的组件的 `$ref` | 使用内联上下文渲染的文档 | 无需操作 |
 | `RouteContributor.contributeGlobal(currentContext)` 与 `contributeAggregate(currentContext, aggregateRouteMetadata)` 去掉 `componentContext` 参数；删除 `id`、`order`、`category` 以及 `RouteContributors`、`RouteCategory` | 自定义贡献者 | 删除该参数与三个属性（目录自己排序路由）。构造合同时不再登记组件或生成 Schema，而是引用它们：Schema 用 `HttpSchema.TypeRef(type, typeArguments)`，组件用 `HttpComponent.parameter(key) { … }`（或 `header`、`requestBody`、`response`） |
 | `HttpParameter`、`HttpHeader`、`HttpRequestBody`、`HttpResponse` 的 `componentRef: String?` 改为 `component: HttpComponent<…>?`；删除 `HttpRouteContract.pathSummary`、`pathDescription` | 构造或读取合同的代码 | 传入由工厂函数创建的 `HttpComponent`，渲染器以其 key 登记，组件 key 必须唯一。不能再为 path item 设置与第一个路由不同的 summary 或 description：path item 取第一个路由的 summary 与 description |

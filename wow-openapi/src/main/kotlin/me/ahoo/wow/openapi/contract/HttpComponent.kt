@@ -55,7 +55,7 @@ class HttpComponent<T : Any> private constructor(
      * Builds the component with [context] and registers it under [key]. Returns a `$ref` to it, or the component
      * itself when the context inlines schemas. Called by the renderer.
      */
-    fun build(context: HttpComponentContext): T = context.register()
+    internal fun build(context: HttpComponentContext): T = context.register()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
