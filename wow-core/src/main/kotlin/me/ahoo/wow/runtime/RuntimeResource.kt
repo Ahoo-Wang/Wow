@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.runtime
 
+import me.ahoo.wow.infra.forEachThenThrow
 import me.ahoo.wow.runtime.internal.DefaultRuntimeContext
 import me.ahoo.wow.runtime.internal.DefaultRuntimeExecutionResources
-import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import java.util.Collections
@@ -95,17 +95,7 @@ class RuntimeResources internal constructor(
         )
     }
 
-    @Suppress("TooGenericExceptionCaught")
     override fun forceStop() {
-        var failure: Throwable? = null
-        resources.forEach { resource ->
-            try {
-                resource.forceStop()
-            } catch (error: Throwable) {
-                Exceptions.throwIfFatal(error)
-                failure?.addSuppressed(error) ?: run { failure = error }
-            }
-        }
-        failure?.let { throw it }
+        resources.forEachThenThrow(RuntimeResource::forceStop)
     }
 }

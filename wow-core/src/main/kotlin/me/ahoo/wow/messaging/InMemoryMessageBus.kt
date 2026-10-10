@@ -17,6 +17,7 @@ import com.google.errorprone.annotations.ThreadSafe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.mergeFailure
 import me.ahoo.wow.infra.sink.CloseSettlementAware
 import me.ahoo.wow.infra.sink.prepareConcurrentSink
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -400,7 +401,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             val attempt = tryCloseSink(aggregate, many)
             attempt.settledSink?.let(settledSinks::add)
             attempt.pendingSettlement?.let(pendingSettlements::add)
-            attempt.failure?.let { closeFailure = mergeCloseFailure(closeFailure, it) }
+            attempt.failure?.let { closeFailure = closeFailure.mergeFailure(it) }
         }
         if (pendingSettlements.isEmpty()) {
             finishClose(settledSinks)
@@ -488,16 +489,6 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 failure = error,
             )
         }
-
-    private fun mergeCloseFailure(current: Throwable?, next: Throwable): Throwable {
-        if (current == null) {
-            return next
-        }
-        if (current !== next) {
-            current.addSuppressed(next)
-        }
-        return current
-    }
 
     private fun Sinks.Many<M>.closeSettlement(): CompletableFuture<Unit>? =
         (this as? CloseSettlementAware)?.closeSettled
