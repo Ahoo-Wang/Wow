@@ -24,17 +24,17 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.webflux.route.identity.identity
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import org.springframework.web.reactive.function.server.ServerRequest
 
 class OwnerAggregatePreconditionTest {
 
     @Test
     fun `should pass when owner check is NEVER`() {
-        val request = mockk<ServerRequest>()
         val stateAggregate = mockk<StateAggregate<Any>>()
-        OwnerAggregatePrecondition(request, OwnerPolicy.NEVER).check(stateAggregate)
+        OwnerAggregatePrecondition(OwnerPolicy.NEVER) { error("The owner is not read.") }.check(stateAggregate)
     }
 
     @Test
@@ -48,7 +48,7 @@ class OwnerAggregatePreconditionTest {
             every { ownerId } returns customerId
         }
 
-        OwnerAggregatePrecondition(request, OwnerPolicy.ALWAYS).check(stateAggregate)
+        OwnerAggregatePrecondition(request.identity(MOCK_AGGREGATE_METADATA), OwnerPolicy.ALWAYS).check(stateAggregate)
     }
 
     @Test
@@ -62,7 +62,10 @@ class OwnerAggregatePreconditionTest {
             every { aggregateId } returns "test.test".toNamedAggregate().aggregateId()
         }
         assertThrownBy<IllegalAccessOwnerAggregateException> {
-            OwnerAggregatePrecondition(request, OwnerPolicy.ALWAYS).check(stateAggregate)
+            OwnerAggregatePrecondition(
+                request.identity(MOCK_AGGREGATE_METADATA),
+                OwnerPolicy.ALWAYS
+            ).check(stateAggregate)
         }
     }
 
@@ -77,7 +80,10 @@ class OwnerAggregatePreconditionTest {
         }
 
         assertThrownBy<IllegalArgumentException> {
-            OwnerAggregatePrecondition(request, OwnerPolicy.ALWAYS).check(stateAggregate)
+            OwnerAggregatePrecondition(
+                request.identity(MOCK_AGGREGATE_METADATA),
+                OwnerPolicy.ALWAYS
+            ).check(stateAggregate)
         }.hasMessage("Path variable [ownerId] must not be blank.")
     }
 }

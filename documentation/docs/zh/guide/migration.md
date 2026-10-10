@@ -64,7 +64,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.6 升级到 9.7.0
 
-9.7.0 整理 `wow-webflux` 的内部实现。它们不是公开入口 API，因此不经弃用周期直接调整（见 `docs/compat-debt.md` 的范围说明）。路由、REST、配置与线格式不变，9.6.x 与 9.7.0 节点可以共处一个集群。通过 starter 组装路由的应用无需改动；自行组装 `wow-webflux` 路由的代码需要按下表修改。
+9.7.0 整理 `wow-webflux` 的内部实现，并删除 9.3 弃用的 `wow-webflux` 辅助函数。它们属于内部实现，不是公开入口 API，因此不经弃用周期直接调整（见 `docs/compat-debt.md` 的范围说明）。路由、REST、配置与线格式不变，9.6.x 与 9.7.0 节点可以共处一个集群。通过 starter 组装路由、且没有使用被删除辅助函数的应用无需改动；其余代码按下表修改。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
@@ -72,6 +72,8 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 删除 `AbstractLoadAggregateHandlerFunction`、`LoadVersionedAggregateHandlerFunction(Factory)` 与 `LoadTimeBasedAggregateHandlerFunction(Factory)` | 自行组装状态加载路由的代码 | 改用 `LoadAggregateHandlerFunction(Factory)`，传 `route = StateLoadRoute.VERSIONED` 或 `StateLoadRoute.TIME_BASED` |
 | `DefaultCommandMessageExtractor` 与 `RouterFunctionBuilder` 去掉次构造函数；`EMPTY_OK` 改为私有 | 针对它们编译的代码 | 重新编译：同样的参数经主构造函数传入 |
 | tracing 请求带 `limit` 且读取事件流末尾失败时，在响应开始前以错误本身的状态码返回；原先事件流请求会先回 `200` 再发错误事件 | tracing 路由的 SSE 客户端 | 无需改动 |
+| 删除 `ServerRequest` 的身份读取函数：`getTenantId`、`getTenantIdOrDefault`、`getOwnerId`、`getSpaceId`（两个重载）与 `getAggregateId`（三个重载） | 从请求读取身份的自定义处理器 | 改用 `identity(aggregateMetadata)` 或 `identity(aggregateRouteMetadata)`（`me.ahoo.wow.webflux.route.identity`）：`tenantId()`（原 `getTenantIdOrDefault` 加 `?: TenantId.DEFAULT_TENANT_ID`）、`ownerId()`、`aggregateId()`、`spaceId()`、`requestId()`。接收 `AggregateRoute.Owner` 的重载没有替代：按聚合自身的所有者策略 |
+| 删除 `Throwable.toResponseEntity()` 与 `ErrorInfo.toServerResponse()` | 自行把错误映射为响应的代码 | 改用 `WebFluxErrorStrategy.toServerResponse`，或 `RequestExceptionHandler` Bean |
 
 ## 从 9.5 升级到 9.6.0
 
@@ -187,6 +189,8 @@ REST 线格式词汇从 `wow-openapi` 移到新模块 `wow-rest-contract`（包 
 | `ServerRequest.getAggregateId()` 及其两个 `AggregateRoute.Owner` 重载 | `identity(aggregateMetadata).aggregateId()`（按聚合的所有者策略） |
 | `RecoverableExceptionRegistrar.register`、`unregister`、`getRecoverableType`（静态调用；Java 经 `.Companion` 调用，9.2 的 `INSTANCE` 已不存在） | `RecoverableExceptionRegistry.DEFAULT` 的同名方法，或 `RecoverableExceptionProvider` |
 | `Throwable.toResponseEntity()`、`ErrorInfo.toServerResponse()` | `WebFluxErrorStrategy.toServerResponse`，或 `RequestExceptionHandler` Bean |
+
+上表中 `ServerRequest` 的身份读取函数与两个错误辅助函数已提前在 9.7.0 删除（见[从 9.6 升级到 9.7.0](#从-9-6-升级到-9-7-0)）。
 
 `identity(…)` 即 `me.ahoo.wow.webflux.route.identity.identity`；它返回的 `RequestIdentity` 按路由的规则读取每个身份字段（含请求头别名），与内置命令、查询处理器完全一致。弃用的读取函数都委托给它，所以它们同样拒绝路由声明的空白身份路径变量（400），并执行[客户端可见的请求变化](#客户端可见的请求变化)中的冲突检查。
 

@@ -507,9 +507,6 @@ class RequestIdentity internal constructor(
     /** The request ID: `Command-Request-Id` or a request ID alias; a blank header counts as absent. */
     fun requestId(): String? = binding.requestId(request)
 
-    /** The `Wow-Space-Id` header (or a space alias), whatever the aggregate's space policy. */
-    internal fun spaceIdHeader(): String? = binding.spaceIdHeader(request)
-
     private companion object {
         val UNRESOLVED = Any()
     }
@@ -536,21 +533,6 @@ internal fun RequestIdentity.aggregateId(aggregateMetadata: AggregateMetadata<*,
         id = requireNotNull(aggregateId()),
         tenantId = tenantId() ?: TenantId.DEFAULT_TENANT_ID,
     )
-
-/** The identity of a request to a route of an aggregate with the [owner] policy and no static tenant or space. */
-internal fun ServerRequest.identity(owner: OwnerPolicy): RequestIdentity {
-    val routeIdentity = RouteIdentity.of(this)
-    return RequestIdentity(
-        this,
-        RouteIdentityBinding.of(
-            routeIdentity.pathVariables,
-            null,
-            owner,
-            spaced = false,
-            aliases = routeIdentity.aliases
-        )
-    )
-}
 
 /**
  * The value of the path variable [variable]. A route that declares the variable states the value in its path, and a

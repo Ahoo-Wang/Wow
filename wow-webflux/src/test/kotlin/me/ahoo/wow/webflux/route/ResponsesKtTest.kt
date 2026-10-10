@@ -22,7 +22,6 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -42,29 +41,6 @@ import reactor.kotlin.test.test
 
 @Suppress("DEPRECATION")
 class ResponsesKtTest {
-
-    @Test
-    fun `should convert exception to response entity`() {
-        val responseEntity = IllegalArgumentException()
-            .toResponseEntity()
-        responseEntity.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
-        responseEntity.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-        responseEntity.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
-    }
-
-    @Test
-    fun `should convert error info to server response`() {
-        IllegalArgumentException()
-            .toErrorInfo()
-            .toServerResponse()
-            .test()
-            .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
-                it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
-            }
-            .verifyComplete()
-    }
 
     @Test
     fun `should convert command result to server response`() {

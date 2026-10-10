@@ -11,17 +11,13 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.ChainWaitTarget
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.StageWaitTarget
@@ -46,45 +42,14 @@ class AggregateRequestTest {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().pathVariable(MessageRecords.OWNER_ID, ownerId).build()
 
-        request.getOwnerId().assert().isEqualTo(ownerId)
+        request.identity(MOCK_AGGREGATE_METADATA).ownerId().assert().isEqualTo(ownerId)
     }
 
     @Test
     fun `should get owner id from header`() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().header(CommandHeaders.OWNER_ID, ownerId).build()
-        request.getOwnerId().assert().isEqualTo(ownerId)
-    }
-
-    @Test
-    fun `should get aggregate id from owner id path variable`() {
-        val ownerId = generateGlobalId()
-        val request = MockServerRequest.builder().build()
-        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, ownerId).assert().isEqualTo(ownerId)
-    }
-
-    @Test
-    fun `should get space id from header`() {
-        val spaceId = generateGlobalId()
-        val request = MockServerRequest.builder().header(WowHeaders.SPACE_ID, spaceId).build()
-        request.getSpaceId().assert().isEqualTo(spaceId)
-    }
-
-    @Test
-    fun `should get aggregate id from path when owner id is null`() {
-        val aggregateId = generateGlobalId()
-        val request = MockServerRequest.builder()
-            .pathVariable(MessageRecords.ID, aggregateId)
-            .build()
-
-        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, null).assert().isEqualTo(aggregateId)
-    }
-
-    @Test
-    fun `should get aggregate id with owner id`() {
-        val ownerId = generateGlobalId()
-        val request = MockServerRequest.builder().pathVariable(MessageRecords.OWNER_ID, ownerId).build()
-        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID).assert().isEqualTo(ownerId)
+        request.identity(MOCK_AGGREGATE_METADATA).ownerId().assert().isEqualTo(ownerId)
     }
 
     @Test
@@ -161,7 +126,7 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .header(CommandHeaders.TENANT_ID, tenantId)
             .build()
-        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo(tenantId)
+        request.identity(MOCK_AGGREGATE_METADATA).tenantId().assert().isEqualTo(tenantId)
     }
 
     @Test
@@ -170,7 +135,7 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .header(CommandHeaders.AGGREGATE_ID, aggregateId)
             .build()
-        request.getAggregateId().assert().isEqualTo(aggregateId)
+        request.identity(MOCK_AGGREGATE_METADATA).aggregateId().assert().isEqualTo(aggregateId)
     }
 
     @Test
@@ -230,7 +195,7 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, tenantId)
             .build()
-        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo(tenantId)
+        request.identity(MOCK_AGGREGATE_METADATA).tenantId().assert().isEqualTo(tenantId)
     }
 
     @Test
@@ -239,7 +204,7 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, aggregateId)
             .build()
-        request.getAggregateId().assert().isEqualTo(aggregateId)
+        request.identity(MOCK_AGGREGATE_METADATA).aggregateId().assert().isEqualTo(aggregateId)
     }
 
     @Test
@@ -291,16 +256,13 @@ class AggregateRequestTest {
             .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
 
-        assertThrownBy<IllegalArgumentException> { request.getTenantId(MOCK_AGGREGATE_METADATA) }
+        assertThrownBy<IllegalArgumentException> { request.identity(MOCK_AGGREGATE_METADATA).tenantId() }
             .hasMessage("Path variable [tenantId] must not be blank.")
-        assertThrownBy<IllegalArgumentException> { request.getTenantIdOrDefault(MOCK_AGGREGATE_METADATA) }
-        // Every reader rejects any blank identity path variable the route declares, before reading its own fact.
-        assertThrownBy<IllegalArgumentException> { request.getOwnerId() }
+        // The identity rejects any blank identity path variable the route declares, before reading any fact.
+        assertThrownBy<IllegalArgumentException> { request.identity(MOCK_AGGREGATE_METADATA).ownerId() }
             .hasMessage("Path variable [tenantId] must not be blank.")
-        assertThrownBy<IllegalArgumentException> { request.getAggregateId() }
+        assertThrownBy<IllegalArgumentException> { request.identity(MOCK_AGGREGATE_METADATA).aggregateId() }
             .hasMessage("Path variable [tenantId] must not be blank.")
-        assertThrownBy<IllegalArgumentException> { request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID) }
-        assertThrownBy<IllegalArgumentException> { request.getAggregateId(AggregateRoute.Owner.NEVER, null) }
     }
 
     @Test
@@ -314,22 +276,9 @@ class AggregateRequestTest {
             .header(CommandHeaders.AGGREGATE_ID, "victim")
             .build()
 
-        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-a")
-        request.getOwnerId().assert().isEqualTo("owner-a")
-        request.getAggregateId().assert().isEqualTo("id-a")
-    }
-
-    /** The deprecated reader keeps 9.2's rule: for an aggregate owned by its ID, the owner header wins over `{id}`. */
-    @Test
-    fun `the deprecated owner-policy aggregate id reader keeps 9_2 behaviour`() {
-        val request = MockServerRequest.builder()
-            .pathVariable(MessageRecords.ID, "a")
-            .header(CommandHeaders.OWNER_ID, "b")
-            .build()
-        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID).assert().isEqualTo("b")
-        request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, "c").assert().isEqualTo("c")
-        request.getAggregateId(AggregateRoute.Owner.ALWAYS).assert().isEqualTo("a")
-        request.getAggregateId(AggregateRoute.Owner.ALWAYS, "c").assert().isEqualTo("a")
+        request.identity(MOCK_AGGREGATE_METADATA).tenantId().assert().isEqualTo("tenant-a")
+        request.identity(MOCK_AGGREGATE_METADATA).ownerId().assert().isEqualTo("owner-a")
+        request.identity(MOCK_AGGREGATE_METADATA).aggregateId().assert().isEqualTo("id-a")
     }
 
     @Test
@@ -342,10 +291,10 @@ class AggregateRequestTest {
             .build()
 
         assertThrownBy<IllegalArgumentException> {
-            request.getTenantId(MOCK_AGGREGATE_METADATA)
+            request.identity(MOCK_AGGREGATE_METADATA).tenantId()
         }.hasMessage("Conflicting tenantId: the route fixes [tenant-a], but the request header gives [victim].")
         assertThrownBy<IllegalArgumentException> {
-            request.getOwnerId()
+            request.identity(MOCK_AGGREGATE_METADATA).ownerId()
         }.hasMessage("Conflicting ownerId: the route fixes [owner-a], but the request header gives [victim].")
     }
 
@@ -357,23 +306,21 @@ class AggregateRequestTest {
             .header(CommandHeaders.AGGREGATE_ID, "id-h")
             .build()
 
-        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-h")
-        request.getOwnerId().assert().isEqualTo("owner-h")
-        request.getAggregateId().assert().isEqualTo("id-h")
-        MockServerRequest.builder().build().getTenantIdOrDefault(MOCK_AGGREGATE_METADATA)
-            .assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
+        request.identity(MOCK_AGGREGATE_METADATA).tenantId().assert().isEqualTo("tenant-h")
+        request.identity(MOCK_AGGREGATE_METADATA).ownerId().assert().isEqualTo("owner-h")
+        request.identity(MOCK_AGGREGATE_METADATA).aggregateId().assert().isEqualTo("id-h")
     }
 
     @Test
-    fun `the space reader of a route reads the header only for a spaced aggregate`() {
+    fun `the identity reads the space header only for a spaced aggregate`() {
         val request = MockServerRequest.builder().header(WowHeaders.SPACE_ID, "space-a").build()
 
-        request.getSpaceId(Order::class.java.aggregateRouteMetadata()).assert().isEqualTo("space-a")
-        request.getSpaceId(Cart::class.java.aggregateRouteMetadata()).assert().isNull()
+        request.identity(Order::class.java.aggregateRouteMetadata()).spaceId().assert().isEqualTo("space-a")
+        request.identity(Cart::class.java.aggregateRouteMetadata()).spaceId().assert().isNull()
     }
 
     @Test
-    fun `each deprecated reader agrees with its public replacement`() {
+    fun `the identity reads each fact the route states`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
@@ -384,19 +331,17 @@ class AggregateRequestTest {
         val order = Order::class.java.aggregateRouteMetadata()
         val identity = request.identity(order.aggregateMetadata)
 
-        request.getTenantId(order.aggregateMetadata).assert().isEqualTo(identity.tenantId()).isEqualTo("tenant-a")
-        request.getTenantIdOrDefault(order.aggregateMetadata).assert().isEqualTo("tenant-a")
-        request.getOwnerId().assert().isEqualTo(identity.ownerId()).isEqualTo("owner-a")
-        request.getAggregateId().assert().isEqualTo(identity.aggregateId()).isEqualTo("id-a")
-        request.getSpaceId().assert().isEqualTo(identity.spaceId()).isEqualTo("space-a")
-        request.getSpaceId(order).assert().isEqualTo(request.identity(order).spaceId())
+        identity.tenantId().assert().isEqualTo("tenant-a")
+        identity.ownerId().assert().isEqualTo("owner-a")
+        identity.aggregateId().assert().isEqualTo("id-a")
+        identity.spaceId().assert().isEqualTo("space-a")
         identity.readOwnerId().assert().isEqualTo("owner-a")
         identity.requestId().assert().isEqualTo("request-a")
         identity.request.assert().isSameAs(request)
     }
 
     @Test
-    fun `the replacement applies the aggregate's own policies`() {
+    fun `the identity applies the aggregate's own policies`() {
         // Cart: static tenant, owner = aggregate ID, not spaced.
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, "cart-a")
@@ -407,7 +352,6 @@ class AggregateRequestTest {
         val identity = request.identity(cart)
 
         identity.tenantId().assert().isEqualTo(cart.aggregateMetadata.staticTenantId)
-        request.getTenantId(cart.aggregateMetadata).assert().isEqualTo(identity.tenantId())
         identity.ownerId().assert().isEqualTo("cart-a")
         identity.aggregateId().assert().isEqualTo("cart-a")
         identity.spaceId().assert().isNull()
