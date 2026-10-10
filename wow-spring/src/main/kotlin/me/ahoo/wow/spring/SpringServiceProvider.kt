@@ -39,7 +39,10 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
 
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> getService(serviceName: String): S? {
-        return delegate.getBean(serviceName) as S?
+        if (!delegate.containsBean(serviceName)) {
+            return null
+        }
+        return delegate.getBean(serviceName) as S
     }
 
     override fun copyTo(target: ServiceProvider) {
@@ -50,13 +53,8 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
     }
 
     override fun copy(): ServiceProvider {
-        val newBeanFactory = DefaultListableBeanFactory()
-        newBeanFactory.copyConfigurationFrom(delegate)
-        delegate.copyConfigurationFrom(delegate)
-        serviceNames.forEach {
-            val bean = delegate.getBean(it)
-            newBeanFactory.registerSingleton(it, bean)
-        }
-        return SpringServiceProvider(newBeanFactory)
+        val beanFactory = DefaultListableBeanFactory()
+        beanFactory.copyConfigurationFrom(delegate)
+        return SpringServiceProvider(beanFactory).also(::copyTo)
     }
 }

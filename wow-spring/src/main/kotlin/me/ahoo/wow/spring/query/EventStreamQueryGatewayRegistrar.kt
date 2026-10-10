@@ -13,67 +13,42 @@
 
 package me.ahoo.wow.spring.query
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import org.springframework.beans.factory.support.BeanDefinitionBuilder
-import org.springframework.beans.factory.support.BeanDefinitionRegistry
+import org.springframework.beans.factory.getBean
+import org.springframework.core.ResolvableType
 
+/** Registers each aggregate's [EventStreamQueryGateway]. */
 @OptIn(WowSpi::class) // Binds each aggregate's gateway to its routed query backend.
-class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
+class EventStreamQueryGatewayRegistrar :
+    QueryGatewayRegistrar(QueryModel.EVENT_STREAM, EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME) {
     companion object {
         /** Bean name for the event stream observer shared by aggregate gateways; also used for custom overrides. */
         const val EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME = "eventStreamQueryObserver"
-
-        private val log = KotlinLogging.logger {}
     }
 
-    override fun registerQueryGateway(
-        entry: Map.Entry<MaterializedNamedAggregate, Class<*>>,
-        registry: BeanDefinitionRegistry,
-    ) {
-        val namedAggregate = entry.key
-        val beanName = namedAggregate.eventStreamQueryGatewayBeanName()
-        log.info {
-            "Register EventStreamQueryGateway [$beanName]."
-        }
-        if (registry.containsBeanDefinition(beanName)) {
-            log.warn {
-                "EventStreamQueryGateway [$beanName] already exists - use it as-is."
-            }
-            return
-        }
+    override fun gatewayBeanName(namedAggregate: NamedAggregate): String =
+        namedAggregate.eventStreamQueryGatewayBeanName()
 
-        val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(EventStreamQueryGateway::class.java) {
-            val backend = appContext.getBean(EventStreamQueryBackendFactory::class.java).create(namedAggregate).backend
-            val schema = appContext.getBean(QuerySchemaCatalog::class.java)
-                .provider(namedAggregate, QueryModel.EVENT_STREAM)
-
-            val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
-            val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
-            val entryPolicy = appContext.getBeanProvider(QueryEntryPolicy::class.java)
-                .getIfAvailable { QueryEntryPolicy.DEFAULT }
-            val observer = appContext.getBean(EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME, QueryObserver::class.java)
-            DefaultEventStreamQueryGateway(
-                namedAggregate = namedAggregate,
-                backend = backend,
-                schemaProvider = schema,
-                filters = filters,
-                policies = policies,
-                observer = observer,
-                entryPolicy = entryPolicy,
-            )
-        }.beanDefinition
-
-        registry.registerBeanDefinition(beanName, beanDefinition)
+    override fun gatewayDefinition(
+        namedAggregate: MaterializedNamedAggregate,
+        aggregateType: Class<*>,
+    ): QueryGatewayDefinition = QueryGatewayDefinition(
+        type = ResolvableType.forClass(EventStreamQueryGateway::class.java),
+    ) { beanFactory, collaborators ->
+        DefaultEventStreamQueryGateway(
+            namedAggregate = namedAggregate,
+            backend = beanFactory.getBean<EventStreamQueryBackendFactory>().create(namedAggregate).backend,
+            schemaProvider = collaborators.schemaProvider,
+            filters = collaborators.filters,
+            policies = collaborators.policies,
+            observer = collaborators.observer,
+            entryPolicy = collaborators.entryPolicy,
+        )
     }
 }

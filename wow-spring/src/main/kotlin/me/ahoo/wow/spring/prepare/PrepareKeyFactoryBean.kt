@@ -16,25 +16,22 @@ package me.ahoo.wow.spring.prepare
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.proxy.PrepareKeyMetadata
 import me.ahoo.wow.infra.prepare.proxy.PrepareKeyProxyFactory
+import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.BeanFactoryAware
 import org.springframework.beans.factory.FactoryBean
 import org.springframework.beans.factory.getBean
-import org.springframework.context.ApplicationContext
-import org.springframework.context.ApplicationContextAware
 
+/** Creates the proxy of one `@PreparableKey` interface with the [PrepareKeyProxyFactory] bean. */
 class PrepareKeyFactoryBean<P : PrepareKey<*>>(private val metadata: PrepareKeyMetadata<P>) :
     FactoryBean<P>,
-    ApplicationContextAware {
-    private lateinit var appContext: ApplicationContext
-    override fun setApplicationContext(applicationContext: ApplicationContext) {
-        this.appContext = applicationContext
+    BeanFactoryAware {
+    private lateinit var beanFactory: BeanFactory
+
+    override fun setBeanFactory(beanFactory: BeanFactory) {
+        this.beanFactory = beanFactory
     }
 
-    override fun getObject(): P? {
-        val prepareKeyProxyFactory = appContext.getBean<PrepareKeyProxyFactory>()
-        return prepareKeyProxyFactory.create(metadata)
-    }
+    override fun getObject(): P = beanFactory.getBean<PrepareKeyProxyFactory>().create(metadata)
 
-    override fun getObjectType(): Class<*> {
-        return metadata.proxyInterface.java
-    }
+    override fun getObjectType(): Class<*> = metadata.proxyInterface.java
 }
