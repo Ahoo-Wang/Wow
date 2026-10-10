@@ -3968,25 +3968,6 @@ public abstract class me/ahoo/wow/metadata/CacheableMetadataParser {
 public abstract interface class me/ahoo/wow/metadata/Metadata {
 }
 
-public final class me/ahoo/wow/metrics/MetricDecoratorFactory {
-	public fun <init> (Lme/ahoo/wow/metrics/WowMetrics;)V
-	public final fun decorate (Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/metrics/MetricDecoratorFactoryKt {
-	public static final fun metered (Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/command/CommandBus;
-	public static final fun metered (Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/event/DomainEventBus;
-	public static final fun metered (Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
-	public static final fun metered (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/EventStore;
-	public static final fun metered (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
-	public static final fun metered (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
-	public static final fun metered (Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
-	public static final fun metered (Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/state/StateEventBus;
-	public static final fun metered (Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
-	public static final fun metered (Lme/ahoo/wow/projection/ProjectionHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/projection/ProjectionHandler;
-	public static final fun metered (Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
-}
-
 public final class me/ahoo/wow/metrics/MetricDescriptor {
 	public static final field Companion Lme/ahoo/wow/metrics/MetricDescriptor$Companion;
 	public static final field MULTIPLE Ljava/lang/String;
@@ -4034,6 +4015,25 @@ public final class me/ahoo/wow/metrics/WowMetrics {
 
 public final class me/ahoo/wow/metrics/WowMetrics$Companion {
 	public final fun getNONE ()Lme/ahoo/wow/metrics/WowMetrics;
+}
+
+public final class me/ahoo/wow/metrics/decorator/MetricDecoratorFactory {
+	public fun <init> (Lme/ahoo/wow/metrics/WowMetrics;)V
+	public final fun decorate (Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/metrics/decorator/MetricDecoratorFactoryKt {
+	public static final fun metered (Lme/ahoo/wow/command/CommandBus;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/command/CommandBus;
+	public static final fun metered (Lme/ahoo/wow/event/DomainEventBus;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/event/DomainEventBus;
+	public static final fun metered (Lme/ahoo/wow/event/dispatcher/DomainEventHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/event/dispatcher/DomainEventHandler;
+	public static final fun metered (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/EventStore;
+	public static final fun metered (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public static final fun metered (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStrategy;
+	public static final fun metered (Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/snapshot/dispatcher/SnapshotHandler;
+	public static final fun metered (Lme/ahoo/wow/eventsourcing/state/StateEventBus;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/state/StateEventBus;
+	public static final fun metered (Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/modeling/command/dispatcher/CommandHandler;
+	public static final fun metered (Lme/ahoo/wow/projection/ProjectionHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/projection/ProjectionHandler;
+	public static final fun metered (Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;Lme/ahoo/wow/metrics/WowMetrics;Ljava/lang/String;)Lme/ahoo/wow/saga/stateless/StatelessSagaHandler;
 }
 
 public final class me/ahoo/wow/modeling/DefaultAggregateId : me/ahoo/wow/api/modeling/AggregateId {

@@ -11,9 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

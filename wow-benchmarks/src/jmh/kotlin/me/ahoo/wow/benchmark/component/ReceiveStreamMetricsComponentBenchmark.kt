@@ -21,7 +21,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.metrics.decorator.metered
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import org.openjdk.jmh.annotations.Benchmark

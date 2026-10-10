@@ -141,6 +141,36 @@ class DependencyRulesTest {
         )
     }
 
+    @Test
+    fun `metrics port rule should catch a domain import in the port package only`(@TempDir root: File) {
+        root.writeSource(
+            "wow-core",
+            "me/ahoo/wow/metrics/Bad.kt",
+            """
+            package me.ahoo.wow.metrics
+
+            import me.ahoo.wow.api.modeling.NamedAggregate
+            import me.ahoo.wow.eventsourcing.EventStore
+            import me.ahoo.wow.metrics.decorator.MetricDecoratorFactory
+            """.trimIndent(),
+        )
+        root.writeSource(
+            "wow-core",
+            "me/ahoo/wow/metrics/decorator/Allowed.kt",
+            """
+            package me.ahoo.wow.metrics.decorator
+
+            import me.ahoo.wow.eventsourcing.EventStore
+            """.trimIndent(),
+        )
+
+        DependencyRules.METRICS_PORT_HAS_NO_DOMAIN.violations(root).assert().containsExactly(
+            "wow-core/src/main/kotlin/me/ahoo/wow/metrics/Bad.kt:4: me.ahoo.wow.eventsourcing.EventStore",
+            "wow-core/src/main/kotlin/me/ahoo/wow/metrics/Bad.kt:5: " +
+                "me.ahoo.wow.metrics.decorator.MetricDecoratorFactory",
+        )
+    }
+
     private fun File.writeSource(module: String, path: String, content: String) {
         val file = File(this, "$module/src/main/kotlin/$path")
         file.parentFile.mkdirs()

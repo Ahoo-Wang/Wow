@@ -143,8 +143,29 @@ object DependencyRules {
         )
     }
 
+    /**
+     * The metrics port (`me.ahoo.wow.metrics`) is what the runtime instruments itself with, so it depends on no domain
+     * package; the decorators that wrap buses, stores and handlers live in `me.ahoo.wow.metrics.decorator`.
+     * Contracts in `me.ahoo.wow.api` are allowed.
+     */
+    val METRICS_PORT_HAS_NO_DOMAIN = DependencyRule(
+        name = "wow-core metrics port imports no domain or messaging package",
+        modules = listOf("wow-core"),
+        forbidden = listOf(
+            "me.ahoo.wow.command",
+            "me.ahoo.wow.event",
+            "me.ahoo.wow.eventsourcing",
+            "me.ahoo.wow.saga",
+            "me.ahoo.wow.projection",
+            "me.ahoo.wow.modeling",
+            "me.ahoo.wow.messaging",
+            "me.ahoo.wow.metrics.decorator",
+        ),
+        appliesToPackage = { it == "me.ahoo.wow.metrics" },
+    )
+
     val ALL: List<DependencyRule> =
-        listOf(CORE_HAS_NO_HTTP_OR_DRIVERS, QUERY_CORE_HAS_NO_HTTP_OR_DRIVERS) +
+        listOf(CORE_HAS_NO_HTTP_OR_DRIVERS, QUERY_CORE_HAS_NO_HTTP_OR_DRIVERS, METRICS_PORT_HAS_NO_DOMAIN) +
             BACKENDS_ARE_INDEPENDENT +
             STORES_HAVE_NO_QUERY
 }

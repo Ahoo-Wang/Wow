@@ -11,10 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
 
 internal interface Metered
 

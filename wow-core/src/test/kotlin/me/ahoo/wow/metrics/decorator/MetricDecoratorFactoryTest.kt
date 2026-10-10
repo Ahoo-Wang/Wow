@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
@@ -40,6 +40,10 @@ import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.metrics.WowMetricNames
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.metrics.getMetricsSubscriber
+import me.ahoo.wow.metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.command.dispatcher.CommandHandler

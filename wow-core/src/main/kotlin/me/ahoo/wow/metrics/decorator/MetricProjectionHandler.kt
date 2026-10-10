@@ -11,28 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.metrics
+package me.ahoo.wow.metrics.decorator
 
-import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
-import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.metrics.MetricDescriptor
+import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.projection.ProjectionHandler
 import reactor.core.publisher.Mono
 
-internal class MetricCommandHandler(
-    delegate: CommandHandler,
+internal class MetricProjectionHandler(
+    delegate: ProjectionHandler,
     metrics: WowMetrics,
     source: String,
-) : MetricComponentDecorator<CommandHandler>(delegate, metrics, source),
-    CommandHandler {
-    override fun handle(context: ServerCommandExchange<*>, aggregateMetadata: AggregateMetadata<*, *>): Mono<Void> =
-        metrics.operation(
-            delegate.handle(context, aggregateMetadata),
+) : MetricComponentDecorator<ProjectionHandler>(delegate, metrics, source),
+    ProjectionHandler {
+    override fun handle(context: DomainEventExchange<*>): Mono<Void> {
+        val processor = context.getEventFunction()?.processorName ?: MetricDescriptor.NONE
+        return metrics.operation(
+            delegate.handle(context),
             descriptor(
-                component = "command_handler",
+                component = "projection_handler",
                 operation = "handle",
                 context = context.message.contextName,
                 aggregate = context.message.aggregateName,
                 message = context.message.name,
+                processor = processor,
             ),
         )
+    }
 }

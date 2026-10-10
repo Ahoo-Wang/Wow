@@ -25,7 +25,7 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.WowMetrics
-import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.metrics.decorator.metered
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
