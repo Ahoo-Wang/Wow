@@ -29,19 +29,19 @@ object WowComponents {
     val errorCodeHeader: HttpHeader = CommonComponents.errorCodeHeader
 
     /** `400` with the error info body and the error code header (`wow.BadRequest`). */
-    val badRequest: HttpResponse = CommonComponents.badRequestResponse
+    val badRequestResponse: HttpResponse = CommonComponents.badRequestResponse
 
     /** `404` with the error info body and the error code header (`wow.NotFound`). */
-    val notFound: HttpResponse = CommonComponents.notFoundResponse
+    val notFoundResponse: HttpResponse = CommonComponents.notFoundResponse
 
     /** `408` with the error info body and the error code header (`wow.RequestTimeout`). */
-    val requestTimeout: HttpResponse = CommonComponents.requestTimeoutResponse
+    val requestTimeoutResponse: HttpResponse = CommonComponents.requestTimeoutResponse
 
     /** `429` with the error info body and the error code header (`wow.TooManyRequests`). */
-    val tooManyRequests: HttpResponse = CommonComponents.tooManyRequestsResponse
+    val tooManyRequestsResponse: HttpResponse = CommonComponents.tooManyRequestsResponse
 
     /** `415` with the error info body and the error code header (`wow.UnsupportedMediaType`). */
-    val unsupportedMediaType: HttpResponse = CommonComponents.unsupportedMediaTypeResponse
+    val unsupportedMediaTypeResponse: HttpResponse = CommonComponents.unsupportedMediaTypeResponse
 
     /** The optional `Wow-Space-Id` request header (`wow.Wow-Space-Id`). */
     val spaceIdHeaderParameter: HttpParameter = CommonComponents.spaceIdHeaderParameter

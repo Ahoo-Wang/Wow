@@ -20,6 +20,7 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.component.CommonComponents
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.rest.WowHeaders
 import org.junit.jupiter.api.Test
@@ -31,11 +32,11 @@ internal class WowComponentsTest {
     fun `should expose the instances the built-in routes use`() {
         WowComponents.errorCodeHeaderComponent.assert().isSameAs(CommonComponents.ERROR_CODE_HEADER)
         WowComponents.errorCodeHeader.assert().isSameAs(CommonComponents.errorCodeHeader)
-        WowComponents.badRequest.assert().isSameAs(CommonComponents.badRequestResponse)
-        WowComponents.notFound.assert().isSameAs(CommonComponents.notFoundResponse)
-        WowComponents.requestTimeout.assert().isSameAs(CommonComponents.requestTimeoutResponse)
-        WowComponents.tooManyRequests.assert().isSameAs(CommonComponents.tooManyRequestsResponse)
-        WowComponents.unsupportedMediaType.assert().isSameAs(CommonComponents.unsupportedMediaTypeResponse)
+        WowComponents.badRequestResponse.assert().isSameAs(CommonComponents.badRequestResponse)
+        WowComponents.notFoundResponse.assert().isSameAs(CommonComponents.notFoundResponse)
+        WowComponents.requestTimeoutResponse.assert().isSameAs(CommonComponents.requestTimeoutResponse)
+        WowComponents.tooManyRequestsResponse.assert().isSameAs(CommonComponents.tooManyRequestsResponse)
+        WowComponents.unsupportedMediaTypeResponse.assert().isSameAs(CommonComponents.unsupportedMediaTypeResponse)
         WowComponents.spaceIdHeaderParameter.assert().isSameAs(CommonComponents.spaceIdHeaderParameter)
         WowComponents.idPathParameter.assert().isSameAs(CommonComponents.idPathParameter)
         WowComponents.tenantIdPathParameter.assert().isSameAs(CommonComponents.tenantIdPathParameter)
@@ -48,11 +49,11 @@ internal class WowComponentsTest {
         WowComponents.errorCodeHeaderComponent.key.assert().isEqualTo("wow.Wow-Error-Code")
         WowComponents.errorCodeHeader.name.assert().isEqualTo(WowHeaders.ERROR_CODE)
         listOf(
-            WowComponents.badRequest,
-            WowComponents.notFound,
-            WowComponents.requestTimeout,
-            WowComponents.tooManyRequests,
-            WowComponents.unsupportedMediaType
+            WowComponents.badRequestResponse,
+            WowComponents.notFoundResponse,
+            WowComponents.requestTimeoutResponse,
+            WowComponents.tooManyRequestsResponse,
+            WowComponents.unsupportedMediaTypeResponse
         ).map { it.statusCode to it.component?.key }.assert().containsExactly(
             "400" to "wow.BadRequest",
             "404" to "wow.NotFound",
@@ -83,8 +84,8 @@ internal class WowComponentsTest {
             parameters = listOf(WowComponents.idPathParameter, WowComponents.spaceIdHeaderParameter),
             responses = listOf(
                 HttpResponse("200", component = reportResponse),
-                WowComponents.badRequest,
-                WowComponents.notFound
+                WowComponents.badRequestResponse,
+                WowComponents.notFoundResponse
             )
         )
         val builtInOnly = OpenAPI()
@@ -113,7 +114,7 @@ internal class WowComponentsTest {
 
     @Test
     fun `a custom contributor alone should register the built-in components it references`() {
-        val contributor = reportContributor(path = "/report", responses = listOf(WowComponents.tooManyRequests))
+        val contributor = reportContributor(path = "/report", responses = listOf(WowComponents.tooManyRequestsResponse))
         val openAPI = OpenAPI()
         RouterSpecs(namedContext, routeContributors = listOf(contributor)).mergeOpenAPI(openAPI)
 
@@ -124,6 +125,27 @@ internal class WowComponentsTest {
         openAPI.components.headers.assert().containsKey("wow.Wow-Error-Code")
     }
 
+    @Test
+    fun `a custom contributor referencing the built-in components should render when inlining`() {
+        // The built-in aggregate routes cannot render with all schemas inlined (recursive query types), so a
+        // contributor referencing the internal instance stands in for them.
+        val builtIn = reportContributor(path = "/built-in", responses = listOf(CommonComponents.badRequestResponse))
+        val contributor = reportContributor(path = "/report", responses = listOf(WowComponents.badRequestResponse))
+        val openAPI = OpenAPI()
+        RouterSpecs(
+            namedContext,
+            OpenAPIComponentContext.default(true),
+            listOf(builtIn, contributor)
+        ).mergeOpenAPI(openAPI)
+
+        listOf("/built-in", "/report").forEach { path ->
+            val response = openAPI.paths.getValue(path).get.responses.getValue("400")
+            response.`$ref`.assert().isNull()
+            response.description.assert().isEqualTo("Bad Request")
+            response.headers.assert().containsKey(WowHeaders.ERROR_CODE)
+        }
+    }
+
     private fun reportContributor(
         path: String,
         parameters: List<HttpParameter> = emptyList(),
@@ -131,7 +153,7 @@ internal class WowComponentsTest {
     ): RouteContributor = object : RouteContributor {
         override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> = listOf(
             HttpRouteContract(
-                routeId = "example.report.get",
+                routeId = "example$path.get",
                 method = "GET",
                 path = path,
                 handlerKey = "example.report",

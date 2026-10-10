@@ -481,17 +481,17 @@ public final class me/ahoo/wow/openapi/contract/HttpTag {
 
 public final class me/ahoo/wow/openapi/contract/WowComponents {
 	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/WowComponents;
-	public final fun getBadRequest ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getBadRequestResponse ()Lme/ahoo/wow/openapi/contract/HttpResponse;
 	public final fun getErrorCodeHeader ()Lme/ahoo/wow/openapi/contract/HttpHeader;
 	public final fun getErrorCodeHeaderComponent ()Lme/ahoo/wow/openapi/contract/HttpComponent;
 	public final fun getIdPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
-	public final fun getNotFound ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getNotFoundResponse ()Lme/ahoo/wow/openapi/contract/HttpResponse;
 	public final fun getOwnerIdPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
-	public final fun getRequestTimeout ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getRequestTimeoutResponse ()Lme/ahoo/wow/openapi/contract/HttpResponse;
 	public final fun getSpaceIdHeaderParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
 	public final fun getTenantIdPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
-	public final fun getTooManyRequests ()Lme/ahoo/wow/openapi/contract/HttpResponse;
-	public final fun getUnsupportedMediaType ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getTooManyRequestsResponse ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getUnsupportedMediaTypeResponse ()Lme/ahoo/wow/openapi/contract/HttpResponse;
 	public final fun getVersionPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
 }
 

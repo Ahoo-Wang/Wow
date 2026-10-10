@@ -31,6 +31,7 @@ class RequestBodyBuilder {
         return this
     }
 
+    /** Adds the extension [name] with [value]. Swagger ignores a name that does not start with `x-`. */
     fun extension(name: String, value: Any): RequestBodyBuilder {
         requestBody.addExtension(name, value)
         return this
