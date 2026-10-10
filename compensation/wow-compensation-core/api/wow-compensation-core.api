@@ -1,6 +1,6 @@
 public final class me/ahoo/wow/compensation/core/CompensationEventProcessor {
 	public static final field Companion Lme/ahoo/wow/compensation/core/CompensationEventProcessor$Companion;
-	public fun <init> (Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;)V
+	public fun <init> (Lme/ahoo/wow/event/compensation/EventCompensateSupporter;)V
 	public final fun onCompensationPrepared (Lme/ahoo/wow/compensation/api/CompensationPrepared;Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
 }
 

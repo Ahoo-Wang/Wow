@@ -27,12 +27,12 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext

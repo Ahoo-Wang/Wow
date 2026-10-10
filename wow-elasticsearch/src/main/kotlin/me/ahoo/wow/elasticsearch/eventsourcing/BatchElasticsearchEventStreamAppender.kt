@@ -14,11 +14,11 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import me.ahoo.wow.batch.BatchCoordinator
+import me.ahoo.wow.batch.BatchOptions
+import me.ahoo.wow.batch.BatchWriter
 import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.BatchCoordinator
-import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient

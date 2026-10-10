@@ -19,7 +19,6 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.messaging.compensation.EventCompensator
 import reactor.core.publisher.Mono
 
 /**

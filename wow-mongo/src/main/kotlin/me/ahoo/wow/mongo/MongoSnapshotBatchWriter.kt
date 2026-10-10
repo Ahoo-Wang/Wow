@@ -20,7 +20,7 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.infra.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchItemResult
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono

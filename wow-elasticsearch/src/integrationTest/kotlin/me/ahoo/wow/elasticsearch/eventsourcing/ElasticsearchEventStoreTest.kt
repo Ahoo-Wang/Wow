@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.elasticsearch.IndexNameConverter.EVENT_STREAM_SUFFIX
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
@@ -21,7 +22,6 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture

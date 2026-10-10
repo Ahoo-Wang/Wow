@@ -14,10 +14,10 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.batch.BatchCoordinator
+import me.ahoo.wow.batch.BatchOptions
+import me.ahoo.wow.batch.BatchWriter
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.BatchCoordinator
-import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchWriter
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import org.bson.Document

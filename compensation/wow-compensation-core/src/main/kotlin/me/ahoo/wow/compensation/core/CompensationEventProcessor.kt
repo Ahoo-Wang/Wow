@@ -20,8 +20,8 @@ import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import reactor.core.publisher.Mono
 
 @EventProcessor

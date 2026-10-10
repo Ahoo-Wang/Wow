@@ -22,7 +22,6 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.messaging.compensation.EventCompensator
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory

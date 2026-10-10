@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.webflux.route.event
 
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract

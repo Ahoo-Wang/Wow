@@ -21,9 +21,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.batch.BatchOptions
+import me.ahoo.wow.batch.BatchOverflowException
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchOverflowException
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageRecords

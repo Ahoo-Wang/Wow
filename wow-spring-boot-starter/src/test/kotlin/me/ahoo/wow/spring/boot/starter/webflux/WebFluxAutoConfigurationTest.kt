@@ -42,6 +42,7 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -51,7 +52,6 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory

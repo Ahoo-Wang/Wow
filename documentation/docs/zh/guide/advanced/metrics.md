@@ -160,5 +160,5 @@ trace，不负责导出 Micrometer 指标。精确依赖与环境变量参见
 6. backend 状态、投影延迟、告警投递和生产准入必须另行验证。
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, MetricDescriptor.kt,
-MetricDecoratorFactory.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt,
+MetricDecoratorFactory.kt, wow-core/src/main/kotlin/me/ahoo/wow/batch/BatchMetrics.kt,
 wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/ -->

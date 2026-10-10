@@ -14,10 +14,10 @@
 package me.ahoo.wow.benchmark.infrastructure.elasticsearch
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.infrastructure.elasticsearch.ElasticsearchBenchmarkFixture
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level

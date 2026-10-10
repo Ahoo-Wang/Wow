@@ -14,13 +14,13 @@
 package me.ahoo.wow.benchmark.infrastructure.mongo
 
 import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.infra.batch.BatchOptions
 import org.bson.Document
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
