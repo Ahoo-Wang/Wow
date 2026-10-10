@@ -16,10 +16,10 @@ package me.ahoo.wow.benchmark.infrastructure.elasticsearch
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infrastructure.elasticsearch.ElasticsearchBenchmarkFixture
 import me.ahoo.wow.serialization.toLinkedHashMap

@@ -406,9 +406,9 @@ public final class me/ahoo/wow/spring/boot/starter/command/ServerCommandWaitEndp
 
 public class me/ahoo/wow/spring/boot/starter/compensation/CompensationAutoConfiguration {
 	public fun <init> ()V
-	public fun compensationEventProcessor (Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;)Lme/ahoo/wow/compensation/core/CompensationEventProcessor;
+	public fun compensationEventProcessor (Lme/ahoo/wow/event/compensation/EventCompensateSupporter;)Lme/ahoo/wow/compensation/core/CompensationEventProcessor;
 	public fun compensationFailureRecorder (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/processing/failure/FailureRecorder;
-	public fun eventCompensateSupporter (Lme/ahoo/wow/event/compensation/DomainEventCompensator;Lme/ahoo/wow/event/compensation/StateEventCompensator;)Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;
+	public fun eventCompensateSupporter (Lme/ahoo/wow/event/compensation/DomainEventCompensator;Lme/ahoo/wow/event/compensation/StateEventCompensator;)Lme/ahoo/wow/event/compensation/EventCompensateSupporter;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/compensation/CompensationProperties : me/ahoo/wow/api/naming/EnabledCapable {
@@ -488,7 +488,7 @@ public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEv
 	public final fun setMaxDelay (Ljava/time/Duration;)V
 	public final fun setMaxPendingItems (I)V
 	public final fun setMaxSize (I)V
-	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun toOptions ()Lme/ahoo/wow/batch/BatchOptions;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchEventStoreBatchProperties$Companion {
@@ -548,7 +548,7 @@ public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSn
 	public final fun setMaxDelay (Ljava/time/Duration;)V
 	public final fun setMaxPendingItems (I)V
 	public final fun setMaxSize (I)V
-	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun toOptions ()Lme/ahoo/wow/batch/BatchOptions;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/elasticsearch/ElasticsearchSnapshotStoreBatchProperties$Companion {
@@ -1144,7 +1144,7 @@ public final class me/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchPro
 	public final fun setMaxDelay (Ljava/time/Duration;)V
 	public final fun setMaxPendingItems (I)V
 	public final fun setMaxSize (I)V
-	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun toOptions ()Lme/ahoo/wow/batch/BatchOptions;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/mongo/MongoEventStoreBatchProperties$Companion {
@@ -1187,7 +1187,7 @@ public final class me/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatch
 	public final fun setMaxDelay (Ljava/time/Duration;)V
 	public final fun setMaxPendingItems (I)V
 	public final fun setMaxSize (I)V
-	public final fun toOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public final fun toOptions ()Lme/ahoo/wow/batch/BatchOptions;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/mongo/MongoSnapshotStoreBatchProperties$Companion {
@@ -1649,7 +1649,7 @@ public class me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration {
 	public fun commandRouteModule (Lme/ahoo/wow/command/wait/WaitCoordinator;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/CommandWaitPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/CommandRouteModule;
 	public fun commandRouterFunction (Lme/ahoo/wow/openapi/RouterSpecs;Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
 	public fun commandWaitPolicy ()Lme/ahoo/wow/webflux/route/policy/CommandWaitPolicy;
-	public fun eventRouteModule (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/EventRouteModule;
+	public fun eventRouteModule (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/event/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)Lme/ahoo/wow/spring/boot/starter/webflux/route/EventRouteModule;
 	public fun exceptionHandler (Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;)Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;
 	public fun globalExceptionHandler (Lme/ahoo/wow/webflux/exception/WebFluxErrorStrategy;)Lorg/springframework/web/server/WebExceptionHandler;
 	public fun httpQueryGuard (Lme/ahoo/wow/spring/boot/starter/webflux/WebFluxProperties;)Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;
@@ -1766,7 +1766,7 @@ public final class me/ahoo/wow/spring/boot/starter/webflux/route/CommandRouteMod
 }
 
 public final class me/ahoo/wow/spring/boot/starter/webflux/route/EventRouteModule : me/ahoo/wow/spring/boot/starter/webflux/route/WebFluxRouteModule {
-	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)V
+	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/event/compensation/StateEventCompensator;Lme/ahoo/wow/event/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)V
 	public fun getHttpFactories ()Ljava/util/List;
 }
 

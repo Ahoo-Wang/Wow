@@ -80,7 +80,7 @@ Both batchers are disabled by default. When enabled, they collect concurrent wri
 
 `max-size` must be between `2` and `536870911` (the Reactor prefetch bound), `max-delay` must be positive, a pending limit must be at least `max-size`, and `lane-count` must be between `1` and `max-pending-items`. Writes for one aggregate stay on one lane. A busy writer leaves items queued for demand-aware batching; when it becomes ready, queued items are combined up to `max-size`, and a partial batch may flush immediately without waiting another `max-delay`. Increase lanes only with throughput evidence. `auto-init-schema=true` owns Wow schema initialization; it does not replace database backup, sharding design, or business-query index verification.
 
-All four MongoDB/Elasticsearch Store constructors share `me.ahoo.wow.infra.batch.BatchOptions`; `batchOptions = null` disables batching. Spring keeps `enabled=false` as its default. The capacity field is `max-pending-items`; the former `max-pending-appends` and `max-pending-saves` fields are no longer supported. Batch overflow, closed and close-timeout errors use the shared core exception types.
+All four MongoDB/Elasticsearch Store constructors share `me.ahoo.wow.batch.BatchOptions`; `batchOptions = null` disables batching. Spring keeps `enabled=false` as its default. The capacity field is `max-pending-items`; the former `max-pending-appends` and `max-pending-saves` fields are no longer supported. Batch overflow, closed and close-timeout errors use the shared core exception types.
 
 ## Redis
 

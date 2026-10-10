@@ -90,6 +90,53 @@ class DependencyRulesTest {
     }
 
     @Test
+    fun `messaging rule should catch a domain import inside messaging only`(@TempDir root: File) {
+        root.writeSource(
+            "wow-core",
+            "me/ahoo/wow/messaging/transport/Bad.kt",
+            """
+            package me.ahoo.wow.messaging.transport
+
+            import me.ahoo.wow.api.command.CommandMessage
+            import me.ahoo.wow.command.DistributedCommandBus
+            import me.ahoo.wow.eventsourcing.state.StateEvent
+            """.trimIndent(),
+        )
+        root.writeSource(
+            "wow-core",
+            "me/ahoo/wow/command/transport/Allowed.kt",
+            """
+            package me.ahoo.wow.command.transport
+
+            import me.ahoo.wow.command.DistributedCommandBus
+            import me.ahoo.wow.messaging.transport.TransportMessageBus
+            """.trimIndent(),
+        )
+
+        DependencyRules.MESSAGING_HAS_NO_DOMAIN.violations(root).assert().containsExactly(
+            "wow-core/src/main/kotlin/me/ahoo/wow/messaging/transport/Bad.kt:4: me.ahoo.wow.command.DistributedCommandBus",
+            "wow-core/src/main/kotlin/me/ahoo/wow/messaging/transport/Bad.kt:5: me.ahoo.wow.eventsourcing.state.StateEvent",
+        )
+    }
+
+    @Test
+    fun `infra rule should catch a metrics import`(@TempDir root: File) {
+        root.writeSource(
+            "wow-core",
+            "me/ahoo/wow/infra/Bad.kt",
+            """
+            package me.ahoo.wow.infra
+
+            import me.ahoo.wow.metrics.WowMetrics
+            """.trimIndent(),
+        )
+
+        DependencyRules.INFRA_HAS_NO_UPPER_LAYERS.violations(root).assert().containsExactly(
+            "wow-core/src/main/kotlin/me/ahoo/wow/infra/Bad.kt:3: me.ahoo.wow.metrics.WowMetrics",
+        )
+    }
+
+    @Test
     fun `backend rule should catch a cross-backend import`(@TempDir root: File) {
         root.writeSource(
             "wow-redis",

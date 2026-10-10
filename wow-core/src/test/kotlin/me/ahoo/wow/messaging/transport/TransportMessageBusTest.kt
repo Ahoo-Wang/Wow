@@ -16,6 +16,7 @@ package me.ahoo.wow.messaging.transport
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.transport.TransportCommandBus
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.toNamedAggregate

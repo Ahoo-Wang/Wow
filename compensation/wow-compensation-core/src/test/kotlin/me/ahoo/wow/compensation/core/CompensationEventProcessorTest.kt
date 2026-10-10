@@ -9,8 +9,8 @@ import me.ahoo.wow.compensation.api.CompensationPrepared
 import me.ahoo.wow.compensation.api.EventId
 import me.ahoo.wow.compensation.domain.ExecutionFailed
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
+import me.ahoo.wow.event.compensation.EventCompensateSupporter
 import me.ahoo.wow.id.GlobalIdGenerator
-import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.toNamedAggregate

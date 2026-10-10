@@ -161,5 +161,5 @@ Check missing evidence in this order:
 6. separately prove backend state, projection lag, alert delivery, and production admission.
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/metrics/WowMetrics.kt, MetricDescriptor.kt,
-MetricDecoratorFactory.kt, wow-core/src/main/kotlin/me/ahoo/wow/infra/batch/BatchMetrics.kt,
+MetricDecoratorFactory.kt, wow-core/src/main/kotlin/me/ahoo/wow/batch/BatchMetrics.kt,
 wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/metrics/ -->

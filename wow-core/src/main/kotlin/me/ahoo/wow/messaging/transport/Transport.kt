@@ -24,8 +24,9 @@ import reactor.core.publisher.Mono
  * A transport knows nothing about Wow messages. [TransportMessageBus] names topics, encodes, decodes, validates and
  * builds exchanges; a transport only moves [TransportMessage]s to topics and hands [TransportRecord]s back to a
  * consumer group. Kafka, Redis Streams and [InMemoryTransport] implement it; a new broker implements it once and gets
- * the command, event-stream and state-event buses from [TransportCommandBus], [TransportDomainEventBus] and
- * [TransportStateEventBus].
+ * the command, event-stream and state-event buses from
+ * [me.ahoo.wow.command.transport.TransportCommandBus], [me.ahoo.wow.event.transport.TransportDomainEventBus] and
+ * [me.ahoo.wow.eventsourcing.state.transport.TransportStateEventBus].
  */
 @WowSpi
 interface Transport : AutoCloseable {

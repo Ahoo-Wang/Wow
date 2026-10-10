@@ -16,11 +16,11 @@ package me.ahoo.wow.mongo
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName

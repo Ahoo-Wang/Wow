@@ -14,10 +14,10 @@
 package me.ahoo.wow.benchmark.component
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import me.ahoo.wow.infra.batch.BatchCoordinator
-import me.ahoo.wow.infra.batch.BatchItemResult
-import me.ahoo.wow.infra.batch.BatchOptions
-import me.ahoo.wow.infra.batch.BatchWriter
+import me.ahoo.wow.batch.BatchCoordinator
+import me.ahoo.wow.batch.BatchItemResult
+import me.ahoo.wow.batch.BatchOptions
+import me.ahoo.wow.batch.BatchWriter
 import me.ahoo.wow.metrics.WowMetrics
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode

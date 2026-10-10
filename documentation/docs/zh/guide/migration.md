@@ -62,6 +62,17 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 回滚计划必须区分“目标版本第一次生产写入之前”和“之后”。新存储格式已经写入时，只恢复旧 binary
 不是回滚。
 
+## 从 9.7 升级到 9.8.0
+
+9.8.0 把 `wow-core` 通用 `messaging` 包里的类移到各自所属的领域包，并把存储批处理包移出 `infra`，使 `messaging` 不再导入命令、事件与事件溯源包，`infra` 不再导入指标包。这些都属于内部实现（见 `docs/compat-debt.md` 的范围说明）：只有包名变化，类名、构造函数、行为、配置、请求头键与线格式都不变，9.7.x 与 9.8.0 节点可以共处一个集群。只使用 starter 与公开入口 API 的应用无需改动；导入了这些类的代码改用新的导入即可重新编译。
+
+| 变化 | 影响谁 | 怎么做 |
+|---|---|---|
+| `TransportCommandBus` 与 `TransportServerCommandExchange` 从 `me.ahoo.wow.messaging.transport` 移到 `me.ahoo.wow.command.transport`；`TransportDomainEventBus` 与 `TransportEventStreamExchange` 移到 `me.ahoo.wow.event.transport`；`TransportStateEventBus` 与 `TransportStateEventExchange` 移到 `me.ahoo.wow.eventsourcing.state.transport`。`Transport`、`TransportMessageBus` 等 Transport SPI 仍在 `me.ahoo.wow.messaging.transport` | 自定义传输与总线 | 修改导入 |
+| `EventCompensator` 与 `EventCompensateSupporter` 从 `me.ahoo.wow.messaging.compensation` 移到 `me.ahoo.wow.event.compensation`；`CompensationMatcher` 与 `CompensationTarget` 不动 | 自行补偿事件的代码 | 修改导入 |
+| `CommandOperatorMessagePropagator` 与 `WaitPlanMessagePropagator` 从 `me.ahoo.wow.messaging.propagation` 移到 `me.ahoo.wow.command.propagation`；`MessagePropagator`、`MessagePropagators` 与其他传播器不动 | 手工组装 `MessagePropagators` 列表、或在 `META-INF/services` 文件中列出这些类的代码 | 修改导入与服务文件条目 |
+| `me.ahoo.wow.infra.batch`（`BatchOptions`、`BatchCoordinator`、`BatchWriter`、`BatchItemResult` 与批处理异常）移到 `me.ahoo.wow.batch` | 用 `BatchOptions` 构建 MongoDB 或 Elasticsearch 存储、或直接使用批处理协调器的代码 | 修改导入 |
+
 ## 从 9.6 升级到 9.7.0
 
 9.7.0 整理 `wow-webflux` 的内部实现，并删除属于内部实现（不是公开入口 API）的弃用辅助函数，不必等到 v10（见 `docs/compat-debt.md` 的范围说明）。路由、REST、配置与线格式不变，9.6.x 与 9.7.0 节点可以共处一个集群。通过 starter 组装路由、且没有使用被删除辅助函数的应用无需改动；其余代码按下表修改。

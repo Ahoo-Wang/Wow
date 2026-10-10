@@ -20,6 +20,7 @@ import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.mql.MqlValues
 import com.mongodb.reactivestreams.client.MongoCollection
+import me.ahoo.wow.batch.BatchOptions
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.benchmark.infrastructure.StorageBatchTuningOptions
@@ -32,7 +33,6 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.MongoSnapshotStore
-import me.ahoo.wow.infra.batch.BatchOptions
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.toDocument
 import me.ahoo.wow.serialization.MessageRecords

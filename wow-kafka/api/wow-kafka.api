@@ -44,14 +44,14 @@ public final class me/ahoo/wow/kafka/DefaultStateEventTopicConverter$Companion {
 public abstract interface class me/ahoo/wow/kafka/EventStreamTopicConverter : me/ahoo/wow/kafka/AggregateTopicConverter {
 }
 
-public final class me/ahoo/wow/kafka/KafkaCommandBus : me/ahoo/wow/messaging/transport/TransportCommandBus {
+public final class me/ahoo/wow/kafka/KafkaCommandBus : me/ahoo/wow/command/transport/TransportCommandBus {
 	public fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
 	public synthetic fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
 	public synthetic fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/CommandTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
-public final class me/ahoo/wow/kafka/KafkaDomainEventBus : me/ahoo/wow/messaging/transport/TransportDomainEventBus {
+public final class me/ahoo/wow/kafka/KafkaDomainEventBus : me/ahoo/wow/event/transport/TransportDomainEventBus {
 	public fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
 	public synthetic fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V
@@ -77,7 +77,7 @@ public final class me/ahoo/wow/kafka/KafkaRecoverableExceptionProvider : me/ahoo
 	public fun register (Lme/ahoo/wow/exception/RecoverableExceptionRegistrar;)V
 }
 
-public final class me/ahoo/wow/kafka/KafkaStateEventBus : me/ahoo/wow/messaging/transport/TransportStateEventBus {
+public final class me/ahoo/wow/kafka/KafkaStateEventBus : me/ahoo/wow/eventsourcing/state/transport/TransportStateEventBus {
 	public fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;)V
 	public synthetic fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;Lme/ahoo/wow/messaging/transport/TransportFailurePolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/messaging/transport/Transport;Lme/ahoo/wow/kafka/StateEventTopicConverter;Lme/ahoo/wow/messaging/transport/TransportDecodeFailureHandler;)V

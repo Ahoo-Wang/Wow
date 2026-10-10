@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.redis.bus
 
+import me.ahoo.wow.command.transport.TransportCommandBus
 import me.ahoo.wow.messaging.transport.TopicNaming
-import me.ahoo.wow.messaging.transport.TransportCommandBus
 import me.ahoo.wow.messaging.transport.TransportFailurePolicy
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import java.time.Duration
