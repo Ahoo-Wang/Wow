@@ -66,7 +66,7 @@ binary after a new storage-format write is not a rollback.
 
 ## Upgrading from 9.6 to 9.7.0
 
-9.7.0 cleans up `wow-webflux` internals and removes the `wow-webflux` helpers that 9.3 deprecated. They are internal implementation, not public entry APIs, so they change without a deprecation cycle (see the scope in `docs/compat-debt.md`). Routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes can share one cluster. Applications that build their routes through the starter and use none of the removed helpers need no change; other code needs the changes below.
+9.7.0 cleans up `wow-webflux` internals and removes the deprecated helpers that are internal implementation, not public entry APIs, so they change without waiting for v10 (see the scope in `docs/compat-debt.md`). Routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes can share one cluster. Applications that build their routes through the starter and use none of the removed helpers need no change; other code needs the changes below.
 
 | Change | Who is affected | What to do |
 |---|---|---|
@@ -76,6 +76,9 @@ binary after a new storage-format write is not a rollback.
 | A tracing request with a `limit` whose read of the stream's tail fails answers with the error's own status before the response starts, instead of `200` and an error event on an event stream | SSE clients of the tracing route | Nothing |
 | The `ServerRequest` identity readers are removed: `getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId` (both overloads) and `getAggregateId` (all three overloads) | Custom handlers that read identity from the request | Use `identity(aggregateMetadata)` or `identity(aggregateRouteMetadata)` (`me.ahoo.wow.webflux.route.identity`): `tenantId()` (`?: TenantId.DEFAULT_TENANT_ID` for the old `getTenantIdOrDefault`), `ownerId()`, `aggregateId()`, `spaceId()`, `requestId()`. The `AggregateRoute.Owner` overloads have no replacement: the aggregate's own owner policy applies |
 | `Throwable.toResponseEntity()` and `ErrorInfo.toServerResponse()` are removed | Code that mapped an error to a response itself | Use `WebFluxErrorStrategy.toServerResponse`, or the `RequestExceptionHandler` bean |
+| `MessageBus.receive(subscription)` is removed; `DefaultMethodContract.COMPAT_ADAPTERS` (`wow-tck`) goes with it | Code that read a bus as a plain stream | `receiver(subscription).openedMessages()` |
+| The static `RecoverableExceptionRegistrar.register`, `unregister` and `getRecoverableType` are removed | Code that classified exceptions through the 9.2 static calls | The same methods of `RecoverableExceptionRegistry.DEFAULT`, or a `RecoverableExceptionProvider` |
+| `CommandComponent.Header`, `CommonComponent.Header` and the `me.ahoo.wow.openapi.BatchResult` typealias (`wow-openapi`) are removed | Code that read the header names or `BatchResult` from `wow-openapi` | `me.ahoo.wow.rest.CommandHeaders`, `WowHeaders` and `BatchResult` (`wow-rest-contract`); the header values are unchanged |
 
 ## Upgrading from 9.5 to 9.6.0
 
@@ -108,9 +111,9 @@ The REST wire vocabulary moved from `wow-openapi` to the new module `wow-rest-co
 | `me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths.Global` | `me.ahoo.wow.rest.RoutePaths` |
 | `me.ahoo.wow.openapi.BatchComponent.PathVariable` (`BatchComponent` is deleted) | `me.ahoo.wow.rest.RouteVariables` |
 | `me.ahoo.wow.openapi.contract.bi.*` | `me.ahoo.wow.rest.bi.*` |
-| `CommandComponent.Header` (deprecated alias, removed in v10) | `me.ahoo.wow.rest.CommandHeaders` |
-| `CommonComponent.Header` (deprecated alias, removed in v10) | `me.ahoo.wow.rest.WowHeaders` |
-| `me.ahoo.wow.openapi.BatchResult` (deprecated `typealias`, removed in v10; the class itself moved, so recompile) | `me.ahoo.wow.rest.BatchResult` |
+| `CommandComponent.Header` (deprecated alias, removed in 9.7.0) | `me.ahoo.wow.rest.CommandHeaders` |
+| `CommonComponent.Header` (deprecated alias, removed in 9.7.0) | `me.ahoo.wow.rest.WowHeaders` |
+| `me.ahoo.wow.openapi.BatchResult` (deprecated `typealias`, removed in 9.7.0; the class itself moved, so recompile) | `me.ahoo.wow.rest.BatchResult` |
 
 The moved declarations without a deprecated alias need their imports changed. The OpenAPI schema names stay `wow.openapi.*`, and `GET /wow/metadata` additionally lists the scope `me.ahoo.wow.rest` under the `wow.openapi` context.
 
@@ -192,7 +195,7 @@ These application-facing calls still compile in 9.3, deprecated, and are removed
 | `RecoverableExceptionRegistrar.register`, `unregister`, `getRecoverableType` (static calls; from Java through `.Companion`, since 9.2's `INSTANCE` is gone) | the same methods of `RecoverableExceptionRegistry.DEFAULT`, or a `RecoverableExceptionProvider` |
 | `Throwable.toResponseEntity()`, `ErrorInfo.toServerResponse()` | `WebFluxErrorStrategy.toServerResponse`, or the `RequestExceptionHandler` bean |
 
-The `ServerRequest` identity readers and the two error helpers above were removed early, in 9.7.0 (see [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0)).
+`bus.receive`, the static `RecoverableExceptionRegistrar` calls, the `ServerRequest` identity readers and the two error helpers above were removed early, in 9.7.0 (see [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0)).
 
 `identity(…)` is `me.ahoo.wow.webflux.route.identity.identity`; the `RequestIdentity` it returns reads each fact by the route's rules, header aliases included, exactly as the built-in command and query handlers do. The deprecated readers delegate to it, so they also reject a blank identity path variable the route declares (400) and apply the conflict checks of [Requests clients can see](#requests-clients-can-see).
 

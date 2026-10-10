@@ -15,16 +15,6 @@ public final class me/ahoo/wow/openapi/ApiResponseBuilder {
 public final class me/ahoo/wow/openapi/ApiResponseBuilder$Companion {
 }
 
-public final class me/ahoo/wow/openapi/CommonComponent {
-	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent;
-}
-
-public final class me/ahoo/wow/openapi/CommonComponent$Header {
-	public static final field ERROR_CODE Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Header;
-	public static final field SPACE_ID Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/openapi/RequestBodyBuilder {
 	public fun <init> ()V
 	public final fun build ()Lio/swagger/v3/oas/models/parameters/RequestBody;
@@ -52,37 +42,6 @@ public final class me/ahoo/wow/openapi/RouterSpecs {
 }
 
 public final class me/ahoo/wow/openapi/RouterSpecs$Companion {
-}
-
-public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent {
-	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent;
-}
-
-public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent$Header {
-	public static final field AGGREGATE_ID Ljava/lang/String;
-	public static final field AGGREGATE_VERSION Ljava/lang/String;
-	public static final field COMMAND_AGGREGATE_CONTEXT Ljava/lang/String;
-	public static final field COMMAND_AGGREGATE_NAME Ljava/lang/String;
-	public static final field COMMAND_HEADERS_PREFIX Ljava/lang/String;
-	public static final field COMMAND_HEADER_X_PREFIX Ljava/lang/String;
-	public static final field COMMAND_TYPE Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/command/CommandComponent$Header;
-	public static final field LEGACY_WAIT_TIME_OUT Ljava/lang/String;
-	public static final field LOCAL_FIRST Ljava/lang/String;
-	public static final field OWNER_ID Ljava/lang/String;
-	public static final field REQUEST_ID Ljava/lang/String;
-	public static final field TENANT_ID Ljava/lang/String;
-	public static final field WAIT_CONTEXT Ljava/lang/String;
-	public static final field WAIT_FUNCTION Ljava/lang/String;
-	public static final field WAIT_PREFIX Ljava/lang/String;
-	public static final field WAIT_PROCESSOR Ljava/lang/String;
-	public static final field WAIT_STAGE Ljava/lang/String;
-	public static final field WAIT_TAIL_CONTEXT Ljava/lang/String;
-	public static final field WAIT_TAIL_FUNCTION Ljava/lang/String;
-	public static final field WAIT_TAIL_PREFIX Ljava/lang/String;
-	public static final field WAIT_TAIL_PROCESSOR Ljava/lang/String;
-	public static final field WAIT_TAIL_STAGE Ljava/lang/String;
-	public static final field WAIT_TIME_OUT Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/openapi/catalog/RouteCatalog : java/lang/Iterable, kotlin/jvm/internal/markers/KMappedMarker {

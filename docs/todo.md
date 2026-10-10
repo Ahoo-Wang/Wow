@@ -5,7 +5,7 @@
 - 只记**已经决定、但还没做**的事；尚无结论的问题记在「待议」，由维护者定了再移上来。
 - 每条都要写清 **为什么** / **做完的判据** / **落点**（哪个文件或文档）。
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
-- 兼容性代码（弃用别名、为旧版本保留的行为）不记在这里，记在 [compat-debt.md](compat-debt.md)：v10 删除的 `CommandComponent.Header`、`CommonComponent.Header`、`me.ahoo.wow.openapi.BatchResult` 别名与 state 路由的 `TENANT_ID_ONLY` 命名都在那里。
+- 兼容性代码（弃用别名、为旧版本保留的行为）不记在这里，记在 [compat-debt.md](compat-debt.md)，例如 state 路由的 `TENANT_ID_ONLY` 命名。
 - TypeScript 视图引擎的 TODO 在 [typescript/wow-view-engine/docs/design/todo.md](../typescript/wow-view-engine/docs/design/todo.md)。
 
 ## 下一个补丁

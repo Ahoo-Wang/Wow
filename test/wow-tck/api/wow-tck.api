@@ -4,7 +4,6 @@ public final class me/ahoo/wow/tck/architecture/DefaultMethodContract {
 	public static synthetic fun assertOnlyKnownGaps$default (Lme/ahoo/wow/tck/architecture/DefaultMethodContract;Ljava/util/Collection;Ljava/util/Map;Ljava/util/Set;ILjava/lang/Object;)V
 	public final fun concreteSubtypes (Ljava/lang/String;Ljava/lang/Class;Ljava/lang/ClassLoader;)Ljava/util/List;
 	public static synthetic fun concreteSubtypes$default (Lme/ahoo/wow/tck/architecture/DefaultMethodContract;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/ClassLoader;ILjava/lang/Object;)Ljava/util/List;
-	public final fun getCOMPAT_ADAPTERS ()Ljava/util/Set;
 	public final fun getCONSTANT_CLASSIFIERS ()Ljava/util/Set;
 	public final fun inheritedDefaults (Ljava/lang/Class;Ljava/util/Set;)Ljava/util/List;
 	public final fun inheritedDefaults (Ljava/util/Collection;Ljava/util/Set;)Ljava/util/List;
