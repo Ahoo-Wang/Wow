@@ -96,6 +96,8 @@ fun reportHandlerFunctionFactory(reportService: ReportService): HttpRouteHandler
 
 合同的方法、状态码与媒体类型都是普通字符串（`"GET"`、`"200"`、`"application/json"`）。`wow-openapi` 的公开 API 是 `RouterSpecs`、`RouteContributor`、`RouteCatalog`、`me.ahoo.wow.openapi.contract` 中的合同类型（含 `BuiltInHttpRouteHandlerKeys` 与 `HttpComponent`）、路由元数据（`aggregateRouteMetadata()`、`commandRouteMetadata()`）、`DefaultRouteContributors`（内置路由，自行构建 `RouterSpecs` 时与自己的贡献者组合）、`OpenAPIComponentContext`、内置共用组件 `WowComponents`、组件构建器 `ApiResponseBuilder` 与 `RequestBodyBuilder`、`OpenAPISchemaBuilder` 与 `BoundedContextSchemaNameConverter`。渲染器、目录构建器与内置路由背后的辅助类型是 internal；内置贡献者对象为 internal 或标为 `@InternalWowApi`，供 Spring Boot Starter 使用，不属于 API。
 
+`OpenAPIComponentContext.default(inline = true)` 把 Schema、参数、响应头、请求体与响应都写在原处，文档没有组件。包含自身的 Schema 无法写在原处，生成时失败（`Option.INLINE_ALL_SCHEMAS cannot be fulfilled`）。内置路由含有这样的 Schema（聚合查询的 `AggregationExpression`），所以内联模式不能渲染 `DefaultRouteContributors.all()`，只用于 Schema 无循环引用的路由；Spring Boot Starter 不开内联。
+
 包含 Wow 注解的模块仍需应用 KSP 与 `wow-compiler`，并确保生成的 `META-INF/wow-metadata.json` 位于服务运行时 classpath。不要手写或提交生成资源。
 
 ## Swagger-UI
@@ -284,7 +286,7 @@ curl 'http://localhost:8080/wow/id/global' \
 查询合同分为三个独立层次：
 
 1. 通用 query component schemas 定义规范请求 JSON 形状。
-2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `InferredQuerySchemaSource` 推断字段组成。
+2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与应用的 Query Schema 来源（推断、classpath、工作目录与 Bean 声明，按查询 Schema Catalog 的方式合并）声明的字段组成，不读取存储事实；映射（`values`）下以调用方的键命名的字段不列出。Spring Boot Starter 传入应用的 `QuerySchemaSource` Bean 与 `QuerySensitivityPolicy`；自行构建的 `RouterSpecs` 只在传入 `querySchemaSources` 时如此，否则只用 `InferredQuerySchemaSource`。
 3. 运行时 `snapshot/schema` 与 `event/schema` 路由发布 HTTP 入口的能力描述，由合并后的 schema 与后端已证明的能力派生。
 
 `x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。

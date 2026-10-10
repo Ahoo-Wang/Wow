@@ -16,6 +16,10 @@ package me.ahoo.wow.openapi.context
 import com.fasterxml.classmate.ResolvedType
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.openapi.contract.HttpComponent
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import java.lang.reflect.Type
 
 /**
@@ -50,10 +54,15 @@ interface HttpComponentContext {
  * reference.
  */
 internal fun OpenAPIComponentContext.asHttpComponentContext(
+    queryFieldSources: QueryFieldSources = QueryFieldSources.INFERRED,
     ref: (HttpComponent<*>) -> Any
 ): HttpComponentContext {
     val context = this
-    return object : HttpComponentContext {
+    val fieldSources = queryFieldSources
+    return object : HttpComponentContext, QueryFieldSourcesCapable {
+        override val queryFieldSources: QueryFieldSources
+            get() = fieldSources
+
         override val inline: Boolean
             get() = context.inline
 
@@ -73,3 +82,25 @@ internal fun OpenAPIComponentContext.asHttpComponentContext(
         override fun <T : Any> ref(component: HttpComponent<T>): T = ref(component) as T
     }
 }
+
+/**
+ * Where the queryable fields of the aggregated query request bodies come from: the query schema [sources] an
+ * application declares, merged under its [sensitivity] policy as the query schema Catalog merges them.
+ */
+internal class QueryFieldSources(
+    val sources: List<QuerySchemaSource>,
+    val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+) {
+    companion object {
+        /** Wow's type inference alone: the fields of the aggregate's state. */
+        val INFERRED = QueryFieldSources(listOf(InferredQuerySchemaSource(JsonQueryModelSource())))
+    }
+}
+
+internal interface QueryFieldSourcesCapable {
+    val queryFieldSources: QueryFieldSources
+}
+
+/** The query field sources this context renders with; [QueryFieldSources.INFERRED] for a context built elsewhere. */
+internal val HttpComponentContext.queryFieldSources: QueryFieldSources
+    get() = (this as? QueryFieldSourcesCapable)?.queryFieldSources ?: QueryFieldSources.INFERRED

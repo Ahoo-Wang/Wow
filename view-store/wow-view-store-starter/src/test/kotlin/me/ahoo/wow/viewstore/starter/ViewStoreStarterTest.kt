@@ -25,6 +25,7 @@ import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
+import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
 import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.viewstore.starter.system.SystemViews
@@ -221,6 +222,24 @@ class ViewStoreStarterTest {
         document.at("/info/title").asString().assert().isEqualTo("Host")
         document.at("/info/x-wow-context-alias").isMissingNode.assert().isFalse()
         document.at("/info/x-wow-context-name").asString().assert().isEqualTo("example-service")
+    }
+
+    /**
+     * A view's `config` is opaque to Wow's type inference; the view store's query schema declaration opens the parts it
+     * queries, so the document lists them among the fields a view query can name, as the query schema Catalog does.
+     */
+    @Test
+    fun `the view query fields include the ones the view store declares`() {
+        val document = openApiClient.get().uri("/v3/api-docs").exchange()
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+        val viewFields = document.at("/components/schemas").propertyNames()
+            .single { it.endsWith(".view.ViewAggregatedFields") }
+        val fields = document.at("/components/schemas/$viewFields/enum").toList().map { it.asString() }
+        val panels = "${ViewConfigQuerySchema.CONFIG_FIELD}.${ViewConfigs.PANELS}"
+        val declared = listOf(ViewConfigQuerySchema.CONFIG_FIELD, "${ViewConfigQuerySchema.CONFIG_FIELD}.${ViewConfigs.KIND}", panels) +
+            ViewConfigs.PANEL_REFERENCES.map { "$panels.$it" }
+        fields.assert().contains(*declared.toTypedArray())
     }
 
     /**

@@ -14,8 +14,13 @@
 package me.ahoo.wow.openapi.context
 
 import com.github.victools.jsonschema.generator.SchemaVersion
+import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 internal class OpenAPIComponentContextTest {
 
@@ -30,6 +35,22 @@ internal class OpenAPIComponentContextTest {
     fun `should create default context with inline option`() {
         val context = OpenAPIComponentContext.default(inline = true)
         context.inline.assert().isTrue()
+    }
+
+    /** Inlining cannot express a schema that contains itself, such as `AggregationExpression`'s. */
+    @Test
+    fun `inline context should reject the built-in routes' circular schemas`() {
+        val routerSpecs = RouterSpecs(
+            MaterializedNamedBoundedContext("example-service"),
+            OpenAPIComponentContext.default(inline = true),
+            routeContributors = DefaultRouteContributors.all(),
+        )
+
+        val error = assertThrows<IllegalArgumentException> {
+            routerSpecs.buildDocumentation().mergeOpenAPI(OpenAPI())
+        }
+
+        error.message.assert().contains("INLINE_ALL_SCHEMAS cannot be fulfilled")
     }
 
     @Test

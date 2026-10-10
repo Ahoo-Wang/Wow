@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.component
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
@@ -29,49 +30,41 @@ import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.component.CommonComponents.withErrorCodeHeader
 import me.ahoo.wow.openapi.context.HttpComponentContext
+import me.ahoo.wow.openapi.context.QueryFieldSources
+import me.ahoo.wow.openapi.context.queryFieldSources
 import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
-import me.ahoo.wow.query.schema.DeclarationValue
-import me.ahoo.wow.query.schema.InferredQuerySchemaSource
-import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.SystemQuerySchemaSource
-import me.ahoo.wow.schema.query.JsonQueryModelSource
+import me.ahoo.wow.query.schema.declaredFields
 import java.lang.reflect.Type
 import java.util.concurrent.ConcurrentHashMap
 
-private val staticQuerySchemaSource = InferredQuerySchemaSource(JsonQueryModelSource())
+private val log = KotlinLogging.logger {}
 
 /**
  * The `{aggregate}.{Aggregate}AggregatedFields` schema component: every field path a query on the aggregate's
- * snapshots can name. Inferring it generates the aggregate's JSON Schema, so it runs only when the document is
- * rendered.
+ * snapshots can name, from the [query schema sources][QueryFieldSources] the document is rendered with. Loading them
+ * generates the aggregate's JSON Schema, so it runs only when the document is rendered. Declarations that do not merge
+ * leave the inferred fields documented, with a warning.
  */
 internal fun HttpComponentContext.aggregatedFieldsSchema(
     aggregateMetadata: AggregateMetadata<*, *>,
-    querySchemaSource: QuerySchemaSource = staticQuerySchemaSource,
+    fieldSources: QueryFieldSources = queryFieldSources,
 ): Schema<*> {
     val context = QuerySchemaContext(
         namedAggregate = aggregateMetadata.namedAggregate,
         model = QueryModel.SNAPSHOT,
     )
-    val inferred = checkNotNull(querySchemaSource.load(context).blockFirst())
-    val fields = buildSet {
-        fun addFields(field: QueryField, declaration: QueryFieldDeclaration) {
-            add(field)
-            (declaration.properties as? DeclarationValue.Set)?.value.orEmpty().forEach { (name, child) ->
-                addFields(field.append(QueryField(name)), child)
-            }
-            (declaration.items as? DeclarationValue.Set)?.value?.let { addFields(field, it) }
-            (declaration.alternatives as? DeclarationValue.Set)?.value.orEmpty().forEach { addFields(field, it) }
+    val declared = context.declaredFields(fieldSources.sources, fieldSources.sensitivity).onErrorResume { error ->
+        if (fieldSources === QueryFieldSources.INFERRED) throw error
+        // The Catalog reports such a schema when it is queried; the document keeps rendering, from inference alone.
+        log.warn(error) {
+            "Query schema of [${context.namedAggregate}] does not merge; documenting its inferred fields."
         }
-        SystemQuerySchemaSource.declaration(
-            QueryModel.SNAPSHOT
-        ).fields.forEach { (field, declaration) -> addFields(field, declaration) }
-        inferred.fields.forEach { (field, declaration) -> addFields(field, declaration) }
-    }.map(QueryField::path).sorted()
+        context.declaredFields(QueryFieldSources.INFERRED.sources)
+    }
+    val fields = checkNotNull(declared.block()).map(QueryField::path).sorted()
     val key = "${aggregateMetadata.toStringWithAlias()}." +
         "${aggregateMetadata.command.aggregateType.simpleName}${QueryComponents.AGGREGATED_FIELDS_SUFFIX}"
     return componentSchema(key, StringSchema()._enum(fields))

@@ -96,6 +96,8 @@ The components the built-in routes share are public in `WowComponents` (`me.ahoo
 
 A contract's method, status codes and media types are plain strings (`"GET"`, `"200"`, `"application/json"`). The public API of `wow-openapi` is `RouterSpecs`, `RouteContributor`, `RouteCatalog`, the contract types in `me.ahoo.wow.openapi.contract` (with `BuiltInHttpRouteHandlerKeys` and `HttpComponent`), the route metadata (`aggregateRouteMetadata()`, `commandRouteMetadata()`), `DefaultRouteContributors` (the built-in routes, to combine with your own contributors when building `RouterSpecs` yourself), `OpenAPIComponentContext`, the built-in shared components `WowComponents`, the component builders `ApiResponseBuilder` and `RequestBodyBuilder`, `OpenAPISchemaBuilder` and `BoundedContextSchemaNameConverter`. The renderer, the catalog builder and the helpers behind the built-in routes are internal; the built-in contributor objects are internal or `@InternalWowApi`, shared with the Spring Boot starter but not part of the API.
 
+`OpenAPIComponentContext.default(inline = true)` writes every schema, parameter, header, request body and response in place, and the document has no components. A schema that contains itself cannot be written in place, so generating it fails (`Option.INLINE_ALL_SCHEMAS cannot be fulfilled`). The built-in routes have such schemas (the aggregation query's `AggregationExpression`), so an inline context cannot render `DefaultRouteContributors.all()`; use it for routes whose schemas are acyclic. The Spring Boot starter does not inline.
+
 Modules containing Wow annotations still need KSP plus `wow-compiler`, and their generated `META-INF/wow-metadata.json` resources must be present on the service runtime classpath. Do not hand-write or commit generated resources.
 
 ## Swagger-UI
@@ -284,7 +286,7 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 Query contracts appear in three distinct layers:
 
 1. Generic query component schemas define the canonical request JSON shapes.
-2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `InferredQuerySchemaSource`.
+2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with the fields the application's query schema sources declare (inferred, classpath, working directory and bean declarations, merged as the query schema Catalog merges them), without storage facts; fields under a map (`values`), named by the caller's keys, are not listed. The Spring Boot starter passes the application's `QuerySchemaSource` beans and `QuerySensitivityPolicy`; a `RouterSpecs` built by hand does so only when given `querySchemaSources`, and otherwise uses `InferredQuerySchemaSource` alone.
 3. The runtime `snapshot/schema` and `event/schema` routes publish the capability descriptor of the HTTP entry, derived from the merged schema and backend-proven capabilities.
 
 `x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.

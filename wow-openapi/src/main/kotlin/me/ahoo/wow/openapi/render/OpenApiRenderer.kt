@@ -42,6 +42,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_RESPONSES_REF
+import me.ahoo.wow.openapi.context.QueryFieldSources
 import me.ahoo.wow.openapi.context.asHttpComponentContext
 import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpContent
@@ -65,7 +66,10 @@ import java.lang.reflect.Type
  * must not run concurrently. Rendering generates schemas, which may block: `RouterSpecs` renders once and merges
  * copies of that document.
  */
-internal class OpenApiRenderer(private val componentContext: OpenAPIComponentContext) {
+internal class OpenApiRenderer(
+    private val componentContext: OpenAPIComponentContext,
+    queryFieldSources: QueryFieldSources = QueryFieldSources.INFERRED,
+) {
     /** The components built in this render, and what they built, by `$ref`. */
     private val builtComponents = mutableMapOf<String, Pair<HttpComponent<*>, Any>>()
 
@@ -75,7 +79,8 @@ internal class OpenApiRenderer(private val componentContext: OpenAPIComponentCon
      */
     private val duplicates = mutableListOf<Pair<HttpComponent<*>, Any>>()
 
-    private val buildContext: HttpComponentContext = componentContext.asHttpComponentContext { it.render() }
+    private val buildContext: HttpComponentContext =
+        componentContext.asHttpComponentContext(queryFieldSources) { it.render() }
 
     /** Builds a component without registering it, so a duplicate leaves the registered component untouched. */
     private val unregisteredContext: OpenAPIComponentContext = object : OpenAPIComponentContext by componentContext {

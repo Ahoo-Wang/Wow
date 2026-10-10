@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.forInProcessQuery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -162,3 +163,21 @@ class DefaultQueryModelSchemaProvider(
         }.subscribeOn(Schedulers.boundedElastic())
     }
 }
+
+/**
+ * The fields a query on [this] model can name as written: the system fields and the declarations of [sources], merged
+ * under [sensitivity] into the logical model as [DefaultQueryModelSchemaProvider] merges them, before any storage
+ * facts. Fields under a map, whose keys are the caller's, are left out. The OpenAPI document lists them, so it agrees
+ * with the declarations the Catalog compiles; what the storage supports for each is the capability descriptor's.
+ */
+@InternalWowApi
+fun QuerySchemaContext.declaredFields(
+    sources: List<QuerySchemaSource>,
+    sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+): Mono<Set<QueryField>> = Flux.fromIterable(sources)
+    .concatMap { source -> source.load(this).map { PrioritizedQuerySchemaDeclaration(source.priority, it) } }
+    .collectList()
+    .map { declarations ->
+        QuerySchemaMerger().merge(SystemQuerySchemaSource.declaration(model), declarations, sensitivity)
+            .staticMatches.keys
+    }

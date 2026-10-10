@@ -17,13 +17,22 @@ import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.disable.DisabledRouteAggregate
 import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
+import me.ahoo.wow.query.schema.BeanQuerySchemaSource
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.query.schema.querySchemaRegistration
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -93,6 +102,52 @@ internal class ExampleDomainOpenAPITest {
                 val queryFields = requestBody.extensions.getValue("x-wow-query-fields") as Schema<*>
                 queryFields.`$ref`.assert().isEqualTo(fieldsRef)
             }
+        }
+
+        @Test
+        fun `aggregate fields should follow the given query schema sources`() {
+            val declared = BeanQuerySchemaSource(
+                listOf(
+                    querySchemaRegistration(Cart::class, QueryModel.SNAPSHOT) {
+                        field("state.couponCode") { types(QueryValueType.STRING) }
+                    }
+                )
+            )
+            val declaredOpenAPI = OpenAPI()
+            RouterSpecs(
+                namedContext,
+                OpenAPIComponentContext.default(defaultSchemaNamePrefix = namedContext.getContextAliasPrefix()),
+                DefaultRouteContributors.all(),
+                querySchemaSources = listOf(InferredQuerySchemaSource(JsonQueryModelSource()), declared),
+            ).mergeOpenAPI(declaredOpenAPI)
+
+            val fieldsKey = "example.cart.CartAggregatedFields"
+            declaredOpenAPI.components.schemas.getValue(fieldsKey).`enum`.assert()
+                .contains("state.couponCode", "state.items.productId")
+            openAPI.components.schemas.getValue(fieldsKey).`enum`.assert().doesNotContain("state.couponCode")
+        }
+
+        @Test
+        fun `aggregate fields should fall back to inference when the declarations do not merge`() {
+            // Declared outside `state`, which the Catalog refuses as well.
+            val conflicting = BeanQuerySchemaSource(
+                listOf(
+                    querySchemaRegistration(Cart::class, QueryModel.SNAPSHOT) {
+                        field("outside") { types(QueryValueType.STRING) }
+                    }
+                )
+            )
+            val fallbackOpenAPI = OpenAPI()
+            RouterSpecs(
+                namedContext,
+                OpenAPIComponentContext.default(defaultSchemaNamePrefix = namedContext.getContextAliasPrefix()),
+                DefaultRouteContributors.all(),
+                querySchemaSources = listOf(InferredQuerySchemaSource(JsonQueryModelSource()), conflicting),
+            ).mergeOpenAPI(fallbackOpenAPI)
+
+            val fieldsKey = "example.cart.CartAggregatedFields"
+            fallbackOpenAPI.components.schemas.getValue(fieldsKey).`enum`
+                .assert().isEqualTo(openAPI.components.schemas.getValue(fieldsKey).`enum`)
         }
 
         @Test
