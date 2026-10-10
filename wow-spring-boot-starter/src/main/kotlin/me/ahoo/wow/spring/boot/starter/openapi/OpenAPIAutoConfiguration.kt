@@ -25,6 +25,7 @@ import me.ahoo.wow.openapi.contributor.aggregate.event.EventRouteContributor
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -94,11 +95,15 @@ class OpenAPIAutoConfiguration {
     @ConditionalOnOpenAPIEnabled
     @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
     class SpringdocConfiguration {
+        /** Injected into a field so that [wowOpenApiCustomizer] keeps its signature. */
+        @Autowired
+        private lateinit var documentFilters: ObjectProvider<OpenApiDocumentFilter>
+
         @Bean
         fun wowOpenApiCustomizer(routerSpecs: RouterSpecs): WowOpenApiCustomizer {
             // The document is served: render it at startup, not on the first (event loop) request. A no-op when the
             // routerSpecs bean above already rendered it; needed when the application supplies its own RouterSpecs.
-            return WowOpenApiCustomizer(routerSpecs.buildDocumentation())
+            return WowOpenApiCustomizer(routerSpecs.buildDocumentation(), documentFilters.orderedStream().toList())
         }
     }
 }

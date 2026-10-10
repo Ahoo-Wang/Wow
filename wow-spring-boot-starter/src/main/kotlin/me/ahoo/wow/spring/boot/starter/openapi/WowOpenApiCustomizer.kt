@@ -17,8 +17,20 @@ import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.openapi.RouterSpecs
 import org.springdoc.core.customizers.OpenApiCustomizer
 
-class WowOpenApiCustomizer(private val routerSpecs: RouterSpecs) : OpenApiCustomizer {
+/**
+ * Merges Wow's routes into the OpenAPI document, then applies the [documentFilters] in the order given.
+ *
+ * The auto-configured customizer is given every [OpenApiDocumentFilter] bean, in their order; a customizer built by
+ * hand applies only the filters passed to it, and none through the `(RouterSpecs)` constructor.
+ */
+class WowOpenApiCustomizer(
+    private val routerSpecs: RouterSpecs,
+    private val documentFilters: List<OpenApiDocumentFilter>,
+) : OpenApiCustomizer {
+    constructor(routerSpecs: RouterSpecs) : this(routerSpecs, emptyList())
+
     override fun customise(openApi: OpenAPI) {
         routerSpecs.mergeOpenAPI(openApi)
+        documentFilters.forEach { it.filter(openApi) }
     }
 }

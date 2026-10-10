@@ -1224,8 +1224,13 @@ public final class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIProperties : m
 public final class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIProperties$Companion {
 }
 
+public abstract interface class me/ahoo/wow/spring/boot/starter/openapi/OpenApiDocumentFilter {
+	public abstract fun filter (Lio/swagger/v3/oas/models/OpenAPI;)V
+}
+
 public final class me/ahoo/wow/spring/boot/starter/openapi/WowOpenApiCustomizer : org/springdoc/core/customizers/OpenApiCustomizer {
 	public fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;)V
+	public fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;Ljava/util/List;)V
 	public fun customise (Lio/swagger/v3/oas/models/OpenAPI;)V
 }
 

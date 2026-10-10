@@ -32,6 +32,7 @@ import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURREN
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.openapi.ConditionalOnOpenAPIEnabled
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.openapi.OpenApiDocumentFilter
 import me.ahoo.wow.spring.boot.starter.webflux.ConditionalOnWebfluxEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.spring.query.eventStreamQueryGatewayBeanName
@@ -282,7 +283,8 @@ class ViewStoreAutoConfiguration {
     /**
      * Documents the view store's own routes when Wow's OpenAPI document is served (as Wow's springdoc customizer). The
      * customizer is created eagerly, even under `spring.main.lazy-initialization`, so their schemas are generated at
-     * startup and never on a request thread.
+     * startup and never on a request thread. The routes the view store closes are taken out of the document by an
+     * [OpenApiDocumentFilter], which Wow's customizer applies after merging them.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnOpenAPIEnabled
@@ -293,14 +295,15 @@ class ViewStoreAutoConfiguration {
         internal fun viewStoreOpenApiCustomizer(
             @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext,
             viewStorePaths: ViewStorePaths,
-            viewStoreRouteGuard: ViewStoreRouteGuard,
         ): OpenApiCustomizer {
             // Generates the schemas at startup, so a document built on a request thread generates none.
             val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix()).render()
-            return OpenApiCustomizer {
-                openApi.withoutClosedRoutes(it, viewStoreRouteGuard.closedContracts)
-                openApi.merge(it)
-            }
+            return OpenApiCustomizer { openApi.merge(it) }
         }
+
+        /** Applied by Wow's customizer right after it merges Wow's routes, whatever order the customizers run in. */
+        @Bean("viewStoreClosedRoutesFilter")
+        internal fun viewStoreClosedRoutesFilter(viewStoreRouteGuard: ViewStoreRouteGuard): OpenApiDocumentFilter =
+            ViewStoreClosedRoutesFilter(viewStoreRouteGuard.closedContracts)
     }
 }

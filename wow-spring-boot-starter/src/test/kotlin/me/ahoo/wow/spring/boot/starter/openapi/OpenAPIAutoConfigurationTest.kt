@@ -13,6 +13,9 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
+import java.util.function.Supplier
 
 class OpenAPIAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -120,6 +123,39 @@ class OpenAPIAutoConfigurationTest {
                     openAPI.paths.containsKey(RoutePaths.BI_SCRIPT)
                         .assert().isEqualTo(enabled != false)
                 }
+        }
+    }
+
+    @Test
+    fun `should apply the document filters in their order after merging Wow's routes`() {
+        val applied = mutableListOf<String>()
+
+        class NamedFilter(private val name: String, private val order: Int) : OpenApiDocumentFilter, Ordered {
+            override fun filter(openApi: OpenAPI) {
+                // Wow's routes are already merged.
+                openApi.paths.assert().isNotEmpty()
+                applied += name
+            }
+
+            override fun getOrder(): Int = order
+        }
+        contextRunner
+            .enableWow()
+            .withBean("third", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("third", 3) })
+            .withBean("second", OpenApiDocumentFilter::class.java, Supplier { AnnotatedOrderFilter(applied) })
+            .withBean("first", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("first", 1) })
+            .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(WowOpenApiCustomizer::class.java).customise(OpenAPI())
+                applied.assert().containsExactly("first", "second", "third")
+            }
+    }
+
+    /** Ordered by its class-level [Order], between the [Ordered] filters of the test above. */
+    @Order(2)
+    private class AnnotatedOrderFilter(private val applied: MutableList<String>) : OpenApiDocumentFilter {
+        override fun filter(openApi: OpenAPI) {
+            applied += "second"
         }
     }
 
