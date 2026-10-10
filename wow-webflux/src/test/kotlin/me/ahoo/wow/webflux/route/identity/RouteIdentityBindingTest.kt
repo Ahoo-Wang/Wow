@@ -262,7 +262,7 @@ class RouteIdentityBindingTest {
         RouteIdentity.of(request).binding(Order::class.java.aggregateRouteMetadata())
 
     @ParameterizedTest
-    @ValueSource(strings = ["", " ", "\t"])
+    @ValueSource(strings = ["", " ", "\t", "\u3000"])
     fun `a declared but blank path variable is rejected instead of falling back to the header`(blank: String) {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, blank)
