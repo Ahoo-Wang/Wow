@@ -52,6 +52,7 @@ import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.ScopeContributor
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.MediaType
@@ -155,6 +156,7 @@ class QueryRestErrorContractTest {
                     val module = WebFluxAutoConfiguration().queryRouteModule(
                         context,
                         DefaultQueryRequestScope,
+                        context.getBeanProvider(ScopeContributor::class.java),
                         WebFluxRequestExceptionHandler(),
                         HttpQueryGuard(strictCountFilter = guard.strictCountFilter),
                     )
