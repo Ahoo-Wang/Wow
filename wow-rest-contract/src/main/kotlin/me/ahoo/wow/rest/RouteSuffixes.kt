@@ -11,19 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.rest
 
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.HEAD_VERSION
-import me.ahoo.wow.openapi.BatchComponent.PathVariable.TAIL_VERSION
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.rest.RouteVariables.BATCH_AFTER_ID
+import me.ahoo.wow.rest.RouteVariables.BATCH_LIMIT
+import me.ahoo.wow.rest.RouteVariables.CREATE_TIME
+import me.ahoo.wow.rest.RouteVariables.HEAD_VERSION
+import me.ahoo.wow.rest.RouteVariables.TAIL_VERSION
+import me.ahoo.wow.rest.RouteVariables.VERSION
 
 /**
  * The path suffixes of Wow's built-in aggregate routes: what follows `/{aggregate}`, or `/{aggregate}/{id}` for the
  * routes of one aggregate, after the tenant and owner segments a route may have.
  *
- * One definition for every side that names these paths: the route contributors that build the routes, and
+ * One definition for every side that names these paths: wow-openapi's route contributors that build the routes, and
  * wow-apiclient's `SNAPSHOT_*_RESOURCE_NAME` constants. They are part of the REST contract, frozen within a major
  * version. The TypeScript client keeps its own copy (`endpointPaths.ts` in `@ahoo-wang/wow-client`); its tests check
  * that copy against the committed contract snapshot (`wow-openapi/src/test/resources/openapi/
@@ -60,13 +61,13 @@ object RouteSuffixes {
     const val EVENT_RANGE = "$EVENT/{$HEAD_VERSION}/{$TAIL_VERSION}"
 
     /** Compensates one event stream of an aggregate, after `/{aggregate}/{id}`. */
-    const val EVENT_COMPENSATE = "{${MessageRecords.VERSION}}/compensate"
+    const val EVENT_COMPENSATE = "{$VERSION}/compensate"
 
     const val STATE = "state"
 
     /** Resends the state events of a batch of aggregates. */
     const val STATE_BATCH = "$STATE/{$BATCH_AFTER_ID}/{$BATCH_LIMIT}"
     const val STATE_TRACING = "$STATE/tracing"
-    const val STATE_VERSIONED = "$STATE/{version}"
-    const val STATE_TIME_BASED = "$STATE/time/{createTime}"
+    const val STATE_VERSIONED = "$STATE/{$VERSION}"
+    const val STATE_TIME_BASED = "$STATE/time/{$CREATE_TIME}"
 }

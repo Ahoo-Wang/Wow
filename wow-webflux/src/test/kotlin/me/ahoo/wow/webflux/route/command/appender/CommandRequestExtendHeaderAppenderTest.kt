@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.command.appender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -26,7 +26,7 @@ class CommandRequestExtendHeaderAppenderTest {
     @Test
     fun `should append extend headers from request`() {
         val headerKey = "app"
-        val key = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + headerKey
+        val key = CommandHeaders.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
 
         val request = MockServerRequest.builder()

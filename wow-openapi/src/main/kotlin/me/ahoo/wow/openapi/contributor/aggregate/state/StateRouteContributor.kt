@@ -20,7 +20,6 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RouteSuffixes
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -44,9 +43,10 @@ import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
 import me.ahoo.wow.openapi.contributor.notFoundResponseRef
 import me.ahoo.wow.openapi.contributor.schemaRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.RouteSuffixes
 
 /**
- * The state routes of an aggregate. Their paths come from [me.ahoo.wow.openapi.RouteSuffixes]; their resource and
+ * The state routes of an aggregate. Their paths come from [me.ahoo.wow.rest.RouteSuffixes]; their resource and
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
 object StateRouteContributor : RouteContributor {

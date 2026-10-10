@@ -16,8 +16,8 @@ package me.ahoo.wow.viewstore.starter
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.container.WowTestContainers
 import me.ahoo.wow.viewstore.ViewStoreService
@@ -113,11 +113,11 @@ class ViewStoreCaseInsensitiveHostTest {
         requestId: String = UUID.randomUUID().toString(),
     ): WebTestClient.ResponseSpec {
         val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(uri)
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.REQUEST_ID, requestId)
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.REQUEST_ID, requestId)
             .contentType(MediaType.APPLICATION_JSON)
         appId?.let { spec.header(ViewStoreService.APP_ID_HEADER, it) }
-        version?.let { spec.header(CommandComponent.Header.AGGREGATE_VERSION, it.toString()) }
+        version?.let { spec.header(CommandHeaders.AGGREGATE_VERSION, it.toString()) }
         return (body?.let { spec.bodyValue(it) } ?: spec).exchange()
     }
 
@@ -144,8 +144,8 @@ class ViewStoreCaseInsensitiveHostTest {
 
     private fun send(method: String, path: String, headers: Map<String, String> = emptyMap(), body: String? = null): WebTestClient.ResponseSpec {
         val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(raw(path))
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.REQUEST_ID, UUID.randomUUID().toString())
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.REQUEST_ID, UUID.randomUUID().toString())
             .header(ViewStoreService.APP_ID_HEADER, APP)
             .contentType(MediaType.APPLICATION_JSON)
         headers.forEach { (k, v) -> spec.header(k, v) }
@@ -157,7 +157,7 @@ class ViewStoreCaseInsensitiveHostTest {
         val id = create("alice")
         // Spring routes these to the view store's routes on this host: each rule must see them too.
         listOf("/view-store/tenant/t1/OWNER/%20", "/VIEW-STORE/tenant/%E3%80%80/owner/alice").forEach { scope ->
-            send("PUT", "$scope/view/$id/rename", mapOf(CommandComponent.Header.OWNER_ID to "alice"), """{"title":"Taken"}""")
+            send("PUT", "$scope/view/$id/rename", mapOf(CommandHeaders.OWNER_ID to "alice"), """{"title":"Taken"}""")
                 .expectStatus().isBadRequest
                 .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
         }
@@ -167,8 +167,8 @@ class ViewStoreCaseInsensitiveHostTest {
             "POST",
             "/view-store/tenant/t1/OWNER/alice/view",
             mapOf(
-                CommandComponent.Header.AGGREGATE_ID to "chosen-id",
-                CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER to OTHER_APP,
+                CommandHeaders.AGGREGATE_ID to "chosen-id",
+                CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER to OTHER_APP,
             ),
             """{"definitionId":"orders","title":"V","config":{"kind":"record"}}""",
         ).expectStatus().isOk.expectBody(JsonNode::class.java).returnResult().responseBody!!
@@ -183,15 +183,15 @@ class ViewStoreCaseInsensitiveHostTest {
                 .expectBody().jsonPath("$.errorCode").isEqualTo(ErrorCodes.NOT_FOUND)
         }
         send("POST", "/WOW/command/send", mapOf(
-            CommandComponent.Header.COMMAND_TYPE to "me.ahoo.wow.viewstore.api.view.RenameView",
-            CommandComponent.Header.AGGREGATE_ID to id,
-            CommandComponent.Header.OWNER_ID to "alice",
+            CommandHeaders.COMMAND_TYPE to "me.ahoo.wow.viewstore.api.view.RenameView",
+            CommandHeaders.AGGREGATE_ID to id,
+            CommandHeaders.OWNER_ID to "alice",
         ), """{"title":"Taken"}""").expectStatus().isNotFound
-        send("PUT", "/view-store/tenant/t1/OWNER/(shared)/VIEW/orders-open/rename", mapOf(CommandComponent.Header.AGGREGATE_VERSION to "1"), """{"title":"Mine"}""")
+        send("PUT", "/view-store/tenant/t1/OWNER/(shared)/VIEW/orders-open/rename", mapOf(CommandHeaders.AGGREGATE_VERSION to "1"), """{"title":"Mine"}""")
             .expectStatus().isForbidden
             .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
         // The case-insensitive routes still work.
-        send("PUT", "/VIEW-STORE/tenant/t1/OWNER/alice/VIEW/$id/RENAME", mapOf(CommandComponent.Header.AGGREGATE_VERSION to "1"), """{"title":"Renamed"}""")
+        send("PUT", "/VIEW-STORE/tenant/t1/OWNER/alice/VIEW/$id/RENAME", mapOf(CommandHeaders.AGGREGATE_VERSION to "1"), """{"title":"Renamed"}""")
             .expectStatus().isOk
         single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.title").isEqualTo("Renamed")
     }

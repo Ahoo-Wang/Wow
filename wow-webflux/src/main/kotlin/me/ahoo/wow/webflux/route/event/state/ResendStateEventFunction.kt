@@ -16,10 +16,10 @@ package me.ahoo.wow.webflux.route.event.state
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
@@ -41,8 +41,8 @@ class ResendStateEventFunction(
         ResendStateEventHandler(aggregateMetadata, eventStore, stateEventCompensator, batchExecutionPolicy)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
-        val limit = request.pathVariable(BatchComponent.PathVariable.BATCH_LIMIT).toInt()
+        val afterId = request.pathVariable(RouteVariables.BATCH_AFTER_ID)
+        val limit = request.pathVariable(RouteVariables.BATCH_LIMIT).toInt()
         return handler.resend(afterId, limit)
             .toBatchResult(afterId, request, exceptionHandler)
             .toServerResponse(request, exceptionHandler)

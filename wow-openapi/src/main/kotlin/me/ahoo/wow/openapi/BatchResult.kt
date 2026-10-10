@@ -13,19 +13,8 @@
 
 package me.ahoo.wow.openapi
 
-import me.ahoo.wow.api.exception.ErrorInfo
-
-/**
- * The result of a batch operation.
- *
- * @property afterId The ID of the last record successfully executed in batch processing.
- * @property size Number of records successfully processed in the batch.
- * @property errorCode The result error code.
- * @property errorMsg The result error message.
- */
-data class BatchResult(
-    val afterId: String,
-    val size: Int,
-    override val errorCode: String = ErrorInfo.SUCCEEDED,
-    override val errorMsg: String = ErrorInfo.SUCCEEDED_MESSAGE
-) : ErrorInfo
+@Deprecated(
+    "Scheduled for removal in 10.0.0. Use me.ahoo.wow.rest.BatchResult.",
+    ReplaceWith("BatchResult", "me.ahoo.wow.rest.BatchResult"),
+)
+typealias BatchResult = me.ahoo.wow.rest.BatchResult

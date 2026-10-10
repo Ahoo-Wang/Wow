@@ -44,10 +44,10 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
+import me.ahoo.wow.rest.bi.BiScriptOperationMode
+import me.ahoo.wow.rest.bi.BiScriptRequest
+import me.ahoo.wow.rest.bi.BiScriptTopologyMode
+import me.ahoo.wow.rest.bi.BiScriptTopologyRequest
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler

@@ -17,11 +17,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
@@ -73,13 +73,13 @@ class CommandBodyBindingErrorTest {
     private fun WebTestClient.send(uri: String, body: String): WebTestClient.ResponseSpec =
         post().uri(uri)
             .contentType(MediaType.APPLICATION_JSON)
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .bodyValue(body)
             .exchange()
 
     private fun WebTestClient.ResponseSpec.expectBadRequestBody(): String =
         expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             .expectBody(String::class.java)
             .returnResult()
             .responseBody!!

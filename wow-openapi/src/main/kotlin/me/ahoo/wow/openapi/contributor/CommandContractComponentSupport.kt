@@ -15,27 +15,8 @@ package me.ahoo.wow.openapi.contributor
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent.Header.SPACE_ID
 import me.ahoo.wow.openapi.CommonComponent.Parameter.spaceIdHeaderParameter
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.AGGREGATE_VERSION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_AGGREGATE_NAME
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_TYPE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.LOCAL_FIRST
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.OWNER_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.TENANT_ID
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_FUNCTION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_PROCESSOR
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_STAGE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_CONTEXT
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_FUNCTION
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_PROCESSOR
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TAIL_STAGE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_TIME_OUT
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateContextHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandAggregateNameHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandCommonHeaderParameters
@@ -47,6 +28,25 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpResponse
+import me.ahoo.wow.rest.CommandHeaders.AGGREGATE_ID
+import me.ahoo.wow.rest.CommandHeaders.AGGREGATE_VERSION
+import me.ahoo.wow.rest.CommandHeaders.COMMAND_AGGREGATE_CONTEXT
+import me.ahoo.wow.rest.CommandHeaders.COMMAND_AGGREGATE_NAME
+import me.ahoo.wow.rest.CommandHeaders.COMMAND_TYPE
+import me.ahoo.wow.rest.CommandHeaders.LOCAL_FIRST
+import me.ahoo.wow.rest.CommandHeaders.OWNER_ID
+import me.ahoo.wow.rest.CommandHeaders.REQUEST_ID
+import me.ahoo.wow.rest.CommandHeaders.TENANT_ID
+import me.ahoo.wow.rest.CommandHeaders.WAIT_CONTEXT
+import me.ahoo.wow.rest.CommandHeaders.WAIT_FUNCTION
+import me.ahoo.wow.rest.CommandHeaders.WAIT_PROCESSOR
+import me.ahoo.wow.rest.CommandHeaders.WAIT_STAGE
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_CONTEXT
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_FUNCTION
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_PROCESSOR
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TAIL_STAGE
+import me.ahoo.wow.rest.CommandHeaders.WAIT_TIME_OUT
+import me.ahoo.wow.rest.WowHeaders.SPACE_ID
 
 internal fun componentHeaderParameter(name: String): HttpParameter {
     return HttpParameter(

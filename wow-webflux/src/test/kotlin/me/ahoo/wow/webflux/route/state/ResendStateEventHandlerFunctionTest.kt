@@ -19,7 +19,7 @@ import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.BatchComponent
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunction
@@ -47,8 +47,8 @@ class ResendStateEventHandlerFunctionTest {
         )
 
         val request = MockServerRequest.builder()
-            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
-            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, Int.MAX_VALUE.toString())
+            .pathVariable(RouteVariables.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(RouteVariables.BATCH_LIMIT, Int.MAX_VALUE.toString())
             .build()
         handlerFunction.handle(request)
             .test()

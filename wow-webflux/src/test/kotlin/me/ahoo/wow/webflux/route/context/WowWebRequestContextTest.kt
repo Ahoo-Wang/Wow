@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.context
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
@@ -35,7 +35,7 @@ class WowWebRequestContextTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, aggregateId)
             .pathVariable(MessageRecords.TENANT_ID, tenantId)
-            .header(CommandComponent.Header.REQUEST_ID, requestId)
+            .header(CommandHeaders.REQUEST_ID, requestId)
             .header(HttpHeaders.ACCEPT, "text/event-stream")
             .build()
 
@@ -69,7 +69,7 @@ class WowWebRequestContextTest {
     fun `should read the request id through the route identity`() {
         val blank = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, generateGlobalId())
-            .header(CommandComponent.Header.REQUEST_ID, " ")
+            .header(CommandHeaders.REQUEST_ID, " ")
             .build()
         WowWebRequestContext.of(blank, MOCK_AGGREGATE_METADATA).requestId.assert().isNull()
 

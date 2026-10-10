@@ -33,10 +33,12 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObjectNode
@@ -226,11 +228,11 @@ class AggregateTracingHandlerFunctionTest {
 
         handle(PointReadAdmission(enabled = true)).writeToString().assert().contains("test-data")
         handle(PointReadAdmission(enabled = true)) {
-            header(me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.OWNER_ID, "other-owner")
+            header(CommandHeaders.OWNER_ID, "other-owner")
         }.writeToString().assert().isEqualTo("[]")
         // The mock aggregate is not spaced: its routes ignore the space header, so it scopes nothing.
         handle(PointReadAdmission(enabled = true)) {
-            header(me.ahoo.wow.openapi.CommonComponent.Header.SPACE_ID, "other-space")
+            header(WowHeaders.SPACE_ID, "other-space")
         }.writeToString().assert().contains("test-data")
 
         val capped = handle(PointReadAdmission(enabled = true, tracingMaxVersions = 1)) {

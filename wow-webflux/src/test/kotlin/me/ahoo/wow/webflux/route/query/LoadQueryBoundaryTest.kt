@@ -33,7 +33,6 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.PageWindow
@@ -48,6 +47,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
@@ -317,7 +317,7 @@ class LoadQueryBoundaryTest {
         )
         val request = MockServerRequest.builder().pathVariable("id", "specific-record")
             .pathVariable("tenantId", "trusted-tenant")
-            .header(CommonComponent.Header.SPACE_ID, "client-space")
+            .header(WowHeaders.SPACE_ID, "client-space")
             .pathVariable("headVersion", "3").pathVariable("tailVersion", "5").build()
         write(handler, request, exchange()).block()
         leaves(requireNotNull(received)).filterIsInstance<SpaceIdFilter>().assert().isEmpty()

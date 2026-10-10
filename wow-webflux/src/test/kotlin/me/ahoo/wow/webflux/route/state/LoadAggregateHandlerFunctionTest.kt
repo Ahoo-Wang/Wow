@@ -20,9 +20,9 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -111,7 +111,7 @@ class LoadAggregateHandlerFunctionTest {
             .uri(URI.create("http://localhost"))
             .pathVariable(MessageRecords.ID, aggregateId)
             .pathVariable(MessageRecords.OWNER_ID, ownerId)
-            .apply { spaceId?.let { header(CommonComponent.Header.SPACE_ID, it) } }
+            .apply { spaceId?.let { header(WowHeaders.SPACE_ID, it) } }
             .build()
         fun status(admission: PointReadAdmission, ownerId: String, spaceId: String? = null) =
             handler(admission).handle(request(ownerId, spaceId)).block()!!.statusCode()

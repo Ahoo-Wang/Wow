@@ -179,6 +179,13 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `RecoverableExceptionRegistry.DEFAULT.register` / `unregister` / `getRecoverableType`, or a `RecoverableExceptionProvider` (`META-INF/services` or a Spring bean).
 - **Removal in v10**: delete the companion object. Callers stop compiling and use the replacement.
 
+### Wow 9.5 REST Header Names And `BatchResult` In `wow-openapi`
+
+- **Kept compatible**: 9.6.0 moved the REST wire vocabulary out of `wow-openapi` into `wow-rest-contract` (`me.ahoo.wow.rest`). Application code reads the header names to build or inspect requests, and some returns or reads `BatchResult`, so those keep their old names for one cycle: every constant of `CommandComponent.Header` and of `CommonComponent.Header` (`ERROR_CODE`, `SPACE_ID`) is a deprecated `const` alias of the same value, and `me.ahoo.wow.openapi.BatchResult` is a deprecated `typealias` of `me.ahoo.wow.rest.BatchResult`. The OpenAPI schema name stays `wow.openapi.BatchResult`. The other moved declarations (`RouteSuffixes`, `BuiltInHttpRoutePaths.Global`, `BatchComponent.PathVariable`, the BI script DTOs) are framework-facing and moved without an alias.
+- **Markers**: `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/CommandComponent.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/CommonComponent.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/BatchResult.kt`
+- **Replacement**: `me.ahoo.wow.rest.CommandHeaders`, `me.ahoo.wow.rest.WowHeaders` and `me.ahoo.wow.rest.BatchResult`, in `wow-rest-contract`, which `wow-openapi` and `wow-apiclient` bring.
+- **Removal in v10**: delete `CommandComponent.Header`, the two constants of `CommonComponent.Header`, and `wow-openapi`'s `BatchResult.kt`. Callers stop compiling; each `ReplaceWith` names the replacement.
+
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.

@@ -14,8 +14,8 @@
 /**
  * HTTP headers the Wow server shares across commands and queries.
  *
- * Mirrors `CommonComponent.Header` in
- * `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/CommonComponent.kt`.
+ * Mirrors `WowHeaders` in
+ * `wow-rest-contract/src/main/kotlin/me/ahoo/wow/rest/WowHeaders.kt`.
  * These headers carry the `Wow-` prefix, not the `Command-` prefix of
  * {@link CommandHeaders}. Each value is a string literal type, so a header
  * object keyed by it is checked like one keyed by the literal.

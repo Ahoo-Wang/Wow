@@ -84,6 +84,10 @@ component_management:
       name: wow-schema
       paths:
         - wow-schema/src/main/**
+    - component_id: wow-rest-contract
+      name: wow-rest-contract
+      paths:
+        - wow-rest-contract/src/main/**
     - component_id: wow-openapi
       name: wow-openapi
       paths:

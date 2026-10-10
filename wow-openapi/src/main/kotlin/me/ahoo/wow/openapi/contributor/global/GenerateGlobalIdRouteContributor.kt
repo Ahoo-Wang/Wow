@@ -19,11 +19,11 @@ import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.rest.RoutePaths
 
 object GenerateGlobalIdRouteContributor : RouteContributor {
     override val id: String = "global.global-id"
@@ -38,7 +38,7 @@ object GenerateGlobalIdRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("global_id", "generate"),
                 method = Https.Method.GET,
-                path = BuiltInHttpRoutePaths.Global.GLOBAL_ID,
+                path = RoutePaths.GLOBAL_ID,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
                 summary = "Generate Global ID",
                 accept = listOf(Https.MediaType.TEXT_PLAIN),

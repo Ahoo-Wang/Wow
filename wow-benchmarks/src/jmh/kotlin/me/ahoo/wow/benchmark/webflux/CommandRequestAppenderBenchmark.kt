@@ -22,7 +22,7 @@ import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunction
@@ -176,9 +176,9 @@ open class CommandRequestAppenderBenchmark {
             .pathVariable(MessageRecords.TENANT_ID, "benchmark-tenant")
             .pathVariable(MessageRecords.OWNER_ID, BenchmarkAggregates.FIXED_AGGREGATE_ID)
             .principal(UserPrincipal("benchmark-user"))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .header(HttpHeaders.USER_AGENT, USER_AGENT)
-            .header("${CommandComponent.Header.COMMAND_HEADER_X_PREFIX}extended", "value")
+            .header("${CommandHeaders.COMMAND_HEADER_X_PREFIX}extended", "value")
         when (client) {
             "xff" -> builder
                 .header(CommandRequestRemoteIpHeaderAppender.X_FORWARDED_FOR, "$CLIENT_IP, 10.0.0.1")

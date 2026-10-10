@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.openapi.BatchResult
+import me.ahoo.wow.rest.BatchResult
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux

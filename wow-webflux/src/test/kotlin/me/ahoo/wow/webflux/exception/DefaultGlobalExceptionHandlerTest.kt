@@ -22,7 +22,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.rest.WowHeaders
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.buffer.DefaultDataBufferFactory
@@ -58,7 +58,7 @@ class DefaultGlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { isCommitted } returns false
             every { bufferFactory() } returns DefaultDataBufferFactory()
@@ -76,7 +76,7 @@ class DefaultGlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }
@@ -112,7 +112,7 @@ class DefaultGlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { isCommitted } returns false
             every { bufferFactory() } returns DefaultDataBufferFactory()
@@ -132,7 +132,7 @@ class DefaultGlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }

@@ -21,12 +21,12 @@ import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
-import me.ahoo.wow.openapi.contract.bi.BiScriptClusterRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptUnsupportedTypeStrategy
+import me.ahoo.wow.rest.bi.BiScriptClusterRequest
+import me.ahoo.wow.rest.bi.BiScriptOperationMode
+import me.ahoo.wow.rest.bi.BiScriptRequest
+import me.ahoo.wow.rest.bi.BiScriptTopologyMode
+import me.ahoo.wow.rest.bi.BiScriptTopologyRequest
+import me.ahoo.wow.rest.bi.BiScriptUnsupportedTypeStrategy
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi
+package me.ahoo.wow.rest
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo

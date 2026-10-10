@@ -20,7 +20,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestExtendHeaderAppender
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -53,7 +53,7 @@ class CoSecReservedHeaderKeysTest {
 
         keys.forEach { key ->
             val request = MockServerRequest.builder()
-                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + key, "forged")
+                .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + key, "forged")
                 .build()
             val commandHeader = DefaultHeader.empty()
             assertThrownBy<IllegalArgumentException> {

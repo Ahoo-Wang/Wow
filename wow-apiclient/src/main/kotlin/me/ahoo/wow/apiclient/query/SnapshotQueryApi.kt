@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.apiclient.query
 
-import me.ahoo.wow.openapi.RouteSuffixes
+import me.ahoo.wow.rest.RouteSuffixes
 
 /**
  * [RouteSuffixes.SNAPSHOT]. This and the other `SNAPSHOT_*_RESOURCE_NAME` constants are names for the

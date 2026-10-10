@@ -19,10 +19,10 @@ import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.ClickHouseBiDeploymentInspector
 import me.ahoo.wow.bi.NoOpBiDeploymentInspector
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping

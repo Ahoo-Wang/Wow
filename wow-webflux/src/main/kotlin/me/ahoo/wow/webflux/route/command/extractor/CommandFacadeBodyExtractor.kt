@@ -20,10 +20,10 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.aggregateType
 import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.toObject
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
@@ -49,15 +49,15 @@ object CommandFacadeBodyExtractor :
         inputMessage: ReactiveHttpInputMessage,
         context: BodyExtractor.Context
     ): Mono<Tuple2<Any, AggregateRouteMetadata<Any>>> {
-        val commandTypeName = requireNotNull(inputMessage.headers.getFirst(CommandComponent.Header.COMMAND_TYPE)) {
-            "${CommandComponent.Header.COMMAND_TYPE} can not be empty."
+        val commandTypeName = requireNotNull(inputMessage.headers.getFirst(CommandHeaders.COMMAND_TYPE)) {
+            "${CommandHeaders.COMMAND_TYPE} can not be empty."
         }
 
-        val commandAggregateContext = inputMessage.headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT)
-        val commandAggregateName = inputMessage.headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_NAME)
+        val commandAggregateContext = inputMessage.headers.getFirst(CommandHeaders.COMMAND_AGGREGATE_CONTEXT)
+        val commandAggregateName = inputMessage.headers.getFirst(CommandHeaders.COMMAND_AGGREGATE_NAME)
         val namedAggregate = if (!commandAggregateContext.isNullOrBlank()) {
             requireNotNull(commandAggregateName) {
-                "${CommandComponent.Header.COMMAND_AGGREGATE_NAME} can not be empty."
+                "${CommandHeaders.COMMAND_AGGREGATE_NAME} can not be empty."
             }
             MaterializedNamedAggregate(commandAggregateContext, commandAggregateName)
         } else {
@@ -68,7 +68,7 @@ object CommandFacadeBodyExtractor :
         if (aggregateRouteMetadata == null || commandType == null) {
             return Mono.error(
                 NotFoundResourceException(
-                    "No command route for ${CommandComponent.Header.COMMAND_TYPE} [$commandTypeName]."
+                    "No command route for ${CommandHeaders.COMMAND_TYPE} [$commandTypeName]."
                 )
             )
         }

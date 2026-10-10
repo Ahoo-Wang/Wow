@@ -17,7 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.rest.WowHeaders
 import org.springframework.core.Ordered
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.BindingResult
@@ -48,7 +48,7 @@ class DefaultGlobalExceptionHandler(
                 if (status == null) {
                     log.warn(ex) { request }
                 } else {
-                    val errorCode = runCatching { response.headers.getFirst(CommonComponent.Header.ERROR_CODE) }
+                    val errorCode = runCatching { response.headers.getFirst(WowHeaders.ERROR_CODE) }
                         .getOrNull()
                     log.requestFailure(request, status, errorCode, ex)
                 }

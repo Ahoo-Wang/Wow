@@ -134,11 +134,11 @@ const RULES = [
   // names; they change with the routes the same-source contract serves.
   [/^wow-openapi\/src\/test\/resources\/openapi\//, [SDK, CONTRACT]],
   // The modules whose bytes cross between versions (messages, buses, stores,
-  // the wait endpoint), the example cluster the mixed-version test starts, and
-  // the dependency versions (a Jackson bump can change the JSON): the
-  // same-source contract and the mixed-version test.
+  // the wait endpoint and the REST headers), the example cluster the
+  // mixed-version test starts, and the dependency versions (a Jackson bump can
+  // change the JSON): the same-source contract and the mixed-version test.
   [
-    /^(?:wow-(?:api|core|metadata|kafka|redis|mongo|webflux|spring|spring-boot-starter)|example\/example-(?:api|domain|server)|gradle)\//,
+    /^(?:wow-(?:api|core|metadata|rest-contract|kafka|redis|mongo|webflux|spring|spring-boot-starter)|example\/example-(?:api|domain|server)|gradle)\//,
     [CONTRACT, MIXED_VERSION],
   ],
   // The mixed-version harness and the container images it shares with the

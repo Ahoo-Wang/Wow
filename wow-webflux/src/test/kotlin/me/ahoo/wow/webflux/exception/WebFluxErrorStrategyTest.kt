@@ -23,7 +23,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.ErrorInfoConverter
 import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher

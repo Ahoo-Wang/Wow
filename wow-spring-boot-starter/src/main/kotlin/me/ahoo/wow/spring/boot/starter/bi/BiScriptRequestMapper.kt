@@ -18,11 +18,11 @@ import me.ahoo.wow.bi.BiScriptOperation
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.ClickHouseTopology
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
-import me.ahoo.wow.openapi.contract.bi.BiScriptOperationMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyMode
-import me.ahoo.wow.openapi.contract.bi.BiScriptTopologyRequest
-import me.ahoo.wow.openapi.contract.bi.BiScriptUnsupportedTypeStrategy
+import me.ahoo.wow.rest.bi.BiScriptOperationMode
+import me.ahoo.wow.rest.bi.BiScriptRequest
+import me.ahoo.wow.rest.bi.BiScriptTopologyMode
+import me.ahoo.wow.rest.bi.BiScriptTopologyRequest
+import me.ahoo.wow.rest.bi.BiScriptUnsupportedTypeStrategy
 
 internal fun BiScriptRequest.toBiScriptOptions(base: BiScriptOptions): BiScriptOptions {
     maxExpansionDepth?.let { requestedDepth ->

@@ -23,11 +23,11 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.RoutePaths
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -59,7 +59,7 @@ class CommandFacadeAdmissionTest {
             commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
         ).create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE))
         val routerFunction = RouterFunctions.route()
-            .POST(BuiltInHttpRoutePaths.Global.COMMAND_SEND, handlerFunction)
+            .POST(RoutePaths.COMMAND_SEND, handlerFunction)
             .build()
         return WebTestClient.bindToRouterFunction(routerFunction)
             .handlerStrategies(HandlerStrategies.builder().exceptionHandler(DefaultGlobalExceptionHandler()).build())
@@ -71,14 +71,14 @@ class CommandFacadeAdmissionTest {
         body: String = "{}",
         aggregate: Pair<String, String>? = null
     ): WebTestClient.ResponseSpec {
-        return post().uri(BuiltInHttpRoutePaths.Global.COMMAND_SEND)
+        return post().uri(RoutePaths.COMMAND_SEND)
             .contentType(MediaType.APPLICATION_JSON)
-            .header(CommandComponent.Header.COMMAND_TYPE, commandType)
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.COMMAND_TYPE, commandType)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .apply {
                 if (aggregate != null) {
-                    header(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, aggregate.first)
-                    header(CommandComponent.Header.COMMAND_AGGREGATE_NAME, aggregate.second)
+                    header(CommandHeaders.COMMAND_AGGREGATE_CONTEXT, aggregate.first)
+                    header(CommandHeaders.COMMAND_AGGREGATE_NAME, aggregate.second)
                 }
             }
             .bodyValue(body)
@@ -87,7 +87,7 @@ class CommandFacadeAdmissionTest {
 
     private fun WebTestClient.ResponseSpec.expectNoCommandRoute() {
         expectStatus().isNotFound
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.NOT_FOUND)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.NOT_FOUND)
     }
 
     @Test
@@ -104,7 +104,7 @@ class CommandFacadeAdmissionTest {
         client(SagaVerifier.defaultCommandGateway())
             .send(MockCreateAggregate::class.java.name, body)
             .expectStatus().isBadRequest
-            .expectHeader().valueEquals(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            .expectHeader().valueEquals(WowHeaders.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
     }
 
     @Test

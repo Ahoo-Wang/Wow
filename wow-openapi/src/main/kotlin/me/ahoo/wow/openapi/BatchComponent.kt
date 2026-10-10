@@ -20,19 +20,13 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.openapi.BatchComponent.Schema.batchResultSchema
-import me.ahoo.wow.openapi.CommonComponent.Header
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.rest.BatchResult
+import me.ahoo.wow.rest.RouteVariables
+import me.ahoo.wow.rest.WowHeaders
 
 object BatchComponent {
-    object PathVariable {
-        const val HEAD_VERSION = "headVersion"
-        const val TAIL_VERSION = "tailVersion"
-
-        const val BATCH_AFTER_ID = "afterId"
-        const val BATCH_LIMIT = "limit"
-    }
-
     object Schema {
 
         fun OpenAPIComponentContext.batchResultSchema(): io.swagger.v3.oas.models.media.Schema<*> =
@@ -43,7 +37,7 @@ object BatchComponent {
     object Parameter {
         fun OpenAPIComponentContext.headVersionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
-                name = PathVariable.HEAD_VERSION
+                name = RouteVariables.HEAD_VERSION
                 schema = IntegerSchema().description("The head version of the aggregate.")
                     .example(EventStore.DEFAULT_HEAD_VERSION)
                 `in`(ParameterIn.PATH.toString())
@@ -51,14 +45,14 @@ object BatchComponent {
 
         fun OpenAPIComponentContext.tailVersionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
-                name = PathVariable.TAIL_VERSION
+                name = RouteVariables.TAIL_VERSION
                 schema = IntegerSchema().description("The tail version of the aggregate.").example(EventStore.DEFAULT_TAIL_VERSION)
                 `in`(ParameterIn.PATH.toString())
             }
 
         fun OpenAPIComponentContext.batchAfterIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
-                name = PathVariable.BATCH_AFTER_ID
+                name = RouteVariables.BATCH_AFTER_ID
                 schema = StringSchema().description("The ID of the last record in the batch.")
                     .example(AggregateIdScanner.FIRST_ID)
                 `in`(ParameterIn.PATH.toString())
@@ -66,7 +60,7 @@ object BatchComponent {
 
         fun OpenAPIComponentContext.batchLimitPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
-                name = PathVariable.BATCH_LIMIT
+                name = RouteVariables.BATCH_LIMIT
                 schema = IntegerSchema().description("The size of batch.").example(EventStore.DEFAULT_TAIL_VERSION)
                 `in`(ParameterIn.PATH.toString())
             }
@@ -77,7 +71,7 @@ object BatchComponent {
         fun OpenAPIComponentContext.batchResultResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}BatchResult") {
                 description("Batch Result")
-                header(Header.ERROR_CODE, errorCodeHeader())
+                header(WowHeaders.ERROR_CODE, errorCodeHeader())
                 content(schema = batchResultSchema())
             }
     }

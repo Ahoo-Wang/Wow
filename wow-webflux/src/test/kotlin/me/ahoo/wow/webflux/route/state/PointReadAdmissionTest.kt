@@ -35,7 +35,6 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
@@ -46,6 +45,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
@@ -214,7 +214,7 @@ class PointReadAdmissionTest {
             spaceId: String,
         ): Boolean = PointReadAdmission(enabled = true).read(
             metadata,
-            MockServerRequest.builder().header(CommonComponent.Header.SPACE_ID, spaceId).build(),
+            MockServerRequest.builder().header(WowHeaders.SPACE_ID, spaceId).build(),
             state,
         ).blockOptional().isPresent
 

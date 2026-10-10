@@ -28,8 +28,8 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -82,8 +82,8 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
         )
 
         val request = MockServerRequest.builder()
-            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
-            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, Int.MAX_VALUE.toString())
+            .pathVariable(RouteVariables.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(RouteVariables.BATCH_LIMIT, Int.MAX_VALUE.toString())
             .build()
         handlerFunction.handle(request)
             .test()
@@ -112,8 +112,8 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
         )
 
         val request = MockServerRequest.builder()
-            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
-            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, "1")
+            .pathVariable(RouteVariables.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(RouteVariables.BATCH_LIMIT, "1")
             .build()
 
         handlerFunction.handle(request)
@@ -205,8 +205,8 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
 
         eventStore.appendUnsourcedStreams(aggregateId)
         val request = MockServerRequest.builder()
-            .pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID, FIRST_ID)
-            .pathVariable(BatchComponent.PathVariable.BATCH_LIMIT, "1")
+            .pathVariable(RouteVariables.BATCH_AFTER_ID, FIRST_ID)
+            .pathVariable(RouteVariables.BATCH_LIMIT, "1")
             .build()
         handlerFunction.handle(request)
             .test()

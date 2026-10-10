@@ -14,8 +14,8 @@
 /**
  * The query clients' endpoint paths are the server's: each one, under the
  * example domain's `cart` aggregate, is the path of the route whose id the
- * server gives that query (Kotlin `RouteSuffixes` and the route contributors,
- * pinned by the committed contract snapshot).
+ * server gives that query (Kotlin `RouteSuffixes` in wow-rest-contract and
+ * the route contributors, pinned by the committed contract snapshot).
  */
 
 import { describe, expect, it } from 'vitest';

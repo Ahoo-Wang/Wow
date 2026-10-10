@@ -15,7 +15,7 @@ package me.ahoo.wow.viewstore.server
 
 import io.netty.channel.Channel
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
@@ -152,7 +152,7 @@ class ViewStoreServerBootTest {
     fun `creates a view and reads preferences never written as version 0`() {
         client.post().uri("/view-store/tenant/t1/owner/alice/view")
             .header(ViewStoreService.APP_ID_HEADER, "console")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"definitionId":"orders","title":"Mine","config":{"kind":"record"}}""")
             .exchange()
@@ -195,7 +195,7 @@ class ViewStoreServerBootTest {
     private fun createShared(): String =
         client.post().uri("/view-store/tenant/t1/owner/(shared)/view")
             .header(ViewStoreService.APP_ID_HEADER, "console")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"definitionId":"orders","title":"Team","config":{"kind":"record"}}""")
             .exchange()
@@ -206,8 +206,8 @@ class ViewStoreServerBootTest {
     private fun claim(owner: String, id: String): WebTestClient.ResponseSpec =
         client.put().uri("/view-store/tenant/t1/owner/$owner/view/$id/claim")
             .header(ViewStoreService.APP_ID_HEADER, "console")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.AGGREGATE_VERSION, "1")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.AGGREGATE_VERSION, "1")
             .exchange()
 
     /** The owner is the path's: the gateway lets a caller use only their own `owner/{ownerId}`. */
@@ -225,7 +225,7 @@ class ViewStoreServerBootTest {
     private fun rename(owner: String, id: String): WebTestClient.ResponseSpec =
         client.put().uri("/view-store/tenant/t1/owner/$owner/view/$id/rename")
             .header(ViewStoreService.APP_ID_HEADER, "console")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"title":"Bob's"}""")
             .exchange()

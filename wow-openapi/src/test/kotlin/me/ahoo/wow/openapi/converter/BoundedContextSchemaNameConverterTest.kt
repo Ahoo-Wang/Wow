@@ -16,8 +16,9 @@ package me.ahoo.wow.openapi.converter
 import com.fasterxml.jackson.databind.type.TypeFactory
 import io.swagger.v3.core.converter.AnnotatedType
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.openapi.converter.BoundedContextSchemaNameConverter.Companion.resolveName
+import me.ahoo.wow.rest.BatchResult
+import me.ahoo.wow.rest.bi.BiScriptRequest
 import org.junit.jupiter.api.Test
 
 internal class BoundedContextSchemaNameConverterTest {
@@ -58,5 +59,12 @@ internal class BoundedContextSchemaNameConverterTest {
         val annotatedType = AnnotatedType(BatchResult::class.java)
         annotatedType.resolveName()
         annotatedType.name.assert().isEqualTo("wow.openapi.BatchResult")
+    }
+
+    @Test
+    fun `should keep the wow openapi prefix for the rest contract types`() {
+        val annotatedType = AnnotatedType(BiScriptRequest::class.java)
+        annotatedType.resolveName()
+        annotatedType.name.assert().isEqualTo("wow.openapi.BiScriptRequest")
     }
 }

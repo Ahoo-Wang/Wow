@@ -17,10 +17,10 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -48,8 +48,8 @@ class BatchRegenerateSnapshotHandlerFunction(
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
-        val limit = request.pathVariable(BatchComponent.PathVariable.BATCH_LIMIT).toInt()
+        val afterId = request.pathVariable(RouteVariables.BATCH_AFTER_ID)
+        val limit = request.pathVariable(RouteVariables.BATCH_LIMIT).toInt()
         return eventStore.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
             afterId = afterId,

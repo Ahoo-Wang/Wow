@@ -18,10 +18,10 @@ import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.openapi.CommonComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
@@ -70,9 +70,9 @@ class CoSecIdentityHeadersTest {
                 }
             }
             .apply {
-                wowSpace?.let { header(CommonComponent.Header.SPACE_ID, it) }
+                wowSpace?.let { header(WowHeaders.SPACE_ID, it) }
                 coSecSpace?.let { header(CoSecIdentityHeaders.SPACE_ID, it) }
-                wowRequest?.let { header(CommandComponent.Header.REQUEST_ID, it) }
+                wowRequest?.let { header(CommandHeaders.REQUEST_ID, it) }
                 coSecRequest?.let { header(CoSecIdentityHeaders.REQUEST_ID, it) }
             }
             .build()

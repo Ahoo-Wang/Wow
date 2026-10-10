@@ -22,8 +22,8 @@ import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
 import me.ahoo.wow.viewstore.api.ViewAudience
@@ -103,7 +103,7 @@ internal class ViewAudienceHandlers(
             id = request.pathVariable(ViewStorePaths.ID),
             tenantId = tenantId
         )
-        val expectedVersion = request.headers().firstHeader(CommandComponent.Header.AGGREGATE_VERSION)
+        val expectedVersion = request.headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)
         return stateAggregateRepository.load(aggregateId, viewStateMetadata)
             .filter {
                 it.initialized &&
@@ -124,7 +124,7 @@ internal class ViewAudienceHandlers(
                     tenantId = tenantId,
                     aggregateId = aggregateId.id,
                     aggregateVersion = it.version,
-                    requestId = request.headers().firstHeader(CommandComponent.Header.REQUEST_ID)
+                    requestId = request.headers().firstHeader(CommandHeaders.REQUEST_ID)
                         .ifNotBlank { requestId -> requestId } ?: commandId,
                     commandId = commandId,
                     function = FUNCTION,
@@ -133,7 +133,7 @@ internal class ViewAudienceHandlers(
     }
 
     private fun ServerRequest.waitStage(): CommandStage =
-        headers().firstHeader(CommandComponent.Header.WAIT_STAGE)
+        headers().firstHeader(CommandHeaders.WAIT_STAGE)
             ?.let { stage -> runCatching { CommandStage.valueOf(stage.uppercase()) }.getOrNull() }
             ?: CommandStage.PROCESSED
 

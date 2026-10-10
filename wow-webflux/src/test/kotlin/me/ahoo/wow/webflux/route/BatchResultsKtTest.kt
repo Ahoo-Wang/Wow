@@ -18,7 +18,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.openapi.BatchResult
+import me.ahoo.wow.rest.BatchResult
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy

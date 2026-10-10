@@ -408,6 +408,8 @@ test('wire modules, the example cluster, dependency versions and the harness run
     'wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt',
     'wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt',
     'wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/wait/CommandWaitHandlerFunction.kt',
+    // The command headers and the wait endpoint path.
+    'wow-rest-contract/src/main/kotlin/me/ahoo/wow/rest/CommandHeaders.kt',
     'wow-spring/src/main/kotlin/A.kt',
     'wow-spring-boot-starter/src/main/kotlin/A.kt',
     // Aggregate naming and the wow-metadata.json model live here.

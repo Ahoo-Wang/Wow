@@ -28,6 +28,7 @@ outline: deep
 | `wow-cosec` | CoSec 请求上下文传播与查询 space 改写 | 应用已使用 CoSec 时 |
 | `wow-compiler` | KSP 元数据与 API 合同生成；依赖 `wow-metadata`，不依赖运行时 | 使用 `ksp(...)`，不放进运行时 |
 | `wow-schema` | JSON Schema 生成 | 扩展 JSON Schema 工具、推断查询模型时 |
+| `wow-rest-contract` | REST 线格式词汇：请求/响应头名（`CommandHeaders`、`WowHeaders`）、路由路径、后缀与路径变量名、`BatchResult`、BI 脚本请求与响应类型 | 随 `wow-openapi` 与 `wow-apiclient` 引入；自写 HTTP 客户端需要 Wow 的头名或路由时直接依赖 |
 | `wow-openapi` | 内置 route/OpenAPI 合同生成，包括 `OpenAPISchemaBuilder` | 扩展 OpenAPI 时 |
 | `wow-bi` | BI/ClickHouse 同步脚本生成 | 生成或部署 BI 脚本时 |
 | `wow-test` | `AggregateSpec`、`SagaSpec` 测试 DSL | 领域测试 |
@@ -61,7 +62,9 @@ graph LR
     CORE --> ES[wow-elasticsearch]
     QUERY --> ES
 
-    CORE --> OPENAPI[wow-openapi]
+    API --> REST[wow-rest-contract]
+    REST --> OPENAPI[wow-openapi]
+    CORE --> OPENAPI
     QUERY --> OPENAPI
     SCHEMA[wow-schema] --> OPENAPI
     CORE --> WEBFLUX[wow-webflux]
@@ -156,9 +159,13 @@ dependencies {
 
 `wow-schema` 依赖 `wow-api`、`wow-core`、`wow-query`，并使用 JSON Schema generator、Jackson、Validation 与 Swagger 模块。它同时打包查询 FilterExpression schema。
 
+#### wow-rest-contract
+
+`wow-rest-contract` 只依赖 `wow-api`，收纳 REST API 两端共用的名字与类型：命令头与 Wow 头、全局路由路径、聚合路由后缀与路径变量名、`BatchResult`、BI 脚本 DTO。它的类型在 OpenAPI 文档中保持 `wow.openapi.` Schema 名前缀。
+
 #### wow-openapi
 
-`wow-openapi` 通过 API 依赖 `wow-core`、`wow-query`、`wow-schema`，生成内置 HTTP route 合同。实际 WebFlux handler 由 `wow-webflux` 提供。
+`wow-openapi` 通过 API 依赖 `wow-core`、`wow-query`、`wow-schema`、`wow-rest-contract`，生成内置 HTTP route 合同。实际 WebFlux handler 由 `wow-webflux` 提供。
 
 #### wow-bi
 
@@ -179,7 +186,7 @@ TCK 通过不等于应用拓扑的容量、升级或灾难恢复已经验证；�
 
 #### wow-apiclient
 
-`wow-apiclient` 通过 API 暴露 `wow-core`、`wow-openapi` 与 Reactor，以 implementation 使用 CoApi 和 Spring Web/WebFlux。它是 JVM HTTP client，不启动服务端 route。
+`wow-apiclient` 通过 API 暴露 `wow-core`、`wow-rest-contract` 与 Reactor，以 implementation 使用 `wow-query`、CoApi 和 Spring Web/WebFlux，不再引入 `wow-openapi`。它是 JVM HTTP client，不启动服务端 route。
 
 #### wow-cocache
 

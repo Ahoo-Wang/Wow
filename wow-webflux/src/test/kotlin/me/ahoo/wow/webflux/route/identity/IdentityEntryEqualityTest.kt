@@ -36,9 +36,9 @@ import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.saga.stateless.StatelessSagaFunction
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
@@ -134,7 +134,7 @@ class IdentityEntryEqualityTest {
                 .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
                 .pathVariable(MessageRecords.OWNER_ID, "owner-a")
                 .pathVariable(MessageRecords.ID, "order-a")
-                .header(CommonComponent.Header.SPACE_ID, "space-a")
+                .header(WowHeaders.SPACE_ID, "space-a")
                 .build()
         ).assert().isEqualTo(expected)
         body.toCommandMessage(
@@ -167,7 +167,7 @@ class IdentityEntryEqualityTest {
             body,
             MockServerRequest.builder()
                 .pathVariable(MessageRecords.OWNER_ID, "customer-a")
-                .header(CommonComponent.Header.SPACE_ID, "space-a")
+                .header(WowHeaders.SPACE_ID, "space-a")
                 .build()
         ).assert().isEqualTo(expected)
         body.toCommandMessage(

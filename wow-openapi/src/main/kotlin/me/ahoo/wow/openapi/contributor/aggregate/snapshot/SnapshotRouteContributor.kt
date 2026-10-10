@@ -18,7 +18,6 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.RouteSuffixes
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -64,9 +63,10 @@ import me.ahoo.wow.openapi.contributor.statePagedResponse
 import me.ahoo.wow.openapi.contributor.stateSingleResponse
 import me.ahoo.wow.openapi.contributor.tooManyRequestsResponseRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.rest.RouteSuffixes
 
 /**
- * The snapshot routes of an aggregate. Their paths come from [me.ahoo.wow.openapi.RouteSuffixes]; their resource and
+ * The snapshot routes of an aggregate. Their paths come from [me.ahoo.wow.rest.RouteSuffixes]; their resource and
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
 object SnapshotRouteContributor : RouteContributor {

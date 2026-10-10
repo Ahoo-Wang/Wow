@@ -15,8 +15,8 @@ package me.ahoo.wow.viewstore.starter
 
 import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.rest.CommandHeaders
+import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ScopeIds
@@ -68,14 +68,14 @@ internal class ViewStoreWebFilter(
 
         /** The request headers a caller may not set on the view store's paths, beside every `Command-Header-*`. */
         private val CLIENT_HEADERS = listOf(
-            CommandComponent.Header.AGGREGATE_ID,
-            CommandComponent.Header.TENANT_ID,
-            CommandComponent.Header.OWNER_ID,
+            CommandHeaders.AGGREGATE_ID,
+            CommandHeaders.TENANT_ID,
+            CommandHeaders.OWNER_ID,
         )
 
         private fun isClientHeader(name: String): Boolean =
             CLIENT_HEADERS.any { it.equals(name, ignoreCase = true) } ||
-                name.startsWith(CommandComponent.Header.COMMAND_HEADER_X_PREFIX, ignoreCase = true)
+                name.startsWith(CommandHeaders.COMMAND_HEADER_X_PREFIX, ignoreCase = true)
     }
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {

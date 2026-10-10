@@ -23,7 +23,7 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.configuration.requiredNamedAggregate
-import me.ahoo.wow.openapi.CommonComponent
+import me.ahoo.wow.rest.WowHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
@@ -101,14 +101,14 @@ class RestCommandGatewayExchangeTest {
 
     @Test
     fun `a rejection without a body takes the error code header`() {
-        respond(HttpStatus.CONFLICT, "", mapOf(CommonComponent.Header.ERROR_CODE to "VersionConflict"))
+        respond(HttpStatus.CONFLICT, "", mapOf(WowHeaders.ERROR_CODE to "VersionConflict"))
 
         assertRejected(errorCode = "VersionConflict", errorMsg = null)
     }
 
     @Test
     fun `a rejection with a body that is neither a result nor an error info takes the error code header`() {
-        respond(HttpStatus.INTERNAL_SERVER_ERROR, "[1,2]", mapOf(CommonComponent.Header.ERROR_CODE to "Internal"))
+        respond(HttpStatus.INTERNAL_SERVER_ERROR, "[1,2]", mapOf(WowHeaders.ERROR_CODE to "Internal"))
 
         assertRejected(errorCode = "Internal", errorMsg = null)
     }

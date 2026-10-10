@@ -18,11 +18,11 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.identity.identity
@@ -52,13 +52,13 @@ class LoadEventStreamHandlerFunction(
             val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
             val ownerId = identity.readOwnerId()
             val id = request.pathVariable(MessageRecords.ID)
-            val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
-            val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)
+            val headVersion = request.versionVariable(RouteVariables.HEAD_VERSION)
+            val tailVersion = request.versionVariable(RouteVariables.TAIL_VERSION)
             if (headVersion > tailVersion) {
                 throw QueryRequestException(
                     "headVersion[$headVersion] must not exceed tailVersion[$tailVersion].",
                     QueryErrorCodes.INVALID_REQUEST,
-                    BatchComponent.PathVariable.HEAD_VERSION,
+                    RouteVariables.HEAD_VERSION,
                 )
             }
             val limit = tailVersion - headVersion + 1

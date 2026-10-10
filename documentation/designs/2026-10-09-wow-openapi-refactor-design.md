@@ -145,4 +145,4 @@ P1 → P2 → P4 依次进行；P3 与 P1 并行（只在 `CommandComponent.Head
 
 ## 9. 实施记录
 
-（实施后填写）
+- P3：新模块 `wow-rest-contract`（`me.ahoo.wow.rest`，只依赖 `wow-api`）收纳 `CommandHeaders`、`WowHeaders`、`RoutePaths`、`RouteSuffixes`、`RouteVariables`、`BatchResult` 与 `bi/` DTO。`CommandComponent.Header`、`CommonComponent.Header` 的常量与 `me.ahoo.wow.openapi.BatchResult` 保留为弃用别名（compat-debt 条目「Wow 9.5 REST Header Names And `BatchResult` In `wow-openapi`」），其余声明直接迁移。Schema 名由新模块的 `META-INF/wow-metadata.json` 固定：把 `me.ahoo.wow.rest` 并入 `wow.openapi` 上下文，组件名仍是 `wow.openapi.BatchResult`、`wow.openapi.BiScriptRequest` 等，OpenAPI 快照不变。`wow-apiclient` 改为依赖 `wow-rest-contract`（`wow-query` 以 implementation 引入），不再传递引入 `wow-openapi`。

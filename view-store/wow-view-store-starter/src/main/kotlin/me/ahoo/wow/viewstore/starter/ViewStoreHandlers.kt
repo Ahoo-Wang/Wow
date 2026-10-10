@@ -26,12 +26,12 @@ import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.dsl.FilterDsl
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewAudience
@@ -139,7 +139,7 @@ internal class ViewStoreHandlers(
             }
             .flatMapMany { (input, aggregateId) ->
                 val commandRequest = ServerRequest.from(request)
-                    .headers { it.set(CommandComponent.Header.AGGREGATE_ID, aggregateId.id) }
+                    .headers { it.set(CommandHeaders.AGGREGATE_ID, aggregateId.id) }
                     .build()
                 commandHandler.handle(commandRequest, input.toCommand(definitionId), preferencesRouteMetadata)
             }
@@ -152,7 +152,7 @@ internal class ViewStoreHandlers(
      * duplicate aggregate; since 9.2.3 the aggregate's own version check agrees, and this check keeps the message.
      */
     private fun requireNeverWritten(request: ServerRequest, aggregateId: AggregateId): Mono<Void> {
-        val expectedVersion = request.headers().firstHeader(CommandComponent.Header.AGGREGATE_VERSION)?.toIntOrNull()
+        val expectedVersion = request.headers().firstHeader(CommandHeaders.AGGREGATE_VERSION)?.toIntOrNull()
         if (expectedVersion != Version.UNINITIALIZED_VERSION) {
             return Mono.empty()
         }

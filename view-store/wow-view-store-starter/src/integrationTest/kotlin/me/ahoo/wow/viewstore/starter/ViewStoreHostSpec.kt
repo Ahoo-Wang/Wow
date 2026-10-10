@@ -18,9 +18,9 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObjectNode
 import me.ahoo.wow.viewstore.ViewStoreService
@@ -81,12 +81,12 @@ abstract class ViewStoreHostSpec {
         headers: Map<String, String> = emptyMap(),
     ): WebTestClient.ResponseSpec {
         val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(uri)
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.REQUEST_ID, requestId)
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.REQUEST_ID, requestId)
             .contentType(MediaType.APPLICATION_JSON)
         appId?.let { spec.header(ViewStoreService.APP_ID_HEADER, it) }
         headers.forEach { (name, value) -> spec.header(name, value) }
-        version?.let { spec.header(CommandComponent.Header.AGGREGATE_VERSION, it.toString()) }
+        version?.let { spec.header(CommandHeaders.AGGREGATE_VERSION, it.toString()) }
         return (body?.let { spec.bodyValue(it) } ?: spec).exchange()
     }
 
@@ -168,8 +168,8 @@ abstract class ViewStoreHostSpec {
         path: String = "/wow/command/send",
     ): WebTestClient.ResponseSpec {
         val spec = client.post().uri(raw(path))
-            .header(CommandComponent.Header.COMMAND_TYPE, commandType)
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.COMMAND_TYPE, commandType)
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .header(ViewStoreService.APP_ID_HEADER, APP)
             .contentType(MediaType.APPLICATION_JSON)
         headers.forEach { (name, value) -> spec.header(name, value) }
@@ -182,25 +182,25 @@ abstract class ViewStoreHostSpec {
         facade(
             "me.ahoo.wow.viewstore.api.view.CreateView",
             """{"definitionId":"orders","title":"Squat","config":{"kind":"record"}}""",
-            mapOf(CommandComponent.Header.AGGREGATE_ID to "orders-open", CommandComponent.Header.OWNER_ID to SHARED),
+            mapOf(CommandHeaders.AGGREGATE_ID to "orders-open", CommandHeaders.OWNER_ID to SHARED),
         ).expectStatus().isNotFound
         facade(
             "me.ahoo.wow.viewstore.api.preferences.SetViewPreferences",
             """{"definitionId":"orders","order":[]}""",
-            mapOf(CommandComponent.Header.AGGREGATE_ID to "any", CommandComponent.Header.OWNER_ID to "mallory"),
+            mapOf(CommandHeaders.AGGREGATE_ID to "any", CommandHeaders.OWNER_ID to "mallory"),
         ).expectStatus().isNotFound
         facade(
             "me.ahoo.wow.viewstore.api.view.RenameView",
             """{"id":"$id","title":"Taken"}""",
-            mapOf(CommandComponent.Header.AGGREGATE_ID to id),
+            mapOf(CommandHeaders.AGGREGATE_ID to id),
         ).expectStatus().isNotFound
         facade(
             "any",
             """{"title":"Taken"}""",
             mapOf(
-                CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT to ViewStoreService.SERVICE_NAME,
-                CommandComponent.Header.COMMAND_AGGREGATE_NAME to ViewStoreService.VIEW_AGGREGATE_NAME,
-                CommandComponent.Header.AGGREGATE_ID to id,
+                CommandHeaders.COMMAND_AGGREGATE_CONTEXT to ViewStoreService.SERVICE_NAME,
+                CommandHeaders.COMMAND_AGGREGATE_NAME to ViewStoreService.VIEW_AGGREGATE_NAME,
+                CommandHeaders.AGGREGATE_ID to id,
             ),
         ).expectStatus().isNotFound
         single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
@@ -225,13 +225,13 @@ abstract class ViewStoreHostSpec {
             facade(
                 "me.ahoo.wow.viewstore.api.view.RenameView",
                 """{"title":"Taken"}""",
-                mapOf(CommandComponent.Header.AGGREGATE_ID to id, CommandComponent.Header.OWNER_ID to "alice"),
+                mapOf(CommandHeaders.AGGREGATE_ID to id, CommandHeaders.OWNER_ID to "alice"),
                 path,
             ).expectStatus().isNotFound
             facade(
                 "me.ahoo.wow.viewstore.api.view.CreateView",
                 """{"definitionId":"orders","title":"Squat","config":{"kind":"record"}}""",
-                mapOf(CommandComponent.Header.AGGREGATE_ID to "orders-open", CommandComponent.Header.OWNER_ID to SHARED),
+                mapOf(CommandHeaders.AGGREGATE_ID to "orders-open", CommandHeaders.OWNER_ID to SHARED),
                 path,
             ).expectStatus().isNotFound
         }
@@ -245,9 +245,9 @@ abstract class ViewStoreHostSpec {
             val chosen = "chosen-" + UUID.randomUUID()
             val result = client.post().uri(raw("$scope/alice/view"))
                 .header(ViewStoreService.APP_ID_HEADER, APP)
-                .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-                .header(CommandComponent.Header.AGGREGATE_ID, chosen)
-                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, OTHER_APP)
+                .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+                .header(CommandHeaders.AGGREGATE_ID, chosen)
+                .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, OTHER_APP)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
                 .exchange().expectStatus().isOk
@@ -257,8 +257,8 @@ abstract class ViewStoreHostSpec {
             single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.appId").isEqualTo(APP)
             // Without CoSec-App-Id there is no application, whatever the command header says.
             client.post().uri(raw("$scope/alice/view"))
-                .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
+                .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+                .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
                 .exchange().expectStatus().isBadRequest
@@ -266,9 +266,9 @@ abstract class ViewStoreHostSpec {
             // Another application's caller cannot rename it by naming the view's application in a command header.
             client.put().uri(raw("$scope/alice/view/$id/rename"))
                 .header(ViewStoreService.APP_ID_HEADER, OTHER_APP)
-                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
-                .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-                .header(CommandComponent.Header.AGGREGATE_VERSION, "1")
+                .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
+                .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+                .header(CommandHeaders.AGGREGATE_VERSION, "1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""{"title":"Taken"}""")
                 .exchange().expectStatus().isNotFound
@@ -300,10 +300,10 @@ abstract class ViewStoreHostSpec {
         version: Int? = null,
     ): WebTestClient.ResponseSpec {
         val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(raw(uri))
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
             .header(ViewStoreService.APP_ID_HEADER, APP)
             .contentType(MediaType.APPLICATION_JSON)
-        version?.let { spec.header(CommandComponent.Header.AGGREGATE_VERSION, it.toString()) }
+        version?.let { spec.header(CommandHeaders.AGGREGATE_VERSION, it.toString()) }
         headers.forEach { (name, value) -> spec.header(name, value) }
         return (body?.let { spec.bodyValue(it) } ?: spec).exchange()
     }
@@ -318,12 +318,12 @@ abstract class ViewStoreHostSpec {
             val scopes = listOf(
                 "/view-store/tenant/t1/owner/$blank" to listOf(
                     emptyMap(),
-                    mapOf(CommandComponent.Header.OWNER_ID to "alice"),
+                    mapOf(CommandHeaders.OWNER_ID to "alice"),
                     mapOf("command-owner-id" to planted),
                 ),
                 "/view-store/tenant/$blank/owner/alice" to listOf(
                     emptyMap(),
-                    mapOf(CommandComponent.Header.TENANT_ID to "t1"),
+                    mapOf(CommandHeaders.TENANT_ID to "t1"),
                     mapOf("COMMAND-TENANT-ID" to plantedTenant),
                 ),
             )
@@ -469,7 +469,7 @@ abstract class ViewStoreHostSpec {
             """{"definitionId":"orders","title":"View","config":{"kind":"record"}}""",
             appId = null,
             headers = mapOf(
-                CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER to OTHER_APP,
+                CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER to OTHER_APP,
                 ViewStoreService.APP_ID_HEADER to APP,
             ),
         ).expectStatus().isOk.expectBody(JsonNode::class.java).returnResult().responseBody!!
@@ -480,7 +480,7 @@ abstract class ViewStoreHostSpec {
 
     @Test
     fun `a caller's command headers never reach the command`() {
-        val prefix = CommandComponent.Header.COMMAND_HEADER_X_PREFIX
+        val prefix = CommandHeaders.COMMAND_HEADER_X_PREFIX
         val result = scoped(
             "POST",
             "$SCOPE/alice/view",
@@ -509,7 +509,7 @@ abstract class ViewStoreHostSpec {
             "PUT",
             "$SCOPE/alice/view/$id/rename",
             """{"title":"Renamed"}""",
-            mapOf(CommandComponent.Header.OWNER_ID to "bob", CommandComponent.Header.TENANT_ID to "t9"),
+            mapOf(CommandHeaders.OWNER_ID to "bob", CommandHeaders.TENANT_ID to "t9"),
             version = 1,
         ).expectStatus().isOk
         single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.title").isEqualTo("Renamed")
@@ -520,7 +520,7 @@ abstract class ViewStoreHostSpec {
             "PUT",
             "$SCOPE/alice/view/$shared/claim",
             null,
-            mapOf(CommandComponent.Header.OWNER_ID to "alice", CommandComponent.Header.TENANT_ID to "t1"),
+            mapOf(CommandHeaders.OWNER_ID to "alice", CommandHeaders.TENANT_ID to "t1"),
             version = 1,
         ).expectStatus().isOk
         single("alice", shared).expectStatus().isOk.expectBody().jsonPath("$.ownerId").isEqualTo("alice")
@@ -569,18 +569,18 @@ abstract class ViewStoreHostSpec {
     @Test
     fun `the application comes from CoSec-App-Id, never from a command header`() {
         client.post().uri("$SCOPE/alice/view")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, OTHER_APP)
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, OTHER_APP)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
             .exchange().expectStatus().isBadRequest
             .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
         val id = create("alice")
         client.put().uri("$SCOPE/alice/view/$id/rename")
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.AGGREGATE_VERSION, "1")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.AGGREGATE_VERSION, "1")
             .header(ViewStoreService.APP_ID_HEADER, OTHER_APP)
-            .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
+            .header(CommandHeaders.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"title":"Taken"}""")
             .exchange().expectStatus().isNotFound
@@ -609,8 +609,8 @@ abstract class ViewStoreHostSpec {
     fun `a client cannot pick the id of a new view`() {
         val result = client.post().uri("$SCOPE/alice/view")
             .header(ViewStoreService.APP_ID_HEADER, APP)
-            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
-            .header(CommandComponent.Header.AGGREGATE_ID, "chosen-id")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.AGGREGATE_ID, "chosen-id")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
             .exchange().expectStatus().isOk

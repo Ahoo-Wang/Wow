@@ -29,9 +29,9 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
+import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -74,7 +74,7 @@ class CartCommandHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, aggregateId)
             .principal(UserPrincipal(generateGlobalId()))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .body(
                 AddCartItem(
                     productId = "product-1",
@@ -115,7 +115,7 @@ class CartCommandHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, aggregateId)
             .principal(UserPrincipal(generateGlobalId()))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .body(
                 ChangeQuantity(
                     productId = "product-1",
@@ -155,7 +155,7 @@ class CartCommandHandlerFunctionTest {
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, aggregateId)
             .principal(UserPrincipal(generateGlobalId()))
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
+            .header(CommandHeaders.WAIT_STAGE, CommandStage.SENT.name)
             .body(
                 RemoveCartItem(
                     productIds = setOf("product-1"),
