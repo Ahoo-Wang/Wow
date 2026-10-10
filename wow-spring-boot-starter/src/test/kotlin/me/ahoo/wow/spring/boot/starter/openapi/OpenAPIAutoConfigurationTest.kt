@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import java.util.function.Supplier
 
 class OpenAPIAutoConfigurationTest {
@@ -140,13 +141,22 @@ class OpenAPIAutoConfigurationTest {
         }
         contextRunner
             .enableWow()
-            .withBean("second", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("second", 2) })
+            .withBean("third", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("third", 3) })
+            .withBean("second", OpenApiDocumentFilter::class.java, Supplier { AnnotatedOrderFilter(applied) })
             .withBean("first", OpenApiDocumentFilter::class.java, Supplier { NamedFilter("first", 1) })
             .withUserConfiguration(OpenAPIAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
                 context.getBean(WowOpenApiCustomizer::class.java).customise(OpenAPI())
-                applied.assert().containsExactly("first", "second")
+                applied.assert().containsExactly("first", "second", "third")
             }
+    }
+
+    /** Ordered by its class-level [Order], between the [Ordered] filters of the test above. */
+    @Order(2)
+    private class AnnotatedOrderFilter(private val applied: MutableList<String>) : OpenApiDocumentFilter {
+        override fun filter(openApi: OpenAPI) {
+            applied += "second"
+        }
     }
 
     @Test

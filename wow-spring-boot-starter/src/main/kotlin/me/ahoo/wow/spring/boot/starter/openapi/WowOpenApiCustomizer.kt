@@ -18,7 +18,10 @@ import me.ahoo.wow.openapi.RouterSpecs
 import org.springdoc.core.customizers.OpenApiCustomizer
 
 /**
- * Merges Wow's routes into the OpenAPI document, then applies the [documentFilters] in their order.
+ * Merges Wow's routes into the OpenAPI document, then applies the [documentFilters] in the order given.
+ *
+ * The auto-configured customizer is given every [OpenApiDocumentFilter] bean, in their order; a customizer built by
+ * hand applies only the filters passed to it, and none through the `(RouterSpecs)` constructor.
  */
 class WowOpenApiCustomizer(
     private val routerSpecs: RouterSpecs,
