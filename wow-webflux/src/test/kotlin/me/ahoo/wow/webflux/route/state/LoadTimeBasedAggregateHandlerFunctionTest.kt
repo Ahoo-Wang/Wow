@@ -52,13 +52,14 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
             }
             .verify()
 
-        val handlerFunction = LoadTimeBasedAggregateHandlerFunctionFactory(
+        val handlerFunction = LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 snapshotStore = NoOpSnapshotStore,
                 eventStore = eventStore
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
+            route = StateLoadRoute.TIME_BASED,
         ).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE,

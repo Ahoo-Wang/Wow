@@ -22,7 +22,6 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.toBatchResult
@@ -33,10 +32,10 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 class BatchRegenerateSnapshotHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val stateAggregateFactory: StateAggregateFactory,
-    private val eventStore: EventStore,
-    private val snapshotStore: SnapshotStore,
+    aggregateMetadata: AggregateMetadata<*, *>,
+    stateAggregateFactory: StateAggregateFactory,
+    eventStore: EventStore,
+    snapshotStore: SnapshotStore,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
@@ -50,15 +49,9 @@ class BatchRegenerateSnapshotHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val afterId = request.pathVariable(RouteVariables.BATCH_AFTER_ID)
         val limit = request.pathVariable(RouteVariables.BATCH_LIMIT).toInt()
-        return eventStore.scanAggregateId(
-            namedAggregate = aggregateMetadata.namedAggregate,
-            afterId = afterId,
-            limit = limit,
-        ).let { scanFlux ->
-            batchExecutionPolicy.apply(scanFlux) { aggregateId ->
-                handler.handle(aggregateId).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
-            }
-        }.toBatchResult(afterId, request, exceptionHandler).toServerResponse(request, exceptionHandler)
+        return handler.regenerate(afterId, limit, batchExecutionPolicy)
+            .toBatchResult(afterId, request, exceptionHandler)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
@@ -73,12 +66,8 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return BatchRegenerateSnapshotHandlerFunction(
-            aggregateMetadata = aggregateMetadata,
+            aggregateMetadata = aggregateMetadata(metadata),
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
             snapshotStore = snapshotStore,

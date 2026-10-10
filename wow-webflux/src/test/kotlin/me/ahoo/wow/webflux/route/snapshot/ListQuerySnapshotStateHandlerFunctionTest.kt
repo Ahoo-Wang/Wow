@@ -19,10 +19,12 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -34,10 +36,12 @@ class ListQuerySnapshotStateHandlerFunctionTest {
 
     @Test
     fun `should handle list query snapshot state request`() {
-        val handlerFunction = ListQuerySnapshotStateHandlerFunctionFactory(
+        val handlerFunction = ListQueryHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
             { RouteTestFixtures.snapshotQueryGateway },
             queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
+            rewriteResult = { it.toStateDocument() },
         ).create(
             testAggregateRouteContract(
                 handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,

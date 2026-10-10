@@ -45,7 +45,7 @@ class PagedQueryHandlerFunction(
         }
 }
 
-open class PagedQueryHandlerFunctionFactory(
+class PagedQueryHandlerFunctionFactory(
     handlerKey: String,
     queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     queryRequestScope: QueryRequestScope,

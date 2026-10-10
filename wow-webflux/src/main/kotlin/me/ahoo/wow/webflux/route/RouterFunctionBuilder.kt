@@ -22,17 +22,11 @@ import org.springframework.web.reactive.function.server.ServerResponse
 /**
  * [org.springframework.web.reactive.function.server.support.RouterFunctionMapping]
  */
-@Suppress("LongParameterList")
 class RouterFunctionBuilder(
     private val routerSpecs: RouterSpecs,
     routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
-    identityHeaderAliases: IdentityHeaderAliases,
+    identityHeaderAliases: IdentityHeaderAliases = IdentityHeaderAliases.NONE,
 ) {
-    constructor(
-        routerSpecs: RouterSpecs,
-        routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
-    ) : this(routerSpecs, routeHandlerFunctionRegistrar, IdentityHeaderAliases.NONE)
-
     private val routeMaterializer = HttpRouteMaterializer(
         routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar,
         identityHeaderAliases = identityHeaderAliases,

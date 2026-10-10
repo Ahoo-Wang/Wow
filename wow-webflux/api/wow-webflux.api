@@ -177,8 +177,8 @@ public final class me/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar$Compa
 }
 
 public final class me/ahoo/wow/webflux/route/RouterFunctionBuilder {
-	public fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;)V
 	public fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;Lme/ahoo/wow/webflux/route/identity/IdentityHeaderAliases;)V
+	public synthetic fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;Lme/ahoo/wow/webflux/route/RouteHandlerFunctionRegistrar;Lme/ahoo/wow/webflux/route/identity/IdentityHeaderAliases;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun build ()Lorg/springframework/web/reactive/function/server/RouterFunction;
 }
 
@@ -280,20 +280,9 @@ public final class me/ahoo/wow/webflux/route/command/extractor/DefaultCommandBui
 }
 
 public final class me/ahoo/wow/webflux/route/command/extractor/DefaultCommandMessageExtractor : me/ahoo/wow/webflux/route/command/extractor/CommandMessageExtractor {
-	public fun <init> (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Ljava/util/List;)V
-	public synthetic fun <init> (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Ljava/util/List;Lme/ahoo/wow/webflux/route/identity/IdentityHeaderAliases;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/factory/CommandMessageFactory;Lme/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor;Ljava/util/List;Lme/ahoo/wow/webflux/route/identity/IdentityHeaderAliases;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun extract (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Ljava/lang/Object;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
-}
-
-public final class me/ahoo/wow/webflux/route/event/CountEventStreamHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/CountQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/event/CursorQueryEventStreamHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/CursorQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/webflux/route/event/EventCompensateHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
@@ -305,16 +294,6 @@ public final class me/ahoo/wow/webflux/route/event/EventCompensateHandlerFunctio
 	public fun <init> (Lme/ahoo/wow/messaging/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)V
 }
 
-public final class me/ahoo/wow/webflux/route/event/EventStreamSchemaHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/event/ListQueryEventStreamHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/ListQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
 public final class me/ahoo/wow/webflux/route/event/LoadEventStreamHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
 	public fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/query/event/EventStreamQueryGateway;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/query/event/EventStreamQueryGateway;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -322,11 +301,6 @@ public final class me/ahoo/wow/webflux/route/event/LoadEventStreamHandlerFunctio
 }
 
 public final class me/ahoo/wow/webflux/route/event/LoadEventStreamHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/event/PagedQueryEventStreamHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/PagedQueryHandlerFunctionFactory {
 	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -485,7 +459,7 @@ public final class me/ahoo/wow/webflux/route/query/CountQueryHandlerFunction : o
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
-public class me/ahoo/wow/webflux/route/query/CountQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
+public final class me/ahoo/wow/webflux/route/query/CountQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -496,7 +470,7 @@ public final class me/ahoo/wow/webflux/route/query/CursorQueryHandlerFunction : 
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
-public class me/ahoo/wow/webflux/route/query/CursorQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
+public final class me/ahoo/wow/webflux/route/query/CursorQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -537,7 +511,7 @@ public final class me/ahoo/wow/webflux/route/query/ListQueryHandlerFunction : or
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
-public class me/ahoo/wow/webflux/route/query/ListQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
+public final class me/ahoo/wow/webflux/route/query/ListQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -548,7 +522,7 @@ public final class me/ahoo/wow/webflux/route/query/PagedQueryHandlerFunction : o
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
-public class me/ahoo/wow/webflux/route/query/PagedQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
+public final class me/ahoo/wow/webflux/route/query/PagedQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -580,6 +554,11 @@ public abstract interface class me/ahoo/wow/webflux/route/query/QueryRequestScop
 	public abstract fun resolve (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lme/ahoo/wow/query/QueryScope;
 }
 
+public final class me/ahoo/wow/webflux/route/query/QuerySchemaHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
+	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
 public final class me/ahoo/wow/webflux/route/query/QuerySchemaRefreshHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -595,7 +574,7 @@ public final class me/ahoo/wow/webflux/route/query/SingleQueryHandlerFunction : 
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
-public class me/ahoo/wow/webflux/route/query/SingleQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
+public final class me/ahoo/wow/webflux/route/query/SingleQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/QueryHandlerFunctionFactorySupport {
 	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;)V
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
@@ -609,31 +588,6 @@ public final class me/ahoo/wow/webflux/route/snapshot/BatchRegenerateSnapshotHan
 	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)V
 }
 
-public final class me/ahoo/wow/webflux/route/snapshot/CountSnapshotHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/CountQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/CursorQuerySnapshotHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/CursorQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/CursorQuerySnapshotStateHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/CursorQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/ListQuerySnapshotHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/ListQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/ListQuerySnapshotStateHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/ListQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
 public final class me/ahoo/wow/webflux/route/snapshot/LoadSnapshotHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
 	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/query/snapshot/SnapshotQueryGateway;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
 	public synthetic fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/query/snapshot/SnapshotQueryGateway;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -645,19 +599,10 @@ public final class me/ahoo/wow/webflux/route/snapshot/LoadSnapshotHandlerFunctio
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
-public final class me/ahoo/wow/webflux/route/snapshot/PagedQuerySnapshotHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/PagedQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/PagedQuerySnapshotStateHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/PagedQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
 public final class me/ahoo/wow/webflux/route/snapshot/RegenerateSnapshotHandler {
 	public fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)V
 	public final fun handle (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public final fun regenerate (Ljava/lang/String;ILme/ahoo/wow/webflux/route/policy/BatchExecutionPolicy;)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/webflux/route/snapshot/RegenerateSnapshotHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
@@ -667,30 +612,6 @@ public final class me/ahoo/wow/webflux/route/snapshot/RegenerateSnapshotHandlerF
 
 public final class me/ahoo/wow/webflux/route/snapshot/RegenerateSnapshotHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
 	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/SingleSnapshotHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/SingleQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/SingleSnapshotStateHandlerFunctionFactory : me/ahoo/wow/webflux/route/query/SingleQueryHandlerFunctionFactory {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/route/query/QueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/snapshot/SnapshotSchemaHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
-	public fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public abstract class me/ahoo/wow/webflux/route/state/AbstractLoadAggregateHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
-	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public abstract fun checkVersion (ILme/ahoo/wow/modeling/state/StateAggregate;)V
-	protected final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
-	public abstract fun getVersion (Lorg/springframework/web/reactive/function/server/ServerRequest;)I
-	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/webflux/route/state/AggregateTracingHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
@@ -710,39 +631,15 @@ public final class me/ahoo/wow/webflux/route/state/AggregateTracingReplay {
 	public final fun trace (Lme/ahoo/wow/modeling/metadata/StateAggregateMetadata;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Ljava/util/List;II)Lreactor/core/publisher/Flux;
 }
 
-public final class me/ahoo/wow/webflux/route/state/LoadAggregateHandlerFunction : me/ahoo/wow/webflux/route/state/AbstractLoadAggregateHandlerFunction {
-	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun checkVersion (ILme/ahoo/wow/modeling/state/StateAggregate;)V
-	public fun getVersion (Lorg/springframework/web/reactive/function/server/ServerRequest;)I
-}
-
-public final class me/ahoo/wow/webflux/route/state/LoadAggregateHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
-	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/state/LoadTimeBasedAggregateHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
-	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+public final class me/ahoo/wow/webflux/route/state/LoadAggregateHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
+	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;Lme/ahoo/wow/webflux/route/state/StateLoadRoute;)V
+	public synthetic fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;Lme/ahoo/wow/webflux/route/state/StateLoadRoute;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
-public final class me/ahoo/wow/webflux/route/state/LoadTimeBasedAggregateHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
-	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/webflux/route/state/LoadVersionedAggregateHandlerFunction : me/ahoo/wow/webflux/route/state/AbstractLoadAggregateHandlerFunction {
-	public fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun checkVersion (ILme/ahoo/wow/modeling/state/StateAggregate;)V
-	public fun getVersion (Lorg/springframework/web/reactive/function/server/ServerRequest;)I
-}
-
-public final class me/ahoo/wow/webflux/route/state/LoadVersionedAggregateHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
-	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;)V
-	public synthetic fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+public final class me/ahoo/wow/webflux/route/state/LoadAggregateHandlerFunctionFactory : me/ahoo/wow/webflux/route/AggregateRouteHandlerFunctionFactorySupport {
+	public fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;Lme/ahoo/wow/webflux/route/state/StateLoadRoute;)V
+	public synthetic fun <init> (Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/state/PointReadAdmission;Lme/ahoo/wow/webflux/route/state/StateLoadRoute;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/webflux/route/state/PointReadAdmission {
@@ -763,6 +660,17 @@ public final class me/ahoo/wow/webflux/route/state/PointReadAdmission$Companion 
 	public final fun getDISABLED ()Lme/ahoo/wow/webflux/route/state/PointReadAdmission;
 }
 
+public abstract class me/ahoo/wow/webflux/route/state/StateLoadRoute : java/lang/Enum {
+	public static final field LATEST Lme/ahoo/wow/webflux/route/state/StateLoadRoute;
+	public static final field TIME_BASED Lme/ahoo/wow/webflux/route/state/StateLoadRoute;
+	public static final field VERSIONED Lme/ahoo/wow/webflux/route/state/StateLoadRoute;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getHandlerKey ()Ljava/lang/String;
+	public abstract fun load (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/modeling/state/StateAggregateRepository;Lme/ahoo/wow/api/modeling/AggregateId;Lme/ahoo/wow/modeling/metadata/StateAggregateMetadata;)Lreactor/core/publisher/Mono;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/webflux/route/state/StateLoadRoute;
+	public static fun values ()[Lme/ahoo/wow/webflux/route/state/StateLoadRoute;
+}
+
 public final class me/ahoo/wow/webflux/wait/CommandWaitHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
 	public fun <init> (Lme/ahoo/wow/command/wait/WaitCoordinator;)V
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
@@ -770,10 +678,6 @@ public final class me/ahoo/wow/webflux/wait/CommandWaitHandlerFunction : org/spr
 
 public final class me/ahoo/wow/webflux/wait/CommandWaitHandlerFunctionFactory : me/ahoo/wow/webflux/route/NoMetadataRouteHandlerFunctionFactorySupport {
 	public fun <init> (Lme/ahoo/wow/command/wait/WaitCoordinator;)V
-}
-
-public final class me/ahoo/wow/webflux/wait/CommandWaitHandlerFunctionKt {
-	public static final fun getEMPTY_OK ()Lreactor/core/publisher/Mono;
 }
 
 public final class me/ahoo/wow/webflux/wait/RemoteWaitNotifyPolicy {

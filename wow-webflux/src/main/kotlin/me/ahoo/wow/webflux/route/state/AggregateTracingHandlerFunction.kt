@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.state
 
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_TAIL_VERSION
 import me.ahoo.wow.eventsourcing.state.StateEvent
@@ -23,7 +24,8 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
-import me.ahoo.wow.webflux.route.context.WowWebRequestContext
+import me.ahoo.wow.webflux.route.identity.aggregateId
+import me.ahoo.wow.webflux.route.identity.identity
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.policy.TracingRange
 import me.ahoo.wow.webflux.route.policy.TracingRequest
@@ -44,14 +46,28 @@ class AggregateTracingHandlerFunction(
     private val tracingPolicy: TracingPolicy,
     private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : HandlerFunction<ServerResponse> {
+    /**
+     * Resolves the range before the response starts, so a rejected range (the point-read admission cap) answers with
+     * its own status, then replays it.
+     */
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return Mono.defer {
-            val context = WowWebRequestContext.of(request, aggregateMetadata)
+            val aggregateId = request.identity(aggregateMetadata).aggregateId(aggregateMetadata)
             val tracingRequest = tracingPolicy.request(request)
-            if (admission.enabled) {
-                admitted(request, context, tracingRequest)
-            } else {
-                trace(context, tracingRequest).toServerResponse(request, exceptionHandler)
+            if (tracingRequest.limit == 0) {
+                return@defer Flux.empty<ObjectNode>().toServerResponse(request, exceptionHandler)
+            }
+            range(aggregateId, tracingRequest).flatMap { range ->
+                if (range.tailVersion < range.emitHeadVersion) {
+                    return@flatMap Flux.empty<ObjectNode>().toServerResponse(request, exceptionHandler)
+                }
+                admission.requireTracingVersions(range.tailVersion - range.emitHeadVersion + 1)
+                val states = replay(aggregateId, range)
+                if (admission.enabled) {
+                    admitted(request, states).toServerResponse(request, exceptionHandler)
+                } else {
+                    states.toServerResponse(request, exceptionHandler)
+                }
             }
         }.onErrorResume {
             exceptionHandler.handle(request, it)
@@ -59,100 +75,53 @@ class AggregateTracingHandlerFunction(
     }
 
     /**
-     * Tracing under [PointReadAdmission]: the range is resolved against the stream's tail and capped before the
-     * response starts, and the states are emitted only when the caller's scope admits every one of them.
+     * The versions to replay and emit. Only a `limit` (counted back from the stream's tail) or the admission cap needs
+     * the stream's tail; otherwise the requested tail is replayed as is, without reading the tail first.
      */
+    private fun range(aggregateId: AggregateId, tracingRequest: TracingRequest): Mono<TracingRange> {
+        if (tracingRequest.limit == null && !admission.enabled) {
+            return Mono.just(
+                TracingRange(
+                    replayHeadVersion = TracingPolicy.DEFAULT_HEAD_VERSION,
+                    emitHeadVersion = tracingRequest.emitHeadVersion,
+                    tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
+                )
+            )
+        }
+        return eventStore.last(aggregateId)
+            .map { it.version }
+            .defaultIfEmpty(TracingPolicy.EMPTY_TAIL_VERSION)
+            .map(tracingRequest::toRange)
+    }
+
+    private fun replay(aggregateId: AggregateId, range: TracingRange): Flux<StateEvent<ObjectNode>> =
+        AggregateTracingReplay.trace(
+            stateAggregateMetadata = aggregateMetadata.state,
+            stateAggregateFactory = stateAggregateFactory,
+            eventStreams = eventStore.load(
+                aggregateId = aggregateId,
+                headVersion = range.replayHeadVersion,
+                tailVersion = range.tailVersion,
+            ),
+            tracingRequest = TracingRequest(
+                headVersion = range.emitHeadVersion,
+                tailVersion = range.tailVersion,
+                limit = null,
+            ),
+        )
+
+    /** The admitted, masked [states], emitted only when the caller's scope admits every one of them. */
     private fun admitted(
         request: ServerRequest,
-        context: WowWebRequestContext,
-        tracingRequest: TracingRequest,
-    ): Mono<ServerResponse> = eventStore.last(context.aggregateId)
-        .map { it.version }
-        .defaultIfEmpty(TracingPolicy.EMPTY_TAIL_VERSION)
-        .flatMap { totalVersion ->
-            val range = tracingRequest.toRange(totalVersion)
-            val empty = tracingRequest.limit == 0 || range.tailVersion < range.emitHeadVersion
-            if (!empty) {
-                admission.requireTracingVersions(range.tailVersion - range.emitHeadVersion + 1)
-            }
-            val states = if (empty) Flux.empty() else admittedStates(request, context, range)
-            states.toServerResponse(request, exceptionHandler)
-        }
-
-    private fun admittedStates(
-        request: ServerRequest,
-        context: WowWebRequestContext,
-        range: TracingRange,
-    ): Flux<ObjectNode> = AggregateTracingReplay.trace(
-        stateAggregateMetadata = aggregateMetadata.state,
-        stateAggregateFactory = stateAggregateFactory,
-        eventStreams = eventStore.load(
-            aggregateId = context.aggregateId,
-            headVersion = range.replayHeadVersion,
-            tailVersion = range.tailVersion,
-        ),
-        tracingRequest = TracingRequest(
-            headVersion = range.emitHeadVersion,
-            tailVersion = range.tailVersion,
-            limit = null
-        ),
-    ).concatMap { state ->
+        states: Flux<StateEvent<ObjectNode>>,
+    ): Flux<ObjectNode> = states.concatMap { state ->
         admission.read(aggregateMetadata, request, state, tracing = true)
             .map { Optional.of(it) }
             .defaultIfEmpty(Optional.empty())
     }.collectList().flatMapMany { records ->
         if (records.all { it.isPresent }) Flux.fromIterable(records.map { it.get() }) else Flux.empty()
     }
-
-    private fun trace(
-        context: WowWebRequestContext,
-        tracingRequest: TracingRequest
-    ): Flux<StateEvent<ObjectNode>> {
-        val limit = tracingRequest.limit
-        if (limit == null) {
-            return eventStore
-                .load(
-                    aggregateId = context.aggregateId,
-                    tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
-                )
-                .let { eventStreams ->
-                    AggregateTracingReplay.trace(
-                        stateAggregateMetadata = aggregateMetadata.state,
-                        stateAggregateFactory = stateAggregateFactory,
-                        eventStreams = eventStreams,
-                        tracingRequest = tracingRequest,
-                    )
-                }
-        }
-        if (limit == 0) {
-            return Flux.empty()
-        }
-        return eventStore.last(context.aggregateId)
-            .map { it.version }
-            .defaultIfEmpty(TracingPolicy.EMPTY_TAIL_VERSION)
-            .flatMapMany { totalVersion ->
-                val range = tracingRequest.toRange(totalVersion)
-                if (range.tailVersion < range.emitHeadVersion) {
-                    return@flatMapMany Flux.empty()
-                }
-                AggregateTracingReplay.trace(
-                    stateAggregateMetadata = aggregateMetadata.state,
-                    stateAggregateFactory = stateAggregateFactory,
-                    eventStreams = eventStore.load(
-                        aggregateId = context.aggregateId,
-                        headVersion = range.replayHeadVersion,
-                        tailVersion = range.tailVersion,
-                    ),
-                    tracingRequest = TracingRequest(
-                        headVersion = range.emitHeadVersion,
-                        tailVersion = range.tailVersion,
-                        limit = null,
-                    ),
-                )
-            }
-    }
 }
-
 class AggregateTracingHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
@@ -164,12 +133,8 @@ class AggregateTracingHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return AggregateTracingHandlerFunction(
-            aggregateMetadata,
+            aggregateMetadata(metadata),
             stateAggregateFactory,
             eventStore,
             exceptionHandler,

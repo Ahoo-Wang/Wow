@@ -25,7 +25,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-val EMPTY_OK = ServerResponse
+private val EMPTY_OK = ServerResponse
     .ok()
     .contentType(MediaType.APPLICATION_JSON)
     .build()

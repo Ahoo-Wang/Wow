@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -24,6 +22,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.identity.aggregateId
 import me.ahoo.wow.webflux.route.identity.identity
 import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.toServerResponse
@@ -41,15 +40,13 @@ class EventCompensateHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
         Mono.defer {
-            val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
-            val id = request.pathVariable(RouteVariables.ID)
+            val aggregateId = request.identity(aggregateMetadata).aggregateId(aggregateMetadata)
             request.bodyToMono(CompensationTarget::class.java).mapRequestBodyDecodingException()
                 .flatMap {
                     requireNotNull(it) {
                         "CompensationTarget is required!"
                     }
                     val version = request.pathVariable(RouteVariables.VERSION).toInt()
-                    val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
 
                     eventCompensateSupporter.compensate(
                         aggregateId = aggregateId,
@@ -68,12 +65,8 @@ class EventCompensateHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return EventCompensateHandlerFunction(
-            aggregateMetadata,
+            aggregateMetadata(metadata),
             eventCompensateSupporter,
             exceptionHandler
         )

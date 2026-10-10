@@ -13,19 +13,17 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.identity.aggregateId
 import me.ahoo.wow.webflux.route.identity.identity
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -50,9 +48,7 @@ class RegenerateSnapshotHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
         Mono.defer {
-            val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
-            val id = request.pathVariable(RouteVariables.ID)
-            val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+            val aggregateId = request.identity(aggregateMetadata).aggregateId(aggregateMetadata)
             handler.handle(aggregateId)
                 .throwNotFoundIfEmpty()
                 .then()
@@ -69,12 +65,8 @@ class RegenerateSnapshotHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return RegenerateSnapshotHandlerFunction(
-            aggregateMetadata = aggregateMetadata,
+            aggregateMetadata = aggregateMetadata(metadata),
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
             snapshotStore = snapshotStore,

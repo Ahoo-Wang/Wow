@@ -36,7 +36,6 @@ import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.getRawRequest
-import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -579,7 +578,8 @@ class QueryBodyExtractorTest {
         private fun cursorClient(
             queryGateway: SnapshotQueryGateway<Any> = RouteTestFixtures.snapshotQueryGateway,
         ): WebTestClient {
-            val handler = CursorQuerySnapshotHandlerFunctionFactory(
+            val handler = CursorQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
                 { queryGateway },
                 DefaultQueryRequestScope,
                 WebFluxRequestExceptionHandler(),

@@ -47,7 +47,7 @@ fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration
 //region Wait Stage
 fun ServerRequest.getWaitStage(): CommandStage {
     return headers().firstHeader(CommandHeaders.WAIT_STAGE).ifNotBlank { stage ->
-        CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
+        CommandStage.valueOf(stage.uppercase(Locale.ROOT))
     } ?: CommandStage.PROCESSED
 }
 
@@ -67,7 +67,7 @@ fun ServerRequest.getWaitFunction(): String {
 //region Wait Chain Tail
 fun ServerRequest.getWaitTailStage(): CommandStage? {
     return headers().firstHeader(CommandHeaders.WAIT_TAIL_STAGE).ifNotBlank { stage ->
-        CommandStage.valueOf(stage.uppercase(Locale.getDefault()))
+        CommandStage.valueOf(stage.uppercase(Locale.ROOT))
     }
 }
 

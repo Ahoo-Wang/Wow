@@ -31,8 +31,6 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteMaterializer
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
-import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.http.MediaType
@@ -67,8 +65,12 @@ class TenantOwnerQueryRouteTest {
         val exceptionHandler = WebFluxRequestExceptionHandler()
         val registrar = RouteHandlerFunctionRegistrar(
             listOf(
-                CountSnapshotHandlerFunctionFactory({ snapshotGateway }, DefaultQueryRequestScope, exceptionHandler),
-                CountEventStreamHandlerFunctionFactory({ eventGateway }, DefaultQueryRequestScope, exceptionHandler),
+                CountQueryHandlerFunctionFactory(BuiltInHttpRouteHandlerKeys.Snapshot.COUNT, {
+                    snapshotGateway
+                }, DefaultQueryRequestScope, exceptionHandler),
+                CountQueryHandlerFunctionFactory(BuiltInHttpRouteHandlerKeys.Event.COUNT, {
+                    eventGateway
+                }, DefaultQueryRequestScope, exceptionHandler),
             )
         )
         val materializer = HttpRouteMaterializer(registrar)

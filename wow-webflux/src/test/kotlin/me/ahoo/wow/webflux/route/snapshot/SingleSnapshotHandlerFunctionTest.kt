@@ -22,6 +22,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -33,7 +34,8 @@ class SingleSnapshotHandlerFunctionTest {
 
     @Test
     fun `should handle single snapshot query`() {
-        val handlerFunction = SingleSnapshotHandlerFunctionFactory(
+        val handlerFunction = SingleQueryHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
             { RouteTestFixtures.snapshotQueryGateway },
             DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),

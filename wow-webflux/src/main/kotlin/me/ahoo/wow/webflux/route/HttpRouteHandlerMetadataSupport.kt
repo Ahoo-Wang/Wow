@@ -17,31 +17,18 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 
 internal fun HttpRouteHandlerMetadata.requireAggregateHandlerMetadata(
     handlerKey: String
-): HttpRouteHandlerMetadata.Aggregate {
-    return this as? HttpRouteHandlerMetadata.Aggregate
-        ?: invalidHandlerMetadata(handlerKey, HttpRouteHandlerMetadata.Aggregate::class.java)
-}
+): HttpRouteHandlerMetadata.Aggregate = requireHandlerMetadata(handlerKey)
 
 internal fun HttpRouteHandlerMetadata.requireCommandHandlerMetadata(
     handlerKey: String
-): HttpRouteHandlerMetadata.Command {
-    return this as? HttpRouteHandlerMetadata.Command
-        ?: invalidHandlerMetadata(handlerKey, HttpRouteHandlerMetadata.Command::class.java)
-}
+): HttpRouteHandlerMetadata.Command = requireHandlerMetadata(handlerKey)
 
 internal fun HttpRouteHandlerMetadata.requireNoHandlerMetadata(
     handlerKey: String
-): HttpRouteHandlerMetadata.None {
-    return this as? HttpRouteHandlerMetadata.None
-        ?: invalidHandlerMetadata(handlerKey, HttpRouteHandlerMetadata.None::class.java)
-}
+): HttpRouteHandlerMetadata.None = requireHandlerMetadata(handlerKey)
 
-private fun invalidHandlerMetadata(
-    handlerKey: String,
-    expected: Class<out HttpRouteHandlerMetadata>
-): Nothing {
-    error(
-        "HttpRouteHandlerMetadata mismatch - " +
-            "handlerKey:[$handlerKey], expected:[${expected.name}]."
-    )
-}
+private inline fun <reified M : HttpRouteHandlerMetadata> HttpRouteHandlerMetadata.requireHandlerMetadata(
+    handlerKey: String
+): M = this as? M ?: error(
+    "HttpRouteHandlerMetadata mismatch - handlerKey:[$handlerKey], expected:[${M::class.java.name}]."
+)

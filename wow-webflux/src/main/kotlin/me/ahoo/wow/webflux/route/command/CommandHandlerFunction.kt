@@ -24,14 +24,12 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.CommandRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.extractor.CommandBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
-import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Duration
 
 val DEFAULT_TIME_OUT: Duration = DEFAULT_WAIT_TIMEOUT
@@ -44,24 +42,27 @@ val DEFAULT_TIME_OUT: Duration = DEFAULT_WAIT_TIMEOUT
 class CommandHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val commandRouteMetadata: CommandRouteMetadata<out Any>,
-    private val commandGateway: CommandGateway,
-    private val commandMessageExtractor: CommandMessageExtractor,
+    commandGateway: CommandGateway,
+    commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
-    private val commandWaitPolicy: CommandWaitPolicy
+    commandWaitPolicy: CommandWaitPolicy
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
     private val handler = CommandHandler(commandGateway, commandMessageExtractor, commandWaitPolicy)
+
+    /** Whether the body is the whole command, so the codec reads it without a JSON tree to merge variables into. */
+    private val bodyOnly =
+        commandRouteMetadata.pathVariableMetadata.isEmpty() && commandRouteMetadata.headerVariableMetadata.isEmpty()
+
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return if (commandRouteMetadata.pathVariableMetadata.isEmpty() && commandRouteMetadata.headerVariableMetadata.isEmpty()) {
+        return if (bodyOnly) {
             request.bodyToMono(commandRouteMetadata.commandMetadata.commandType)
         } else {
             request.body(
                 bodyExtractor,
                 mapOf(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE to request.pathVariables()),
             )
-        }.mapRequestBodyDecodingException().switchIfEmpty {
-            Mono.error(IllegalArgumentException("Command can not be empty."))
-        }.flatMapMany {
+        }.requireCommandBody().flatMapMany {
             handler.handle(request, it, aggregateRouteMetadata)
         }.toCommandResponse(request, exceptionHandler)
     }

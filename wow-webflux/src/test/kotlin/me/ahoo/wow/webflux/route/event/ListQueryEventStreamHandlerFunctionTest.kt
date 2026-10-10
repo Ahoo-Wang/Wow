@@ -22,6 +22,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -34,8 +35,9 @@ class ListQueryEventStreamHandlerFunctionTest {
     @Test
     fun `should handle list query event stream request`() {
         val handlerFunction =
-            ListQueryEventStreamHandlerFunctionFactory(
-                eventStreamQueryGateway = { RouteTestFixtures.eventStreamQueryGateway },
+            ListQueryHandlerFunctionFactory(
+                BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
+                queryGateway = { RouteTestFixtures.eventStreamQueryGateway },
                 queryRequestScope = DefaultQueryRequestScope,
                 exceptionHandler = WebFluxRequestExceptionHandler()
             )

@@ -64,10 +64,14 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.6 升级到 9.7.0
 
-9.7.0 删除 9.3 弃用的两组 `wow-webflux` 辅助函数。它们属于内部实现，不是公开入口 API，因此不必等到 v10（见 `docs/compat-debt.md` 的范围说明）。REST、配置与线格式不变，9.6.x 与 9.7.0 节点可以共处一个集群。
+9.7.0 整理 `wow-webflux` 的内部实现，并删除 9.3 弃用的 `wow-webflux` 辅助函数。它们属于内部实现，不是公开入口 API，因此不经弃用周期直接调整（见 `docs/compat-debt.md` 的范围说明）。路由、REST、配置与线格式不变，9.6.x 与 9.7.0 节点可以共处一个集群。通过 starter 组装路由、且没有使用被删除辅助函数的应用无需改动；其余代码按下表修改。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
+| 删除只绑定 handlerKey 的查询工厂：`Count`/`List`/`Paged`/`CursorQuery`/`Single` 的 `…SnapshotHandlerFunctionFactory` 及其 `…SnapshotState…` 变体、`Count`/`List`/`Paged`/`CursorQueryEventStreamHandlerFunctionFactory`、`SnapshotSchemaHandlerFunctionFactory` 与 `EventStreamSchemaHandlerFunctionFactory`。`*QueryHandlerFunctionFactory` 改为 final | 自行组装查询路由的代码 | 改用 `CountQueryHandlerFunctionFactory`、`ListQueryHandlerFunctionFactory` 等，传入 `BuiltInHttpRouteHandlerKeys.Snapshot.*` 或 `Event.*`；`*_STATE` 路由再传 `rewriteResult = { it.toStateDocument() }`（分页用 `toStateDocumentPagedList()`，游标用 `toStateDocumentCursorPage()`）。Schema 路由改用 `QuerySchemaHandlerFunctionFactory(handlerKey, …)` |
+| 删除 `AbstractLoadAggregateHandlerFunction`、`LoadVersionedAggregateHandlerFunction(Factory)` 与 `LoadTimeBasedAggregateHandlerFunction(Factory)` | 自行组装状态加载路由的代码 | 改用 `LoadAggregateHandlerFunction(Factory)`，传 `route = StateLoadRoute.VERSIONED` 或 `StateLoadRoute.TIME_BASED` |
+| `DefaultCommandMessageExtractor` 与 `RouterFunctionBuilder` 去掉次构造函数；`EMPTY_OK` 改为私有 | 针对它们编译的代码 | 重新编译：同样的参数经主构造函数传入 |
+| tracing 请求带 `limit` 且读取事件流末尾失败时，在响应开始前以错误本身的状态码返回；原先事件流请求会先回 `200` 再发错误事件 | tracing 路由的 SSE 客户端 | 无需改动 |
 | 删除 `ServerRequest` 的身份读取函数：`getTenantId`、`getTenantIdOrDefault`、`getOwnerId`、`getSpaceId`（两个重载）与 `getAggregateId`（三个重载） | 从请求读取身份的自定义处理器 | 改用 `identity(aggregateMetadata)` 或 `identity(aggregateRouteMetadata)`（`me.ahoo.wow.webflux.route.identity`）：`tenantId()`（原 `getTenantIdOrDefault` 加 `?: TenantId.DEFAULT_TENANT_ID`）、`ownerId()`、`aggregateId()`、`spaceId()`、`requestId()`。接收 `AggregateRoute.Owner` 的重载没有替代：按聚合自身的所有者策略 |
 | 删除 `Throwable.toResponseEntity()` 与 `ErrorInfo.toServerResponse()` | 自行把错误映射为响应的代码 | 改用 `WebFluxErrorStrategy.toServerResponse`，或 `RequestExceptionHandler` Bean |
 

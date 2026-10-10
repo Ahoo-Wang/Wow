@@ -41,7 +41,7 @@ class CursorQueryHandlerFunction(
         }
 }
 
-open class CursorQueryHandlerFunctionFactory(
+class CursorQueryHandlerFunctionFactory(
     handlerKey: String,
     queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
     queryRequestScope: QueryRequestScope,

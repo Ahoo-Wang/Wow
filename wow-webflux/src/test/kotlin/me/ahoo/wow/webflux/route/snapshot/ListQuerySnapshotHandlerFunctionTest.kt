@@ -23,6 +23,7 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
+import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -34,7 +35,8 @@ class ListQuerySnapshotHandlerFunctionTest {
 
     @Test
     fun `should handle list query snapshot request`() {
-        val handlerFunction = ListQuerySnapshotHandlerFunctionFactory(
+        val handlerFunction = ListQueryHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             { RouteTestFixtures.snapshotQueryGateway },
             queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),

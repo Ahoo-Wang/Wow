@@ -16,35 +16,30 @@ package me.ahoo.wow.spring.boot.starter.webflux.route
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys.Event
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys.Snapshot
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.toStateDocument
+import me.ahoo.wow.query.snapshot.toStateDocumentCursorPage
+import me.ahoo.wow.query.snapshot.toStateDocumentPagedList
 import me.ahoo.wow.spring.query.eventStreamQueryGatewayBeanName
 import me.ahoo.wow.spring.query.snapshotQueryGatewayBeanName
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.CursorQueryEventStreamHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.EventStreamSchemaHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.AggregationQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.CursorQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.QuerySchemaRefreshHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotStateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotStateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.LoadSnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
 import org.springframework.beans.factory.BeanFactory
 import reactor.core.publisher.Mono
 
@@ -56,46 +51,112 @@ class QueryRouteModule(
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        SnapshotSchemaHandlerFunctionFactory(::snapshotGateway, exceptionHandler, guard),
+        QuerySchemaHandlerFunctionFactory(Snapshot.SCHEMA, ::snapshotGateway, exceptionHandler, guard),
         LoadSnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        ListQuerySnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        ListQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        PagedQuerySnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        CursorQuerySnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        PagedQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        CursorQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        SingleSnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        SingleSnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
-        CountSnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
+        ListQueryHandlerFunctionFactory(
+            Snapshot.LIST_QUERY,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        ListQueryHandlerFunctionFactory(
+            Snapshot.LIST_QUERY_STATE,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard,
+        ) { it.toStateDocument() },
+        PagedQueryHandlerFunctionFactory(
+            Snapshot.PAGED_QUERY,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        PagedQueryHandlerFunctionFactory(
+            Snapshot.PAGED_QUERY_STATE,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard,
+        ) { it.toStateDocumentPagedList() },
+        CursorQueryHandlerFunctionFactory(
+            Snapshot.CURSOR_QUERY,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        CursorQueryHandlerFunctionFactory(
+            Snapshot.CURSOR_QUERY_STATE,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard,
+        ) { it.toStateDocumentCursorPage() },
+        SingleQueryHandlerFunctionFactory(
+            Snapshot.SINGLE,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        SingleQueryHandlerFunctionFactory(
+            Snapshot.SINGLE_STATE,
+            ::snapshotGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard,
+        ) { it.toStateDocument() },
+        CountQueryHandlerFunctionFactory(Snapshot.COUNT, ::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         AggregationQueryHandlerFunctionFactory(
-            BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+            Snapshot.AGGREGATION,
             ::snapshotGateway,
             queryRequestScope,
             exceptionHandler,
             guard,
         ),
+        QuerySchemaHandlerFunctionFactory(Event.SCHEMA, ::eventStreamGateway, exceptionHandler, guard),
         LoadEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
+        ListQueryHandlerFunctionFactory(
+            Event.LIST_QUERY,
+            ::eventStreamGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        PagedQueryHandlerFunctionFactory(
+            Event.PAGED_QUERY,
+            ::eventStreamGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        CursorQueryHandlerFunctionFactory(
+            Event.CURSOR_QUERY,
+            ::eventStreamGateway,
+            queryRequestScope,
+            exceptionHandler,
+            guard
+        ),
+        CountQueryHandlerFunctionFactory(Event.COUNT, ::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         AggregationQueryHandlerFunctionFactory(
-            BuiltInHttpRouteHandlerKeys.Event.AGGREGATION,
+            Event.AGGREGATION,
             ::eventStreamGateway,
             queryRequestScope,
             exceptionHandler,
             guard,
         ),
-        EventStreamSchemaHandlerFunctionFactory(::eventStreamGateway, exceptionHandler, guard),
-        ListQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
-        PagedQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
-        CursorQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
-        CountEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         QuerySchemaRefreshHandlerFunctionFactory(
-            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
+            Snapshot.SCHEMA_REFRESH,
             ::snapshotGateway,
             { revalidate(it, QueryModel.SNAPSHOT) },
             exceptionHandler,
             guard,
         ),
         QuerySchemaRefreshHandlerFunctionFactory(
-            BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
+            Event.SCHEMA_REFRESH,
             ::eventStreamGateway,
             { revalidate(it, QueryModel.EVENT_STREAM) },
             exceptionHandler,

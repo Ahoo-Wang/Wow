@@ -15,9 +15,12 @@ package me.ahoo.wow.webflux.route.identity
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.OwnerPolicy
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.identity.IdentityFact
 import me.ahoo.wow.identity.IdentityResolver
 import me.ahoo.wow.identity.IdentitySource
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -520,6 +523,16 @@ fun ServerRequest.identity(aggregateMetadata: AggregateMetadata<*, *>): RequestI
     val pathValues = IdentityPathValues.of(this)
     return RequestIdentity(this, RouteIdentity.of(this, pathValues).binding(aggregateMetadata), pathValues)
 }
+
+/**
+ * The aggregate this request names on a route of [aggregateMetadata]: [RequestIdentity.aggregateId] under
+ * [RequestIdentity.tenantId], the default tenant when the request states none.
+ */
+internal fun RequestIdentity.aggregateId(aggregateMetadata: AggregateMetadata<*, *>): AggregateId =
+    aggregateMetadata.aggregateId(
+        id = requireNotNull(aggregateId()),
+        tenantId = tenantId() ?: TenantId.DEFAULT_TENANT_ID,
+    )
 
 /**
  * The value of the path variable [variable]. A route that declares the variable states the value in its path, and a
