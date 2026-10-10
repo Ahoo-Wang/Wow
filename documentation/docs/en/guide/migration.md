@@ -64,6 +64,15 @@ Advance only when the current gate has reproducible evidence:
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
 
+## Upgrading from 9.6 to 9.7.0
+
+9.7.0 removes two groups of `wow-webflux` helpers that 9.3 deprecated. They are internal implementation, not public entry APIs, so they go before v10 (see the scope in `docs/compat-debt.md`). REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes can share one cluster.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| The `ServerRequest` identity readers are removed: `getTenantId`, `getTenantIdOrDefault`, `getOwnerId`, `getSpaceId` (both overloads) and `getAggregateId` (all three overloads) | Custom handlers that read identity from the request | Use `identity(aggregateMetadata)` or `identity(aggregateRouteMetadata)` (`me.ahoo.wow.webflux.route.identity`): `tenantId()` (`?: TenantId.DEFAULT_TENANT_ID` for the old `getTenantIdOrDefault`), `ownerId()`, `aggregateId()`, `spaceId()`, `requestId()`. The `AggregateRoute.Owner` overloads have no replacement: the aggregate's own owner policy applies |
+| `Throwable.toResponseEntity()` and `ErrorInfo.toServerResponse()` are removed | Code that mapped an error to a response itself | Use `WebFluxErrorStrategy.toServerResponse`, or the `RequestExceptionHandler` bean |
+
 ## Upgrading from 9.5 to 9.6.0
 
 For `wow-openapi`, 9.6.0 makes route contracts pure data (design: `documentation/designs/2026-10-09-wow-openapi-refactor-design.md`). Routes, route ids and the generated OpenAPI document are unchanged, and REST, OpenAPI and wire formats are unchanged, so 9.5.x and 9.6.0 nodes can share one cluster. Code compiled against 9.5 must be recompiled; code that implements `RouteContributor` or builds route contracts needs the source changes below.
@@ -178,6 +187,8 @@ These application-facing calls still compile in 9.3, deprecated, and are removed
 | `ServerRequest.getAggregateId()` and its two `AggregateRoute.Owner` overloads | `identity(aggregateMetadata).aggregateId()` (the aggregate's owner policy applies) |
 | `RecoverableExceptionRegistrar.register`, `unregister`, `getRecoverableType` (static calls; from Java through `.Companion`, since 9.2's `INSTANCE` is gone) | the same methods of `RecoverableExceptionRegistry.DEFAULT`, or a `RecoverableExceptionProvider` |
 | `Throwable.toResponseEntity()`, `ErrorInfo.toServerResponse()` | `WebFluxErrorStrategy.toServerResponse`, or the `RequestExceptionHandler` bean |
+
+The `ServerRequest` identity readers and the two error helpers above were removed early, in 9.7.0 (see [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0)).
 
 `identity(…)` is `me.ahoo.wow.webflux.route.identity.identity`; the `RequestIdentity` it returns reads each fact by the route's rules, header aliases included, exactly as the built-in command and query handlers do. The deprecated readers delegate to it, so they also reject a blank identity path variable the route declares (400) and apply the conflict checks of [Requests clients can see](#requests-clients-can-see).
 

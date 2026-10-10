@@ -17,8 +17,6 @@ import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.modeling.command.IllegalAccessOwnerAggregateException
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.webflux.route.identity.RequestIdentity
-import me.ahoo.wow.webflux.route.identity.identity
-import org.springframework.web.reactive.function.server.ServerRequest
 
 /** Checks that an owned aggregate's owner is the owner the request states, read only for an owned aggregate. */
 internal class OwnerAggregatePrecondition(
@@ -26,11 +24,6 @@ internal class OwnerAggregatePrecondition(
     private val requestOwnerId: () -> String?,
 ) {
     constructor(identity: RequestIdentity, owner: OwnerPolicy) : this(owner, { identity.readOwnerId() })
-
-    /** The request's owner as its route states it. */
-    constructor(request: ServerRequest, owner: OwnerPolicy) : this(owner, {
-        request.identity(owner).readOwnerId()
-    })
 
     fun <S : Any> check(stateAggregate: StateAggregate<S>) {
         if (!owner.owned) {

@@ -13,16 +13,9 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.rest.WowHeaders.ERROR_CODE
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.response.DefaultWebFluxResponseStrategy
 import org.springframework.core.ParameterizedTypeReference
-import org.springframework.http.MediaType
-import org.springframework.http.ResponseEntity
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -31,29 +24,6 @@ import reactor.core.publisher.Mono
 import me.ahoo.wow.webflux.route.response.errorResume as responseErrorResume
 
 object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
-
-/**
- * Maps with the core converter, not the [me.ahoo.wow.webflux.exception.WebFluxErrorStrategy] Wow's routes use, so an
- * unexpected exception is `BadRequest` with its own message here.
- */
-@Deprecated("Scheduled for removal in 10.0.0. Use WebFluxErrorStrategy.toServerResponse.")
-fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
-    val errorInfo = toErrorInfo()
-    val status = errorInfo.toHttpStatus()
-    return ResponseEntity.status(status)
-        .contentType(MediaType.APPLICATION_JSON)
-        .header(ERROR_CODE, errorInfo.errorCode)
-        .body(errorInfo)
-}
-
-@Deprecated("Scheduled for removal in 10.0.0. Use WebFluxErrorStrategy.toServerResponse.")
-fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
-    val status = toHttpStatus()
-    return ServerResponse.status(status)
-        .contentType(MediaType.APPLICATION_JSON)
-        .header(ERROR_CODE, errorCode)
-        .bodyValue(this.toJsonString())
-}
 
 fun Mono<*>.toServerResponse(
     request: ServerRequest,

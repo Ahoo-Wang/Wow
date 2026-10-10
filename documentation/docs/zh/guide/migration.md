@@ -62,6 +62,15 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 回滚计划必须区分“目标版本第一次生产写入之前”和“之后”。新存储格式已经写入时，只恢复旧 binary
 不是回滚。
 
+## 从 9.6 升级到 9.7.0
+
+9.7.0 删除 9.3 弃用的两组 `wow-webflux` 辅助函数。它们属于内部实现，不是公开入口 API，因此不必等到 v10（见 `docs/compat-debt.md` 的范围说明）。REST、配置与线格式不变，9.6.x 与 9.7.0 节点可以共处一个集群。
+
+| 变化 | 影响谁 | 怎么做 |
+|---|---|---|
+| 删除 `ServerRequest` 的身份读取函数：`getTenantId`、`getTenantIdOrDefault`、`getOwnerId`、`getSpaceId`（两个重载）与 `getAggregateId`（三个重载） | 从请求读取身份的自定义处理器 | 改用 `identity(aggregateMetadata)` 或 `identity(aggregateRouteMetadata)`（`me.ahoo.wow.webflux.route.identity`）：`tenantId()`（原 `getTenantIdOrDefault` 加 `?: TenantId.DEFAULT_TENANT_ID`）、`ownerId()`、`aggregateId()`、`spaceId()`、`requestId()`。接收 `AggregateRoute.Owner` 的重载没有替代：按聚合自身的所有者策略 |
+| 删除 `Throwable.toResponseEntity()` 与 `ErrorInfo.toServerResponse()` | 自行把错误映射为响应的代码 | 改用 `WebFluxErrorStrategy.toServerResponse`，或 `RequestExceptionHandler` Bean |
+
 ## 从 9.5 升级到 9.6.0
 
 `wow-openapi` 在 9.6.0 中把路由合同改为纯数据（设计：`documentation/designs/2026-10-09-wow-openapi-refactor-design.md`）。路由、route id 与生成的 OpenAPI 文档不变；REST、OpenAPI 与线格式不变，9.5.x 与 9.6.0 节点可以共处一个集群。针对 9.5 编译的代码需要重新编译；实现 `RouteContributor` 或构造路由合同的代码需要按下表修改源码。
@@ -176,6 +185,8 @@ REST 线格式词汇从 `wow-openapi` 移到新模块 `wow-rest-contract`（包 
 | `ServerRequest.getAggregateId()` 及其两个 `AggregateRoute.Owner` 重载 | `identity(aggregateMetadata).aggregateId()`（按聚合的所有者策略） |
 | `RecoverableExceptionRegistrar.register`、`unregister`、`getRecoverableType`（静态调用；Java 经 `.Companion` 调用，9.2 的 `INSTANCE` 已不存在） | `RecoverableExceptionRegistry.DEFAULT` 的同名方法，或 `RecoverableExceptionProvider` |
 | `Throwable.toResponseEntity()`、`ErrorInfo.toServerResponse()` | `WebFluxErrorStrategy.toServerResponse`，或 `RequestExceptionHandler` Bean |
+
+上表中 `ServerRequest` 的身份读取函数与两个错误辅助函数已提前在 9.7.0 删除（见[从 9.6 升级到 9.7.0](#从-9-6-升级到-9-7-0)）。
 
 `identity(…)` 即 `me.ahoo.wow.webflux.route.identity.identity`；它返回的 `RequestIdentity` 按路由的规则读取每个身份字段（含请求头别名），与内置命令、查询处理器完全一致。弃用的读取函数都委托给它，所以它们同样拒绝路由声明的空白身份路径变量（400），并执行[客户端可见的请求变化](#客户端可见的请求变化)中的冲突检查。
 
