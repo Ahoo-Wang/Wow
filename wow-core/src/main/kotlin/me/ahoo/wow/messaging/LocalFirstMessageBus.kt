@@ -20,10 +20,11 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher.isLocal
+import me.ahoo.wow.infra.forEachThenThrow
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
-import reactor.core.Exceptions
+import me.ahoo.wow.modeling.materializeMessageAggregate
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -114,24 +115,8 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
      */
     val localBus: LocalMessageBus<M, E>
 
-    @Suppress("TooGenericExceptionCaught")
     override fun close() {
-        var closeError: Exception? = null
-        try {
-            localBus.close()
-        } catch (error: Exception) {
-            closeError = error
-        }
-        try {
-            distributedBus.close()
-        } catch (error: Exception) {
-            closeError?.addSuppressed(error) ?: run {
-                closeError = error
-            }
-        }
-        closeError?.let {
-            throw it
-        }
+        listOf(localBus, distributedBus).forEachThenThrow(AutoCloseable::close)
     }
 
     /**
@@ -187,7 +172,7 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
             // Queued before the hand-off, so the copies of one aggregate keep the send order.
             val copy = distributedCopies.enqueue(
                 key = (message as? AggregateIdCapable)?.aggregateId ?: message.materialize(),
-                namedAggregate = message,
+                namedAggregate = message.materializeMessageAggregate(),
                 context = context,
                 description = { "message[${message.id}] (via $localBusName)" },
             ) { admitted ->
@@ -244,40 +229,11 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
                 distributedReceiver.openProcessing()
             },
             processingQuiescence = {
-                closeReceivers(localReceiver, distributedReceiver)
+                listOf(localReceiver, distributedReceiver).forEachThenThrow(MessageReceiver<E>::closeProcessing)
             },
             durableIntakeSuspension = {
-                try {
-                    localReceiver.suspendDurableIntake()
-                } finally {
-                    distributedReceiver.suspendDurableIntake()
-                }
+                listOf(localReceiver, distributedReceiver).forEachThenThrow(MessageReceiver<E>::suspendDurableIntake)
             },
         )
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun closeReceivers(
-        localReceiver: MessageReceiver<E>,
-        distributedReceiver: MessageReceiver<E>,
-    ) {
-        var failure: Throwable? = null
-        try {
-            localReceiver.closeProcessing()
-        } catch (error: Throwable) {
-            Exceptions.throwIfFatal(error)
-            failure = error
-        }
-        try {
-            distributedReceiver.closeProcessing()
-        } catch (error: Throwable) {
-            Exceptions.throwIfFatal(error)
-            if (failure == null) {
-                failure = error
-            } else if (failure !== error) {
-                failure.addSuppressed(error)
-            }
-        }
-        failure?.let { throw it }
     }
 }

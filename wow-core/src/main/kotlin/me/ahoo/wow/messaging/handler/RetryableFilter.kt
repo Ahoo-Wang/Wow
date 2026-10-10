@@ -13,10 +13,7 @@
 
 package me.ahoo.wow.messaging.handler
 
-import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.exception.RecoverableType
-import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
-import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.filter.FilterChain
 import reactor.core.publisher.Mono
@@ -35,18 +32,13 @@ val DEFAULT_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(2
 /**
  * Filter that retries message processing for recoverable errors.
  *
- * This filter is ordered to run before other processing filters and will
- * retry failed operations according to the specified retry specification.
+ * The function filters order themselves after this filter (`@Order(after = [RetryableFilter::class])`, inherited by
+ * their subclasses), so it wraps the function invocation in every chain whatever the registration order, without
+ * this generic filter knowing the event or snapshot filters.
  *
  * @param T The message exchange type.
  * @param retrySpec The retry specification to use (default: DEFAULT_RETRY_SPEC)
  */
-@Order(
-    before = [
-        DomainEventFunctionFilter::class,
-        SnapshotFunctionFilter::class,
-    ],
-)
 class RetryableFilter<T : MessageExchange<*, *>>(
     private val retrySpec: Retry = DEFAULT_RETRY_SPEC
 ) : ExchangeFilter<T> {
