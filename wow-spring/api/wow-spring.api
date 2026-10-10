@@ -45,12 +45,12 @@ public final class me/ahoo/wow/spring/event/EventProcessorAutoRegistrar : me/aho
 	public fun register (Ljava/lang/Object;)V
 }
 
-public final class me/ahoo/wow/spring/prepare/PrepareKeyFactoryBean : org/springframework/beans/factory/FactoryBean, org/springframework/context/ApplicationContextAware {
+public final class me/ahoo/wow/spring/prepare/PrepareKeyFactoryBean : org/springframework/beans/factory/BeanFactoryAware, org/springframework/beans/factory/FactoryBean {
 	public fun <init> (Lme/ahoo/wow/infra/prepare/proxy/PrepareKeyMetadata;)V
 	public synthetic fun getObject ()Ljava/lang/Object;
 	public fun getObject ()Lme/ahoo/wow/infra/prepare/PrepareKey;
 	public fun getObjectType ()Ljava/lang/Class;
-	public fun setApplicationContext (Lorg/springframework/context/ApplicationContext;)V
+	public fun setBeanFactory (Lorg/springframework/beans/factory/BeanFactory;)V
 }
 
 public final class me/ahoo/wow/spring/projection/ProjectionProcessorAutoRegistrar : me/ahoo/wow/spring/AutoRegistrar {
@@ -62,7 +62,6 @@ public final class me/ahoo/wow/spring/query/EventStreamQueryGatewayRegistrar : m
 	public static final field Companion Lme/ahoo/wow/spring/query/EventStreamQueryGatewayRegistrar$Companion;
 	public static final field EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME Ljava/lang/String;
 	public fun <init> ()V
-	public fun registerQueryGateway (Ljava/util/Map$Entry;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
 }
 
 public final class me/ahoo/wow/spring/query/EventStreamQueryGatewayRegistrar$Companion {
@@ -74,12 +73,8 @@ public final class me/ahoo/wow/spring/query/QueryGatewayBeanNamesKt {
 }
 
 public abstract class me/ahoo/wow/spring/query/QueryGatewayRegistrar : org/springframework/beans/factory/BeanFactoryAware, org/springframework/context/annotation/ImportBeanDefinitionRegistrar {
-	protected field appContext Lorg/springframework/beans/factory/BeanFactory;
-	public fun <init> ()V
-	protected final fun getAppContext ()Lorg/springframework/beans/factory/BeanFactory;
+	public synthetic fun <init> (Lme/ahoo/wow/api/query/schema/QueryModel;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun registerBeanDefinitions (Lorg/springframework/core/type/AnnotationMetadata;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
-	public abstract fun registerQueryGateway (Ljava/util/Map$Entry;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
-	protected final fun setAppContext (Lorg/springframework/beans/factory/BeanFactory;)V
 	public fun setBeanFactory (Lorg/springframework/beans/factory/BeanFactory;)V
 }
 
@@ -87,7 +82,6 @@ public final class me/ahoo/wow/spring/query/SnapshotQueryGatewayRegistrar : me/a
 	public static final field Companion Lme/ahoo/wow/spring/query/SnapshotQueryGatewayRegistrar$Companion;
 	public static final field SNAPSHOT_QUERY_OBSERVER_BEAN_NAME Ljava/lang/String;
 	public fun <init> ()V
-	public fun registerQueryGateway (Ljava/util/Map$Entry;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
 }
 
 public final class me/ahoo/wow/spring/query/SnapshotQueryGatewayRegistrar$Companion {
