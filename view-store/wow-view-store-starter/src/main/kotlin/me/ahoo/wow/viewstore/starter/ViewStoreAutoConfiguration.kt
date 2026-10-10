@@ -30,6 +30,7 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
+import me.ahoo.wow.spring.boot.starter.openapi.ConditionalOnOpenAPIEnabled
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.ConditionalOnWebfluxEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
@@ -60,6 +61,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Lazy
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
@@ -277,16 +279,24 @@ class ViewStoreAutoConfiguration {
             ViewStoreSharedTopicsWarning(environment)
     }
 
+    /**
+     * Documents the view store's own routes when Wow's OpenAPI document is served (as Wow's springdoc customizer). The
+     * customizer is created eagerly, even under `spring.main.lazy-initialization`, so their schemas are generated at
+     * startup and never on a request thread.
+     */
     @Configuration(proxyBeanMethods = false)
+    @ConditionalOnOpenAPIEnabled
     @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
     class ViewStoreOpenApiConfiguration {
         @Bean("viewStoreOpenApiCustomizer")
+        @Lazy(false)
         internal fun viewStoreOpenApiCustomizer(
             @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext,
             viewStorePaths: ViewStorePaths,
             viewStoreRouteGuard: ViewStoreRouteGuard,
         ): OpenApiCustomizer {
-            val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix())
+            // Generates the schemas at startup, so a document built on a request thread generates none.
+            val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix()).render()
             return OpenApiCustomizer {
                 openApi.withoutClosedRoutes(it, viewStoreRouteGuard.closedContracts)
                 openApi.merge(it)

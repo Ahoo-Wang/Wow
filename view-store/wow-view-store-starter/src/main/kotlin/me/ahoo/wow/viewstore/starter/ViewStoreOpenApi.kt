@@ -40,6 +40,7 @@ import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesView
 import me.ahoo.wow.viewstore.domain.view.ViewState
+import reactor.core.scheduler.Schedulers
 
 /**
  * The view store's own routes in OpenAPI, beside the ones Wow renders from the aggregates.
@@ -47,11 +48,66 @@ import me.ahoo.wow.viewstore.domain.view.ViewState
  * [schemaNamePrefix] is the host's own schema name prefix (its context alias, as [me.ahoo.wow.openapi.RouterSpecs]
  * uses), so a type the host's document already has (`example.StringStringMap`) keeps its one name instead of gaining
  * an unprefixed twin at the root.
+ *
+ * Their schemas are generated once, by [render] at startup (or by the first [merge]), as Wow renders its own routes
+ * once ([me.ahoo.wow.openapi.RouterSpecs.buildDocumentation]): generating them may block, so it must not run on a
+ * request thread. Every [merge] builds fresh path items and operations around those schemas; the
+ * [io.swagger.v3.oas.models.media.Schema] instances are shared, as Wow shares its own, so copy one before changing it.
+ *
+ * [newComponentContext] builds the context the schemas are generated with, from the schema name prefix.
  */
-internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val schemaNamePrefix: String) {
+internal class ViewStoreOpenApi(
+    private val paths: ViewStorePaths,
+    private val schemaNamePrefix: String,
+    private val newComponentContext: (String) -> OpenAPIComponentContext = {
+        OpenAPIComponentContext.default(defaultSchemaNamePrefix = it)
+    },
+) {
     companion object {
         const val TAG = ViewStoreService.SERVICE_ALIAS
         private const val JSON = "application/json"
+    }
+
+    /** The schemas of the view store's routes, generated once, and the component schemas they reference. */
+    private class RenderedSchemas(
+        val errorInfo: Schema<*>,
+        val systemView: Schema<*>,
+        val preferencesView: Schema<*>,
+        val preferencesInput: Schema<*>,
+        val commandResult: Schema<*>,
+        val replay: Schema<*>,
+        val components: Map<String, Schema<*>>,
+    )
+
+    private val rendered: Lazy<RenderedSchemas> = lazy(LazyThreadSafetyMode.SYNCHRONIZED) { generateSchemas() }
+
+    private fun generateSchemas(): RenderedSchemas {
+        val context = newComponentContext(schemaNamePrefix)
+        val errorInfo = context.schema(DefaultErrorInfo::class.java)
+        val systemView = context.schema(SystemView::class.java)
+        val preferencesView = context.schema(ViewPreferencesView::class.java)
+        val commandResult = context.schema(CommandResult::class.java)
+        val preferencesInput = context.schema(ViewPreferencesInput::class.java)
+        val replay = context.schema(MaterializedSnapshot::class.java, ViewState::class.java)
+        context.finish()
+        return RenderedSchemas(
+            errorInfo = errorInfo,
+            systemView = systemView,
+            preferencesView = preferencesView,
+            preferencesInput = preferencesInput,
+            commandResult = commandResult,
+            replay = replay,
+            components = LinkedHashMap(context.schemas),
+        )
+    }
+
+    /**
+     * Generates the schemas now, unless they are generated already. Call it at startup: generating them may block, so
+     * it must not run on a request thread. Later [merge] calls generate no schema and never block.
+     */
+    fun render(): ViewStoreOpenApi {
+        rendered.value
+        return this
     }
 
     /** Takes the routes [ViewStoreRouteGuard] closes out of the document, so it shows only what is served. */
@@ -66,19 +122,26 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
         }
     }
 
+    /**
+     * Adds the view store's routes, their tag, and the component schemas the document does not have yet. Before
+     * [render], the first call generates the schemas, which a non-blocking thread (an event loop) refuses with
+     * [IllegalStateException]. It may be called concurrently.
+     */
     fun merge(openApi: OpenAPI) {
-        val context = OpenAPIComponentContext.default(defaultSchemaNamePrefix = schemaNamePrefix)
-        val errorInfo = context.schema(DefaultErrorInfo::class.java)
+        check(rendered.isInitialized() || !Schedulers.isInNonBlockingThread()) {
+            "The view store's OpenAPI schemas are not generated yet, and generating them may block, which " +
+                "${Thread.currentThread().name} does not allow: call ViewStoreOpenApi.render() at startup."
+        }
+        val schemas = rendered.value
         val operations = linkedMapOf(
-            paths.systemViews to PathItem().get(systemViews(context, errorInfo)),
-            paths.systemView to PathItem().get(systemView(context, errorInfo)),
+            paths.systemViews to PathItem().get(systemViews(schemas)),
+            paths.systemView to PathItem().get(systemView(schemas)),
             paths.preferences to PathItem()
-                .get(getPreferences(context, errorInfo))
-                .put(setPreferences(context, errorInfo)),
-            paths.replay to PathItem().get(replay(context, errorInfo)),
-            paths.claim to PathItem().put(claim(context, errorInfo)),
+                .get(getPreferences(schemas))
+                .put(setPreferences(schemas)),
+            paths.replay to PathItem().get(replay(schemas)),
+            paths.claim to PathItem().put(claim(schemas)),
         )
-        context.finish()
         if (openApi.paths == null) {
             openApi.paths = Paths()
         }
@@ -86,7 +149,7 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
         if (openApi.components == null) {
             openApi.components = Components()
         }
-        context.schemas.forEach { (name, schema) ->
+        schemas.components.forEach { (name, schema) ->
             if (openApi.components.schemas?.containsKey(name) != true) {
                 openApi.components.addSchemas(name, schema)
             }
@@ -96,60 +159,60 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
         }
     }
 
-    private fun systemViews(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+    private fun systemViews(schemas: RenderedSchemas): Operation = operation(
         "view-store.systemViews",
         "The system views, under the shared owner only: the configured ones of the tenant and the views stored " +
             "under tenant (platform) and owner (system), global; a stored view wins over a configured one with its id",
-        errorInfo,
-        ok(ArraySchema().items(context.schema(SystemView::class.java))),
+        schemas.errorInfo,
+        ok(ArraySchema().items(schemas.systemView)),
     ).addParametersItem(
         Parameter().name(ViewStorePaths.DEFINITION_ID).`in`("query").required(false).schema(StringSchema())
     )
 
-    private fun systemView(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+    private fun systemView(schemas: RenderedSchemas): Operation = operation(
         "view-store.systemView",
         "One of the system views: the stored one, else the configured one",
-        errorInfo,
-        ok(context.schema(SystemView::class.java)),
+        schemas.errorInfo,
+        ok(schemas.systemView),
     ).addParametersItem(pathParameter(ViewStorePaths.ID))
 
-    private fun getPreferences(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+    private fun getPreferences(schemas: RenderedSchemas): Operation = operation(
         "view-store.getPreferences",
         "The owner's preferences of a definition; version 0 when never written",
-        errorInfo,
-        ok(context.schema(ViewPreferencesView::class.java)),
+        schemas.errorInfo,
+        ok(schemas.preferencesView),
     ).addParametersItem(pathParameter(ViewStorePaths.DEFINITION_ID))
 
-    private fun setPreferences(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+    private fun setPreferences(schemas: RenderedSchemas): Operation = operation(
         "view-store.setPreferences",
         "Set the owner's preferences of a definition; expected version 0 is never written",
-        errorInfo,
-        ok(context.schema(CommandResult::class.java)),
+        schemas.errorInfo,
+        ok(schemas.commandResult),
     ).addParametersItem(pathParameter(ViewStorePaths.DEFINITION_ID))
         .addParametersItem(header(CommandHeaders.REQUEST_ID, false))
         .addParametersItem(header(CommandHeaders.AGGREGATE_VERSION, false, IntegerSchema()))
         .addParametersItem(header(CommandHeaders.WAIT_STAGE, false))
         .requestBody(
             RequestBody().required(true).content(
-                Content().addMediaType(JSON, MediaType().schema(context.schema(ViewPreferencesInput::class.java)))
+                Content().addMediaType(JSON, MediaType().schema(schemas.preferencesInput))
             )
         )
 
-    private fun claim(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+    private fun claim(schemas: RenderedSchemas): Operation = operation(
         "view-store.claimView",
         "Make a shared view personal to the path's owner (the caller's own path)",
-        errorInfo,
-        ok(context.schema(CommandResult::class.java)),
+        schemas.errorInfo,
+        ok(schemas.commandResult),
     ).addParametersItem(pathParameter(ViewStorePaths.ID))
         .addParametersItem(header(CommandHeaders.REQUEST_ID, false))
         .addParametersItem(header(CommandHeaders.AGGREGATE_VERSION, false, IntegerSchema()))
         .addParametersItem(header(CommandHeaders.WAIT_STAGE, false))
 
-    private fun replay(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+    private fun replay(schemas: RenderedSchemas): Operation = operation(
         "view-store.replay",
         "The view as the write with this request id left it; 204 when that write deleted it",
-        errorInfo,
-        ok(context.schema(MaterializedSnapshot::class.java, ViewState::class.java)),
+        schemas.errorInfo,
+        ok(schemas.replay),
     ).addParametersItem(pathParameter(ViewStorePaths.REQUEST_ID))
         .also { it.responses.addApiResponse("204", ApiResponse().description("The write deleted the view.")) }
 
