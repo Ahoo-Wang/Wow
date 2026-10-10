@@ -17,10 +17,15 @@ import io.swagger.v3.core.util.Json31
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import org.junit.jupiter.api.Test
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.lang.reflect.Type
@@ -117,5 +122,37 @@ class ViewStoreOpenApiTest {
         val merged = OpenAPI().also(openApi::merge)
         merged.paths.keys.assert().contains(paths.preferences)
         contexts.get().assert().isEqualTo(1)
+    }
+
+    private val customizerRunner = ApplicationContextRunner()
+        .withUserConfiguration(ViewStoreAutoConfiguration.ViewStoreOpenApiConfiguration::class.java)
+        .withBean(WOW_CURRENT_BOUNDED_CONTEXT, NamedBoundedContext::class.java, { hostContext })
+        .withBean(ViewStorePaths::class.java, { paths })
+        .withBean(ViewStoreRouteGuard::class.java, {
+            ViewStoreRouteGuard(paths, RouterSpecs(hostContext).build(), emptySet())
+        })
+
+    @Test
+    fun `creates the customizer at startup under lazy initialization`() {
+        customizerRunner
+            .withPropertyValues("spring.main.lazy-initialization=true")
+            .withInitializer { it.addBeanFactoryPostProcessor(LazyInitializationBeanFactoryPostProcessor()) }
+            .run { context ->
+                context.beanFactory.getBeanDefinition(CUSTOMIZER).isLazyInit.assert().isFalse()
+                context.beanFactory.containsSingleton(CUSTOMIZER).assert().isTrue()
+            }
+    }
+
+    @Test
+    fun `documents nothing when Wow's OpenAPI is disabled`() {
+        customizerRunner
+            .withPropertyValues("wow.openapi.enabled=false")
+            .run { context ->
+                context.containsBean(CUSTOMIZER).assert().isFalse()
+            }
+    }
+
+    private companion object {
+        const val CUSTOMIZER = "viewStoreOpenApiCustomizer"
     }
 }
