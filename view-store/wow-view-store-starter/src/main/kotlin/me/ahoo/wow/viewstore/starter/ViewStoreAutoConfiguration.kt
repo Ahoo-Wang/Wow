@@ -286,7 +286,8 @@ class ViewStoreAutoConfiguration {
             viewStorePaths: ViewStorePaths,
             viewStoreRouteGuard: ViewStoreRouteGuard,
         ): OpenApiCustomizer {
-            val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix())
+            // Generates the schemas at startup, so a document built on a request thread generates none.
+            val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix()).render()
             return OpenApiCustomizer {
                 openApi.withoutClosedRoutes(it, viewStoreRouteGuard.closedContracts)
                 openApi.merge(it)
