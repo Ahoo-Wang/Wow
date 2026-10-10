@@ -32,7 +32,9 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.tags.Tag
+import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.context.HttpComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -40,6 +42,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_RESPONSES_REF
+import me.ahoo.wow.openapi.context.asHttpComponentContext
 import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
@@ -54,7 +57,9 @@ import java.lang.reflect.Type
 /**
  * Renders a [RouteCatalog] into an OpenAPI 3.1 document. Contracts only reference schemas and components; the renderer
  * resolves them with [componentContext]: it generates the schema of each [HttpSchema.TypeRef], builds each
- * [HttpComponent] once, and finally merges every component the context holds into the document.
+ * [HttpComponent] once, and finally merges every component the context holds into the document. Two different
+ * component instances of the same kind and key are both built; once the context has finished generating the schemas,
+ * the render fails unless they built equal components.
  *
  * A renderer renders one document. Neither it nor [componentContext] is thread-safe, so renders that share a context
  * must not run concurrently. Rendering generates schemas, which may block: `RouterSpecs` renders once and merges
@@ -64,10 +69,25 @@ internal class OpenApiRenderer(private val componentContext: OpenAPIComponentCon
     /** The components built in this render, and what they built, by `$ref`. */
     private val builtComponents = mutableMapOf<String, Pair<HttpComponent<*>, Any>>()
 
-    private val buildContext: HttpComponentContext = object :
-        HttpComponentContext,
-        OpenAPIComponentContext by componentContext {
-        override fun <T : Any> ref(component: HttpComponent<T>): T = component.render()
+    /**
+     * Components that share a `$ref` with a component already built, with what they built. They are compared with
+     * the registered component once the schemas are finished: until then, generated schemas are placeholders.
+     */
+    private val duplicates = mutableListOf<Pair<HttpComponent<*>, Any>>()
+
+    private val buildContext: HttpComponentContext = componentContext.asHttpComponentContext { it.render() }
+
+    /** Builds a component without registering it, so a duplicate leaves the registered component untouched. */
+    private val unregisteredContext: OpenAPIComponentContext = object : OpenAPIComponentContext by componentContext {
+        override fun parameter(key: String, builder: Parameter.() -> Unit): Parameter = Parameter().also(builder)
+
+        override fun header(key: String, builder: Header.() -> Unit): Header = Header().also(builder)
+
+        override fun requestBody(key: String, builder: RequestBodyBuilder.() -> Unit): RequestBody =
+            RequestBodyBuilder().also(builder).build()
+
+        override fun response(key: String, builder: ApiResponseBuilder.() -> Unit): ApiResponse =
+            ApiResponseBuilder().also(builder).build()
     }
 
     fun render(catalog: RouteCatalog, openAPI: OpenAPI): OpenAPI {
@@ -100,6 +120,7 @@ internal class OpenApiRenderer(private val componentContext: OpenAPIComponentCon
                 openAPI.addTagsItem(Tag().name(tag.name).description(tag.description))
             }
         componentContext.finish()
+        checkDuplicates()
         mergeComponents(openAPI)
         return openAPI
     }
@@ -125,22 +146,19 @@ internal class OpenApiRenderer(private val componentContext: OpenAPIComponentCon
 
     /**
      * Builds this component unless this render already did, and returns what a reference to it renders as: the built
-     * component when the context inlines schemas, otherwise a fresh `$ref`. A different component with a key already
-     * built is built too, and rejected unless it registers the same component.
+     * component when the context inlines schemas, otherwise a fresh `$ref`. A different component instance with a
+     * key already built is built too, without registering it, and checked by [checkDuplicates].
      */
     @Suppress("UNCHECKED_CAST")
     private fun <T : Any> HttpComponent<T>.render(): T {
-        val (refPrefix, registered) = section()
-        val ref = refPrefix + key
+        val ref = refPrefix() + key
         val built = builtComponents[ref]
         val result = when {
-            built == null -> build(buildContext).also { builtComponents[ref] = this to it }
+            built == null -> build(componentContext, buildContext).also { builtComponents[ref] = this to it }
             built.first === this -> built.second
             else -> {
-                val previous = if (componentContext.inline) built.second else registered[key]
-                val current = build(buildContext)
-                check((if (componentContext.inline) current else registered[key]) == previous) {
-                    "Two different components share the key [$key]: component keys must be unique."
+                if (duplicates.none { it.first === this }) {
+                    duplicates.add(this to build(unregisteredContext, buildContext))
                 }
                 built.second
             }
@@ -151,12 +169,37 @@ internal class OpenApiRenderer(private val componentContext: OpenAPIComponentCon
         return reference(ref) as T
     }
 
-    /** The `$ref` prefix and the registered components of this component's section. */
-    private fun HttpComponent<*>.section(): Pair<String, Map<String, *>> = when (kind) {
-        HttpComponent.Kind.PARAMETER -> COMPONENTS_PARAMETERS_REF to componentContext.parameters
-        HttpComponent.Kind.HEADER -> COMPONENTS_HEADERS_REF to componentContext.headers
-        HttpComponent.Kind.REQUEST_BODY -> COMPONENTS_REQUEST_BODIES_REF to componentContext.requestBodies
-        HttpComponent.Kind.RESPONSE -> COMPONENTS_RESPONSES_REF to componentContext.responses
+    /**
+     * Rejects a component that shares its kind and key with the registered one but built something different. Runs
+     * after the schemas are finished, so components that differ only in a generated schema are told apart.
+     */
+    private fun checkDuplicates() {
+        duplicates.forEach { (component, built) ->
+            val registered = if (componentContext.inline) {
+                builtComponents.getValue(component.refPrefix() + component.key).second
+            } else {
+                component.registered().getValue(component.key)
+            }
+            check(built == registered) {
+                "Two different components share the key [${component.key}]: component keys must be unique."
+            }
+        }
+    }
+
+    /** The `$ref` prefix of this component's section. */
+    private fun HttpComponent<*>.refPrefix(): String = when (kind) {
+        HttpComponent.Kind.PARAMETER -> COMPONENTS_PARAMETERS_REF
+        HttpComponent.Kind.HEADER -> COMPONENTS_HEADERS_REF
+        HttpComponent.Kind.REQUEST_BODY -> COMPONENTS_REQUEST_BODIES_REF
+        HttpComponent.Kind.RESPONSE -> COMPONENTS_RESPONSES_REF
+    }
+
+    /** The registered components of this component's section. */
+    private fun HttpComponent<*>.registered(): Map<String, Any> = when (kind) {
+        HttpComponent.Kind.PARAMETER -> componentContext.parameters
+        HttpComponent.Kind.HEADER -> componentContext.headers
+        HttpComponent.Kind.REQUEST_BODY -> componentContext.requestBodies
+        HttpComponent.Kind.RESPONSE -> componentContext.responses
     }
 
     private fun HttpComponent<*>.reference(ref: String): Any = when (kind) {

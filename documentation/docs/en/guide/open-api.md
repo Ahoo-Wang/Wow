@@ -57,7 +57,7 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 `RouterSpecs` renders the catalog into a document once, by `buildDocumentation()` at startup (or the first `RouterSpecs.mergeOpenAPI(openAPI)`); that render generates the schemas, which may block. Every `mergeOpenAPI` call then merges a copy of that document: it never generates a schema or blocks, may be called concurrently (for example by several Springdoc groups), and gets its own path items, operations and components, which a customizer may change without affecting other documents. Only the `Schema` instances are shared: copy a schema before changing it. Called on an event-loop thread before the document is rendered, `mergeOpenAPI` fails and asks for `buildDocumentation()`.
 
-A custom route is added by a `RouteContributor` bean. A contributor only returns route contracts, which are plain data: it generates no schema and registers no component. A body or response type is referenced with `HttpSchema.TypeRef` (nested generics through `typeArguments`), and a reusable parameter, header, request body or response with an `HttpComponent` (`HttpComponent.parameter`, `header`, `requestBody`, `response`): its key is written once, the renderer builds and registers it once, and keys must be unique (two different components with one key are rejected):
+A custom route is added by a `RouteContributor` bean. A contributor only returns route contracts, which are plain data: it generates no schema and registers no component. A body or response type is referenced with `HttpSchema.TypeRef` (nested generics through `typeArguments`), and a reusable parameter, header, request body or response with an `HttpComponent` (`HttpComponent.parameter`, `header`, `requestBody`, `response`): its key is written once and the renderer builds and registers it once. The builder's `context` (`HttpComponentContext`) generates schemas (`schema`, `arraySchema`, `resolveType`, `componentSchema`) and references another component with `ref`; it cannot register components itself. Keys must be unique per kind: two component instances of one kind and key are both built and, once the schemas are generated, the render fails unless they built equal components, including the schemas they reference. A route's `handlerKey` names the `HttpRouteHandlerFunctionFactory` bean (from `wow-webflux`) that serves it; without one, the router fails at startup:
 
 ```kotlin
 val reportResponse = HttpComponent.response("example.ReportResponse") { context ->
@@ -76,6 +76,14 @@ fun reportRouteContributor(): RouteContributor = object : RouteContributor {
         )
     )
 }
+
+@Bean
+fun reportHandlerFunctionFactory(reportService: ReportService): HttpRouteHandlerFunctionFactory =
+    object : NoMetadataRouteHandlerFunctionFactorySupport("example.report") {
+        override fun create(contract: HttpRouteContract) = HandlerFunction { _ ->
+            ServerResponse.ok().body(reportService.report(), Report::class.java)
+        }
+    }
 ```
 
 A contract's method, status codes and media types are plain strings (`"GET"`, `"200"`, `"application/json"`). The public API of `wow-openapi` is `RouterSpecs`, `RouteContributor`, `RouteCatalog`, the contract types in `me.ahoo.wow.openapi.contract` (with `BuiltInHttpRouteHandlerKeys` and `HttpComponent`), the route metadata (`aggregateRouteMetadata()`, `commandRouteMetadata()`), `DefaultRouteContributors` (the built-in routes, to combine with your own contributors when building `RouterSpecs` yourself), `OpenAPIComponentContext`, the component builders `ApiResponseBuilder` and `RequestBodyBuilder`, `OpenAPISchemaBuilder` and `BoundedContextSchemaNameConverter`. The renderer, the catalog builder and the helpers behind the built-in routes are internal; the built-in contributor objects are internal or `@InternalWowApi`, shared with the Spring Boot starter but not part of the API.

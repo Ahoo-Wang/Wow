@@ -42,7 +42,6 @@ public final class me/ahoo/wow/openapi/RouterSpecs {
 	public synthetic fun <init> (Lme/ahoo/wow/api/naming/NamedBoundedContext;Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun build ()Lme/ahoo/wow/openapi/RouterSpecs;
 	public final fun buildDocumentation ()Lme/ahoo/wow/openapi/RouterSpecs;
-	public final fun getComponentContext ()Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;
 	public final fun getRouteContributors ()Ljava/util/List;
 	public final fun mergeOpenAPI (Lio/swagger/v3/oas/models/OpenAPI;)V
 	public final fun toRouteCatalog ()Lme/ahoo/wow/openapi/catalog/RouteCatalog;
@@ -99,8 +98,13 @@ public final class me/ahoo/wow/openapi/catalog/RouteContributor$DefaultImpls {
 	public static fun contributeGlobal (Lme/ahoo/wow/openapi/catalog/RouteContributor;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Ljava/util/List;
 }
 
-public abstract interface class me/ahoo/wow/openapi/context/HttpComponentContext : me/ahoo/wow/openapi/context/OpenAPIComponentContext {
+public abstract interface class me/ahoo/wow/openapi/context/HttpComponentContext {
+	public abstract fun arraySchema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
+	public abstract fun componentSchema (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lio/swagger/v3/oas/models/media/Schema;
+	public abstract fun getInline ()Z
 	public abstract fun ref (Lme/ahoo/wow/openapi/contract/HttpComponent;)Ljava/lang/Object;
+	public abstract fun resolveType (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lcom/fasterxml/classmate/ResolvedType;
+	public abstract fun schema (Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lio/swagger/v3/oas/models/media/Schema;
 }
 
 public abstract interface class me/ahoo/wow/openapi/context/OpenAPIComponentContext : me/ahoo/wow/openapi/schema/InlineSchemaCapable {

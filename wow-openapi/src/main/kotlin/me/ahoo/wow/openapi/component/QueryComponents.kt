@@ -28,7 +28,7 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.component.CommonComponents.withErrorCodeHeader
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.HttpComponentContext
 import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
@@ -49,7 +49,7 @@ private val staticQuerySchemaSource = InferredQuerySchemaSource(JsonQueryModelSo
  * snapshots can name. Inferring it generates the aggregate's JSON Schema, so it runs only when the document is
  * rendered.
  */
-internal fun OpenAPIComponentContext.aggregatedFieldsSchema(
+internal fun HttpComponentContext.aggregatedFieldsSchema(
     aggregateMetadata: AggregateMetadata<*, *>,
     querySchemaSource: QuerySchemaSource = staticQuerySchemaSource,
 ): Schema<*> {

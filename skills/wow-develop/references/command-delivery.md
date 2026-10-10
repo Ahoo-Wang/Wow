@@ -24,7 +24,8 @@ In a separate checkout of the pinned Wow source, start with:
 - `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/`
 - `wow-core/src/main/kotlin/me/ahoo/wow/messaging/propagation/`
 - `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/`
-- `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/`
+- `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/command/`
+- `wow-rest-contract/src/main/kotlin/me/ahoo/wow/rest/CommandHeaders.kt`
 
 Read the interface, implementation, timeout/cancellation tests, propagators, WebFlux parsing, and OpenAPI generation together. Do not preserve a method, header, stage, or default from memory.
 

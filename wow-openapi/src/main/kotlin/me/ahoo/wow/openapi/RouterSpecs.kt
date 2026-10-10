@@ -40,7 +40,7 @@ import kotlin.concurrent.withLock
  */
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
-    val componentContext: OpenAPIComponentContext =
+    private val componentContext: OpenAPIComponentContext =
         OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()),
     val routeContributors: List<RouteContributor> = DefaultRouteContributors.all()
 ) {

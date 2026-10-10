@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi.contract
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.context.HttpComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.asHttpComponentContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -26,11 +27,13 @@ internal class HttpComponentTest {
         val first = HttpComponent.header("wow.Test") {}
         val second = HttpComponent.header("wow.Test") { description = "other" }
         val other = HttpComponent.header("wow.Other") {}
+        val otherKind = HttpComponent.parameter("wow.Test") {}
 
         first.assert().isEqualTo(first)
         first.assert().isEqualTo(second)
         first.hashCode().assert().isEqualTo(second.hashCode())
         first.assert().isNotEqualTo(other)
+        first.assert().isNotEqualTo(otherKind)
         first.assert().isNotEqualTo("wow.Test")
         first.toString().assert().isEqualTo("HttpComponent(key=wow.Test)")
     }
@@ -56,17 +59,16 @@ internal class HttpComponentTest {
     @Test
     fun `factories should register the component under its key`() {
         val context = OpenAPIComponentContext.default()
-        val buildContext = object : HttpComponentContext, OpenAPIComponentContext by context {
-            override fun <T : Any> ref(component: HttpComponent<T>): T = component.build(this)
-        }
+        lateinit var buildContext: HttpComponentContext
+        buildContext = context.asHttpComponentContext { it.build(context, buildContext) }
         val header = HttpComponent.header("wow.Header") { description = "header" }
 
-        HttpComponent.parameter("wow.Parameter") { name = "p" }.build(buildContext).`$ref`.assert()
+        HttpComponent.parameter("wow.Parameter") { name = "p" }.build(context, buildContext).`$ref`.assert()
             .isEqualTo("#/components/parameters/wow.Parameter")
-        HttpComponent.requestBody("wow.Body") { description("body") }.build(buildContext).`$ref`.assert()
+        HttpComponent.requestBody("wow.Body") { description("body") }.build(context, buildContext).`$ref`.assert()
             .isEqualTo("#/components/requestBodies/wow.Body")
-        HttpComponent.response("wow.Response") { header("X-Header", it.ref(header)) }.build(buildContext).`$ref`
-            .assert().isEqualTo("#/components/responses/wow.Response")
+        val response = HttpComponent.response("wow.Response") { header("X-Header", it.ref(header)) }
+        response.build(context, buildContext).`$ref`.assert().isEqualTo("#/components/responses/wow.Response")
 
         context.parameters.getValue("wow.Parameter").name.assert().isEqualTo("p")
         context.requestBodies.getValue("wow.Body").description.assert().isEqualTo("body")
