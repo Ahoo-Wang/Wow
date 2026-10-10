@@ -50,31 +50,6 @@ interface RecoverableExceptionRegistrar {
      * @param throwableClass the exception class to unregister
      */
     fun unregister(throwableClass: Class<out Throwable>)
-
-    // compat(wow<9.3): the 9.2 static registrar calls, kept for one deprecation cycle; see docs/compat-debt.md.
-    /**
-     * The 9.2 static entry points: before 9.3.0 `RecoverableExceptionRegistrar` was the process's registry object.
-     * They delegate to [RecoverableExceptionRegistry.DEFAULT], the registry [Class.recoverable] reads.
-     */
-    companion object {
-        private const val DEPRECATION = "Scheduled for removal in 10.0.0. Use RecoverableExceptionRegistry.DEFAULT, " +
-            "or register a RecoverableExceptionProvider."
-
-        @Deprecated(
-            DEPRECATION,
-            ReplaceWith("RecoverableExceptionRegistry.DEFAULT.register(throwableClass, recoverableType)")
-        )
-        fun register(throwableClass: Class<out Throwable>, recoverableType: RecoverableType) =
-            RecoverableExceptionRegistry.DEFAULT.register(throwableClass, recoverableType)
-
-        @Deprecated(DEPRECATION, ReplaceWith("RecoverableExceptionRegistry.DEFAULT.unregister(throwableClass)"))
-        fun unregister(throwableClass: Class<out Throwable>) =
-            RecoverableExceptionRegistry.DEFAULT.unregister(throwableClass)
-
-        @Deprecated(DEPRECATION, ReplaceWith("RecoverableExceptionRegistry.DEFAULT.getRecoverableType(throwableClass)"))
-        fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? =
-            RecoverableExceptionRegistry.DEFAULT.getRecoverableType(throwableClass)
-    }
 }
 
 /**

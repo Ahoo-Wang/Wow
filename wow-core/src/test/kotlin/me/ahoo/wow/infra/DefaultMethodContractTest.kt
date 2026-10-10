@@ -20,14 +20,9 @@ import org.junit.jupiter.api.Test
 class DefaultMethodContractTest {
 
     @Test
-    fun `a deprecated default that is not a listed compat adapter is still checked`() {
+    fun `a deprecated default is still checked`() {
         DefaultMethodContract.inheritedDefaults(ForwardingStore::class.java)
             .assert().containsExactly("ForwardingStore.legacyLookup(String)")
-    }
-
-    @Test
-    fun `the listed compat adapter is skipped`() {
-        DefaultMethodContract.COMPAT_ADAPTERS.assert().containsExactly("MessageBus.receive")
     }
 
     interface ContractStore {

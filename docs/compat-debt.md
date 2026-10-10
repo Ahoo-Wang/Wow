@@ -166,27 +166,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`.
 - **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute` and the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes); `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
 
-### Wow 9.2 `MessageBus.receive`
-
-- **Kept compatible**: 9.2 code that reads a bus as a plain stream with `bus.receive(subscription)`, from Kotlin or Java. 9.3 keeps one entry a bus implements, the abstract `receiver`; `receive` stays a deprecated default member that returns the receiver's messages with processing opened on subscription. Because `receiver` has no default, the two can never default onto each other. A bus that implemented only `receive` must implement `receiver`: that is an SPI change, listed in the migration guide. `DefaultMethodContract` (`test/wow-tck`) skips `MessageBus.receive` by name (`COMPAT_ADAPTERS`; any other deprecated default is still checked), so a decorator need not forward `receive`.
-- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt`, `test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/architecture/DefaultMethodContract.kt`
-- **Replacement**: `receiver(subscription).openedMessages()`.
-- **Removal in v10**: delete `receive` from `MessageBus` and its `COMPAT_ADAPTERS` entry from `DefaultMethodContract`. Callers stop compiling and use the replacement.
-
-### Wow 9.2 Static `RecoverableExceptionRegistrar`
-
-- **Kept compatible**: in 9.2 `RecoverableExceptionRegistrar` was the process's registry object, so applications called `RecoverableExceptionRegistrar.register(…)`, `unregister(…)` and `getRecoverableType(…)`. 9.3 turned it into the interface providers register into, with `RecoverableExceptionRegistry.DEFAULT` as the process's registry; the interface's companion keeps the three calls, deprecated, delegating to `DEFAULT`. Kotlin source compiles unchanged; Java callers now write `RecoverableExceptionRegistrar.Companion.register(…)` (9.2's object exposed `INSTANCE`), so Java code is better moved to the replacement directly.
-- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/exception/RecoverableExceptionRegistrar.kt`
-- **Replacement**: `RecoverableExceptionRegistry.DEFAULT.register` / `unregister` / `getRecoverableType`, or a `RecoverableExceptionProvider` (`META-INF/services` or a Spring bean).
-- **Removal in v10**: delete the companion object. Callers stop compiling and use the replacement.
-
-### Wow 9.5 REST Header Names And `BatchResult` In `wow-openapi`
-
-- **Kept compatible**: 9.6.0 moved the REST wire vocabulary out of `wow-openapi` into `wow-rest-contract` (`me.ahoo.wow.rest`). Application code reads the header names to build or inspect requests, and some returns or reads `BatchResult`, so those keep their old names for one cycle: every constant of `CommandComponent.Header` and of `CommonComponent.Header` (`ERROR_CODE`, `SPACE_ID`) is a deprecated `const` alias of the same value, and `me.ahoo.wow.openapi.BatchResult` is a deprecated `typealias` of `me.ahoo.wow.rest.BatchResult`. The OpenAPI schema name stays `wow.openapi.BatchResult`. The other moved declarations (`RouteSuffixes`, `BuiltInHttpRoutePaths.Global`, `BatchComponent.PathVariable`, the BI script DTOs) are framework-facing and moved without an alias.
-- **Markers**: `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/CommandComponent.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/CommonComponent.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/BatchResult.kt`
-- **Replacement**: `me.ahoo.wow.rest.CommandHeaders`, `me.ahoo.wow.rest.WowHeaders` and `me.ahoo.wow.rest.BatchResult`, in `wow-rest-contract`, which `wow-openapi` and `wow-apiclient` bring.
-- **Removal in v10**: delete `CommandComponent.Header`, the two constants of `CommonComponent.Header`, and `wow-openapi`'s `BatchResult.kt`. Callers stop compiling; each `ReplaceWith` names the replacement.
-
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.
