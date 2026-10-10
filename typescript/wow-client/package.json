@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-client",
-  "version": "9.6.1",
+  "version": "9.6.2",
   "description": "TypeScript client for Wow (https://github.com/Ahoo-Wang/Wow): commands, snapshot and event-stream queries, and the query DSL, built on Fetcher.",
   "keywords": [
     "wow",

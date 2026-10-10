@@ -6,7 +6,10 @@ export enum ApiVersion {
   V3 = 'V3'
 }
 
-/** - key: example.Link */
+/**
+ * - key: example.Link
+ * - required: (none)
+ */
 export interface Link {
   href: string;
   templated: boolean;
@@ -28,7 +31,10 @@ export interface StringStringListMap {
   [key: string]: string[];
 }
 
-/** - key: example.WebServerNamespace */
+/**
+ * - key: example.WebServerNamespace
+ * - required: (none)
+ */
 export interface WebServerNamespace {
   value: string;
 }

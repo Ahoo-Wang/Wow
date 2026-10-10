@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-generator",
-  "version": "9.6.1",
+  "version": "9.6.2",
   "description": "Generates TypeScript models, Fetcher decorator clients and Wow command and query clients from a local or remote OpenAPI 3 document. The Wow clients follow the CQRS model of the Wow DDD framework (https://github.com/Ahoo-Wang/Wow).",
   "keywords": [
     "wow",
