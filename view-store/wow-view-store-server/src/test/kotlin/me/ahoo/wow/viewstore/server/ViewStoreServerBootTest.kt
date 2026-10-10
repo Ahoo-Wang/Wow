@@ -146,6 +146,14 @@ class ViewStoreServerBootTest {
             "$scope/definitions/{definitionId}/preferences",
             "$scope/view/requests/{requestId}",
         )
+        // The routes the view store refuses are left out of the document.
+        paths.assert().doesNotContain(
+            "$scope/view_preferences/{id}",
+            "$scope/view/{id}/recover",
+            "$scope/view/{id}/tags",
+            "$scope/view/event/list",
+            "/view-store/owner/{ownerId}/view/snapshot/list",
+        )
     }
 
     @Test

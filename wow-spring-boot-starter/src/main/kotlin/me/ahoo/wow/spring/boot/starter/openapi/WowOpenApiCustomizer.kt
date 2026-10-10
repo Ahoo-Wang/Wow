@@ -16,9 +16,20 @@ package me.ahoo.wow.spring.boot.starter.openapi
 import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.wow.openapi.RouterSpecs
 import org.springdoc.core.customizers.OpenApiCustomizer
+import org.springframework.core.annotation.Order
 
+/**
+ * Merges Wow's routes into the OpenAPI document. It runs at [ORDER], before the customizers that declare no order, so
+ * a customizer that changes Wow's routes declares a later order (`ORDER + 1`, for example) or none.
+ */
+@Order(WowOpenApiCustomizer.ORDER)
 class WowOpenApiCustomizer(private val routerSpecs: RouterSpecs) : OpenApiCustomizer {
     override fun customise(openApi: OpenAPI) {
         routerSpecs.mergeOpenAPI(openApi)
+    }
+
+    companion object {
+        /** The order springdoc applies this customizer in, among the other `OpenApiCustomizer`s. */
+        const val ORDER: Int = 0
     }
 }

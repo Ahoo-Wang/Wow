@@ -1225,8 +1225,13 @@ public final class me/ahoo/wow/spring/boot/starter/openapi/OpenAPIProperties$Com
 }
 
 public final class me/ahoo/wow/spring/boot/starter/openapi/WowOpenApiCustomizer : org/springdoc/core/customizers/OpenApiCustomizer {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/openapi/WowOpenApiCustomizer$Companion;
+	public static final field ORDER I
 	public fun <init> (Lme/ahoo/wow/openapi/RouterSpecs;)V
 	public fun customise (Lio/swagger/v3/oas/models/OpenAPI;)V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/openapi/WowOpenApiCustomizer$Companion {
 }
 
 public abstract interface annotation class me/ahoo/wow/spring/boot/starter/opentelemetry/ConditionalOnOpenTelemetryEnabled : java/lang/annotation/Annotation {

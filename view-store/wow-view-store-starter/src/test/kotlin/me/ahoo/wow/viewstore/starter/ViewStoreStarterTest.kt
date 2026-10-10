@@ -171,6 +171,29 @@ class ViewStoreStarterTest {
     }
 
     /**
+     * The document shows only what is served: the routes [ViewStoreRouteGuard] closes are taken out of it after Wow's
+     * customizer has merged them, and every open one stays. This host's component scan covers the starter's package,
+     * so the view store's customizer is registered before Wow's: only their orders put it after.
+     */
+    @Test
+    fun `the document leaves out the routes the view store closes`() {
+        val document = openApiClient.get().uri("/v3/api-docs").exchange()
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+        val documented = document.get("paths").properties().flatMap { (path, item) ->
+            item.propertyNames().filter { it in HTTP_METHODS }.map { "${it.uppercase()} $path" }
+        }.toSet()
+        val guard = applicationContext.getBean(ViewStoreRouteGuard::class.java)
+        guard.closedContracts.assert().isNotEmpty()
+        documented.intersect(guard.closedContracts.map { "${it.method} ${it.path}" }.toSet()).assert().isEmpty()
+        documented.assert().containsAll(guard.openContracts.map { "${it.method} ${it.path}" })
+        val scope = "/view-store/tenant/{tenantId}/owner/{ownerId}"
+        documented.assert()
+            .doesNotContain("DELETE $scope/view_preferences/{id}", "PUT $scope/view/{id}/recover")
+            .contains("POST $scope/view", "PUT $scope/view/{id}/claim", "GET $scope/system-views")
+    }
+
+    /**
      * The view store refuses its own commands on the command facade, but `DefaultDeleteAggregate` is Wow's, not the
      * view store's (the view store deletes with `DeleteView`): the host's delete through the facade reaches the host.
      */
@@ -231,3 +254,4 @@ class ViewStoreStarterTest {
 
 private const val OPENAPI_BUFFER_BYTES = 16 * 1024 * 1024
 private val OPENAPI_RESPONSE_TIMEOUT: Duration = Duration.ofMinutes(1)
+private val HTTP_METHODS = setOf("get", "put", "post", "delete", "options", "head", "patch", "trace")
