@@ -172,6 +172,7 @@ class QueryPolicyWebFluxTest {
                 val module = WebFluxAutoConfiguration().queryRouteModule(
                     context,
                     DefaultQueryRequestScope,
+                    context.getBeanProvider(ScopeContributor::class.java),
                     WebFluxRequestExceptionHandler(),
                     HttpQueryGuard(),
                 )

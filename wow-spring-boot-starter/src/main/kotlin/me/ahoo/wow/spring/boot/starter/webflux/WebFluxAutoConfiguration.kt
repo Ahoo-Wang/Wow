@@ -20,12 +20,14 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -80,6 +82,7 @@ import org.springframework.core.annotation.Order
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebExceptionHandler
+import reactor.core.publisher.Mono
 
 /**
  * WebFlux Auto Configuration .
@@ -275,26 +278,15 @@ class WebFluxAutoConfiguration {
         val catalog = querySchemaCatalog.ifAvailable
         return PointReadAdmission(
             enabled = true,
-            queryRequestScope = CompositeQueryRequestScope.of(
-                queryRequestScope,
-                scopeContributors.orderedStream().toList()
-            ),
+            queryRequestScope = queryRequestScope.with(scopeContributors),
             tracingMaxVersions = state.tracingMaxVersions,
             // The same policies, in the same order, as the query gateways.
             policies = queryPolicies.toList(),
-            // A model without a backend has no schema to mask by; one with a backend reads it from the Catalog.
-            snapshotSchema = catalog?.takeIf { snapshotQueryBackendFactory.ifAvailable != null }?.let { catalog ->
-                {
-                        aggregate ->
-                    catalog.schema(aggregate.namedAggregate, QueryModel.SNAPSHOT)
-                }
-            },
-            eventStreamSchema = catalog?.takeIf { eventStreamQueryBackendFactory.ifAvailable != null }?.let { catalog ->
-                {
-                        aggregate ->
-                    catalog.schema(aggregate.namedAggregate, QueryModel.EVENT_STREAM)
-                }
-            },
+            snapshotSchema = catalog.schemaOf(QueryModel.SNAPSHOT, snapshotQueryBackendFactory.ifAvailable != null),
+            eventStreamSchema = catalog.schemaOf(
+                QueryModel.EVENT_STREAM,
+                eventStreamQueryBackendFactory.ifAvailable != null
+            ),
             // The same entry policy as the query gateways, so point reads honour require-authenticated-scope.
             entryPolicy = entryPolicy,
         )
@@ -306,16 +298,13 @@ class WebFluxAutoConfiguration {
     fun queryRouteModule(
         beanFactory: BeanFactory,
         queryRequestScope: QueryRequestScope,
+        scopeContributors: ObjectProvider<ScopeContributor>,
         exceptionHandler: RequestExceptionHandler,
         httpQueryGuard: HttpQueryGuard,
     ): QueryRouteModule {
         return QueryRouteModule(
             beanFactory = beanFactory,
-            // The host's scope, then every scope contributor's (an embedded library's dimension, say).
-            queryRequestScope = CompositeQueryRequestScope.of(
-                queryRequestScope,
-                beanFactory.getBeanProvider(ScopeContributor::class.java).orderedStream().toList()
-            ),
+            queryRequestScope = queryRequestScope.with(scopeContributors),
             exceptionHandler = exceptionHandler,
             guard = httpQueryGuard,
         )
@@ -370,18 +359,10 @@ class WebFluxAutoConfiguration {
     fun routeHandlerFunctionRegistrar(
         routeModules: ObjectProvider<WebFluxRouteModule>,
         httpFactories: ObjectProvider<HttpRouteHandlerFunctionFactory>
-    ): RouteHandlerFunctionRegistrar {
-        val mergedHttpFactories = mutableListOf<HttpRouteHandlerFunctionFactory>()
-        routeModules.orderedStream().forEach { routeModule ->
-            mergedHttpFactories.addAll(routeModule.httpFactories)
-        }
-        httpFactories.orderedStream().forEach { factory ->
-            mergedHttpFactories.add(factory)
-        }
-        return RouteHandlerFunctionRegistrar(
-            httpFactories = mergedHttpFactories
-        )
-    }
+    ): RouteHandlerFunctionRegistrar = RouteHandlerFunctionRegistrar(
+        // A standalone factory comes after the modules, so it replaces a module's factory of the same handler key.
+        routeModules.orderedStream().toList().flatMap { it.httpFactories } + httpFactories.orderedStream().toList()
+    )
 
     @Bean
     fun commandRouterFunction(
@@ -399,3 +380,16 @@ class WebFluxAutoConfiguration {
 
 private fun ObjectProvider<IdentityHeaderAliases>.merged(): IdentityHeaderAliases =
     IdentityHeaderAliases.merge(orderedStream().toList())
+
+/** The caller scope of the query routes and point reads: this host scope, then every [ScopeContributor]'s, in order. */
+private fun QueryRequestScope.with(scopeContributors: ObjectProvider<ScopeContributor>): QueryRequestScope =
+    CompositeQueryRequestScope.of(this, scopeContributors.orderedStream().toList())
+
+/** Reads [model]'s schema from this catalog, for a model that has a backend; a model without one has nothing to mask by. */
+private fun QuerySchemaCatalog?.schemaOf(
+    model: QueryModel,
+    hasBackend: Boolean,
+): ((AggregateMetadata<*, *>) -> Mono<QueryModelSchema>)? {
+    val catalog = this?.takeIf { hasBackend } ?: return null
+    return { aggregate -> catalog.schema(aggregate.namedAggregate, model) }
+}
