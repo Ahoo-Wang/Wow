@@ -60,7 +60,7 @@ object StateRouteContributor : RouteContributor {
                 pathSuffix = RouteSuffixes.STATE_TRACING,
                 parameters = tracingQueryParameters,
                 responses = listOf(tracingResponse(aggregate)),
-                naming = ScopeNaming.TENANT
+                naming = ScopeNaming.TENANT_ID_ONLY
             ),
             loadRoute(
                 scope = scope,
@@ -109,7 +109,7 @@ object StateRouteContributor : RouteContributor {
         pathSuffix = pathSuffix,
         parameters = parameters,
         responses = loadAggregateResponses(summary, scope.aggregateMetadata),
-        naming = ScopeNaming.TENANT
+        naming = ScopeNaming.TENANT_ID_ONLY
     )
 
     private val tracingQueryParameters: List<HttpParameter> = listOf(

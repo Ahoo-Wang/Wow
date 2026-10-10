@@ -45,94 +45,89 @@ private const val STATE_EVENT = "state_event"
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
 object EventRouteContributor : RouteContributor {
-    @Suppress("LongMethod")
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> {
         val scope = AggregateRouteScope(currentContext, aggregateRouteMetadata)
         val queryRoutes = queryRoutes(scope.aggregateMetadata)
-        val routes = buildList {
-            add(
-                AggregateRoute(
-                    handlerKey = Keys.SCHEMA,
-                    resourceName = EVENT_SCHEMA,
-                    operation = "get",
-                    summary = "Get Event Stream Schema",
-                    method = Https.Method.GET,
-                    pathSuffix = RouteSuffixes.EVENT_SCHEMA,
-                    parameters = querySchemaParameters,
-                    responses = querySchemaResponses
-                )
-            )
-            /*
-             * compat(wow<9.2): `POST …/event/schema/refresh`, removed in 9.2 when revalidation moved to the
-             * `wowQuerySchema` actuator endpoint. Operators' scripts still call it, so it revalidates this aggregate's
-             * schemas and answers as `GET …/schema` does.
-             */
-            add(
-                AggregateRoute(
-                    handlerKey = Keys.SCHEMA_REFRESH,
-                    resourceName = EVENT_SCHEMA,
-                    operation = "refresh",
-                    summary = "Refresh Event Stream Schema (deprecated: use the wowQuerySchema actuator endpoint)",
-                    pathSuffix = RouteSuffixes.EVENT_SCHEMA_REFRESH,
-                    responses = querySchemaResponses
-                )
-            )
-            scope.tenantOwnerVariants.forEach { variant ->
-                queryRoutes.forEach { add(it.within(variant)) }
-            }
-            add(
-                AggregateRoute(
-                    handlerKey = Keys.LOAD,
-                    resourceName = EVENT_STREAM,
-                    operation = "load",
-                    summary = "Load Event Stream",
-                    method = Https.Method.GET,
-                    appendTenantPath = scope.defaultAppendTenantPath,
-                    appendIdPath = true,
-                    pathSuffix = RouteSuffixes.EVENT_RANGE,
-                    accept = STREAMING_ACCEPT,
-                    parameters = listOf(
-                        BatchComponents.headVersionPathParameter,
-                        BatchComponents.tailVersionPathParameter
-                    ),
-                    responses = listOf(eventStreamListResponse(scope.aggregateMetadata))
-                )
-            )
-            add(
-                AggregateRoute(
-                    handlerKey = Keys.COMPENSATE,
-                    resourceName = "",
-                    operation = "compensate",
-                    summary = "Event Compensate",
-                    method = Https.Method.PUT,
-                    appendTenantPath = scope.defaultAppendTenantPath,
-                    appendIdPath = true,
-                    pathSuffix = RouteSuffixes.EVENT_COMPENSATE,
-                    parameters = listOf(CommonComponents.versionPathParameter),
-                    requestBody = EventComponents.compensationTargetRequestBody,
-                    responses = listOf(EventComponents.compensationTargetResponse, CommonComponents.badRequestResponse)
-                )
-            )
-            add(
-                AggregateRoute(
-                    handlerKey = Keys.RESEND_STATE,
-                    resourceName = STATE_EVENT,
-                    operation = "resend",
-                    summary = "Resend State Event",
-                    pathSuffix = RouteSuffixes.STATE_BATCH,
-                    parameters = listOf(
-                        BatchComponents.batchAfterIdPathParameter,
-                        BatchComponents.batchLimitPathParameter
-                    ),
-                    responses = listOf(BatchComponents.batchResultResponse, CommonComponents.requestTimeoutResponse)
-                )
-            )
-        }
+        val routes = schemaRoutes +
+            scope.tenantOwnerVariants.flatMap { variant -> queryRoutes.map { it.within(variant) } } +
+            instanceRoutes(scope)
         return routes.map(scope::contract)
     }
+
+    /** The query capability descriptor routes. */
+    private val schemaRoutes: List<AggregateRoute> = listOf(
+        AggregateRoute(
+            handlerKey = Keys.SCHEMA,
+            resourceName = EVENT_SCHEMA,
+            operation = "get",
+            summary = "Get Event Stream Schema",
+            method = Https.Method.GET,
+            pathSuffix = RouteSuffixes.EVENT_SCHEMA,
+            parameters = querySchemaParameters,
+            responses = querySchemaResponses
+        ),
+        /*
+         * compat(wow<9.2): `POST …/event/schema/refresh`, removed in 9.2 when revalidation moved to the
+         * `wowQuerySchema` actuator endpoint. Operators' scripts still call it, so it revalidates this aggregate's
+         * schemas and answers as `GET …/schema` does.
+         */
+        AggregateRoute(
+            handlerKey = Keys.SCHEMA_REFRESH,
+            resourceName = EVENT_SCHEMA,
+            operation = "refresh",
+            summary = "Refresh Event Stream Schema (deprecated: use the wowQuerySchema actuator endpoint)",
+            pathSuffix = RouteSuffixes.EVENT_SCHEMA_REFRESH,
+            responses = querySchemaResponses
+        )
+    )
+
+    /** The routes of one aggregate instance or of a batch of them. */
+    private fun instanceRoutes(scope: AggregateRouteScope): List<AggregateRoute> = listOf(
+        AggregateRoute(
+            handlerKey = Keys.LOAD,
+            resourceName = EVENT_STREAM,
+            operation = "load",
+            summary = "Load Event Stream",
+            method = Https.Method.GET,
+            appendTenantPath = scope.defaultAppendTenantPath,
+            appendIdPath = true,
+            pathSuffix = RouteSuffixes.EVENT_RANGE,
+            accept = STREAMING_ACCEPT,
+            parameters = listOf(
+                BatchComponents.headVersionPathParameter,
+                BatchComponents.tailVersionPathParameter
+            ),
+            responses = listOf(eventStreamListResponse(scope.aggregateMetadata))
+        ),
+        AggregateRoute(
+            handlerKey = Keys.COMPENSATE,
+            resourceName = "",
+            operation = "compensate",
+            summary = "Event Compensate",
+            method = Https.Method.PUT,
+            appendTenantPath = scope.defaultAppendTenantPath,
+            appendIdPath = true,
+            pathSuffix = RouteSuffixes.EVENT_COMPENSATE,
+            parameters = listOf(CommonComponents.versionPathParameter),
+            requestBody = EventComponents.compensationTargetRequestBody,
+            responses = listOf(EventComponents.compensationTargetResponse, CommonComponents.badRequestResponse)
+        ),
+        AggregateRoute(
+            handlerKey = Keys.RESEND_STATE,
+            resourceName = STATE_EVENT,
+            operation = "resend",
+            summary = "Resend State Event",
+            pathSuffix = RouteSuffixes.STATE_BATCH,
+            parameters = listOf(
+                BatchComponents.batchAfterIdPathParameter,
+                BatchComponents.batchLimitPathParameter
+            ),
+            responses = listOf(BatchComponents.batchResultResponse, CommonComponents.requestTimeoutResponse)
+        )
+    )
 
     /** The query routes, published once per tenant/owner variant. */
     private fun queryRoutes(aggregate: AggregateMetadata<*, *>): List<AggregateRoute> = listOf(

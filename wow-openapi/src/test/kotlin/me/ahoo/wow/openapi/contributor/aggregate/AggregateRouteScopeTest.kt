@@ -120,7 +120,7 @@ class AggregateRouteScopeTest {
     @Test
     fun `tenant naming should leave the owner out of the route id and summary`() {
         val contract = scope(Order::class.java).contract(
-            route.copy(appendTenantPath = true, appendOwnerPath = true, naming = ScopeNaming.TENANT)
+            route.copy(appendTenantPath = true, appendOwnerPath = true, naming = ScopeNaming.TENANT_ID_ONLY)
         )
 
         contract.routeId.assert().isEqualTo("example.order.tenant.snapshot.count")

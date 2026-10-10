@@ -55,8 +55,11 @@ internal enum class ScopeNaming {
     /** `{aggregate}.tenant.owner.{resource}.{operation}`, summary `… Within Tenant Owner`: snapshot and event routes. */
     TENANT_OWNER,
 
-    /** `{aggregate}.tenant.{resource}.{operation}`, summary unchanged: state routes. */
-    TENANT
+    /**
+     * `{aggregate}.tenant.{resource}.{operation}`, summary unchanged, even when the path has an owner segment: the
+     * state routes, as published.
+     */
+    TENANT_ID_ONLY
 }
 
 /**
@@ -199,7 +202,7 @@ internal class AggregateRouteScope(
                     route.appendOwnerPath
                 )
 
-                ScopeNaming.TENANT -> route.summary
+                ScopeNaming.TENANT_ID_ONLY -> route.summary
             },
             accept = route.accept,
             parameters = parameters(route.appendTenantPath, route.appendOwnerPath, route.appendIdPath) +

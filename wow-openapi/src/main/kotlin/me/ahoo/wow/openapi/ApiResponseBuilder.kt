@@ -35,6 +35,11 @@ class ApiResponseBuilder {
         return this
     }
 
+    fun content(mediaTypeName: String = DEFAULT_MEDIA_TYPE_NAME, mediaType: MediaType): ApiResponseBuilder {
+        apiResponse.content.addMediaType(mediaTypeName, mediaType)
+        return this
+    }
+
     fun content(mediaTypeName: String = DEFAULT_MEDIA_TYPE_NAME, schema: Schema<*>): ApiResponseBuilder {
         apiResponse.content.addMediaType(mediaTypeName, MediaType().schema(schema))
         return this

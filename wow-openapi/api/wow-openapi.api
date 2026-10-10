@@ -3,7 +3,9 @@ public final class me/ahoo/wow/openapi/ApiResponseBuilder {
 	public static final field DEFAULT_MEDIA_TYPE_NAME Ljava/lang/String;
 	public fun <init> ()V
 	public final fun build ()Lio/swagger/v3/oas/models/responses/ApiResponse;
+	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun header (Ljava/lang/String;Lio/swagger/v3/oas/models/headers/Header;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
@@ -87,8 +89,11 @@ public final class me/ahoo/wow/openapi/PathBuilder {
 public final class me/ahoo/wow/openapi/RequestBodyBuilder {
 	public fun <init> ()V
 	public final fun build ()Lio/swagger/v3/oas/models/parameters/RequestBody;
+	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 	public final fun content (Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public static synthetic fun content$default (Lme/ahoo/wow/openapi/RequestBodyBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;ILjava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 	public static synthetic fun content$default (Lme/ahoo/wow/openapi/RequestBodyBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 	public final fun extension (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 }
 
