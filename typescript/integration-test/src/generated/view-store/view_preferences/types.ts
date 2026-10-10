@@ -2,7 +2,10 @@
 
 import type { StringStringMap } from '../../example/types.js';
 
-/** - key: view-store.view_preferences.ViewPreferencesSet */
+/**
+ * - key: view-store.view_preferences.ViewPreferencesSet
+ * - required: appId, autoRun, defaultInstanceId, definitionId, lastTabs, order
+ */
 export interface ViewPreferencesSet {
   appId: string;
   autoRun: (null | boolean);
@@ -12,7 +15,10 @@ export interface ViewPreferencesSet {
   order: string[];
 }
 
-/** - key: view-store.view_preferences.ViewPreferencesState */
+/**
+ * - key: view-store.view_preferences.ViewPreferencesState
+ * - required: id
+ */
 export interface ViewPreferencesState {
   appId: string;
   autoRun: (null | boolean);
@@ -23,7 +29,10 @@ export interface ViewPreferencesState {
   order: string[];
 }
 
-/** - key: view-store.view_preferences.ViewPreferencesStateCursorPage */
+/**
+ * - key: view-store.view_preferences.ViewPreferencesStateCursorPage
+ * - required: list, nextCursor
+ */
 export interface ViewPreferencesStateCursorPage {
   list: ViewPreferencesState[];
   nextCursor: (null | string);
@@ -56,7 +65,10 @@ export enum ViewPreferencesAggregatedFields {
   VERSION = 'version'
 }
 
-/** - key: view-store.view_preferences.ViewPreferencesInput */
+/**
+ * - key: view-store.view_preferences.ViewPreferencesInput
+ * - required: (none)
+ */
 export interface ViewPreferencesInput {
   autoRun: (null | boolean);
   defaultInstanceId: (null | string);
@@ -64,7 +76,10 @@ export interface ViewPreferencesInput {
   order: string[];
 }
 
-/** - key: view-store.view_preferences.ViewPreferencesView */
+/**
+ * - key: view-store.view_preferences.ViewPreferencesView
+ * - required: definitionId
+ */
 export interface ViewPreferencesView {
   autoRun: (null | boolean);
   defaultInstanceId: (null | string);

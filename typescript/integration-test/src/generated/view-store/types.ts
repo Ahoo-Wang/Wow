@@ -9,7 +9,10 @@ export enum ViewAudience {
   SYSTEM = 'system'
 }
 
-/** - key: view-store.SystemView */
+/**
+ * - key: view-store.SystemView
+ * - required: config, definitionId, id, kind, revision, title
+ */
 export interface SystemView {
   config: ObjectNode;
   definitionId: string;
@@ -18,6 +21,7 @@ export interface SystemView {
   revision: string;
   source: SystemViewSource;
   title: string;
+  /** - format: int32 */
   version: (null | number);
   readonly scope: string;
 }

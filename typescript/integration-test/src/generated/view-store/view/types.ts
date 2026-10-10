@@ -6,6 +6,7 @@ import type { ViewAudience } from '../types.js';
 /**
  * Create a view
  * - key: view-store.view.CreateView
+ * - required: config, definitionId, title
  */
 export interface CreateView {
   config: ObjectNode;
@@ -22,6 +23,7 @@ export type DeleteView = globalThis.Record<string, never>;
 /**
  * Rename a view
  * - key: view-store.view.RenameView
+ * - required: title
  */
 export interface RenameView {
   title: string;
@@ -30,6 +32,7 @@ export interface RenameView {
 /**
  * Save a view's config
  * - key: view-store.view.SaveView
+ * - required: config
  */
 export interface SaveView {
   config: ObjectNode;
@@ -41,13 +44,19 @@ export interface SaveView {
  */
 export type ShareView = globalThis.Record<string, never>;
 
-/** - key: view-store.view.ViewAudienceChanged */
+/**
+ * - key: view-store.view.ViewAudienceChanged
+ * - required: audience, toOwnerId
+ */
 export interface ViewAudienceChanged {
   audience: ViewAudience;
   toOwnerId: string;
 }
 
-/** - key: view-store.view.ViewCreated */
+/**
+ * - key: view-store.view.ViewCreated
+ * - required: appId, audience, config, definitionId, title
+ */
 export interface ViewCreated {
   appId: string;
   audience: ViewAudience;
@@ -56,17 +65,26 @@ export interface ViewCreated {
   title: string;
 }
 
-/** - key: view-store.view.ViewRenamed */
+/**
+ * - key: view-store.view.ViewRenamed
+ * - required: title
+ */
 export interface ViewRenamed {
   title: string;
 }
 
-/** - key: view-store.view.ViewSaved */
+/**
+ * - key: view-store.view.ViewSaved
+ * - required: config
+ */
 export interface ViewSaved {
   config: ObjectNode;
 }
 
-/** - key: view-store.view.ViewState */
+/**
+ * - key: view-store.view.ViewState
+ * - required: id
+ */
 export interface ViewState {
   appId: string;
   audience: ViewAudience;
@@ -76,13 +94,19 @@ export interface ViewState {
   title: string;
 }
 
-/** - key: view-store.view.ViewStateCursorPage */
+/**
+ * - key: view-store.view.ViewStateCursorPage
+ * - required: list, nextCursor
+ */
 export interface ViewStateCursorPage {
   list: ViewState[];
   nextCursor: (null | string);
 }
 
-/** - key: view-store.view.ViewStateMaterializedSnapshot */
+/**
+ * - key: view-store.view.ViewStateMaterializedSnapshot
+ * - required: aggregateId, aggregateName, contextName, deleted, eventId, eventTime, firstEventTime, firstOperator, operator, snapshotTime, state, tenantId, version
+ */
 export interface ViewStateMaterializedSnapshot {
   aggregateId: string;
   aggregateName: string;
