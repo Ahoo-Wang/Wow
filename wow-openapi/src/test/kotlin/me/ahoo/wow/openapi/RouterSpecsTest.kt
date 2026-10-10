@@ -23,6 +23,7 @@ import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
@@ -304,6 +305,53 @@ internal class RouterSpecsTest {
         assertThrows<IllegalStateException> {
             routerSpecs.mergeOpenAPI(OpenAPI())
         }.message.assert().contains("test.Typed")
+    }
+
+    @Test
+    fun `merge should reject two components that register different schemas under one schema key`() {
+        val first = HttpComponent.response("test.Enum") { context ->
+            content(schema = context.componentSchema("test.EnumValues", StringSchema()._enum(listOf("a"))))
+        }
+        val second = HttpComponent.response("test.Enum") { context ->
+            content(schema = context.componentSchema("test.EnumValues", StringSchema()._enum(listOf("b"))))
+        }
+        val routerSpecs = RouterSpecs(
+            namedContext,
+            routeContributors = listOf(responseContributor(first, "/first"), responseContributor(second, "/second"))
+        )
+
+        assertThrows<IllegalArgumentException> {
+            routerSpecs.mergeOpenAPI(OpenAPI())
+        }.message.assert().contains("test.EnumValues")
+    }
+
+    @Test
+    fun `merge should name the component section of a shared key`() {
+        val first = HttpComponent.response("test.Shared") { description("first") }
+        val second = HttpComponent.response("test.Shared") { description("second") }
+        val routerSpecs = RouterSpecs(
+            namedContext,
+            routeContributors = listOf(responseContributor(first, "/first"), responseContributor(second, "/second"))
+        )
+
+        assertThrows<IllegalStateException> {
+            routerSpecs.mergeOpenAPI(OpenAPI())
+        }.message.assert().contains("#/components/responses/test.Shared")
+    }
+
+    @Test
+    fun `merge should reject two different components that share a key when inlining`() {
+        val first = HttpComponent.response("test.Shared") { description("first") }
+        val second = HttpComponent.response("test.Shared") { description("second") }
+        val routerSpecs = RouterSpecs(
+            namedContext,
+            OpenAPIComponentContext.default(true),
+            routeContributors = listOf(responseContributor(first, "/first"), responseContributor(second, "/second"))
+        )
+
+        assertThrows<IllegalStateException> {
+            routerSpecs.mergeOpenAPI(OpenAPI())
+        }.message.assert().contains("test.Shared")
     }
 
     @Test

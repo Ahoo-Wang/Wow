@@ -57,7 +57,10 @@ internal class DefaultOpenAPIComponentContext(private val schemaBuilder: OpenAPI
 
     override fun componentSchema(key: String, schema: Schema<*>): Schema<*> {
         key.requiredKeyNotBlank()
-        explicitSchemas[key] = schema
+        val registered = explicitSchemas.putIfAbsent(key, schema)
+        require(registered == null || registered == schema) {
+            "Two different schemas share the component key [$key]: schema component keys must be unique."
+        }
         return Schema<Any>().also {
             it.`$ref` = "$COMPONENTS_SCHEMAS_REF$key"
         }
