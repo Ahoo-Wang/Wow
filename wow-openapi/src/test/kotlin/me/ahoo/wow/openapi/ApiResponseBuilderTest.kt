@@ -46,4 +46,12 @@ internal class ApiResponseBuilderTest {
         response.description.assert().isEqualTo("OK")
         response.content.containsKey(Https.MediaType.APPLICATION_JSON).assert().isTrue()
     }
+
+    @Test
+    fun `should add extension to api response`() {
+        val response = ApiResponseBuilder()
+            .extension("x-test", "value")
+            .build()
+        response.extensions.assert().containsEntry("x-test", "value")
+    }
 }

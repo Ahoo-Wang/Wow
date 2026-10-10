@@ -8,6 +8,7 @@ public final class me/ahoo/wow/openapi/ApiResponseBuilder {
 	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/MediaType;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
+	public final fun extension (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun header (Ljava/lang/String;Lio/swagger/v3/oas/models/headers/Header;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 }
 
@@ -33,6 +34,7 @@ public final class me/ahoo/wow/openapi/RequestBodyBuilder {
 	public static synthetic fun content$default (Lme/ahoo/wow/openapi/RequestBodyBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 	public final fun extension (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/openapi/RequestBodyBuilder;
+	public final fun required (Z)Lme/ahoo/wow/openapi/RequestBodyBuilder;
 }
 
 public final class me/ahoo/wow/openapi/RouterSpecs {
@@ -475,6 +477,22 @@ public final class me/ahoo/wow/openapi/contract/HttpTag {
 	public final fun getName ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/contract/WowComponents {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/WowComponents;
+	public final fun getBadRequest ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getErrorCodeHeader ()Lme/ahoo/wow/openapi/contract/HttpHeader;
+	public final fun getErrorCodeHeaderComponent ()Lme/ahoo/wow/openapi/contract/HttpComponent;
+	public final fun getIdPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
+	public final fun getNotFound ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getOwnerIdPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
+	public final fun getRequestTimeout ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getSpaceIdHeaderParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
+	public final fun getTenantIdPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
+	public final fun getTooManyRequests ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getUnsupportedMediaType ()Lme/ahoo/wow/openapi/contract/HttpResponse;
+	public final fun getVersionPathParameter ()Lme/ahoo/wow/openapi/contract/HttpParameter;
 }
 
 public final class me/ahoo/wow/openapi/contributor/DefaultRouteContributors {

@@ -26,6 +26,11 @@ class RequestBodyBuilder {
         return this
     }
 
+    fun required(required: Boolean): RequestBodyBuilder {
+        requestBody.required = required
+        return this
+    }
+
     fun extension(name: String, value: Any): RequestBodyBuilder {
         requestBody.addExtension(name, value)
         return this

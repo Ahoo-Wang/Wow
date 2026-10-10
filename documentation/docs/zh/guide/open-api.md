@@ -61,6 +61,8 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 ```kotlin
 val reportResponse = HttpComponent.response("example.ReportResponse") { context ->
+    description("Report")
+    header(WowHeaders.ERROR_CODE, context.ref(WowComponents.errorCodeHeaderComponent))
     content(schema = context.schema(Report::class.java))
 }
 
@@ -72,7 +74,11 @@ fun reportRouteContributor(): RouteContributor = object : RouteContributor {
             method = "GET",
             path = "/report",
             handlerKey = "example.report",
-            responses = listOf(HttpResponse("200", component = reportResponse)),
+            responses = listOf(
+                HttpResponse("200", component = reportResponse),
+                WowComponents.badRequest,
+                WowComponents.notFound,
+            ),
         )
     )
 }
@@ -86,7 +92,9 @@ fun reportHandlerFunctionFactory(reportService: ReportService): HttpRouteHandler
     }
 ```
 
-合同的方法、状态码与媒体类型都是普通字符串（`"GET"`、`"200"`、`"application/json"`）。`wow-openapi` 的公开 API 是 `RouterSpecs`、`RouteContributor`、`RouteCatalog`、`me.ahoo.wow.openapi.contract` 中的合同类型（含 `BuiltInHttpRouteHandlerKeys` 与 `HttpComponent`）、路由元数据（`aggregateRouteMetadata()`、`commandRouteMetadata()`）、`DefaultRouteContributors`（内置路由，自行构建 `RouterSpecs` 时与自己的贡献者组合）、`OpenAPIComponentContext`、组件构建器 `ApiResponseBuilder` 与 `RequestBodyBuilder`、`OpenAPISchemaBuilder` 与 `BoundedContextSchemaNameConverter`。渲染器、目录构建器与内置路由背后的辅助类型是 internal；内置贡献者对象为 internal 或标为 `@InternalWowApi`，供 Spring Boot Starter 使用，不属于 API。
+内置路由共用的组件通过 `WowComponents`（`me.ahoo.wow.openapi.contract`）公开：错误响应 `badRequest`、`notFound`、`requestTimeout`、`tooManyRequests` 与 `unsupportedMediaType`（带 `DefaultErrorInfo` 响应体与 `Wow-Error-Code` 响应头的 `HttpResponse`），响应头 `errorCodeHeader` 及其组件 `errorCodeHeaderComponent`（在自己的响应中用 `context.ref` 引用），请求头参数 `spaceIdHeaderParameter`，以及路径参数 `idPathParameter`、`tenantIdPathParameter`、`ownerIdPathParameter` 与 `versionPathParameter`。它们就是内置路由使用的实例，自定义路由引用它们即与内置路由共用 `wow.BadRequest`、`wow.Wow-Error-Code` 等组件，无需在同一 key 下重新定义。构建器中，`ApiResponseBuilder` 可设置 `description`、`header`、`content` 与 `extension`，`RequestBodyBuilder` 可设置 `description`、`required`、`content` 与 `extension`。
+
+合同的方法、状态码与媒体类型都是普通字符串（`"GET"`、`"200"`、`"application/json"`）。`wow-openapi` 的公开 API 是 `RouterSpecs`、`RouteContributor`、`RouteCatalog`、`me.ahoo.wow.openapi.contract` 中的合同类型（含 `BuiltInHttpRouteHandlerKeys` 与 `HttpComponent`）、路由元数据（`aggregateRouteMetadata()`、`commandRouteMetadata()`）、`DefaultRouteContributors`（内置路由，自行构建 `RouterSpecs` 时与自己的贡献者组合）、`OpenAPIComponentContext`、内置共用组件 `WowComponents`、组件构建器 `ApiResponseBuilder` 与 `RequestBodyBuilder`、`OpenAPISchemaBuilder` 与 `BoundedContextSchemaNameConverter`。渲染器、目录构建器与内置路由背后的辅助类型是 internal；内置贡献者对象为 internal 或标为 `@InternalWowApi`，供 Spring Boot Starter 使用，不属于 API。
 
 包含 Wow 注解的模块仍需应用 KSP 与 `wow-compiler`，并确保生成的 `META-INF/wow-metadata.json` 位于服务运行时 classpath。不要手写或提交生成资源。
 

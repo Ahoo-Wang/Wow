@@ -35,4 +35,19 @@ internal class RequestBodyBuilderTest {
             .build()
         requestBody.description.assert().isEqualTo("command body")
     }
+
+    @Test
+    fun `should build required request body`() {
+        RequestBodyBuilder().build().required.assert().isNull()
+        RequestBodyBuilder().required(true).build().required.assert().isTrue()
+        RequestBodyBuilder().required(true).required(false).build().required.assert().isFalse()
+    }
+
+    @Test
+    fun `should add extension to request body`() {
+        val requestBody = RequestBodyBuilder()
+            .extension("x-test", "value")
+            .build()
+        requestBody.extensions.assert().containsEntry("x-test", "value")
+    }
 }

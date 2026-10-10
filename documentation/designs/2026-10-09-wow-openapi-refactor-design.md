@@ -159,5 +159,5 @@ P1 → P2 → P4 依次进行；P3 与 P1 并行（只在 `CommandComponent.Head
 后续（不在 9.6.0）：
 
 - `ViewStoreOpenApi`（`wow-view-store-starter`）改为 `RouteContributor` 加 `HttpComponent`，不再自建 `OpenAPIComponentContext` 并调用 `finish()`。
-- 为自定义贡献者公开内置的通用组件（错误响应、错误码头等），使其不必复制定义。
-- `ApiResponseBuilder` 与 `RequestBodyBuilder` 的 DSL 对称：媒体类型参数名不同（`mediaTypeName` 与 `name`），`extension` 只有请求体有，`required` 都没有。
+- ~~为自定义贡献者公开内置的通用组件（错误响应、错误码头等），使其不必复制定义。~~ 已完成（9.6.1，`feat(openapi): public built-in components and symmetric component builders`）：`contract/WowComponents` 公开内置路由使用的同一批实例——错误响应 `badRequest`、`notFound`、`requestTimeout`、`tooManyRequests`、`unsupportedMediaType`，错误码头 `errorCodeHeader` 与其组件 `errorCodeHeaderComponent`，请求头参数 `spaceIdHeaderParameter`，路径参数 `idPathParameter`、`tenantIdPathParameter`、`ownerIdPathParameter`、`versionPathParameter`；引用它们不会触发同 key 检查。`CommonComponents` 仍为 internal。
+- ~~`ApiResponseBuilder` 与 `RequestBodyBuilder` 的 DSL 对称~~ 已完成（同一 PR）：新增 `ApiResponseBuilder.extension(name, value)` 与 `RequestBodyBuilder.required(Boolean)`；两者都有 `description`、`content`、`extension`，`header` 只属于响应（Swagger 的 `RequestBody` 没有头）。媒体类型参数名（`mediaTypeName` 与 `name`）保持不变：改名会破坏以命名实参调用的代码。
