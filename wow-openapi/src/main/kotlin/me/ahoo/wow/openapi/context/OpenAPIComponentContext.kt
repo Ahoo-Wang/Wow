@@ -37,6 +37,15 @@ interface OpenAPIComponentContext : InlineSchemaCapable {
         const val COMPONENTS_REQUEST_BODIES_REF = "${COMPONENTS_PREFIX}requestBodies/"
         const val COMPONENTS_RESPONSES_REF = "${COMPONENTS_PREFIX}responses/"
 
+        /**
+         * The context the route documentation is rendered with.
+         *
+         * With [inline], every schema, parameter, header, request body and response is written in place and the
+         * document has no components. A schema that contains itself cannot be written in place, so generating it
+         * fails (`Option.INLINE_ALL_SCHEMAS cannot be fulfilled`). The built-in routes have such schemas (the
+         * aggregation query's `AggregationExpression`), so an inline context cannot render
+         * `DefaultRouteContributors.all()`; it is meant for routes whose schemas are acyclic.
+         */
         fun default(
             inline: Boolean = false,
             schemaVersion: SchemaVersion = SchemaVersion.DRAFT_2020_12,
