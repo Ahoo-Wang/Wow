@@ -9,7 +9,6 @@ public final class me/ahoo/wow/openapi/ApiResponseBuilder {
 	public static synthetic fun content$default (Lme/ahoo/wow/openapi/ApiResponseBuilder;Ljava/lang/String;Lio/swagger/v3/oas/models/media/Schema;ILjava/lang/Object;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun description (Ljava/lang/String;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 	public final fun header (Ljava/lang/String;Lio/swagger/v3/oas/models/headers/Header;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
-	public final fun listContent (Lme/ahoo/wow/openapi/context/OpenAPIComponentContext;Ljava/lang/reflect/Type;[Ljava/lang/reflect/Type;)Lme/ahoo/wow/openapi/ApiResponseBuilder;
 }
 
 public final class me/ahoo/wow/openapi/ApiResponseBuilder$Companion {
@@ -23,11 +22,6 @@ public final class me/ahoo/wow/openapi/CommonComponent$Header {
 	public static final field ERROR_CODE Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Header;
 	public static final field SPACE_ID Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/openapi/CommonComponent$Response {
-	public static final field INSTANCE Lme/ahoo/wow/openapi/CommonComponent$Response;
-	public static final field UNSUPPORTED_MEDIA_TYPE_ERROR_CODE Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/openapi/Https {
@@ -90,24 +84,6 @@ public final class me/ahoo/wow/openapi/PathBuilder {
 	public fun <init> ()V
 	public final fun append (Ljava/lang/String;)Lme/ahoo/wow/openapi/PathBuilder;
 	public final fun build ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/openapi/QueryComponent {
-	public static final field AGGREGATED_FIELDS_SUFFIX Ljava/lang/String;
-	public static final field AGGREGATION_QUERY_KEY Ljava/lang/String;
-	public static final field AGGREGATION_QUERY_SUFFIX Ljava/lang/String;
-	public static final field COUNT_QUERY_KEY Ljava/lang/String;
-	public static final field COUNT_QUERY_SUFFIX Ljava/lang/String;
-	public static final field CURSOR_QUERY_KEY Ljava/lang/String;
-	public static final field CURSOR_QUERY_SUFFIX Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/openapi/QueryComponent;
-	public static final field LIST_QUERY_KEY Ljava/lang/String;
-	public static final field LIST_QUERY_SUFFIX Ljava/lang/String;
-	public static final field PAGED_QUERY_KEY Ljava/lang/String;
-	public static final field PAGED_QUERY_SUFFIX Ljava/lang/String;
-	public static final field QUERY_FIELDS_EXTENSION Ljava/lang/String;
-	public static final field SINGLE_QUERY_KEY Ljava/lang/String;
-	public static final field SINGLE_QUERY_SUFFIX Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/openapi/RequestBodyBuilder {
@@ -182,11 +158,6 @@ public final class me/ahoo/wow/openapi/aggregate/command/CommandComponent$Header
 	public static final field WAIT_TAIL_PROCESSOR Ljava/lang/String;
 	public static final field WAIT_TAIL_STAGE Ljava/lang/String;
 	public static final field WAIT_TIME_OUT Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/openapi/aggregate/event/EventComponent {
-	public static final field COMPENSATION_TARGET_KEY Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/openapi/aggregate/event/EventComponent;
 }
 
 public final class me/ahoo/wow/openapi/catalog/RouteCatalog : java/lang/Iterable, kotlin/jvm/internal/markers/KMappedMarker {

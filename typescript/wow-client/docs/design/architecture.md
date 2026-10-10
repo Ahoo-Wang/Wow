@@ -261,7 +261,7 @@ graph LR
 48 个方法签名都是 `(query, attributes?, abort?)`（`grep -c 'attributes?: Record<string, unknown>'`：
 snapshot 17、event 9、queryApi 8…）。于是：
 
-- 空间聚合的查询要带 `Wow-Space-Id` 请求头（`wow-openapi/.../AggregateRouteContractSupport.kt:109`），
+- 空间聚合的查询要带 `Wow-Space-Id` 请求头（`wow-openapi/.../AggregateRouteScope.parameters`），
   tenant/owner 路由要带路径参数，而这些都只能在建客户端时写进 `ApiMetadata`，多租户应用得每个租户建一个客户端
   （见 `test/clients/snapshotQueryClient.test.ts:255`）；
 - 不传 attributes 的调用方到处写 `undefined` 占位：`wow-view-engine/src/runtime/execute.ts:115-119`、

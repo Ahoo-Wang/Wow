@@ -33,6 +33,7 @@ import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
 import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.component.QueryComponents
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpResponse
@@ -96,7 +97,7 @@ internal class RouterSpecsTest {
         val routerSpecs = RouterSpecs(namedContext, componentContext).build()
         val aggregatedQueryBodies = routerSpecs.toRouteCatalog().routes
             .mapNotNull { it.requestBody?.component }
-            .filter { it.key.endsWith(QueryComponent.LIST_QUERY_SUFFIX) && it.key != QueryComponent.LIST_QUERY_KEY }
+            .filter { it.key.endsWith(QueryComponents.LIST_QUERY_SUFFIX) && it.key != QueryComponents.LIST_QUERY_KEY }
             .distinct()
 
         aggregatedQueryBodies.assert().isNotEmpty()
@@ -106,10 +107,10 @@ internal class RouterSpecsTest {
         routerSpecs.mergeOpenAPI(openAPI)
         componentContext.componentSchemaKeys.assert().isNotEmpty()
         componentContext.componentSchemaKeys.forEach {
-            it.assert().endsWith(QueryComponent.AGGREGATED_FIELDS_SUFFIX)
+            it.assert().endsWith(QueryComponents.AGGREGATED_FIELDS_SUFFIX)
         }
         openAPI.components.requestBodies.getValue(aggregatedQueryBodies.first().key).extensions.assert()
-            .containsKey(QueryComponent.QUERY_FIELDS_EXTENSION)
+            .containsKey(QueryComponents.QUERY_FIELDS_EXTENSION)
     }
 
     @Test

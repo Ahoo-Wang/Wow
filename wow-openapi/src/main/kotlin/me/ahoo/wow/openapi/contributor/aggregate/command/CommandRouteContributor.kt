@@ -34,73 +34,52 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.HttpTag
-import me.ahoo.wow.openapi.contributor.aggregate.aggregateParameters
-import me.ahoo.wow.openapi.contributor.aggregate.aggregatePath
-import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
-import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
-import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
+import me.ahoo.wow.openapi.contributor.aggregate.AggregateRouteScope
+import me.ahoo.wow.openapi.contributor.aggregate.STREAMING_ACCEPT
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.openapi.metadata.VariableMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.rest.RouteVariables
 
 object CommandRouteContributor : RouteContributor {
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> {
-        val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
-        return buildList {
-            aggregateMetadata.command.registeredCommands.forEach { commandType ->
-                commandType.toCommandRouteContract(currentContext, aggregateRouteMetadata)
-                    ?.let(::add)
+        val scope = AggregateRouteScope(currentContext, aggregateRouteMetadata)
+        val command = scope.aggregateMetadata.command
+        val commandTypes = buildList {
+            addAll(command.registeredCommands)
+            if (!command.registeredDeleteAggregate) {
+                add(DefaultDeleteAggregate::class.java)
             }
-            if (!aggregateMetadata.command.registeredDeleteAggregate) {
-                DefaultDeleteAggregate::class.java
-                    .toCommandRouteContract(currentContext, aggregateRouteMetadata)
-                    ?.let(::add)
+            if (!command.registeredRecoverAggregate) {
+                add(DefaultRecoverAggregate::class.java)
             }
-            if (!aggregateMetadata.command.registeredRecoverAggregate) {
-                DefaultRecoverAggregate::class.java
-                    .toCommandRouteContract(currentContext, aggregateRouteMetadata)
-                    ?.let(::add)
-            }
-            if (!aggregateMetadata.command.registeredApplyResourceTags) {
-                DefaultApplyResourceTags::class.java
-                    .toCommandRouteContract(currentContext, aggregateRouteMetadata)
-                    ?.let(::add)
+            if (!command.registeredApplyResourceTags) {
+                add(DefaultApplyResourceTags::class.java)
             }
         }
-    }
-
-    private fun Class<*>.toCommandRouteContract(
-        currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>
-    ): HttpRouteContract? {
-        val commandRouteMetadata = commandRouteMetadata()
-        if (!commandRouteMetadata.enabled) {
-            return null
-        }
-        return CommandRouteContractFactory(
-            currentContext = currentContext,
-            aggregateRouteMetadata = aggregateRouteMetadata,
-            commandRouteMetadata = commandRouteMetadata
-        ).create()
+        return commandTypes.map { it.commandRouteMetadata() }
+            .filter { it.enabled }
+            .map { CommandRouteContractFactory(scope, it).create() }
     }
 }
 
 private class CommandRouteContractFactory(
-    private val currentContext: NamedBoundedContext,
-    private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
+    private val scope: AggregateRouteScope,
     private val commandRouteMetadata: CommandRouteMetadata<*>
 ) {
-    private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
+    private val aggregateRouteMetadata = scope.aggregateRouteMetadata
+    private val appendTenantPath = resolveAppendTenantPath()
+    private val appendOwnerPath = resolveAppendOwnerPath()
+    private val appendIdPath = resolveAppendIdPath()
 
     fun create(): HttpRouteContract {
         return HttpRouteContract(
             routeId = RouteIdSpec()
-                .aggregate(aggregateMetadata)
+                .aggregate(scope.aggregateMetadata)
                 .operation(commandRouteMetadata.commandMetadata.name)
                 .build(),
             method = commandRouteMetadata.method,
@@ -108,7 +87,7 @@ private class CommandRouteContractFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Command.COMMAND,
             summary = summary(),
             description = commandRouteMetadata.description,
-            accept = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM),
+            accept = STREAMING_ACCEPT,
             parameters = parameters(),
             requestBody = requestBody(),
             responses = CommandComponents.responses,
@@ -123,15 +102,7 @@ private class CommandRouteContractFactory(
     private fun commandPath(): String {
         return PathBuilder()
             .append(commandRouteMetadata.prefix)
-            .append(
-                aggregatePath(
-                    currentContext = currentContext,
-                    aggregateRouteMetadata = aggregateRouteMetadata,
-                    appendTenantPath = appendTenantPath(),
-                    appendOwnerPath = appendOwnerPath(),
-                    appendIdPath = appendIdPath()
-                )
-            )
+            .append(scope.path(appendTenantPath, appendOwnerPath, appendIdPath))
             .append(commandRouteMetadata.action)
             .build()
     }
@@ -142,14 +113,7 @@ private class CommandRouteContractFactory(
 
     private fun parameters(): List<HttpParameter> {
         return buildList {
-            addAll(
-                aggregateParameters(
-                    aggregateRouteMetadata = aggregateRouteMetadata,
-                    appendTenantPath = appendTenantPath(),
-                    appendOwnerPath = appendOwnerPath(),
-                    appendIdPath = appendIdPath()
-                )
-            )
+            addAll(scope.parameters(appendTenantPath, appendOwnerPath, appendIdPath))
             addAll(pathVariableParameters())
             addAll(headerVariableParameters())
             addAll(CommandComponents.commonHeaderParameters)
@@ -160,9 +124,9 @@ private class CommandRouteContractFactory(
         return commandRouteMetadata.pathVariableMetadata
             .filter { variableMetadata ->
                 when (variableMetadata.variableName) {
-                    MessageRecords.ID -> appendIdPath().not()
-                    MessageRecords.OWNER_ID -> appendOwnerPath().not()
-                    MessageRecords.TENANT_ID -> appendTenantPath().not()
+                    RouteVariables.ID -> appendIdPath.not()
+                    RouteVariables.OWNER_ID -> appendOwnerPath.not()
+                    RouteVariables.TENANT_ID -> appendTenantPath.not()
                     else -> true
                 }
             }
@@ -205,7 +169,7 @@ private class CommandRouteContractFactory(
 
     private fun tags(): List<HttpTag> {
         return buildList {
-            addAll(aggregateTags(aggregateMetadata))
+            addAll(scope.tags)
             commandRouteMetadata.commandMetadata.commandType.toTags().forEach { tag ->
                 add(HttpTag(tag.name, tag.description))
             }
@@ -220,28 +184,28 @@ private class CommandRouteContractFactory(
         }
     }
 
-    private fun appendTenantPath(): Boolean {
-        return commandRouteMetadata.appendTenantPath.resolve(aggregateRouteMetadata.defaultAppendTenantPath())
+    private fun resolveAppendTenantPath(): Boolean {
+        return commandRouteMetadata.appendTenantPath.resolve(scope.defaultAppendTenantPath)
     }
 
-    private fun appendOwnerPath(): Boolean {
+    private fun resolveAppendOwnerPath(): Boolean {
         val default = if (
             aggregateRouteMetadata.ownerPolicy == OwnerPolicy.AGGREGATE_ID &&
             commandRouteMetadata.commandMetadata.isCreate
         ) {
             false
         } else {
-            aggregateRouteMetadata.defaultAppendOwnerPath()
+            scope.defaultAppendOwnerPath
         }
         return commandRouteMetadata.appendOwnerPath.resolve(default)
     }
 
-    private fun appendIdPath(): Boolean {
+    private fun resolveAppendIdPath(): Boolean {
         if (aggregateRouteMetadata.ownerPolicy == OwnerPolicy.AGGREGATE_ID) {
             return false
         }
         val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata
-            .any { it.variableName == MessageRecords.ID }
+            .any { it.variableName == RouteVariables.ID }
         val default = hasIdPathVariable ||
             (
                 commandRouteMetadata.commandMetadata.aggregateIdGetter == null &&

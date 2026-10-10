@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.component
 
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
+import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -26,7 +27,6 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.QueryComponent
 import me.ahoo.wow.openapi.component.CommonComponents.withErrorCodeHeader
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpComponent
@@ -73,47 +73,64 @@ internal fun OpenAPIComponentContext.aggregatedFieldsSchema(
         inferred.fields.forEach { (field, declaration) -> addFields(field, declaration) }
     }.map(QueryField::path).sorted()
     val key = "${aggregateMetadata.toStringWithAlias()}." +
-        "${aggregateMetadata.command.aggregateType.simpleName}${QueryComponent.AGGREGATED_FIELDS_SUFFIX}"
+        "${aggregateMetadata.command.aggregateType.simpleName}${QueryComponents.AGGREGATED_FIELDS_SUFFIX}"
     return componentSchema(key, StringSchema()._enum(fields))
 }
 
 /** The components of the query routes: the query request bodies and the count response. */
 internal object QueryComponents {
-    val countQueryRequestBody = queryRequestBody(QueryComponent.COUNT_QUERY_KEY, FilterExpression::class.java)
-    val listQueryRequestBody = queryRequestBody(QueryComponent.LIST_QUERY_KEY, ListQuery::class.java)
-    val pagedQueryRequestBody = queryRequestBody(QueryComponent.PAGED_QUERY_KEY, PagedQuery::class.java)
-    val cursorQueryRequestBody = queryRequestBody(QueryComponent.CURSOR_QUERY_KEY, CursorQuery::class.java)
-    val singleQueryRequestBody = queryRequestBody(QueryComponent.SINGLE_QUERY_KEY, SingleQuery::class.java)
+    const val SINGLE_QUERY_SUFFIX = ".SingleQuery"
+    const val COUNT_QUERY_SUFFIX = ".CountQuery"
+    const val LIST_QUERY_SUFFIX = ".ListQuery"
+    const val PAGED_QUERY_SUFFIX = ".PagedQuery"
+    const val CURSOR_QUERY_SUFFIX = ".CursorQuery"
+    const val AGGREGATION_QUERY_SUFFIX = ".AggregationQuery"
+    const val AGGREGATED_FIELDS_SUFFIX = "AggregatedFields"
+
+    /** The request body extension naming the queryable fields; `@ahoo-wang/wow-generator` reads it. */
+    const val QUERY_FIELDS_EXTENSION = "x-wow-query-fields"
+    const val SINGLE_QUERY_KEY = Wow.WOW + SINGLE_QUERY_SUFFIX
+    const val COUNT_QUERY_KEY = Wow.WOW + COUNT_QUERY_SUFFIX
+    const val LIST_QUERY_KEY = Wow.WOW + LIST_QUERY_SUFFIX
+    const val PAGED_QUERY_KEY = Wow.WOW + PAGED_QUERY_SUFFIX
+    const val CURSOR_QUERY_KEY = Wow.WOW + CURSOR_QUERY_SUFFIX
+    const val AGGREGATION_QUERY_KEY = Wow.WOW + AGGREGATION_QUERY_SUFFIX
+
+    val countQueryRequestBody = queryRequestBody(COUNT_QUERY_KEY, FilterExpression::class.java)
+    val listQueryRequestBody = queryRequestBody(LIST_QUERY_KEY, ListQuery::class.java)
+    val pagedQueryRequestBody = queryRequestBody(PAGED_QUERY_KEY, PagedQuery::class.java)
+    val cursorQueryRequestBody = queryRequestBody(CURSOR_QUERY_KEY, CursorQuery::class.java)
+    val singleQueryRequestBody = queryRequestBody(SINGLE_QUERY_KEY, SingleQuery::class.java)
     val aggregationQueryRequestBody =
-        queryRequestBody(QueryComponent.AGGREGATION_QUERY_KEY, AggregationQuery::class.java)
+        queryRequestBody(AGGREGATION_QUERY_KEY, AggregationQuery::class.java)
 
     val countQueryResponse = HttpResponse(
         statusCode = Https.Code.OK,
-        component = HttpComponent.response(QueryComponent.COUNT_QUERY_KEY) { context ->
+        component = HttpComponent.response(COUNT_QUERY_KEY) { context ->
             withErrorCodeHeader(context)
             content(Https.MediaType.APPLICATION_JSON, schema = context.schema(Long::class.java))
         }
     )
 
     fun aggregatedCountQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): HttpRequestBody =
-        aggregatedQueryRequestBody(aggregateMetadata, QueryComponent.COUNT_QUERY_SUFFIX, FilterExpression::class.java)
+        aggregatedQueryRequestBody(aggregateMetadata, COUNT_QUERY_SUFFIX, FilterExpression::class.java)
 
     fun aggregatedListQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): HttpRequestBody =
-        aggregatedQueryRequestBody(aggregateMetadata, QueryComponent.LIST_QUERY_SUFFIX, ListQuery::class.java)
+        aggregatedQueryRequestBody(aggregateMetadata, LIST_QUERY_SUFFIX, ListQuery::class.java)
 
     fun aggregatedPagedQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): HttpRequestBody =
-        aggregatedQueryRequestBody(aggregateMetadata, QueryComponent.PAGED_QUERY_SUFFIX, PagedQuery::class.java)
+        aggregatedQueryRequestBody(aggregateMetadata, PAGED_QUERY_SUFFIX, PagedQuery::class.java)
 
     fun aggregatedCursorQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): HttpRequestBody =
-        aggregatedQueryRequestBody(aggregateMetadata, QueryComponent.CURSOR_QUERY_SUFFIX, CursorQuery::class.java)
+        aggregatedQueryRequestBody(aggregateMetadata, CURSOR_QUERY_SUFFIX, CursorQuery::class.java)
 
     fun aggregatedSingleQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): HttpRequestBody =
-        aggregatedQueryRequestBody(aggregateMetadata, QueryComponent.SINGLE_QUERY_SUFFIX, SingleQuery::class.java)
+        aggregatedQueryRequestBody(aggregateMetadata, SINGLE_QUERY_SUFFIX, SingleQuery::class.java)
 
     fun aggregatedAggregationQueryRequestBody(aggregateMetadata: AggregateMetadata<*, *>): HttpRequestBody =
         aggregatedQueryRequestBody(
             aggregateMetadata,
-            QueryComponent.AGGREGATION_QUERY_SUFFIX,
+            AGGREGATION_QUERY_SUFFIX,
             AggregationQuery::class.java
         )
 
@@ -124,7 +141,7 @@ internal object QueryComponents {
     )
 
     /**
-     * The `{aggregate}{suffix}` request body: the query schema plus the [QueryComponent.QUERY_FIELDS_EXTENSION]
+     * The `{aggregate}{suffix}` request body: the query schema plus the [QUERY_FIELDS_EXTENSION]
      * extension naming the aggregate's queryable fields.
      */
     private fun aggregatedQueryRequestBody(
@@ -134,7 +151,7 @@ internal object QueryComponents {
     ): HttpRequestBody = aggregatedQueryRequestBodies.computeIfAbsent(aggregateMetadata to suffix) {
         HttpRequestBody(
             component = HttpComponent.requestBody(aggregateMetadata.toStringWithAlias() + suffix) { context ->
-                extension(QueryComponent.QUERY_FIELDS_EXTENSION, context.aggregatedFieldsSchema(aggregateMetadata))
+                extension(QUERY_FIELDS_EXTENSION, context.aggregatedFieldsSchema(aggregateMetadata))
                 content(schema = context.schema(queryType))
             }
         )

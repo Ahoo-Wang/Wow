@@ -19,7 +19,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -38,7 +38,7 @@ class LoadVersionedAggregateHandlerFunction(
     admission
 ) {
     override fun getVersion(request: ServerRequest): Int {
-        return request.pathVariable(MessageRecords.VERSION).toInt()
+        return request.pathVariable(RouteVariables.VERSION).toInt()
     }
 
     override fun checkVersion(targetVersion: Int, stateAggregate: StateAggregate<*>) {

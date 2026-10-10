@@ -30,8 +30,4 @@ object CommonComponent {
         )
         const val SPACE_ID = WowHeaders.SPACE_ID
     }
-
-    object Response {
-        const val UNSUPPORTED_MEDIA_TYPE_ERROR_CODE = "UnsupportedMediaType"
-    }
 }

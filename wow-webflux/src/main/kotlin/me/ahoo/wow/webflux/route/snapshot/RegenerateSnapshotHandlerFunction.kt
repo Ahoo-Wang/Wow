@@ -23,7 +23,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.rest.RouteVariables
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.identity.identity
@@ -51,7 +51,7 @@ class RegenerateSnapshotHandlerFunction(
         // Deferred: an identity error (a blank path variable, a V3 conflict) is a signal the error mapping sees.
         Mono.defer {
             val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
-            val id = request.pathVariable(MessageRecords.ID)
+            val id = request.pathVariable(RouteVariables.ID)
             val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
             handler.handle(aggregateId)
                 .throwNotFoundIfEmpty()
