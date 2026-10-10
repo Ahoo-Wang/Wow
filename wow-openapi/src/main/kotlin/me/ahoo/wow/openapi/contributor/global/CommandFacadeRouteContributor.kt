@@ -15,27 +15,17 @@ package me.ahoo.wow.openapi.contributor.global
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.CommandComponents
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.contributor.commandFacadeParameterRefs
-import me.ahoo.wow.openapi.contributor.commandResponseRefs
 import me.ahoo.wow.rest.RoutePaths
 
 object CommandFacadeRouteContributor : RouteContributor {
-    override val id: String = "global.command-facade"
-    override val category: RouteCategory = RouteCategory.GLOBAL
-    override val order: Int = 20
-
-    override fun contributeGlobal(
-        currentContext: NamedBoundedContext,
-        componentContext: OpenAPIComponentContext
-    ): List<HttpRouteContract> {
+    override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> {
         return listOf(
             HttpRouteContract(
                 routeId = wowRouteId("command", "send"),
@@ -43,12 +33,12 @@ object CommandFacadeRouteContributor : RouteContributor {
                 path = RoutePaths.COMMAND_SEND,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
                 summary = "Unified Sending Endpoint For Command Messages",
-                parameters = componentContext.commandFacadeParameterRefs(),
+                parameters = CommandComponents.facadeParameters,
                 requestBody = HttpRequestBody(
                     description = "Command Message Body",
                     content = listOf(HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Object))
                 ),
-                responses = componentContext.commandResponseRefs(),
+                responses = CommandComponents.responses,
                 tags = wowTags()
             )
         )

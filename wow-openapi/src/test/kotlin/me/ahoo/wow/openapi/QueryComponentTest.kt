@@ -20,6 +20,7 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.openapi.component.aggregatedFieldsSchema
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQueryModelSource

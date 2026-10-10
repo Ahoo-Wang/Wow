@@ -55,6 +55,29 @@ implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 
 `OpenAPIAutoConfiguration` 创建 `RouterSpecs`；`WebFluxAutoConfiguration` 把目录物化为 `RouterFunction`；`WowOpenApiCustomizer` 把同一目录合并到 Springdoc。`wow.openapi.enabled=false` 禁用 Springdoc 定制，不会关闭 WebFlux 路由目录本身。构建路由目录时不生成任何 JSON Schema；只有提供文档时（存在 Springdoc 且 `wow.openapi.enabled` 不为 `false`，在启动时）才生成 schema 与组件，不提供文档的服务不承担 schema 生成开销。
 
+`RouterSpecs` 只把目录渲染为文档一次：启动时由 `buildDocumentation()`（或第一次 `RouterSpecs.mergeOpenAPI(openAPI)`）完成，这次渲染生成 Schema，可能阻塞。之后每次 `mergeOpenAPI` 合并该文档的副本：不生成 Schema、不阻塞，可以并发调用（例如多个 Springdoc 分组），并得到自己的 path item、operation 与组件，定制器修改它们不会影响其他文档。只有 `Schema` 实例是共享的：修改 Schema 前请先复制。文档尚未渲染时在事件循环线程上调用 `mergeOpenAPI` 会失败，并提示先调用 `buildDocumentation()`。
+
+自定义路由通过 `RouteContributor` Bean 添加。贡献者只返回路由合同，合同是纯数据：不生成 Schema，也不登记组件。请求体或响应类型用 `HttpSchema.TypeRef` 引用（嵌套泛型用 `typeArguments`），可复用的参数、请求头、请求体或响应用 `HttpComponent`（`HttpComponent.parameter`、`header`、`requestBody`、`response`）引用：key 只写一次，渲染器构建并登记一次；key 必须唯一（同一 key 的两个不同组件会被拒绝）：
+
+```kotlin
+val reportResponse = HttpComponent.response("example.ReportResponse") { context ->
+    content(schema = context.schema(Report::class.java))
+}
+
+@Bean
+fun reportRouteContributor(): RouteContributor = object : RouteContributor {
+    override fun contributeGlobal(currentContext: NamedBoundedContext) = listOf(
+        HttpRouteContract(
+            routeId = "example.report.get",
+            method = Https.Method.GET,
+            path = "/report",
+            handlerKey = "example.report",
+            responses = listOf(HttpResponse(Https.Code.OK, component = reportResponse)),
+        )
+    )
+}
+```
+
 包含 Wow 注解的模块仍需应用 KSP 与 `wow-compiler`，并确保生成的 `META-INF/wow-metadata.json` 位于服务运行时 classpath。不要手写或提交生成资源。
 
 ## Swagger-UI

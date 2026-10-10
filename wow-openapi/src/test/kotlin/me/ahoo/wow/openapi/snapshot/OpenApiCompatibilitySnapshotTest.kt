@@ -49,7 +49,7 @@ internal class OpenApiCompatibilitySnapshotTest {
 
         catalog.routes.map { it.path }.assert().doesNotContain(RoutePaths.BI_SCRIPT)
         val openAPI = OpenAPI()
-        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+        RouterSpecs(currentContext).build().mergeOpenAPI(openAPI)
         openAPI.paths.keys.assert().doesNotContain(RoutePaths.BI_SCRIPT)
         openAPI.components.schemas.keys.filter { it.startsWith("wow.openapi.BiScript") }.assert().isEmpty()
     }
@@ -57,7 +57,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated openapi should match example domain compatibility snapshot`() {
         val openAPI = OpenAPI()
-        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPI(openAPI)
 
         assertOpenApiSnapshot(
             openAPI = openAPI,
@@ -68,7 +68,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated BI script request schema should retain its OpenAPI 3 point 1 types`() {
         val openAPI = OpenAPI()
-        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPI(openAPI)
 
         val document = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(openAPI)
         document.path("openapi").asText().assert().isEqualTo("3.1.0")
@@ -119,7 +119,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `every published sort list should state the sort bound`() {
         val openAPI = OpenAPI()
-        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPI(openAPI)
 
         val schemas = mapper.valueToTree<JsonNode>(openAPI).path("components").path("schemas")
         val sortLists = schemas.properties()
@@ -140,7 +140,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated openapi should publish cursor query contracts`() {
         val openAPI = OpenAPI()
-        exampleServiceRouterSpecs().build().mergeOpenAPIFromCatalog(openAPI)
+        exampleServiceRouterSpecs().build().mergeOpenAPI(openAPI)
 
         val document = mapper.valueToTree<JsonNode>(openAPI)
         val paths = document.path("paths")
@@ -259,7 +259,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     }
 
     private fun parameterIdentity(parameter: HttpParameter): String {
-        parameter.componentRef?.takeIf { it.isNotBlank() }?.let {
+        parameter.component?.key?.let {
             return "ref:#/components/parameters/$it"
         }
         return "${parameter.location.name.lowercase()}:${parameter.name}:${parameter.required}"

@@ -15,7 +15,6 @@ package me.ahoo.wow.openapi.catalog
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -172,36 +171,12 @@ internal class RouteCatalogTest {
     }
 
     @Test
-    fun `should sort contributors in explicit order`() {
-        val first = testContributor(id = "first", order = 20)
-        val second = testContributor(id = "second", order = 10)
-        val sameOrder = testContributor(id = "same-order", order = 10)
-
-        val contributors = RouteContributors.sort(listOf(first, sameOrder, second))
-
-        contributors.map { it.id }.assert().isEqualTo(listOf("same-order", "second", "first"))
-    }
-
-    @Test
     fun `should contribute empty route lists by default`() {
-        val contributor = testContributor(id = "empty", order = 0)
-        val componentContext = OpenAPIComponentContext.default(false)
+        val contributor = object : RouteContributor {}
         val aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
 
-        contributor.contributeGlobal(MOCK_AGGREGATE_METADATA, componentContext).assert().isEmpty()
-        contributor.contributeAggregate(
-            MOCK_AGGREGATE_METADATA,
-            aggregateRouteMetadata,
-            componentContext
-        ).assert().isEmpty()
-    }
-
-    private fun testContributor(id: String, order: Int): RouteContributor {
-        return object : RouteContributor {
-            override val id: String = id
-            override val category: RouteCategory = RouteCategory.GLOBAL
-            override val order: Int = order
-        }
+        contributor.contributeGlobal(MOCK_AGGREGATE_METADATA).assert().isEmpty()
+        contributor.contributeAggregate(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata).assert().isEmpty()
     }
 
     private fun query(routeId: String, path: String): HttpRouteContract {

@@ -41,7 +41,7 @@ internal class ExampleDomainOpenAPITest {
     fun setUp() {
         routerSpecs = RouterSpecs(namedContext).build()
         openAPI = OpenAPI()
-        routerSpecs.mergeOpenAPIFromCatalog(openAPI)
+        routerSpecs.mergeOpenAPI(openAPI)
     }
 
     @Nested

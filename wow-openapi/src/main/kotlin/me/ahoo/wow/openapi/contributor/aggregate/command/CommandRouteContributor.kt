@@ -23,9 +23,8 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.CommandComponents
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -40,9 +39,6 @@ import me.ahoo.wow.openapi.contributor.aggregate.aggregatePath
 import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
-import me.ahoo.wow.openapi.contributor.commandCommonHeaderParameterRefs
-import me.ahoo.wow.openapi.contributor.commandResponseRefs
-import me.ahoo.wow.openapi.contributor.schemaRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.openapi.metadata.VariableMetadata
@@ -50,34 +46,29 @@ import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 
 object CommandRouteContributor : RouteContributor {
-    override val id: String = "aggregate.command"
-    override val category: RouteCategory = RouteCategory.COMMAND
-    override val order: Int = 100
-
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         return buildList {
             aggregateMetadata.command.registeredCommands.forEach { commandType ->
-                commandType.toCommandRouteContract(currentContext, aggregateRouteMetadata, componentContext)
+                commandType.toCommandRouteContract(currentContext, aggregateRouteMetadata)
                     ?.let(::add)
             }
             if (!aggregateMetadata.command.registeredDeleteAggregate) {
                 DefaultDeleteAggregate::class.java
-                    .toCommandRouteContract(currentContext, aggregateRouteMetadata, componentContext)
+                    .toCommandRouteContract(currentContext, aggregateRouteMetadata)
                     ?.let(::add)
             }
             if (!aggregateMetadata.command.registeredRecoverAggregate) {
                 DefaultRecoverAggregate::class.java
-                    .toCommandRouteContract(currentContext, aggregateRouteMetadata, componentContext)
+                    .toCommandRouteContract(currentContext, aggregateRouteMetadata)
                     ?.let(::add)
             }
             if (!aggregateMetadata.command.registeredApplyResourceTags) {
                 DefaultApplyResourceTags::class.java
-                    .toCommandRouteContract(currentContext, aggregateRouteMetadata, componentContext)
+                    .toCommandRouteContract(currentContext, aggregateRouteMetadata)
                     ?.let(::add)
             }
         }
@@ -85,8 +76,7 @@ object CommandRouteContributor : RouteContributor {
 
     private fun Class<*>.toCommandRouteContract(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract? {
         val commandRouteMetadata = commandRouteMetadata()
         if (!commandRouteMetadata.enabled) {
@@ -95,8 +85,7 @@ object CommandRouteContributor : RouteContributor {
         return CommandRouteContractFactory(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            commandRouteMetadata = commandRouteMetadata,
-            componentContext = componentContext
+            commandRouteMetadata = commandRouteMetadata
         ).create()
     }
 }
@@ -104,8 +93,7 @@ object CommandRouteContributor : RouteContributor {
 private class CommandRouteContractFactory(
     private val currentContext: NamedBoundedContext,
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
-    private val commandRouteMetadata: CommandRouteMetadata<*>,
-    private val componentContext: OpenAPIComponentContext
+    private val commandRouteMetadata: CommandRouteMetadata<*>
 ) {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
 
@@ -123,7 +111,7 @@ private class CommandRouteContractFactory(
             accept = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM),
             parameters = parameters(),
             requestBody = requestBody(),
-            responses = componentContext.commandResponseRefs(),
+            responses = CommandComponents.responses,
             tags = tags(),
             handlerMetadata = HttpRouteHandlerMetadata.Command(
                 aggregateRouteMetadata = aggregateRouteMetadata,
@@ -155,7 +143,7 @@ private class CommandRouteContractFactory(
     private fun parameters(): List<HttpParameter> {
         return buildList {
             addAll(
-                componentContext.aggregateParameters(
+                aggregateParameters(
                     aggregateRouteMetadata = aggregateRouteMetadata,
                     appendTenantPath = appendTenantPath(),
                     appendOwnerPath = appendOwnerPath(),
@@ -164,7 +152,7 @@ private class CommandRouteContractFactory(
             )
             addAll(pathVariableParameters())
             addAll(headerVariableParameters())
-            addAll(componentContext.commandCommonHeaderParameterRefs())
+            addAll(CommandComponents.commonHeaderParameters)
         }
     }
 
@@ -200,7 +188,7 @@ private class CommandRouteContractFactory(
     }
 
     private fun VariableMetadata.schema(): HttpSchema {
-        return variableType?.let(::schemaRef) ?: HttpSchema.String
+        return variableType?.let { HttpSchema.TypeRef(it) } ?: HttpSchema.String
     }
 
     private fun requestBody(): HttpRequestBody {
@@ -209,7 +197,7 @@ private class CommandRouteContractFactory(
             content = listOf(
                 HttpContent(
                     Https.MediaType.APPLICATION_JSON,
-                    schemaRef(commandRouteMetadata.commandMetadata.commandType)
+                    HttpSchema.TypeRef(commandRouteMetadata.commandMetadata.commandType)
                 )
             )
         )

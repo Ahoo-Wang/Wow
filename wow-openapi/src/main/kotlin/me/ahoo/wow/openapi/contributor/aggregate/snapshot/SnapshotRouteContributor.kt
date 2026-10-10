@@ -18,9 +18,10 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.BatchComponents
+import me.ahoo.wow.openapi.component.CommonComponents
+import me.ahoo.wow.openapi.component.QueryComponents
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -37,31 +38,17 @@ import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
 import me.ahoo.wow.openapi.contributor.aggregate.tenantOwnerSummary
 import me.ahoo.wow.openapi.contributor.aggregate.tenantOwnerVariants
-import me.ahoo.wow.openapi.contributor.aggregatedAggregationQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.aggregatedCountQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.aggregatedCursorQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.aggregatedListQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.aggregatedPagedQueryRequestBodyRef
-import me.ahoo.wow.openapi.contributor.aggregatedSingleQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregationResponse
-import me.ahoo.wow.openapi.contributor.batchAfterIdPathParameterRef
-import me.ahoo.wow.openapi.contributor.batchLimitPathParameterRef
-import me.ahoo.wow.openapi.contributor.batchResultResponseRef
-import me.ahoo.wow.openapi.contributor.countQueryResponseRef
-import me.ahoo.wow.openapi.contributor.errorCodeHeaderRef
 import me.ahoo.wow.openapi.contributor.materializedSnapshotCursorResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotListResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotPagedResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotSingleResponse
-import me.ahoo.wow.openapi.contributor.notFoundResponseRef
 import me.ahoo.wow.openapi.contributor.querySchemaParameters
 import me.ahoo.wow.openapi.contributor.querySchemaResponses
-import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.stateCursorResponse
 import me.ahoo.wow.openapi.contributor.stateListResponse
 import me.ahoo.wow.openapi.contributor.statePagedResponse
 import me.ahoo.wow.openapi.contributor.stateSingleResponse
-import me.ahoo.wow.openapi.contributor.tooManyRequestsResponseRef
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.rest.RouteSuffixes
 
@@ -70,24 +57,19 @@ import me.ahoo.wow.rest.RouteSuffixes
  * operation names make the route ids that wow-generator reads (see [me.ahoo.wow.openapi.RouteIdSpec]).
  */
 object SnapshotRouteContributor : RouteContributor {
-    override val id: String = "aggregate.snapshot"
-    override val category: RouteCategory = RouteCategory.SNAPSHOT
-    override val order: Int = 300
-
     override fun contributeAggregate(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpRouteContract> {
         return buildList {
-            add(snapshotSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(snapshotSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(snapshotSchemaRoute(currentContext, aggregateRouteMetadata))
+            add(snapshotSchemaRefreshRoute(currentContext, aggregateRouteMetadata))
             aggregateRouteMetadata.tenantOwnerVariants().forEach { variant ->
-                addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
+                addAll(queryRoutes(currentContext, aggregateRouteMetadata, variant))
             }
-            add(loadSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(regenerateSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(batchRegenerateSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(loadSnapshotRoute(currentContext, aggregateRouteMetadata))
+            add(regenerateSnapshotRoute(currentContext, aggregateRouteMetadata))
+            add(batchRegenerateSnapshotRoute(currentContext, aggregateRouteMetadata))
         }
     }
 
@@ -98,12 +80,10 @@ object SnapshotRouteContributor : RouteContributor {
      */
     private fun snapshotSchemaRefreshRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract = snapshotRoute(
         currentContext = currentContext,
         aggregateRouteMetadata = aggregateRouteMetadata,
-        componentContext = componentContext,
         handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
         resourceName = "snapshot_schema",
         operation = "refresh",
@@ -112,17 +92,15 @@ object SnapshotRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = RouteSuffixes.SNAPSHOT_SCHEMA_REFRESH,
-        responses = componentContext.querySchemaResponses(),
+        responses = querySchemaResponses,
     )
 
     private fun snapshotSchemaRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract = snapshotRoute(
         currentContext = currentContext,
         aggregateRouteMetadata = aggregateRouteMetadata,
-        componentContext = componentContext,
         handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA,
         resourceName = "snapshot_schema",
         operation = "get",
@@ -132,13 +110,12 @@ object SnapshotRouteContributor : RouteContributor {
         appendOwnerPath = false,
         appendPathSuffix = RouteSuffixes.SNAPSHOT_SCHEMA,
         extraParameters = querySchemaParameters,
-        responses = componentContext.querySchemaResponses(),
+        responses = querySchemaResponses,
     )
 
     private fun queryRoutes(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): List<HttpRouteContract> {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
@@ -146,7 +123,6 @@ object SnapshotRouteContributor : RouteContributor {
             snapshotRoute(
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
-                componentContext = componentContext,
                 handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
                 resourceName = SNAPSHOT,
                 operation = "count",
@@ -154,35 +130,33 @@ object SnapshotRouteContributor : RouteContributor {
                 appendTenantPath = variant.appendTenantPath,
                 appendOwnerPath = variant.appendOwnerPath,
                 appendPathSuffix = RouteSuffixes.SNAPSHOT_COUNT,
-                requestBody = componentContext.aggregatedCountQueryRequestBodyRef(aggregateMetadata),
+                requestBody = QueryComponents.aggregatedCountQueryRequestBody(aggregateMetadata),
                 responses = listOf(
-                    componentContext.countQueryResponseRef(),
-                    componentContext.requestTimeoutResponseRef(),
-                    componentContext.tooManyRequestsResponseRef()
+                    QueryComponents.countQueryResponse,
+                    CommonComponents.requestTimeoutResponse,
+                    CommonComponents.tooManyRequestsResponse
                 )
             ),
-            aggregationSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            listQuerySnapshotRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            listQuerySnapshotStateRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            pagedQuerySnapshotRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            pagedQuerySnapshotStateRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            cursorQuerySnapshotRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            cursorQuerySnapshotStateRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            singleSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext, variant),
-            singleSnapshotStateRoute(currentContext, aggregateRouteMetadata, componentContext, variant)
+            aggregationSnapshotRoute(currentContext, aggregateRouteMetadata, variant),
+            listQuerySnapshotRoute(currentContext, aggregateRouteMetadata, variant),
+            listQuerySnapshotStateRoute(currentContext, aggregateRouteMetadata, variant),
+            pagedQuerySnapshotRoute(currentContext, aggregateRouteMetadata, variant),
+            pagedQuerySnapshotStateRoute(currentContext, aggregateRouteMetadata, variant),
+            cursorQuerySnapshotRoute(currentContext, aggregateRouteMetadata, variant),
+            cursorQuerySnapshotStateRoute(currentContext, aggregateRouteMetadata, variant),
+            singleSnapshotRoute(currentContext, aggregateRouteMetadata, variant),
+            singleSnapshotStateRoute(currentContext, aggregateRouteMetadata, variant)
         )
     }
 
     private fun aggregationSnapshotRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
             resourceName = SNAPSHOT,
             operation = "aggregation",
@@ -191,13 +165,13 @@ object SnapshotRouteContributor : RouteContributor {
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_AGGREGATION,
             accept = STREAMING_ACCEPT,
-            requestBody = componentContext.aggregatedAggregationQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedAggregationQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
             responses = listOf(
-                componentContext.aggregationResponse(),
-                componentContext.requestTimeoutResponseRef(),
-                componentContext.tooManyRequestsResponseRef()
+                aggregationResponse,
+                CommonComponents.requestTimeoutResponse,
+                CommonComponents.tooManyRequestsResponse
             )
         )
     }
@@ -205,13 +179,11 @@ object SnapshotRouteContributor : RouteContributor {
     private fun listQuerySnapshotRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             resourceName = SNAPSHOT,
             operation = "list_query",
@@ -220,11 +192,11 @@ object SnapshotRouteContributor : RouteContributor {
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_LIST,
             accept = STREAMING_ACCEPT,
-            requestBody = componentContext.aggregatedListQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedListQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
             responses = listOf(
-                componentContext.materializedSnapshotListResponse(aggregateRouteMetadata.aggregateMetadata)
+                materializedSnapshotListResponse(aggregateRouteMetadata.aggregateMetadata)
             )
         )
     }
@@ -232,13 +204,11 @@ object SnapshotRouteContributor : RouteContributor {
     private fun listQuerySnapshotStateRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "list_query",
@@ -247,23 +217,21 @@ object SnapshotRouteContributor : RouteContributor {
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_LIST_STATE,
             accept = STREAMING_ACCEPT,
-            requestBody = componentContext.aggregatedListQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedListQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
-            responses = listOf(componentContext.stateListResponse(aggregateRouteMetadata.aggregateMetadata))
+            responses = listOf(stateListResponse(aggregateRouteMetadata.aggregateMetadata))
         )
     }
 
     private fun pagedQuerySnapshotRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
             resourceName = SNAPSHOT,
             operation = "paged_query",
@@ -271,11 +239,11 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_PAGED,
-            requestBody = componentContext.aggregatedPagedQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedPagedQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
             responses = listOf(
-                componentContext.materializedSnapshotPagedResponse(aggregateRouteMetadata.aggregateMetadata)
+                materializedSnapshotPagedResponse(aggregateRouteMetadata.aggregateMetadata)
             )
         )
     }
@@ -283,13 +251,11 @@ object SnapshotRouteContributor : RouteContributor {
     private fun pagedQuerySnapshotStateRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "paged_query",
@@ -297,23 +263,21 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_PAGED_STATE,
-            requestBody = componentContext.aggregatedPagedQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedPagedQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
-            responses = listOf(componentContext.statePagedResponse(aggregateRouteMetadata.aggregateMetadata))
+            responses = listOf(statePagedResponse(aggregateRouteMetadata.aggregateMetadata))
         )
     }
 
     private fun cursorQuerySnapshotRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
             resourceName = SNAPSHOT,
             operation = "cursor_query",
@@ -321,11 +285,11 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_CURSOR,
-            requestBody = componentContext.aggregatedCursorQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedCursorQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
             responses = listOf(
-                componentContext.materializedSnapshotCursorResponse(aggregateRouteMetadata.aggregateMetadata)
+                materializedSnapshotCursorResponse(aggregateRouteMetadata.aggregateMetadata)
             )
         )
     }
@@ -333,13 +297,11 @@ object SnapshotRouteContributor : RouteContributor {
     private fun cursorQuerySnapshotStateRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "cursor_query",
@@ -347,23 +309,21 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_CURSOR_STATE,
-            requestBody = componentContext.aggregatedCursorQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedCursorQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
-            responses = listOf(componentContext.stateCursorResponse(aggregateRouteMetadata.aggregateMetadata))
+            responses = listOf(stateCursorResponse(aggregateRouteMetadata.aggregateMetadata))
         )
     }
 
     private fun singleSnapshotRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
             resourceName = SNAPSHOT,
             operation = "single",
@@ -371,12 +331,12 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_SINGLE,
-            requestBody = componentContext.aggregatedSingleQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedSingleQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
             responses = listOf(
-                componentContext.materializedSnapshotSingleResponse(aggregateRouteMetadata.aggregateMetadata),
-                componentContext.notFoundResponseRef()
+                materializedSnapshotSingleResponse(aggregateRouteMetadata.aggregateMetadata),
+                CommonComponents.notFoundResponse
             )
         )
     }
@@ -384,13 +344,11 @@ object SnapshotRouteContributor : RouteContributor {
     private fun singleSnapshotStateRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         variant: TenantOwnerVariant
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "single",
@@ -398,25 +356,23 @@ object SnapshotRouteContributor : RouteContributor {
             appendTenantPath = variant.appendTenantPath,
             appendOwnerPath = variant.appendOwnerPath,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_SINGLE_STATE,
-            requestBody = componentContext.aggregatedSingleQueryRequestBodyRef(
+            requestBody = QueryComponents.aggregatedSingleQueryRequestBody(
                 aggregateRouteMetadata.aggregateMetadata,
             ),
             responses = listOf(
-                componentContext.stateSingleResponse(aggregateRouteMetadata.aggregateMetadata),
-                componentContext.notFoundResponseRef()
+                stateSingleResponse(aggregateRouteMetadata.aggregateMetadata),
+                CommonComponents.notFoundResponse
             )
         )
     }
 
     private fun loadSnapshotRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
             resourceName = SNAPSHOT,
             operation = "load",
@@ -426,19 +382,17 @@ object SnapshotRouteContributor : RouteContributor {
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
             appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = RouteSuffixes.SNAPSHOT,
-            responses = loadSnapshotResponses(aggregateRouteMetadata, componentContext)
+            responses = loadSnapshotResponses(aggregateRouteMetadata)
         )
     }
 
     private fun regenerateSnapshotRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
             resourceName = SNAPSHOT,
             operation = "regenerate",
@@ -450,20 +404,18 @@ object SnapshotRouteContributor : RouteContributor {
             appendPathSuffix = RouteSuffixes.SNAPSHOT,
             responses = listOf(
                 HttpResponse(Https.Code.OK),
-                componentContext.notFoundResponseRef()
+                CommonComponents.notFoundResponse
             )
         )
     }
 
     private fun batchRegenerateSnapshotRoute(
         currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): HttpRouteContract {
         return snapshotRoute(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = componentContext,
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE,
             resourceName = SNAPSHOT,
             operation = "batch_regenerate",
@@ -473,12 +425,12 @@ object SnapshotRouteContributor : RouteContributor {
             appendOwnerPath = false,
             appendPathSuffix = RouteSuffixes.SNAPSHOT_BATCH,
             extraParameters = listOf(
-                componentContext.batchAfterIdPathParameterRef(),
-                componentContext.batchLimitPathParameterRef()
+                BatchComponents.batchAfterIdPathParameter,
+                BatchComponents.batchLimitPathParameter
             ),
             responses = listOf(
-                componentContext.batchResultResponseRef(),
-                componentContext.requestTimeoutResponseRef()
+                BatchComponents.batchResultResponse,
+                CommonComponents.requestTimeoutResponse
             )
         )
     }
@@ -486,7 +438,6 @@ object SnapshotRouteContributor : RouteContributor {
     private fun snapshotRoute(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
         handlerKey: String,
         resourceName: String,
         operation: String,
@@ -521,7 +472,7 @@ object SnapshotRouteContributor : RouteContributor {
             handlerKey = handlerKey,
             summary = tenantOwnerSummary(operationSummary, appendTenantPath, appendOwnerPath),
             accept = accept,
-            parameters = componentContext.aggregateParameters(
+            parameters = aggregateParameters(
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 appendTenantPath = appendTenantPath,
                 appendOwnerPath = appendOwnerPath,
@@ -535,24 +486,23 @@ object SnapshotRouteContributor : RouteContributor {
     }
 
     private fun loadSnapshotResponses(
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext
+        aggregateRouteMetadata: AggregateRouteMetadata<*>
     ): List<HttpResponse> {
         return listOf(
             HttpResponse(
                 statusCode = Https.Code.OK,
-                headers = listOf(componentContext.errorCodeHeaderRef()),
+                headers = listOf(CommonComponents.errorCodeHeader),
                 content = listOf(
                     HttpContent(
                         Https.MediaType.APPLICATION_JSON,
                         HttpSchema.TypeRef(
                             Snapshot::class.java,
-                            listOf(aggregateRouteMetadata.aggregateMetadata.state.aggregateType)
+                            listOf(HttpSchema.TypeRef(aggregateRouteMetadata.aggregateMetadata.state.aggregateType))
                         )
                     )
                 )
             ),
-            componentContext.notFoundResponseRef()
+            CommonComponents.notFoundResponse
         )
     }
 

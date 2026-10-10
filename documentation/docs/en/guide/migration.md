@@ -24,6 +24,7 @@ A green local build can close the source gate. It does not close the other four.
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow 9.5.x | [Upgrading from 9.5 to 9.6.0](#upgrading-from-9-5-to-9-6-0) | `wow-openapi` route contracts become pure data: the OpenAPI document is unchanged; recompile, and update custom `RouteContributor`s and callers of `mergeOpenAPIFromCatalog` |
 | Wow 9.4.x | [Upgrading from 9.4 to 9.5.0](#upgrading-from-9-4-to-9-5-0) | `wow-schema` is refactored: generated schemas are unchanged; recompile, move `OpenAPISchemaBuilder` imports to `me.ahoo.wow.openapi.schema` (in `wow-openapi`), drop the removed `SchemaGeneratorBuilder` members, and replace any use of the now-internal schema providers and checks |
 | Wow 9.3.x | [Upgrading from 9.3 to 9.4.0](#upgrading-from-9-3-to-9-4-0) | Only `wow-bi` changes: rebuild each BI deployment once with a confirmed `RESET`, and move Kotlin callers of the removed `wow-bi` API to `BiScriptService` or `generate(prepare(…))`; REST, storage and wire formats of everything else are unchanged |
 | Wow 9.2.x | [Upgrading from 9.2 to 9.3.0](#upgrading-from-9-2-to-9-3-0) | Recompile, migrate the removed and deprecated APIs, and roll out processing nodes before gateway-only services; REST, storage and wire formats are unchanged |
@@ -62,6 +63,22 @@ Advance only when the current gate has reproducible evidence:
 
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
+
+## Upgrading from 9.5 to 9.6.0
+
+For `wow-openapi`, 9.6.0 makes route contracts pure data (design: `documentation/designs/2026-10-09-wow-openapi-refactor-design.md`). Routes, route ids and the generated OpenAPI document are unchanged. Code compiled against 9.5 must be recompiled; code that implements `RouteContributor` or builds route contracts needs the source changes below.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| Fix: `RouterSpecs.mergeOpenAPI` may be called concurrently: the document is rendered once (at startup through `buildDocumentation()`), and every call merges a copy of it without generating schemas or blocking | Services that render the document from several threads, such as several Springdoc groups | Nothing |
+| Rendering errors, such as two different components sharing a key, now fail application startup when Springdoc is present (the document is rendered by `buildDocumentation()`), instead of the first `/v3/api-docs` request; a first `mergeOpenAPI` on an event-loop thread fails and asks for `buildDocumentation()` | Applications serving the OpenAPI document; library code calling `mergeOpenAPI` itself | Fix the reported route contract; call `buildDocumentation()` at startup before merging on a request thread |
+| Fix: with a context that inlines schemas (`OpenAPIComponentContext.default(inline = true)`), components are inlined instead of referenced by a `$ref` to a component that was never registered | Documents rendered with an inlining context | Nothing |
+| `RouteContributor.contributeGlobal(currentContext)` and `contributeAggregate(currentContext, aggregateRouteMetadata)` lose the `componentContext` parameter; `id`, `order` and `category` are removed, with `RouteContributors` and `RouteCategory` | Custom contributors | Drop the parameter and the three properties (the catalog orders routes itself). Instead of registering components or generating schemas while building a contract, reference them: `HttpSchema.TypeRef(type, typeArguments)` for a schema, `HttpComponent.parameter(key) { … }` (or `header`, `requestBody`, `response`) for a component |
+| `componentRef: String?` on `HttpParameter`, `HttpHeader`, `HttpRequestBody` and `HttpResponse` becomes `component: HttpComponent<…>?`; `HttpRouteContract.pathSummary` and `pathDescription` are removed | Code that builds or reads contracts | Pass an `HttpComponent` made by its factories; the renderer registers it under its key, and component keys must be unique. A path summary or description different from the first route's can no longer be set: the path item takes the summary and description of its first route |
+| `HttpSchema.TypeRef(mainTargetType, typeParameters: List<Type>)` becomes `TypeRef(type, typeArguments: List<TypeRef>)`; `HttpSchema.ComponentRef`, `Long`, `Boolean`, `Formatted` and `Unspecified` are removed | Code that builds contract schemas | Wrap type arguments in `TypeRef`; reference a schema component by its type with `TypeRef`; use `Raw` for a static schema |
+| `RouterSpecs.mergeOpenAPIFromCatalog` is removed | Callers | Call `mergeOpenAPI` |
+| The component builder functions of `CommonComponent`, `BatchComponent`, `QueryComponent`, `CommandComponent` and `EventComponent` (`errorCodeHeader()`, `badRequestResponse()`, …) are removed; their constants stay | Code that called them | Reference the routes' components through the contracts of the built-in contributors, or define your own `HttpComponent` |
+| `OpenAPIComponentContext.componentSchema` has no default implementation; `OpenApiRenderer` requires a context | Custom `OpenAPIComponentContext` implementations | Implement `componentSchema` |
 
 ## Upgrading from 9.4 to 9.5.0
 

@@ -18,20 +18,12 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
-import me.ahoo.wow.openapi.CommonComponent.Parameter.createTimePathParameter
-import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
-import me.ahoo.wow.openapi.CommonComponent.Parameter.ownerIdPathParameter
-import me.ahoo.wow.openapi.CommonComponent.Parameter.spaceIdHeaderParameter
-import me.ahoo.wow.openapi.CommonComponent.Parameter.tenantIdPathParameter
-import me.ahoo.wow.openapi.CommonComponent.Parameter.versionPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.component.CommonComponents
 import me.ahoo.wow.openapi.contract.HttpParameter
-import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpTag
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
-import me.ahoo.wow.rest.WowHeaders.SPACE_ID
 import me.ahoo.wow.serialization.MessageRecords
 
 private const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
@@ -141,7 +133,7 @@ internal fun aggregateTags(aggregateMetadata: AggregateMetadata<*, *>): List<Htt
     }
 }
 
-internal fun OpenAPIComponentContext.aggregateParameters(
+internal fun aggregateParameters(
     aggregateRouteMetadata: AggregateRouteMetadata<*>,
     appendTenantPath: Boolean,
     appendOwnerPath: Boolean,
@@ -149,45 +141,16 @@ internal fun OpenAPIComponentContext.aggregateParameters(
 ): List<HttpParameter> {
     return buildList {
         if (appendTenantPath) {
-            tenantIdPathParameter()
-            add(componentPathParameter(MessageRecords.TENANT_ID))
+            add(CommonComponents.tenantIdPathParameter)
         }
         if (appendOwnerPath) {
-            ownerIdPathParameter()
-            add(componentPathParameter(MessageRecords.OWNER_ID))
+            add(CommonComponents.ownerIdPathParameter)
         }
         if (appendIdPath) {
-            idPathParameter()
-            add(componentPathParameter(MessageRecords.ID))
+            add(CommonComponents.idPathParameter)
         }
         if (aggregateRouteMetadata.spaced) {
-            spaceIdHeaderParameter()
-            add(
-                HttpParameter(
-                    name = SPACE_ID,
-                    location = HttpParameterLocation.HEADER,
-                    componentRef = "wow.$SPACE_ID"
-                )
-            )
+            add(CommonComponents.spaceIdHeaderParameter)
         }
     }
-}
-
-internal fun OpenAPIComponentContext.versionPathParameterRef(): HttpParameter {
-    versionPathParameter()
-    return componentPathParameter(MessageRecords.VERSION)
-}
-
-internal fun OpenAPIComponentContext.createTimePathParameterRef(): HttpParameter {
-    createTimePathParameter()
-    return componentPathParameter(MessageRecords.CREATE_TIME)
-}
-
-private fun componentPathParameter(name: String): HttpParameter {
-    return HttpParameter(
-        name = name,
-        location = HttpParameterLocation.PATH,
-        required = true,
-        componentRef = "wow.$name"
-    )
 }

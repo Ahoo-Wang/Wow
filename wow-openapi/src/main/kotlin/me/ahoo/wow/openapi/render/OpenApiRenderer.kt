@@ -1,7 +1,7 @@
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
- * You may not use this file except in compliance with the License.
+ * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *      http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
@@ -13,13 +13,14 @@
 
 package me.ahoo.wow.openapi.render
 
+import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.headers.Header
 import io.swagger.v3.oas.models.media.ArraySchema
-import io.swagger.v3.oas.models.media.BooleanSchema
 import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.MediaType
@@ -33,7 +34,13 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCatalog
+import me.ahoo.wow.openapi.context.HttpComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_HEADERS_REF
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_RESPONSES_REF
+import me.ahoo.wow.openapi.contract.HttpComponent
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -42,8 +49,26 @@ import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
+import java.lang.reflect.Type
 
-class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = null) {
+/**
+ * Renders a [RouteCatalog] into an OpenAPI 3.1 document. Contracts only reference schemas and components; the renderer
+ * resolves them with [componentContext]: it generates the schema of each [HttpSchema.TypeRef], builds each
+ * [HttpComponent] once, and finally merges every component the context holds into the document.
+ *
+ * A renderer renders one document. Neither it nor [componentContext] is thread-safe, so renders that share a context
+ * must not run concurrently. Rendering generates schemas, which may block: `RouterSpecs` renders once and merges
+ * copies of that document.
+ */
+class OpenApiRenderer(private val componentContext: OpenAPIComponentContext) {
+    /** The components built in this render, and what they built, by `$ref`. */
+    private val builtComponents = mutableMapOf<String, Pair<HttpComponent<*>, Any>>()
+
+    private val buildContext: HttpComponentContext = object :
+        HttpComponentContext,
+        OpenAPIComponentContext by componentContext {
+        override fun <T : Any> ref(component: HttpComponent<T>): T = component.render()
+    }
 
     fun render(catalog: RouteCatalog, openAPI: OpenAPI): OpenAPI {
         openAPI
@@ -56,10 +81,10 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
         catalog.routes.groupBy { it.path }.forEach { (path, routes) ->
             val pathItem = openAPI.paths[path] ?: PathItem()
             val pathMetadata = routes.first()
-            pathMetadata.pathSummary.takeIf { it.isNotBlank() }?.let {
+            pathMetadata.summary.takeIf { it.isNotBlank() }?.let {
                 pathItem.summary = it
             }
-            pathMetadata.pathDescription.takeIf { it.isNotBlank() }?.let {
+            pathMetadata.description.takeIf { it.isNotBlank() }?.let {
                 pathItem.description = it
             }
             routes.forEach { route ->
@@ -74,10 +99,74 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
             .forEach { tag ->
                 openAPI.addTagsItem(Tag().name(tag.name).description(tag.description))
             }
+        componentContext.finish()
+        mergeComponents(openAPI)
         return openAPI
     }
 
-    private fun HttpRouteContract.toOperation() = io.swagger.v3.oas.models.Operation().also { operation ->
+    private fun mergeComponents(openAPI: OpenAPI) {
+        val components = openAPI.components ?: Components().also { openAPI.components = it }
+        componentContext.schemas.forEach { (name, schema) ->
+            components.addSchemas(name, schema)
+        }
+        componentContext.parameters.forEach { (name, parameter) ->
+            components.addParameters(name, parameter)
+        }
+        componentContext.headers.forEach { (name, header) ->
+            components.addHeaders(name, header)
+        }
+        componentContext.requestBodies.forEach { (name, requestBody) ->
+            components.addRequestBodies(name, requestBody)
+        }
+        componentContext.responses.forEach { (name, response) ->
+            components.addResponses(name, response)
+        }
+    }
+
+    /**
+     * Builds this component unless this render already did, and returns what a reference to it renders as: the built
+     * component when the context inlines schemas, otherwise a fresh `$ref`. A different component with a key already
+     * built is built too, and rejected unless it registers the same component.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Any> HttpComponent<T>.render(): T {
+        val (refPrefix, registered) = section()
+        val ref = refPrefix + key
+        val built = builtComponents[ref]
+        val result = when {
+            built == null -> build(buildContext).also { builtComponents[ref] = this to it }
+            built.first === this -> built.second
+            else -> {
+                val previous = if (componentContext.inline) built.second else registered[key]
+                val current = build(buildContext)
+                check((if (componentContext.inline) current else registered[key]) == previous) {
+                    "Two different components share the key [$key]: component keys must be unique."
+                }
+                built.second
+            }
+        } as T
+        if (componentContext.inline) {
+            return result
+        }
+        return reference(ref) as T
+    }
+
+    /** The `$ref` prefix and the registered components of this component's section. */
+    private fun HttpComponent<*>.section(): Pair<String, Map<String, *>> = when (kind) {
+        HttpComponent.Kind.PARAMETER -> COMPONENTS_PARAMETERS_REF to componentContext.parameters
+        HttpComponent.Kind.HEADER -> COMPONENTS_HEADERS_REF to componentContext.headers
+        HttpComponent.Kind.REQUEST_BODY -> COMPONENTS_REQUEST_BODIES_REF to componentContext.requestBodies
+        HttpComponent.Kind.RESPONSE -> COMPONENTS_RESPONSES_REF to componentContext.responses
+    }
+
+    private fun HttpComponent<*>.reference(ref: String): Any = when (kind) {
+        HttpComponent.Kind.PARAMETER -> Parameter().`$ref`(ref)
+        HttpComponent.Kind.HEADER -> Header().`$ref`(ref)
+        HttpComponent.Kind.REQUEST_BODY -> RequestBody().`$ref`(ref)
+        HttpComponent.Kind.RESPONSE -> ApiResponse().`$ref`(ref)
+    }
+
+    private fun HttpRouteContract.toOperation() = Operation().also { operation ->
         operation.operationId = routeId
         operation.summary = summary
         operation.description = description
@@ -88,10 +177,8 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
     }
 
     private fun HttpParameter.toParameter(): Parameter {
-        componentRef?.let { componentRef ->
-            return Parameter().also {
-                it.`$ref` = COMPONENTS_PARAMETERS_REF + componentRef
-            }
+        component?.let { component ->
+            return component.render()
         }
         return Parameter()
             .name(name)
@@ -111,10 +198,8 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
     }
 
     private fun HttpRequestBody.toRequestBody(): RequestBody {
-        componentRef?.let { componentRef ->
-            return RequestBody().also {
-                it.`$ref` = COMPONENTS_REQUEST_BODIES_REF + componentRef
-            }
+        component?.let { component ->
+            return component.render()
         }
         return RequestBody()
             .description(description)
@@ -137,10 +222,8 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
     }
 
     private fun HttpResponse.toApiResponse(): ApiResponse {
-        componentRef?.let { componentRef ->
-            return ApiResponse().also {
-                it.`$ref` = COMPONENTS_RESPONSES_REF + componentRef
-            }
+        component?.let { component ->
+            return component.render()
         }
         return ApiResponse()
             .description(description)
@@ -161,10 +244,8 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
     }
 
     private fun HttpHeader.toHeader(): Header {
-        componentRef?.let { componentRef ->
-            return Header().also {
-                it.`$ref` = COMPONENTS_HEADERS_REF + componentRef
-            }
+        component?.let { component ->
+            return component.render()
         }
         return Header()
             .description(description)
@@ -185,24 +266,25 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
     private fun HttpSchema.toSchema(): Schema<*> {
         return when (this) {
             HttpSchema.String -> StringSchema()
-            HttpSchema.Boolean -> BooleanSchema()
             HttpSchema.Integer -> IntegerSchema()
-            HttpSchema.Long -> IntegerSchema().format("int64")
             HttpSchema.Object -> ObjectSchema()
-            HttpSchema.Unspecified -> Schema<Any>()
-            is HttpSchema.Formatted -> Schema<Any>().format(format)
-            is HttpSchema.TypeRef -> requireNotNull(componentContext) {
-                "OpenAPIComponentContext is required to render TypeRef schema."
-            }.schema(mainTargetType, *typeParameters.toTypedArray())
+            is HttpSchema.TypeRef -> componentContext.schema(type, *typeArguments.resolveAll())
             is HttpSchema.Array -> ArraySchema().items(item.toSchema())
-            is HttpSchema.ComponentRef -> Schema<Any>().also {
-                it.`$ref` = COMPONENTS_SCHEMAS_REF + key
-            }
             is HttpSchema.Raw -> schema
         }
     }
 
-    private fun PathItem.addOperation(method: String, operation: io.swagger.v3.oas.models.Operation) {
+    private fun List<HttpSchema.TypeRef>.resolveAll(): Array<Type> = map { it.resolve() }.toTypedArray()
+
+    /** The type a type argument names: its raw type, or the type resolved with its own arguments. */
+    private fun HttpSchema.TypeRef.resolve(): Type {
+        if (typeArguments.isEmpty()) {
+            return type
+        }
+        return componentContext.resolveType(type, *typeArguments.resolveAll())
+    }
+
+    private fun PathItem.addOperation(method: String, operation: Operation) {
         when (method.uppercase()) {
             Https.Method.GET -> get(operation)
             Https.Method.POST -> post(operation)
@@ -218,10 +300,5 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
 
     companion object {
         private const val OPENAPI_VERSION_3_1 = "3.1.0"
-        private const val COMPONENTS_SCHEMAS_REF = "#/components/schemas/"
-        private const val COMPONENTS_PARAMETERS_REF = "#/components/parameters/"
-        private const val COMPONENTS_REQUEST_BODIES_REF = "#/components/requestBodies/"
-        private const val COMPONENTS_RESPONSES_REF = "#/components/responses/"
-        private const val COMPONENTS_HEADERS_REF = "#/components/headers/"
     }
 }
