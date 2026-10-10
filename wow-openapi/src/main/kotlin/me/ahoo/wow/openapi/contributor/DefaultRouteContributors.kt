@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi.contributor
 
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contributor.aggregate.command.CommandRouteContributor
 import me.ahoo.wow.openapi.contributor.aggregate.event.EventRouteContributor
@@ -29,7 +28,6 @@ import me.ahoo.wow.openapi.contributor.global.GetWowMetadataRouteContributor
  * ([me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor]) is added only where BI is wired, for
  * example by the Spring Boot starter when `wow-bi` is on the classpath.
  */
-@InternalWowApi
 object DefaultRouteContributors {
     fun all(): List<RouteContributor> {
         return listOf(

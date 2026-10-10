@@ -473,6 +473,11 @@ public final class me/ahoo/wow/openapi/contract/HttpTag {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/openapi/contributor/DefaultRouteContributors {
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contributor/DefaultRouteContributors;
+	public final fun all ()Ljava/util/List;
+}
+
 public final class me/ahoo/wow/openapi/converter/BoundedContextSchemaNameConverter : io/swagger/v3/core/converter/ModelConverter {
 	public fun <init> ()V
 	public fun resolve (Lio/swagger/v3/core/converter/AnnotatedType;Lio/swagger/v3/core/converter/ModelConverterContext;Ljava/util/Iterator;)Lio/swagger/v3/oas/models/media/Schema;
