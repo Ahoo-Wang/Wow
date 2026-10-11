@@ -74,6 +74,22 @@ jobs:
       - name: Check compatibility-debt ledger
         run: node .github/scripts/compat-debt.mjs
 
+  # Every pull request: tracked files follow the canonical locations of the
+  # documentation governance page. It reads only `git ls-files`.
+  docs-layout:
+    name: Documentation layout
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+      - name: Check documentation layout
+        run: node .github/scripts/docs-layout.mjs
+
   quality:
     name: Quality
     needs: scope
@@ -466,6 +482,7 @@ jobs:
         docs,
         workflow-lint,
         compat-debt,
+        docs-layout,
       ]
     if: always()
     timeout-minutes: 5

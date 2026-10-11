@@ -113,9 +113,9 @@ When you add compatibility code, add its marker and list the file under an entry
 ### fetcher-generator CLI Alias
 
 - **Kept compatible**: `@ahoo-wang/wow-generator` installs its CLI under two names, `wow-generator` and `fetcher-generator` (the `bin` field of `typescript/wow-generator/package.json`), so project scripts that call `fetcher-generator generate` keep working.
-- **Markers**: `typescript/wow-generator/src/cli/program.ts`
+- **Markers**: `typescript/wow-generator/src/cli/program.ts`, `typescript/wow-generator/src/fetcherGeneratorCli.ts` (the bin, which prints a deprecation notice to stderr before it runs)
 - **Replacement**: `wow-generator generate`.
-- **Removal in v10**: delete the `fetcher-generator` entry from `bin` and the marker.
+- **Removal in v10**: delete the `fetcher-generator` entry from `bin`, `src/fetcherGeneratorCli.ts` with its build entry, and the marker.
 
 ### fetcher-generator File Names
 

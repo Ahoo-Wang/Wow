@@ -10,10 +10,6 @@
 
 ## 以后
 
-### wow-client
-
-- **聚合参考页按任务重写**（X-1）：「聚合构造器」一页信息密度过高、读起来像译文。判据：按「分组、指标、过滤、派生、排序与分页」等任务组织，每节一个可运行示例，中英两版结构一致。落点：`documentation/docs/{en,zh}/reference/typescript/wow-client/aggregations.md`。
-
 ### wow-react
 
 - **README 写明 SSR 的边界与同端点判定**（R-8、R-14）：SSR 只做到「首帧 loading、不请求」，没有 `initialResult`；两个没有名字、`baseURL` 相同的 Fetcher 被当作同一个端点（例如按租户各建一个只差拦截器的 Fetcher，切换时不会重新查询）。判据：中英 README 各有一段说明这两点及绕法（给 Fetcher 起名）。落点：`wow-react/README.md`、`README.zh-CN.md`。
@@ -24,7 +20,4 @@
 
 ### wow-generator
 
-- **`--help` 不说退出码；以旧名调用时不提示弃用**（G-7）：退出码只在 `EXIT_CODES` 与 README 里；以 `fetcher-generator` 调用时没有任何提示。判据：`generate --help` 列出退出码；以 `fetcher-generator` 调用时向 stderr 打印一行弃用提示（v10 移除别名）。落点：`wow-generator/src/cli/program.ts`。
-- **覆盖率门槛低于实测**（G-10）：门槛 97/92.5/98.5/98，审查时实测约 98.4/95.2/100/99.2。判据：抬到约 98/94.5/99.5/98.5。落点：`wow-generator/vitest.config.ts`。
-- **`SchemaDocs` 没有导出**（G-11）：`GeneratorOptions.schemaDocs` 的类型 `SchemaDocs` 不在包入口，调用方只能写字面量。判据：入口导出 `SchemaDocs`（新增导出，不破坏兼容），API 报告随之更新。落点：`wow-generator/src/index.ts`。
 - **生成代码里仅剩的 `any`**（X-3）：无类型的事件流生成为 `JsonServerSentEventStream<any>`。判据：改为 `unknown`（或可推出的类型），golden 随之更新；作为生成代码的形状变化，只在 `x.Y.0` 做。落点：`wow-generator/src/emitters/apiClients.ts`。

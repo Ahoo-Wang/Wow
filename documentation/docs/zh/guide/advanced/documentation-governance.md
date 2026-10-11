@@ -29,10 +29,13 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 | 跨 JVM 模块或全仓的设计记录 | 维护者 | `documentation/designs/` |
 | 单个 TypeScript 包或应用的设计 | 该包的维护者 | `<package>/docs/design/` |
 | 已决定待完成事项的台账 | 维护者 | `docs/compat-debt.md`（保留到 v10 的兼容）、`docs/todo.md`（JVM）、`typescript/TODO.md`（wow-client、wow-react、wow-generator）、`typescript/wow-view-engine/docs/design/todo.md`（视图引擎与视图存储）、`typescript/MIGRATION.md`（从 fetcher 迁入的包） |
-| 发布手册 | 发布维护者 | `AGENTS.md`（版本、兼容性、CI）、`typescript/RELEASING.md`、`typescript/RELEASE_NOTES_TEMPLATE.md` |
+| 发布手册 | 发布维护者 | `AGENTS.md`（版本、兼容性、CI）、`typescript/RELEASING.md`、`typescript/RELEASE_NOTES_TEMPLATE.md`；次版本的发布说明草稿放在 `typescript/release-notes/v<版本>.md`，发布后删除 |
 | 可复现性能证据 | 维护者 | `wow-benchmarks/results/` |
 | Agent 能力 | 编码 Agent | `skills/`；第三方 Skill 副本放在 `.claude/skills/` |
 | 已发布模块用法 | 模块使用者 | `<module>/README.md` 与 `README.zh-CN.md` |
+| Storybook 的场景目录 | Storybook 维护者 | `typescript/storybook/docs/scenarios.md` |
+| 第三方声明 | 包的使用者 | `typescript/<package>/THIRD_PARTY_NOTICES.md` |
+| Issue 与 Pull Request 模板 | 贡献者 | `.github/ISSUE_TEMPLATE/`、`.github/PULL_REQUEST_TEMPLATE` |
 | 生成的合同 | 评审者 | `<module>/api/*.api`、`typescript/*/test/api/*.api.md`、`typescript/*/test/surface/*.txt` |
 
 不要在 `document/` 或 `docs/superpowers/` 下跟踪文件。`docs/superpowers/` 继续作为 ignored 的本地 Agent 工作区，禁止 force-add 其中的 Spec、Plan、报告或 review package。
@@ -116,16 +119,16 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 6. 在 Pull Request 正文列出迁移与删除路径，不再提交另一份清理报告；
 7. 每批完成构建和 review 后再开始下一批。
 
-## 计划中的自动检查
+## 自动检查
 
-后续独立 Pull Request 会增加文档布局检查。启用后，遇到以下情况失败：
+`.github/scripts/docs-layout.mjs`（`pnpm check:docs-layout`）作为 `typescript.yml` 的 `docs-layout` 作业在每个 Pull Request 上运行，计入 `typescript-gate`。它只读取受跟踪的文件，遇到以下情况失败：
 
-- `document/` 或 `docs/superpowers/` 出现受跟踪文件；
-- Markdown 出现在[规范目录](#规范目录)与 `.github/` 模板之外；
-- Mermaid 支持的图新增 PlantUML 或生成的图表 SVG；
-- 使用锁定依赖无法构建 VitePress 站点。
+- `document/` 或 `docs/superpowers/` 下有受跟踪的文件；
+- Markdown 出现在[规范目录](#规范目录)之外；
+- PlantUML 出现在 `documentation/diagrams/` 之外；
+- SVG 与同名的 `.mmd` 或 PlantUML 图源放在一起。
 
-检查复用仓库脚本和现有工具链，不增加另一套文档框架或归档目录。该检查合并前由 reviewer 人工执行治理规则；本文不声称当前 CI 已经能够拒绝布局违规。
+同一工作流的 Documentation 作业在文档站或其示例变化时，用锁定的依赖构建 VitePress 站点。该检查只看结构：文档是否仍然有效、是否只有一个归属、是否是改头换面的工作材料，仍由 review 判断。
 
 ## Review 清单
 
@@ -136,4 +139,4 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 - 每个保留实验是否可复现并归属 `wow-benchmarks`？
 - 被删除路径是否已无入站链接？
 - Pull Request 是否避免提交 Plan、评审记录、生成构建输出和本地 Agent 状态？
-- VitePress 构建和 `git diff --check` 是否通过？
+- 文档布局检查、VitePress 构建和 `git diff --check` 是否通过？

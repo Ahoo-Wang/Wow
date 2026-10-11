@@ -24,6 +24,7 @@ vi.mock('commander', () => ({
     command: vi.fn().mockReturnThis(),
     requiredOption: vi.fn().mockReturnThis(),
     option: vi.fn().mockReturnThis(),
+    addHelpText: vi.fn().mockReturnThis(),
     action: vi.fn().mockReturnThis(),
     parse: vi.fn(),
     parseAsync: vi.fn().mockResolvedValue(undefined),
@@ -40,6 +41,8 @@ vi.mock('../../src/version', () => ({ VERSION: '2.1.2' }));
 
 import { program } from 'commander';
 import { collect, setupCLI, runCLI } from '../../src/cli';
+import { EXIT_CODE_HELP } from '../../src/cli/program';
+import { EXIT_CODES } from '../../src/api/errors';
 import { generateAction } from '../../src/cli/runGenerate';
 
 describe('CLI setup', () => {
@@ -109,6 +112,12 @@ describe('CLI setup', () => {
       'Log only warnings and errors',
     );
     expect(result.action).toHaveBeenCalledWith(generateAction);
+    expect(result.addHelpText).toHaveBeenCalledWith('after', EXIT_CODE_HELP);
+  });
+
+  it('lists every exit code in the help of generate', () => {
+    for (const code of Object.values(EXIT_CODES))
+      expect(EXIT_CODE_HELP).toMatch(new RegExp(`^  ${code} +\\S`, 'm'));
   });
 
   it('collects repeated --header values', () => {
