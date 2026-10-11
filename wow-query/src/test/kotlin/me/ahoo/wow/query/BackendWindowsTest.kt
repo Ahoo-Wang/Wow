@@ -249,7 +249,10 @@ class BackendWindowsTest {
             groupBy = listOf(month),
             metrics = listOf(gmv, derived("previous", DerivedExpression.Previous("gmv", "month"))),
         )
-        assertThrows<QuerySchemaValidationException> { QueryAdmission.Trusted.aggregate(query, schema) }
+        val noPrevious = schema.withAggregation(
+            AggregationSupport(windows = AggregationSupport.RESIDUAL_WINDOWS - WindowFunction.PREVIOUS),
+        )
+        assertThrows<QuerySchemaValidationException> { QueryAdmission.Trusted.aggregate(query, noPrevious) }
             .violation.assert().isEqualTo(QueryViolation.StorageUnsupported("the PREVIOUS window"))
         val total = query.copy(metrics = listOf(gmv, derived("total", DerivedExpression.Total("gmv"))))
         val none = schema.withAggregation(AggregationSupport(windows = emptyMap()))
@@ -275,11 +278,8 @@ class BackendWindowsTest {
     }
 
     @Test
-    fun `PREVIOUS has no residual implementation`() {
-        assertThrows<IllegalArgumentException> {
-            AggregationSupport(windows = mapOf(WindowFunction.PREVIOUS to SupportMode.RESIDUAL))
-        }
-        AggregationSupport().window(WindowFunction.PREVIOUS).assert().isEqualTo(SupportMode.NONE)
+    fun `every window is residual by default`() {
+        WindowFunction.entries.forEach { AggregationSupport().window(it).assert().isEqualTo(SupportMode.RESIDUAL) }
         val query = AggregationQuery(
             groupBy = listOf(month),
             metrics = listOf(gmv, derived("previous", DerivedExpression.Previous("gmv", "month"))),

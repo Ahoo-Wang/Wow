@@ -311,6 +311,7 @@ data class BindingError(
             QueryErrorCodes.SORT_FIELD_DUPLICATE,
             QueryErrorCodes.IDENTITY_UNDEFINED,
             QueryErrorCodes.STORAGE_UNSUPPORTED,
+            QueryErrorCodes.PREVIOUS_UNSHIFTABLE,
         ],
     )
     val code: String? = null,
