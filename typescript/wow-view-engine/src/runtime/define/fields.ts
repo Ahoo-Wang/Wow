@@ -236,6 +236,10 @@ function kindOf(
   spec: FieldSpec,
 ): FieldKindId | null {
   if (spec.elements) return 'elementMatch';
+  // A yes-or-no keeps its kind under `options`: there they name its two
+  // answers (「新客」「老客」), they do not make it a category.
+  if (!described.enum && raw?.types?.length === 1 && raw.types[0] === 'BOOLEAN')
+    return 'boolean';
   if (described.enum || spec.options) return 'enum';
   const temporal = described.semantic?.type;
   if (temporal === 'TEMPORAL_DATE') return 'date';

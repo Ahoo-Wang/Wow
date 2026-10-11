@@ -269,11 +269,16 @@ const ORDER_FIELDS: FieldDefinition[] = [
   text('state.buyer.nick', '买家昵称'),
   enumField('state.buyer.level', '会员等级', LEVEL_OPTIONS),
   {
-    // 只在这个买家第一张已付款的子单上为真。
+    // 只在这个买家第一张已付款的子单上为真。两个答案各有名字：按它拆分时系列
+    // 叫「新客」「老客」，不是「新客：是」「新客：否」（Storybook 审查 P2）。
     name: 'state.buyer.isNewBuyer',
     label: '新客',
     kind: 'boolean',
     sortable: true,
+    options: [
+      { value: 'true', label: '新客' },
+      { value: 'false', label: '老客' },
+    ],
   },
   enumField('state.status', '订单状态', STATUS_OPTIONS, { cell: 'status' }),
   enumField(

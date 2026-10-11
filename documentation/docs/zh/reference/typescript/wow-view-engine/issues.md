@@ -348,6 +348,7 @@ export type IssuePath = (string | number)[];
 | `definition.analysis.wider` | 数据源的分析不提供 {what}。 |
 | `definition.descriptor.missing` | 没有给数据源 {source} 的描述，它的能力没有核对。 |
 | `definition.field.analysis-wider` | {field} 在数据源上不能用于分析的 {what}。 |
+| `definition.field.boolean-option` | {field} 是是非字段，选项只能写 "true" 与 "false"，不能是 {value}。 |
 | `definition.field.cell-invalid` | {field} 声明了未知的单元格读法：{value}。 |
 | `definition.field.deprecated` | {field} 已被数据源弃用（{message}），保留它请写明理由。 |
 | `definition.field.duplicate` | 字段 {field} 声明了两次。 |
@@ -524,6 +525,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.not_projectable` | 「{field}」不能作为这份数据的列显示。 |
 | `runtime.query.failed.not_single_string` | 「{field}」不是单个文本，不能判断是否为空。 |
 | `runtime.query.failed.parallel_array_sort` | 「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。 |
+| `runtime.query.failed.previous_unshiftable` | 与上一期对比要把「{field}」的时间范围前移，但筛选里对它的条件没法前移；把它的条件放在最外层的「且」里。 |
 | `runtime.query.failed.protected_aggregation` | 「{field}」受保护，不能用来汇总。 |
 | `runtime.query.failed.protected_comparison` | 「{field}」受保护，不能用来筛选、排序或搜索。 |
 | `runtime.query.failed.residual_groups_exceeded` | 这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。 |

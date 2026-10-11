@@ -242,7 +242,7 @@ aggregation {
 - `null` 值不参与合计与累计，全为 `null` 时结果为 `null`；`null` 值没有名次；`RUNNING` 在 `order` 上并列的分组按其余 group key 升序排列；
 - 空桶补齐（`dense`）与窗口可以同时使用：补齐的桶参与累计。
 
-能力按函数声明：`QueryModelDescriptor` 的 `analysis.windows` 列出存储支持的窗口函数。没有原生实现的存储由查询服务在取回全部分组后计算（RESIDUAL），读取的分组数受 `wow.query.http.max-residual-groups` 限制，超出即以 `RESIDUAL_GROUPS_EXCEEDED` 拒绝，而不是在截断的结果上算错。上一期的值来自**平移后的时间范围**：filter 顶层 AND 里对 `along` 字段的条件（比较、`BETWEEN`、`IN` 与相对时间降级后的范围）整体按 `shift`（或 `period`）在分组时区的日历上前移，其余条件不变，查询服务据此再读一次分组，按「其余 group key 相同、`along` 桶前移」对上；filter 对该字段没有条件时直接取本次结果里前移的桶。对该字段的条件出现在 OR、NOR、`ELEMENT_MATCH`、`EXPRESSION` 或 `SEARCH` 之下，或取值不是时间点时，范围无法平移，查询在准入时以 `PREVIOUS_UNSHIFTABLE` 拒绝。上一期没有对应分组时结果为 `null`，引用它的算术也是 `null`。
+能力按函数声明：`QueryModelDescriptor` 的 `analysis.windows` 列出存储支持的窗口函数。ClickHouse 用窗口函数（`sum(...) OVER`、`dense_rank()`）、MongoDB 用 `$setWindowFields` 原生计算 `TOTAL`、`RUNNING`、`RANK`，`PREVIOUS` 与 Elasticsearch 上的全部窗口由查询服务计算；两条路径的结果一致，由 TCK 在同一份期望上验证。没有原生实现的存储由查询服务在取回全部分组后计算（RESIDUAL），读取的分组数受 `wow.query.http.max-residual-groups` 限制，超出即以 `RESIDUAL_GROUPS_EXCEEDED` 拒绝，而不是在截断的结果上算错。上一期的值来自**平移后的时间范围**：filter 顶层 AND 里对 `along` 字段的条件（比较、`BETWEEN`、`IN` 与相对时间降级后的范围）整体按 `shift`（或 `period`）在分组时区的日历上前移，其余条件不变，查询服务据此再读一次分组，按「其余 group key 相同、`along` 桶前移」对上；filter 对该字段没有条件时直接取本次结果里前移的桶。对该字段的条件出现在 OR、NOR、`ELEMENT_MATCH`、`EXPRESSION` 或 `SEARCH` 之下，或取值不是时间点时，范围无法平移，查询在准入时以 `PREVIOUS_UNSHIFTABLE` 拒绝。上一期没有对应分组时结果为 `null`，引用它的算术也是 `null`。
 
 ```kotlin
 aggregation {

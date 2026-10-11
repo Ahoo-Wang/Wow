@@ -32,6 +32,7 @@ import {
   type AnalysisViewConfig,
   type ChartData,
   type DataViewDefinition,
+  type FieldDefinition,
   type RecordData,
 } from '../src/index.js';
 import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
@@ -64,10 +65,13 @@ function formatters(catalogue: ViewMessages): MessageFormatters {
   };
 }
 
-function definition(): DataViewDefinition {
+function definition(isNew: Partial<FieldDefinition> = {}): DataViewDefinition {
   const base = ordersDefinition();
   return ordersDefinition({
-    fields: [...base.fields, { name: 'isNew', label: '新客', kind: 'boolean' }],
+    fields: [
+      ...base.fields,
+      { name: 'isNew', label: '新客', kind: 'boolean', ...isNew },
+    ],
     analysis: {
       ...base.analysis!,
       fields: [
@@ -86,8 +90,9 @@ function chartOf(
   config: AnalysisViewConfig,
   rows: RecordData[],
   messages: ViewMessages = zhCN,
+  defined: DataViewDefinition = definition(),
 ) {
-  const view = projectAnalysis(definition(), config, rows);
+  const view = projectAnalysis(defined, config, rows);
   render(
     <ViewSurface messages={messages}>
       <AnalysisChart
@@ -222,6 +227,19 @@ describe('a split by a yes/no field', () => {
       'isNew=true',
       'isNew=false',
     ]);
+  });
+
+  it('names each answer alone where the field names its answers (新客／老客)', () => {
+    const named = definition({
+      options: [
+        { value: 'true', label: '新客' },
+        { value: 'false', label: '老客' },
+      ],
+    });
+    chartOf(split, rows, zhCN, named);
+    expect(legend()).toEqual(['新客', '老客']);
+    expect(reading()).toContain('老客');
+    expect(reading()).not.toContain('新客：');
   });
 
   it('says it in the surface’s language', () => {

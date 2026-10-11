@@ -40,7 +40,7 @@ export interface FieldDefinition {
   //                  | 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId'
   //                  | 'deletion' | 自定义
   operators?: FilterOperator[]; // 缺省取 FieldKind 的默认集
-  options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone
+  options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone；boolean 上只给 'true'／'false' 各起名字
   remote?: string; // reference 的远程候选源键，由 resolveOptions 解析
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
@@ -125,6 +125,7 @@ export interface AnalysisCapability {
   expressions?: boolean; // 允许 BINARY／DATE_DIFF 表达式、按表达式分区间与 DERIVED 指标
   dateDiffUnits?: `${DateDiffUnit}`[]; // 两个时刻之差可用的单位，不写即四种（dateDiffUnitsOf）；expressions 关着时一种也没有；描述按 analysis.dateDiffUnits 收窄
   firstLastOrderBy?: string; // FIRST／LAST 不写 orderBy 时按什么先后（描述的 analysis.firstLastOrderBy），不写即源的缺省
+  windows?: `${WindowFunction}`[]; // Wow 在全部分组上算的窗口函数（描述的 analysis.windows，D87）；不写即没有，算出的线在内核算
   having?: boolean;
   // 下面四项都只能收窄，不写就是不收窄；数据源的能力描述把自己的值写进收窄后的定义（capabilities.md 4.4、D47）
   havingMetrics?: AnalysisMetric['type'][]; // 「只保留」能比较的指标类型，不写即全部

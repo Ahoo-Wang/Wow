@@ -39,6 +39,10 @@ on:
       - 'test/wow-it/**'
       - 'view-store/**'
       - 'dataset-registry/**'
+      - 'analytics/**'
+      # The console is TypeScript; analytics-console-test.yml checks it.
+      - '!analytics/console/**'
+      - 'wow-cosec/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

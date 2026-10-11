@@ -17,7 +17,7 @@ import type {
   QueryField,
   ExpressionFilter,
 } from '../filter/index.js';
-import type { FieldSort } from '../sort.js';
+import type { FieldSort, SortDirection } from '../sort.js';
 
 /** The kind of an {@link AggregationGroup}, sent as its `type`. */
 export enum AggregationGroupType {
@@ -453,7 +453,77 @@ export enum DerivedExpressionType {
   CONSTANT = 'CONSTANT',
   /** Two operands and an {@link AggregationExpressionOperator}. */
   BINARY = 'BINARY',
+  /** A window: the metric summed over a partition of the groups. */
+  TOTAL = 'TOTAL',
+  /** A window: the metric accumulated along an order, or its moving average. */
+  RUNNING = 'RUNNING',
+  /** A window: the metric of an earlier period along a date group. */
+  PREVIOUS = 'PREVIOUS',
+  /** A window: the dense rank of the metric within a partition. */
+  RANK = 'RANK',
 }
+
+/**
+ * The window functions of derived expressions, as a storage declares them in
+ * `analysis.windows` of its descriptor.
+ */
+export enum WindowFunction {
+  TOTAL = 'TOTAL',
+  RUNNING = 'RUNNING',
+  PREVIOUS = 'PREVIOUS',
+  RANK = 'RANK',
+}
+
+/** What a `RUNNING` window computes over its frame. */
+export enum RunningFunction {
+  SUM = 'SUM',
+  AVG = 'AVG',
+}
+
+/**
+ * A window over the groups of the aggregation. Wow computes it over every
+ * group the filter selects, before `having`, `sort` and `limit`; `metric`
+ * names a non-derived numeric metric declared before the derived one, and
+ * `within`, `order` and `along` name groups of the query. Wow 9.9 and later,
+ * where `analysis.windows` lists the function.
+ */
+export type DerivedWindow =
+  | {
+      type: DerivedExpressionType.TOTAL;
+      /** A `COUNT` or `SUM` metric. */
+      metric: string;
+      /** The partition's group aliases; every group when absent. */
+      within?: string[];
+    }
+  | {
+      type: DerivedExpressionType.RUNNING;
+      /** A `COUNT` or `SUM` metric for `SUM`; any numeric metric for `AVG`. */
+      metric: string;
+      /** A group alias or a non-derived numeric metric, with its direction. */
+      order: FieldSort;
+      within?: string[];
+      /** The last this many groups; every group up to this one when absent. */
+      frame?: number;
+      /** `SUM` when absent. */
+      function?: RunningFunction;
+    }
+  | {
+      type: DerivedExpressionType.PREVIOUS;
+      metric: string;
+      /** The alias of a `DATE_HISTOGRAM` group. */
+      along: string;
+      /** How many steps back; 1 when absent. */
+      shift?: number;
+      /** Step by this calendar period instead of by one bucket of `along`. */
+      period?: AggregationDateUnit;
+    }
+  | {
+      type: DerivedExpressionType.RANK;
+      metric: string;
+      within?: string[];
+      /** `DESC` when absent. */
+      direction?: SortDirection;
+    };
 
 /**
  * Post-aggregation arithmetic; references must name earlier metrics that are
@@ -467,7 +537,8 @@ export type DerivedExpression =
       operator: AggregationExpressionOperator;
       left: DerivedExpression;
       right: DerivedExpression;
-    };
+    }
+  | DerivedWindow;
 
 /**
  * A metric computed from metrics declared before it in the same query, after
@@ -693,4 +764,6 @@ export const AGGREGATION_LIMITS = Object.freeze({
   MAX_EXPRESSION_DEPTH: 8,
   /** The most expression nodes in the whole query. */
   MAX_EXPRESSION_NODES: 256,
+  /** The most windows in the whole query. */
+  MAX_WINDOWS: 8,
 });

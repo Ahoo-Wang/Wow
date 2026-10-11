@@ -24,7 +24,6 @@ import me.ahoo.wow.query.QueryAdmission
 import org.bson.BsonDocument
 import org.bson.Document
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 /**
  * Pins the exact native document of a null-safe binary operation on both of its paths — record-level
@@ -71,10 +70,12 @@ class MongoNullSafeBinaryTest {
     }
 
     @Test
-    fun `windows are computed by the core and never compiled`() {
+    fun `a window is read from the field its stage computed, as a double`() {
         val derived = AggregationMetric.Derived("total", DerivedExpression.Total("count"))
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count"), derived))
-        assertThrows<IllegalStateException> { derivedProject(query, derived) }
+        val project = derivedProject(query, derived).toBsonDocument().getDocument("\$project")
+        project.getDocument("total").assertJson("""{"${'$'}toDouble": "${'$'}__w0"}""")
+        project.containsKey("__w0_n").assert().isTrue()
     }
 
     private fun derivedDocument(operator: AggregationExpressionOperator): Any {

@@ -208,7 +208,11 @@ export function useSeriesName(
     return (alias, value) => {
       const shown = label(alias, value);
       const column = alias === undefined ? undefined : byAlias.get(alias);
-      return column?.kind === 'boolean' && typeof value === 'boolean'
+      // An answer the field names itself (「新客」「老客」) needs no field.
+      const named = column?.options?.some(
+        option => option.value === String(value),
+      );
+      return column?.kind === 'boolean' && typeof value === 'boolean' && !named
         ? messages.label('label.chart.series.of-field', {
             field: columnTitle(column, messages),
             value: shown,

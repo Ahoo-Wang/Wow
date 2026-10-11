@@ -14,7 +14,6 @@ import { Context } from 'react';
 import { CursorPage } from '@ahoo-wang/wow-client';
 import { CursorQuery } from '@ahoo-wang/wow-client';
 import { DateDiffUnit } from '@ahoo-wang/wow-client';
-import { DerivedExpression } from '@ahoo-wang/wow-client';
 import { Dialog } from '@base-ui/react/dialog';
 import { EChartsCoreOption } from 'echarts/core';
 import { FilterExpression } from '@ahoo-wang/wow-client';
@@ -39,6 +38,7 @@ import { RefObject } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client';
 import { StringComparison } from '@ahoo-wang/wow-client';
 import { UserIcon } from 'lucide-react';
+import { WindowFunction } from '@ahoo-wang/wow-client';
 
 // @public
 interface ActionConfirm {
@@ -125,6 +125,7 @@ interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    windows?: AnalysisWindowFunction[];
 }
 
 // @public
@@ -195,8 +196,19 @@ type AnalysisDatePart = `${AggregationDatePart}`;
 // @public (undocumented)
 type AnalysisDateUnit = `${AggregationDateUnit}`;
 
-// @public (undocumented)
-type AnalysisDerivedExpression = LiteralEnums<DerivedExpression>;
+// @public
+type AnalysisDerivedExpression = {
+    type: 'METRIC_REF';
+    metric: string;
+} | {
+    type: 'CONSTANT';
+    value: number;
+} | {
+    type: 'BINARY';
+    operator: AnalysisExpressionOperator;
+    left: AnalysisDerivedExpression;
+    right: AnalysisDerivedExpression;
+};
 
 // @public
 interface AnalysisElement {
@@ -440,6 +452,9 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     table: AnalysisTableSpec;
 }
+
+// @public
+type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
@@ -1950,6 +1965,7 @@ export const en: {
     readonly 'definition.field.time-precision-invalid': "{field} declares an unknown time precision: {value}.";
     readonly 'definition.field.time-precision-misplaced': "{field} declares a time precision, but reads as {cell}, which has no time of day.";
     readonly 'definition.field.tone-invalid': "{field} declares an unknown option tone: {value}.";
+    readonly 'definition.field.boolean-option': "{field} is a yes-or-no field; its options name only \"true\" and \"false\", not {value}.";
     readonly 'definition.field.duplicate': "The field {field} is declared twice.";
     readonly 'definition.fieldGroup.duplicate': "The group {group} is declared twice.";
     readonly 'definition.fieldGroup.field-duplicate': "The group {group} lists {field}, which is already listed under another group.";
@@ -3315,6 +3331,7 @@ export const en: {
     readonly 'runtime.query.failed.sort_field_duplicate': "{field} is sorted by twice; keep it once.";
     readonly 'runtime.query.failed.identity_undefined': "This data defines no record identity, so it cannot be paged through or picked by id.";
     readonly 'runtime.query.failed.storage_unsupported': "The service's storage cannot run this: {reason}";
+    readonly 'runtime.query.failed.previous_unshiftable': "Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND.";
     readonly 'record.detail.failed': "The whole record could not be read: {reason}";
     readonly 'runtime.query.queue-full': "Too many queries at once; try again in a moment.";
     readonly 'runtime.query.too-many-nodes': "These conditions make a query of {count} parts; the source takes at most {max}. Remove some conditions.";

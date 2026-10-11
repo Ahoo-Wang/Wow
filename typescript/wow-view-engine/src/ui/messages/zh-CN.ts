@@ -796,6 +796,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '这份数据没有定义记录标识，不能逐页翻阅或按标识选取。',
   'runtime.query.failed.storage_unsupported':
     '服务端的存储运行不了这条查询：{reason}',
+  'runtime.query.failed.previous_unshiftable':
+    '与上一期对比要把「{field}」的时间范围前移，但筛选里对它的条件没法前移；把它的条件放在最外层的「且」里。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.query.too-many-nodes':
@@ -2245,6 +2247,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'definition.field.time-precision-misplaced':
     '{field} 声明了时间精度，但它读作 {cell}，没有时刻。',
   'definition.field.tone-invalid': '{field} 声明了未知的选项语气：{value}。',
+  'definition.field.boolean-option':
+    '{field} 是是非字段，选项只能写 "true" 与 "false"，不能是 {value}。',
   'definition.field.duplicate': '字段 {field} 声明了两次。',
   'definition.fieldGroup.duplicate': '分组 {group} 声明了两次。',
   'definition.fieldGroup.field-duplicate':

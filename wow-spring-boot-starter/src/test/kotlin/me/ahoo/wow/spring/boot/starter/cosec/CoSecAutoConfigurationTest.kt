@@ -14,13 +14,17 @@
 package me.ahoo.wow.spring.boot.starter.cosec
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.cosec.abac.CoSecAbacQueryPolicy
 import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
+import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
+import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
@@ -52,5 +56,34 @@ class CoSecAutoConfigurationTest {
                     .hasSingleBean(IdentityHeaderAliases::class.java)
                 context.getBean(IdentityHeaderAliases::class.java).assert().isSameAs(CoSecIdentityHeaders.ALIASES)
             }
+    }
+
+    private fun abac(vararg properties: String) = contextRunner
+        .enableWow()
+        .withPropertyValues(*properties)
+        .withBean(AbacQueryOptions::class.java, { AbacQueryOptions.DEFAULT })
+        .withUserConfiguration(CoSecAutoConfiguration::class.java)
+
+    @Test
+    fun `reads the principal's ABAC tags from CoSec only when asked`() {
+        abac().run { context -> context.assert().doesNotHaveBean(AbacQueryPolicy::class.java) }
+        abac("wow.cosec.abac.enabled=true", "wow.cosec.abac.attribute-prefix=tag:").run { context ->
+            context.assert().hasSingleBean(AbacQueryPolicy::class.java)
+            val policy = context.getBean(AbacQueryPolicy::class.java)
+            policy.assert().isInstanceOf(CoSecAbacQueryPolicy::class.java)
+            (policy as CoSecAbacQueryPolicy).attributePrefix.assert().isEqualTo("tag:")
+            policy.options.assert().isSameAs(AbacQueryOptions.DEFAULT)
+        }
+    }
+
+    @Test
+    fun `gives way to the application's policy and to a host without CoSec`() {
+        val own = CoSecAbacQueryPolicy(attributePrefix = "own.")
+        abac("wow.cosec.abac.enabled=true")
+            .withBean(AbacQueryPolicy::class.java, { own })
+            .run { context -> context.getBean(AbacQueryPolicy::class.java).assert().isSameAs(own) }
+        abac("wow.cosec.abac.enabled=true")
+            .withClassLoader(FilteredClassLoader("me.ahoo.cosec.webflux"))
+            .run { context -> context.assert().doesNotHaveBean(AbacQueryPolicy::class.java) }
     }
 }

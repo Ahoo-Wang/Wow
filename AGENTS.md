@@ -53,6 +53,15 @@ pnpm build
 pnpm coverage
 ```
 
+Analytics console (`analytics/console`, served by `wow-analytics-server` from its `ui/`):
+
+```bash
+pnpm --filter wow-analytics-console... build
+cd analytics/console
+pnpm test
+pnpm lint
+```
+
 Documentation site:
 
 ```bash
@@ -134,6 +143,7 @@ test/                       wow-test DSL, TCK, mocks, integration tests, coverag
 compensation/               Compensation domain, API, core, server, and React dashboard
 view-store/                 View engine storage backend: API, domain, Spring Boot starter, standalone server
 dataset-registry/           Dataset registry (incubating): API, domain, Spring Boot starter
+analytics/                  Analytics service: view store, dataset registry and ClickHouse datasets behind CoSec
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
 example/                    Kotlin order/cart sample and Java transfer sample
 wow-benchmarks/             JMH benchmarks and reproducible performance reports

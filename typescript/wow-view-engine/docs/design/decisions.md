@@ -966,6 +966,22 @@
   - **存在哪里不在这一批**：宿主可以写在代码或配置里；存进视图存储、由管理员编辑，留在 todo。
 - **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/datasetResources.ts`；[host-integration.md 3.2](host-integration.md)。
 
+## D87 数据源声明了窗口时，累计、累计占比与移动平均由 Wow 在全部分组上算（2026-10-11，修订 Q53）
+
+- **来由**：Q53 让算出的线在行不完整时置灰：Wow 没有窗口计算，内核只能对拿回来的行算，截断、「只保留」、时间轴上的洞都会悄悄算错。数据集平台的 R4（Wow 仓 `documentation/designs/2026-10-11-aggregation-window-design.md`）给 Wow 的派生指标加了 `TOTAL`、`RUNNING`、`PREVIOUS`、`RANK` 四种窗口节点，在 `having`、`sort`、`limit` 之前对 filter 选出的**全部分组**计算；能力描述的 `analysis.windows` 列出存储支持的函数（ClickHouse 原生，其余由查询服务算，结果一致）。
+- **裁定**（用户 2026-10-11 确认 R4 设计 §5「view-engine 的衔接」，授权按推荐推进）：
+  - **能力**：分析能力多一项 `windows`，读自描述符的 `analysis.windows`；9.9 之前的服务端不发这一项，读作空表，行为与今天完全相同。
+  - **查询**：图上要画 `cumulative`、`cumulative-share` 或 `moving-average`，而能力列出它要的函数（两种累计与移动平均要 `RUNNING`，累计占比还要 `TOTAL`）时，编译出的查询为每条线带一个**隐藏的派生指标**，别名与币种的伴随指标同一种写法——`<指标>__cumulative`、`<指标>__share`、`<指标>__moving<窗口>`：
+    - 累计：`RUNNING(SUM)`，沿时间轴按这个日期分组升序；沿类别轴（帕累托，D38）按结果的第一排序键——就是这个指标——及其方向；
+    - 累计占比：`RUNNING(SUM) ÷ TOTAL`；
+    - 移动平均：`RUNNING(AVG, frame = 窗口)`；窗口没满之前仍然**没有数**（Q53 的读法不变），内核把头 `窗口 − 1` 个点置空。
+    - 窗口数会超过 Wow 的 `MAX_WINDOWS`（8），或别名撞上配置里已有的别名时，多出的线照旧在客户端算，规则照旧。
+  - **置灰收窄**：由 Wow 算的线不再因 `cut-short`（截断）与 `narrowed`（「只保留」）置灰——窗口在 `limit`、`having` 之前对全部分组算，画出的每一点都是对的；两种累计也不再因 `holes` 置灰（缺的桶没有记录，对和是 0）。仍然置灰的：`split`、`not-time`、`not-sorted`、`shares`、`not-additive`、`too-few`，以及移动平均的 `holes`——Wow 的窗口数的是行，不是时间桶，缺桶时「最近三行」不是「最近三期」。
+  - **隐藏指标只供算出的线读**：不进表格、图例、导出与读屏表，也不参与「只保留」与排序。
+  - **趋势仍在内核算**：最小二乘不是窗口函数，Q53 的规则对它不变。
+  - **不在这一批**：与上一期、去年同期的整段对比（Q59，改用 `PREVIOUS`），以及组内 TopN（`RANK` + `having`）。两者都是新的配置与编辑器，产品形态记在数据集平台化设计 §11 的 T6、T7，待用户确认。
+- **落点**：`src/capabilities/`（`windows`）、`src/analysis/compile.ts`（隐藏指标）、`src/analysis/derived.ts`（`derivedGap` 与读隐藏指标）、分析投影；[kernels.md](kernels.md)「算出的线」、[model-shapes.md](model-shapes.md)、[capabilities.md](capabilities.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

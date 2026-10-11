@@ -134,6 +134,11 @@ class ClickHouseDatasetStorageParsingTest {
         1.5.sqlLiteral().assert().isEqualTo("toFloat64(1.5)")
         assertThrows<IllegalStateException> { Double.NaN.sqlLiteral() }
         "Asia/Shanghai".sqlTimeZone().assert().isEqualTo("'Asia/Shanghai'")
+        "Z".sqlTimeZone().assert().isEqualTo("'UTC'")
+        "UTC".sqlTimeZone().assert().isEqualTo("'UTC'")
+        "+08:00".sqlTimeZone().assert().isEqualTo("'Etc/GMT-8'")
+        "-05:00".sqlTimeZone().assert().isEqualTo("'Etc/GMT+5'")
+        org.junit.jupiter.api.assertThrows<RuntimeException> { "+05:30".sqlTimeZone() }
         val parameters = SqlParameters()
         parameters.bind("x", "String").assert().isEqualTo("{p0:String}")
         parameters.bind(1, "Int64").assert().isEqualTo("{p1:Int64}")

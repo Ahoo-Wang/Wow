@@ -21,7 +21,7 @@ import {
 import { SelectContent } from '../../kit/popups.js';
 import { DELETION_STATES, isDeletionState } from '../../../filter/index.js';
 import { deletionLabel } from '../../kit/summary.js';
-import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { useSay, useViewMessages } from '../../kit/MessagesProvider.js';
 import { PillSelectTrigger } from '../../kit/variants.js';
 import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
 
@@ -40,8 +40,20 @@ export function BooleanValue({
   disabled,
   invalid,
   control,
-}: ValueProps) {
+  options,
+}: ValueProps & {
+  /** The field's words for its answers (`'true'`, `'false'`), where it has them. */
+  options?: readonly FieldOption[];
+}) {
   const messages = useViewMessages();
+  const say = useSay();
+  const named = (
+    answer: 'true' | 'false',
+    key: 'label.boolean.true' | 'label.boolean.false',
+  ) => {
+    const own = options?.find(option => option.value === answer)?.label;
+    return own === undefined ? messages.label(key) : say(own);
+  };
   return (
     <ChoiceValue
       label={label}
@@ -51,8 +63,8 @@ export function BooleanValue({
       value={typeof value === 'boolean' ? String(value) : null}
       placeholder={messages.label('label.filter.not-set')}
       items={[
-        { label: messages.label('label.boolean.true'), value: 'true' },
-        { label: messages.label('label.boolean.false'), value: 'false' },
+        { label: named('true', 'label.boolean.true'), value: 'true' },
+        { label: named('false', 'label.boolean.false'), value: 'false' },
       ]}
       onChange={next => onChange(next === 'true')}
     />

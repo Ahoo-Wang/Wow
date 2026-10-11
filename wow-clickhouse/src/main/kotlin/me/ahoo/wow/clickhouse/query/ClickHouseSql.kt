@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.clickhouse.query
 
+import me.ahoo.wow.query.schema.QueryViolation
 import java.time.ZoneId
+import java.time.ZoneOffset
+import kotlin.math.abs
 
 /** The parameters of one statement, named `p0`, `p1`, … in binding order. */
 internal class SqlParameters {
@@ -34,5 +37,28 @@ internal fun Double.sqlLiteral(): String {
     return "toFloat64(${toBigDecimal().toPlainString()})"
 }
 
-/** A time zone the AST already validated as a `ZoneId`, as a quoted SQL string. */
-internal fun String.sqlTimeZone(): String = "'" + ZoneId.of(this).id.replace("'", "\\'") + "'"
+/**
+ * A time zone the AST already validated as a `ZoneId`, as a quoted SQL string in the IANA name ClickHouse loads: a
+ * region as is, a zero offset (`Z`, the Kotlin DSL's default) as `UTC`, and a whole-hour offset as `Etc/GMT∓h`,
+ * whose POSIX sign is inverted. An offset of a fraction of an hour has no such name.
+ */
+internal fun String.sqlTimeZone(): String {
+    val zone = ZoneId.of(this).normalized()
+    val name = if (zone is ZoneOffset) zone.ianaName() else zone.id
+    return "'" + name.replace("'", "\\'") + "'"
+}
+
+private const val SECONDS_PER_HOUR = 3600
+private const val MAX_ETC_EAST = 14
+private const val MAX_ETC_WEST = 12
+
+private fun ZoneOffset.ianaName(): String {
+    val hours = totalSeconds / SECONDS_PER_HOUR
+    val whole = totalSeconds % SECONDS_PER_HOUR == 0 && hours in -MAX_ETC_WEST..MAX_ETC_EAST
+    if (!whole) throw QueryViolation.StorageUnsupported("the time zone offset $id").rejection()
+    return when {
+        hours == 0 -> "UTC"
+        hours > 0 -> "Etc/GMT-$hours"
+        else -> "Etc/GMT+${abs(hours)}"
+    }
+}

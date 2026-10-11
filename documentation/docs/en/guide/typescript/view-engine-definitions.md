@@ -42,7 +42,7 @@ Why commit a snapshot rather than read it at run time:
 
 One model has different capabilities on MongoDB and on Elasticsearch (a search inside an array's entries exists on Elasticsearch alone), so capabilities are not frozen from the snapshot: whatever you leave un-narrowed, one definition deployed on either store gets that store's.
 
-A field's kind follows from the facts: an enum, or `options` you write, makes `enum`; an epoch or formatted time semantics makes `datetime`, a date semantics `date`; booleans, numbers and strings take their own; an array with `elements` is `elementMatch`. Whatever cannot be told (an object, a union) needs a `kind` from you, or admission reports `definition.field.kind-unknown`. A moment is kept as a number but means a time, so it groups only by the calendar (`DATE_HISTOGRAM`, `DATE_PART`) and has only an earliest and a latest (`MIN`, `MAX`).
+A field's kind follows from the facts: an enum, or `options` you write, makes `enum`, except that `options` on a boolean only name its two answers (`{ true: 'New', false: 'Returning' }`) and it stays a boolean; an epoch or formatted time semantics makes `datetime`, a date semantics `date`; booleans, numbers and strings take their own; an array with `elements` is `elementMatch`. Whatever cannot be told (an object, a union) needs a `kind` from you, or admission reports `definition.field.kind-unknown`. A moment is kept as a number but means a time, so it groups only by the calendar (`DATE_HISTOGRAM`, `DATE_PART`) and has only an earliest and a latest (`MIN`, `MAX`).
 
 ## 3. A definition, choice by choice
 

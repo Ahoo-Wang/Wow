@@ -1,4 +1,4 @@
-# Issue codes — 512.
+# Issue codes — 514.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -270,6 +270,7 @@ definition.analysis.no-metric
 definition.analysis.wider
 definition.descriptor.missing
 definition.field.analysis-wider
+definition.field.boolean-option
 definition.field.cell-invalid
 definition.field.deprecated
 definition.field.duplicate
@@ -426,6 +427,7 @@ runtime.query.failed.not_collection
 runtime.query.failed.not_projectable
 runtime.query.failed.not_single_string
 runtime.query.failed.parallel_array_sort
+runtime.query.failed.previous_unshiftable
 runtime.query.failed.protected_aggregation
 runtime.query.failed.protected_comparison
 runtime.query.failed.residual_groups_exceeded

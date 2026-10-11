@@ -61,6 +61,8 @@ import {
 } from './capability.js';
 import { companionMetrics, currencyCompanions } from './currency.js';
 import { limitBounds } from './limitBounds.js';
+import { movingWindow } from './derived.js';
+import { serverLineMetrics } from './serverLines.js';
 
 /**
  * Compilation is a mapping, not a translation: the configuration is
@@ -78,8 +80,15 @@ export function compileAnalysis(
   const scope = scopeOf(definition, config);
   const query = baseQuery(definition, scope, config, kinds, context);
   const inner = innerPrefix(scope);
+  // The running lines the source computes over every group (D87).
+  const lines = serverLineMetrics(definition, config, line =>
+    movingWindow(config, line),
+  );
   return {
     ...query,
+    ...(lines.length > 0
+      ? { metrics: [...query.metrics, ...lines] as typeof query.metrics }
+      : {}),
     ...(config.groups.length > 0
       ? {
           groupBy: config.groups.map(group =>

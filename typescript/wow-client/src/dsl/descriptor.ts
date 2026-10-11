@@ -27,6 +27,7 @@ import type {
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
+  WindowFunction,
 } from './aggregation/types.js';
 import type { DeletionState } from './deletionState.js';
 import type { FilterOperator, SearchMode, TimeUnit } from './filter/index.js';
@@ -621,6 +622,12 @@ export interface AnalysisDescriptor {
    * the metric's scope.
    */
   firstLastOrderBy?: string;
+  /**
+   * The window functions a derived metric may compute over the groups; empty
+   * when expensive operators are off. Absent from servers before Wow 9.9,
+   * which compute no windows.
+   */
+  windows?: WindowFunction[];
 }
 
 /** A rule about combinations that no single capability shows. */
