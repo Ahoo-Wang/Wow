@@ -27,10 +27,13 @@ import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryDataset
 import me.ahoo.wow.query.schema.QueryDatasetFiles
+import me.ahoo.wow.query.schema.QueryDatasetScope
 import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -162,6 +165,81 @@ class QueryDatasetTest {
         )
         val loaded = files(config).loadAll(listOf(CLASSPATH_ORDERS))
         loaded[CLASSPATH_ORDERS]!!.title.assert().isEqualTo("From config")
+    }
+
+    @Test
+    fun `every malformed part of a dataset file is refused`(@TempDir config: Path) {
+        val scope = """"scope": { "tenant": "t" }"""
+        val fields = """"fields": { "t": {} }"""
+        val invalid = listOf(
+            """[]""",
+            """{ $scope, "fields": [] }""",
+            """{ "scope": [], $fields }""",
+            """{ "scope": { "tenant": "t", "region": "r" }, $fields }""",
+            """{ $scope, $fields, "storage": [] }""",
+            """{ $scope, "fields": { "t": 1 } }""",
+            """{ $scope, $fields, "title": 1 }""",
+            """{ $scope, $fields, "identity": 1 }""",
+            """{ $scope, "fields": { "t": { "sensitive": 1 } } }""",
+            """{ $scope, "fields": { "t": { "sensitive": { "level": "DISPLAY", "strategy": "x" } } } }""",
+            """{ $scope, "fields": { "t": { "sensitive": { "level": 1 } } } }""",
+            """{ $scope, "fields": { "t": { "sensitive": { "level": "DISPLAY", "keepSuffix": "1" } } } }""",
+        )
+        invalid.forEachIndexed { index, json -> write(config, "analytics.malformed$index", json) }
+        invalid.indices.forEach { index ->
+            assertThrows<QuerySchemaUnavailableException>(invalid[index]) {
+                files(config).load(MaterializedNamedAggregate("analytics", "malformed$index"))
+            }
+        }
+    }
+
+    @Test
+    fun `a dataset declared twice on the classpath is refused`(@TempDir first: Path, @TempDir second: Path) {
+        listOf(first, second).forEach { root ->
+            val directory = Files.createDirectories(root.resolve("META-INF/wow/dataset"))
+            Files.writeString(
+                directory.resolve("analytics.twice.json"),
+                """{ "scope": { "tenant": "t" }, "fields": { "t": {} } }"""
+            )
+        }
+        val loader = java.net.URLClassLoader(arrayOf(first.toUri().toURL(), second.toUri().toURL()), null)
+        val files = QueryDatasetFiles(WowResourceLocator(configDirectory = first.resolve("none"), classLoader = loader))
+        assertThrows<IllegalArgumentException> { files.load(MaterializedNamedAggregate("analytics", "twice")) }
+            .message.assert().contains("more than once")
+    }
+
+    @Test
+    fun `the builder sets every profile fact and the storage binding`() {
+        val storage = JsonSerializer.createObjectNode().put("table", "orders")
+        val dataset = QueryDataset.of(ORDERS) {
+            tenant("tenant_id")
+            owner("owner_id")
+            space("space_id")
+            title("Orders")
+            storage(storage)
+            field("tenant_id") { types(QueryValueType.STRING) }
+            field("owner_id") { types(QueryValueType.STRING) }
+            field("space_id") { types(QueryValueType.STRING) }
+        }
+        dataset.scope.fields.assert().containsExactly(
+            QueryField("tenant_id"),
+            QueryField("owner_id"),
+            QueryField("space_id")
+        )
+        dataset.title.assert().isEqualTo("Orders")
+        dataset.storage.assert().isEqualTo(storage)
+        dataset.profile.systemField(SystemField.SPACE_ID).assert().isEqualTo(QueryField("space_id"))
+        dataset.profile.identityField.assert().isNull()
+        dataset.profile.eventTimeField.assert().isNull()
+        dataset.profile.systemDeclaration.fields.assert().isEmpty()
+        dataset.profile.toString().assert().contains("analytics")
+        dataset.profile.hashCode().assert().isEqualTo(dataset.hashCode())
+        dataset.profile.assert().isNotEqualTo(orders().profile).isNotEqualTo(SnapshotQueryModelProfile)
+        val copied = dataset.copy(title = null)
+        copied.title.assert().isNull()
+        assertThrows<IllegalArgumentException> {
+            QueryDataset(ORDERS, QueryDatasetScope(QueryField("tenant_id")), QuerySchemaDeclaration(emptyMap()))
+        }
     }
 
     private fun files(config: Path) = QueryDatasetFiles(WowResourceLocator(configDirectory = config))

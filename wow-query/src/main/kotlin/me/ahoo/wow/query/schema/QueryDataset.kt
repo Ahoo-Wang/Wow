@@ -166,6 +166,9 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     override val eventTimeField: QueryField?
         get() = dataset.eventTime
 
+    override val requiredScope: QueryField
+        get() = dataset.scope.tenant
+
     /** None: a dataset's fields are its declaration, supplied by [QueryDatasets] as a schema source. */
     override val systemDeclaration: QuerySchemaDeclaration
         get() = EMPTY_DECLARATION

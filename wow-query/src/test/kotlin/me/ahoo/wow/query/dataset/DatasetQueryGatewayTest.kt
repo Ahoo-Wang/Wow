@@ -52,6 +52,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.toObjectNode
 import org.junit.jupiter.api.Test
@@ -161,6 +162,78 @@ class DatasetQueryGatewayTest {
         storages.storage(orders.namedAggregate, QueryModel.DATASET).assert().isSameAs(ADAPTER)
         storages.storage(QueryDatasetTest.OTHER, QueryModel.DATASET).assert().isNull()
         storages.storage(orders.namedAggregate, QueryModel.SNAPSHOT).assert().isNull()
+    }
+
+    @Test
+    fun `an abstract factory creates each dataset's binding once`() {
+        var created = 0
+        val factory = object : AbstractDatasetQueryBackendFactory() {
+            override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
+                created++
+                return QueryBackendBinding(RecordingBackend(), ADAPTER)
+            }
+        }
+        factory.create(orders).assert().isSameAs(factory.create(orders))
+        created.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a provider serves no dataset unless it says so, and storages need a dataset factory`() {
+        val provider = object : QueryBackendProvider {
+            override val name: String = "other"
+        }
+        provider.dataset.assert().isNull()
+        QueryBackendStorages(datasets = QueryDatasets(listOf(orders)))
+            .storage(orders.namedAggregate, QueryModel.DATASET).assert().isNull()
+        val gateway = DefaultDatasetQueryGateway(
+            orders,
+            RecordingBackend(),
+            catalog(orders).provider(orders.namedAggregate, QueryModel.DATASET),
+        )
+        gateway.dataset.assert().isSameAs(orders)
+        gateway.dynamicList(listQuery { }).test().expectNextCount(1).verifyComplete()
+    }
+
+    @Test
+    fun `a custom model without a profile has no schema`() {
+        val provider = me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider(
+            me.ahoo.wow.query.schema.QuerySchemaContext(orders.namedAggregate, QueryModel("CUSTOM")),
+            emptyList(),
+            ADAPTER,
+        )
+        provider.schema().test().expectErrorSatisfies {
+            it.assert().isInstanceOf(QuerySchemaValidationException::class.java).hasMessageContaining("CUSTOM")
+        }.verify()
+    }
+
+    @Test
+    fun `a custom model without a profile describes its metadata fields`() {
+        val schema = me.ahoo.wow.query.schema.boundSchemaFixture(
+            me.ahoo.wow.query.schema.objectFixture("tenantId" to me.ahoo.wow.query.schema.scalarFixture()),
+            model = QueryModel("CUSTOM"),
+        )
+        val descriptor = schema.describe(null, null)
+        descriptor.fields.single { it.path == "tenantId" }.role.assert().isEqualTo("TENANT_ID")
+        descriptor.record.identity.assert().isEmpty()
+    }
+
+    @Test
+    fun `a schema compiled with another profile is another schema`() {
+        val first = catalog(orders).schema(orders.namedAggregate, QueryModel.DATASET).block()!!
+        val renamed = QueryDataset.of(orders.namedAggregate) {
+            tenant("owner_id")
+            field("tenant_id") {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+            field("owner_id") {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+        }
+        val other = catalog(renamed).schema(orders.namedAggregate, QueryModel.DATASET).block()!!
+        first.compilesSameAs(first).assert().isTrue()
+        first.compilesSameAs(other).assert().isFalse()
     }
 
     private fun catalog(dataset: QueryDataset, backend: DatasetQueryBackend = RecordingBackend()): QuerySchemaCatalog {
