@@ -10,10 +10,6 @@
 
 ## 以后
 
-### wow-react
-
-- **集成测试缺口**（R-15）：对真服务端的用例只有 `cartQueryHooks.test.tsx` 的分页与计数，没有 `useSingleQuery`／`useListQuery`、经 `toWowError` 的 HTTP 错误、abort 与 reset。判据：各有一个对示例服务端的用例。落点：`integration-test/test/wow/react/`。
-
 ### wow-generator
 
 - **生成代码里仅剩的 `any`**（X-3）：无类型的事件流生成为 `JsonServerSentEventStream<any>`。判据：改为 `unknown`（或可推出的类型），golden 随之更新；作为生成代码的形状变化，只在 `x.Y.0` 做。落点：`wow-generator/src/emitters/apiClients.ts`。

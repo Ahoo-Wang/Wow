@@ -21,7 +21,7 @@
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
@@ -36,6 +36,7 @@ import {
   pagedQuery,
   ResourceAttributionPathSpec,
   singleQuery,
+  toWowError,
   waitStrategy,
   WowError,
 } from '@ahoo-wang/wow-client';
@@ -46,8 +47,10 @@ import {
   useFetcherListStreamQuery,
   useFetcherPagedQuery,
   useFetcherSingleQuery,
+  useListQuery,
   useListStreamQuery,
   usePagedQuery,
+  useSingleQuery,
 } from '@ahoo-wang/wow-react';
 import { exampleFetcher } from '../../../src/wow';
 import {
@@ -226,5 +229,91 @@ describe('the execute hooks with a generated query client', () => {
     );
     await waitFor(() => expect(result.current.done).toBe(true));
     expect(result.current.items.map(state => state.id)).toEqual(cartIds);
+  });
+});
+
+describe('the single and list hooks with the client methods as execute', () => {
+  it('useSingleQuery and useListQuery take the bound client methods directly', async () => {
+    const single = renderHook(() =>
+      useSingleQuery<CartState, CartFields>({
+        initialQuery: singleQuery({ filter: filter.id(cartB) }),
+        execute: snapshotClient.singleState,
+      }),
+    );
+    const list = renderHook(() =>
+      useListQuery<CartState, CartFields>({
+        initialQuery: listQuery({ filter: scope, sort: byAggregateId }),
+        execute: snapshotClient.listState,
+      }),
+    );
+    await waitFor(() => {
+      expect(single.result.current.status).toBe('success');
+      expect(list.result.current.status).toBe('success');
+    });
+    expect(single.result.current.result?.id).toBe(cartB);
+    expect(single.result.current.result?.size).toBe(2);
+    expect(list.result.current.result?.map(state => state.id)).toEqual(cartIds);
+  });
+});
+
+describe('an HTTP error, read through toWowError', () => {
+  it("a missing cart rejects, and toWowError reads the server's NotFound", async () => {
+    const { result } = renderHook(() =>
+      useSingleQuery<CartState, CartFields>({
+        initialQuery: singleQuery({ filter: filter.id(`${runId}missing`) }),
+        execute: snapshotClient.singleState,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.result).toBeUndefined();
+    const wowError = await toWowError(result.current.error);
+    expect(wowError).toBeInstanceOf(WowError);
+    expect(wowError?.errorCode).toBe(ErrorCodes.NOT_FOUND);
+  });
+});
+
+describe('abort and reset against the server', () => {
+  it('abort() in flight leaves the hook idle, and no late response overwrites it', async () => {
+    const { result } = renderHook(() =>
+      useListQuery<CartState, CartFields>({
+        initialQuery: listQuery({ filter: scope, sort: byAggregateId }),
+        execute: snapshotClient.listState,
+      }),
+    );
+    expect(result.current.status).toBe('loading');
+    act(() => result.current.abort());
+    expect(result.current.status).toBe('idle');
+    // Long enough for the aborted request to have answered had it gone on.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    expect(result.current.status).toBe('idle');
+    expect(result.current.result).toBeUndefined();
+
+    await act(async () => {
+      await result.current.execute();
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.result?.map(state => state.id)).toEqual(cartIds);
+  });
+
+  it('reset() after a result clears it, and execute() reads again', async () => {
+    const { result } = renderHook(() =>
+      useCountQuery<CartFields>({
+        initialQuery: scope,
+        execute: snapshotClient.count,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.result).toBe(2);
+
+    act(() => result.current.reset());
+    expect(result.current.status).toBe('idle');
+    expect(result.current.result).toBeUndefined();
+    expect(result.current.error).toBeUndefined();
+
+    await act(async () => {
+      await result.current.execute();
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.result).toBe(2);
   });
 });
