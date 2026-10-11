@@ -235,6 +235,7 @@ export function EmbeddedRecord({
       {detailOptions && (
         <RecordDetail
           detail={detail}
+          {...(table.layout === 'kanban' ? {} : { rows: table.rows })}
           sections={sections}
           render={render}
           title={detailOptions.title}

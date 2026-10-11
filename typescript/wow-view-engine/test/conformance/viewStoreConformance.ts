@@ -58,6 +58,14 @@
  * boards **by title** in its `message`, which is the port's contract since
  * the reader is shown it. A
  * capability the subject does not declare skips its cases, by name.
+ *
+ * **What it leaves out, on purpose** (checked against every behaviour the
+ * port's own documentation states, R2-103, 2026-10-11): the `AbortSignal`
+ * a read takes is advice — an in-memory store answers before it could act
+ * on one — so no case aborts; and a store that keeps no system views must
+ * refuse a `create` with `scope: 'system'`, but every subject here keeps
+ * them (`storedSystemViews`), so such a case would only ever be skipped.
+ * Add it with the first subject that does not.
  */
 
 import { describe, expect, it } from 'vitest';
