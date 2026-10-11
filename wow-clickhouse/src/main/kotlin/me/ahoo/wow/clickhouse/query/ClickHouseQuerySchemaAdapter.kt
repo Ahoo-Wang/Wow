@@ -55,17 +55,24 @@ class ClickHouseQuerySchemaAdapter(
             QuerySchemaUnavailableException("Failed to resolve ClickHouse dataset [${dataset.namedAggregate}].", it)
         }
 
+    // Each check states one way the table can contradict the declaration.
+    @Suppress("ThrowsCount")
     private fun facts(logicalSchema: LogicalQuerySchema, table: ClickHouseTable): QueryStorageFacts {
         if (storage.deduplicate == ClickHouseDatasetStorage.Deduplicate.FINAL && !table.supportsFinal) {
-            invalid("deduplicates with FINAL, but table [${table.name}] has engine [${table.engine}]")
+            throw invalid("deduplicates with FINAL, but table [${table.name}] has engine [${table.engine}]")
         }
         val keys = dataset.scope.fields + listOfNotNull(dataset.identity)
-        val bindings = logicalSchema.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, value) ->
-            val name = (path.segments.singleOrNull() as? QueryPathSegment.Property)?.name
-                ?: invalid("declares a nested field; a dataset declares root columns only")
-            val column = table.columns[name] ?: invalid("declares [$name], which table [${table.name}] has no column for")
+        val paths = logicalSchema.values.filterKeys { it.segments.isNotEmpty() }
+        if (paths.keys.any { it.segments.size > 1 }) {
+            throw invalid(
+                "declares a nested field; a dataset declares root columns only"
+            )
+        }
+        val bindings = paths.mapValues { (path, value) ->
+            val name = (path.segments.single() as QueryPathSegment.Property).name
+            val column = table.columns[name] ?: throw invalid("declares [$name], which table [${table.name}] has no column for")
             column.requireDeclared(value)
-            if (column.nullable && QueryField(name) in keys) invalid("keys on the Nullable column [$name]")
+            if (column.nullable && QueryField(name) in keys) throw invalid("keys on the Nullable column [$name]")
             val native = QueryFieldBindingTemplate(path, setOf(QueryStorageType(column.family.name)))
             QueryValueBindings(column.capabilities().associateWith { native }, path, path)
         }
@@ -76,28 +83,33 @@ class ClickHouseQuerySchemaAdapter(
         )
     }
 
+    @Suppress("ThrowsCount")
     private fun ClickHouseColumn.requireDeclared(value: QueryValueSchema) {
-        if (family == ClickHouseTypeFamily.UNSUPPORTED) invalid("declares [$name] of the unsupported type [$type]")
-        if (value.kind != QueryValueKind.SCALAR) invalid("declares [$name] as ${value.kind}; columns are scalar")
+        if (family == ClickHouseTypeFamily.UNSUPPORTED) {
+            throw invalid(
+                "declares [$name] of the unsupported type [$type]"
+            )
+        }
+        if (value.kind != QueryValueKind.SCALAR) throw invalid("declares [$name] as ${value.kind}; columns are scalar")
         val expected = when (family) {
             ClickHouseTypeFamily.STRING, ClickHouseTypeFamily.ENUM -> QueryValueType.STRING
             ClickHouseTypeFamily.INTEGER -> QueryValueType.INTEGER
             ClickHouseTypeFamily.FLOAT, ClickHouseTypeFamily.DECIMAL -> QueryValueType.DECIMAL
             ClickHouseTypeFamily.BOOLEAN -> QueryValueType.BOOLEAN
-            ClickHouseTypeFamily.DATE, ClickHouseTypeFamily.DATE_TIME -> QueryValueType.STRING
-            ClickHouseTypeFamily.UNSUPPORTED -> error("unreachable")
+            // Dates; an unsupported type was refused above.
+            else -> QueryValueType.STRING
         }
         if (value.valueTypes != setOf(expected)) {
-            invalid("declares [$name] as ${value.valueTypes}, but column type [$type] holds $expected")
+            throw invalid("declares [$name] as ${value.valueTypes}, but column type [$type] holds $expected")
         }
         if (temporal && value.semanticType != Temporal.Date) {
-            invalid("must declare the date column [$name] with the TEMPORAL_DATE semantic")
+            throw invalid("must declare the date column [$name] with the TEMPORAL_DATE semantic")
         }
-        if (nullable && !value.nullable) invalid("declares [$name] non-null, but its column is Nullable")
+        if (nullable && !value.nullable) throw invalid("declares [$name] non-null, but its column is Nullable")
     }
 
-    private fun invalid(message: String): Nothing =
-        throw QuerySchemaValidationException("Dataset [${dataset.namedAggregate}] $message.")
+    private fun invalid(message: String): QuerySchemaValidationException =
+        QuerySchemaValidationException("Dataset [${dataset.namedAggregate}] $message.")
 
     companion object {
         /**

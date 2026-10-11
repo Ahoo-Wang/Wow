@@ -94,16 +94,9 @@ internal class ClickHouseFilterCompiler(
         is TenantIdFilter -> systemEqual(filter, filter.value)
         is OwnerIdFilter -> systemEqual(filter, filter.value)
         is SpaceIdFilter -> systemEqual(filter, filter.value)
-        is EqualFilter -> if (filter.value.isNull) {
-            "isNull(${column(filter.field)})"
-        } else {
-            "${column(filter.field)} = ${bind(filter.field, filter.value)}"
-        }
-        is NotEqualFilter -> if (filter.value.isNull) {
-            "isNotNull(${column(filter.field)})"
-        } else {
-            orNull(filter.field, "${column(filter.field)} != ${bind(filter.field, filter.value)}")
-        }
+        // Admission normalizes EQ and NE with a null operand into IS_NULL and IS_NOT_NULL.
+        is EqualFilter -> "${column(filter.field)} = ${bind(filter.field, filter.value)}"
+        is NotEqualFilter -> orNull(filter.field, "${column(filter.field)} != ${bind(filter.field, filter.value)}")
         is GreaterThanFilter -> "${column(filter.field)} > ${bind(filter.field, filter.value)}"
         is GreaterThanOrEqualFilter -> "${column(filter.field)} >= ${bind(filter.field, filter.value)}"
         is LessThanFilter -> "${column(filter.field)} < ${bind(filter.field, filter.value)}"
@@ -225,14 +218,11 @@ internal class ClickHouseFilterCompiler(
 
     /**
      * A numeric expression as `Nullable(Float64)`: a field without a value, a division by zero or a non-finite result
-     * contributes nothing, as the spec says. A date field reads as epoch milliseconds.
+     * contributes nothing, as the spec says. Admission takes only numeric fields as an operand; dates enter through
+     * a date difference.
      */
     fun expression(expression: AggregationExpression): String = when (expression) {
-        is AggregationExpression.Field -> if (columnOf(expression.field).temporal) {
-            "toFloat64(toUnixTimestamp64Milli(${instant(expression.field)}))"
-        } else {
-            "toFloat64(${column(expression.field)})"
-        }
+        is AggregationExpression.Field -> "toFloat64(${column(expression.field)})"
         is AggregationExpression.Constant -> expression.value.sqlLiteral()
         is AggregationExpression.Binary -> {
             val left = expression(expression.left)

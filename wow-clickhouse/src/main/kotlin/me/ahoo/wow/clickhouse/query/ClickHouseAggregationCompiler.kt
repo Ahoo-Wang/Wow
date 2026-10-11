@@ -175,15 +175,11 @@ internal class ClickHouseAggregationCompiler(
     }
 
     /**
-     * A plain non-date FIELD aggregates natively, so a Decimal sum keeps its precision (the spec keeps a declared
-     * scalar field's native aggregation and precision); any other expression is computed in Float64.
+     * A plain FIELD aggregates natively, so a Decimal sum keeps its precision (the spec keeps a declared scalar
+     * field's native aggregation and precision); any other expression is computed in Float64.
      */
     private fun AggregationExpression.numericInput(): String =
-        if (this is AggregationExpression.Field && !filters.columnOf(field).temporal) {
-            filters.column(field)
-        } else {
-            filters.expression(this)
-        }
+        if (this is AggregationExpression.Field) filters.column(field) else filters.expression(this)
 
     /** A FIELD keeps its native value, so strings count as strings; any other expression is numeric. */
     private fun AggregationExpression.distinctInput(): String = when (this) {

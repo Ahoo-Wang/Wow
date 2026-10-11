@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -35,9 +36,11 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.cursorQuery
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryDataset
+import me.ahoo.wow.query.single
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
@@ -120,6 +123,17 @@ abstract class DatasetQueryBackendSpec {
     fun `the tenant filter reads the dataset's tenant column`() {
         orders.count(TenantIdFilter("t2")).block().assert().isEqualTo(1L)
         orders.count(TenantIdFilter("t1")).block().assert().isEqualTo(5L)
+    }
+
+    @Test
+    fun `a single record is the first in sort order, or none`() {
+        orders.single(
+            singleQuery {
+                filter { "tenant_id" eq "t1" }
+                sort { "amount".asc() }
+            },
+        ).block()!!.path(ID).asString().assert().isEqualTo("o4")
+        orders.single(singleQuery { filter { "city" eq "Nowhere" } }).block().assert().isNull()
     }
 
     @Test
@@ -341,6 +355,9 @@ abstract class DatasetQueryBackendSpec {
 
 private fun QueryTarget<DatasetQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { backend.list(QueryAdmission.Trusted.list(query, it)) }
+
+private fun QueryTarget<DatasetQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMap { backend.single(QueryAdmission.Trusted.single(query, it)) }
 
 private fun QueryTarget<DatasetQueryBackend>.paged(query: IPagedQuery) =
     Mono.defer { schemaProvider.schema() }.flatMap { backend.paged(QueryAdmission.Trusted.paged(query, it)) }

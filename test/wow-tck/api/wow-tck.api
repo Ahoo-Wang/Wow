@@ -598,6 +598,7 @@ public abstract class me/ahoo/wow/tck/query/DatasetQueryBackendSpec {
 	public static final field Companion Lme/ahoo/wow/tck/query/DatasetQueryBackendSpec$Companion;
 	public static final field ID Ljava/lang/String;
 	public fun <init> ()V
+	public final fun a single record is the first in sort order, or none ()V
 	protected abstract fun createDatasetQueryBackendFactory ()Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
 	protected abstract fun createTable (Lme/ahoo/wow/tck/query/DatasetTable;)Ltools/jackson/databind/node/ObjectNode;
 	public final fun date histograms key buckets by the local start of the unit ()V

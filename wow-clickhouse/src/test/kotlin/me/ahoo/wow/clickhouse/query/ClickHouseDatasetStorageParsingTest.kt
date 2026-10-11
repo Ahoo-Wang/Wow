@@ -83,6 +83,8 @@ class ClickHouseDatasetStorageParsingTest {
             """{"table":"a.b.c"}""",
             """{"table":"a."}""",
             """{"table":"orders","deduplicate":"LATEST"}""",
+            """{"table":"orders","deduplicate":1}""",
+            """{"table":1}""",
             """{"table":"orders","engine":"x"}""",
         ).forEach { storage ->
             assertThrows<QuerySchemaValidationException>(

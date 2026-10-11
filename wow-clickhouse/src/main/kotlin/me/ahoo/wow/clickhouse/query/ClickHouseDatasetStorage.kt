@@ -40,19 +40,21 @@ data class ClickHouseDatasetStorage(
         const val DEDUPLICATE = "deduplicate"
         private val KNOWN = setOf(TABLE, DEDUPLICATE)
 
+        // Each check states one way the binding can be malformed.
+        @Suppress("ThrowsCount")
         fun of(dataset: QueryDataset, defaultDatabase: String): ClickHouseDatasetStorage {
-            fun fail(message: String): Nothing =
-                throw QuerySchemaValidationException("Dataset [${dataset.namedAggregate}] $message.")
+            fun fail(message: String): QuerySchemaValidationException =
+                QuerySchemaValidationException("Dataset [${dataset.namedAggregate}] $message.")
             val binding = dataset.storage
             val unknown = binding.properties().map { it.key }.filterNot(KNOWN::contains)
-            if (unknown.isNotEmpty()) fail("has unknown ClickHouse storage properties $unknown")
+            if (unknown.isNotEmpty()) throw fail("has unknown ClickHouse storage properties $unknown")
             val table = binding.get(TABLE)?.takeIf { it.isString }?.stringValue()?.takeIf(String::isNotBlank)
-                ?: fail("must name its ClickHouse [$TABLE]")
+                ?: throw fail("must name its ClickHouse [$TABLE]")
             val parts = table.split('.')
-            if (parts.size > 2 || parts.any(String::isBlank)) fail("names an invalid table [$table]")
+            if (parts.size > 2 || parts.any(String::isBlank)) throw fail("names an invalid table [$table]")
             val deduplicate = binding.get(DEDUPLICATE)?.let { node ->
                 Deduplicate.entries.firstOrNull { node.isString && it.name == node.stringValue() }
-                    ?: fail("must set [$DEDUPLICATE] to one of ${Deduplicate.entries}")
+                    ?: throw fail("must set [$DEDUPLICATE] to one of ${Deduplicate.entries}")
             } ?: Deduplicate.NONE
             return ClickHouseDatasetStorage(
                 database = if (parts.size == 2) parts[0] else defaultDatabase,
