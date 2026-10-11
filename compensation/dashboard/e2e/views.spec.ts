@@ -14,6 +14,7 @@
 import { readFile } from "node:fs/promises";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./support/test.ts";
+import type { ViewStoreService } from "./support/viewStoreService.ts";
 import {
   executions,
   stubExecutionFailedService,
@@ -236,4 +237,79 @@ test("saves a shared view in the compensation service, saves a change to it, and
   await expect(
     page.getByRole("button", { name: /^My failures/ }),
   ).toBeVisible();
+});
+
+/**
+ * A shared view saved through the console, open again on its own region:
+ * where the two write failures below start from.
+ */
+async function savedView(page: Page, viewStore: ViewStoreService) {
+  await stubExecutionFailedService(page, DOCUMENTS);
+  const workbench = await openPage(page);
+  await workbench.getByRole("button", { name: "Cards" }).click();
+  await workbench.getByRole("button", { name: "Save as" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Title" }).fill("My failures");
+  await dialog.getByRole("button", { name: "Create view" }).click();
+  const saved = page.getByRole("region", { name: "My failures" });
+  await expect(saved).toBeVisible();
+  const [created] = [...viewStore.views.values()];
+  return { saved, created };
+}
+
+/** Changes the open view and saves it over the shared one. */
+async function saveChange(page: Page, saved: ReturnType<Page["getByRole"]>) {
+  await saved.getByRole("button", { name: "Table" }).click();
+  await saved.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Update for everyone" }).click();
+}
+
+// The write failures the stubbed store can answer (R2-103): the console's
+// suite used to save only on the happy path.
+test("offers the three ways out when someone else saved the view first", async ({
+  page,
+  viewStore,
+}) => {
+  const { saved, created } = await savedView(page, viewStore);
+  // Another writer saved it after this page read it.
+  created.version += 1;
+
+  await saveChange(page, saved);
+
+  await expect(
+    page.getByText("Someone else saved this view first"),
+  ).toBeVisible();
+  for (const name of ["Take theirs", "Save my copy", "Keep mine"])
+    await expect(page.getByRole("button", { name })).toBeVisible();
+  // Nothing was written over the other writer's version.
+  expect(created.version).toBe(2);
+  expect(created.state.config).toMatchObject({ layout: "card" });
+});
+
+test("says a save with no answer may have landed, and retries it once", async ({
+  page,
+  viewStore,
+}) => {
+  const { saved, created } = await savedView(page, viewStore);
+  // The first save the server answers with a 503; the store's own route
+  // answers every other request.
+  let failed = false;
+  await page.route(/\/view-store\/tenant\/.+\/view\/[^/]+\/save$/, (route) => {
+    if (failed || route.request().method() !== "PUT") return route.fallback();
+    failed = true;
+    return route.fulfill({ status: 503, body: "" });
+  });
+
+  await saveChange(page, saved);
+
+  const hint = page.locator('[data-slot="write-unknown-hint"]');
+  await expect(hint).toHaveText(
+    "Try again sends the same request, which cannot take effect twice. Abandon stops waiting; your edits stay here, unsaved.",
+  );
+  expect(created.version).toBe(1);
+
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => created.version).toBe(2);
+  expect(created.state.config).toMatchObject({ layout: "table" });
+  await expect(hint).toHaveCount(0);
 });
