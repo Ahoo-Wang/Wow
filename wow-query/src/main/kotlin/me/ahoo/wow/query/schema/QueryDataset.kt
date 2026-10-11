@@ -87,6 +87,24 @@ data class QueryDataset(
         @JvmStatic
         fun of(namedAggregate: NamedAggregate, block: QueryDatasetBuilder.() -> Unit): QueryDataset =
             QueryDatasetBuilder(namedAggregate.materialize()).apply(block).build()
+
+        /**
+         * The dataset [document] declares, in the format of a dataset file ([QueryDatasetProperties]), named
+         * [namedAggregate]; an [IllegalArgumentException] says what is wrong with it.
+         */
+        @JvmStatic
+        fun parse(namedAggregate: NamedAggregate, document: String): QueryDataset =
+            parseDatasetDocument(namedAggregate.materialize(), document)
+
+        /** The dataset named `{context}.{dataset}`: the context is everything before the last dot. */
+        @JvmStatic
+        fun nameOf(name: String): MaterializedNamedAggregate {
+            val separator = name.lastIndexOf('.')
+            require(
+                separator > 0 && separator < name.length - 1
+            ) { "Dataset name [$name] must be {context}.{dataset}." }
+            return MaterializedNamedAggregate(name.substring(0, separator), name.substring(separator + 1))
+        }
     }
 }
 

@@ -482,6 +482,38 @@ class ClickHouseSqlCompilerTest {
     }
 
     @Test
+    fun `a draft declares what the table proves and always passes the declaration check`() {
+        val draft = ClickHouseDatasetDrafts.draft(TABLE)
+        draft.skipped.map { it.name }.assert().containsExactly("attrs")
+        val document = draft.document
+        document.get("identity").stringValue().assert().isEqualTo("id")
+        document.at("/scope/tenant").stringValue().assert().isEqualTo("tenant_id")
+        document.at("/scope/owner").stringValue().assert().isEqualTo("owner_id")
+        document.at("/scope/space").stringValue().assert().isEqualTo("space_id")
+        document.at("/storage/table").stringValue().assert().isEqualTo("bi.orders")
+        document.at("/storage/deduplicate").isMissingNode.assert().isTrue()
+        document.at("/fields/tags/kind").stringValue().assert().isEqualTo("ARRAY")
+        document.at("/fields/day/semantic/type").stringValue().assert().isEqualTo("TEMPORAL_DATE")
+        document.at("/fields/note/nullable").booleanValue().assert().isTrue()
+        document.at("/fields/paid/types/0").stringValue().assert().isEqualTo("BOOLEAN")
+        val dataset = QueryDataset.parse(DATASET.namedAggregate, document.toString())
+        val schema = schema(dataset, ClickHouseDatasetStorage("bi", "orders"))
+        listOf("id", "tags", "day", "amount", "epoch_ms").forEach { schema.field(QueryField(it)).assert().isNotNull() }
+
+        val replacing = ClickHouseTable(
+            "bi",
+            "versions",
+            "ReplacingMergeTree",
+            listOf(ClickHouseColumn("tenant_id", "Nullable(String)"), ClickHouseColumn("key", "String"))
+                .associateBy(ClickHouseColumn::name),
+        )
+        val bare = ClickHouseDatasetDrafts.draft(replacing).document
+        bare.at("/storage/deduplicate").stringValue().assert().isEqualTo("FINAL")
+        bare.at("/scope/tenant").isMissingNode.assert().isTrue()
+        bare.has("identity").assert().isFalse()
+    }
+
+    @Test
     fun `a dataset storage the backend cannot read fails the compile`() {
         val storage = ClickHouseDatasetStorage("bi", "orders", ClickHouseDatasetStorage.Deduplicate.FINAL)
         val table = TABLE

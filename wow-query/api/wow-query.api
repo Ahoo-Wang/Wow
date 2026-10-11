@@ -1329,12 +1329,16 @@ public final class me/ahoo/wow/query/schema/QueryDataset {
 	public final fun getStorage ()Ltools/jackson/databind/node/ObjectNode;
 	public final fun getTitle ()Ljava/lang/String;
 	public fun hashCode ()I
+	public static final fun nameOf (Ljava/lang/String;)Lme/ahoo/wow/modeling/MaterializedNamedAggregate;
 	public static final fun of (Lme/ahoo/wow/api/modeling/NamedAggregate;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/schema/QueryDataset;
+	public static final fun parse (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryDataset;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/schema/QueryDataset$Companion {
+	public final fun nameOf (Ljava/lang/String;)Lme/ahoo/wow/modeling/MaterializedNamedAggregate;
 	public final fun of (Lme/ahoo/wow/api/modeling/NamedAggregate;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/schema/QueryDataset;
+	public final fun parse (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryDataset;
 }
 
 public final class me/ahoo/wow/query/schema/QueryDatasetBuilder {

@@ -21,6 +21,24 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseColumn {
 public final class me/ahoo/wow/clickhouse/query/ClickHouseColumn$Companion {
 }
 
+public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft {
+	public fun <init> (Ltools/jackson/databind/node/ObjectNode;Ljava/util/List;)V
+	public final fun component1 ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ltools/jackson/databind/node/ObjectNode;Ljava/util/List;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;
+	public static synthetic fun copy$default (Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;Ltools/jackson/databind/node/ObjectNode;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDocument ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getSkipped ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetDrafts {
+	public static final field INSTANCE Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDrafts;
+	public final fun draft (Lme/ahoo/wow/clickhouse/query/ClickHouseTable;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;
+}
+
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions {
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/String;Ljava/util/Map;Ljava/time/Duration;)V
