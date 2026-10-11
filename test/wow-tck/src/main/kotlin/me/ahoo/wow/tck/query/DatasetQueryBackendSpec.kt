@@ -42,9 +42,7 @@ import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
-import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryDataset
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.single
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest
@@ -471,15 +469,3 @@ private fun QueryTarget<DatasetQueryBackend>.aggregate(
             QueryAdmission.Trusted.aggregate(query, if (residual) schema.withResidualWindows() else schema)
         )
     }
-
-private fun QueryModelSchema.withResidualWindows() = QueryModelSchema(
-    model,
-    capabilities,
-    definition,
-    bindings,
-    fullProjectionAvailable,
-    approximateMetrics,
-    storage.copy(aggregation = storage.aggregation.copy(windows = AggregationSupport.RESIDUAL_WINDOWS)),
-    provisional,
-    profile,
-)

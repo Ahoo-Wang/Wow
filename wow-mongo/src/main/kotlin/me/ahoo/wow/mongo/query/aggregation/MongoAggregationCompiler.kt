@@ -68,11 +68,14 @@ internal object MongoAggregationCompiler {
             addAll(denseStages(dense))
         }
         add(project(query, dense))
+        val windows = MongoWindows(query)
+        addAll(windows.stages())
         query.metrics.forEach { metric ->
             if (metric is AggregationMetric.Derived) {
-                add(derivedProject(query, metric))
+                add(derivedProject(query, metric, windows))
             }
         }
+        if (windows.windows.isNotEmpty()) add(windows.unset())
         query.having?.let { add(Aggregates.match(it.toHavingDocument())) }
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         limit?.let { add(Aggregates.limit(it)) }
