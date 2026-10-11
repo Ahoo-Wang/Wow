@@ -27,6 +27,7 @@ on:
       - 'wow-core/**'
       - 'wow-metadata/**'
       - 'wow-bi/**'
+      - 'wow-clickhouse/**'
       - 'wow-query/**'
       - 'wow-spring/**'
       - 'wow-mongo/**'

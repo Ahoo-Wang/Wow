@@ -45,6 +45,7 @@ dependencies:
           - 'wow-mongo/**'
           - 'wow-redis/**'
           - 'wow-elasticsearch/**'
+          - 'wow-clickhouse/**'
 
 'area: integration':
   - changed-files:

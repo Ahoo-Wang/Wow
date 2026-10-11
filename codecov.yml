@@ -115,6 +115,10 @@ component_management:
       name: wow-elasticsearch
       paths:
         - wow-elasticsearch/src/main/**
+    - component_id: wow-clickhouse
+      name: wow-clickhouse
+      paths:
+        - wow-clickhouse/src/main/**
     - component_id: wow-webflux
       name: wow-webflux
       paths:
