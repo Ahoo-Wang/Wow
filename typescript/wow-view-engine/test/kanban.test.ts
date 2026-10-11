@@ -30,6 +30,7 @@ import {
   validateRecord,
   type RecordViewConfig,
 } from '../src/index.js';
+import { deprecatedUses } from '../src/runtime/deprecated.js';
 import { NOW, ordersDefinition, recordConfig } from './fixtures.js';
 import { dealsDefinition, kanbanConfig } from './fixtures/kanban.js';
 
@@ -381,5 +382,42 @@ describe('a definition that offers a kanban', () => {
     expect(recordProjection(definition, config).include).toContain('amount');
     // And the stage each card is in, which a move's rule reads off the row.
     expect(recordProjection(definition, config).include).toContain('stage');
+  });
+});
+
+describe('a kanban with nothing to lay its lanes out by', () => {
+  const none = dealsDefinition({
+    fields: [{ name: 'id', label: 'Deal', kind: 'string', sortable: true }],
+  });
+
+  it('has no default half, no lane question and no counts', () => {
+    expect(defaultKanbanSpec(none)).toBeUndefined();
+    const config = kanbanConfig();
+    const lane = { id: 'option:"LEAD"', value: 'LEAD' };
+    expect(laneConfig(none, config, lane)).toBe(config);
+    expect(compileKanbanCounts(none, config, kinds, at)).toBeNull();
+    expect(
+      compileKanbanCounts(dealsDefinition(), recordConfig(), kinds, at),
+    ).toBeNull();
+  });
+
+  it('projects no lanes as an empty board', () => {
+    const view = projectKanban(dealsDefinition(), kanbanConfig(), [], null);
+    expect(view).toMatchObject({ rows: [], lanes: [] });
+    expect(view.paging).toMatchObject({ mode: 'paged', hasNext: false });
+  });
+});
+
+describe('a deprecated lane field', () => {
+  it('is named among what the kanban asks, and only under the kanban', () => {
+    const fields = dealsDefinition().fields.map(field =>
+      field.name === 'stage'
+        ? { ...field, deprecated: { message: 'Use pipelineStage' } }
+        : field,
+    );
+    const codes = (config: RecordViewConfig) =>
+      deprecatedUses(fields, config).map(found => found.params?.field);
+    expect(codes(kanbanConfig())).toContain('Stage');
+    expect(codes(kanbanConfig({ layout: 'table' }))).not.toContain('Stage');
   });
 });

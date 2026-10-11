@@ -21,6 +21,8 @@ import {
 } from '../src/index.js';
 import { memorySource } from '../src/testing/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
+import { executeLanePage } from '../src/runtime/kanban.js';
+import { builtinFieldKinds, DEFAULT_RUNTIME_LIMITS } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
@@ -35,9 +37,12 @@ import {
   kanbanConfig,
 } from './fixtures/kanban.js';
 
-async function openKanban(source: ViewSource = memorySource(DEALS)) {
+async function openKanban(
+  source: ViewSource = memorySource(DEALS),
+  definition = dealsDefinition(),
+) {
   const engine = new ViewEngine({
-    resources: resourcesOf([dealsDefinition()], () => source),
+    resources: resourcesOf([definition], () => source),
     store: new MemoryViewStore({ instances: [dealsKanban] }),
   });
   const runtime = (await engine.open(dealsKanban.id)) as RecordViewRuntime;
@@ -136,6 +141,76 @@ describe('a kanban run', () => {
     );
     const data = runtime.getSnapshot().result?.data;
     expect(data?.kind === 'record' && data.view.lanes).toBeUndefined();
+    runtime.dispose();
+  });
+});
+
+describe('a kanban over a paged source', () => {
+  const paged = dealsDefinition({
+    record: {
+      rowKey: 'id',
+      paging: 'paged',
+      layouts: ['table', 'card', 'kanban'],
+    },
+  });
+
+  it('pages each lane by index, and loads the next one after it', async () => {
+    const source = memorySource(DEALS);
+    const asked = vi.spyOn(source, 'paged');
+    const runtime = await openKanban(source, paged);
+    const [lead] = lanesOf(runtime);
+    expect(lead).toMatchObject({ total: 3, next: { index: 2 } });
+    runtime.loadLane(lead!.id);
+    await vi.waitFor(() =>
+      expect(keys(lanesOf(runtime)[0])).toEqual(['d-1', 'd-2', 'd-3']),
+    );
+    expect(
+      asked.mock.calls[asked.mock.calls.length - 1]?.[0].pagination,
+    ).toEqual({
+      index: 2,
+      size: 2,
+    });
+    expect(lanesOf(runtime)[0]).toMatchObject({ next: null });
+    runtime.dispose();
+  });
+
+  it("falls back on a lane's own total when the counts fail", async () => {
+    const memory = memorySource(DEALS);
+    const runtime = await openKanban(
+      { ...memory, aggregate: () => Promise.reject(new Error('no')) },
+      paged,
+    );
+    // The「其他」lane too: a paged source counts every lane it pages.
+    expect(lanesOf(runtime).map(lane => lane.total)).toEqual([3, 1, 0, 2]);
+    runtime.dispose();
+  });
+});
+
+describe('one lane loading more', () => {
+  it('hands the board back as it is for a lane it has not, or one with no more', async () => {
+    const runtime = await openKanban();
+    const data = runtime.getSnapshot().result!.data;
+    if (data.kind !== 'record') throw new Error('record');
+    const context = {
+      definition: dealsDefinition(),
+      kinds: builtinFieldKinds,
+      limits: DEFAULT_RUNTIME_LIMITS,
+      environment: runtime.environment,
+      source: memorySource(DEALS),
+      queryFailed: () => Promise.resolve(),
+    };
+    const config = runtime.getSnapshot().applied;
+    for (const id of ['nope', lanesOf(runtime)[1]!.id]) {
+      const answer = await executeLanePage(
+        context,
+        config,
+        data.view,
+        id,
+        data.issues,
+        new AbortController(),
+      );
+      expect(answer.kind === 'record' && answer.view).toBe(data.view);
+    }
     runtime.dispose();
   });
 });

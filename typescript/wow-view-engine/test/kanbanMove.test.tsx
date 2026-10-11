@@ -20,7 +20,13 @@ import {
   moveInput,
 } from '../src/runtime/actions.js';
 import { kanbanMove } from '../src/ui/actions/kanbanMove.js';
-import { cardDragId, withDroppedCard } from '../src/ui/record/kanbanDrag.js';
+import {
+  cardDragId,
+  dropOf,
+  laneStanding,
+  withDroppedCard,
+  type KanbanMove,
+} from '../src/ui/record/kanbanDrag.js';
 
 const STAGES = [
   { value: 'LEAD', label: 'Lead' },
@@ -157,6 +163,17 @@ describe('withDroppedCard', () => {
     expect(moved[1]).toMatchObject({ rows: [lead, won], total: null });
   });
 
+  it('leaves every other lane as it was', () => {
+    const third = laneOf('c', [], 0);
+    const moved = withDroppedCard([...lanes, third], {
+      key: 'd-1',
+      from: 'a',
+      to: 'b',
+      rows: [],
+    });
+    expect(moved[2]).toBe(third);
+  });
+
   it('leaves the lanes alone with nothing dropped, or a card no longer there', () => {
     expect(withDroppedCard(lanes, null)).toBe(lanes);
     expect(
@@ -170,5 +187,56 @@ describe('withDroppedCard', () => {
   it("names a card apart from a lane, and a key's type apart", () => {
     expect(cardDragId('1')).not.toBe(cardDragId(1));
     expect(cardDragId('d-1')).toBe('card:"d-1"');
+  });
+});
+
+describe('what a finished drag moves', () => {
+  const other: RecordLaneView = { ...laneOf('other', [], null), value: null };
+  const lanes = [laneOf('LEAD', [lead], 1), laneOf('WON', [won], 1), other];
+  const bound: KanbanMove = {
+    can: (row, value) =>
+      row.data.stage === 'WON'
+        ? 'Won deals stay won'
+        : value !== 'LOST' || 'no',
+    run: vi.fn(),
+    busy: false,
+  };
+
+  it('is the card, the lane it left and the lane it was dropped on', () => {
+    expect(dropOf(lanes, cardDragId('d-1'), 'WON', bound)).toEqual({
+      row: lead,
+      from: 'LEAD',
+      to: lanes[1],
+    });
+  });
+
+  it('is nothing for a drop the move does not make', () => {
+    // No move declared, or nothing under the pointer.
+    expect(dropOf(lanes, cardDragId('d-1'), 'WON', undefined)).toBeNull();
+    expect(dropOf(lanes, null, 'WON', bound)).toBeNull();
+    expect(dropOf(lanes, cardDragId('d-1'), null, bound)).toBeNull();
+    // No such card, or no such lane.
+    expect(dropOf(lanes, cardDragId('gone'), 'WON', bound)).toBeNull();
+    expect(dropOf(lanes, cardDragId('d-1'), 'nowhere', bound)).toBeNull();
+    // Back on its own lane, or onto「其他」.
+    expect(dropOf(lanes, cardDragId('d-1'), 'LEAD', bound)).toBeNull();
+    expect(dropOf(lanes, cardDragId('d-1'), 'other', bound)).toBeNull();
+    // A lane the rule refuses.
+    expect(dropOf(lanes, cardDragId('d-2'), 'LEAD', bound)).toBeNull();
+  });
+
+  it('says how each lane stands to the card in hand', () => {
+    const held = cardDragId('d-1');
+    expect(laneStanding(lanes[1]!, lanes, held, bound)).toBe(true);
+    // The lane it came from, nothing dragged, or no move: no standing.
+    expect(laneStanding(lanes[0]!, lanes, held, bound)).toBeNull();
+    expect(laneStanding(lanes[1]!, lanes, null, bound)).toBeNull();
+    expect(laneStanding(lanes[1]!, lanes, held, undefined)).toBeNull();
+    // 「其他」takes no card, and says nothing about why.
+    expect(laneStanding(other, lanes, held, bound)).toBe('');
+    // A refusing rule's words.
+    expect(laneStanding(lanes[0]!, lanes, cardDragId('d-2'), bound)).toBe(
+      'Won deals stay won',
+    );
   });
 });

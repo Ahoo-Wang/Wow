@@ -113,18 +113,59 @@ export function KanbanDrag({
     <DragDropProvider
       {...pointerDrag()}
       onDragEnd={({ operation, canceled }) => {
-        if (!move || canceled || !operation.source || !operation.target) return;
-        const found = cardOf(lanes, String(operation.source.id));
-        const to = lanes.find(lane => lane.id === String(operation.target?.id));
-        if (!found || !to || to.value === null || to.id === found.lane.id)
-          return;
-        if (move.can(found.row, to.value) !== true) return;
-        onDrop(found.row, found.lane.id, to);
+        const drop = canceled
+          ? null
+          : dropOf(
+              lanes,
+              operation.source?.id ?? null,
+              operation.target?.id ?? null,
+              move,
+            );
+        if (drop) onDrop(drop.row, drop.from, drop.to);
       }}
     >
       {children}
     </DragDropProvider>
   );
+}
+
+/**
+ * What a finished drag moves, read off the ids it ended between: the card,
+ * the lane it came from and the lane it was dropped on — or `null` when it
+ * is no move: nothing to move with, no card or no lane under it, the lane it
+ * came from, the「其他」lane, or one the move's rule refuses.
+ */
+export function dropOf(
+  lanes: readonly RecordLaneView[],
+  source: string | number | null,
+  target: string | number | null,
+  move: KanbanMove | undefined,
+): { row: RecordRow; from: string; to: RecordLaneView } | null {
+  if (!move || source === null || target === null) return null;
+  const found = cardOf(lanes, String(source));
+  const to = lanes.find(lane => lane.id === String(target));
+  if (!found || !to || to.value === null || to.id === found.lane.id)
+    return null;
+  if (move.can(found.row, to.value) !== true) return null;
+  return { row: found.row, from: found.lane.id, to };
+}
+
+/**
+ * How a lane stands to the card being dragged (`source`, its drag id):
+ * `true` when the card may land here, the rule's reason when it may not
+ * (empty for the「其他」lane, which takes no card), and `null` when nothing
+ * is dragged, there is no move, or this is the lane the card came from.
+ */
+export function laneStanding(
+  lane: RecordLaneView,
+  lanes: readonly RecordLaneView[],
+  source: string | number | null,
+  move: KanbanMove | undefined,
+): true | string | null {
+  const dragged =
+    move && source !== null ? cardOf(lanes, String(source)) : undefined;
+  if (!move || !dragged || dragged.lane.id === lane.id) return null;
+  return lane.value === null ? '' : move.can(dragged.row, lane.value);
 }
 
 function cardOf(
@@ -196,13 +237,7 @@ export function useLaneDrop(
   move: KanbanMove | undefined,
 ): [(element: Element | null) => void, LaneDrop] {
   const { source } = useDragOperation();
-  const dragged = source ? cardOf(lanes, String(source.id)) : undefined;
-  const asked =
-    move && dragged && dragged.lane.id !== lane.id
-      ? lane.value === null
-        ? ''
-        : move.can(dragged.row, lane.value)
-      : null;
+  const asked = laneStanding(lane, lanes, source?.id ?? null, move);
   const { ref, isDropTarget } = useDroppable({
     id: lane.id,
     disabled: !move || asked !== true,

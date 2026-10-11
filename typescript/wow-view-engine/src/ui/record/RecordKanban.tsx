@@ -404,7 +404,6 @@ const DOT: Record<FieldTone, string> = {
 function LaneSummaries({ row }: { row: SummaryRow }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
-  if (row.cells.length === 0) return null;
   return (
     <dl data-slot="kanban-lane-summaries" className="fve:flex fve:flex-col">
       {row.cells.map(cell => (

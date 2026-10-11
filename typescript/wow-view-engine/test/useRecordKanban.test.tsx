@@ -168,6 +168,51 @@ describe('useRecordKanban', () => {
   });
 });
 
+describe('useRecordKanban without a runtime', () => {
+  it('has no lanes, and its commands do nothing', () => {
+    const { result } = renderHook(() => useRecordKanban(null));
+    expect(result.current).toMatchObject({
+      lanes: [],
+      loadingLane: null,
+      spec: null,
+      laneFields: [],
+      laneOptions: [],
+    });
+    act(() => result.current.loadLane('option:"LEAD"'));
+    act(() => result.current.setKanban({ hidden: ['WON'] }));
+    expect(result.current.spec).toBeNull();
+  });
+
+  it('writes nothing for a definition with no lane field', async () => {
+    const none = {
+      ...dealsKanban,
+      config: kanbanConfig({ layout: 'table', kanban: undefined }),
+    };
+    const engine = new ViewEngine({
+      resources: resourcesOf(
+        [
+          dealsDefinition({
+            fields: [
+              { name: 'id', label: 'Deal', kind: 'string', sortable: true },
+            ],
+            record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
+          }),
+        ],
+        () => memorySource(DEALS),
+      ),
+      store: new MemoryViewStore({ instances: [none] }),
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, none.id);
+      const runtime = opened.runtime as RecordViewRuntime | null;
+      return { runtime, kanban: useRecordKanban(runtime) };
+    });
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+    act(() => result.current.kanban.setKanban({ lane: 'stage' }));
+    expect(result.current.runtime?.getSnapshot().draft.kanban).toBeUndefined();
+  });
+});
+
 describe("useRecordTable's switch into a kanban", () => {
   it('writes the definition’s kanban half in and runs it', async () => {
     const result = await openHook({

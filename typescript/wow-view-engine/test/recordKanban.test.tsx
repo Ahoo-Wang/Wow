@@ -30,7 +30,13 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { memorySource } from '../src/testing/index.js';
-import { DataWorkbench } from '../src/ui/index.js';
+import { DataWorkbench, EmbeddedView } from '../src/ui/index.js';
+import {
+  RecordPanel,
+  RecordPanelPaging,
+} from '../src/ui/dashboard/PanelBodies.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
+import type { RecordViewRuntime } from '../src/index.js';
 import { resourcesOf } from './fixtures.js';
 import {
   DEALS,
@@ -45,10 +51,11 @@ function open(
   instance: ViewInstance = dealsKanban,
   documents: readonly RecordData[] = DEALS,
   declared?: RecordActions,
+  definition = dealsDefinition(),
 ) {
   const store = new MemoryViewStore({ instances: [instance] });
   const engine = new ViewEngine({
-    resources: resourcesOf([dealsDefinition()], () => memorySource(documents)),
+    resources: resourcesOf([definition], () => memorySource(documents)),
     store,
   });
   render(
@@ -91,6 +98,27 @@ describe('RecordKanban in the workbench', () => {
     expect(cardTitles(await lane('Other, 2 shown'))).toEqual(['d-5', 'd-6']);
     // A kanban's lanes page on their own: no pager under them.
     expect(screen.queryByRole('navigation', { name: /pag/i })).toBeNull();
+  });
+
+  it('says the one empty result when no lane holds a card', async () => {
+    open(dealsKanban, []);
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="empty-title"]'),
+      ).not.toBeNull(),
+    );
+    expect(document.querySelector('[data-slot="record-kanban"]')).toBeNull();
+  });
+
+  it('draws no board for a kanban that will not run, and says why above it', async () => {
+    open({
+      ...dealsKanban,
+      config: kanbanConfig({ kanban: { lane: 'amount' } }),
+    });
+    expect(
+      await screen.findByText(/has no options to lay lanes out by/),
+    ).toBeTruthy();
+    expect(document.querySelector('[data-slot="record-kanban"]')).toBeNull();
   });
 
   it('draws no「其他」lane while every deal has a stage the options list', async () => {
@@ -240,5 +268,80 @@ describe('RecordKanban in the workbench', () => {
     await screen.findAllByRole('row');
     fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
     expect(await lane('Lead, 3 records')).toBeTruthy();
+  });
+});
+
+describe('the kanban settings', () => {
+  it('puts a folded lane back, and lays the lanes out by another field', async () => {
+    const definition = dealsDefinition({
+      fields: [
+        ...dealsDefinition().fields,
+        {
+          name: 'priority',
+          label: 'Priority',
+          kind: 'enum',
+          options: [
+            { value: 'P1', label: 'Urgent' },
+            { value: 'P2', label: 'Normal' },
+          ],
+        },
+      ],
+    });
+    open(dealsKanban, DEALS, undefined, definition);
+    await lane('Won, 1 records');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Kanban settings' }),
+    );
+    const won = await screen.findByRole('checkbox', { name: 'Won' });
+    await userEvent.click(won);
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: /^Won/ })).toBeNull(),
+    );
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Won' }));
+    expect(await lane('Won, 1 records')).toBeTruthy();
+
+    await userEvent.click(
+      await screen.findByRole('combobox', { name: 'Lanes by' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'Priority' }),
+    );
+    // No deal has a priority yet: two empty lanes, every deal in「其他」,
+    // two at a time.
+    expect(await lane('Urgent, 0 records')).toBeTruthy();
+    expect(await lane('Normal, 0 records')).toBeTruthy();
+    expect(await lane('Other, 2 shown')).toBeTruthy();
+  });
+});
+
+describe('a kanban outside the workbench', () => {
+  function engineOf() {
+    return new ViewEngine({
+      resources: resourcesOf([dealsDefinition()], () => memorySource(DEALS)),
+      store: new MemoryViewStore({ instances: [dealsKanban] }),
+    });
+  }
+
+  it('is laid out in lanes in an embedded view, with no pager', async () => {
+    render(<EmbeddedView engine={engineOf()} instanceId={dealsKanban.id} />);
+    expect(await lane('Lead, 3 records')).toBeTruthy();
+    expect(screen.queryByRole('navigation')).toBeNull();
+  });
+
+  it("is laid out in lanes in a board's record panel, whose pages it keeps to its lanes", async () => {
+    const runtime = (await engineOf().open(
+      dealsKanban.id,
+    )) as RecordViewRuntime;
+    const { container } = render(
+      <ViewSurface>
+        <RecordPanel runtime={runtime} name="Pipeline" />
+        <RecordPanelPaging runtime={runtime} name="Pipeline" />
+      </ViewSurface>,
+    );
+    expect(await lane('Lead, 3 records')).toBeTruthy();
+    expect(
+      container.querySelector('[data-slot="record-pagination"]'),
+    ).toBeNull();
+    runtime.dispose();
   });
 });
