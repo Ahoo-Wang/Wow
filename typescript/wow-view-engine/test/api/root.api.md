@@ -15,7 +15,6 @@ import { CursorQuery } from '@ahoo-wang/wow-client';
 import { DatasetDirectoryEntry } from '@ahoo-wang/wow-client';
 import { DateDiffUnit } from '@ahoo-wang/wow-client';
 import { DeletionState } from '@ahoo-wang/wow-client';
-import { DerivedExpression } from '@ahoo-wang/wow-client';
 import { FilterExpression } from '@ahoo-wang/wow-client';
 import { FilterOperator } from '@ahoo-wang/wow-client';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client';
@@ -27,6 +26,7 @@ import { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import { QueryViolation } from '@ahoo-wang/wow-client';
 import { SearchMode } from '@ahoo-wang/wow-client';
 import { StringComparison } from '@ahoo-wang/wow-client';
+import { WindowFunction } from '@ahoo-wang/wow-client';
 
 // @public
 export interface AbsoluteDateTimeValue {
@@ -183,6 +183,7 @@ export interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    windows?: AnalysisWindowFunction[];
 }
 
 // @public
@@ -233,8 +234,19 @@ export type AnalysisDatePart = `${AggregationDatePart}`;
 // @public (undocumented)
 export type AnalysisDateUnit = `${AggregationDateUnit}`;
 
-// @public (undocumented)
-export type AnalysisDerivedExpression = LiteralEnums<DerivedExpression>;
+// @public
+export type AnalysisDerivedExpression = {
+    type: 'METRIC_REF';
+    metric: string;
+} | {
+    type: 'CONSTANT';
+    value: number;
+} | {
+    type: 'BINARY';
+    operator: AnalysisExpressionOperator;
+    left: AnalysisDerivedExpression;
+    right: AnalysisDerivedExpression;
+};
 
 // @public
 export interface AnalysisElement {
@@ -478,6 +490,9 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     table: AnalysisTableSpec;
 }
+
+// @public
+export type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 export type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;

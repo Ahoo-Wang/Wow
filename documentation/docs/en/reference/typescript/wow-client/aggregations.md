@@ -149,6 +149,8 @@ export const refundsByStatus: AggregationQuery = aggregation.query({
 
 A derived metric references only metrics before it, never `any`, `first` or `last`, and takes no record filter: filter the metrics it references. A null operand or a division by zero gives null.
 
+The same builder makes windows across the groups (Wow 9.9 and later, where the descriptor's `analysis.windows` lists the function): `d.total(metric, ...within)`, `d.running(metric, order, { within, frame, function })`, `d.previous(metric, along, { shift, period })` and `d.rank(metric, { within, direction })`, building `TOTAL`, `RUNNING`, `PREVIOUS` and `RANK` nodes that compose with the arithmetic (`d.divide(d.ref('gmv'), d.total('gmv', 'province'))` is a share). Wow computes them over every group the filter selects, before `having`, `sort` and `limit`; a window reads a non-derived numeric metric declared before it, and a query computes at most `AGGREGATION_LIMITS.MAX_WINDOWS` of them. The rules are in [Windows](../../../guide/query/aggregation-query.md#windows).
+
 ## Keep only some rows
 
 `having` filters the rows after grouping, on metric aliases rather than field paths. Build it with `aggregation.having` (`HavingDsl`, after Kotlin's): `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`, `isNull`, `isNotNull`, `and([…])`, `or([…])`. It produces a `HavingExpression` (`CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, `OR`; comparisons use `ComparisonOperator` `EQ` … `LTE`).

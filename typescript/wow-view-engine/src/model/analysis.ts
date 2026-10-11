@@ -18,7 +18,6 @@ import type {
   AggregationExpressionOperator,
   AggregationFunction,
   AggregationGroupType,
-  DerivedExpression,
   HavingExpression,
 } from '@ahoo-wang/wow-client';
 import type { DataViewConfigBase } from './config.js';
@@ -367,7 +366,21 @@ export function isValueMetric(metric: AnalysisMetric): metric is ValueMetric {
 
 /** Wow's having/derived trees only reference aliases and numbers. */
 export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
-export type AnalysisDerivedExpression = LiteralEnums<DerivedExpression>;
+
+/**
+ * A derived metric's arithmetic: references to earlier metrics, numbers and
+ * the four operators. Wow's derived expressions also take windows (`TOTAL`,
+ * `RUNNING`, `PREVIOUS`, `RANK`); an analysis does not configure them yet.
+ */
+export type AnalysisDerivedExpression =
+  | { type: 'METRIC_REF'; metric: string }
+  | { type: 'CONSTANT'; value: number }
+  | {
+      type: 'BINARY';
+      operator: AnalysisExpressionOperator;
+      left: AnalysisDerivedExpression;
+      right: AnalysisDerivedExpression;
+    };
 
 /** Expansion of an array path; its filter is scoped to the element fields. */
 export interface AnalysisElement {

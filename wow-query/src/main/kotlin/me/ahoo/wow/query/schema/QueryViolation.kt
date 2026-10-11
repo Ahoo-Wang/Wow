@@ -316,6 +316,19 @@ sealed interface QueryViolation {
             get() = "Storage does not support $feature."
     }
 
+    /**
+     * A PREVIOUS window steps along the date group on [field], but the filter conditions the field where its range
+     * cannot be shifted: outside the top-level AND, or with a value that is not an instant.
+     */
+    data class PreviousUnshiftable(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.PREVIOUS_UNSHIFTABLE
+
+        override val message: String
+            get() = "PREVIOUS reads the earlier period by shifting the filter's range of [${this.field}], so the " +
+                "filter must condition the field only in its top-level AND, with instant values."
+    }
+
     /*
      * Request violations: the entry budget and gates of step 0 (QueryBudget, QueryEntryPolicy) and the cursor token.
      * [label] names the entry and opens the text, e.g. `HTTP page size[0] ...`.

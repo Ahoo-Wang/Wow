@@ -119,6 +119,7 @@ export interface ViewSource {
 | `functions`                                                | `aggregate.functions`                                                                                                                                        |
 | `any`／`distinctCount`／`percentile`                       | 同名布尔值，并且 `analysis.metrics` 列了对应的指标类型                                                                                                       |
 | `firstLast`                                                | `aggregate.firstLast`，并且 `analysis.metrics` 同时列了 `FIRST` 与 `LAST`；描述的 `analysis.firstLastOrderBy` 原样写进 `AnalysisCapability.firstLastOrderBy` |
+| `windows`（D87）                                           | 描述的 `analysis.windows` 原样写入；没有这一项（9.9 之前的服务端）或为空时不写，算出的线照旧在内核算                                                         |
 | `count`                                                    | `analysis.metrics` 含 `COUNT`                                                                                                                                |
 | `expressions`                                              | `analysis.expressions`；参与运算的字段要 `expressionInput`                                                                                                   |
 | `dateDiffUnits`（不写即四种）                              | 与 `analysis.dateDiffUnits` 取交集；入口关掉昂贵查询时描述给空，两个时刻之差随之不可用                                                                       |

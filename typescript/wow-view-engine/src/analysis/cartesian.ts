@@ -273,7 +273,7 @@ export function shapeCartesian(
   const crowded = data.series.length > CHART_COLOR_SLOTS;
   return {
     ...data,
-    ...drawnOver(config, data, cutShort),
+    ...drawnOver(config, data, cutShort, rows),
     ...(crowded ? { crowded: true as const } : {}),
   };
 }
@@ -325,11 +325,12 @@ function drawnOver(
   config: AnalysisViewConfig,
   data: CartesianData,
   cutShort: boolean,
+  rows: readonly RecordData[],
 ): Partial<CartesianData> {
   const spec = config.chart.cartesian;
   if (!spec) return {};
   const placed = placeLines(spec, data);
-  const derived = deriveLines(config, data, cutShort);
+  const derived = deriveLines(config, data, cutShort, rows);
   // Asked for, or what a long row of bars writes in place of a number
   // over each (`peaksOnlyLabels`): the drawing decides which it draws.
   const extremes =

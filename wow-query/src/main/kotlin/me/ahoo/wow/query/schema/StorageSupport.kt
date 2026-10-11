@@ -52,8 +52,8 @@ data class PagingSupport(
 }
 
 /**
- * How a storage aggregates. HAVING, top-N by a metric, dense date-histogram fill and the TOTAL, RUNNING and RANK
- * windows may be RESIDUAL; percentiles and distinct counts need the records themselves, so they are NATIVE or NONE.
+ * How a storage aggregates. HAVING, top-N by a metric, dense date-histogram fill and the windows may be RESIDUAL;
+ * percentiles and distinct counts need the records themselves, so they are NATIVE or NONE.
  */
 @WowSpi
 data class AggregationSupport(
@@ -77,22 +77,16 @@ data class AggregationSupport(
             "Percentile and distinct count have no residual implementation."
         }
         require(firstLast != SupportMode.RESIDUAL) { "FIRST and LAST have no residual implementation." }
-        require(windows[WindowFunction.PREVIOUS] != SupportMode.RESIDUAL) {
-            "PREVIOUS has no residual implementation."
-        }
     }
 
     /** How the storage supports [function]. */
     fun window(function: WindowFunction): SupportMode = windows[function] ?: SupportMode.NONE
 
     companion object {
-        /** The windows the core computes for any storage: every one but PREVIOUS. */
+        /** Every window computed by the core, which any storage that groups supports. */
         @JvmField
-        val RESIDUAL_WINDOWS: Map<WindowFunction, SupportMode> = mapOf(
-            WindowFunction.TOTAL to SupportMode.RESIDUAL,
-            WindowFunction.RUNNING to SupportMode.RESIDUAL,
-            WindowFunction.RANK to SupportMode.RESIDUAL,
-        )
+        val RESIDUAL_WINDOWS: Map<WindowFunction, SupportMode> =
+            WindowFunction.entries.associateWith { SupportMode.RESIDUAL }
     }
 }
 

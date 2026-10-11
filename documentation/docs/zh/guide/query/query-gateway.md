@@ -127,6 +127,7 @@ snapshotQueryGateway.dynamicList(lookup).asInProcessQuery()
 | `EXPLICIT_ENTRY_REQUIRED` | 仅进程内：网关要求每个查询写明入口 |
 | `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`ELEMENT_SCOPE_REQUIRED`、`VALUE_MISMATCH`、`NOT_COLLECTION`、`NOT_SINGLE_STRING`、`MODEL_SEARCH_UNSUPPORTED`、`CURSOR_NOT_ALLOWED`、`PROTECTED_AGGREGATION`、`PROTECTED_COMPARISON`、`MISSING_KEY_REQUIRES_STRING`、`ANY_REQUIRES_SINGLE_VALUE`、`INCOMPLETE_PROJECTION`、`METRIC_FILTER_SEARCH`、`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`、`NOT_PROJECTABLE`、`EVENT_PROJECTION_TYPE_REQUIRED`、`TEMPORAL_REPRESENTATION_REQUIRED`、`TEMPORAL_CONFIGURATION_CONFLICT`、`PARALLEL_ARRAY_SORT`、`ARRAY_EQUALITY`、`FIRST_LAST_REQUIRES_SINGLE_VALUE`、`FIRST_LAST_REQUIRES_ORDER_BY`、`TEMPORAL_AGGREGATION_UNSUPPORTED`、`SORT_TOO_MANY`、`SORT_FIELD_DUPLICATE`、`IDENTITY_UNDEFINED` | 模型在准入时拒绝 |
 | `STORAGE_UNSUPPORTED` | 存储无法执行查询用到的特性（`msg` 写明）：存储声明不支持的，在准入时拒绝；原生查询语言表达不了的，由后端在任何 I/O 之前拒绝 |
+| `PREVIOUS_UNSHIFTABLE` | `PREVIOUS` 窗口沿日期分组前移，但 filter 对该字段的条件不在顶层 AND 里，或取值不是时间点，无法把范围平移到上一期；`name` 是该字段 |
 
 `UNKNOWN_FIELD` 所在行之前的代码，`errorCode` 为 `IllegalArgument`；该行及之后的为 `QuerySchemaValidation`。客户端改请求也无法解决的失败（脱敏策略执行失败、存储的记录或后端返回的行破坏完整性、存储超时或分片失败、其他存储或驱动错误）是服务端故障：HTTP 500，`errorCode` 为 `InternalServerError`，不带 `bindingErrors`。存储或驱动错误的文案为 `Query storage failed.`；它自己的消息可能引用查询取值，只留在服务端，查询日志中也会隐去。服务端故障可以重试，修改查询没有帮助。
 

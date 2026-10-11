@@ -1,6 +1,6 @@
 # 聚合查询的窗口计算设计（数据集平台 R4）
 
-日期：2026-10-11。状态：§8 的决定已由用户确认（2026-10-11，「按你推荐，开始 R4a」）；R4a 分两步实施，见 §7。
+日期：2026-10-11。状态：§8 的决定已由用户确认（2026-10-11，「按你推荐，开始 R4a」）；R4a 分两步实施，见 §7：R4a-1 已实施（Ahoo-Wang/Wow#4169），R4a-2 已实施（Ahoo-Wang/Wow#4170）；wow-client 已实施（Ahoo-Wang/Wow#4172）；R4b 与 R4a-3 已实施（Ahoo-Wang/Wow#4173）；R4c 已实施（Ahoo-Wang/Wow#4179）；R4d 的算出的线已实施（view-engine D87，Ahoo-Wang/Wow#4175），整段对比与组内 TopN 待用户确认（平台设计 §11 的 T6、T7）。
 
 基线：`main` `6c2bff7651`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R4（其 §11 T1），建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)的聚合协议与 `StorageSupport` 之上；view-engine 侧的现状见 `typescript/wow-view-engine/docs/design/decisions.md` 的 Q53、Q59 与 D38。
 
@@ -69,7 +69,8 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 
 - `PREVIOUS` 的时间范围是**查询自己的范围按 `shift` 平移**：filter 顶层 AND 里，对 `along` 分组字段的范围条件（`GT`/`GTE`/`LT`/`LTE`/`BETWEEN` 与相对时间）整体前移；其余条件不变；
 - filter 对这个字段没有顶层范围条件时，平移后就是同一个无界范围，`PREVIOUS` 等于结果里前移的桶；
-- 对这个字段的条件不在顶层 AND 里（放在 OR、NOR 之下）时，范围无法平移，查询被拒绝（`AGGREGATION_PREVIOUS_UNSHIFTABLE`），并说明原因。
+- 对这个字段的条件不在顶层 AND 里（放在 OR、NOR、`ELEMENT_MATCH`、`EXPRESSION`、`SEARCH` 之下），或取值不是时间点时，范围无法平移，查询在准入时被拒绝（`PREVIOUS_UNSHIFTABLE`），并说明原因。
+- 平移在分组时区的本地日历上进行（与 dense 网格同一条时间线）：按桶平移时桶键前移 `shift` 个桶；按 `period` 平移时桶键前移后再落到所在的桶（3 月 31 日前移一个月是 2 月 28 日）。ISO 字符串保持原来的形式（`Z`、带偏移、本地日期时间、日期），epoch 数值保持原来的单位。
 - 平移后没有对应桶（上一期没有数据）的，`PREVIOUS` 为 `null`，引用它的算术也是 `null`，与今天除以零得 `null` 一致。
 
 ### 3.3 校验（`AggregationQuery.init` 与准入）
@@ -109,11 +110,12 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 | 阶段 | 内容 | 证明 |
 |---|---|---|
 | **R4a-1 协议与核心** | `DerivedExpression` 的四种节点与校验；准入；`AggregationSupport.windows` 与能力描述（`analysis.windows`）；`TOTAL`、`RUNNING`、`RANK` 的 RESIDUAL 实现，所有存储缺省为 RESIDUAL，`PREVIOUS` 缺省为 NONE | wow-api / wow-query 单测 |
-| **R4a-2 `PREVIOUS`** | 平移范围（§3.2）与第二次分组读取的 RESIDUAL 实现；TCK 增加窗口语义规格（同一份期望在每个存储上跑） | wow-query 单测；TCK |
-| **R4b ClickHouse** | NATIVE 实现 | TCK + Testcontainers |
-| **R4c MongoDB、Elasticsearch** | Mongo NATIVE、ES RESIDUAL | TCK + Testcontainers |
+| **R4a-2 `PREVIOUS`** | 平移范围（§3.2）与第二次分组读取的 RESIDUAL 实现，`PREVIOUS` 缺省改为 RESIDUAL；不可平移时准入以 `PREVIOUS_UNSHIFTABLE` 拒绝 | wow-query 单测 |
+| **R4a-3 TCK** | 窗口语义规格：同一份期望在每个存储上跑（随 R4b 一起，先验证 ClickHouse 的 RESIDUAL 与 NATIVE 一致） | TCK + Testcontainers |
+| **R4b ClickHouse** | `TOTAL`、`RUNNING`、`RANK` 的 NATIVE 实现：分组查询与 HAVING 之间加一层窗口子查询；`PREVIOUS` 仍为 RESIDUAL（核心的平移二次读取已能用，原生的 `LEFT JOIN` 留待需要时） | TCK + Testcontainers：同一份期望分别走 NATIVE 与 RESIDUAL |
+| **R4c MongoDB、Elasticsearch**（已实施） | Mongo：`TOTAL`、`RUNNING`、`RANK` 用 `$setWindowFields` NATIVE（`RANK` 以把 NULL 排到末端的键 `$denseRank`，和为空帧时以计数判 NULL），`PREVIOUS` RESIDUAL；ES 全部 RESIDUAL | 快照 TCK：同一份期望分别走 NATIVE 与 RESIDUAL，Mongo 与 ES 的 Testcontainers 均跑 |
 | **R4d view-engine** | 用服务端窗口结果，Q53 置灰收窄，Q59 落地，组内 TopN | view-engine 测试与故事 |
-| wow-client | DSL 的窗口节点 | API 报告 |
+| wow-client | DSL 的窗口节点、`analysis.windows`（已实施）；view-engine 的分析配置暂只收四则运算，窗口留给 R4d | API 报告；同源契约测试 |
 
 ## 8. 决定（用户已确认，2026-10-11）
 

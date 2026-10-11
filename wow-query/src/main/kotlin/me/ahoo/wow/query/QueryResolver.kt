@@ -73,6 +73,7 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
+import me.ahoo.wow.query.aggregation.PreviousStep
 import me.ahoo.wow.query.aggregation.requireSupported
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.requiredCapability
@@ -200,6 +201,11 @@ internal class QueryResolver(
             groupBy = query.groupBy.map { group(it, inner) },
             metrics = query.metrics.map { metric(it, inner) },
         )
+        PreviousStep.of(aggregation).forEach { step ->
+            requireValid(step.shift(aggregation.filter, fields[step.field]?.temporal) != null) {
+                QueryViolation.PreviousUnshiftable(step.field)
+            }
+        }
         return aggregation
     }
 

@@ -1,3 +1,17 @@
+public final class me/ahoo/wow/cosec/abac/CoSecAbacQueryPolicy : me/ahoo/wow/query/snapshot/filter/AbacQueryPolicy {
+	public static final field Companion Lme/ahoo/wow/cosec/abac/CoSecAbacQueryPolicy$Companion;
+	public static final field DEFAULT_ATTRIBUTE_PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/query/snapshot/filter/AbacQueryOptions;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/snapshot/filter/AbacQueryOptions;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAttributePrefix ()Ljava/lang/String;
+	public fun getPrincipalTags (Lreactor/util/context/ContextView;Lme/ahoo/wow/query/filter/QueryContext;)Lreactor/core/publisher/Mono;
+	public final fun tagsOf (Ljava/util/Map;)Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/cosec/abac/CoSecAbacQueryPolicy$Companion {
+}
+
 public final class me/ahoo/wow/cosec/appender/CoSecCommandRequestHeaderAppender : me/ahoo/wow/webflux/route/command/appender/CommandRequestHeaderAppender {
 	public static final field APP_ID_KEY Ljava/lang/String;
 	public static final field DEVICE_ID_KEY Ljava/lang/String;

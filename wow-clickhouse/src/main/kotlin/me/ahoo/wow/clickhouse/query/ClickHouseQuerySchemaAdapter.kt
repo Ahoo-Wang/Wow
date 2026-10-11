@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse.query
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -131,11 +132,20 @@ class ClickHouseQuerySchemaAdapter(
 
         /**
          * Every paging and aggregation feature runs natively except dense fill, which the core computes so it
-         * shares one implementation with every storage. A `NULL` is a table's only missing value.
+         * shares one implementation with every storage, and PREVIOUS, whose shifted second read the core makes. A
+         * `NULL` is a table's only missing value.
          */
         val STORAGE_SUPPORT = StorageSupport(
             paging = PagingSupport(),
-            aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL),
+            aggregation = AggregationSupport(
+                denseFill = SupportMode.RESIDUAL,
+                windows = mapOf(
+                    WindowFunction.TOTAL to SupportMode.NATIVE,
+                    WindowFunction.RUNNING to SupportMode.NATIVE,
+                    WindowFunction.RANK to SupportMode.NATIVE,
+                    WindowFunction.PREVIOUS to SupportMode.RESIDUAL,
+                ),
+            ),
             parallelArraySort = SupportMode.NONE,
             absentValues = AbsentValues.AS_MISSING,
             arrayEquality = SupportMode.NONE,

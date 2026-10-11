@@ -2475,6 +2475,22 @@ public final class me/ahoo/wow/query/schema/QueryViolation$ParallelArraySort : m
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/query/schema/QueryViolation$PreviousUnshiftable : me/ahoo/wow/query/schema/QueryViolation {
+	public fun <init> (Lme/ahoo/wow/api/query/QueryField;)V
+	public final fun component1 ()Lme/ahoo/wow/api/query/QueryField;
+	public final fun copy (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/schema/QueryViolation$PreviousUnshiftable;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryViolation$PreviousUnshiftable;Lme/ahoo/wow/api/query/QueryField;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryViolation$PreviousUnshiftable;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getCode ()Ljava/lang/String;
+	public fun getField ()Lme/ahoo/wow/api/query/QueryField;
+	public fun getKind ()Lme/ahoo/wow/query/schema/QueryViolation$Kind;
+	public fun getLocation ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun rejection ()Ljava/lang/RuntimeException;
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/schema/QueryViolation$ProtectedAggregation : me/ahoo/wow/query/schema/QueryViolation {
 	public fun <init> (Lme/ahoo/wow/api/query/QueryField;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/QueryField;

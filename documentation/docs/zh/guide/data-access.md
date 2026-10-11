@@ -248,6 +248,10 @@ Starter 根据 `wow.query.abac.*` 发布 `AbacQueryOptions` Bean；像上例那�
 
 两者默认都保持上述放行语义。
 
+#### 用 CoSec 的主体属性作标签 {#cosec-abac}
+
+用 CoSec 认证的应用不必自己写 `getPrincipalTags`：打开 `wow.cosec.abac.enabled=true`，Starter 就注册 `CoSecAbacQueryPolicy`（需要 `cosec-support` 能力与 CoSec 的 WebFlux 模块），从 CoSec 放在 Reactor 上下文里的主体读标签——属性键以 `wow.cosec.abac.attribute-prefix`（缺省 `abac.`）开头的就是标签，值是逗号分隔的字符串或集合：`abac.region = "east,north"` 即标签 `region`，值 `east`、`north`。匿名主体没有标签。应用声明了自己的 `AbacQueryPolicy` 时它让位。它同样接收 `AbacQueryOptions`，所以面向人读数据的服务应同时打开 `wow.query.abac.require-principal-tags=true`，让没有标签的主体被拒绝，而不是读到全部。
+
 ### 查询入口与策略执行
 
 Spring 注册的 Snapshot 与 EventStream Gateway 都执行准入各步：入口预算、`QueryFilter` 改写、受信 scope 和 `QueryPolicy`。策略通过 `QueryContext` 判断适用范围，不适用时返回 `MatchAllFilter`；`AbacQueryPolicy` 仅对 Snapshot 读取 Principal 标签并生成条件，不为 EventStream 提供标签授权。Registrar 把路由后的 Backend 与 `QuerySchemaCatalog` 编译的 Schema Provider 交给 Gateway。JVM 调用不执行 HTTP scope 解析；可用 `contextWrite { it.withQueryScope(scope) }` 提供受信作用域。公共校验在改写、scope、policy 与默认条件全部合并后进行。受管查询与 aggregate-state load 的 Mask 行为见[字段脱敏](./query/masking.md)。

@@ -3032,6 +3032,7 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field NOT_PROJECTABLE Ljava/lang/String;
 	public static final field NOT_SINGLE_STRING Ljava/lang/String;
 	public static final field PARALLEL_ARRAY_SORT Ljava/lang/String;
+	public static final field PREVIOUS_UNSHIFTABLE Ljava/lang/String;
 	public static final field PROTECTED_AGGREGATION Ljava/lang/String;
 	public static final field PROTECTED_COMPARISON Ljava/lang/String;
 	public static final field RESIDUAL_GROUPS_EXCEEDED Ljava/lang/String;

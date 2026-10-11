@@ -16,11 +16,13 @@ package me.ahoo.wow.mongo.query.schema
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoCollection
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelProfile
@@ -68,8 +70,21 @@ class MongoQuerySchemaAdapter(
     }
 
     companion object {
-        /** MongoDB cannot sort by two arrays on independent paths ("cannot sort with keys that are parallel arrays"). */
-        internal val STORAGE_SUPPORT = StorageSupport(parallelArraySort = SupportMode.NONE)
+        /**
+         * MongoDB cannot sort by two arrays on independent paths ("cannot sort with keys that are parallel arrays").
+         * TOTAL, RUNNING and RANK run natively with `$setWindowFields`; PREVIOUS needs the core's shifted second read.
+         */
+        internal val STORAGE_SUPPORT = StorageSupport(
+            aggregation = AggregationSupport(
+                windows = mapOf(
+                    WindowFunction.TOTAL to SupportMode.NATIVE,
+                    WindowFunction.RUNNING to SupportMode.NATIVE,
+                    WindowFunction.RANK to SupportMode.NATIVE,
+                    WindowFunction.PREVIOUS to SupportMode.RESIDUAL,
+                ),
+            ),
+            parallelArraySort = SupportMode.NONE,
+        )
 
         /**
          * What the collection's indexes and validator prove about [logicalSchema]: per path, the capabilities its

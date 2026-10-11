@@ -427,6 +427,7 @@ runtime.query.failed.not_collection
 runtime.query.failed.not_projectable
 runtime.query.failed.not_single_string
 runtime.query.failed.parallel_array_sort
+runtime.query.failed.previous_unshiftable
 runtime.query.failed.protected_aggregation
 runtime.query.failed.protected_comparison
 runtime.query.failed.residual_groups_exceeded

@@ -67,10 +67,14 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
     private val groupAliases = query.groupBy.map(AggregationGroup::alias)
     private val metricAliases = query.metrics.map(AggregationMetric::alias)
 
-    fun apply(rows: List<ObjectNode>): List<ObjectNode> {
+    /** The distinct steps of the PREVIOUS windows: [apply] needs each one's earlier groups. */
+    val previousSteps: List<PreviousStep> = PreviousStep.of(query)
+
+    /** Computes the windows over [rows]; [earlier] holds the groups each of [previousSteps] reads. */
+    fun apply(rows: List<ObjectNode>, earlier: Map<PreviousStep, List<ObjectNode>> = emptyMap()): List<ObjectNode> {
         query.metrics.forEach { metric ->
             if (metric is AggregationMetric.Derived && metric.alias in windowed) {
-                val values = metric.expression.windows().distinct().associateWith { window(it, rows) }
+                val values = metric.expression.windows().distinct().associateWith { window(it, rows, earlier) }
                 rows.forEachIndexed { index, row ->
                     val value = metric.expression.evaluate(row) { values.getValue(it)[index] }
                     if (value == null) row.putNull(metric.alias) else row.put(metric.alias, value)
@@ -88,11 +92,32 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
         return ordered
     }
 
-    private fun window(window: DerivedExpression.Window, rows: List<ObjectNode>): Array<Double?> = when (window) {
+    private fun window(
+        window: DerivedExpression.Window,
+        rows: List<ObjectNode>,
+        earlier: Map<PreviousStep, List<ObjectNode>>,
+    ): Array<Double?> = when (window) {
         is DerivedExpression.Total -> total(window, rows)
         is DerivedExpression.Running -> running(window, rows)
         is DerivedExpression.Rank -> rank(window, rows)
-        is DerivedExpression.Previous -> error("PREVIOUS has no residual implementation.")
+        is DerivedExpression.Previous -> previous(window, rows, earlier)
+    }
+
+    /** Each group's [DerivedExpression.Previous.metric] in the earlier group its step reaches, every other key equal. */
+    private fun previous(
+        window: DerivedExpression.Previous,
+        rows: List<ObjectNode>,
+        earlier: Map<PreviousStep, List<ObjectNode>>,
+    ): Array<Double?> {
+        val step = PreviousStep.of(query, window)
+        val others = groupAliases.filter { it != window.along }
+        fun key(row: ObjectNode, along: Long?): List<Any?> = others.map { row[it] } + along
+        val values = checkNotNull(earlier[step]) { "The earlier groups of [$step] were not read." }
+            .associate { key(it, it.bucket(window.along)) to it.number(window.metric) }
+        return Array(rows.size) { index ->
+            val row = rows[index]
+            row.bucket(window.along)?.let { values[key(row, step.previousKey(it))] }
+        }
     }
 
     private fun total(window: DerivedExpression.Total, rows: List<ObjectNode>): Array<Double?> {
@@ -151,6 +176,9 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
 private fun List<Double>.sumOrNull(): Double? = takeIf { it.isNotEmpty() }?.sum()
 
 private fun ObjectNode.number(metric: String): Double? = get(metric)?.takeIf(JsonNode::isNumber)?.doubleValue()
+
+/** The DATE_HISTOGRAM key of [alias] in this row, or `null` when it has none. */
+private fun ObjectNode.bucket(alias: String): Long? = get(alias)?.takeIf(JsonNode::isIntegralNumber)?.longValue()
 
 /** This expression over [row], each window read from [window]: null propagates and a division by zero is `null`. */
 private fun DerivedExpression.evaluate(row: ObjectNode, window: (DerivedExpression.Window) -> Double?): Double? =
