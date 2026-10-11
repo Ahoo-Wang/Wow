@@ -1,6 +1,6 @@
 # 开箱即用的分析服务（数据集平台 R5）
 
-日期：2026-10-11。状态：§8 的 A1～A5 已由用户按推荐确认（2026-10-11）。R5a 已实施（Ahoo-Wang/Wow#4177，`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）；R5b 已实施（Ahoo-Wang/Wow#4182，部署物与端到端测试，见 §4.3）；R5c 已实施（控制台，见 §5）。
+日期：2026-10-11。状态：§8 的 A1～A5 已由用户按推荐确认（2026-10-11）。R5a 已实施（Ahoo-Wang/Wow#4177，`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）；R5b 已实施（Ahoo-Wang/Wow#4182，部署物与端到端测试，见 §4.3）；R5c 已实施（Ahoo-Wang/Wow#4183，控制台，见 §5）；R5d 已实施（注册表模块发布、Docker 镜像工作流 `analytics-deploy.yml`、指南「分析服务」）。
 
 基线：`main` `8a447298e9`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R5（其 §7 与 §11 的 T2、T3、T5），建立在 R1～R4 之上：数据集注册表（`wow-dataset-registry-*`）、ClickHouse 数据集查询与命名数据源、view-engine 的数据集派生与登记（D84～D86），以及聚合窗口（R4，view-engine D87）。
 
