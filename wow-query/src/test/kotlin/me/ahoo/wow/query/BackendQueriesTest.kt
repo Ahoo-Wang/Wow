@@ -519,6 +519,22 @@ class BackendQueriesTest {
     }
 
     @Test
+    fun `count is a server fault when the storage fails or answers a negative number`() {
+        fun count(backend: RecordingBackend) = backend.countRecords(
+            QueryAdmission.Trusted.count(MatchAllFilter, schema)
+        )
+
+        count(RecordingBackend(counts = { Mono.just(3) })).test().expectNext(3).verifyComplete()
+        count(RecordingBackend(counts = { Mono.just(-1) })).test()
+            .expectErrorMessage("Backend count must be greater than or equal to 0.").verify()
+        count(RecordingBackend(counts = { Mono.error(IllegalStateException("driver text with values")) })).test()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(QueryExecutionException::class.java).hasMessage("Query storage failed.")
+            }
+            .verify()
+    }
+
+    @Test
     fun `aggregation rows with a non-finite metric fail the query`() {
         val backend = RecordingBackend(groups = {
             Flux.just(JsonSerializer.createObjectNode().put("name", "a").put("total", Double.POSITIVE_INFINITY))
@@ -563,6 +579,7 @@ class BackendQueriesTest {
         private val pages: (PageWindow) -> BackendPage = { BackendPage(emptyList(), 0, emptyList()) },
         private val groups: () -> Flux<ObjectNode> = { Flux.empty() },
         private val records: () -> Flux<ObjectNode> = { Flux.empty() },
+        private val counts: () -> Mono<Long> = { Mono.just(0) },
     ) : QueryBackend {
         val windows = mutableListOf<PageWindow>()
         val groupWindows = mutableListOf<GroupWindow>()
@@ -581,7 +598,7 @@ class BackendQueriesTest {
                 pages(window)
             }
 
-        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = counts()
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
             Flux.defer {
