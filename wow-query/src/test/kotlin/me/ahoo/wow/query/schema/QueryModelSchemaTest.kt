@@ -144,6 +144,30 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `the dynamic field cache starts over when callers send more keys than it holds`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "counts" to QueryValueSchema(
+                    QueryValueKind.OBJECT,
+                    additionalProperties = scalarFixture(QueryValueType.INTEGER),
+                ),
+            ),
+        )
+        val first = schema.field(QueryField("counts.k0"))!!
+        schema.field(QueryField("counts.k0")).assert().isSameAs(first)
+
+        (1..2048).forEach { index ->
+            val field = QueryField("counts.k$index")
+            schema.field(field)!!.logicalField.assert().isEqualTo(field)
+        }
+
+        val again = schema.field(QueryField("counts.k0"))!!
+        again.assert().isNotSameAs(first)
+        again.logicalField.assert().isEqualTo(first.logicalField)
+        again.capabilities.assert().isEqualTo(first.capabilities)
+    }
+
+    @Test
     fun `binding snapshot preserves shared values and cannot reference undeclared paths`() {
         val definition = LogicalQuerySchema(objectFixture("name" to scalarFixture()))
         val native = linkedMapOf<QueryPathTemplate, QueryValueBindings>()

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
@@ -51,6 +52,16 @@ import tools.jackson.databind.node.ObjectNode
  */
 internal fun storageFault(error: Throwable): Throwable =
     if (error is ErrorInfo) error else QueryExecutionException("Query storage failed.", error)
+
+/**
+ * The number of records matching [query]: [QueryBackend.count], a storage failure reported as [storageFault] and a
+ * negative answer as a server fault, the rule [BackendPage.total] follows.
+ */
+internal fun QueryBackend.countRecords(query: AdmittedQuery<FilterExpression>): Mono<Long> =
+    count(query).onErrorMap(::storageFault).map { count ->
+        checkExecution(count >= 0) { "Backend count must be greater than or equal to 0." }
+        count
+    }
 
 /** The first record of [query]: `page(Offset(0, 1, withTotal = false))`. */
 @WowSpi
