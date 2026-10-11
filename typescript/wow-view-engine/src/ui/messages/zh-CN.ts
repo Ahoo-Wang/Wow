@@ -1464,6 +1464,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.chart.column.reached': '达成率',
   'label.chart.target': '距目标',
   'label.chart.target.reached': '{value}，目标 {target}',
+  'label.chart.target.of': '目标 {target}',
   'label.chart.period.week': '{start}起的一周',
   'label.chart.period.so-far': '{period}（至今）',
   'label.chart.period.whole': '范围内全部',

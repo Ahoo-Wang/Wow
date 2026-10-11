@@ -979,8 +979,30 @@
   - **置灰收窄**：由 Wow 算的线不再因 `cut-short`（截断）与 `narrowed`（「只保留」）置灰——窗口在 `limit`、`having` 之前对全部分组算，画出的每一点都是对的；两种累计也不再因 `holes` 置灰（缺的桶没有记录，对和是 0）。仍然置灰的：`split`、`not-time`、`not-sorted`、`shares`、`not-additive`、`too-few`，以及移动平均的 `holes`——Wow 的窗口数的是行，不是时间桶，缺桶时「最近三行」不是「最近三期」。
   - **隐藏指标只供算出的线读**：不进表格、图例、导出与读屏表，也不参与「只保留」与排序。
   - **趋势仍在内核算**：最小二乘不是窗口函数，Q53 的规则对它不变。
-  - **不在这一批**：与上一期、去年同期的整段对比（Q59，改用 `PREVIOUS`），以及组内 TopN（`RANK` + `having`）。两者都是新的配置与编辑器，产品形态记在数据集平台化设计 §11 的 T6、T7，待用户确认。
+  - **不在这一批**：与上一期、去年同期的整段对比（Q59，改用 `PREVIOUS`），以及组内 TopN（`RANK` + `having`），见 D88、D89。
 - **落点**：`src/capabilities/`（`windows`）、`src/analysis/compile.ts`（隐藏指标）、`src/analysis/derived.ts`（`derivedGap` 与读隐藏指标）、分析投影；[kernels.md](kernels.md)「算出的线」、[model-shapes.md](model-shapes.md)、[capabilities.md](capabilities.md)。
+
+## D88 与上一期、去年同期的整段对比：两种算出的线，由 Wow 的 PREVIOUS 算（2026-10-11，落实 Q59）
+
+- **来由**：Q59 把整段对比推迟到首发后，理由是它要第二条查询、平移范围、多一条失败路径。Wow 的派生指标有了 `PREVIOUS` 窗口（聚合查询的窗口计算设计 §3.2）：查询服务按 filter 顶层的日期范围前移再读一次分组，按「其余分组键相同、日期桶前移」对上，视图引擎不再需要第二条查询。
+- **裁定**（用户 2026-10-11 确认数据集平台化设计 §11 的 T6）：
+  - **两种算出的线**：`DERIVED_KINDS` 多 `previous`（上一期：前移一个桶）与 `previous-year`（去年同期：前移一年），与趋势、移动平均、累计并列，画在同一根轴上、虚线、不进堆叠。它们由 Wow 算（D87 的隐藏派生指标，`<指标>__previous`、`<指标>__previousYear`），内核从不自己算——上一期在结果之外时内核无从知道。
+  - **置灰**：拆分（`split`）、横轴不是时间（`not-time`），以及数据源的能力没有 `PREVIOUS`、或按周分组要去年同期（周的桶前移一年对不上桶，`unsupported`）。都不因截断、「只保留」、洞置灰：每一点是 Wow 按那个桶算的；没有行的桶没有点。
+  - **提示框**写上一期的值和较之的变化（`较上一期 +12.3%`），变化的读法与指标卡的「较前一期」同一套（`BucketChange`）。
+  - **范围**：filter 对日期字段的条件不在顶层「且」里时，Wow 拒绝这条查询（`PREVIOUS_UNSHIFTABLE`，措辞已有），视图在结果处说原因；分析的范围编辑器写出的条件本来就在顶层。
+  - **指标卡**：首发后指标卡的「较前一期」本就在同一份结果里读紧挨着的上一桶，不发第二条查询，保持不变。整段对比的另一半——「较去年同期」——在图表之后另做：指标卡的 `compare` 多一种读法，读最后一期的 `PREVIOUS(YEAR)`。
+- **落点**：`src/model/chart.ts`（`DERIVED_KINDS`）、`src/analysis/serverLines.ts`、`src/analysis/derived.ts`（`unsupported`）、`src/ui/charts/cartesianTooltip.ts`、`src/ui/charts/cartesianMarks.ts`、措辞；[kernels.md](kernels.md)「算出的线」。
+
+## D89 组内 TopN：「每个〈外层维度〉只留前 N 个」，由 Wow 的 RANK 算（2026-10-11）
+
+- **来由**：「每个省 GMV 前三的城市」是 BI 里最常见的问题之一。今天只能按 GMV 排序取前 N 行，那是全国前 N，不是每省前 N；「只保留」比较的是绝对值，表达不了名次。Wow 的派生指标有了 `RANK` 窗口：在 `having` 之前对全部分组按分区排名。
+- **裁定**（用户 2026-10-11 确认数据集平台化设计 §11 的 T7）：
+  - **配置**：`AnalysisViewConfig.top?: { within: string; metric: string; count: number; direction?: 'DESC' | 'ASC' }`——每个 `within`（外层的维度别名）里，按 `metric` 从高到低（`ASC` 时从低到高）只留前 `count` 个。
+  - **编译**：查询多一个隐藏的派生指标 `<指标>__rank` = `RANK(metric, within: [within], direction)`，`having` 变成「原来的只保留 且 名次 ≤ count」。名次并列者同名次（dense rank），所以并列第三的都留下。
+  - **准入**：要两个及以上维度、`within` 是其中之一、`metric` 是非派生的数值指标、`count` 是 1～`limit` 的整数，且数据源的能力列出 `RANK`；否则报 `analysis.top.*`，编辑器不给这一项。
+  - **编辑器**：结果区「只保留」旁多一行「每个〈维度〉只留前〈N〉个，按〈指标〉」，一个开关打开它。
+  - **它在「只保留」之后、行数上限之前**：与 Wow 的求值次序一致（窗口 → having → 排序 → 上限）。合计行仍是全部记录（与「只保留」一样）。
+- **落点**：`src/model/analysis.ts`（`top`）、`src/analysis/compile.ts`、`src/analysis/validateTop.ts`、`src/ui/analysis/ResultSlot.tsx`、措辞与发现码；[kernels.md](kernels.md)、[model.md](model.md)、[ui/analysis.md](ui/analysis.md)。
 
 ## 搁置待议
 

@@ -282,3 +282,26 @@ describe('drawsHorizontal: which way a bar chart lies (audit)', () => {
     expect(option.yAxis.inverse).toBe(true);
   });
 });
+
+describe('cartesianFit: the names along a cycle (Storybook review)', () => {
+  // The 24 hours of a day on a narrow board panel were all written, slanted
+  // into one another; read along, they are written flat every few.
+  const hours = bars(
+    Array.from({ length: 24 }, (_, hour) => hour),
+    Array.from({ length: 24 }, (_, hour) => `${hour}时`),
+  );
+
+  it('writes a cycle flat, every few, the first among them', () => {
+    const patch = fit({ ...hours, cycle: true }, bar(), 360) as Loose;
+    expect(patch.xAxis.axisLabel).toMatchObject({
+      rotate: 0,
+      interval: 'auto',
+      showMinLabel: true,
+    });
+  });
+
+  it('slants the same names where they are no cycle', () => {
+    const patch = fit(hours, bar(), 360) as Loose;
+    expect(patch.xAxis.axisLabel).toMatchObject({ rotate: 45 });
+  });
+});

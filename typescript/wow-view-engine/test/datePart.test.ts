@@ -480,6 +480,8 @@ describe('a chart along a cycle', () => {
     if (data?.type !== 'heatmap') return;
     expect(data.ys).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(data.xs).toEqual(Array.from({ length: 24 }, (_, index) => index));
+    // The hours are read along: written flat every few, not slanted.
+    expect(data.xAlong).toBe(true);
     expect(data.cells[2]![20]).toBe(5);
     expect(data.cells[0]![9]).toBe(2);
     expect(data.cells[1]![9]).toBeNull();
@@ -502,6 +504,8 @@ describe('a chart along a cycle', () => {
     );
     if (data?.type !== 'cartesian') throw new Error('not cartesian');
     expect(data.points.map(point => point.x)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    // An axis read along, as a time axis is (`cartesianFit`).
+    expect(data.cycle).toBe(true);
     expect(data.points[0]).toMatchObject({
       values: { orders: 0 },
       filled: ['orders'],
