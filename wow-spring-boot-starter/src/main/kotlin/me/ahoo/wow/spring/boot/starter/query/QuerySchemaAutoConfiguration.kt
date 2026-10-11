@@ -17,6 +17,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.ClasspathQuerySchemaSource
 import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.query.schema.QueryDataset
 import me.ahoo.wow.query.schema.QueryDatasetFiles
 import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModelSource
@@ -72,10 +73,4 @@ class QuerySchemaAutoConfiguration {
 }
 
 /** `{context}.{dataset}`: the dataset name follows the last dot, so a context name may hold dots. */
-internal fun datasetName(name: String): MaterializedNamedAggregate {
-    val separator = name.lastIndexOf('.')
-    require(separator > 0 && separator < name.length - 1) {
-        "wow.query.datasets entry [$name] must be {context}.{dataset}."
-    }
-    return MaterializedNamedAggregate(name.substring(0, separator), name.substring(separator + 1))
-}
+internal fun datasetName(name: String): MaterializedNamedAggregate = QueryDataset.nameOf(name)

@@ -97,3 +97,11 @@ project(":wow-view-store-starter").projectDir = file("view-store/wow-view-store-
 include(":wow-view-store-server")
 project(":wow-view-store-server").projectDir = file("view-store/wow-view-store-server")
 //endregion
+//region dataset-registry
+include(":wow-dataset-registry-api")
+project(":wow-dataset-registry-api").projectDir = file("dataset-registry/wow-dataset-registry-api")
+include(":wow-dataset-registry-domain")
+project(":wow-dataset-registry-domain").projectDir = file("dataset-registry/wow-dataset-registry-domain")
+include(":wow-dataset-registry-starter")
+project(":wow-dataset-registry-starter").projectDir = file("dataset-registry/wow-dataset-registry-starter")
+//endregion

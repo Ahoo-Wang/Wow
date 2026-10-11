@@ -53,9 +53,13 @@ val exampleProjects =
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
-// Libraries that build and test like the others but are not published yet. Empty since 9.2.0, which
-// publishes view-store/* (api, domain, starter) with the view engine.
-val incubatingProjects = emptySet<Project>()
+// Libraries that build and test like the others but are not published yet: the dataset registry
+// (dataset platform design R1b), published with the analytics service (R5).
+val incubatingProjects = setOf(
+    project(":wow-dataset-registry-api"),
+    project(":wow-dataset-registry-domain"),
+    project(":wow-dataset-registry-starter"),
+)
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
@@ -115,6 +119,7 @@ val integrationTestProjects = setOf(
     project(":wow-elasticsearch"),
     project(":wow-it"),
     project(":wow-view-store-starter"),
+    project(":wow-dataset-registry-starter"),
 )
 
 ext.set("localTestProjects", localTestProjects)

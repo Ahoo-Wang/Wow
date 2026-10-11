@@ -163,6 +163,18 @@ component_management:
       name: wow-view-store-starter
       paths:
         - view-store/wow-view-store-starter/src/main/**
+    - component_id: wow-dataset-registry-api
+      name: wow-dataset-registry-api
+      paths:
+        - dataset-registry/wow-dataset-registry-api/src/main/**
+    - component_id: wow-dataset-registry-domain
+      name: wow-dataset-registry-domain
+      paths:
+        - dataset-registry/wow-dataset-registry-domain/src/main/**
+    - component_id: wow-dataset-registry-starter
+      name: wow-dataset-registry-starter
+      paths:
+        - dataset-registry/wow-dataset-registry-starter/src/main/**
     - component_id: wow-client
       name: wow-client
       paths:

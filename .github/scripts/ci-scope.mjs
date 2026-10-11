@@ -207,7 +207,7 @@ const RULES = [
   // Other Gradle modules, the dashboard (dashboard-test.yml)
   // and prose.
   [
-    /^(?:test|config|deploy|document|docs|skills|scripts|compensation|\.claude\/skills)\//,
+    /^(?:test|config|deploy|document|docs|skills|scripts|compensation|dataset-registry|\.claude\/skills)\//,
     [],
   ],
   [/^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/, []],
