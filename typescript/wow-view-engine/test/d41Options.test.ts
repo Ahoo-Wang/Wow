@@ -358,8 +358,16 @@ describe('the D41 options say what the library asks', () => {
     expect(at).toContain('Other');
     noInlineStyle(at);
     expect(tooltipOf(option)([])).toBe('');
-    const axis = option.singleAxis as { axisLabel: { formatter: Formatter } };
+    const axis = option.singleAxis as {
+      axisLabel: { formatter: Formatter };
+      left: number;
+      right: number;
+    };
     expect(axis.axisLabel.formatter(1)).toBe('t1');
     expect(axis.axisLabel.formatter(0.5)).toBe('');
+    // Room for half a dated name either side (Storybook review P2: the
+    // first week ran off the left edge, the last off the right).
+    expect(axis.left).toBeGreaterThanOrEqual(48);
+    expect(axis.right).toBeGreaterThanOrEqual(48);
   });
 });
