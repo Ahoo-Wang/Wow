@@ -27,8 +27,12 @@ on:
       - 'example/**'
       - 'compensation/**'
       - 'view-store/**'
-      # The dashboard is TypeScript; dashboard-test.yml checks it.
+      - 'dataset-registry/**'
+      - 'analytics/**'
+      # The dashboard and the analytics console are TypeScript; dashboard-test.yml and
+      # analytics-console-test.yml check them.
       - '!compensation/dashboard/**'
+      - '!analytics/console/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

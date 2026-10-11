@@ -35,6 +35,8 @@ on:
       - 'view-store/**'
       - 'dataset-registry/**'
       - 'analytics/**'
+      # The console is TypeScript; analytics-console-test.yml checks it.
+      - '!analytics/console/**'
   pull_request:
     paths:
       - '.github/workflows/local-test.yml'
@@ -55,6 +57,8 @@ on:
       - 'view-store/**'
       - 'dataset-registry/**'
       - 'analytics/**'
+      # The console is TypeScript; analytics-console-test.yml checks it.
+      - '!analytics/console/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

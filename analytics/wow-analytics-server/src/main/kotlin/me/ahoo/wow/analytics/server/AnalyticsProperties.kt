@@ -26,6 +26,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * it on every view store request, whatever the request sends.
  * @property publicPaths the paths anyone may read without a token, beside the health probes: the console's static
  * files and the API documentation. Every other path needs an authenticated principal.
+ * @property consolePaths the console's own pages, answered with its `index.html` ([ConsolePagesFilter]).
  */
 @ConfigurationProperties(prefix = AnalyticsProperties.PREFIX)
 class AnalyticsProperties(
@@ -38,6 +39,7 @@ class AnalyticsProperties(
     @DefaultValue(DEFAULT_APP_ID)
     var appId: String = DEFAULT_APP_ID,
     var publicPaths: List<String> = DEFAULT_PUBLIC_PATHS,
+    var consolePaths: List<String> = DEFAULT_CONSOLE_PATHS,
 ) {
     companion object {
         const val PREFIX = "wow.analytics"
@@ -54,5 +56,6 @@ class AnalyticsProperties(
             "/swagger-ui/**",
             "/webjars/**",
         )
+        val DEFAULT_CONSOLE_PATHS = listOf("/login", "/datasets/**", "/boards", "/admin")
     }
 }
