@@ -256,6 +256,13 @@ public final class me/ahoo/wow/query/QueryBackendProviders {
 	public final fun getSnapshots ()Ljava/util/Map;
 }
 
+public final class me/ahoo/wow/query/QueryBackendStorages : me/ahoo/wow/query/schema/QueryStorageLocator {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun storage (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/QueryStorageAdapter;
+}
+
 public final class me/ahoo/wow/query/QueryBudget {
 	public static final field Companion Lme/ahoo/wow/query/QueryBudget$Companion;
 	public static final field DEFAULT_MAX_FILTER_NODES I
@@ -1421,8 +1428,8 @@ public final class me/ahoo/wow/query/schema/QuerySchemaCatalog {
 	public static final field SCHEMA_REFRESH Ljava/lang/String;
 	public static final field SCHEMA_VERSION_CHANGES Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;)V
-	public synthetic fun <init> (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/query/schema/QueryStorageLocator;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/schema/QueryStorageLocator;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun provider (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;
 	public final fun revalidate (Ljava/lang/String;Lme/ahoo/wow/api/query/schema/QueryModel;)Lreactor/core/publisher/Flux;
 	public static synthetic fun revalidate$default (Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Ljava/lang/String;Lme/ahoo/wow/api/query/schema/QueryModel;ILjava/lang/Object;)Lreactor/core/publisher/Flux;
@@ -1649,6 +1656,15 @@ public final class me/ahoo/wow/query/schema/QueryStorageFamilyRules {
 }
 
 public final class me/ahoo/wow/query/schema/QueryStorageFamilyRules$Companion {
+}
+
+public abstract interface class me/ahoo/wow/query/schema/QueryStorageLocator {
+	public static final field Companion Lme/ahoo/wow/query/schema/QueryStorageLocator$Companion;
+	public static final field NONE Lme/ahoo/wow/query/schema/QueryStorageLocator;
+	public abstract fun storage (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/QueryStorageAdapter;
+}
+
+public final class me/ahoo/wow/query/schema/QueryStorageLocator$Companion {
 }
 
 public final class me/ahoo/wow/query/schema/QueryStorageType {

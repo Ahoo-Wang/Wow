@@ -14,7 +14,11 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageLocator
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 
 /**
@@ -78,4 +82,20 @@ class QueryBackendProviders(providers: List<QueryBackendProvider>) {
             require(factories.size == 1) { "Query backend providers [$name] supply the $model read model twice." }
             factories.single()
         }
+}
+
+/**
+ * The storages of the query backends [snapshots] and [eventStreams] create, as the
+ * [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog] locates them: each aggregate model's
+ * [QueryBackendBinding.storage], or `null` for a read model without a factory and for a custom model.
+ */
+class QueryBackendStorages(
+    private val snapshots: SnapshotQueryBackendFactory? = null,
+    private val eventStreams: EventStreamQueryBackendFactory? = null,
+) : QueryStorageLocator {
+    override fun storage(namedAggregate: NamedAggregate, model: QueryModel): QueryStorageAdapter? = when (model) {
+        QueryModel.SNAPSHOT -> snapshots?.create(namedAggregate)?.storage
+        QueryModel.EVENT_STREAM -> eventStreams?.create(namedAggregate)?.storage
+        else -> null
+    }
 }

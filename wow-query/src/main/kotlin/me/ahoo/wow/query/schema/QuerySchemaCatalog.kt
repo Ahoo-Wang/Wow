@@ -22,21 +22,32 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryMetricsObserver
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
+ * Where the [QuerySchemaCatalog] finds the storage of an aggregate model: the [QueryStorageAdapter] of the query
+ * backend that serves it, or `null` when no backend does. The Catalog needs a storage's facts only, never its backend;
+ * [QueryBackendStorages][me.ahoo.wow.query.QueryBackendStorages] reads them from the backend factories.
+ */
+fun interface QueryStorageLocator {
+    fun storage(namedAggregate: NamedAggregate, model: QueryModel): QueryStorageAdapter?
+
+    companion object {
+        /** Locates no storage: every model of the Catalog is unavailable. */
+        @JvmField
+        val NONE: QueryStorageLocator = QueryStorageLocator { _, _ -> null }
+    }
+}
+
+/**
  * The Catalog (design §4, §5.2): compiles the query schema of every aggregate model this instance serves, one
  * provider per aggregate and model, with its [compiler] (by default the model sources merged under the sensitivity
- * policy, see [QueryModelCompiler.of]). Each storage only reports its native facts, through the
- * [storage adapter][QueryBackendBinding.storage] its backend factory supplies. Gateways, point reads and the
- * capability descriptor all read their schema here.
+ * policy, see [QueryModelCompiler.of]). Each storage only reports its native facts, through the storage adapter
+ * [storages] locates. Gateways, point reads and the capability descriptor all read their schema here.
  *
  * Storage facts (indexes, mappings, validators) change outside deployments, so the catalog is revalidated
  * periodically: each schema of [aggregates] is reloaded and published only if it compiles, otherwise the previous one
@@ -45,8 +56,7 @@ import java.util.concurrent.ConcurrentHashMap
  * skips it.
  */
 class QuerySchemaCatalog(
-    private val snapshots: SnapshotQueryBackendFactory? = null,
-    private val eventStreams: EventStreamQueryBackendFactory? = null,
+    private val storages: QueryStorageLocator = QueryStorageLocator.NONE,
     private val compiler: QueryModelCompiler = QueryModelCompiler.of(),
     /** The aggregates [versions] and [revalidate] cover. */
     aggregates: Collection<NamedAggregate> = emptyList(),
@@ -87,12 +97,7 @@ class QuerySchemaCatalog(
         provider(namedAggregate, model).schema()
 
     private fun create(namedAggregate: MaterializedNamedAggregate, model: QueryModel): QueryModelSchemaProvider {
-        val storage = when (model) {
-            QueryModel.SNAPSHOT -> snapshots?.create(namedAggregate)?.storage
-            QueryModel.EVENT_STREAM -> eventStreams?.create(namedAggregate)?.storage
-            else -> null
-        }
-        return when (storage) {
+        return when (val storage = storages.storage(namedAggregate, model)) {
             null -> UnavailableQueryModelSchemaProvider(
                 "No query backend is configured for aggregate[$namedAggregate]."
             )
