@@ -16,7 +16,9 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageLocator
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -43,6 +45,10 @@ interface QueryBackendProvider {
     val eventStream: EventStreamQueryBackendFactory?
         get() = null
 
+    /** The dataset read model, when this provider serves it. */
+    val dataset: DatasetQueryBackendFactory?
+        get() = null
+
     companion object {
         @JvmStatic
         fun snapshot(name: String, factory: SnapshotQueryBackendFactory): QueryBackendProvider =
@@ -51,6 +57,10 @@ interface QueryBackendProvider {
         @JvmStatic
         fun eventStream(name: String, factory: EventStreamQueryBackendFactory): QueryBackendProvider =
             SimpleQueryBackendProvider(name, eventStream = factory)
+
+        @JvmStatic
+        fun dataset(name: String, factory: DatasetQueryBackendFactory): QueryBackendProvider =
+            SimpleQueryBackendProvider(name, dataset = factory)
     }
 }
 
@@ -59,10 +69,13 @@ data class SimpleQueryBackendProvider(
     override val name: String,
     override val snapshot: SnapshotQueryBackendFactory? = null,
     override val eventStream: EventStreamQueryBackendFactory? = null,
+    override val dataset: DatasetQueryBackendFactory? = null,
 ) : QueryBackendProvider {
     init {
         require(name.isNotBlank()) { "Query backend provider name must not be blank." }
-        require(snapshot != null || eventStream != null) { "Query backend provider [$name] supplies no read model." }
+        require(snapshot != null || eventStream != null || dataset != null) {
+            "Query backend provider [$name] supplies no read model."
+        }
     }
 }
 
@@ -71,6 +84,7 @@ data class SimpleQueryBackendProvider(
 class QueryBackendProviders(providers: List<QueryBackendProvider>) {
     val snapshots: Map<String, SnapshotQueryBackendFactory> = index(providers, "snapshot") { it.snapshot }
     val eventStreams: Map<String, EventStreamQueryBackendFactory> = index(providers, "event-stream") { it.eventStream }
+    val datasets: Map<String, DatasetQueryBackendFactory> = index(providers, "dataset") { it.dataset }
 
     private fun <F : Any> index(
         providers: List<QueryBackendProvider>,
@@ -87,15 +101,19 @@ class QueryBackendProviders(providers: List<QueryBackendProvider>) {
 /**
  * The storages of the query backends [snapshots] and [eventStreams] create, as the
  * [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog] locates them: each aggregate model's
- * [QueryBackendBinding.storage], or `null` for a read model without a factory and for a custom model.
+ * [QueryBackendBinding.storage], each declared dataset's from [datasetFactory], or `null` for a read model without a
+ * factory, an undeclared dataset and another custom model.
  */
-class QueryBackendStorages(
+class QueryBackendStorages @JvmOverloads constructor(
     private val snapshots: SnapshotQueryBackendFactory? = null,
     private val eventStreams: EventStreamQueryBackendFactory? = null,
+    private val datasetFactory: DatasetQueryBackendFactory? = null,
+    private val datasets: QueryDatasets = QueryDatasets.NONE,
 ) : QueryStorageLocator {
     override fun storage(namedAggregate: NamedAggregate, model: QueryModel): QueryStorageAdapter? = when (model) {
         QueryModel.SNAPSHOT -> snapshots?.create(namedAggregate)?.storage
         QueryModel.EVENT_STREAM -> eventStreams?.create(namedAggregate)?.storage
+        QueryModel.DATASET -> datasets[namedAggregate]?.let { datasetFactory?.create(it)?.storage }
         else -> null
     }
 }

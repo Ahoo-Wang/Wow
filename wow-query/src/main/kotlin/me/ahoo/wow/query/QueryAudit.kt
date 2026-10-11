@@ -27,7 +27,6 @@ import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.profile
 import reactor.util.context.ContextView
 import java.time.Duration
 

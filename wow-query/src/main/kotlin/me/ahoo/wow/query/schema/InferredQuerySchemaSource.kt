@@ -96,6 +96,8 @@ class InferredQuerySchemaSource(
             InferredFacts(events.associateWith { modelSource.describe(it) })
                 .also { if (events.isNotEmpty()) warnInconsistentSensitivity(type, it.types) }
         }
+        // A dataset is declared, not inferred: QueryModelProfile.of never yields its profile.
+        is DatasetQueryModelProfile -> InferredFacts(emptyMap())
     }
 
     /** The described [types]: a snapshot's state type, or an event stream's event types in name order. */
@@ -110,6 +112,7 @@ class InferredQuerySchemaSource(
                 ),
             )
             is EventStreamQueryModelProfile -> eventStream(profile, contextName)
+            is DatasetQueryModelProfile -> QuerySchemaDeclaration(emptyMap())
         }
 
         private fun eventStream(profile: EventStreamQueryModelProfile, contextName: String?): QuerySchemaDeclaration {

@@ -147,9 +147,9 @@ class MongoQuerySchemaAdapter(
         private fun QueryPathTemplate.logicalPath(model: QueryModel): QueryPathTemplate =
             renameRoot(Documents.ID_FIELD, model.identityPath())
 
-        private fun QueryModel.identityPath(): String = requireNotNull(QueryModelProfile.of(this)) {
+        private fun QueryModel.identityPath(): String = requireNotNull(QueryModelProfile.of(this)?.identityField) {
             "MongoDB query schema requires a built-in query model: [$this]."
-        }.identityField.path
+        }.path
 
         private fun QueryPathTemplate.renameRoot(from: String, to: String): QueryPathTemplate = QueryPathTemplate(
             segments.mapIndexed { index, segment ->

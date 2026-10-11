@@ -180,7 +180,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     private fun variants(): VariantsDescriptor? {
         val profile = schema.profile ?: return null
         val element = profile.variantElement?.path ?: return null
-        val payload = schema.definition.value(profile.payloadField.toPathTemplate()) ?: return null
+        val payloadField = profile.payloadField ?: return null
+        val payload = schema.definition.value(payloadField.toPathTemplate()) ?: return null
         val variants = if (payload.variant != null) {
             listOf(
                 payload
@@ -189,7 +190,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             payload.alternatives.filter { it.variant != null }
         }
         if (variants.isEmpty()) return null
-        val payloadName = profile.payloadField.path.removePrefix("$element.")
+        val payloadName = payloadField.path.removePrefix("$element.")
         return VariantsDescriptor(
             element = element,
             discriminator = checkNotNull(profile.payloadTypeField).path.removePrefix("$element."),
@@ -197,7 +198,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 VariantDescriptor(
                     value = checkNotNull(variant.variant),
                     description = variant.description,
-                    fields = variantFields(variant, profile.payloadField, element, payloadName),
+                    fields = variantFields(variant, payloadField, element, payloadName),
                 )
             }.sortedBy { it.value },
         )
@@ -312,9 +313,15 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         return SearchDescriptor(modes, fields.map { it.logicalField.path })
     }
 
-    /** The path a system field names on this model ([systemField]); `null` for the identity of a custom model. */
-    private fun systemPath(field: SystemField): String? =
-        if (field == SystemField.IDENTITY && identity == null) null else schema.systemField(field).path
+    /**
+     * The path a system field names on this model ([systemField]); `null` for the identity of a custom model and for a
+     * system field the model's profile does not carry, such as a dataset's aggregate id.
+     */
+    private fun systemPath(field: SystemField): String? = when {
+        field == SystemField.IDENTITY -> identity
+        schema.profile == null -> schema.systemField(field).path
+        else -> schema.profile.systemField(field)?.path
+    }
 
     /** The system role of [path]: a metadata field's own, or the identity's for the model's identity field. */
     private fun role(path: String): String? = METADATA_FIELDS.firstOrNull { systemPath(it) == path }?.name

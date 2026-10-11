@@ -66,8 +66,19 @@ class QuerySchemaCatalog(
      * (counter, same tags without `outcome`). `null` publishes nothing.
      */
     private val meterRegistry: MeterRegistry? = null,
+    /**
+     * The datasets [versions] and [revalidate] cover, each compiled as its [QueryModel.DATASET] model. A dataset
+     * occupies its context's name slot, so it never takes the name of one of [aggregates].
+     */
+    datasets: Collection<NamedAggregate> = emptyList(),
 ) {
     private val aggregates = aggregates.map { it.materialize() }.distinct()
+    private val datasets = datasets.map { it.materialize() }.distinct()
+
+    init {
+        val shared = this.datasets.intersect(this.aggregates.toSet())
+        require(shared.isEmpty()) { "Datasets must not take the name of an aggregate of their context: $shared." }
+    }
     private val providers = ConcurrentHashMap<Pair<MaterializedNamedAggregate, QueryModel>, QueryModelSchemaProvider>()
     private val inFlight = ConcurrentHashMap<QueryModelSchemaProvider, Mono<Status>>()
 
@@ -107,9 +118,11 @@ class QuerySchemaCatalog(
     }
 
     // Models without a configured backend have nothing to load or revalidate.
-    private fun entries(): List<Entry> = aggregates.flatMap { namedAggregate ->
-        BUILT_IN_MODELS.map { model -> Entry(namedAggregate, model, provider(namedAggregate, model)) }
-    }.filterNot { it.provider is UnavailableQueryModelSchemaProvider }
+    private fun entries(): List<Entry> = (
+        aggregates.flatMap { namedAggregate ->
+            BUILT_IN_MODELS.map { model -> Entry(namedAggregate, model, provider(namedAggregate, model)) }
+        } + datasets.map { Entry(it, QueryModel.DATASET, provider(it, QueryModel.DATASET)) }
+        ).filterNot { it.provider is UnavailableQueryModelSchemaProvider }
 
     /** The current version of every schema, loading those not loaded yet. */
     fun versions(aggregate: String? = null): Flux<Status> = select(aggregate).concatMap { entry ->
@@ -183,15 +196,17 @@ fun interface QueryModelCompiler {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
          * facts about it (design §5.2). [legacyDeclarations] is what a 9.1 declaration file means when no source
-         * declares that model in 9.2.
+         * declares that model in 9.2. [datasets] supplies each dataset model's fields and record layout.
          */
         @JvmStatic
+        @JvmOverloads
         fun of(
             sources: List<QuerySchemaSource> = emptyList(),
             sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
             legacyDeclarations: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
+            datasets: QueryDatasets = QueryDatasets.NONE,
         ): QueryModelCompiler {
-            val declared = sources.toList()
+            val declared = if (datasets.all.isEmpty()) sources.toList() else sources + datasets
             return QueryModelCompiler { context, storage ->
                 DefaultQueryModelSchemaProvider(
                     context = context,
@@ -199,6 +214,7 @@ fun interface QueryModelCompiler {
                     adapter = storage,
                     sensitivity = sensitivity,
                     legacyDeclarationPolicy = legacyDeclarations,
+                    profile = datasets.profile(context),
                 )
             }
         }
