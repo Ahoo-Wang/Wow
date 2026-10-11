@@ -66,10 +66,18 @@ export class SourceCapabilities {
   readonly fallback: RuntimeLimits;
   private readonly host: CapabilityHost;
   private readonly cache: DescriptorCache;
-  /** Each definition narrowed to the version it was narrowed against. */
+  /**
+   * Each definition narrowed to the version it was narrowed against, with
+   * the definition it narrowed: one registered again (`ViewEngine.register`)
+   * is narrowed afresh, even against a descriptor already held.
+   */
   private readonly narrowed = new Map<
     string,
-    { version: string; result: NarrowedDefinition }
+    {
+      version: string;
+      definition: DataViewDefinition;
+      result: NarrowedDefinition;
+    }
   >();
   private readonly limitsBySource = new Map<
     string,
@@ -269,12 +277,17 @@ export class SourceCapabilities {
     given: DataViewDefinition,
     descriptor: QueryModelDescriptor,
   ): NarrowedDefinition {
-    const held = this.narrowed.get(id);
-    if (held?.version === descriptor.version) return held.result;
     const declared = this.host.declared(id);
     const definition = declared?.kind === 'data' ? declared : given;
+    const held = this.narrowed.get(id);
+    if (held?.version === descriptor.version && held.definition === definition)
+      return held.result;
     const result = narrowDefinition(definition, descriptor, this.host.kinds);
-    this.narrowed.set(id, { version: descriptor.version, result });
+    this.narrowed.set(id, {
+      version: descriptor.version,
+      definition,
+      result,
+    });
     for (const found of result.findings)
       this.host.report({
         ...found,

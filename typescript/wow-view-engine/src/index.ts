@@ -914,6 +914,10 @@ export {
   type DefineViewOptions,
   defineView,
 } from './runtime/define/defineView.js';
+export {
+  type DefineDatasetSpec,
+  defineDataset,
+} from './runtime/define/defineDataset.js';
 export type {
   DefineViewSpec,
   FieldSpec,

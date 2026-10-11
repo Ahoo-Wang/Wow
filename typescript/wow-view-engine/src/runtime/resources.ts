@@ -51,6 +51,8 @@ export abstract class EngineResources {
    * not export (R2-85).
    */
   protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
+  /** Where `register` hands a definition to be judged and kept. */
+  private keep: ((definition: ViewDefinition) => void) | undefined;
   /** The words the definitions' keys are checked against; see `EngineText`. */
   private readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
@@ -174,6 +176,31 @@ export abstract class EngineResources {
    */
   protected report(found: Issue, resource?: string): void {
     this.reporter?.(found, resource);
+  }
+
+  /**
+   * Adds a resource at run time, or replaces the one of its definition's
+   * id (host-integration.md 3.2, D84): a dataset published after the
+   * engine was built, its definition derived from its descriptor
+   * (`defineDataset`). It is judged and its findings told as the resources
+   * given at construction are; views opened after this run on it, those
+   * already open keep the definition they opened on until reopened.
+   */
+  register(resource: {
+    definition: ViewDefinition;
+    source?: ViewSource;
+  }): void {
+    const { definition, source } = resource;
+    if (source && definition.kind === 'data')
+      this.sources.set(definition.source, source);
+    this.keep?.(definition);
+  }
+
+  /** Sets where `register` hands a definition: the engine's registry. */
+  protected keepDefinitionsIn(
+    keep: (definition: ViewDefinition) => void,
+  ): void {
+    this.keep = keep;
   }
 
   /** Whether a resource registered a source under `key`. */

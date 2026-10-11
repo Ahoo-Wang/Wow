@@ -3959,6 +3959,11 @@ abstract class EngineResources {
     checkBinding(definitionId: string): boolean;
     get definitions(): ReadonlyMap<string, ViewDefinition>;
     protected hasSource(key: string): boolean;
+    protected keepDefinitionsIn(keep: (definition: ViewDefinition) => void): void;
+    register(resource: {
+        definition: ViewDefinition;
+        source?: ViewSource;
+    }): void;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
     protected report(found: Issue, resource?: string): void;
     // (undocumented)

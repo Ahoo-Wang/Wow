@@ -12,10 +12,12 @@
  */
 
 /**
- * The definition registry: what the application declared in code.
+ * The definition registry: what the application declared in code, and the
+ * datasets' definitions a host registers at run time (D84).
  *
- * Definitions are code, so they are judged once — at construction — and a
- * definition that fails is kept but refused at the point of use. Everything
+ * Definitions are code, so they are judged once — at construction, or when
+ * registered — and a definition that fails is kept but refused at the point
+ * of use. Everything
  * an engine reads out of a definition goes through here: the definition
  * itself, what admission said about it, and the instances it declares.
  */
@@ -38,20 +40,21 @@ import {
 import { ViewCommandError } from './write.js';
 
 export class DefinitionRegistry {
-  readonly definitions: ReadonlyMap<string, ViewDefinition>;
+  private readonly registered: Map<string, ViewDefinition>;
   /** `validateDefinition` per registered definition, computed once. */
   private readonly findings = new Map<string, Issue[]>();
+  private readonly text: TextResolver | undefined;
 
   constructor(
-    host: {
+    private readonly host: {
       definitions: readonly ViewDefinition[];
       text?(key: string): string | undefined;
       /** Whether a source is registered under `key` (`resources`). */
       hasSource?(key: string): boolean;
     },
-    kinds: FieldKindRegistry,
-    limits: RuntimeLimits,
-    report: (found: Issue, resource: string) => void,
+    private readonly kinds: FieldKindRegistry,
+    private readonly limits: RuntimeLimits,
+    private readonly report: (found: Issue, resource: string) => void,
   ) {
     // Kept as declared, keys and all: the engine says them as it hands a
     // definition out (`EngineText`), in whatever language is in force then,
@@ -59,38 +62,55 @@ export class DefinitionRegistry {
     // words the host starts with (`ViewEngineOptions.text`) are only checked
     // here: a key they have no words for is warned of where it sits.
     // Called on the host's object, which a catalogue's method may read.
-    const text: TextResolver | undefined =
-      host.text && (key => host.text?.(key));
+    this.text = host.text && (key => host.text?.(key));
     const definitions = host.definitions;
-    this.definitions = new Map(
+    this.registered = new Map(
       definitions.map(definition => [definition.id, definition]),
     );
 
     // Definitions are code, so they are judged once, here, rather than on
     // every open. One that fails is kept but refused at the point of use:
     // that beats a blank registry, and beats a crash at application start.
-    for (const definition of definitions) {
-      const found = [
-        ...(text ? sayDefinition(definition, text).findings : []),
-        // A data definition whose rows come from nowhere is refused where
-        // it is used — its own views, and only the board panels over it.
-        ...(definition.kind === 'data' &&
-        host.hasSource &&
-        !host.hasSource(definition.source)
-          ? [
-              issue('definition.source.unregistered', ['source'], {
-                source: definition.source,
-              }),
-            ]
-          : []),
-        ...validateDefinition(definition, kinds, {
-          limits,
-          definitions: id => this.definitions.get(id),
-        }),
-      ];
-      this.findings.set(definition.id, found);
-      for (const entry of found) report(entry, definition.id);
-    }
+    for (const definition of definitions) this.judge(definition);
+  }
+
+  /** Every registered definition, by id. */
+  get definitions(): ReadonlyMap<string, ViewDefinition> {
+    return this.registered;
+  }
+
+  /**
+   * Adds `definition`, or replaces the one of its id, at run time — a
+   * dataset's, derived from its descriptor (D84) — and judges it as the
+   * definitions declared in code are judged.
+   */
+  register(definition: ViewDefinition): void {
+    this.registered.set(definition.id, definition);
+    this.judge(definition);
+  }
+
+  private judge(definition: ViewDefinition): void {
+    const { host, text } = this;
+    const found = [
+      ...(text ? sayDefinition(definition, text).findings : []),
+      // A data definition whose rows come from nowhere is refused where
+      // it is used — its own views, and only the board panels over it.
+      ...(definition.kind === 'data' &&
+      host.hasSource &&
+      !host.hasSource(definition.source)
+        ? [
+            issue('definition.source.unregistered', ['source'], {
+              source: definition.source,
+            }),
+          ]
+        : []),
+      ...validateDefinition(definition, this.kinds, {
+        limits: this.limits,
+        definitions: id => this.registered.get(id),
+      }),
+    ];
+    this.findings.set(definition.id, found);
+    for (const entry of found) this.report(entry, definition.id);
   }
 
   /** What `validateDefinition` said about one definition, for a host to show. */
