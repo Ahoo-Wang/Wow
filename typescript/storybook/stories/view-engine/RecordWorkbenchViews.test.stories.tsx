@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import type { RecordViewConfig } from '@ahoo-wang/wow-view-engine';
 import displayMeta, {
   DeleteConflicted as DisplayDeleteConflicted,
@@ -434,7 +434,11 @@ export const SaveResultNeverCameBack: Story = {
     await dirtyTheDraft(canvasElement);
     await save(canvas);
 
-    const band = await outcomeBand(canvasElement, zhCN['label.write.unknown']);
+    // Named after the write it was: a save (R2-100).
+    const unknown = formatMessage(zhCN, 'label.write.unknown', {
+      what: zhCN['label.write.action.save'],
+    });
+    const band = await outcomeBand(canvasElement, unknown);
     await expect(
       [...band.querySelectorAll('button')].map(button =>
         button.textContent?.trim(),
@@ -453,9 +457,7 @@ export const SaveResultNeverCameBack: Story = {
       const saved = await outcomesStore.current!.get('orders-pending');
       expect((saved.config as RecordViewConfig).sort).toHaveLength(2);
     });
-    await waitFor(() =>
-      expect(canvas.queryByText(zhCN['label.write.unknown'])).toBeNull(),
-    );
+    await waitFor(() => expect(canvas.queryByText(unknown)).toBeNull());
   },
 };
 

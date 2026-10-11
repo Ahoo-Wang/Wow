@@ -459,7 +459,11 @@ describe('ViewManager rows', () => {
 
     fireEvent.keyDown(handle('Mine'), { key: 'ArrowDown' });
 
-    expect(await screen.findByText('The result never came back')).toBeDefined();
+    expect(
+      await screen.findByText(
+        /got no answer; it may already have gone through/,
+      ),
+    ).toBeDefined();
     expect(rows()[0]).toContain('Mine');
     expect(rows()[1]).toContain('Yours');
     await expect(store.getPreferences('orders')).resolves.toMatchObject({
@@ -922,7 +926,7 @@ describe('managing views from the workbench', () => {
     // it still shows the open view's own outcome, and the manager now keeps
     // a live region for what a move says out loud.
     const outcome = (
-      await within(screen.getByRole('dialog')).findByText(/never came back/)
+      await within(screen.getByRole('dialog')).findByText(/got no answer/)
     ).closest('[role="status"]') as HTMLElement;
 
     fireEvent.click(within(outcome).getByRole('button', { name: 'Try again' }));

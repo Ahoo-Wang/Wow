@@ -62,7 +62,16 @@ export const statusMessages = {
     '{error} · Showing the result from before the conditions changed',
   'label.query.retry': 'Try again',
   'label.write.conflict': 'Someone else saved this view first',
-  'label.write.unknown': 'The result never came back',
+  // Said of the write it was (R2-100): what was asked, and that it may have
+  // gone through — no answer is not a failure.
+  'label.write.unknown':
+    '{what} got no answer; it may already have gone through',
+  'label.write.action.save': 'Saving',
+  'label.write.action.create': 'Saving as new',
+  'label.write.action.rename': 'Renaming',
+  'label.write.action.changeAudience': 'Changing who can see it',
+  'label.write.action.delete': 'Deleting',
+  'label.write.action.preferences': 'Saving your preferences',
   'label.image.failed': 'This image could not be loaded',
   // An image that is a link and has no words of its own still needs a name.
   'label.image.link': 'Open the linked page',

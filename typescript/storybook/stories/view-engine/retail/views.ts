@@ -650,14 +650,15 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-06：哪些省份买得多。
+  // A-06：哪些省份买得多。只算它画的 GMV：从前还带着订单数，图上没有它，
+  // 图下的说明却念出来（R2-100）。
   shared(
     ANALYSTS,
     'a06-provinces',
     '省份 GMV 前 15',
     analysis({
       groups: [byTerms('state.address.province', 'province')],
-      metrics: [gmv(), orders()],
+      metrics: [gmv()],
       sort: [{ alias: 'gmv', direction: 'DESC' }],
       limit: 15,
       chart: {

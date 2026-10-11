@@ -818,7 +818,7 @@ describe('WriteOutcome', () => {
     editIt(runtime);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
 
     expect(
       screen
@@ -846,7 +846,7 @@ describe('WriteOutcome', () => {
 
     // The copy's own outcome is what the view reports now, and it is the
     // only write left for anyone to answer for.
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
     await waitFor(() => expect(engine.pendingWrites().size).toBe(1));
     expect([...engine.pendingWrites().values()][0].payload.action).toBe(
       'create',
@@ -864,7 +864,7 @@ describe('WriteOutcome', () => {
     vi.spyOn(store, 'save').mockRejectedValueOnce(new Error('socket closed'));
     editIt(runtime);
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
 
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'save').mockReturnValueOnce(held.promise);
@@ -924,7 +924,16 @@ describe('WriteOutcome', () => {
     editIt(runtime);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await screen.findByText('The result never came back');
+    // What was asked, that it may have landed, and what each way out does —
+    // the edits a save carried stay if it is given up on (R2-100).
+    await screen.findByText(
+      'Saving got no answer; it may already have gone through',
+    );
+    expect(
+      document.querySelector('[data-slot="write-unknown-hint"]')?.textContent,
+    ).toBe(
+      'Try again sends the same request, which cannot take effect twice. Abandon stops waiting; your edits stay here, unsaved.',
+    );
 
     // Snapshot before the click: the helper awaits the button, and a memory
     // store lands the retried write within the same tick as the press.
@@ -949,7 +958,9 @@ describe('WriteOutcome', () => {
     await screen.findByText(
       'This browser could not keep the change: its storage is full or turned off.',
     );
-    expect(screen.queryByText('The result never came back')).toBeNull();
+    expect(
+      screen.queryByText(/got no answer; it may already have gone through/),
+    ).toBeNull();
 
     const retried = landed(store);
     await clickWhenEnabled('Try again');
@@ -963,11 +974,13 @@ describe('WriteOutcome', () => {
     editIt(runtime);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
 
     await clickWhenEnabled('Abandon');
     await waitFor(() =>
-      expect(screen.queryByText('The result never came back')).toBeNull(),
+      expect(
+        screen.queryByText(/got no answer; it may already have gone through/),
+      ).toBeNull(),
     );
   });
 
