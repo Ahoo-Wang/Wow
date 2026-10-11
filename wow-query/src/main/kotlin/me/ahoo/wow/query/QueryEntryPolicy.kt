@@ -17,6 +17,8 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.api.query.spec.ValueArity
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.schema.QueryModelProfile
@@ -79,5 +81,7 @@ data class QueryEntryPolicy(
 private fun FilterExpression.pins(field: QueryField, profile: QueryModelProfile): Boolean = when (this) {
     is AndFilter -> operands.any { it.pins(field, profile) }
     is EqualFilter -> this.field == field && !value.isNull
+    // A model with a fixed tenant has no tenant field: its tenant filter pins the tenant itself.
+    is TenantIdFilter -> profile.fixedTenantId != null || profile.systemField(SystemField.TENANT_ID) == field
     else -> spec.arity.values == ValueArity.ONE && spec.systemField?.let(profile::systemField) == field
 }

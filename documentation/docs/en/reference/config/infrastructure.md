@@ -197,6 +197,7 @@ Configuration class: `ClickHouseDatasetProperties` (prefix `wow.query.clickhouse
 | `wow.query.clickhouse.metadata-ttl` | Duration | `1m` | How long a table's columns and engine are reused before `system.columns` is read again |
 | `wow.query.clickhouse.http.*` | — | `max-execution-time=30s`, `max-memory-usage=4294967296` | HTTP query limits: `max-execution-time`, `max-rows-to-read`, `max-result-rows`, `max-memory-usage`, sent as server settings; an over-limit query fails |
 | `wow.query.clickhouse.in-process.*` | — | unlimited | The same limits for in-process queries |
+| `wow.query.clickhouse.sources.{name}.*` | — | — | A named source: `endpoints` (required), `username`, `password`, `database`, `connection-timeout`, `socket-timeout`, `max-connections`, with the defaults above; a dataset names it in `storage.source`, and the limits apply to every source |
 
 ## WebFlux
 

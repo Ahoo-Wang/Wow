@@ -59,6 +59,35 @@ class ClickHouseDatasetAutoConfigurationTest {
     }
 
     @Test
+    fun `named sources each get their own client and default database`() {
+        runner.withPropertyValues(
+            "wow.query.clickhouse.enabled=true",
+            "wow.query.clickhouse.endpoints=http://localhost:8123",
+            "wow.query.clickhouse.sources.warehouse.endpoints=http://dw:8123",
+            "wow.query.clickhouse.sources.warehouse.database=dw",
+            "wow.query.clickhouse.sources.warehouse.username=reader",
+        ).run { context ->
+            context.assert().hasNotFailed()
+            val properties = context.getBean(ClickHouseDatasetProperties::class.java)
+            val warehouse = properties.sources.getValue("warehouse")
+            warehouse.username.assert().isEqualTo("reader")
+            warehouse.maxConnections.assert().isEqualTo(16)
+            properties.defaultSource().endpoints.single().toString().assert().isEqualTo("http://localhost:8123")
+            val sources = context.getBean(ClickHouseDatasetSources::class.java)
+            sources.sources.keys.assert().containsExactly("warehouse")
+            sources.sources.getValue("warehouse").database.assert().isEqualTo("dw")
+        }
+        runner.withPropertyValues(
+            "wow.query.clickhouse.enabled=true",
+            "wow.query.clickhouse.endpoints=http://localhost:8123",
+            "wow.query.clickhouse.sources.warehouse.database=dw",
+        ).run { context ->
+            context.assert().hasFailed()
+            context.startupFailure.assert().rootCause().hasMessageContaining("sources.warehouse.endpoints")
+        }
+    }
+
+    @Test
     fun `an enabled ClickHouse backend needs an endpoint`() {
         runner.withPropertyValues("wow.query.clickhouse.enabled=true").run { context ->
             context.assert().hasFailed()

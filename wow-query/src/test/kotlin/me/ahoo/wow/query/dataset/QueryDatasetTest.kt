@@ -180,6 +180,9 @@ class QueryDatasetTest {
             """{ "scope": [], $fields }""",
             """{ "scope": { "tenant": "t", "region": "r" }, $fields }""",
             """{ $scope, $fields, "storage": [] }""",
+            """{ "scope": { "tenant": "t", "platform": true }, $fields }""",
+            """{ "scope": { "platform": false }, $fields }""",
+            """{ "scope": { "platform": "yes" }, $fields }""",
             """{ "scope": { "tenant": "t", "tags": [] }, $fields }""",
             """{ "scope": { "tenant": "t", "tags": { "region": 1 } }, $fields }""",
             """{ "scope": { "tenant": "t", "tags": { "region": "missing" } }, $fields }""",
@@ -213,6 +216,22 @@ class QueryDatasetTest {
         val files = QueryDatasetFiles(WowResourceLocator(configDirectory = first.resolve("none"), classLoader = loader))
         assertThrows<IllegalArgumentException> { files.load(MaterializedNamedAggregate("analytics", "twice")) }
             .message.assert().contains("more than once")
+    }
+
+    @Test
+    fun `a dataset without a tenant column is declared platform-level`(@TempDir config: Path) {
+        write(config, "analytics.erp", """{ "scope": { "platform": true }, "fields": { "sku": {} } }""")
+        val dataset = files(config).load(MaterializedNamedAggregate("analytics", "erp"))
+        dataset.scope.platform.assert().isTrue()
+        dataset.scope.tenant.assert().isNull()
+        dataset.scope.fields.assert().isEmpty()
+        dataset.profile.fixedTenantId.assert().isEqualTo("(0)")
+        assertThrows<IllegalArgumentException> {
+            QueryDataset.of(ORDERS) { field("sku") { types(QueryValueType.STRING) } }
+        }.message.assert().contains("platform-level")
+        assertThrows<IllegalArgumentException> { QueryDatasetScope(QueryField("t"), platform = true) }
+        orders().scope.fixedTenantId.assert().isNull()
+        orders().profile.fixedTenantId.assert().isNull()
     }
 
     @Test

@@ -37,6 +37,8 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft {
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetDrafts {
 	public static final field INSTANCE Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDrafts;
 	public final fun draft (Lme/ahoo/wow/clickhouse/query/ClickHouseTable;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;
+	public final fun draft (Lme/ahoo/wow/clickhouse/query/ClickHouseTable;Ljava/lang/String;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;
+	public static synthetic fun draft$default (Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDrafts;Lme/ahoo/wow/clickhouse/query/ClickHouseTable;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetDraft;
 }
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions {
@@ -73,24 +75,29 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetQueryBackend : 
 }
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetQueryBackendFactory : me/ahoo/wow/query/dataset/AbstractDatasetQueryBackendFactory {
+	public fun <init> (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;)V
 	public fun <init> (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;)V
-	public synthetic fun <init> (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage {
 	public static final field Companion Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Companion;
 	public static final field DEDUPLICATE Ljava/lang/String;
+	public static final field SOURCE Ljava/lang/String;
 	public static final field TABLE Ljava/lang/String;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
-	public static synthetic fun copy$default (Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;Ljava/lang/String;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
+	public static synthetic fun copy$default (Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDatabase ()Ljava/lang/String;
 	public final fun getDeduplicate ()Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate;
+	public final fun getSource ()Ljava/lang/String;
 	public final fun getTable ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -98,6 +105,8 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage {
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Companion {
 	public final fun of (Lme/ahoo/wow/query/schema/QueryDataset;Ljava/lang/String;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
+	public final fun of (Lme/ahoo/wow/query/schema/QueryDataset;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
+	public static synthetic fun of$default (Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Companion;Lme/ahoo/wow/query/schema/QueryDataset;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage;
 }
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseDatasetStorage$Deduplicate : java/lang/Enum {
@@ -155,6 +164,19 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseQuerySchemaAdapter : m
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseQuerySchemaAdapter$Companion {
 	public final fun getSTORAGE_SUPPORT ()Lme/ahoo/wow/query/schema/StorageSupport;
+}
+
+public final class me/ahoo/wow/clickhouse/query/ClickHouseSource {
+	public fun <init> (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Ljava/lang/String;)V
+	public final fun component1 ()Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Ljava/lang/String;)Lme/ahoo/wow/clickhouse/query/ClickHouseSource;
+	public static synthetic fun copy$default (Lme/ahoo/wow/clickhouse/query/ClickHouseSource;Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getExecutor ()Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/clickhouse/query/ClickHouseStatement {

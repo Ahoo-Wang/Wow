@@ -1,6 +1,6 @@
 # 数据集平台化设计
 
-日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施，模块孵化中，随 R5 发布。
+日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施。
 
 基线：`main` `ff0a57653`。本文接在[数据集查询与 ClickHouse 后端设计](2026-10-10-clickhouse-dataset-query-design.md)（下称“数据集设计”）之后，取代它 §10 中原定的 S4。view-engine 的原则与编号见 `typescript/wow-view-engine/docs/design/`。
 
@@ -144,7 +144,7 @@ wow:
         bi: { endpoints: [ http://bi:8123 ], username: wow_reader, database: bi_db }
 ```
 
-数据集的 `storage` 增加 `source` 键，省略时使用默认数据源，所以已有配置不受影响。查询限额（数据集设计 §5.4）按数据源分别配置。
+数据集的 `storage` 增加 `source` 键，省略时使用默认数据源，所以已有配置不受影响。每个数据源使用自己的连接；查询限额（数据集设计 §5.4）仍按入口统一配置，作用于所有数据源，需要时再按数据源细分。注册表起草时可以指定数据源（`DraftDataset.source`），草稿的 `storage.source` 随之写入。
 
 ### 5.2 平台级数据集
 

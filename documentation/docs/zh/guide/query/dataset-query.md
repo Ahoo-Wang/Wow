@@ -37,7 +37,8 @@ description: 把 ClickHouse 宽表等声明式数据集接入 Wow 查询：声�
 | 键 | 含义 |
 | --- | --- |
 | `fields` | 可查询的字段，每个是表的一列，使用[查询模型 Schema](./query-model-schema.md) 的声明词汇。没有声明的列不会暴露 |
-| `scope.tenant` | 必填。租户列：调用方范围中的 `tenantId` 落到这一列，`wow.query.require-authenticated-scope` 也要求它 |
+| `scope.tenant` | 租户列：调用方范围中的 `tenantId` 落到这一列，`wow.query.require-authenticated-scope` 也要求它。与 `scope.platform` 二选一 |
+| `scope.platform` | `true` 表示表里没有租户列，数据集属于平台租户 `(0)`：调用方的租户是 `(0)` 时读到全部记录，是其他租户时什么都读不到，从不对所有租户开放。适合企业仓库中不分租户的表 |
 | `scope.owner`、`scope.space` | 可选。所有者列与空间列 |
 | `scope.tags` | 可选。ABAC 标签键到列的绑定，见 [ABAC](#abac) |
 | `identity` | 可选。每行的唯一标识：ID 过滤、游标分页与 View Engine 明细视图的 `rowKey` 都需要它 |
@@ -79,7 +80,7 @@ wow:
       database: bi_db
 ```
 
-数据集的 `storage` 写 `table`（`database.table`，或 `wow.query.clickhouse.database` 中的表名）和可选的 `deduplicate`：`NONE`（默认）或 `FINAL`。`FINAL` 在读取时合并 Replacing、Collapsing 等 MergeTree 的行，读到的是最终一致的数据。
+数据集的 `storage` 写 `table`（`database.table`，或数据源默认库中的表名）、可选的 `deduplicate`：`NONE`（默认）或 `FINAL`，以及可选的 `source`。`FINAL` 在读取时合并 Replacing、Collapsing 等 MergeTree 的行，读到的是最终一致的数据。
 
 Catalog 编译数据集时，用 `system.columns` 检查表是否符合声明，任何不一致都让编译失败，Catalog 保留上一个版本：
 
@@ -88,6 +89,20 @@ Catalog 编译数据集时，用 `system.columns` 检查表是否符合声明，
 - 范围列、标签列与身份列不能是 `Nullable`；范围列与身份列也不能是数组；
 - `FINAL` 需要会合并行的引擎；
 - 数组只支持 `Array(String)`（元素可以是 `LowCardinality(String)` 或 `FixedString`），声明为字符串数组；`Map`、`Tuple` 与其他数组暂不支持。
+
+`wow.query.clickhouse` 下的连接设置是默认数据源；`wow.query.clickhouse.sources.{name}` 配置其他命名数据源（`endpoints`、`username`、`password`、`database`、`connection-timeout`、`socket-timeout`、`max-connections`），每个使用自己的连接。数据集的 `storage.source` 写数据源的名字，省略时使用默认数据源：
+
+```yaml
+wow:
+  query:
+    clickhouse:
+      sources:
+        warehouse:
+          endpoints: [ http://dw:8123 ]
+          username: wow_reader
+          password: ${DW_PASSWORD}
+          database: dw
+```
 
 每个入口的查询有上限，以服务端设置下发，超限的查询失败而不是返回截断的结果：HTTP 查询默认 30 秒、4 GiB 内存（`wow.query.clickhouse.http.*`），进程内查询默认不限（`wow.query.clickhouse.in-process.*`）。订阅取消时，后端在 ClickHouse 上停止对应的查询。
 

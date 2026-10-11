@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.Mask
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
@@ -30,19 +31,32 @@ import tools.jackson.databind.node.ObjectNode
  * The columns that bound a dataset's records to a caller: the tenant, the isolation boundary every caller scope pins,
  * optionally the owner and space, and the [tags] `AbacQueryPolicy` restricts by.
  *
+ * A table without a tenant column, such as most tables of an enterprise warehouse, is declared [platform]-level
+ * instead (dataset platform design §5.2): every record belongs to the platform tenant `(0)`, so a caller scoped to
+ * that tenant reads them all and a caller scoped to any other tenant reads none. It is never open to every tenant.
+ * Exactly one of [tenant] and [platform] is declared.
+ *
  * Each ABAC tag key is bound to its own column, a string (one value per record) or an array of strings (several); a
  * record without the tag holds an empty string or an empty array there. A principal tag key the dataset binds no
  * column for is a tag no record carries.
  */
 data class QueryDatasetScope(
-    val tenant: QueryField,
+    val tenant: QueryField? = null,
     val owner: QueryField? = null,
     val space: QueryField? = null,
     val tags: Map<String, QueryField> = emptyMap(),
+    val platform: Boolean = false,
 ) {
     init {
+        require((tenant != null) != platform) {
+            "A dataset declares either its tenant column or that it is platform-level, and not both."
+        }
         require(tags.keys.none(String::isBlank)) { "A dataset's ABAC tag key must not be blank." }
     }
+
+    /** The one tenant every record of a [platform] dataset belongs to; `null` for a dataset with a tenant column. */
+    val fixedTenantId: String?
+        get() = if (platform) TenantId.DEFAULT_TENANT_ID else null
 
     val fields: List<QueryField>
         get() = listOfNotNull(tenant, owner, space) + tags.values
@@ -111,6 +125,7 @@ data class QueryDataset(
 /** Declares a [QueryDataset] in code: its scope and profile columns, its fields and their sensitivity. */
 class QueryDatasetBuilder(private val namedAggregate: MaterializedNamedAggregate) {
     private var tenant: QueryField? = null
+    private var platform: Boolean = false
     private var owner: QueryField? = null
     private var space: QueryField? = null
     private val tags = linkedMapOf<String, QueryField>()
@@ -123,6 +138,11 @@ class QueryDatasetBuilder(private val namedAggregate: MaterializedNamedAggregate
 
     fun tenant(field: String) {
         tenant = QueryField(field)
+    }
+
+    /** Declares the dataset platform-level: its table has no tenant column ([QueryDatasetScope.platform]). */
+    fun platform() {
+        platform = true
     }
 
     fun owner(field: String) {
@@ -170,10 +190,15 @@ class QueryDatasetBuilder(private val namedAggregate: MaterializedNamedAggregate
         return QueryDataset(
             namedAggregate = namedAggregate,
             scope = QueryDatasetScope(
-                tenant = requireNotNull(tenant) { "Dataset [$namedAggregate] must declare its tenant field." },
+                tenant = tenant.also {
+                    require(it != null || platform) {
+                        "Dataset [$namedAggregate] must declare its tenant field or that it is platform-level."
+                    }
+                },
                 owner = owner,
                 space = space,
                 tags = tags.toMap(),
+                platform = platform,
             ),
             declaration = QuerySchemaDeclaration(masked),
             identity = identity,
@@ -200,8 +225,12 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     override val eventTimeField: QueryField?
         get() = dataset.eventTime
 
+    /** The tenant column, or, for a platform-level dataset, the tenant it pins through [fixedTenantId]. */
     override val requiredScope: QueryField
-        get() = dataset.scope.tenant
+        get() = dataset.scope.tenant ?: PLATFORM_SCOPE
+
+    override val fixedTenantId: String?
+        get() = dataset.scope.fixedTenantId
 
     /** The column each ABAC tag key is bound to; empty when the dataset takes no part in ABAC. */
     val tags: Map<String, QueryField>
@@ -227,6 +256,9 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
 
     private companion object {
         val EMPTY_DECLARATION = QuerySchemaDeclaration(emptyMap())
+
+        /** What a platform-level dataset's caller scope must pin: the tenant, which no column holds. */
+        val PLATFORM_SCOPE = QueryField("tenantId")
     }
 }
 
@@ -374,6 +406,7 @@ object QueryDatasetProperties {
     const val EVENT_TIME = "eventTime"
     const val SCOPE = "scope"
     const val TENANT = "tenant"
+    const val PLATFORM = "platform"
     const val OWNER = "owner"
     const val SPACE = "space"
     const val TAGS = "tags"
@@ -384,7 +417,7 @@ object QueryDatasetProperties {
     const val KEEP_SUFFIX = "keepSuffix"
 
     internal val ROOT = setOf(TITLE, IDENTITY, EVENT_TIME, SCOPE, STORAGE, QuerySchemaDeclarationProperties.FIELDS)
-    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, TAGS)
+    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, TAGS, PLATFORM)
     internal val SENSITIVE_PROPERTIES = setOf(LEVEL, KEEP_PREFIX, KEEP_SUFFIX)
 }
 

@@ -1192,6 +1192,7 @@ public final class me/ahoo/wow/query/schema/DatasetQueryModelProfile : me/ahoo/w
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDataset ()Lme/ahoo/wow/query/schema/QueryDataset;
 	public fun getEventTimeField ()Lme/ahoo/wow/api/query/QueryField;
+	public fun getFixedTenantId ()Ljava/lang/String;
 	public fun getIdentityField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getPayloadField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getRequiredScope ()Lme/ahoo/wow/api/query/QueryField;
@@ -1348,6 +1349,7 @@ public final class me/ahoo/wow/query/schema/QueryDatasetBuilder {
 	public final fun field (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun identity (Ljava/lang/String;)V
 	public final fun owner (Ljava/lang/String;)V
+	public final fun platform ()V
 	public final fun sensitive (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/api/query/annotation/Mask;)V
 	public static synthetic fun sensitive$default (Lme/ahoo/wow/query/schema/QueryDatasetBuilder;Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/api/query/annotation/Mask;ILjava/lang/Object;)V
 	public final fun space (Ljava/lang/String;)V
@@ -1426,6 +1428,7 @@ public final class me/ahoo/wow/query/schema/QueryDatasetProperties {
 	public static final field KEEP_SUFFIX Ljava/lang/String;
 	public static final field LEVEL Ljava/lang/String;
 	public static final field OWNER Ljava/lang/String;
+	public static final field PLATFORM Ljava/lang/String;
 	public static final field SCOPE Ljava/lang/String;
 	public static final field SENSITIVE Ljava/lang/String;
 	public static final field SPACE Ljava/lang/String;
@@ -1436,17 +1439,21 @@ public final class me/ahoo/wow/query/schema/QueryDatasetProperties {
 }
 
 public final class me/ahoo/wow/query/schema/QueryDatasetScope {
-	public fun <init> (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;Z)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun component2 ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun component3 ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun component4 ()Ljava/util/Map;
-	public final fun copy (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;)Lme/ahoo/wow/query/schema/QueryDatasetScope;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryDatasetScope;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryDatasetScope;
+	public final fun component5 ()Z
+	public final fun copy (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;Z)Lme/ahoo/wow/query/schema/QueryDatasetScope;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryDatasetScope;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/util/Map;ZILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryDatasetScope;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFields ()Ljava/util/List;
+	public final fun getFixedTenantId ()Ljava/lang/String;
 	public final fun getOwner ()Lme/ahoo/wow/api/query/QueryField;
+	public final fun getPlatform ()Z
 	public final fun getSpace ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun getTags ()Ljava/util/Map;
 	public final fun getTenant ()Lme/ahoo/wow/api/query/QueryField;
@@ -1598,6 +1605,7 @@ public abstract class me/ahoo/wow/query/schema/QueryModelProfile {
 	public fun defaultScope (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/FilterExpression;
 	public abstract fun getEventTimeField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getFirstEventTimeField ()Lme/ahoo/wow/api/query/QueryField;
+	public fun getFixedTenantId ()Ljava/lang/String;
 	public abstract fun getIdentityField ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun getModel ()Lme/ahoo/wow/api/query/schema/QueryModel;
 	public abstract fun getPayloadField ()Lme/ahoo/wow/api/query/QueryField;

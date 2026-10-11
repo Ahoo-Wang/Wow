@@ -279,7 +279,9 @@ internal class QueryResolver(
             is IdsFilter -> system(expression.copy(), expression, at)
             is AggregateIdFilter -> system(expression.copy(), expression, at)
             is AggregateIdsFilter -> system(expression.copy(), expression, at)
-            is TenantIdFilter -> system(expression.copy(), expression, at)
+            is TenantIdFilter -> schema.profile?.fixedTenantId?.let { tenant ->
+                if (expression.value == tenant) MatchAllFilter else MatchNoneFilter
+            } ?: system(expression.copy(), expression, at)
             is OwnerIdFilter -> system(expression.copy(), expression, at)
             is SpaceIdFilter -> system(expression.copy(), expression, at)
             is DeletionFilter -> system(expression.copy(), expression, at)

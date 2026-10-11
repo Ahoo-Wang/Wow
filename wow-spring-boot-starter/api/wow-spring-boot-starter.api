@@ -313,7 +313,8 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties
 public class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetAutoConfiguration {
 	public fun <init> ()V
 	public fun clickHouseDatasetClient (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;)Lcom/clickhouse/client/api/Client;
-	public fun clickHouseDatasetQueryBackendFactory (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;)Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
+	public fun clickHouseDatasetQueryBackendFactory (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetSources;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;)Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
+	public fun clickHouseDatasetSources (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetSources;
 	public fun clickHouseExecutor (Lcom/clickhouse/client/api/Client;)Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;
 }
 
@@ -321,11 +322,12 @@ public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetP
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Companion;
 	public static final field PREFIX Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;)V
-	public synthetic fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;Ljava/util/Map;)V
+	public synthetic fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component10 ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;
 	public final fun component11 ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;
+	public final fun component12 ()Ljava/util/Map;
 	public final fun component2 ()Ljava/util/List;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
@@ -334,8 +336,9 @@ public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetP
 	public final fun component7 ()Ljava/time/Duration;
 	public final fun component8 ()I
 	public final fun component9 ()Ljava/time/Duration;
-	public final fun copy (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;
+	public final fun copy (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;Ljava/util/Map;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;
+	public final fun defaultSource ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Source;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getConnectionTimeout ()Ljava/time/Duration;
 	public final fun getDatabase ()Ljava/lang/String;
@@ -347,6 +350,7 @@ public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetP
 	public final fun getMetadataTtl ()Ljava/time/Duration;
 	public final fun getPassword ()Ljava/lang/String;
 	public final fun getSocketTimeout ()Ljava/time/Duration;
+	public final fun getSources ()Ljava/util/Map;
 	public final fun getUsername ()Ljava/lang/String;
 	public fun hashCode ()I
 	public final fun setConnectionTimeout (Ljava/time/Duration;)V
@@ -359,6 +363,7 @@ public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetP
 	public final fun setMetadataTtl (Ljava/time/Duration;)V
 	public final fun setPassword (Ljava/lang/String;)V
 	public final fun setSocketTimeout (Ljava/time/Duration;)V
+	public final fun setSources (Ljava/util/Map;)V
 	public final fun setUsername (Ljava/lang/String;)V
 	public final fun toOptions ()Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;
 	public fun toString ()Ljava/lang/String;
@@ -413,6 +418,44 @@ public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetP
 	public final fun setMaxRowsToRead (Ljava/lang/Long;)V
 	public final fun toLimits ()Lme/ahoo/wow/clickhouse/query/ClickHouseQueryLimits;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Source {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;I)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/time/Duration;
+	public final fun component6 ()Ljava/time/Duration;
+	public final fun component7 ()I
+	public final fun copy (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;I)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Source;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Source;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;IILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Source;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConnectionTimeout ()Ljava/time/Duration;
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getEndpoints ()Ljava/util/List;
+	public final fun getMaxConnections ()I
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getSocketTimeout ()Ljava/time/Duration;
+	public final fun getUsername ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setConnectionTimeout (Ljava/time/Duration;)V
+	public final fun setDatabase (Ljava/lang/String;)V
+	public final fun setEndpoints (Ljava/util/List;)V
+	public final fun setMaxConnections (I)V
+	public final fun setPassword (Ljava/lang/String;)V
+	public final fun setSocketTimeout (Ljava/time/Duration;)V
+	public final fun setUsername (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetSources : java/lang/AutoCloseable {
+	public fun <init> (Ljava/util/Map;)V
+	public fun close ()V
+	public final fun getSources ()Ljava/util/Map;
 }
 
 public class me/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration {

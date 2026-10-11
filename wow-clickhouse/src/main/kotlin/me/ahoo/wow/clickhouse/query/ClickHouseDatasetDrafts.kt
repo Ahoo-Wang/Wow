@@ -41,7 +41,9 @@ object ClickHouseDatasetDrafts {
     private val IDENTITY = listOf("id", "__aggregate_id")
     private const val TEMPORAL_DATE = "TEMPORAL_DATE"
 
-    fun draft(table: ClickHouseTable): ClickHouseDatasetDraft {
+    /** The draft of [table], read from the named [source] (the default one when `null`). */
+    @JvmOverloads
+    fun draft(table: ClickHouseTable, source: String? = null): ClickHouseDatasetDraft {
         val (supported, skipped) = table.columns.values.partition { it.family != ClickHouseTypeFamily.UNSUPPORTED }
         val document = JsonSerializer.createObjectNode()
         document.put(QueryDatasetProperties.TITLE, table.name)
@@ -55,6 +57,7 @@ object ClickHouseDatasetDrafts {
         suggest(SPACE)?.let { scope.put(QueryDatasetProperties.SPACE, it) }
         val storage = document.putObject(QueryDatasetProperties.STORAGE)
             .put(ClickHouseDatasetStorage.TABLE, "${table.database}.${table.name}")
+        source?.let { storage.put(ClickHouseDatasetStorage.SOURCE, it) }
         if (table.supportsFinal) {
             storage.put(ClickHouseDatasetStorage.DEDUPLICATE, ClickHouseDatasetStorage.Deduplicate.FINAL.name)
         }

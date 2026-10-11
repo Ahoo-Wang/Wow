@@ -53,7 +53,7 @@ class DatasetRegistryAutoConfigurationTest {
                 .assert().isInstanceOf(CompilingDatasetPublicationCheck::class.java)
             context.getBean(PublishedDatasetSource::class.java)
                 .assert().isInstanceOf(SnapshotPublishedDatasetSource::class.java)
-            context.getBean(DatasetTableInspector::class.java).draft("bi.orders").test().expectErrorSatisfies {
+            context.getBean(DatasetTableInspector::class.java).draft("bi.orders", null).test().expectErrorSatisfies {
                 (it as DatasetRegistryException).errorCode.assert().isEqualTo(DatasetRegistryErrorCodes.DATASET_INVALID)
             }.verify()
             DatasetRegistryErrorStatuses.STATUSES.forEach { (code, status) ->
