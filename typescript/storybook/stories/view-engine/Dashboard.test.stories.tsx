@@ -822,8 +822,9 @@ async function tabTo(from: HTMLElement, target: HTMLElement): Promise<void> {
  * edge with a ring, not a border, so a panel carrying a warning takes the
  * warning colour on that ring — it used to ask for a border 0px wide, and
  * only the attribute said anything. And the body, a Tab stop because it
- * scrolls, wears the focus mark inside its edge: it is as wide as the card,
- * whose `overflow-hidden` cut an outside ring down to a grey line at 1.77:1.
+ * scrolls, is marked on the card round it: the body is as wide as the card,
+ * whose `overflow-hidden` cut an outside ring down to a grey line at 1.77:1,
+ * and a mark turned inward covered its first line (Storybook review P2).
  */
 const panelChrome = (theme: 'light' | 'dark'): Story => ({
   ...DisplayPersonalViewOnSharedBoard,
@@ -858,16 +859,16 @@ const panelChrome = (theme: 'light' | 'dark'): Story => ({
       name: zhCN['label.panel.menu'].replace('{title}', '我盯的大额单'),
     });
     await tabTo(menu, body);
-    const mark = measureOutlineContrast(body);
+    const mark = measureOutlineContrast(warned);
     await expect(
       mark.ratio,
       `${theme} panel body focus ${JSON.stringify(mark.colors)}`,
     ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-    // Inside the body's own edge, where the card cannot clip it.
-    const style = getComputedStyle(body);
-    await expect(parseFloat(style.outlineOffset)).toBeLessThanOrEqual(
-      -parseFloat(style.outlineWidth),
-    );
+    // On the card, clear of the body's first line: nothing of the mark
+    // reaches inside the body.
+    await expect(getComputedStyle(body).outlineStyle).toBe('none');
+    await expect(getComputedStyle(body).boxShadow).toBe('none');
+    await expect(getComputedStyle(warned).outlineStyle).toBe('solid');
   },
 });
 
