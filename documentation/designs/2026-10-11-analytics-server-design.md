@@ -1,6 +1,6 @@
 # 开箱即用的分析服务（数据集平台 R5）
 
-日期：2026-10-11。状态：§8 的 A1～A5 已由用户按推荐确认（2026-10-11）。R5a 已实施（Ahoo-Wang/Wow#4177，`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）；R5b 已实施（部署物与端到端测试，见 §4.3）。
+日期：2026-10-11。状态：§8 的 A1～A5 已由用户按推荐确认（2026-10-11）。R5a 已实施（Ahoo-Wang/Wow#4177，`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）；R5b 已实施（Ahoo-Wang/Wow#4182，部署物与端到端测试，见 §4.3）；R5c 已实施（Ahoo-Wang/Wow#4183，控制台，见 §5）；R5d 已实施（注册表模块发布、Docker 镜像工作流 `analytics-deploy.yml`、指南「分析服务」）。
 
 基线：`main` `8a447298e9`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R5（其 §7 与 §11 的 T2、T3、T5），建立在 R1～R4 之上：数据集注册表（`wow-dataset-registry-*`）、ClickHouse 数据集查询与命名数据源、view-engine 的数据集派生与登记（D84～D86），以及聚合窗口（R4，view-engine D87）。
 
@@ -85,6 +85,8 @@ CoSec 的主体（`me.ahoo.cosec.api.principal.CoSecPrincipal`）带 `attributes
 | 数据集管理（管理员） | 注册表的草稿列表、从 ClickHouse 表起草（`ClickHouseDatasetDrafts`）、审核敏感字段、发布与下线 |
 
 宿主接线照补偿控制台的 `ConsoleHost`：一个 `ViewHost`，一个 `ViewEngine`，`DatasetResources.refresh` 在启动和打开导航时调用。
+
+实施（R5c）：控制台不另引组件库，只有一层自己的外壳（位置、当前用户、退出），页面全由 view-engine 画——数据集用 `DataWorkbench`，看板用 `DashboardWorkbench`（看板定义 `boards` 不带数据，面板读任意已登记的数据集）。登录读 CoSec 前端共用的 `cosec-token`，没有时粘贴企业签发的访问令牌；fetcher-cosec 带令牌与 `CoSec-App-Id`，并从令牌补齐视图存储路径的租户与所有者。数据集管理页只对 `analytics-admin` 显示，服务端照样把关；修订直接编辑声明（JSON），审核逐字段选等级。服务端把控制台的页面地址（`/datasets/…`、`/boards`、`/admin`、`/login`）答成 `index.html`（`ConsolePagesFilter`），它们与其他静态文件一样公开。
 
 ## 6. 发布
 

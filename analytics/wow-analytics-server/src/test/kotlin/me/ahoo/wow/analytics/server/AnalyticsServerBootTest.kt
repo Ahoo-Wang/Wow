@@ -28,8 +28,13 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Duration
+import kotlin.io.path.writeText
 
 /**
  * The server boots with its own configuration, its middleware (MongoDB, Kafka, Redis, ClickHouse) swapped for
@@ -53,6 +58,23 @@ import java.time.Duration
     ],
 )
 class AnalyticsServerBootTest {
+    companion object {
+        private const val CONSOLE_MARKER = "analytics-console-under-test"
+
+        /** A console of one page, where the distribution's `ui/` would be. */
+        private val console: Path by lazy {
+            Files.createTempDirectory("analytics-console").also {
+                it.resolve("index.html").writeText("<!doctype html><title>$CONSOLE_MARKER</title>")
+            }
+        }
+
+        @JvmStatic
+        @DynamicPropertySource
+        fun properties(registry: DynamicPropertyRegistry) {
+            registry.add("spring.web.resources.static-locations") { console.toUri().toString() }
+        }
+    }
+
     @Autowired
     private lateinit var applicationContext: ApplicationContext
 
@@ -95,6 +117,15 @@ class AnalyticsServerBootTest {
         // Past the guard: without ClickHouse no dataset route is registered here, so the route itself is not found.
         client.get().uri("/dataset").header(HttpHeaders.AUTHORIZATION, "Bearer ${token()}").exchange()
             .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `a console page is its index, open to anyone`() {
+        listOf("/", "/boards", "/datasets/analytics.orders", "/login").forEach { page ->
+            client.get().uri(page).exchange().expectStatus().isOk
+                .expectBody(String::class.java).value { it.assert().contains(CONSOLE_MARKER) }
+        }
+        client.post().uri("/boards").exchange().expectStatus().isUnauthorized
     }
 
     @Test

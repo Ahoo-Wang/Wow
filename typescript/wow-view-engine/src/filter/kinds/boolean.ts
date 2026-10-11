@@ -47,9 +47,11 @@ export const booleanFieldKind: FieldKind = {
       : filter.eq(field.name, value);
   },
 
-  editor(operator) {
-    return isPresenceOperator(operator)
-      ? { input: 'none' }
+  editor(operator, field) {
+    if (isPresenceOperator(operator)) return { input: 'none' };
+    // The field's own words for its two answers, where it has them.
+    return field.options?.length
+      ? { input: 'boolean', options: field.options }
       : { input: 'boolean' };
   },
 
@@ -59,9 +61,13 @@ export const booleanFieldKind: FieldKind = {
     if (typeof leaf.value !== 'boolean')
       return { text: field.label, value: { kind: 'blank' } };
     const value = readValue<boolean>(leaf.value);
+    // The answer as the field names it (「老客」), where it does.
+    const label = field.options?.find(
+      option => option.value === String(value),
+    )?.label;
     return {
       text: `${field.label} ${leaf.operator} ${value}`,
-      value: { kind: 'text', value },
+      value: { kind: 'text', value, ...(label === undefined ? {} : { label }) },
     };
   },
 };

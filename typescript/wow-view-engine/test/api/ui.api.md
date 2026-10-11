@@ -1965,6 +1965,7 @@ export const en: {
     readonly 'definition.field.time-precision-invalid': "{field} declares an unknown time precision: {value}.";
     readonly 'definition.field.time-precision-misplaced': "{field} declares a time precision, but reads as {cell}, which has no time of day.";
     readonly 'definition.field.tone-invalid': "{field} declares an unknown option tone: {value}.";
+    readonly 'definition.field.boolean-option': "{field} is a yes-or-no field; its options name only \"true\" and \"false\", not {value}.";
     readonly 'definition.field.duplicate': "The field {field} is declared twice.";
     readonly 'definition.fieldGroup.duplicate': "The group {group} is declared twice.";
     readonly 'definition.fieldGroup.field-duplicate': "The group {group} lists {field}, which is already listed under another group.";

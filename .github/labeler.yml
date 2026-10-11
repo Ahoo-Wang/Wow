@@ -31,6 +31,7 @@ dependencies:
       - any-glob-to-any-file:
           - 'wow-query/**'
           - 'dataset-registry/**'
+          - 'analytics/**'
 
 'area: spring':
   - changed-files:

@@ -42,7 +42,7 @@ export const salesOrderDescriptor = snapshot as unknown as QueryModelDescriptor;
 
 同一个模型在 MongoDB 与 Elasticsearch 上能力不同（比如数组元素里的检索只有 Elasticsearch 有），所以能力不从快照固化：没收窄的那部分，同一份定义部署到哪种存储，就得到那种存储的能力。
 
-字段的种类从事实推出：有枚举值或你写了 `options` 是 `enum`；语义是纪元时间或格式化时间的是 `datetime`，日期的是 `date`；布尔、数字、字符串各归其类；写了 `elements` 的数组是 `elementMatch`。推不出的（对象、联合类型）要你写 `kind`，否则准入报 `definition.field.kind-unknown`。时刻以数存，但意思是时间，所以它只按日历分组（`DATE_HISTOGRAM`、`DATE_PART`），只有最早与最晚（`MIN`、`MAX`）。
+字段的种类从事实推出：有枚举值或你写了 `options` 是 `enum`，唯独布尔字段写的 `options` 只给真与假各起名字（`{ true: '新客', false: '老客' }`），它仍是布尔；语义是纪元时间或格式化时间的是 `datetime`，日期的是 `date`；布尔、数字、字符串各归其类；写了 `elements` 的数组是 `elementMatch`。推不出的（对象、联合类型）要你写 `kind`，否则准入报 `definition.field.kind-unknown`。时刻以数存，但意思是时间，所以它只按日历分组（`DATE_HISTOGRAM`、`DATE_PART`），只有最早与最晚（`MIN`、`MAX`）。
 
 ## 3. 一份定义，逐项选择
 

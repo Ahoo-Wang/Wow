@@ -360,6 +360,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'Spring-Boot-Starter', link: 'spring-boot-starter'},
                 {text: '兼容性测试套件', link: 'tck'},
                 {text: '视图存储', link: 'view-store'},
+                {text: '分析服务', link: 'analytics'},
             ],
         },
         {

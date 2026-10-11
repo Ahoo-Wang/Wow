@@ -82,6 +82,37 @@ describe('describeFilter', () => {
     expect(items[0].path).toEqual(['children', 0]);
   });
 
+  it('carries the answer a yes-or-no field names itself, and the editor its words', () => {
+    const named: FieldDefinition = {
+      name: 'isNew',
+      label: '新客',
+      kind: 'boolean',
+      options: [
+        { value: 'true', label: '新客' },
+        { value: 'false', label: '老客' },
+      ],
+    };
+    const [item] = describeFilter(
+      [named],
+      tree({ field: 'isNew', operator: 'EQ', value: false }),
+      builtinFieldKinds,
+    );
+    expect(item!.value).toEqual({ kind: 'text', value: false, label: '老客' });
+    // Without options, the answer is the catalogue's yes or no.
+    const [plain] = describeFilter(
+      fields,
+      tree({ field: 'paid', operator: 'EQ', value: true }),
+      builtinFieldKinds,
+    );
+    expect(plain!.value).toEqual({ kind: 'text', value: true });
+    const kind = builtinFieldKinds.get('boolean')!;
+    expect(kind.editor('EQ', named)).toEqual({
+      input: 'boolean',
+      options: named.options,
+    });
+    expect(kind.editor('EQ', fields[2]!)).toEqual({ input: 'boolean' });
+  });
+
   it('reads a group out as one item joined by its own operator', () => {
     const items = describeFilter(
       fields,
