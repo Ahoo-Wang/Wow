@@ -40,7 +40,7 @@ export interface FieldDefinition {
   //                  | 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId' | 'spaceId'
   //                  | 'deletion' | 自定义
   operators?: FilterOperator[]; // 缺省取 FieldKind 的默认集
-  options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone
+  options?: FieldOption[]; // enum 的静态候选；每一项可带一档闭合的语气 tone；boolean 上只给 'true'／'false' 各起名字
   remote?: string; // reference 的远程候选源键，由 resolveOptions 解析
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };

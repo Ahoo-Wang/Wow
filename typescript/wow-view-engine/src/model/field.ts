@@ -557,7 +557,10 @@ export interface FieldDefinition {
   kind: FieldKindId;
   /** Narrows the kind's default operator set. */
   operators?: FilterOperatorName[];
-  /** Static candidates for `enum`. */
+  /**
+   * Static candidates for `enum`. On a `boolean`, the names of its two
+   * answers, valued `'true'` and `'false'`.
+   */
   options?: FieldOption[];
   /** Remote candidate source key for `reference`, resolved by the engine. */
   remote?: string;

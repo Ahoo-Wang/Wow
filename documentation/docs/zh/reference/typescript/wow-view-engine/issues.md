@@ -348,6 +348,7 @@ export type IssuePath = (string | number)[];
 | `definition.analysis.wider` | 数据源的分析不提供 {what}。 |
 | `definition.descriptor.missing` | 没有给数据源 {source} 的描述，它的能力没有核对。 |
 | `definition.field.analysis-wider` | {field} 在数据源上不能用于分析的 {what}。 |
+| `definition.field.boolean-option` | {field} 是是非字段，选项只能写 "true" 与 "false"，不能是 {value}。 |
 | `definition.field.cell-invalid` | {field} 声明了未知的单元格读法：{value}。 |
 | `definition.field.deprecated` | {field} 已被数据源弃用（{message}），保留它请写明理由。 |
 | `definition.field.duplicate` | 字段 {field} 声明了两次。 |

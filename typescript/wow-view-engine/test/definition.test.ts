@@ -1115,6 +1115,16 @@ describe('ViewEngine and an unusable definition', () => {
               { value: 'LOST', label: 'Lost', tone: 'fuchsia' as never },
             ],
           },
+          // A yes-or-no field names its two answers, and nothing else.
+          {
+            name: 'isNew',
+            label: 'New buyer',
+            kind: 'boolean',
+            options: [
+              { value: 'true', label: 'New' },
+              { value: 'yes', label: 'Returning' },
+            ],
+          },
         ],
         record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
         analysis: undefined,
@@ -1128,6 +1138,7 @@ describe('ViewEngine and an unusable definition', () => {
       // At the option that declared it, not at the field: a definition with
       // eight statuses needs to be told which one to go and fix.
       ['definition.field.tone-invalid', ['fields', 1, 'options', 1, 'tone']],
+      ['definition.field.boolean-option', ['fields', 2, 'options', 1, 'value']],
     ]);
   });
 

@@ -87,7 +87,10 @@ function optionOf(
   value: unknown,
   options: readonly FieldOption[],
 ): FieldOption | undefined {
-  return options.find(option => option.value === value);
+  // A yes-or-no field names its two answers as the options `'true'` and
+  // `'false'` (「新客」「老客」): an option's value is a string or a number.
+  const key = typeof value === 'boolean' ? String(value) : value;
+  return options.find(option => option.value === key);
 }
 
 /** The label of each value an enum holds; `undefined` when none is known. */

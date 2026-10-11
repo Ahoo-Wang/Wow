@@ -348,6 +348,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `definition.analysis.wider` | The source does not offer {what} to analyses. |
 | `definition.descriptor.missing` | No descriptor was given for the source {source}, so its capabilities go unchecked. |
 | `definition.field.analysis-wider` | {field} does not offer {what} to analyses at its source. |
+| `definition.field.boolean-option` | {field} is a yes-or-no field; its options name only "true" and "false", not {value}. |
 | `definition.field.cell-invalid` | {field} declares an unknown cell renderer: {value}. |
 | `definition.field.deprecated` | {field} is deprecated by its source ({message}); say why it is kept. |
 | `definition.field.duplicate` | The field {field} is declared twice. |

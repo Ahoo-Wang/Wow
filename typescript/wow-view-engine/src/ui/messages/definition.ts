@@ -62,6 +62,8 @@ export const definitionMessages = {
     '{field} declares a time precision, but reads as {cell}, which has no time of day.',
   'definition.field.tone-invalid':
     '{field} declares an unknown option tone: {value}.',
+  'definition.field.boolean-option':
+    '{field} is a yes-or-no field; its options name only "true" and "false", not {value}.',
   'definition.field.duplicate': 'The field {field} is declared twice.',
   'definition.fieldGroup.duplicate': 'The group {group} is declared twice.',
   'definition.fieldGroup.field-duplicate':

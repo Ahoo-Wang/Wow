@@ -369,11 +369,12 @@ export const OrderAnalysis: Story = {
     );
     await expect(totals.children[nickAt]?.textContent).toBe('');
 
-    // A-15: split by the yes/no 「新客」, each series says what it is.
+    // A-15: split by the yes/no 「新客」, whose two answers have names of
+    // their own: each series is called by its answer.
     await userEvent.click(view('新客与老客的 GMV'));
     await waitFor(async () =>
       expect(readHeaders(await reading(canvasElement))).toEqual(
-        expect.arrayContaining(['新客：是', '新客：否']),
+        expect.arrayContaining(['新客', '老客']),
       ),
     );
 

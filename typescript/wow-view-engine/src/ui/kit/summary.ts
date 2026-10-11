@@ -137,10 +137,13 @@ function summaryWords(
     value.kind === 'text' &&
     typeof value.value === 'boolean'
   )
-    return messages.label('label.filter.answer', {
-      field: item.label ?? '',
-      value: summaryValue(value, item, messages, context),
-    });
+    // An answer the field names itself (「老客」) is the whole condition.
+    return value.label !== undefined
+      ? summaryValue(value, item, messages, context)
+      : messages.label('label.filter.answer', {
+          field: item.label ?? '',
+          value: summaryValue(value, item, messages, context),
+        });
 
   pushWord(said, conditionWord(item, messages));
   const shown = summaryValue(value, item, messages, context);

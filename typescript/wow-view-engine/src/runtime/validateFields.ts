@@ -154,6 +154,20 @@ export function validateFields(
         );
     });
 
+    // A yes-or-no field's options name its two answers, and only those: an
+    // option of any other value is one no record of it can hold.
+    if (field.kind === 'boolean')
+      (field.options ?? []).forEach((option, position) => {
+        if (option.value !== 'true' && option.value !== 'false')
+          issues.push(
+            issue(
+              'definition.field.boolean-option',
+              [...at, 'options', position, 'value'],
+              { field: field.name, value: String(option.value) },
+            ),
+          );
+      });
+
     // A handle is not a path, so searching one would ask the backend for a
     // document field that does not exist. Naming it is as wrong as naming
     // nothing, and for the same reason.
