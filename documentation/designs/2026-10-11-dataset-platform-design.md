@@ -67,6 +67,19 @@ R1 与 R3 决定整体形态，本文写到可实施的粒度；R2 写清约束�
 | `PublishDataset` | 把草稿发布为新版本 | 见 §4.2 的发布门槛 |
 | `RetireDataset` | 下线 | 已发布版本停止服务；保留历史 |
 
+**宿主**：注册表的宿主（承载 `Dataset` 聚合、接收命令的进程）与数据集查询的宿主（提供 `/dataset/...` 路由、订阅注册表事件维护本地投影的进程，§4.3）是两回事。注册表只是元数据的写入端，它的事件可以被任意服务订阅，所以放在哪里是部署组合问题，不是模块归属问题。`wow-dataset-registry-starter` 与 `wow-view-store-starter` 互相独立：只用 view-store 的项目不需要数据集，只用数据集的服务也不需要 view-store。
+
+注册表**不放进 `wow-view-store-server`**：
+
+| 考量 | view-store-server 现在 | 加入注册表之后 |
+|---|---|---|
+| 职责 | 保存视图与偏好，属于界面元数据 | 还要连接企业数据仓库、管理数据目录 |
+| 依赖 | MongoDB | 还要 ClickHouse 与仓库的读权限凭据 |
+| 安全面 | 不做认证、信任网关；泄露的是视图配置 | 同样信任网关，但进程握有仓库凭据；绕过网关的代价变成读到仓库数据 |
+| 使用者 | 所有使用 view-engine 的项目 | 只分析聚合、不用 ClickHouse 的项目被迫带上用不到的能力与风险 |
+
+即使用开关默认关闭，“view-store”的职责与安全假设也会被悄悄改变。注册表由 R5 的分析服务承载（§7），也可以嵌入任何需要它的业务服务。
+
 ### 4.2 发布门槛
 
 发布前，草稿必须同时满足：
@@ -174,7 +187,15 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 
 **R4 服务端分析函数**：同比、环比、占比、累计、组内 TopN 进入聚合查询协议。规范只定义一次，各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE；ClickHouse 用窗口函数原生执行。view-engine 改用服务端结果：累计与趋势不再受行截断影响（解除 Q53 的置灰），整段对比一次查询完成（落实 Q59）。另起设计。
 
-**R5 开箱即用的分析服务**：在 view-store server 的基础上加入数据集注册表（R1）、ClickHouse 后端，并提供一个控制台界面（宿主，含 §6.4 的选择器）。企业部署这一个服务，接上自己的 ClickHouse 和 CoSec，就有完整的分析能力。另起设计。
+**R5 开箱即用的分析服务**：新增一个独立的部署物（名字待定，如 `wow-analytics-server`），组合 `wow-view-store-starter`、`wow-dataset-registry-starter` 与 ClickHouse 数据集查询，并提供一个控制台界面（宿主，含 §6.4 的选择器）。企业部署这一个服务，接上自己的 ClickHouse 和 CoSec，就有完整的分析能力。它与 `wow-view-store-server` 共享 starter、不共享部署物：
+
+| 部署物 | 组成 | 给谁用 |
+|---|---|---|
+| `wow-view-store-server`（不变） | view-store | 只需要保存视图的项目 |
+| 分析服务（R5） | view-store、数据集注册表、ClickHouse 数据集查询、控制台 | 不再另部署 BI 平台的企业 |
+| 任意业务服务 | 按需嵌入上述 starter | 需要在自己服务里提供数据集的团队 |
+
+另起设计。
 
 ## 8. 降级与后续
 
@@ -193,6 +214,7 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 | Q5 | 无租户的表 | 显式的平台级数据集，只属于平台租户 `(0)`，与 `tenant` 互斥（§5.2） |
 | Q6 | view-engine 与“定义是代码” | 只对数据集放宽：定义从描述派生，存储中的覆盖只能收窄与改词（§6） |
 | Q7 | 运行时资源 | `resolveResource(id)` 按需解析，失败按“定义不在”报告（§6.3） |
+| Q8 | 注册表的宿主 | 不放进 `wow-view-store-server`；由 R5 新增的分析服务组合 view-store 与注册表的 starter，也可嵌入任意业务服务（§4.1、§7） |
 
 ## 10. 实施阶段
 
@@ -201,7 +223,7 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 | 阶段 | 内容 | 证明 |
 |---|---|---|
 | **R1a 动态数据集** | `QueryDatasetRegistry`；Catalog、网关、路由缓存随注册表变化；`GET /dataset` 目录 | wow-query 单测；starter 测试：运行时加入、替换、移除数据集，路由立即生效 |
-| **R1b 注册表** | `dataset-registry` 的 api、domain、starter；起草（读 `system.columns`）、审核、发布、下线；发布门槛；投影进查询 | 聚合规格测试（发布门槛的每一条）；ClickHouse 集成测试：起草到发布到查询 |
+| **R1b 注册表** | `dataset-registry` 的 api、domain、starter；起草（读 `system.columns`）、审核、发布、下线；发布门槛；投影进查询。不依赖分析服务：以 starter 测试验证，需要真实运行时时嵌入示例应用 | 聚合规格测试（发布门槛的每一条）；ClickHouse 集成测试：起草到发布到查询 |
 | **R2** | 命名数据源；平台级数据集 | 单测与集成测试：两个数据源；平台租户与其他租户的结果 |
 | **R3a 派生定义** | `deriveDatasetDefinition`；存储中的覆盖 | view-engine 单测：派生结果过 `admit`；覆盖只能收窄 |
 | **R3b 运行时资源** | `resolveResource`；数据集选择器 | view-engine 单测与 Storybook 故事；控制台端到端 |
