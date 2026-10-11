@@ -27,5 +27,15 @@ export const headerMessages = {
   'label.header.copy-link': 'Copy link',
   'label.header.link-copied': 'Link copied',
   'label.header.link-failed': 'The link could not be copied',
+  // 「放进仪表盘…」 in that menu, and its dialog (R2-98).
+  'label.header.add-to-board': 'Add to dashboard…',
+  'label.board-pick.heading': 'Add “{title}” to a dashboard',
+  'label.board-pick.description':
+    'It goes on the dashboard’s first tab, at the first free place, and the dashboard is saved.',
+  'label.board-pick.loading': 'Reading the dashboards…',
+  'label.board-pick.none': 'There is no dashboard you may change.',
+  'label.board-pick.of': '{board} · {definition}',
+  'label.board-pick.cancel': 'Cancel',
+  'label.board-pick.added': 'Added to “{board}”',
   'label.editor.pending': '{count} not applied',
 } as const satisfies Record<string, string>;

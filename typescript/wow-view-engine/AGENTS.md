@@ -311,6 +311,7 @@ src/
     navigation.ts             — `ViewNavigation`: where a way off a board or an embed goes, for the host's route; `HandOver`, the two parts a view takes off a board (what the page holds as its scope, the reader's values as its own conditions) and the board to go back to (`BoardOrigin`); `GroupNaming`; `withHandedFilter`
     openRuntimes.ts           — The views one engine has open, and who holds an instance
     panelViews.ts             — `PanelViews`: a dashboard panel's view saved as a view of its own and the panel pointed at it — the analysis it owns (`saveOwnedView`) or the saved view it shows, copied for another audience (`copyPanelView`)
+    instanceWrites.ts         — `InstanceWrites`: the writes the engine addresses to a saved view by id — rename, 设为共享／设为个人, delete, and 放进仪表盘 (`addToDashboard`, R2-98: the view as one more panel, written as the board's save)
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only" — bar a stored one where the host grants `editSystem` (D81) — which the manager's buttons ask as well; `mayCreate`, the create permission of a scope (`system` asks `editSystem`)
     preferences.ts            — The preference cache, the list order and the default view
@@ -823,7 +824,8 @@ src/
       RefreshControl.tsx      — Refresh now, and the auto-refresh cadence menu, as one split button
       ResultToolbar.tsx       — Selection, bulk slot, layout, columns, refresh
       SaveActions.tsx         — The split save button group: save in place, and the menu of the other ways to save
-      MoreViewActions.tsx     — 「更多视图操作」 beside the save button (R2-98): 另存为, 设为共享／设为个人 for the open view, and 复制链接 where a router puts the view in the address
+      MoreViewActions.tsx     — 「更多视图操作」 beside the save button (R2-98): 另存为, 设为共享／设为个人 for the open view, 放进仪表盘… (`AddToDashboardDialog`), and 复制链接 where a router puts the view in the address
+      AddToDashboardDialog.tsx — 「放进仪表盘…」's dialog: the boards this reader may change, read as it opens; a press puts the open view on one, and a refusal is said in place
       SaveAsDialog.tsx        — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked); the system audience offered only where `createSystem` is granted (D81)
       ViewHeader.tsx          — Title bar: kind, audience, title, unsaved mark, save commands
       ViewList.tsx            — What this list is a list of — the definition's own title

@@ -225,6 +225,12 @@ export const viewMessages = {
   // before sending, a store that has no such move, and a store that refused
   // it — with its reason, which names the shared boards showing the view.
   'view.changeAudience.failed': 'Who this view is for could not be changed.',
+  // 放进仪表盘 (R2-98): a save of the board, refused before it is sent.
+  'view.addToDashboard.failed': 'It could not be added to the dashboard.',
+  'view.addToDashboard.not-board': 'That is not a dashboard.',
+  'view.addToDashboard.unsaved':
+    'The dashboard is open here with changes not yet saved: save or revert them first.',
+  'view.addToDashboard.full': 'The dashboard already holds {max} panels.',
   'view.changeAudience.forbidden':
     'You may not change who this view is for; save a copy of your own instead.',
   'view.changeAudience.unsupported':

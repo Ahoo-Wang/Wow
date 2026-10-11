@@ -136,6 +136,15 @@ export interface SaveCommandState {
   lastSavedAt: number | null;
 }
 
+/** A board 「放进仪表盘…」 offers: its id, its title, and its definition's. */
+export interface BoardChoice {
+  id: string;
+  title: string;
+  definitionId: string;
+  /** The dashboard definition's title, a key a surface says (`say`). */
+  definitionTitle: string;
+}
+
 export interface SaveCommands {
   save(): Promise<ViewInstance | null>;
   saveAs(input: SaveTargetInput): Promise<ViewInstance | null>;
@@ -146,6 +155,18 @@ export interface SaveCommands {
    * is then the view's, on its band.
    */
   changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
+  /**
+   * The saved boards this reader may save in place, by every dashboard
+   * definition of the engine — where 「放进仪表盘…」 offers to put the open
+   * view (R2-98). A definition whose list could not be read offers none.
+   */
+  boards?(): Promise<readonly BoardChoice[]>;
+  /**
+   * 放进仪表盘: the open view as one more panel on the board `boardId`
+   * (`engine.addToDashboard`) — the board as saved, or `null` where it did
+   * not land, the reason then this view's `error`.
+   */
+  addToDashboard?(boardId: string): Promise<ViewInstance | null>;
   delete(): Promise<boolean>;
   /** Drops the edits and puts the saved config back in force. */
   revert(): void;
@@ -311,11 +332,8 @@ export function useSaveCommands(
     [engine, runtime, run],
   );
 
-  const { rename, changeAudience, remove } = useInstanceWrites(
-    engine,
-    instanceId,
-    run,
-  );
+  const { rename, changeAudience, remove, addToDashboard, boards } =
+    useInstanceWrites(engine, instanceId, run);
 
   const retry = useCallback(() => {
     if (!runtime) return Promise.resolve(UNRECOVERED);
@@ -400,6 +418,13 @@ export function useSaveCommands(
     saveAs,
     rename,
     changeAudience,
+    // Only where there is a board to put it on: an engine with a dashboard
+    // definition, and a view that is not a board itself.
+    ...(instanceId &&
+    runtime?.kind !== 'dashboard' &&
+    [...engine.definitions.values()].some(one => one.kind === 'dashboard')
+      ? { boards, addToDashboard }
+      : {}),
     delete: remove,
     revert,
     retry,
@@ -514,5 +539,36 @@ function useInstanceWrites(
         : Promise.resolve(false),
     [engine, instanceId, run],
   );
-  return { rename, changeAudience, remove };
+  const addToDashboard = useCallback(
+    (boardId: string) =>
+      instanceId
+        ? run(
+            'view.addToDashboard.failed',
+            () => engine.addToDashboard(boardId, instanceId),
+            null,
+          )
+        : Promise.resolve(null),
+    [engine, instanceId, run],
+  );
+  const boards = useCallback(() => boardsOf(engine), [engine]);
+  return { rename, changeAudience, remove, addToDashboard, boards };
+}
+
+/** Every saved board this reader may save in place, definition by definition. */
+async function boardsOf(engine: ViewEngine): Promise<BoardChoice[]> {
+  const found: BoardChoice[] = [];
+  for (const definition of engine.definitions.values()) {
+    if (definition.kind !== 'dashboard') continue;
+    const permissions = engine.permissions(definition.id);
+    const listing = await engine.list(definition.id);
+    for (const item of listing.items)
+      if (instanceAbilities(item, permissions).save)
+        found.push({
+          id: item.id,
+          title: item.title,
+          definitionId: definition.id,
+          definitionTitle: definition.title,
+        });
+  }
+  return found;
 }

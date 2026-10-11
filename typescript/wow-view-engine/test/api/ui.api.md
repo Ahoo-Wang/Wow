@@ -486,6 +486,17 @@ interface AxisSpec {
 export function bind(definitionId: string, options?: ViewBindingOptions): ViewBinding;
 
 // @public
+interface BoardChoice {
+    // (undocumented)
+    definitionId: string;
+    definitionTitle: string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 export interface BoardFilterModes {
     filters?: Readonly<Record<string, DashboardFilterMode>>;
     grouping?: DashboardFilterMode;
@@ -3316,6 +3327,10 @@ export const en: {
     readonly 'view.definition.invalid': "The {id} definition has {issues} problem(s) and cannot be opened.";
     readonly 'view.definition.not-found': "No definition named {id}.";
     readonly 'view.changeAudience.failed': "Who this view is for could not be changed.";
+    readonly 'view.addToDashboard.failed': "It could not be added to the dashboard.";
+    readonly 'view.addToDashboard.not-board': "That is not a dashboard.";
+    readonly 'view.addToDashboard.unsaved': "The dashboard is open here with changes not yet saved: save or revert them first.";
+    readonly 'view.addToDashboard.full': "The dashboard already holds {max} panels.";
     readonly 'view.changeAudience.forbidden': "You may not change who this view is for; save a copy of your own instead.";
     readonly 'view.changeAudience.unsupported': "This view store cannot move a view between personal and shared.";
     readonly 'view.changeAudience.invalid': "Who this view is for could not be changed: {reason}";
@@ -3898,6 +3913,14 @@ export const en: {
     readonly 'label.header.copy-link': "Copy link";
     readonly 'label.header.link-copied': "Link copied";
     readonly 'label.header.link-failed': "The link could not be copied";
+    readonly 'label.header.add-to-board': "Add to dashboard…";
+    readonly 'label.board-pick.heading': "Add “{title}” to a dashboard";
+    readonly 'label.board-pick.description': "It goes on the dashboard’s first tab, at the first free place, and the dashboard is saved.";
+    readonly 'label.board-pick.loading': "Reading the dashboards…";
+    readonly 'label.board-pick.none': "There is no dashboard you may change.";
+    readonly 'label.board-pick.of': "{board} · {definition}";
+    readonly 'label.board-pick.cancel': "Cancel";
+    readonly 'label.board-pick.added': "Added to “{board}”";
     readonly 'label.editor.pending': "{count} not applied";
     readonly 'label.save.save': "Save";
     readonly 'label.save.save-as': "Save as";
@@ -6400,6 +6423,8 @@ export interface SaveAsDialogProps {
 // @public (undocumented)
 interface SaveCommands {
     abandon(write?: WriteState): void;
+    addToDashboard?(boardId: string): Promise<ViewInstance | null>;
+    boards?(): Promise<readonly BoardChoice[]>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
@@ -8138,6 +8163,7 @@ export type ViewDestination = ViewRoute | ViewNavigation;
 class ViewEngine extends EngineResources {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
+    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: ViewRuntime, panelId: string, input: {

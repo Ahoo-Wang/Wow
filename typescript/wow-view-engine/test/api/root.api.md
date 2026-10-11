@@ -4909,6 +4909,7 @@ export type ViewDefinition = DataViewDefinition | DashboardDefinition;
 export class ViewEngine extends EngineResources {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
+    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: ViewRuntime, panelId: string, input: {

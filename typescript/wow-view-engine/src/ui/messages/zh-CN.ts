@@ -89,6 +89,15 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.header.copy-link': '复制链接',
   'label.header.link-copied': '链接已复制',
   'label.header.link-failed': '链接没能复制',
+  'label.header.add-to-board': '放进仪表盘…',
+  'label.board-pick.heading': '把「{title}」放进仪表盘',
+  'label.board-pick.description':
+    '它会放在仪表盘第一个标签页的第一个空位上，仪表盘随即保存。',
+  'label.board-pick.loading': '正在读取仪表盘…',
+  'label.board-pick.none': '没有你能修改的仪表盘。',
+  'label.board-pick.of': '{board} · {definition}',
+  'label.board-pick.cancel': '取消',
+  'label.board-pick.added': '已放进「{board}」',
   'label.editor.pending': '{count} 项未应用',
 
   // 记录视图：布局、工具栏、分页、行与汇总。
@@ -803,6 +812,11 @@ export const zhCN: Readonly<Record<string, string>> = {
   'view.definition.invalid': '{id} 定义有 {issues} 个问题，无法打开。',
   'view.definition.not-found': '没有名为 {id} 的定义。',
   'view.changeAudience.failed': '没能改变这个视图的可见范围。',
+  'view.addToDashboard.failed': '没能放进仪表盘。',
+  'view.addToDashboard.not-board': '那不是一个仪表盘。',
+  'view.addToDashboard.unsaved':
+    '这个仪表盘在本页打开着，还有没保存的修改：先保存或还原。',
+  'view.addToDashboard.full': '这个仪表盘已经有 {max} 块面板了。',
   'view.changeAudience.forbidden':
     '你不能改变这个视图的可见范围，另存一份自己的吧。',
   'view.changeAudience.unsupported':

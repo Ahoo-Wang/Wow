@@ -12,7 +12,6 @@
  */
 
 import {
-  audienceOf,
   type FilterTree,
   parseSystemInstanceId,
   toSummary,
@@ -51,6 +50,7 @@ import type {
   ViewRuntime,
 } from './viewRuntimeTypes.js';
 import { DashboardViewRuntime } from './dashboardRuntime.js';
+import { InstanceWrites } from './instanceWrites.js';
 import { PanelViews } from './panelViews.js';
 import {
   ViewCommandError,
@@ -192,6 +192,8 @@ export class ViewEngine extends EngineResources {
   private readonly ledger: WriteLedger;
   /** Saving a dashboard panel's view as a view of its own; see `panelViews.ts`. */
   private readonly panelViews: PanelViews;
+  /** The writes addressed by id; see `instanceWrites.ts`. */
+  private readonly writes: InstanceWrites;
   /** Who is told that a definition's list has changed; see `subscribe`. */
   private readonly changes = new ViewChanges(found => this.report(found));
   /** The last summary seen of each instance; see `summaries.ts`. */
@@ -237,6 +239,14 @@ export class ViewEngine extends EngineResources {
     );
     this.registered = this.registry.definitions;
     this.keepDefinitionsIn(this.registry);
+    this.writes = new InstanceWrites({
+      locate: (id, action) => this.locate(id, action),
+      store: this.store,
+      definition: id => this.registry.require(id),
+      holders: id => this.runtimes.holders(id),
+      maxDashboardPanels: this.limits.maxDashboardPanels,
+      ledger: this.ledger,
+    });
     this.panelViews = new PanelViews({
       registry: this.registry,
       kinds: this.kinds,
@@ -511,11 +521,8 @@ export class ViewEngine extends EngineResources {
   }
 
   /** Renaming carries no config, so a draft with errors does not block it. */
-  async rename(id: string, title: string): Promise<ViewInstance> {
-    title = requireTitle(title);
-    const { revision, runtime } = await this.locate(id, 'rename');
-    const payload: WritePayload = { action: 'rename', id, revision, title };
-    return (await this.ledger.dispatch(payload, runtime)) as ViewInstance;
+  rename(id: string, title: string): Promise<ViewInstance> {
+    return this.writes.rename(id, title);
   }
 
   /**
@@ -537,36 +544,29 @@ export class ViewEngine extends EngineResources {
    * open board takes up as it moves). The one refusal between the two is the
    * store's: a view a shared board shows is not made personal (`INVALID`).
    */
-  async changeAudience(
-    id: string,
-    audience: ViewAudience,
-  ): Promise<ViewInstance> {
-    if (!this.store.changeAudience)
-      throw new ViewCommandError(issue('view.changeAudience.unsupported', []));
-    const { revision, scope, runtime } = await this.locate(
-      id,
-      'changeAudience',
-    );
-    if (audienceOf(scope) === audience)
-      return runtime?.getSnapshot().saved ?? this.store.get(id);
-    const payload: WritePayload = {
-      action: 'changeAudience',
-      id,
-      revision,
-      audience,
-    };
-    return (await this.ledger.dispatch(payload, runtime)) as ViewInstance;
+  changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance> {
+    return this.writes.changeAudience(id, audience);
   }
 
-  async delete(id: string): Promise<void> {
-    const { definitionId, revision, runtime } = await this.locate(id, 'delete');
-    const payload: WritePayload = {
-      action: 'delete',
-      id,
-      definitionId,
-      revision,
-    };
-    await this.ledger.dispatch(payload, runtime);
+  /**
+   * 放进仪表盘 (R2-98): the saved view `instanceId` as one more panel on the
+   * saved board `boardId`, at the first free place of its first tab and at
+   * the size such a view starts at (`addPanel`), written as a save of the
+   * board in place — its permission, its revision, its outcome.
+   *
+   * Refused before anything is sent: a board this reader may not save, an
+   * id that is no board, a board as full as admission lets it be
+   * (`view.addToDashboard.full`), and a board open on this page with edits
+   * not yet saved (`view.addToDashboard.unsaved`) — a save under it would
+   * either take those edits or leave them over a baseline they were not
+   * made on. A board open and unedited takes the new board as it lands.
+   */
+  addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance> {
+    return this.writes.addToDashboard(boardId, instanceId);
+  }
+
+  delete(id: string): Promise<void> {
+    return this.writes.delete(id);
   }
 
   /** Submits the full visible order, with the revision it was read at. */
