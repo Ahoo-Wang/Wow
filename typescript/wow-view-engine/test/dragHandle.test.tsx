@@ -277,14 +277,20 @@ describe('every ordered list is carried by the one handle', () => {
     ).toEqual([]);
   });
 
-  it('runs every sortable list’s provider through the shared setup', () => {
+  it('runs every drag’s provider through a shared setup', () => {
     const providers = files.filter(file =>
       file.text.includes('<DragDropProvider'),
     );
     expect(providers.length).toBeGreaterThanOrEqual(8);
+    // A sortable list's, or the kanban's pointer-only one (D83): either way
+    // the nonce and the sensors are set in one place, never by hand.
     expect(
       providers
-        .filter(file => !file.text.includes('{...sortableList('))
+        .filter(
+          file =>
+            !file.text.includes('{...sortableList(') &&
+            !file.text.includes('{...pointerDrag()}'),
+        )
         .map(file => file.path),
     ).toEqual([]);
   });

@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import { useId, useRef } from 'react';
+import { useId, useRef, useState } from 'react';
 import type {
   RecordKanbanController,
   RecordTableController,
@@ -26,6 +26,15 @@ import { EmptyResult } from './EmptyResult.js';
 import type { EmptyWayOut } from './emptyWayOut.js';
 import { useOpenRows } from './openRows.js';
 import { RecordCard } from './RecordCard.js';
+import {
+  DraggableCard,
+  KanbanDrag,
+  cardDragId,
+  useLaneDrop,
+  withDroppedCard,
+  type DroppedCard,
+  type KanbanMove,
+} from './kanbanDrag.js';
 import type { RecordCell } from './RecordTable.js';
 import { summaryText } from './summaryText.js';
 import { summaryFunctionKey } from '../kit/display.js';
@@ -55,6 +64,11 @@ export interface RecordKanbanProps {
   emptyWayOut?: EmptyWayOut;
   /** The one way out of an empty result; see `EmptyResult`. */
   onEmptyAction?(): void;
+  /**
+   * Moving a card to another lane by dragging it (`KanbanMove`): the host's
+   * declared action that sets the lane field. Left out, cards stay put.
+   */
+  move?: KanbanMove;
 }
 
 /**
@@ -68,8 +82,10 @@ export interface RecordKanbanProps {
  * drawn and says so — that it is empty is the reading — while the「其他」lane
  * is drawn only when it holds a card, since it is no stage.
  *
- * It keeps the cards' three gates, and is read-only: no pick boxes, no
- * moving a card between lanes.
+ * It keeps the cards' three gates. No pick boxes; a card moves to another
+ * lane by being dragged there where the host declared a move (`move`), and
+ * is drawn there at once, until the read after the command shows where it
+ * really is.
  */
 export function RecordKanban({
   table,
@@ -81,7 +97,14 @@ export function RecordKanban({
   emptyDescription,
   emptyWayOut = 'add',
   onEmptyAction,
+  move,
 }: RecordKanbanProps) {
+  const [dropped, setDropped] = useState<DroppedCard | null>(null);
+  // Drawn moved only over the result it was dropped on and while the move
+  // is on its way: the next result, or a move refused or called off, ends it.
+  const held =
+    dropped && dropped.rows === table.rows && move?.busy ? dropped : null;
+  const lanes = withDroppedCard(kanban.lanes, held);
   if (!table.hasResult && table.status !== 'loading') return null;
   // The lanes it will draw, already: the draft says which they are, so the
   // answer lands in the shape that is waiting for it rather than in a grid.
@@ -103,41 +126,65 @@ export function RecordKanban({
     );
 
   return (
-    <div
-      data-slot="record-kanban"
-      // On a narrow screen a swipe comes to rest on a lane, not across two.
-      className="fve:bg-canvas fve:relative fve:flex fve:snap-x fve:snap-proximity fve:scroll-px-3 fve:gap-3 fve:overflow-x-auto fve:p-3"
+    <KanbanDrag
+      move={move}
+      lanes={lanes}
+      onDrop={(row, from, to) => {
+        if (to.value === null || !move) return;
+        setDropped({ key: row.key, from, to: to.id, rows: table.rows });
+        move.run(row, to.value);
+      }}
     >
-      {kanban.lanes
-        .filter(lane => lane.value !== null || lane.rows.length > 0)
-        .map(lane => (
-          <KanbanLane
-            key={lane.id}
-            lane={lane}
-            table={table}
-            loading={kanban.loadingLane === lane.id}
-            onLoadMore={() => kanban.loadLane(lane.id)}
-            renderCell={renderCell}
-            rowActions={rowActions}
-            onOpen={onOpen}
-          />
-        ))}
-    </div>
+      <div
+        data-slot="record-kanban"
+        // On a narrow screen a swipe comes to rest on a lane, not across two.
+        className="fve:bg-canvas fve:relative fve:flex fve:snap-x fve:snap-proximity fve:scroll-px-3 fve:gap-3 fve:overflow-x-auto fve:p-3"
+      >
+        {lanes
+          .filter(lane => lane.value !== null || lane.rows.length > 0)
+          .map(lane => (
+            <KanbanLane
+              key={lane.id}
+              lane={lane}
+              lanes={lanes}
+              table={table}
+              move={move}
+              loading={kanban.loadingLane === lane.id}
+              // One lane at a time: a lane's page is the view's one request,
+              // and a second would set the first aside.
+              waiting={kanban.loadingLane !== null}
+              onLoadMore={() => kanban.loadLane(lane.id)}
+              renderCell={renderCell}
+              rowActions={rowActions}
+              onOpen={onOpen}
+            />
+          ))}
+      </div>
+    </KanbanDrag>
   );
 }
 
+/** How near its end a lane scrolled reads as reaching it, in pixels. */
+const END_ROOM = 48;
+
 function KanbanLane({
   lane,
+  lanes,
   table,
+  move,
   loading,
+  waiting,
   onLoadMore,
   renderCell,
   rowActions,
   onOpen,
 }: {
   lane: RecordLaneView;
+  lanes: readonly RecordLaneView[];
   table: RecordTableController;
+  move: KanbanMove | undefined;
   loading: boolean;
+  waiting: boolean;
   onLoadMore(): void;
   renderCell: RecordKanbanProps['renderCell'];
   rowActions: RecordKanbanProps['rowActions'];
@@ -162,11 +209,54 @@ function KanbanLane({
         ? messages.label('label.kanban.more', { count: shown })
         : String(shown);
   const summaries = lane.summaries;
+  const [dropRef, drop] = useLaneDrop(lane, lanes, move);
+  // A card is picked up only where some other stage would take it.
+  const movable = (row: RecordRow) =>
+    !!move &&
+    !move.busy &&
+    lanes.some(
+      other =>
+        other !== lane &&
+        other.value !== null &&
+        move.can(row, other.value) === true,
+    );
+  // Reaching the end of a lane by scrolling it asks for its next page; the
+  // button stays for a keyboard, and for a lane too short to scroll.
+  const nearEnd = (event: React.UIEvent<HTMLDivElement>) => {
+    const port = event.currentTarget;
+    if (
+      lane.next &&
+      !waiting &&
+      port.scrollHeight - port.scrollTop - port.clientHeight < END_ROOM
+    )
+      onLoadMore();
+  };
+  const more = lane.next && (
+    <Button
+      variant="ghost"
+      size="sm"
+      data-slot="kanban-load-more"
+      disabled={waiting}
+      onClick={onLoadMore}
+    >
+      {loading && <Spinner data-icon="inline-start" />}
+      {/* How many are still to come, where the lane was counted. */}
+      {lane.total !== null && lane.total > shown
+        ? messages.label('label.kanban.load-more-rest', {
+            count: lane.total - shown,
+          })
+        : messages.label('label.kanban.load-more')}
+    </Button>
+  );
 
   return (
     <section
+      ref={dropRef}
       data-slot="kanban-lane"
       data-lane={lane.id}
+      // While a card is dragged: whether it may land here, and where it is.
+      data-drop={drop.state ?? undefined}
+      data-over={drop.over || undefined}
       aria-label={
         lane.total !== null
           ? messages.label('label.kanban.lane', {
@@ -183,7 +273,7 @@ function KanbanLane({
       // not a fill: the cards stand on the canvas as they do in the card
       // layout, and a fill that was below them in light mode rose above
       // them in dark (0.35 against the cards' 0.29), sinking every card.
-      className="fve:border-border fve:flex fve:min-h-0 fve:w-72 fve:shrink-0 fve:snap-start fve:flex-col fve:gap-2 fve:rounded-lg fve:border fve:p-2"
+      className="fve:border-border fve:flex fve:min-h-0 fve:w-72 fve:shrink-0 fve:snap-start fve:flex-col fve:gap-2 fve:rounded-lg fve:border fve:p-2 fve:transition-colors fve:data-[drop=open]:border-dashed fve:data-[drop=open]:border-ring fve:data-[drop=shut]:opacity-50 fve:data-[over]:border-solid fve:data-[over]:bg-accent"
     >
       <div
         data-slot="kanban-lane-header"
@@ -204,58 +294,64 @@ function KanbanLane({
             {count}
           </span>
         </div>
-        {summaries && <LaneSummaries row={summaries} />}
+        {/* An empty stage has no total to read: a dash under its name
+            said nothing its count of 0 had not. */}
+        {summaries && lane.total !== 0 && <LaneSummaries row={summaries} />}
+        {/* Why the card in hand cannot go here, in the host's words. */}
+        {drop.reason && (
+          <p
+            data-slot="kanban-lane-refused"
+            className={cn('fve:text-muted-foreground', TEXT_UI)}
+          >
+            {messages.say(drop.reason)}
+          </p>
+        )}
       </div>
       {shown === 0 ? (
-        <p
-          data-slot="kanban-lane-empty"
-          className="fve:text-muted-foreground fve:px-1 fve:text-sm"
-        >
-          {messages.label('label.kanban.empty-lane')}
-        </p>
+        <>
+          <p
+            data-slot="kanban-lane-empty"
+            className="fve:text-muted-foreground fve:px-1 fve:text-sm"
+          >
+            {messages.label('label.kanban.empty-lane')}
+          </p>
+          {more}
+        </>
       ) : (
         // Room for a card's focus ring inside the scroll port that clips it.
         <div
           ref={list}
           data-slot="kanban-lane-cards"
-          className="fve:relative fve:-m-1 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-2 fve:overflow-y-auto fve:p-1 fve:*:shrink-0"
+          // Up to its cards, not the lane's foot: the「加载更多」under them
+          // reads as theirs, not as a button left at the bottom of a column.
+          className="fve:relative fve:-m-1 fve:flex fve:min-h-0 fve:flex-col fve:gap-2 fve:overflow-y-auto fve:p-1 fve:*:shrink-0"
+          onScroll={nearEnd}
         >
           {lane.rows.map(row => (
-            <RecordCard
+            <DraggableCard
               key={String(row.key)}
-              table={table}
-              row={row}
-              renderCell={renderCell}
-              selectable={false}
-              rangeId={rangeId}
-              rowActions={rowActions}
-              openable={onOpen !== undefined}
-              rowProps={opening.row(row)}
-            />
+              id={cardDragId(row.key)}
+              disabled={!movable(row)}
+            >
+              <RecordCard
+                table={table}
+                row={row}
+                renderCell={renderCell}
+                selectable={false}
+                rangeId={rangeId}
+                rowActions={rowActions}
+                openable={onOpen !== undefined}
+                rowProps={opening.row(row)}
+              />
+            </DraggableCard>
           ))}
+          {more}
         </div>
       )}
       {opening.hintId && (
         <span id={opening.hintId} className="fve:sr-only">
           {messages.label('label.record.detail.hint')}
         </span>
-      )}
-      {lane.next && (
-        <Button
-          variant="ghost"
-          size="sm"
-          data-slot="kanban-load-more"
-          disabled={loading}
-          onClick={onLoadMore}
-        >
-          {loading && <Spinner data-icon="inline-start" />}
-          {/* How many are still to come, where the lane was counted. */}
-          {lane.total !== null && lane.total > shown
-            ? messages.label('label.kanban.load-more-rest', {
-                count: lane.total - shown,
-              })
-            : messages.label('label.kanban.load-more')}
-        </Button>
       )}
     </section>
   );

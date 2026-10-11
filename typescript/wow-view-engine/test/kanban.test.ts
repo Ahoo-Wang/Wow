@@ -370,7 +370,7 @@ describe('a definition that offers a kanban', () => {
     expect(defaultRecordConfig(ordersDefinition()).kanban).toBeUndefined();
   });
 
-  it("asks for the cards' fields, whose lanes hold them", () => {
+  it("asks for the cards' fields and their stage, whose lanes hold them", () => {
     const definition = dealsDefinition({
       record: { rowKey: 'id', paging: 'cursor', layouts: ['table', 'kanban'] },
     });
@@ -379,5 +379,7 @@ describe('a definition that offers a kanban', () => {
       card: { title: 'id', fields: ['amount'] },
     });
     expect(recordProjection(definition, config).include).toContain('amount');
+    // And the stage each card is in, which a move's rule reads off the row.
+    expect(recordProjection(definition, config).include).toContain('stage');
   });
 });

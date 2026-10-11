@@ -41,6 +41,7 @@ import { FilterModes } from '../filter/FilterModes.js';
 import { RecordCards } from '../record/RecordCards.js';
 import { RecordPagination } from '../record/RecordPagination.js';
 import { RecordKanban } from '../record/RecordKanban.js';
+import { kanbanMove } from '../actions/kanbanMove.js';
 import { RecordTable, type RecordCell } from '../record/RecordTable.js';
 import { RecordDetail } from '../record/RecordDetail.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
@@ -462,6 +463,7 @@ export function RecordParts({
             onOpen={detail.open}
             emptyWayOut={wayOut}
             onEmptyAction={onEmptyAction}
+            move={kanbanMove(surface.controller, actions, kanban.spec?.lane)}
           />
         ) : table.layout === 'card' ? (
           <RecordCards

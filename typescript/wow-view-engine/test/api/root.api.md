@@ -3786,6 +3786,7 @@ export interface RecordAction {
     readonly id: string;
     // (undocumented)
     readonly label: string;
+    readonly moves?: string;
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
     run(row: RecordRow, input: ActionInput): Promise<unknown>;

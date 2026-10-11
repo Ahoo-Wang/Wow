@@ -140,6 +140,17 @@ export interface RecordAction {
    */
   readonly form?: ActionForm;
   /**
+   * The record field this command sets, for a kanban laid out by it (D83):
+   * a card dropped on another lane of that field runs the command with the
+   * lane's value as its input, `{ [moves]: value }`. `available` is asked
+   * with that input, so a rule can refuse one stage (a won deal does not go
+   * back to a lead) and the lane it refuses is shut while the card is
+   * dragged. Give it a form of that one field with the stages as options
+   * and the card's menu offers the same move as a choice — the keyboard's
+   * and a screen reader's way to move a card.
+   */
+  readonly moves?: string;
+  /**
    * Sends the command for one record. It resolves once the read model
    * reflects it — a Wow command waits for `CommandStage.SNAPSHOT` (or the
    * stage the host's projection needs) — because the engine reads the view
@@ -178,9 +189,40 @@ export function actions(list: readonly RecordAction[]): RecordActions {
       throw new Error(`Two actions share the id "${action.id}".`);
     if (typeof action.run !== 'function')
       throw new Error(`Action "${action.id}" has no run.`);
+    // A move's input is the field it sets; a form asking for anything else
+    // would leave a drop's command short of what it needs.
+    if (
+      action.moves !== undefined &&
+      action.form !== undefined &&
+      (Object.keys(action.form).length !== 1 || !(action.moves in action.form))
+    )
+      throw new Error(
+        `Action "${action.id}" moves ${action.moves}, so its form is that one field.`,
+      );
     ids.add(action.id);
   }
   return Object.freeze([...list]);
+}
+
+/**
+ * The command that moves a record to another lane of `field` (D83), the
+ * first declared with `moves: field`; `undefined` when none does, and the
+ * kanban's cards then stay where they are.
+ */
+export function moveActionFor(
+  list: RecordActions | undefined,
+  field: string | undefined,
+): RecordAction | undefined {
+  if (field === undefined) return undefined;
+  return list?.find(action => action.moves === field);
+}
+
+/** What a move runs with: the lane's value under the field it sets. */
+export function moveInput(
+  action: RecordAction,
+  value: string | number,
+): ActionInput {
+  return action.moves === undefined ? {} : { [action.moves]: value };
 }
 
 /** The actions offered at `place`, in the order declared. */

@@ -4772,6 +4772,13 @@ type JsonValue = string | number | boolean | null | JsonValue[] | {
 };
 
 // @public
+export interface KanbanMove {
+    busy: boolean;
+    can(row: RecordRow, value: string | number): true | string;
+    run(row: RecordRow, value: string | number): void;
+}
+
+// @public
 export function keptKey(typed: string, original: string, say: Say, shown?: string): string;
 
 // @public
@@ -5500,6 +5507,7 @@ interface RecordAction {
     readonly id: string;
     // (undocumented)
     readonly label: string;
+    readonly moves?: string;
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
     run(row: RecordRow, input: ActionInput): Promise<unknown>;
@@ -5761,6 +5769,7 @@ export interface RecordKanbanProps {
     emptyTitle?: string;
     emptyWayOut?: EmptyWayOut;
     kanban: RecordKanbanController;
+    move?: KanbanMove;
     onEmptyAction?(): void;
     onOpen?(row: RecordRow): void;
     renderCell?(cell: RecordCell): React_2.ReactNode;

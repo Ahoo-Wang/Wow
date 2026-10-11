@@ -19,10 +19,13 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  actions,
+  type RecordActions,
   type RecordData,
   type ViewInstance,
 } from '../src/index.js';
@@ -41,6 +44,7 @@ afterEach(cleanup);
 function open(
   instance: ViewInstance = dealsKanban,
   documents: readonly RecordData[] = DEALS,
+  declared?: RecordActions,
 ) {
   const store = new MemoryViewStore({ instances: [instance] });
   const engine = new ViewEngine({
@@ -52,6 +56,7 @@ function open(
       engine={engine}
       definitionId="deals"
       instanceId={instance.id}
+      {...(declared ? { record: { actions: declared } } : {})}
     />,
   );
   return { store };
@@ -112,6 +117,64 @@ describe('RecordKanban in the workbench', () => {
     ).toBeNull();
     // The other lanes never moved.
     expect(cardTitles(await lane('Won, 1 records'))).toEqual(['d-4']);
+  });
+
+  it('loads the next cards when a lane is scrolled to its end', async () => {
+    open();
+    const lead = await lane('Lead, 3 records');
+    const port = lead.querySelector<HTMLElement>(
+      '[data-slot="kanban-lane-cards"]',
+    )!;
+    // jsdom lays nothing out: the port says it is scrolled to its foot.
+    Object.defineProperties(port, {
+      scrollHeight: { configurable: true, value: 400 },
+      clientHeight: { configurable: true, value: 300 },
+      scrollTop: { configurable: true, value: 80 },
+    });
+    fireEvent.scroll(port);
+    await waitFor(() =>
+      expect(cardTitles(lead)).toEqual(['d-1', 'd-2', 'd-3']),
+    );
+  });
+
+  it('moves a card to the stage its menu picks, through the declared move', async () => {
+    const documents = DEALS.map(deal => ({ ...deal }));
+    const declared = actions([
+      {
+        id: 'move',
+        label: 'Change stage',
+        moves: 'stage',
+        form: {
+          stage: {
+            label: 'Stage',
+            options: [
+              { value: 'LEAD', label: 'Lead' },
+              { value: 'WON', label: 'Won' },
+              { value: 'LOST', label: 'Lost' },
+            ],
+          },
+        },
+        available: (row, { input }) =>
+          input?.stage === row.data.stage ? 'Already there' : true,
+        run: async (row, input) => {
+          const found = documents.find(deal => deal.id === row.key);
+          if (found) found.stage = String(input.stage);
+        },
+      },
+    ]);
+    open(dealsKanban, documents, declared);
+    const lead = await lane('Lead, 3 records');
+    await userEvent.click(
+      within(lead).getByRole('button', { name: 'Actions for d-1' }),
+    );
+    const menuEl = await screen.findByRole('menu');
+    await userEvent.click(
+      within(menuEl).getByRole('menuitem', {
+        name: 'Lost',
+      }),
+    );
+    expect(cardTitles(await lane('Lost, 1 records'))).toEqual(['d-1']);
+    expect(await lane('Lead, 2 records')).toBeTruthy();
   });
 
   it('folds a lane away from the kanban settings, and asks again', async () => {

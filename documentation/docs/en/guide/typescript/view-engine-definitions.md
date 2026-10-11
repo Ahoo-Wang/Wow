@@ -268,6 +268,25 @@ export const record: Partial<RecordCapability> = {
 
 Each entry of `rowFields` must be a field the definition lists (else `definition.record.row-field-unknown`), and one that holds a value, not a field-less kind such as a search box (`definition.record.row-field-not-a-path`).
 
+### A kanban view: one lane per stage {#kanban}
+
+Where records move through stages — opportunities, requirements, tickets — offer a third layout, `'kanban'`: the cards laid out in one lane per option of an enum field, each lane with its count, its summaries and its own "Load more".
+
+```ts
+import type { RecordCapability } from '@ahoo-wang/wow-view-engine';
+
+export const pipeline: Partial<RecordCapability> = {
+  // A lane's next cards are its next page: a cursor reads them best.
+  paging: 'cursor',
+  layouts: ['kanban', 'table', 'card'],
+};
+```
+
+- **The lanes are an enum's options**, in the order the definition lists them, with their labels and tones; a record whose value is none of them sits in an "Other" lane, drawn only when it has a card. The reader picks the lane field and folds lanes away in the kanban view's settings, at most 12 lanes at a time; admission refuses a definition offering the layout without an enum that has options (`definition.record.kanban-no-lane`).
+- **Each lane is a query of its own**, the view's conditions and the lane's, and one aggregation counts every lane; declare `paging: 'cursor'` where the source offers it, for a lane loads more by moving on, not by counting pages.
+- **The cards are the card layout's**: the same title, body and image, one record one card in either layout.
+- **Moving a card between lanes** is a declared action that sets the lane field ([`moves`](./view-engine-actions#kanban-move)); without one the cards stay where they are.
+
 ## 6. System views and boards
 
 ### System views: the few readers open every day

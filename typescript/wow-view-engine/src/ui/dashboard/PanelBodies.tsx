@@ -59,6 +59,7 @@ import { AnalysisTable } from '../analysis/AnalysisTable.js';
 import { AnalysisEmpty, emptyWithoutGroups } from '../analysis/EmptyResult.js';
 import { RecordTable } from '../record/RecordTable.js';
 import { RecordKanban } from '../record/RecordKanban.js';
+import { kanbanMove } from '../actions/kanbanMove.js';
 import { RecordPagination } from '../record/RecordPagination.js';
 import { useActionSurface } from '../actions/ActionSurface.js';
 import { useSurfaceAnnouncer } from '../kit/Announcer.js';
@@ -221,6 +222,16 @@ export function RecordPanel({
           kanban={kanban}
           emptyDescription={messages.label(emptyHint)}
           rowActions={surface.row}
+          // A read-only board's panel moves nothing, as it acts on nothing.
+          {...(readOnly
+            ? {}
+            : {
+                move: kanbanMove(
+                  surface.controller,
+                  host?.actions,
+                  kanban.spec?.lane,
+                ),
+              })}
         />
       ) : (
         <RecordTable

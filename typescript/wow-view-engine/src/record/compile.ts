@@ -154,6 +154,10 @@ export function recordProjection(
     if (config.card.image !== undefined) asked.push(config.card.image);
     asked.push(...config.card.fields.map(shown));
   }
+  // A kanban's card carries the stage it is in: the host's move reads it,
+  // and so does the menu that offers every stage but this one (D83).
+  if (capability.layouts.includes('kanban') && config.kanban)
+    asked.push(config.kanban.lane);
   for (const sort of config.sort) asked.push(sort.field);
   for (const summary of config.summaries ?? [])
     if (summary.fn !== 'COUNT') asked.push(summary.field);

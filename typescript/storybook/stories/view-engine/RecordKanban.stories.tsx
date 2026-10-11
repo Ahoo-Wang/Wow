@@ -114,7 +114,26 @@ function opportunityActions(documents: RecordData[]): RecordActions {
     const found = documents.find(document => document.id === row.key);
     if (found) found.stage = stage;
   };
+  const stages = opportunities.fields.find(
+    field => field.name === 'stage',
+  )!.options!;
+  const closed = (stage: string) => stage === 'WON' || stage === 'LOST';
   return actions([
+    {
+      // Sets the stage: a card dragged to another lane runs it, and its
+      // menu offers the same move as a choice of stage.
+      id: 'move',
+      label: '换阶段',
+      moves: 'stage',
+      on: ['row', 'detail'],
+      form: { stage: { label: '阶段', options: stages } },
+      available: (row, { input }) => {
+        if (input?.stage === stageOf(row)) return '已经在这一阶段';
+        if (closed(stageOf(row))) return '已结束的商机不再换阶段';
+        return true;
+      },
+      run: async (row, input) => write(row, String(input.stage)),
+    },
     {
       id: 'advance',
       label: '推进阶段',
@@ -309,6 +328,7 @@ const description = `**布局 · 看板视图**（D83）
 - **一栏一条查询**：每栏是视图的条件加上这一栏的阶段，按游标取第一页；栏底「加载更多」只取这一栏的下一页。
 - **栏头**：阶段的徽章（语气照定义）与这一阶段的条数，条数与汇总（这里是预计金额的合计）由一条按阶段分组的聚合取齐。
 - **「其他」**：值不在选项里的记录（需求里那条已撤销阶段的），只在有卡片时才画，条数写已载入的张数。
+- **拖动换栏**：把卡片拖到另一栏就换了阶段——宿主声明一个设置分栏字段的操作（\`moves: 'stage'\`），拖到哪一栏就以那一栏的值执行它；不能去的栏变淡并写出原因（已结束的商机不再换阶段）。卡片先落在新的一栏，执行后刷新；失败或取消就回到原处。键盘与读屏走卡片「⋯」里的「换阶段」，是同一个操作。
 - **单条记录的操作**：宿主声明的操作照样在每张卡的卡脚（主操作是按钮，其余在「⋯」里）与详情里；商机这里是「推进阶段」与「标记输单」，执行后刷新，卡片到了新的一栏。看板视图首版不勾选，所以没有批量操作。
 - **设置**：工具栏的「看板视图设置」选分栏字段、收起展开各栏（最多 12 栏），下面是卡片的标题、正文与图片。
 

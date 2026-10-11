@@ -222,6 +222,7 @@ export {
 export { LeaveDialog, type LeaveDialogProps } from './workbench/LeaveGuard.js';
 export { RecordCards, type RecordCardsProps } from './record/RecordCards.js';
 export { RecordKanban, type RecordKanbanProps } from './record/RecordKanban.js';
+export { type KanbanMove } from './record/kanbanDrag.js';
 export {
   RecordPagination,
   type RecordPaginationProps,

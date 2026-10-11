@@ -103,6 +103,89 @@ export const RecordAction: Story = {
   },
 };
 
+const nextFrame = () =>
+  new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+/**
+ * A pointer carrying `from` over to `to` in steps, as a hand does: the drag
+ * library takes a press for a drag only once the pointer has travelled.
+ * `during` is asked while it is held over the target, before the release.
+ */
+async function drag(
+  from: HTMLElement,
+  to: HTMLElement,
+  during?: () => Promise<void>,
+): Promise<void> {
+  const start = from.getBoundingClientRect();
+  const end = to.getBoundingClientRect();
+  const fire = (target: EventTarget, type: string, x: number, y: number) =>
+    target.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        buttons: type === 'pointerup' ? 0 : 1,
+      }),
+    );
+  const x0 = start.left + 40;
+  const y0 = start.top + 20;
+  const x1 = end.left + end.width / 2;
+  const y1 = end.top + Math.min(end.height / 2, 200);
+  fire(from, 'pointerdown', x0, y0);
+  for (let step = 1; step <= 20; step += 1) {
+    await nextFrame();
+    fire(
+      document,
+      'pointermove',
+      x0 + ((x1 - x0) * step) / 20,
+      y0 + ((y1 - y0) * step) / 20,
+    );
+  }
+  await nextFrame();
+  await during?.();
+  fire(document, 'pointerup', x1, y1);
+}
+
+/** A card dragged to another stage lands there; a won deal stays put. */
+export const DragToMove: Story = {
+  ...DisplayByStage,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const proposal = await canvas.findByRole('region', {
+      name: '方案报价，1 条',
+    });
+    const qualified = await canvas.findByRole('region', {
+      name: '已确认需求，2 条',
+    });
+    const card = proposal.querySelector<HTMLElement>('[data-slot="card"]')!;
+    await drag(card, qualified, async () => {
+      // Held over the lane: open to it, and every other stage it may go to.
+      await expect(qualified).toHaveAttribute('data-over');
+      await expect(qualified).toHaveAttribute('data-drop', 'open');
+    });
+    const landed = await canvas.findByRole('region', {
+      name: '已确认需求，3 条',
+    });
+    await expect(cards(landed)).toContain('供应链协同');
+    await expect(
+      await canvas.findByRole('region', { name: '方案报价，0 条' }),
+    ).toBeInTheDocument();
+
+    // A won deal goes nowhere: the host's rule shuts every lane to it.
+    const won = await canvas.findByRole('region', { name: /^赢单/ });
+    const closed = won.querySelector<HTMLElement>('[data-slot="card"]')!;
+    await drag(closed, landed, async () => {
+      await expect(landed).not.toHaveAttribute('data-over');
+    });
+    await expect(cards(won)).toHaveLength(2);
+  },
+};
+
 /** The record in a state the options no longer list sits in「其他」. */
 export const OtherLane: Story = {
   ...DisplayRequirements,

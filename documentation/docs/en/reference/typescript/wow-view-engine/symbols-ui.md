@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/ui exports, generated from i
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/ui` exports — 252 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
 
 ::: v-pre
 
@@ -103,6 +103,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 252 — with its kind and
 | `ImagePanelProps` | interface | — | — |
 | `IssueStripProps` | interface | — | — |
 | `KIND_ICON` | const | The face each kind and each audience wears. | — |
+| `KanbanMove` | interface | Moving a kanban's card to another lane (D83): the host's declared action that sets the lane field (`RecordAction.moves`), as a record surface binds it — its rule asked for a lane, its run through the surface's runner, which asks first where it says so, runs, says how it went and reads the view again. | — |
 | `LeaveDialog` | function | The confirmation that stands between an open view and the next one. | — |
 | `LeaveDialogProps` | interface | — | — |
 | `LineAlert` | function | One callout, one line high. | — |

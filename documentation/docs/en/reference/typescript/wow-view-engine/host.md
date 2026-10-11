@@ -169,6 +169,7 @@ The fields `available` reads must be in the row: a page of records fetches only 
 | `changesAt(row, context)` | When `available` next changes on its own, in milliseconds; the engine asks again then, so the host keeps no timer |
 | `confirm` | Ask first; may be a function of the input. Its words are said with `{count}` (how many records, with a `-one` form where a language says one apart), `{value}` (a choice's option) and `{record}` (the record's key when it is one record). `ask: 'always'` (the default) asks for one record too; `'bulk'` asks for a selection only. A selection always asks |
 | `form` | What the command needs besides the record. A form of one field with options is a choice: its options are offered in the menu, and the one picked is the input |
+| `moves` | The record field this command sets, for a kanban view laid out by it: a card dropped on another lane runs the command with that lane's value as its input, `{ [moves]: value }`, and `available` is asked with that input, so a rule can shut one stage. With a form of that one field (the stages as options) the card's menu offers the same move — the keyboard's way to move a card. A form asking for anything else is refused by `actions()` |
 | `on` | Where it is offered: `row`, `bulk`, `detail`; every place by default |
 | `primary` | The one a reader presses most: a button in the row, not in the menu |
 | `tone` | `default` or `danger` |
@@ -185,6 +186,7 @@ export interface RecordAction {
   hidden?(row: RecordRow, context: ActionContext): boolean;
   readonly id: string;
   readonly label: string;
+  readonly moves?: string;
   readonly on?: readonly ActionPlace[];
   readonly primary?: boolean;
   run(row: RecordRow, input: ActionInput): Promise<unknown>;

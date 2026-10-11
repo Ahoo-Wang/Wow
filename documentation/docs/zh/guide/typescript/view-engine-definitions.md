@@ -265,6 +265,25 @@ export const record: Partial<RecordCapability> = {
 
 `rowFields` 里的每一项都必须是定义列出的字段（否则 `definition.record.row-field-unknown`），而且得是有值的路径，不能是搜索框这类无字段的种类（`definition.record.row-field-not-a-path`）。
 
+### 看板视图：一栏一个阶段 {#kanban}
+
+记录依次走过几个阶段的——商机、需求、工单——提供第三种布局 `'kanban'`：卡片按一个枚举字段的选项排成一栏一栏，每栏有自己的条数、汇总与「加载更多」。
+
+```ts
+import type { RecordCapability } from '@ahoo-wang/wow-view-engine';
+
+export const pipeline: Partial<RecordCapability> = {
+  // 一栏的下一批卡片就是它的下一页：游标读得最好。
+  paging: 'cursor',
+  layouts: ['kanban', 'table', 'card'],
+};
+```
+
+- **栏是枚举的选项**，按定义列出的顺序，带着选项的名字与语气；值不在其中的记录在「其他」栏，有卡片时才画。读者在看板视图设置里选分栏字段、收起几栏，一次最多 12 栏；提供这种布局却没有带选项的枚举字段，准入拒绝（`definition.record.kanban-no-lane`）。
+- **每栏是自己的一条查询**：视图的条件加上这一栏的条件，另有一条聚合数清每一栏；源提供游标时声明 `paging: 'cursor'`，一栏加载更多是往下接，不是数页。
+- **卡片就是卡片布局那一张**：同样的标题、正文与图片，一条记录在两种布局里是同一张卡。
+- **卡片换栏**是一个设置分栏字段的声明式操作（[`moves`](./view-engine-actions#kanban-move)）；没有声明，卡片就留在原处。
+
 ## 6. 系统视图与看板
 
 ### 系统视图：读者每天打开的那几张
