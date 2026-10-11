@@ -105,7 +105,10 @@ export const viewMessages = {
   // The source refused the reader rather than the query (HTTP 403, Wow's
   // IllegalAccess* codes): a permission, which asking again does not change,
   // so it is said as one and offers no retry.
-  'runtime.query.forbidden': 'You do not have permission to view this data.',
+  // Who grants it is the host's to say (override this key); the engine
+  // can at least say that someone does (Storybook review P2).
+  'runtime.query.forbidden':
+    'You do not have permission to view this data. Ask an administrator for access.',
   // A query a Wow service rejected names the rule it broke
   // (`runtime.query.failed.<code>`, D40): each worded for the reader, the
   // service's own words where they say what the rule alone cannot. A rule

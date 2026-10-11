@@ -3268,7 +3268,7 @@ export const en: {
     readonly 'runtime.options.unresolved': "No candidate source is configured for {source}.";
     readonly 'runtime.query.failed': "Could not load the data: {reason}";
     readonly 'runtime.query.unreachable': "Could not load the data: the server could not be reached.";
-    readonly 'runtime.query.forbidden': "You do not have permission to view this data.";
+    readonly 'runtime.query.forbidden': "You do not have permission to view this data. Ask an administrator for access.";
     readonly 'runtime.query.failed.invalid_json': "The service could not read the query this view sent: {reason}";
     readonly 'runtime.query.failed.body_not_object': "The service could not read the query this view sent: {reason}";
     readonly 'runtime.query.failed.empty_body': "The service received an empty query: {reason}";

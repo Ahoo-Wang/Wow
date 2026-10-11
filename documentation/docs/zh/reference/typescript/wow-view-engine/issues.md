@@ -540,7 +540,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.unknown_value` | 服务端不认识这个视图发出的某个取值：{reason} |
 | `runtime.query.failed.unsupported_capability` | 「{field}」在这份数据上不能这样用：{reason} |
 | `runtime.query.failed.value_mismatch` | 有个值不是「{field}」能取的值。 |
-| `runtime.query.forbidden` | 无权限查看这些数据。 |
+| `runtime.query.forbidden` | 无权限查看这些数据，请联系管理员开通。 |
 | `runtime.query.queue-full` | 同时查询太多，过一会儿再试。 |
 | `runtime.query.too-many-nodes` | 这些条件组成的查询有 {count} 个节点，数据源最多收 {max} 个。请删掉一些条件。 |
 | `runtime.query.too-many-values` | 有一个条件列了 {count} 个值，数据源一个条件最多收 {max} 个。 |

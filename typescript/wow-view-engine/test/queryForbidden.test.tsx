@@ -89,9 +89,11 @@ describe('a refusal of the reader is the permission state', () => {
       path: [],
       params: { reason: `${errorCode}: not for you.`, errorCode },
     });
-    expect(formatIssue(zhCN, found)).toBe('无权限查看这些数据。');
+    expect(formatIssue(zhCN, found)).toBe(
+      '无权限查看这些数据，请联系管理员开通。',
+    );
     expect(formatIssue(en, found)).toBe(
-      'You do not have permission to view this data.',
+      'You do not have permission to view this data. Ask an administrator for access.',
     );
   });
 
@@ -228,7 +230,9 @@ describe('the permission state in a view', () => {
       <QueryStrip error={forbidden} stale={false} onRetry={onRetry} />,
     );
     expect(
-      screen.getByText('You do not have permission to view this data.'),
+      screen.getByText(
+        'You do not have permission to view this data. Ask an administrator for access.',
+      ),
     ).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
 
