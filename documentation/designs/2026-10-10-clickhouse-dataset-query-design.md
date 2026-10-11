@@ -1,6 +1,6 @@
 # 数据集查询与 ClickHouse 后端设计
 
-日期：2026-10-10。状态：提议，§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 实施中（Ahoo-Wang/Wow#4116）。
+日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 实施中。
 
 基线：`main` `d48d915e5`。本文建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)（下称“查询架构”）之上，沿用它的原理编号 P1～P9 与设计名；wow-bi 的布局见 [wow-bi 重构设计](2026-10-09-wow-bi-refactor-design.md)。
 
@@ -107,28 +107,29 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 
 ### 5.1 模块与装配
 
-- 新模块 `wow-clickhouse`：ClickHouse 存储适配器、`QueryBackend` 实现、数据集声明加载。依赖 `wow-query` 与 `clickhouse-client-v2`（已在版本目录，不新增依赖）。不放进 wow-bi，因为 wow-bi 只生成脚本、不执行查询，二者共享的只有驱动。
+- 新模块 `wow-clickhouse`：ClickHouse 存储适配器与 `DatasetQueryBackend` 实现（`ClickHouseDatasetQueryBackendFactory`）。依赖 `wow-query` 与 `clickhouse-client-v2`（已在版本目录，不新增依赖）。不放进 wow-bi，因为 wow-bi 只生成脚本、不执行查询，二者共享的只有驱动。S3 接入 starter 之前它是 incubating 模块，构建与测试照常，但不发布。
 - starter 新增 feature `clickhouse-support`。
-- 驱动返回 `CompletableFuture`，以 `Mono.fromFuture` 接入 Reactor，不阻塞。
+- 驱动返回 `CompletableFuture`，以 `Mono.fromFuture` 接入 Reactor；`JSONEachRow` 响应体在一个有界调度器上逐行解码，不占用事件循环线程。
 
 ### 5.2 存储事实
 
 | ClickHouse 类型 | `QueryValueType` | 授予的能力 |
 |---|---|---|
 | `String`、`FixedString`、`LowCardinality(String)`、`Enum8/16` | STRING | EXACT_MATCH、LITERAL_MATCH、RANGE、SORT、AGGREGATE_TERMS |
-| `Int*`、`UInt8～32` | INTEGER | EXACT_MATCH、RANGE、SORT、AGGREGATE_TERMS、AGGREGATE_NUMERIC |
-| `UInt64`、`Int128` 及以上 | INTEGER | 同上；超出 JSON 安全整数的值以字符串交付，与 Long 的现有约定一致 |
+| `Int*`、`UInt8～32` | INTEGER | EXACT_MATCH、RANGE、SORT、AGGREGATE_TERMS、AGGREGATE_NUMERIC；声明为 `TEMPORAL_EPOCH` 时另有 AGGREGATE_TEMPORAL |
+| `UInt64`、`Int128` 及以上 | INTEGER | 同上；以 JSON 整数交付（`output_format_json_quote_64bit_integers = 0`） |
 | `Float*`、`Decimal(P, S)` | DECIMAL | EXACT_MATCH、RANGE、SORT、AGGREGATE_NUMERIC |
 | `Bool` | BOOLEAN | EXACT_MATCH、SORT、AGGREGATE_TERMS |
 | `Date`、`Date32`、`DateTime`、`DateTime64` | STRING + `TEMPORAL_DATE` | EXACT_MATCH、RANGE、SORT、AGGREGATE_TEMPORAL |
 | `Nullable(T)` | 同 T | 另授予 PRESENCE |
-| `Array(T)` | T，`MANY` | 第一期只授予 EXACT_MATCH（`has`）；ELEMENT_SCOPE 不授予 |
+| `Array(T)`、`Map`、`Tuple` 等 | — | S2 不支持：声明这样的列会让编译失败 |
 
 - **null 与缺省值**：非 `Nullable` 的列用类型缺省值代替 null，无法区分“缺失”与“空值”，所以不授予 PRESENCE，EQ/NE 取 null 时由准入拒绝（查询架构 §5.2“随取值变化的能力”），绝不把 `0` 与 `''` 当作缺失。`Nullable` 列上 NULL 是表里唯一的“缺失”，所以声明 `AbsentValues.AS_MISSING`：EXISTS 即 `isNotNull`，NOT_EXISTS 即 `isNull`。
 - **CURSOR_SORT**：只授予非 `Nullable` 的单值列。
 - **全文检索**：不授予 FULL_TEXT_*，描述里没有 search 字段。
 - `approximateMetrics = {PERCENTILE}`，DISTINCT_COUNT 精确计算（§5.3）。
-- `StorageSupport`：分页与聚合各项全部 NATIVE，`maxOffsetWindow = null`，`arrayEquality = NATIVE`，`parallelArraySort = NONE`。
+- **声明一致性**：声明的每个字段必须是表的根列，类型族与声明的类型一致（日期列必须声明 `TEMPORAL_DATE`），声明为非空的字段不能落在 `Nullable` 列上，范围列与身份列不能是 `Nullable`，`FINAL` 需要会合并行的引擎（`Replacing`、`Collapsing` 等 MergeTree）。任何不一致都让编译失败，Catalog 保留上一版本。
+- `StorageSupport`：keyset 游标、HAVING（外层查询的条件）、按指标的 top-N 都是 NATIVE；dense 补空为 RESIDUAL，由核心与其他存储共用一份实现；`arrayEquality = NONE`，`parallelArraySort = NONE`，`absentValues = AS_MISSING`。
 
 ### 5.3 翻译
 
@@ -159,11 +160,11 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 
 ### 5.4 执行合同
 
-- **预算映射为查询设置**：入口的 `QueryBudget` 映射为 `max_execution_time`、`max_rows_to_read`、`max_result_rows`、`max_memory_usage`，`timeout_overflow_mode = 'throw'`；超限作为 `QueryExecutionException` 返回，不截断结果。
-- **取消**（P9）：每次执行生成 `query_id`；订阅取消时取消 future，并开启 `cancel_http_readonly_queries_on_client_close`，由服务端终止查询。
+- **按入口的查询限额**：`ClickHouseQueryLimits` 按入口配置（缺省只限制 HTTP：30 秒、4 GiB 内存），以 `max_execution_time`、`max_rows_to_read`、`max_result_rows`、`max_memory_usage` 及对应的 `*_overflow_mode = throw` 下发给服务端；超限作为存储故障返回，不截断结果。不复用 `QueryBudget`：它约束查询的形状（大小、节点数），没有时间、内存或扫描行数的概念。
+- **取消**（P9）：每条语句带自己的 `query_id`；订阅取消时放弃请求，并以 `KILL QUERY … ASYNC` 停止服务端查询，同时开启 `cancel_http_readonly_queries_on_client_close`。集成测试断言查询确实在服务端运行过、并在取消后停止。
 - **先检查，后 I/O**：准入与翻译都在第一次查询之前完成。
-- **并发**：执行池有界，满时快速失败，不排队。
-- **缓存**：可选开启 `use_query_cache`，只用于不带调用方范围的查询，与现有缓存规则一致。
+- **并发**：响应体在有界调度器上解码，线程数与排队数都有上限，超出时拒绝而不是无限排队。
+- **缓存**：S2 未实现。可选开启 `use_query_cache`，只用于不带调用方范围的查询，与现有缓存规则一致。
 
 ### 5.5 正确性
 
@@ -210,8 +211,8 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 | 阶段 | 内容 | 证明 |
 |---|---|---|
 | **S0 原型**（已完成） | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张宽表上翻译过滤、聚合与分页，并生成能力描述 | §11；不合并 |
-| **S1 核心**（实施中） | `QueryModel.DATASET` 与数据集 profile；`QueryModelSchema.profile`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
-| **S2 后端** | `wow-clickhouse`：存储适配器、四个原语、预算映射、取消 | TCK `contractTest` + Testcontainers `integrationTest` |
+| **S1 核心**（已实施，#4116、#4120） | `QueryModel.DATASET` 与数据集 profile（内置模型的 profile 为 `BuiltInQueryModelProfile`）；`QueryModelSchema.profile`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
+| **S2 后端**（实施中） | `wow-clickhouse`（incubating）：存储适配器与声明一致性检查、四个原语、keyset 游标、`FINAL`、按入口的限额、取消；TCK `DatasetQueryBackendSpec` | TCK 语义矩阵与规格 + Testcontainers `integrationTest` |
 | **S3 接入** | starter `clickhouse-support`；HTTP 路由与 describe；OpenAPI；wow-client `DatasetQueryApi`；view-engine 示例；中英文用户文档 | 路由契约测试（入口为 `HTTP`）、OpenAPI 快照、typescript-contract |
 | **S4 BI 联动** | 由 wow-bi 展开计划生成数据集声明，继承敏感等级 | wow-bi golden + 集成测试 |
 | 后续 | 协议演进：同比、环比、占比、累计、组内 TopN | 规范定义一次；各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE，ClickHouse 先做 NATIVE |

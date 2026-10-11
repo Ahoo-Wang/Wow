@@ -568,6 +568,72 @@ public abstract class me/ahoo/wow/tck/projection/ProjectionDispatcherSpec {
 	public final fun run ()V
 }
 
+public final class me/ahoo/wow/tck/query/DatasetColumn {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/tck/query/DatasetColumn$Type;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/tck/query/DatasetColumn$Type;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/tck/query/DatasetColumn$Type;Z)Lme/ahoo/wow/tck/query/DatasetColumn;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/query/DatasetColumn;Ljava/lang/String;Lme/ahoo/wow/tck/query/DatasetColumn$Type;ZILjava/lang/Object;)Lme/ahoo/wow/tck/query/DatasetColumn;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getNullable ()Z
+	public final fun getType ()Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/query/DatasetColumn$Type : java/lang/Enum {
+	public static final field DATE Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public static final field DECIMAL Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public static final field INTEGER Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public static final field STRING Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public static fun values ()[Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+}
+
+public abstract class me/ahoo/wow/tck/query/DatasetQueryBackendSpec {
+	public static final field Companion Lme/ahoo/wow/tck/query/DatasetQueryBackendSpec$Companion;
+	public static final field ID Ljava/lang/String;
+	public fun <init> ()V
+	public final fun a single record is the first in sort order, or none ()V
+	protected abstract fun createDatasetQueryBackendFactory ()Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
+	protected abstract fun createTable (Lme/ahoo/wow/tck/query/DatasetTable;)Ltools/jackson/databind/node/ObjectNode;
+	public final fun date histograms key buckets by the local start of the unit ()V
+	public final fun filter semantics matrix ()Ljava/util/List;
+	protected fun getSemanticDivergences ()Ljava/util/Set;
+	public final fun groups count, sum, average, bound, distinct-count and pick the first and last records ()V
+	public final fun having filters groups before the metric sort and limit ()V
+	public final fun keyset pages walk every record once in sort order ()V
+	public final fun offset pages carry the total ()V
+	public final fun records sort, project and limit ()V
+	public fun setup ()V
+	public final fun the tenant filter reads the dataset's tenant column ()V
+	public final fun value metrics skip missing values and an empty input keeps the empty summary ()V
+}
+
+public final class me/ahoo/wow/tck/query/DatasetQueryBackendSpec$Companion {
+	public final fun getORDERS ()Lme/ahoo/wow/tck/query/DatasetTable;
+	public final fun getSEMANTIC ()Lme/ahoo/wow/tck/query/DatasetTable;
+}
+
+public final class me/ahoo/wow/tck/query/DatasetTable {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/tck/query/DatasetTable;
+	public static synthetic fun copy$default (Lme/ahoo/wow/tck/query/DatasetTable;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/tck/query/DatasetTable;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColumns ()Ljava/util/List;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRows ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract class me/ahoo/wow/tck/query/EventStreamQueryBackendSpec {
 	public field eventStore Lme/ahoo/wow/eventsourcing/EventStore;
 	public field eventStreamQueryBackendFactory Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
@@ -655,6 +721,7 @@ public final class me/ahoo/wow/tck/query/QueryTarget {
 }
 
 public final class me/ahoo/wow/tck/query/QueryTargetKt {
+	public static final fun target (Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Lme/ahoo/wow/query/schema/QueryDataset;)Lme/ahoo/wow/tck/query/QueryTarget;
 	public static final fun target (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;)Lme/ahoo/wow/tck/query/QueryTarget;
 	public static final fun target (Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;)Lme/ahoo/wow/tck/query/QueryTarget;
 	public static synthetic fun target$default (Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/tck/query/QueryTarget;

@@ -17,8 +17,12 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendStorages
+import me.ahoo.wow.query.dataset.DatasetQueryBackend
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryDataset
+import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -55,3 +59,16 @@ fun EventStreamQueryBackendFactory.target(
         compiler = QueryModelCompiler.of(sources)
     ).provider(namedAggregate, QueryModel.EVENT_STREAM),
 )
+
+/** [dataset]'s backend, with the schema a Catalog compiles from the dataset's declaration and its storage facts. */
+fun DatasetQueryBackendFactory.target(dataset: QueryDataset): QueryTarget<DatasetQueryBackend> {
+    val datasets = QueryDatasets(listOf(dataset))
+    return QueryTarget(
+        create(dataset).backend,
+        QuerySchemaCatalog(
+            QueryBackendStorages(datasetFactory = this, datasets = datasets),
+            compiler = QueryModelCompiler.of(datasets = datasets),
+            datasets = listOf(dataset.namedAggregate),
+        ).provider(dataset.namedAggregate, QueryModel.DATASET),
+    )
+}
