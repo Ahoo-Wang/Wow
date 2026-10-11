@@ -173,6 +173,8 @@ spring:
 | `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。加载、State 与 tracing 路由只在开启 `wow.webflux.state.point-read-admission` 时遵循此开关，所以只开此开关、不开点读准入时启动失败。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
 | `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询与绑定了标签列的数据集查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
+| `wow.cosec.abac.enabled` | Boolean | `false` | 引入了 CoSec 的 WebFlux 模块、应用没有声明自己的 `AbacQueryPolicy` 时，注册 `CoSecAbacQueryPolicy`：主体标签取自 CoSec 主体带前缀的属性（自 9.9.0） |
+| `wow.cosec.abac.attribute-prefix` | String | `abac.` | 作为 ABAC 标签的主体属性前缀：`abac.region = "east,north"` 是标签 `region`，值 `east`、`north` |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
 | `wow.query.schema.legacy-declarations` | `warn` \| `fail` | `warn` | 某模型没有任何 9.2 声明、却有 9.1 声明文件（`wow-query-schema/{context}/{aggregate}/{model}.json`）时的处理：`warn` 使用推断的 schema，并在日志中写明 9.2 文件应放在哪里；`fail` 让该模型的 schema 不可用。见[迁移 9.1 的声明文件](../../guide/query/query-model-schema.md#declaration-91) |
 | `wow.query.sensitivity.display-comparable` | Boolean | `true` | 是否允许过滤与分页排序比较 `DISPLAY` 敏感字段的原值；`false` 时与 `CONFIDENTIAL` 字段一样拒绝（见[字段脱敏](../../guide/query/masking.md)） |

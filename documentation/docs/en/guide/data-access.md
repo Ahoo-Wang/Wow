@@ -248,6 +248,10 @@ The starter publishes an `AbacQueryOptions` bean from `wow.query.abac.*`; take i
 
 Both default to the permissive behavior above.
 
+#### Tags From CoSec Principal Attributes {#cosec-abac}
+
+An application authenticated by CoSec need not write `getPrincipalTags`: with `wow.cosec.abac.enabled=true` the starter registers `CoSecAbacQueryPolicy` (it needs the `cosec-support` capability and CoSec's WebFlux module), which reads the tags from the principal CoSec puts in the Reactor context. An attribute whose key starts with `wow.cosec.abac.attribute-prefix` (`abac.` by default) is a tag, its value a comma-separated string or a collection: `abac.region = "east,north"` is the tag `region` with `east` and `north`. An anonymous principal has no tags. It gives way to an `AbacQueryPolicy` the application declares. It takes `AbacQueryOptions` too, so a service people read data through should also turn on `wow.query.abac.require-principal-tags=true`, refusing a principal without tags instead of letting it read everything.
+
 ### Query Entry Points and Policy Enforcement
 
 Spring-registered Snapshot and EventStream Gateways both run the admission steps: the entry budget, `QueryFilter` rewrites, trusted scope, and `QueryPolicy`. Each policy uses `QueryContext` to determine applicability and returns `MatchAllFilter` when it does not apply. `AbacQueryPolicy` reads principal tags and generates conditions only for Snapshot; it does not provide tag authorization for EventStream. The Registrar passes each Gateway its routed Backend and the schema provider the `QuerySchemaCatalog` compiles. JVM calls do not run HTTP scope extraction; use `contextWrite { it.withQueryScope(scope) }` for trusted scope. Public validation follows the rewrites, scope, policies, and defaults. See [Field Masking](./query/masking.md) for managed query and aggregate-state load behavior.

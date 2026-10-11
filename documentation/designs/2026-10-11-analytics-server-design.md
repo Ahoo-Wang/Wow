@@ -1,6 +1,6 @@
 # 开箱即用的分析服务（数据集平台 R5）
 
-日期：2026-10-11。状态：设计稿。§8 的决定待用户确认；未决前按推荐推进 R5a，其余阶段等确认。
+日期：2026-10-11。状态：设计稿。§8 的决定待用户确认；未决前按推荐推进 R5a，其余阶段等确认。R5a 已实施（`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）。
 
 基线：`main` `8a447298e9`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R5（其 §7 与 §11 的 T2、T3、T5），建立在 R1～R4 之上：数据集注册表（`wow-dataset-registry-*`）、ClickHouse 数据集查询与命名数据源、view-engine 的数据集派生与登记（D84～D86），以及聚合窗口（R4，view-engine D87）。
 
@@ -46,7 +46,7 @@ CoSec 的主体（`me.ahoo.cosec.api.principal.CoSecPrincipal`）带 `attributes
 - 读主体属性里**约定前缀**的键，缺省前缀 `abac.`：`abac.region = "east,north"` 成为标签 `region → [east, north]`；值是字符串时按逗号拆分，是集合时逐项取字符串；
 - 前缀可配：`wow.cosec.abac.attribute-prefix`；
 - 匿名主体没有标签；
-- 只在应用引入 CoSec 时装配（`@ConditionalOnClass`），应用自己声明了 `AbacQueryPolicy` 时让位。
+- 只在应用引入 CoSec 的 WebFlux 模块、并打开 `wow.cosec.abac.enabled` 时装配，应用自己声明了 `AbacQueryPolicy` 时让位。作为库它**缺省关闭**：已经用 CoSec 的应用升级后不会突然按主体属性收窄查询；分析服务的发行配置把它打开。
 
 这是 `wow-cosec` 第一次依赖 CoSec 本身（今天它只读 CoSec 的请求头名），所以依赖为 `compileOnly`，由宿主带入 CoSec。
 
