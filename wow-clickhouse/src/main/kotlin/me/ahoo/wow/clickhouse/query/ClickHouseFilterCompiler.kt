@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ComparisonOperator
+import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
@@ -29,6 +30,7 @@ import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
@@ -48,6 +50,7 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.ignoreCase
 import me.ahoo.wow.query.operandValue
 import me.ahoo.wow.query.schema.QueryViolation
@@ -94,20 +97,16 @@ internal class ClickHouseFilterCompiler(
         is TenantIdFilter -> systemEqual(filter, filter.value)
         is OwnerIdFilter -> systemEqual(filter, filter.value)
         is SpaceIdFilter -> systemEqual(filter, filter.value)
-        // Admission normalizes EQ and NE with a null operand into IS_NULL and IS_NOT_NULL.
-        is EqualFilter -> "${column(filter.field)} = ${bind(filter.field, filter.value)}"
-        is NotEqualFilter -> orNull(filter.field, "${column(filter.field)} != ${bind(filter.field, filter.value)}")
+        // An array column matches by element: a scalar operand is one of its values.
+        is EqualFilter, is NotEqualFilter, is InFilter, is NotInFilter, is ContainsAllFilter, is IsEmptyFilter,
+        is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter,
+        -> if (columnOf(checkNotNull(filter.predicateField())).array) array(filter) else scalar(filter)
         is GreaterThanFilter -> "${column(filter.field)} > ${bind(filter.field, filter.value)}"
         is GreaterThanOrEqualFilter -> "${column(filter.field)} >= ${bind(filter.field, filter.value)}"
         is LessThanFilter -> "${column(filter.field)} < ${bind(filter.field, filter.value)}"
         is LessThanOrEqualFilter -> "${column(filter.field)} <= ${bind(filter.field, filter.value)}"
         is BetweenFilter -> "${column(filter.field)} BETWEEN ${bind(filter.field, filter.lowerBound)} AND " +
             bind(filter.field, filter.upperBound)
-        is InFilter -> filter.values.joinToString(", ", "${column(filter.field)} IN (", ")") { bind(filter.field, it) }
-        is NotInFilter -> orNull(
-            filter.field,
-            filter.values.joinToString(", ", "${column(filter.field)} NOT IN (", ")") { bind(filter.field, it) },
-        )
         is ContainsFilter -> if (filter.stringComparison.ignoreCase) {
             "positionCaseInsensitiveUTF8(${column(filter.field)}, ${text(filter.value)}) > 0"
         } else {
@@ -117,14 +116,51 @@ internal class ClickHouseFilterCompiler(
             "${foldedText(filter.value, filter.stringComparison.ignoreCase)})"
         is EndsWithFilter -> "endsWith(${folded(filter.field, filter.stringComparison.ignoreCase)}, " +
             "${foldedText(filter.value, filter.stringComparison.ignoreCase)})"
+        is ExpressionFilter -> expressionComparison(filter)
+        // Admission never lets these through: the dataset storage grants no capability they need.
+        else -> throw unsupported(filter)
+    }
+
+    /** A predicate on a scalar column. Admission normalizes EQ and NE with a null operand into IS_NULL and IS_NOT_NULL. */
+    private fun scalar(filter: FilterExpression): String = when (filter) {
+        is EqualFilter -> "${column(filter.field)} = ${bind(filter.field, filter.value)}"
+        is NotEqualFilter -> orNull(filter.field, "${column(filter.field)} != ${bind(filter.field, filter.value)}")
+        is InFilter -> filter.values.joinToString(", ", "${column(filter.field)} IN (", ")") { bind(filter.field, it) }
+        is NotInFilter -> orNull(
+            filter.field,
+            filter.values.joinToString(", ", "${column(filter.field)} NOT IN (", ")") { bind(filter.field, it) },
+        )
         is IsNullFilter -> "isNull(${column(filter.field)})"
         is NotExistsFilter -> "isNull(${column(filter.field)})"
         is IsNotNullFilter -> "isNotNull(${column(filter.field)})"
         is ExistsFilter -> "isNotNull(${column(filter.field)})"
-        is ExpressionFilter -> expressionComparison(filter)
-        // Admission never lets these through: the dataset storage grants no capability they need.
-        else -> throw QueryViolation.StorageUnsupported("filter [${filter.operator}]").rejection()
+        // IS_EMPTY and CONTAINS_ALL need a collection, and the only collections are array columns.
+        else -> throw unsupported(filter)
     }
+
+    /**
+     * A predicate on an array column: a scalar operand matches any element, and an empty array is the record without
+     * values (`AbsentValues.AS_MISSING`), so presence reads emptiness. Exact array equality is not supported, so
+     * admission never passes an array operand.
+     */
+    private fun array(filter: FilterExpression): String {
+        val field = checkNotNull(filter.predicateField())
+        val column = column(field)
+        fun elements(values: List<JsonNode>) = values.joinToString(", ", "[", "]") { bind(field, it) }
+        return when (filter) {
+            is EqualFilter -> "has($column, ${bind(field, filter.value)})"
+            is NotEqualFilter -> "NOT has($column, ${bind(field, filter.value)})"
+            is InFilter -> "hasAny($column, ${elements(filter.values)})"
+            is NotInFilter -> "NOT hasAny($column, ${elements(filter.values)})"
+            is ContainsAllFilter -> "hasAll($column, ${elements(filter.values)})"
+            is IsEmptyFilter, is IsNullFilter, is NotExistsFilter -> "empty($column)"
+            is IsNotNullFilter, is ExistsFilter -> "notEmpty($column)"
+            else -> throw unsupported(filter)
+        }
+    }
+
+    private fun unsupported(filter: FilterExpression) =
+        QueryViolation.StorageUnsupported("filter [${filter.operator}]").rejection()
 
     /** The quoted column [field] resolved to. */
     fun column(field: QueryField): String = quoteIdentifier(admitted.physicalPath(field))

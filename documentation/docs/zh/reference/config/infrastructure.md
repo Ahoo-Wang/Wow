@@ -171,7 +171,7 @@ spring:
 | `wow.query.http.max-residual-groups` | Integer | `10000` | 存储无法原生执行 HAVING 或按指标排序、由查询服务计算时（例如 Elasticsearch），一次 HTTP 聚合最多处理的分组数（dense 补齐的行也计入）；`0` 关闭上限 |
 | `wow.query.require-explicit-entry` | Boolean | `false` | 拒绝未声明查询入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询；`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询 |
 | `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。加载、State 与 tracing 路由只在开启 `wow.webflux.state.point-read-admission` 时遵循此开关，所以只开此开关、不开点读准入时启动失败。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
-| `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
+| `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询与绑定了标签列的数据集查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
 | `wow.query.schema.legacy-declarations` | `warn` \| `fail` | `warn` | 某模型没有任何 9.2 声明、却有 9.1 声明文件（`wow-query-schema/{context}/{aggregate}/{model}.json`）时的处理：`warn` 使用推断的 schema，并在日志中写明 9.2 文件应放在哪里；`fail` 让该模型的 schema 不可用。见[迁移 9.1 的声明文件](../../guide/query/query-model-schema.md#declaration-91) |

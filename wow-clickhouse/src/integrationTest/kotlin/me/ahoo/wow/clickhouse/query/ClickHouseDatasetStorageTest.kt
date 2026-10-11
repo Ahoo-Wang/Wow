@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryAdmission
@@ -62,13 +63,25 @@ class ClickHouseDatasetStorageTest {
         ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.declared")
         ClickHouseContainers.execute(
             "CREATE TABLE $database.declared (id String, tenant_id String, amount Decimal(18, 2), " +
-                "note Nullable(String), tags Array(String)) ENGINE = MergeTree ORDER BY id",
+                "note Nullable(String), tags Array(String), maybe Array(Nullable(String))) ENGINE = MergeTree ORDER BY id",
         )
         val invalid = mapOf<String, QueryDatasetBlock>(
             "a missing column" to { field("missing") { types(QueryValueType.STRING) } },
             "a type of another family" to { field("amount") { types(QueryValueType.STRING) } },
             "a non-null declaration of a Nullable column" to { field("note") { types(QueryValueType.STRING); nullable(false) } },
-            "an unsupported column type" to { field("tags") { types(QueryValueType.STRING) } },
+            "an array declared as a scalar" to { field("tags") { types(QueryValueType.STRING) } },
+            "an array of another type" to {
+                field("tags") {
+                    kind(QueryValueKind.ARRAY)
+                    items { types(QueryValueType.INTEGER) }
+                }
+            },
+            "an unsupported column type" to {
+                field("maybe") {
+                    kind(QueryValueKind.ARRAY)
+                    items { types(QueryValueType.STRING) }
+                }
+            },
         )
         invalid.forEach { (case, block) ->
             assertThrows<QuerySchemaValidationException>(case) { schema(dataset("declared", "NONE", block)) }
@@ -84,6 +97,17 @@ class ClickHouseDatasetStorageTest {
                 },
             )
         }.message.assert().contains("Nullable")
+        assertThrows<QuerySchemaValidationException> {
+            schema(
+                dataset("declared", "NONE") {
+                    owner("tags")
+                    field("tags") {
+                        kind(QueryValueKind.ARRAY)
+                        items { types(QueryValueType.STRING) }
+                    }
+                },
+            )
+        }.message.assert().contains("array column")
     }
 
     @Test

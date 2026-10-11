@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationQuery
@@ -21,11 +22,13 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
@@ -41,18 +44,24 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.SimpleQueryBackendProvider
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.cursorQuery
+import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.DatasetQueryModelProfile
 import me.ahoo.wow.query.schema.QueryDataset
 import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.describe
+import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
+import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.toObjectNode
 import org.junit.jupiter.api.Test
@@ -60,6 +69,8 @@ import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import reactor.util.context.Context
+import reactor.util.context.ContextView
 import tools.jackson.databind.node.ObjectNode
 
 class DatasetQueryGatewayTest {
@@ -132,6 +143,60 @@ class DatasetQueryGatewayTest {
         gateway(policies = listOf(policy)).aggregate(aggregation { count("orders") }).test()
             .expectNextCount(1).verifyComplete()
         seen.single().assert().isEqualTo(orders.namedAggregate to QueryModel.DATASET)
+    }
+
+    @Test
+    fun `ABAC restricts a dataset by its tag columns, a string and a string array`() {
+        val tagged = tagged()
+        val schema = catalog(tagged).schema(tagged.namedAggregate, QueryModel.DATASET).block()!!
+        fun condition(tags: AbacTags, options: AbacQueryOptions = AbacQueryOptions.DEFAULT): FilterExpression =
+            abac(tags, options).evaluate(Context.empty(), context(schema)).block()!!
+
+        condition(mapOf("region" to listOf("east"), "dept" to listOf("eng"), "role" to listOf("admin")))
+            .assert().isEqualTo(
+                AndFilter(
+                    listOf(
+                        filter { "region" isIn listOf("east", "") },
+                        filter {
+                            or {
+                                "depts".isEmptyCollection()
+                                "depts" isIn listOf("eng")
+                            }
+                        },
+                    ),
+                ),
+            )
+        condition(mapOf("region" to listOf("*"), "dept" to listOf("*"))).assert().isEqualTo(
+            AndFilter(listOf(filter { "region" ne "" }, filter { nor { "depts".isEmptyCollection() } })),
+        )
+        val strict = AbacQueryOptions(matchMissingTagKey = false)
+        condition(mapOf("region" to listOf("east")), strict).assert().isEqualTo(filter { "region" isIn listOf("east") })
+        condition(mapOf("dept" to listOf("eng"), "role" to listOf("admin")), strict).assert().isEqualTo(
+            AndFilter(listOf(filter { "depts" isIn listOf("eng") }, MatchNoneFilter)),
+        )
+        condition(mapOf("role" to listOf("*"))).assert().isSameAs(MatchNoneFilter)
+        condition(mapOf("role" to listOf("admin"))).assert().isSameAs(MatchAllFilter)
+    }
+
+    @Test
+    fun `admission accepts the ABAC condition on the tag columns`() {
+        val backend = RecordingBackend()
+        val tags = mapOf("region" to listOf("east"), "dept" to listOf("*"))
+        gateway(backend, tagged(), listOf(abac(tags))).dynamicList(listQuery { }).test()
+            .expectNextCount(1).verifyComplete()
+        gateway(backend, tagged(), listOf(abac(tags, AbacQueryOptions(matchMissingTagKey = false))))
+            .count(MatchAllFilter).test().expectNext(1).verifyComplete()
+        backend.admitted.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `ABAC leaves a dataset without tag columns unrestricted and resolves no principal tags`() {
+        val schema = catalog(orders).schema(orders.namedAggregate, QueryModel.DATASET).block()!!
+        val policy = object : AbacQueryPolicy() {
+            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
+                Mono.error(IllegalStateException("not resolved"))
+        }
+        policy.evaluate(Context.empty(), context(schema)).test().expectNext(MatchAllFilter).verifyComplete()
     }
 
     @Test
@@ -234,6 +299,48 @@ class DatasetQueryGatewayTest {
         val other = catalog(renamed).schema(orders.namedAggregate, QueryModel.DATASET).block()!!
         first.compilesSameAs(first).assert().isTrue()
         first.compilesSameAs(other).assert().isFalse()
+    }
+
+    private fun abac(tags: AbacTags, options: AbacQueryOptions = AbacQueryOptions.DEFAULT) =
+        object : AbacQueryPolicy(options) {
+            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
+                Mono.just(tags)
+        }
+
+    private fun context(schema: QueryModelSchema) = QueryContext<FilterExpression>(
+        MatchAllFilter,
+        orders.namedAggregate,
+        schema,
+        QueryType.LIST,
+        QueryEntry.HTTP,
+    )
+
+    /** [orders] with a single-valued `region` tag column and a multi-valued `depts` one. */
+    private fun tagged(): QueryDataset = QueryDataset.of(orders.namedAggregate) {
+        tenant("tenant_id")
+        identity("order_id")
+        tag("region", "region")
+        tag("dept", "depts")
+        field("order_id") {
+            types(QueryValueType.STRING)
+            nullable(false)
+        }
+        field("tenant_id") {
+            types(QueryValueType.STRING)
+            nullable(false)
+        }
+        field("region") {
+            types(QueryValueType.STRING)
+            nullable(false)
+        }
+        field("depts") {
+            kind(QueryValueKind.ARRAY)
+            nullable(false)
+            items {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+        }
     }
 
     private fun catalog(dataset: QueryDataset, backend: DatasetQueryBackend = RecordingBackend()): QuerySchemaCatalog {

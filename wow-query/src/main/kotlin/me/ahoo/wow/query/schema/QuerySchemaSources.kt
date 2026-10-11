@@ -199,6 +199,7 @@ internal fun parseDatasetDocument(namedAggregate: MaterializedNamedAggregate, js
             },
             owner = scope.fieldOf(QueryDatasetProperties.OWNER),
             space = scope.fieldOf(QueryDatasetProperties.SPACE),
+            tags = scope.tagsOf(),
         ),
         declaration = QuerySchemaDeclaration(
             fields.properties().associate { (field, declaration) ->
@@ -214,6 +215,16 @@ internal fun parseDatasetDocument(namedAggregate: MaterializedNamedAggregate, js
         },
         storage = storage,
     )
+}
+
+private fun ObjectNode.tagsOf(): Map<String, QueryField> {
+    val tags = get(QueryDatasetProperties.TAGS) ?: return emptyMap()
+    val path = "${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.TAGS}"
+    require(tags is ObjectNode) { "Dataset [$path] must be an object." }
+    return tags.properties().associate { (key, field) ->
+        require(field.isString) { "Dataset [$path.$key] must name a field." }
+        key to QueryField(field.stringValue())
+    }
 }
 
 private fun ObjectNode.fieldOf(name: String): QueryField? = get(name)?.let {

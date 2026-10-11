@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ComparisonOperator
+import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DerivedExpression
@@ -39,6 +40,7 @@ import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
@@ -55,6 +57,7 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -139,6 +142,41 @@ class ClickHouseSqlCompilerTest {
             .assert().isEqualTo("NOT (`city` = {p0:String} OR `city` = {p1:String})")
         where(AndFilter(listOf(TenantIdFilter("t"), EqualFilter(CITY, json.stringNode("a")))))
             .assert().isEqualTo("(`tenant_id` = {p0:String} AND `city` = {p1:String})")
+    }
+
+    @Test
+    fun `an array column matches by element and reads an empty array as missing`() {
+        val one = json.stringNode("a")
+        val two = listOf(json.stringNode("a"), json.stringNode("b"))
+        where(EqualFilter(TAGS, one)).assert().isEqualTo("has(`tags`, {p0:String})")
+        where(NotEqualFilter(TAGS, one)).assert().isEqualTo("NOT has(`tags`, {p0:String})")
+        where(InFilter(TAGS, two)).assert().isEqualTo("hasAny(`tags`, [{p0:String}, {p1:String}])")
+        where(NotInFilter(TAGS, two)).assert().isEqualTo("NOT hasAny(`tags`, [{p0:String}, {p1:String}])")
+        where(ContainsAllFilter(TAGS, two)).assert().isEqualTo("hasAll(`tags`, [{p0:String}, {p1:String}])")
+        where(IsEmptyFilter(TAGS)).assert().isEqualTo("empty(`tags`)")
+        where(IsNullFilter(TAGS)).assert().isEqualTo("empty(`tags`)")
+        where(NotExistsFilter(TAGS)).assert().isEqualTo("empty(`tags`)")
+        where(IsNotNullFilter(TAGS)).assert().isEqualTo("notEmpty(`tags`)")
+        where(ExistsFilter(TAGS)).assert().isEqualTo("notEmpty(`tags`)")
+        SCHEMA.field(TAGS)!!.capabilities.assert()
+            .containsExactlyInAnyOrder(QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE)
+    }
+
+    @Test
+    fun `only an array of non-null strings is an array column`() {
+        mapOf(
+            "Array(String)" to ClickHouseTypeFamily.STRING_ARRAY,
+            "Array(LowCardinality(String))" to ClickHouseTypeFamily.STRING_ARRAY,
+            "Array(FixedString(2))" to ClickHouseTypeFamily.STRING_ARRAY,
+            "Array(Nullable(String))" to ClickHouseTypeFamily.UNSUPPORTED,
+            "Array(Int64)" to ClickHouseTypeFamily.UNSUPPORTED,
+            "Array(String" to ClickHouseTypeFamily.UNSUPPORTED,
+        ).forEach { (type, family) ->
+            ClickHouseColumn("c", type).family.assert().describedAs(type).isEqualTo(family)
+        }
+        ClickHouseColumn("c", "Array(String)").parameterType.assert().isEqualTo("String")
+        ClickHouseColumn("c", "Array(String)").array.assert().isTrue()
+        ClickHouseColumn("c", "String").array.assert().isFalse()
     }
 
     @Test
@@ -393,8 +431,16 @@ class ClickHouseSqlCompilerTest {
                 }
                 field("profile.name") { types(QueryValueType.STRING) }
             },
-            "unsupported type" to { field("tags") { types(QueryValueType.STRING) } },
-            "columns are scalar" to { field("note") { kind(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT) } },
+            "unsupported type" to { field("attrs") { types(QueryValueType.STRING) } },
+            "is scalar" to { field("note") { kind(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT) } },
+            "as an array of strings" to { field("tags") { types(QueryValueType.STRING) } },
+            "keys on the array column" to {
+                owner("tags")
+                field("tags") {
+                    kind(me.ahoo.wow.api.query.schema.QueryValueKind.ARRAY)
+                    items { types(QueryValueType.STRING) }
+                }
+            },
             "holds" to { field("amount") { types(QueryValueType.STRING) } },
             "TEMPORAL_DATE" to { field("day") { types(QueryValueType.STRING) } },
             "non-null, but its column is Nullable" to {
@@ -474,6 +520,7 @@ class ClickHouseSqlCompilerTest {
         val PAID_AT = QueryField("paid_at")
         val PAID = QueryField("paid")
         val DAY = QueryField("day")
+        val TAGS = QueryField("tags")
         val EPOCH_MS = QueryField("epoch_ms")
         val EPOCH_S = QueryField("epoch_s")
 
@@ -484,6 +531,7 @@ class ClickHouseSqlCompilerTest {
             listOf(
                 ClickHouseColumn("paid", "Bool"),
                 ClickHouseColumn("tags", "Array(String)"),
+                ClickHouseColumn("attrs", "Map(String, String)"),
                 ClickHouseColumn("id", "String"),
                 ClickHouseColumn("tenant_id", "String"),
                 ClickHouseColumn("owner_id", "String"),
@@ -514,6 +562,12 @@ class ClickHouseSqlCompilerTest {
                 }
             }
             field("note") { types(QueryValueType.STRING) }
+            tag("label", "tags")
+            field("tags") {
+                kind(me.ahoo.wow.api.query.schema.QueryValueKind.ARRAY)
+                nullable(false)
+                items { types(QueryValueType.STRING) }
+            }
             field("paid") {
                 types(QueryValueType.BOOLEAN)
                 nullable(false)

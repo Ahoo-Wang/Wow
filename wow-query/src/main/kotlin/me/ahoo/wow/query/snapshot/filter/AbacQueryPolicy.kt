@@ -17,23 +17,31 @@ import me.ahoo.wow.api.abac.AbacTagKey
 import me.ahoo.wow.api.abac.AbacTagValue
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.wildcard
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.schema.DatasetQueryModelProfile
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.util.context.ContextView
 
 /**
- * Resolves terminal snapshot access conditions using attribute-based access control (ABAC).
+ * Resolves terminal access conditions using attribute-based access control (ABAC).
  *
- * Principal tags from the current context are converted into query conditions and
- * appended to snapshot queries. Other query models are unrestricted by this policy
- * and do not resolve principal tags.
+ * Principal tags from the current context are converted into query conditions and appended to snapshot queries, whose
+ * resource tags are the `tags` system field, and to the queries of a dataset that binds tag columns
+ * ([DatasetQueryModelProfile.tags]): a string column holds one tag value per record and a string-array column several,
+ * and an empty string or array is a record without the tag. Other query models, and datasets that bind no tag, are
+ * unrestricted by this policy and do not resolve principal tags.
  *
  * ## Matching rules
  *
@@ -85,6 +93,59 @@ abstract class AbacQueryPolicy(
          *
          * @return the combined tag condition
          */
+        /**
+         * Combines all principal tags with AND semantics over a dataset's tag columns ([columns], by tag key), with
+         * the rules of the `tags` system field: a key the dataset binds no column for is a tag no record carries.
+         *
+         * @return the combined tag condition
+         */
+        fun AbacTags.toFilterExpression(
+            columns: Map<AbacTagKey, QueryField>,
+            schema: QueryModelSchema,
+            matchMissingTagKey: Boolean = true,
+        ): FilterExpression {
+            val conditions = mapNotNull { (key, value) ->
+                val column = columns[key]
+                when {
+                    column != null -> value.toFilterExpression(column, schema, matchMissingTagKey)
+                    value.wildcard || !matchMissingTagKey -> MatchNoneFilter
+                    else -> null
+                }
+            }
+            return when (conditions.size) {
+                0 -> MatchAllFilter
+                1 -> conditions.single()
+                else -> AndFilter(conditions)
+            }
+        }
+
+        /** One principal tag over its dataset column: a string column, or a string-array one ([collection]). */
+        @OptIn(InternalWowApi::class)
+        private fun AbacTagValue.toFilterExpression(
+            column: QueryField,
+            schema: QueryModelSchema,
+            matchMissingTagKey: Boolean,
+        ): FilterExpression {
+            val values = this
+            val field = column.path
+            val collection = schema.field(column)?.effective?.collection == true
+            return me.ahoo.wow.query.dsl.filter {
+                when {
+                    // Not EXISTS: an empty array is the record without the tag, on every storage.
+                    values.wildcard && collection -> nor { field.isEmptyCollection() }
+                    values.wildcard -> field ne EMPTY_TAG
+                    !matchMissingTagKey -> field isIn values
+                    collection -> or {
+                        field.isEmptyCollection()
+                        field isIn values
+                    }
+                    else -> field isIn values + EMPTY_TAG
+                }
+            }
+        }
+
+        private const val EMPTY_TAG = ""
+
         fun AbacTags.toFilterExpression(matchMissingTagKey: Boolean = true): FilterExpression =
             if (isEmpty()) {
                 MatchAllFilter
@@ -121,10 +182,21 @@ abstract class AbacQueryPolicy(
         contextView: ContextView,
         context: QueryContext<*>
     ): Mono<FilterExpression> {
-        if (context.schema.model != QueryModel.SNAPSHOT) return Mono.just(MatchAllFilter)
+        val profile = context.schema.profile
+        val condition: (AbacTags) -> FilterExpression = when {
+            context.schema.model == QueryModel.SNAPSHOT -> { tags ->
+                tags.toFilterExpression(
+                    options.matchMissingTagKey
+                )
+            }
+            profile is DatasetQueryModelProfile && profile.tags.isNotEmpty() -> { tags ->
+                tags.toFilterExpression(profile.tags, context.schema, options.matchMissingTagKey)
+            }
+            else -> return Mono.just(MatchAllFilter)
+        }
         return getPrincipalTags(contextView, context)
             .filter { it.isNotEmpty() }
-            .map { it.toFilterExpression(options.matchMissingTagKey) }
+            .map(condition)
             .switchIfEmpty(
                 Mono.defer {
                     if (options.requirePrincipalTags && context.entry == QueryEntry.HTTP) {

@@ -18,13 +18,15 @@ A dataset is named within a bounded context, such as `analytics.order_wide`. Its
   "title": "Order wide table",
   "identity": "order_id",
   "eventTime": "updated_at",
-  "scope": { "tenant": "tenant_id", "owner": "owner_id" },
+  "scope": { "tenant": "tenant_id", "owner": "owner_id", "tags": { "region": "region", "dept": "depts" } },
   "storage": { "table": "bi_db.order_wide", "deduplicate": "FINAL" },
   "fields": {
     "order_id": { "types": ["STRING"], "nullable": false },
     "tenant_id": { "types": ["STRING"], "nullable": false },
     "owner_id": { "types": ["STRING"], "nullable": false },
     "city": { "types": ["STRING"], "nullable": false },
+    "region": { "types": ["STRING"], "nullable": false },
+    "depts": { "kind": "ARRAY", "items": { "types": ["STRING"] }, "nullable": false },
     "amount": { "types": ["DECIMAL"], "nullable": false },
     "updated_at": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" } },
     "customer_phone": { "types": ["STRING"], "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 } }
@@ -37,6 +39,7 @@ A dataset is named within a bounded context, such as `analytics.order_wide`. Its
 | `fields` | The queryable fields, each a column of the table, in the [Query Model Schema](./query-model-schema.md) declaration vocabulary. A column that is not declared is never exposed |
 | `scope.tenant` | Required. The tenant column: the caller scope's `tenantId` lands on it, and `wow.query.require-authenticated-scope` requires it |
 | `scope.owner`, `scope.space` | Optional. The owner and space columns |
+| `scope.tags` | Optional. ABAC tag keys bound to columns; see [ABAC](#abac) |
 | `identity` | Optional. Each row's unique identity: ID filters, cursor pages and the View Engine record view's `rowKey` need it |
 | `eventTime` | Optional. The default `orderBy` of `FIRST`/`LAST` metrics |
 | `fields.*.sensitive` | The field's sensitivity level and mask (`level`, `keepPrefix`, `keepSuffix`), as `@Sensitive` means them. A wide table's columns have no type to carry the annotation, so a dataset declaration is the exception |
@@ -82,9 +85,9 @@ When the Catalog compiles a dataset it checks the table against the declaration 
 
 - every declared field is a column of the table whose type family matches the declaration (string-like, integer, `Float`/`Decimal`, `Bool`, date);
 - a date column is declared `TEMPORAL_DATE`; a field declared non-null cannot be a `Nullable` column;
-- the scope and identity columns are not `Nullable`;
+- the scope, tag and identity columns are not `Nullable`, and the scope and identity columns are not arrays;
 - `FINAL` needs an engine that merges rows;
-- `Array`, `Map`, `Tuple` and similar columns are not supported yet.
+- the only array is `Array(String)` (of `LowCardinality(String)` or `FixedString` too), declared as an array of strings; `Map`, `Tuple` and other arrays are not supported yet.
 
 Each entry's queries have limits, sent as server settings; an over-limit query fails rather than returning a truncated result. HTTP queries default to 30 seconds and 4 GiB of memory (`wow.query.clickhouse.http.*`); in-process queries are unlimited by default (`wow.query.clickhouse.in-process.*`). When a subscription is cancelled, the backend stops the query on ClickHouse.
 
@@ -125,6 +128,20 @@ orders.aggregate(
 
 `QueryFilter`s and `QueryPolicy`s apply to dataset queries too; a filter meant only for datasets implements `DatasetQueryFilter`.
 
+## ABAC {#abac}
+
+`AbacQueryPolicy` also restricts a dataset that binds tag columns in `scope.tags`, with the rules of the Snapshot `tags` system field. Each tag key is bound to one column: a string column for a single-valued tag, an `Array(String)` column for a multi-valued one. An empty string or array is a record without the tag.
+
+| Principal tag | String column | Array column |
+| --- | --- | --- |
+| `["a", "b"]` | `a` or `b`, or empty | contains `a` or `b`, or empty |
+| Wildcard `["*"]` | not empty | not empty |
+
+- With `wow.query.abac.match-missing-tag-key` off, an empty record no longer matches as a public resource.
+- A tag key the dataset binds no column for is a tag no record carries: unrestricted by default; with a wildcard, or with the option above off, nothing matches.
+- A dataset without `scope.tags` is not restricted by `AbacQueryPolicy`, which resolves no principal tags for it.
+- Tag columns are ordinary fields: callers may filter them by element (`IN`, `CONTAINS_ALL`, `IS_EMPTY`), but an array column is never sorted or aggregated.
+
 ## TypeScript Client
 
 `@ahoo-wang/wow-client`'s `DatasetQueryClient` calls the routes above. It satisfies View Engine's `ViewSource`, `describe` included, so it serves Record, Analysis and Dashboard views as it is:
@@ -148,5 +165,5 @@ const byCity = await orders.aggregate(
 - **Missing values**: a ClickHouse table's only missing value is `NULL` in a `Nullable` column. A non-`Nullable` column does not support presence operators such as `IS_NULL` and `EXISTS`, and admission rejects them; on a `Nullable` column `EXISTS` equals `IS_NOT_NULL`, so, as on Elasticsearch, an explicit `null` and a missing value cannot be told apart.
 - **NE and NOT_IN** also match `NULL`, as on MongoDB.
 - **DISTINCT_COUNT** is exact (`uniqExact`); **PERCENTILE** is a t-digest approximation, and the capability descriptor marks it `approximate`.
-- **ABAC**: `AbacQueryPolicy` applies to Snapshot only; datasets, like event streams, are not restricted by it.
+- **Array columns**: a scalar operand matches any element. An empty array is the missing value, so `IS_EMPTY`, `IS_NULL` and `NOT_EXISTS` all match it, as on Elasticsearch; whole-array equality is not supported.
 - A single numeric field aggregates natively, so a `Decimal` sum keeps its precision; expressions are computed in `Float64`.

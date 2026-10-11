@@ -24,7 +24,10 @@ enum class ClickHouseTypeFamily {
     DATE,
     DATE_TIME,
 
-    /** Arrays, maps, tuples and other types a dataset column cannot have yet. */
+    /** `Array(String)`, the one array a dataset column may be: several strings per record, such as ABAC tags. */
+    STRING_ARRAY,
+
+    /** Other arrays, maps, tuples and other types a dataset column cannot have yet. */
     UNSUPPORTED,
 }
 
@@ -45,8 +48,13 @@ data class ClickHouseColumn(val name: String, val type: String) {
         baseType == "Bool" -> ClickHouseTypeFamily.BOOLEAN
         baseType == "Date" || baseType == "Date32" -> ClickHouseTypeFamily.DATE
         baseType.startsWith("DateTime") -> ClickHouseTypeFamily.DATE_TIME
+        stringArray(baseType) -> ClickHouseTypeFamily.STRING_ARRAY
         else -> ClickHouseTypeFamily.UNSUPPORTED
     }
+
+    /** Whether the column holds several values per record: an empty array is a record without any. */
+    val array: Boolean
+        get() = family == ClickHouseTypeFamily.STRING_ARRAY
 
     /** Whether the column stores instants natively; its operands and positions travel as epoch milliseconds. */
     val temporal: Boolean
@@ -55,7 +63,7 @@ data class ClickHouseColumn(val name: String, val type: String) {
     /** The type an operand of this column is bound as: its base type, except where the text form differs. */
     val parameterType: String
         get() = when (family) {
-            ClickHouseTypeFamily.STRING, ClickHouseTypeFamily.ENUM -> "String"
+            ClickHouseTypeFamily.STRING, ClickHouseTypeFamily.ENUM, ClickHouseTypeFamily.STRING_ARRAY -> "String"
             ClickHouseTypeFamily.DATE, ClickHouseTypeFamily.DATE_TIME -> "Int64"
             else -> baseType
         }
@@ -63,7 +71,15 @@ data class ClickHouseColumn(val name: String, val type: String) {
     companion object {
         private const val LOW_CARDINALITY = "LowCardinality("
         private const val NULLABLE = "Nullable("
+        private const val ARRAY = "Array("
         private val INTEGER_TYPES = Regex("U?Int(8|16|32|64|128|256)")
+
+        /** `Array(String)` or `Array(FixedString(n))`, optionally of `LowCardinality`; never of `Nullable`. */
+        private fun stringArray(type: String): Boolean {
+            if (!type.startsWith(ARRAY) || !type.endsWith(")")) return false
+            val element = unwrap(unwrap(type, ARRAY), LOW_CARDINALITY)
+            return element == "String" || element.startsWith("FixedString(")
+        }
 
         private fun unwrap(type: String, wrapper: String): String =
             if (type.startsWith(wrapper) && type.endsWith(")")) {

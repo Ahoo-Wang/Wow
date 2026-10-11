@@ -31,7 +31,17 @@ class ClickHouseDatasetQueryBackendTest : DatasetQueryBackendSpec() {
 
     /**
      * A NULL is a table's only missing value (`AbsentValues.AS_MISSING`), so EXISTS cannot tell an explicit null from
-     * a missing field, as on Elasticsearch.
+     * a missing field, and an array column stores a missing or null value as an empty array, so presence and
+     * emptiness cannot tell the three apart; both as on Elasticsearch. Exact array equality is not supported.
      */
-    override val semanticDivergences: Set<String> = setOf("string.exists", "string.not-exists")
+    override val semanticDivergences: Set<String> = setOf(
+        "string.exists",
+        "string.not-exists",
+        "array.is-empty",
+        "array.is-null",
+        "array.is-not-null",
+        "array.exists",
+        "array.not-exists",
+        "array.eq-array",
+    )
 }

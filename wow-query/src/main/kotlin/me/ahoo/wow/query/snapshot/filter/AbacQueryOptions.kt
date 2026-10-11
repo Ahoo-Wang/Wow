@@ -19,8 +19,9 @@ import me.ahoo.wow.exception.WowException
 /**
  * The optional tightenings of [AbacQueryPolicy]. The defaults keep its permissive semantics.
  *
- * @property requirePrincipalTags rejects an HTTP snapshot query whose principal has no ABAC tags, instead of letting
- * it match every resource. In-process queries are trusted and never rejected for this.
+ * @property requirePrincipalTags rejects an HTTP query that [AbacQueryPolicy] restricts (a snapshot's, or that of a
+ * dataset binding tag columns) whose principal has no ABAC tags, instead of letting it match every resource.
+ * In-process queries are trusted and never rejected for this.
  * @property matchMissingTagKey lets a resource that lacks one of the principal's tag keys (or has it empty) match, as
  * a public resource. Off, a resource matches only when it carries every non-wildcard key with a value the principal
  * holds.
@@ -34,8 +35,8 @@ data class AbacQueryOptions(
     }
 }
 
-/** An HTTP snapshot query rejected because its principal has no ABAC tags; see [AbacQueryOptions.requirePrincipalTags]. */
+/** An HTTP query rejected because its principal has no ABAC tags; see [AbacQueryOptions.requirePrincipalTags]. */
 class AbacPrincipalTagsRequiredException : WowException(
     ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE,
-    "Snapshot query requires the principal's ABAC tags.",
+    "Query requires the principal's ABAC tags.",
 )

@@ -40,7 +40,8 @@ class ClickHouseDatasetStorageParsingTest {
             "Bool|BOOLEAN|false",
             "Date32|DATE|false",
             "DateTime64(3, 'UTC')|DATE_TIME|false",
-            "Array(String)|UNSUPPORTED|false",
+            "Array(String)|STRING_ARRAY|false",
+            "Array(Int64)|UNSUPPORTED|false",
         ],
     )
     fun `a column's family and nullability come from its type`(
