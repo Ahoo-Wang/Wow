@@ -12,12 +12,6 @@
 
 ### wow-client
 
-- **命令流把未知阶段当成错误**（C-5）：`CommandResultEventStreamResultExtractor` 只认本版本的 `CommandStage`，服务端以后新增一个阶段时，旧客户端会把这个阶段的结果当作错误事件结束流。判据：事件数据是 `ErrorInfo` 且没有 `stage` 字段时才判错，带 `stage` 的未知阶段照常作为结果交出；有一个未知阶段的测试。落点：`wow-client/src/transport/eventStreams.ts`。
-- **客户端文件的 JSDoc 示例没有类型检查**（C-6）：`test/jsdocExamples.test.ts` 只列了 dsl 与少数客户端文件，`client/command/*`、`client/query/{snapshot,event,descriptor}/*`、`client/routing.ts`、`client/metadata/*`、`error/headers.ts` 的示例不受检查，审查时其中两处编译不过。判据：带 `@example` 的源文件全部列入（或改为按目录收集），全部编译通过。落点：`wow-client/test/jsdocExamples.test.ts`。
-- **层边界规则可以被绕过**（C-7）：`eslint.config.js` 的层正则是 `(^|/)<dir>/`，`'../transport'`（不带斜杠）和 `'../dsl.js'` 匹配不上。判据：正则改为 `(^|/)<dir>(/|\.js$|$)`，`layerBoundaries.test.ts` 各加一个这两种写法的违例。落点：`wow-client/eslint.config.js`、`wow-client/test/layerBoundaries.test.ts`。
-- **线协议类型放在 `client/` 下**（C-8）：`MaterializedSnapshot`、`DomainEventStream` 在 `client/query/{snapshot,event}/`，`dsl.ts` 要从 `client/` 再导出。判据：移到 `model/`，公开名字与签名不变，`test/api`、`test/surface` 无变化。落点：`wow-client/src/client/query/snapshot/snapshot.ts`、`…/event/domainEventStream.ts`、`src/model/`。
-- **覆盖率门槛远低于实测**（C-10）：门槛 98/97/98/98，实测约 100/99.8/100/100，回退几个点也不会失败。判据：抬到 99.5/99/99.5/99.5，注释写明依据。落点：`wow-client/vitest.config.ts`。
-- **`test/client/` 与 `test/clients/` 并存**（C-11）：同一层的测试分在两个目录。判据：合并为一个目录，`AGENTS.md` 里的路径随之更新。落点：`wow-client/test/`。
 - **聚合参考页按任务重写**（X-1）：「聚合构造器」一页信息密度过高、读起来像译文。判据：按「分组、指标、过滤、派生、排序与分页」等任务组织，每节一个可运行示例，中英两版结构一致。落点：`documentation/docs/{en,zh}/reference/typescript/wow-client/aggregations.md`。
 
 ### wow-react
