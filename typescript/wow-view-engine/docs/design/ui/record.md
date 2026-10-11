@@ -118,7 +118,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **设置复用卡片设置那颗按钮**：`ResultToolbar` 在看板视图下照旧画 `CardSettings`（同一个 `data-control="columns"`），名字换成「看板视图设置」、图标换成 `Columns3CogIcon`（不用布局开关里看板视图的那个图标：按下的那一段就在它旁边，两个一样的图标读成一个控件），上面多两项——分栏字段（`Select`，只列带选项的 `enum` 字段）与显示的栏（每个选项一个复选框，勾满 `MAX_KANBAN_LANES` 栏后其余停用并说明）——下面仍是卡片的标题、正文与图片，「每行几张」不画；全走 `setKanban`／`setCard`。
 - **没有分页条**：看板视图的分页是每栏自己的「加载更多」，每栏一次取视图的 `pageSize` 张；分页条与它的每页条数选择器在看板视图下不画。
 
-文件：`ui/record/RecordKanban.tsx`、`ui/record/kanbanDrag.tsx`、`ui/record/RecordCard.tsx`、`ui/record/CardSettings.tsx`、`ui/actions/kanbanMove.ts`（见 test/recordKanban.test.tsx、test/kanbanMove.test.tsx、test/cardSettings.test.tsx；故事「布局/看板视图」的 `KanbanByStage`、`RequirementStates`，回归 `LanesLoadMore`、`RecordAction`、`DragToMove`、`OtherLane`）。
+文件：`ui/record/RecordKanban.tsx`、`ui/record/kanbanDrag.tsx`、`ui/record/RecordCard.tsx`、`ui/record/CardSettings.tsx`、`ui/actions/kanbanMove.ts`（见 test/recordKanban.test.tsx、test/kanbanMove.test.tsx、test/kanbanDropHold.test.tsx、test/cardSettings.test.tsx；故事「布局/看板视图」的 `KanbanByStage`、`RequirementStates`，回归 `LanesLoadMore`、`RecordAction`、`DragToMove`、`OtherLane`）。
 
 ## 勾选：Shift 连选一段
 
