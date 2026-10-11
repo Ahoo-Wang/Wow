@@ -40,6 +40,11 @@ or run the published image `ghcr.io/ahoo-wang/wow-example-server:<version>`.
 Point it at MongoDB with `SPRING_MONGODB_URI`, choose its port with
 `SERVER_PORT`, and set
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo` and `WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`.
+The install's configuration excludes the MongoDB auto-configuration, so also
+set `SPRING_AUTOCONFIGURE_EXCLUDE`, which replaces that list, to the two
+Elasticsearch client auto-configurations alone, as CI does:
+`org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration`.
+Without it the server fails to start, missing a `MongoClient`.
 
 The example server embeds the view store (`wow-view-store-starter`); start it
 with the system view `test/view-store/` reads (the four

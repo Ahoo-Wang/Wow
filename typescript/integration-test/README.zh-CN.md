@@ -31,6 +31,10 @@
 也可以运行已发布的镜像 `ghcr.io/ahoo-wang/wow-example-server:<version>`。用
 `SPRING_MONGODB_URI` 指向 MongoDB，用 `SERVER_PORT` 指定端口，并设置
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo`、`WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`。
+安装包的配置排除了 MongoDB 的自动配置，所以还要像 CI 那样设置 `SPRING_AUTOCONFIGURE_EXCLUDE`，它会替换那份排除列表，只留下两个
+Elasticsearch 客户端自动配置：
+`org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration`。
+不设置的话，服务端会因缺少 `MongoClient` 而启动失败。
 
 示例服务端内嵌了视图存储（`wow-view-store-starter`），启动时带上 `test/view-store/` 读取的系统视图（下面那四个
 `--wow.view-store.system-views[0].…` 参数）。另有一个视图存储服务端，在 8090 端口、连同一个 MongoDB，也供
