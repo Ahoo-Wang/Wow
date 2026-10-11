@@ -42,6 +42,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
@@ -687,6 +688,39 @@ abstract class SnapshotQueryBackendSpec {
                     ),
                 )
             }.verifyComplete()
+    }
+
+    @Test
+    fun `windows read every group before HAVING, alike in the storage and in the core`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val byProduct = Sort(QueryField("product"), Sort.Direction.ASC)
+        val query = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            sum("amount", "gmv")
+            sum("quantity", "qty")
+            derived("share") { ref("gmv") / total("gmv") }
+            derived("rank") { rank("gmv") }
+            derived("lowest") { rank("qty", direction = Sort.Direction.ASC) }
+            derived("cumulative") { running("qty", byProduct) }
+            derived("running") { running("gmv", byProduct) }
+            derived("moving") { running("gmv", byProduct, frame = 2, function = RunningFunction.AVG) }
+            sort { "product".asc() }
+        }
+        // alpha 40 / 5, beta 40 / 4, delta 50 / 5, gamma (no amount) / 3.
+        listOf(false, true).forEach { residual ->
+            val rows = queryBackendBinding.aggregate(query, residual).collectList().block()!!
+            fun column(name: String) = rows.map { row -> row.path(name).takeUnless { it.isNull }?.asDouble() }
+            rows.map { it.path("product").asString() }.assert().containsExactly("alpha", "beta", "delta", "gamma")
+            column("share").assert().containsExactly(40.0 / 130, 40.0 / 130, 50.0 / 130, null)
+            column("rank").assert().containsExactly(2.0, 2.0, 1.0, null)
+            column("lowest").assert().containsExactly(3.0, 2.0, 3.0, 1.0)
+            column("cumulative").assert().containsExactly(5.0, 9.0, 14.0, 17.0)
+            column("running").assert().containsExactly(40.0, 80.0, 130.0, 130.0)
+            column("moving").assert().containsExactly(40.0, 40.0, 45.0, 50.0)
+        }
     }
 
     @Test
@@ -2562,9 +2596,15 @@ private fun QueryTarget<SnapshotQueryBackend>.count(filter: FilterExpression): M
         backend.count(QueryAdmission.Trusted.count(filter, schema))
     }
 
-private fun QueryTarget<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+/** [query]'s groups; with [residual], the core computes every window the storage would. */
+private fun QueryTarget<SnapshotQueryBackend>.aggregate(
+    query: AggregationQuery,
+    residual: Boolean = false,
+): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema))
+        backend.aggregate(
+            QueryAdmission.Trusted.aggregate(query, if (residual) schema.withResidualWindows() else schema),
+        )
     }
 
 private fun ISingleQuery.query(

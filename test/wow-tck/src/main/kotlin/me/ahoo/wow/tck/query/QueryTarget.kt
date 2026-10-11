@@ -21,9 +21,11 @@ import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryDataset
 import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -72,3 +74,16 @@ fun DatasetQueryBackendFactory.target(dataset: QueryDataset): QueryTarget<Datase
         ).provider(dataset.namedAggregate, QueryModel.DATASET),
     )
 }
+
+/** This schema with every window computed by the core, so a spec can hold the storage's native windows to it. */
+internal fun QueryModelSchema.withResidualWindows() = QueryModelSchema(
+    model,
+    capabilities,
+    definition,
+    bindings,
+    fullProjectionAvailable,
+    approximateMetrics,
+    storage.copy(aggregation = storage.aggregation.copy(windows = AggregationSupport.RESIDUAL_WINDOWS)),
+    provisional,
+    profile,
+)

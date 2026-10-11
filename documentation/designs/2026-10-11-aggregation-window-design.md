@@ -113,7 +113,7 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 | **R4a-2 `PREVIOUS`** | 平移范围（§3.2）与第二次分组读取的 RESIDUAL 实现，`PREVIOUS` 缺省改为 RESIDUAL；不可平移时准入以 `PREVIOUS_UNSHIFTABLE` 拒绝 | wow-query 单测 |
 | **R4a-3 TCK** | 窗口语义规格：同一份期望在每个存储上跑（随 R4b 一起，先验证 ClickHouse 的 RESIDUAL 与 NATIVE 一致） | TCK + Testcontainers |
 | **R4b ClickHouse** | `TOTAL`、`RUNNING`、`RANK` 的 NATIVE 实现：分组查询与 HAVING 之间加一层窗口子查询；`PREVIOUS` 仍为 RESIDUAL（核心的平移二次读取已能用，原生的 `LEFT JOIN` 留待需要时） | TCK + Testcontainers：同一份期望分别走 NATIVE 与 RESIDUAL |
-| **R4c MongoDB、Elasticsearch** | Mongo NATIVE、ES RESIDUAL | TCK + Testcontainers |
+| **R4c MongoDB、Elasticsearch**（已实施） | Mongo：`TOTAL`、`RUNNING`、`RANK` 用 `$setWindowFields` NATIVE（`RANK` 以把 NULL 排到末端的键 `$denseRank`，和为空帧时以计数判 NULL），`PREVIOUS` RESIDUAL；ES 全部 RESIDUAL | 快照 TCK：同一份期望分别走 NATIVE 与 RESIDUAL，Mongo 与 ES 的 Testcontainers 均跑 |
 | **R4d view-engine** | 用服务端窗口结果，Q53 置灰收窄，Q59 落地，组内 TopN | view-engine 测试与故事 |
 | wow-client | DSL 的窗口节点、`analysis.windows`（已实施）；view-engine 的分析配置暂只收四则运算，窗口留给 R4d | API 报告；同源契约测试 |
 
