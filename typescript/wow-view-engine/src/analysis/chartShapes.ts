@@ -16,7 +16,13 @@ import {
   type AnalysisViewConfig,
   type RecordData,
 } from '../model/index.js';
-import type { HeatmapData, PieData, PieSlice, ScatterData } from './chart.js';
+import type {
+  HeatmapData,
+  PieData,
+  PieSlice,
+  ScatterData,
+  ShapeContext,
+} from './chart.js';
 import { num, seriesKey } from './chartRows.js';
 import {
   alongPart,
@@ -100,6 +106,7 @@ export function shapeHeatmap(
   rows: readonly RecordData[],
   timeZone: string,
   now?: Date,
+  valueOrder?: ShapeContext['valueOrder'],
 ): HeatmapData {
   let xs: unknown[] = [];
   let ys: unknown[] = [];
@@ -143,6 +150,12 @@ export function shapeHeatmap(
   const cycleDown = partGroup(config, spec.y);
   if (cycleAcross) xs = alongPart(xs, same, cycleAcross, same);
   if (cycleDown) ys = alongPart(ys, same, cycleDown, same);
+  // A category whose field lists its values runs in the host's order: city
+  // tiers 一线 to 三线及以下 down the rows, not in whichever order the sort
+  // first met them — a matrix is read along its rows and columns, not from
+  // its biggest cell.
+  if (!across && !cycleAcross) xs = inListedOrder(xs, valueOrder?.[spec.x]);
+  if (!down && !cycleDown) ys = inListedOrder(ys, valueOrder?.[spec.y]);
 
   return {
     type: 'heatmap',
@@ -151,6 +164,29 @@ export function shapeHeatmap(
     cells: ys.map(y => xs.map(x => cells.get(cellKey(y, x)) ?? null)),
     ...(across || cycleAcross ? { xAlong: true as const } : {}),
   };
+}
+
+/**
+ * `keys` with those `listed` first, in the listed order, and the rest — a
+ * value the host never listed, the group of rows that had none — after them
+ * as they came. A key matches a listed value as itself or, being a yes or a
+ * no, as its word (`'true'`, `'false'`).
+ */
+function inListedOrder(
+  keys: unknown[],
+  listed: readonly (string | number)[] | undefined,
+): unknown[] {
+  if (!listed || listed.length === 0) return keys;
+  const rank = (key: unknown) => {
+    const at = listed.indexOf(
+      (typeof key === 'boolean' ? String(key) : key) as string | number,
+    );
+    return at < 0 ? listed.length : at;
+  };
+  return keys
+    .map((key, index) => ({ key, index, rank: rank(key) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(({ key }) => key);
 }
 
 export function shapeScatter(

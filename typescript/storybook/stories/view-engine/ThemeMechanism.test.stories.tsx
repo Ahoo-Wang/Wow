@@ -35,7 +35,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { converter, parse } from 'culori';
-import { FOCUS_CARD, FOCUS_INSET, FOCUS_ROW } from '@/ui/kit/variants';
+import { FOCUS_CARD, FOCUS_PANEL, FOCUS_ROW } from '@/ui/kit/variants';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
@@ -367,18 +367,18 @@ export const AzureMarksFollowTheBrandInLight: Story = azureMarks('light');
 export const AzureMarksFollowTheBrandInDark: Story = azureMarks('dark');
 
 /**
- * 引擎自己的三个焦点配方——表格行、卡片、看板面板的滚动体——读主题的
- * `focus-width`／`focus-offset`（D76）：contrast 下是 2px，卡片离边 2px，
- * 滚动体画在边内并留 2px 的间隔；azure 也是 2px，卡片压着自己的边（-1px）；
- * 不设时（neutral）仍是 1px 与原来的偏移。卡片与滚动体的光晕是面上的
+ * 引擎自己的三个焦点配方——表格行、卡片、看板面板（正文获焦时画在面板卡片上）
+ * ——读主题的 `focus-width`／`focus-offset`（D76）：contrast 下是 2px，卡片与
+ * 面板离边 2px；azure 也是 2px，卡片与面板压着自己的边（-1px）；不设时
+ * （neutral）仍是 1px 与原来的偏移。卡片与面板的光晕是面上的
  * `focus-halo`（contrast 透明，azure 淡蓝，neutral 是 `ring` 的一半）。
  * 选中行左边的色条（`row-selected-mark`）contrast 链到主色，neutral 没有。
  */
 const FOCUS_MARKS = {
-  // Width, a card's offset, a scrolling body's offset, a bar on the row.
-  contrast: { wide: '2px', card: '2px', inset: '-4px', bar: true },
-  azure: { wide: '2px', card: '-1px', inset: '-2px', bar: false },
-  neutral: { wide: '1px', card: '-1px', inset: '-1px', bar: false },
+  // Width, a card's (and a panel's) offset, a bar on the row.
+  contrast: { wide: '2px', card: '2px', bar: true },
+  azure: { wide: '2px', card: '-1px', bar: false },
+  neutral: { wide: '1px', card: '-1px', bar: false },
 } as const;
 
 const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
@@ -400,8 +400,10 @@ const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
       <div data-testid="card" tabIndex={0} className={FOCUS_CARD}>
         卡片
       </div>
-      <div data-testid="inset" tabIndex={0} className={FOCUS_INSET}>
-        滚动体
+      <div data-testid="panel" className={FOCUS_PANEL}>
+        <div data-testid="body" data-panel-body tabIndex={0}>
+          滚动体
+        </div>
       </div>
       <div
         data-testid="halo"
@@ -445,12 +447,13 @@ const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
       `${halo} 0px 0px 0px 3px`,
     );
 
-    const inset = canvas.getByTestId('inset');
-    await focus(inset);
-    await expect(getComputedStyle(inset).outlineWidth).toBe(wide);
-    await expect(getComputedStyle(inset).outlineOffset).toBe(expected.inset);
-    await expect(getComputedStyle(inset).boxShadow).toContain(
-      `${halo} 0px 0px 0px 3px inset`,
+    // A panel's body takes the focus; the card round it wears the mark.
+    await focus(canvas.getByTestId('body'));
+    const panel = canvas.getByTestId('panel');
+    await expect(getComputedStyle(panel).outlineWidth).toBe(wide);
+    await expect(getComputedStyle(panel).outlineOffset).toBe(expected.card);
+    await expect(getComputedStyle(panel).boxShadow).toContain(
+      `${halo} 0px 0px 0px 3px`,
     );
 
     const first = canvas.getByTestId('chosen').querySelector('td')!;

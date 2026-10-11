@@ -4466,6 +4466,7 @@ export interface ShapeContext {
     now?: Date;
     splitWhole?: readonly RecordData[];
     timeZone?: string;
+    valueOrder?: Readonly<Record<string, readonly (string | number)[]>>;
 }
 
 // @public

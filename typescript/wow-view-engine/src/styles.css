@@ -1739,8 +1739,7 @@
 
   /*
    * The item a menu, a select or a combobox has under the keyboard wears
-   * the focus mark: 2px of `ring` inside its edge, as `FOCUS_INSET` draws
-   * one, over whatever fill the theme gives the highlight. The fill alone
+   * the focus mark: 2px of `ring` inside its edge, over whatever fill the theme gives the highlight. The fill alone
    * was the only mark, and in neutral and azure it is a tint 1.03–1.07:1
    * off the popup (second-round review; D76 as amended); the ring is held
    * to 3:1 off the popup by the contrast matrix ('highlighted item’s focus
@@ -1762,7 +1761,7 @@
 
   /*
    * Focus on a registry control — every one that marks focus with the
-   * 3px halo and no outline of its own (`FOCUS_CARD` and `FOCUS_INSET`
+   * 3px halo and no outline of its own (`FOCUS_CARD` and `FOCUS_PANEL`
    * draw theirs). Unset, `focus-width` makes the outline invalid and the
    * control keeps `outline-none`; set, it draws an outline in `ring`. The
    * halo takes `focus-halo` wherever it is the registry's `ring` at 50%,
