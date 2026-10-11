@@ -321,7 +321,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                     collapsed: true,
                     items: [
                         {text: 'Traditional Architecture', link: 'migration/traditional-architecture'},
-                        {text: 'Migrate Wow v6 to v8', link: 'migration/v6-to-v8'},
                         {text: 'V9 Query Migration', link: 'query/v9-query-migration'},
                         {text: 'Runtime Orchestration', link: 'migration/runtime-orchestration'},
                         {text: 'TypeScript Packages from Fetcher', link: 'typescript/migration'},

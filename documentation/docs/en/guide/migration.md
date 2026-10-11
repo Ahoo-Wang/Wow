@@ -23,7 +23,7 @@ A green local build can close the source gate. It does not close the other four.
 | Current system | Primary path | Why |
 |---|---|---|
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
-| Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
+| Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Retired from this site: follow the guide kept at the v8.16.3 tag to v8.16, then [Upgrading from 8.16 to 9.0.0](#upgrading-from-8-16-to-9-0-0) |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
 | Wow 9.7.x | [Upgrading from 9.7 to 9.8.0](#upgrading-from-9-7-to-9-8-0) | Recompile: classes move out of `wow-core`'s `messaging` package into their domain packages, `infra.batch` becomes `me.ahoo.wow.batch`, and the metric decorators move to `me.ahoo.wow.metrics.decorator`; integrations that build `QuerySchemaCatalog` or subclass `QueryGatewayRegistrar` themselves need changes |
 | Wow 9.6.x | [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0) | Only code that uses `wow-webflux` internals or the removed deprecated helpers needs changes; routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes share one cluster |
@@ -44,7 +44,6 @@ exact source/target version for each change window.
 | Page | Owns | Does not own |
 |---|---|---|
 | Traditional architecture | Domain boundary, historical import, shadow catch-up, read/write cutover | Wow version/platform upgrade assumptions |
-| v6→v8 | Pinned Gradle/platform matrix, source breaks, storage formats, data cutover | Redesigning every domain |
 | Runtime orchestration | `RuntimeComponent`, message receiver admission, Spring lifecycle ownership, shutdown | Event/snapshot format conversion unless another section requires it |
 | V9 query migration | Query Gateway/Backend, filter/masking, SnapshotStore naming, and the Condition migration window | Deployment or production cutover proof |
 | Runtime lifecycle | Stable post-migration semantics | The migration procedure itself |
@@ -478,7 +477,7 @@ deep links.
 <span id="dependency-version-update"></span>
 <span id="breaking-changes-check"></span>
 
-See [v6 → v8: General Upgrade Steps](./migration/v6-to-v8.md#general-upgrade-steps).
+See [v6 → v8: General Upgrade Steps](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Migrating from Traditional Architecture
 
@@ -509,7 +508,7 @@ and [Reconcile, Then Move Reads and Writes Separately](./migration/traditional-a
 <span id="message-format-compatibility"></span>
 
 See [Continue Evolving the Domain Model](./migration/traditional-architecture.md#_4-continue-evolving-the-domain-model)
-and [v6 → v8: Breaking Changes Check](./migration/v6-to-v8.md#breaking-changes-check).
+and [v6 → v8: Breaking Changes Check](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Known Issues
 
@@ -522,7 +521,7 @@ See the [Release Notes](https://github.com/Ahoo-Wang/Wow/releases) and
 ### Migration Checklist
 
 Use the [Traditional Architecture Completion Checklist](./migration/traditional-architecture.md#completion-checklist)
-or [v6 → v8 Verification Checklist](./migration/v6-to-v8.md#verification-checklist), then add environment-specific
+or [v6 → v8 Verification Checklist](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md), then add environment-specific
 production admission evidence.
 
 ### Rollback Plan
@@ -538,26 +537,26 @@ See [Runtime Orchestration Migration](./migration/runtime-orchestration.md).
 
 ### Removal of Versioned Snapshot Checkpoints
 
-See [v6 → v8: Versioned Snapshot Checkpoint Removal](./migration/v6-to-v8.md#versioned-snapshot-checkpoint-removal).
+See [v6 → v8: Versioned Snapshot Checkpoint Removal](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Atomic SnapshotStore Saves
 
-See [v6 → v8: Atomic SnapshotStore Saves](./migration/v6-to-v8.md#atomic-snapshotstore-saves).
+See [v6 → v8: Atomic SnapshotStore Saves](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
-See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-layout-introduced-in-v8-9-0).
+See [v6 → v8: Redis EventStore Canonical v2 Layout](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Mongo Ownership Guard
 
-See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).
+See [v6 → v8: Mongo Ownership Guard](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ## Related Pages
 
 | Page | Relationship |
 |---|---|
 | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | First adoption and traffic ownership |
-| [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Existing Wow platform/storage upgrade |
+| [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Where the v6 → v8 guide is kept (the v8.16.3 tag) |
 | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Unified lifecycle source migration |
 | [V9 Query Migration](./query/v9-query-migration.md) | V8.16.x to V9 query and SnapshotStore source migration |
 | [Migrate from Fetcher Packages](./typescript/migration.md) | TypeScript package renames and client regeneration |

@@ -95,7 +95,7 @@ Do not delete by date alone. Before deletion, search inbound links and compare t
 
 The site converges on the direct path to the current major version and current operational migrations. For Wow V9, the target is a complete V8-to-V9 path plus current runtime and traditional-architecture migrations. Older version chains then belong to their release tags.
 
-The complete V8-to-V9 path is published: the Migration Guide leads from 8.16 through each 9.x upgrade section, with [V9 Query Migration](../query/v9-query-migration.md) as its query step. The V6-to-V8 page is still published; retiring it to its release tag, together with its navigation entries and the Migration Guide's aliases into it, is the remaining step and is a maintainer decision.
+The complete V8-to-V9 path is published: the Migration Guide leads from 8.16 through each 9.x upgrade section, with [V9 Query Migration](../query/v9-query-migration.md) as its query step. The V6-to-V8 guide is retired to its release tag: `guide/migration/v6-to-v8` keeps its URL as a short page pointing to the copy at `v8.16.3` and on to the 8.16 → 9.0 upgrade, and is no longer in the navigation.
 
 ## Diagrams and Assets
 
