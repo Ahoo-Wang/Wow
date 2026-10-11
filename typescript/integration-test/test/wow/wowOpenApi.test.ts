@@ -30,11 +30,13 @@ import {
   PagingMode,
   QueryErrorCodes,
   QueryValueKind,
+  RunningFunction,
   SearchMode,
   SensitivityLevel,
   SortDirection,
   StringComparison,
   TimeUnit,
+  WindowFunction,
 } from '@ahoo-wang/wow-client';
 import type {
   AggregationLimitsDescriptor,
@@ -178,6 +180,8 @@ describe('Wow OpenAPI document', () => {
       HavingExpressionType,
       () => mapped('HavingExpression'),
     ],
+    ['WindowFunction', WindowFunction, () => query('WindowFunction').enum],
+    ['RunningFunction', RunningFunction, () => query('RunningFunction').enum],
     [
       'ComparisonOperator',
       ComparisonOperator,
@@ -382,6 +386,7 @@ describe('Wow OpenAPI document', () => {
           dateParts: true,
           dateDiffUnits: true,
           firstLastOrderBy: true,
+          windows: true,
         }),
       ],
       ['HavingDescriptor', keys<HavingDescriptor>({ metrics: true })],
@@ -524,6 +529,7 @@ describe('Wow OpenAPI document', () => {
       ['AnalysisDescriptor', ['dateUnits', '[]'], 'AggregationDateUnit'],
       ['AnalysisDescriptor', ['dateParts', '[]'], 'AggregationDatePart'],
       ['AnalysisDescriptor', ['dateDiffUnits', '[]'], 'DateDiffUnit'],
+      ['AnalysisDescriptor', ['windows', '[]'], 'WindowFunction'],
       ['SensitivityDescriptor', ['level'], 'SensitivityLevel'],
     ])('%s.%s is the closed enum %s', (name, path, target) => {
       expect(at(name, ...path)).toBe(query(target));

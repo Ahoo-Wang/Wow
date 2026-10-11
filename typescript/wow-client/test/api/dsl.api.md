@@ -45,6 +45,7 @@ export const AGGREGATION_LIMITS: Readonly<{
     MAX_SORT_FIELDS: 32;
     MAX_EXPRESSION_DEPTH: 8;
     MAX_EXPRESSION_NODES: 256;
+    MAX_WINDOWS: 8;
 }>;
 
 // @public
@@ -192,6 +193,7 @@ export interface AnalysisDescriptor {
     having: HavingDescriptor;
     metrics: (AggregationMetricType | (string & {}))[];
     sort: AnalysisSortDescriptor;
+    windows?: WindowFunction[];
 }
 
 // @public
@@ -414,7 +416,7 @@ export type DerivedExpression = {
     operator: AggregationExpressionOperator;
     left: DerivedExpression;
     right: DerivedExpression;
-};
+} | DerivedWindow;
 
 // @public
 export interface DerivedExpressionDsl {
@@ -422,16 +424,59 @@ export interface DerivedExpressionDsl {
     constant(value: number): DerivedExpression;
     divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
     multiply(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    previous(metric: string, along: string, options?: {
+        shift?: number;
+        period?: AggregationDateUnit;
+    }): DerivedExpression;
+    rank(metric: string, options?: {
+        within?: string[];
+        direction?: SortDirection;
+    }): DerivedExpression;
     ref(metric: string): DerivedExpression;
+    running(metric: string, order: FieldSort, options?: {
+        within?: string[];
+        frame?: number;
+        function?: RunningFunction;
+    }): DerivedExpression;
     subtract(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    total(metric: string, ...within: string[]): DerivedExpression;
 }
 
 // @public
 export enum DerivedExpressionType {
     BINARY = "BINARY",
     CONSTANT = "CONSTANT",
-    METRIC_REF = "METRIC_REF"
+    METRIC_REF = "METRIC_REF",
+    PREVIOUS = "PREVIOUS",
+    RANK = "RANK",
+    RUNNING = "RUNNING",
+    TOTAL = "TOTAL"
 }
+
+// @public
+export type DerivedWindow = {
+    type: DerivedExpressionType.TOTAL;
+    metric: string;
+    within?: string[];
+} | {
+    type: DerivedExpressionType.RUNNING;
+    metric: string;
+    order: FieldSort;
+    within?: string[];
+    frame?: number;
+    function?: RunningFunction;
+} | {
+    type: DerivedExpressionType.PREVIOUS;
+    metric: string;
+    along: string;
+    shift?: number;
+    period?: AggregationDateUnit;
+} | {
+    type: DerivedExpressionType.RANK;
+    metric: string;
+    within?: string[];
+    direction?: SortDirection;
+};
 
 // @public
 export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS>;
@@ -1164,6 +1209,14 @@ export interface RelativeTimeFilterOptions {
 }
 
 // @public
+export enum RunningFunction {
+    // (undocumented)
+    AVG = "AVG",
+    // (undocumented)
+    SUM = "SUM"
+}
+
+// @public
 export interface SearchBuilder {
     // (undocumented)
     <FIELDS extends string>(query: string, options: SearchFilterOptions<FIELDS> & {
@@ -1318,6 +1371,18 @@ export interface VariantsDescriptor {
     discriminator: string;
     element: string;
     values: VariantDescriptor[];
+}
+
+// @public
+export enum WindowFunction {
+    // (undocumented)
+    PREVIOUS = "PREVIOUS",
+    // (undocumented)
+    RANK = "RANK",
+    // (undocumented)
+    RUNNING = "RUNNING",
+    // (undocumented)
+    TOTAL = "TOTAL"
 }
 
 // (No @packageDocumentation comment for this package)

@@ -796,6 +796,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '这份数据没有定义记录标识，不能逐页翻阅或按标识选取。',
   'runtime.query.failed.storage_unsupported':
     '服务端的存储运行不了这条查询：{reason}',
+  'runtime.query.failed.previous_unshiftable':
+    '与上一期对比要把「{field}」的时间范围前移，但筛选里对它的条件没法前移；把它的条件放在最外层的「且」里。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.query.too-many-nodes':

@@ -764,6 +764,7 @@ describe('aggregation.query', () => {
       MAX_SORT_FIELDS: 32,
       MAX_EXPRESSION_DEPTH: 8,
       MAX_EXPRESSION_NODES: 256,
+      MAX_WINDOWS: 8,
     });
   });
 

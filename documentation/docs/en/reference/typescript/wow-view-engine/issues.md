@@ -524,6 +524,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.not_projectable` | {field} cannot be shown as a column of this data. |
 | `runtime.query.failed.not_single_string` | {field} is not a single text value, so it cannot be checked for being empty. |
 | `runtime.query.failed.parallel_array_sort` | {field} and another list field in the sort cannot be sorted by together; keep one of them. |
+| `runtime.query.failed.previous_unshiftable` | Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND. |
 | `runtime.query.failed.protected_aggregation` | {field} is protected and cannot be summarised. |
 | `runtime.query.failed.protected_comparison` | {field} is protected and cannot be used to filter, sort or search. |
 | `runtime.query.failed.residual_groups_exceeded` | This summary has too many groups for the service to filter or sort by a metric; narrow the data first. |

@@ -14,7 +14,6 @@ import { Context } from 'react';
 import { CursorPage } from '@ahoo-wang/wow-client';
 import { CursorQuery } from '@ahoo-wang/wow-client';
 import { DateDiffUnit } from '@ahoo-wang/wow-client';
-import { DerivedExpression } from '@ahoo-wang/wow-client';
 import { Dialog } from '@base-ui/react/dialog';
 import { EChartsCoreOption } from 'echarts/core';
 import { FilterExpression } from '@ahoo-wang/wow-client';
@@ -195,8 +194,19 @@ type AnalysisDatePart = `${AggregationDatePart}`;
 // @public (undocumented)
 type AnalysisDateUnit = `${AggregationDateUnit}`;
 
-// @public (undocumented)
-type AnalysisDerivedExpression = LiteralEnums<DerivedExpression>;
+// @public
+type AnalysisDerivedExpression = {
+    type: 'METRIC_REF';
+    metric: string;
+} | {
+    type: 'CONSTANT';
+    value: number;
+} | {
+    type: 'BINARY';
+    operator: AnalysisExpressionOperator;
+    left: AnalysisDerivedExpression;
+    right: AnalysisDerivedExpression;
+};
 
 // @public
 interface AnalysisElement {
@@ -3315,6 +3325,7 @@ export const en: {
     readonly 'runtime.query.failed.sort_field_duplicate': "{field} is sorted by twice; keep it once.";
     readonly 'runtime.query.failed.identity_undefined': "This data defines no record identity, so it cannot be paged through or picked by id.";
     readonly 'runtime.query.failed.storage_unsupported': "The service's storage cannot run this: {reason}";
+    readonly 'runtime.query.failed.previous_unshiftable': "Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND.";
     readonly 'record.detail.failed': "The whole record could not be read: {reason}";
     readonly 'runtime.query.queue-full': "Too many queries at once; try again in a moment.";
     readonly 'runtime.query.too-many-nodes': "These conditions make a query of {count} parts; the source takes at most {max}. Remove some conditions.";

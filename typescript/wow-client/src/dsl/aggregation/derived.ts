@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
+import type { FieldSort, SortDirection } from '../sort.js';
 import {
   AggregationExpressionOperator,
   DerivedExpressionType,
+  type AggregationDateUnit,
   type DerivedExpression,
+  type RunningFunction,
 } from './types.js';
 
 /**
@@ -53,6 +56,41 @@ export interface DerivedExpressionDsl {
   ): DerivedExpression;
   /** `left / right`. `{ type: 'BINARY', operator: 'DIVIDE', left, right }`. */
   divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+  /**
+   * `metric` summed over the groups sharing this group's `within` keys.
+   * `{ type: 'TOTAL', metric, within }`.
+   */
+  total(metric: string, ...within: string[]): DerivedExpression;
+  /**
+   * `metric` accumulated along `order` within the groups sharing this group's
+   * `within` keys; with `frame` and `function: 'AVG'`, a moving average.
+   */
+  running(
+    metric: string,
+    order: FieldSort,
+    options?: {
+      within?: string[];
+      frame?: number;
+      function?: RunningFunction;
+    },
+  ): DerivedExpression;
+  /**
+   * `metric` of the group `shift` buckets (or `period`s) earlier along the
+   * `DATE_HISTOGRAM` group `along`.
+   */
+  previous(
+    metric: string,
+    along: string,
+    options?: { shift?: number; period?: AggregationDateUnit },
+  ): DerivedExpression;
+  /**
+   * The dense rank of `metric` among the groups sharing this group's
+   * `within` keys, `DESC` unless `direction` says otherwise.
+   */
+  rank(
+    metric: string,
+    options?: { within?: string[]; direction?: SortDirection },
+  ): DerivedExpression;
 }
 
 function binary(
@@ -78,4 +116,26 @@ export const derivedExpressionDsl: DerivedExpressionDsl = {
     binary(AggregationExpressionOperator.MULTIPLY, left, right),
   divide: (left, right) =>
     binary(AggregationExpressionOperator.DIVIDE, left, right),
+  total: (metric, ...within) => ({
+    type: DerivedExpressionType.TOTAL,
+    metric,
+    ...(within.length > 0 && { within }),
+  }),
+  running: (metric, order, options = {}) => ({
+    type: DerivedExpressionType.RUNNING,
+    metric,
+    order,
+    ...options,
+  }),
+  previous: (metric, along, options = {}) => ({
+    type: DerivedExpressionType.PREVIOUS,
+    metric,
+    along,
+    ...options,
+  }),
+  rank: (metric, options = {}) => ({
+    type: DerivedExpressionType.RANK,
+    metric,
+    ...options,
+  }),
 };

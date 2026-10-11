@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 274 names, from src/index.ts.
+# @ahoo-wang/wow-client — 277 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -92,6 +92,7 @@ type  DerivedAggregationMetric
 type  DerivedExpression
 type  DerivedExpressionDsl
 value DerivedExpressionType
+type  DerivedWindow
 type  DescriptionCapable
 type  DistinctCountAggregationMetric
 type  DomainEvent
@@ -214,6 +215,7 @@ type  ReferenceSemantic
 type  RelativeTimeFilterOptions
 type  RequestId
 value ResourceAttributionPathSpec
+value RunningFunction
 type  ScopesCapable
 type  SearchBuilder
 type  SearchDescriptor
@@ -253,6 +255,7 @@ type  WaitFunction
 type  WaitSignal
 type  WaitStageOptions
 type  WaitStrategyOptions
+value WindowFunction
 value WowError
 type  WowErrorCode
 type  WowErrorOptions

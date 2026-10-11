@@ -38,7 +38,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 873 — with its kind and th
 | `AnalysisDateDiffUnit` | type | — | — |
 | `AnalysisDatePart` | type | — | — |
 | `AnalysisDateUnit` | type | — | — |
-| `AnalysisDerivedExpression` | type | — | — |
+| `AnalysisDerivedExpression` | type | A derived metric's arithmetic: references to earlier metrics, numbers and the four operators. | — |
 | `AnalysisElement` | interface | Expansion of an array path; its filter is scoped to the element fields. | — |
 | `AnalysisElementCapability` | interface | How an element's fields may be aggregated. | — |
 | `AnalysisExpression` | type | Isomorphic to Wow's `AggregationExpression`. | — |

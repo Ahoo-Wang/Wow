@@ -204,6 +204,8 @@ export const viewMessages = {
     'This data defines no record identity, so it cannot be paged through or picked by id.',
   'runtime.query.failed.storage_unsupported':
     "The service's storage cannot run this: {reason}",
+  'runtime.query.failed.previous_unshiftable':
+    "Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND.",
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',
