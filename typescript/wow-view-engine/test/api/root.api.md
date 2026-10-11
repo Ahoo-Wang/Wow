@@ -2649,6 +2649,9 @@ export function impliedDeletion(fields: readonly FieldDefinition[], trees: reado
 export function innermostElement(elements: readonly AnalysisScopeElement[]): AnalysisScopeElement | undefined;
 
 // @public
+export function inRows(...rows: readonly (readonly SizedPanel[])[]): DashboardPanel[];
+
+// @public
 export function insertAt(tree: FilterTree, parent: FilterPath, node: FilterNode): FilterTree;
 
 // @public (undocumented)
@@ -3552,6 +3555,9 @@ export interface PanelReference extends PanelDefinition {
 export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 
 // @public
+export type PanelSize = Pick<PanelLayout, 'w' | 'h' | 'fixedHeight'>;
+
+// @public
 export function panelsOf(config: Pick<DashboardViewConfig, 'panels'>): readonly DashboardPanel[];
 
 // @public
@@ -4394,6 +4400,11 @@ export interface ShapeFacts {
     stages?: number;
     textless: boolean;
 }
+
+// @public
+export type SizedPanel = DashboardPanel extends infer P ? P extends DashboardPanel ? Omit<P, 'layout'> & {
+    layout: PanelSize;
+} : never : never;
 
 // @public
 export type SortDirection = 'ASC' | 'DESC';

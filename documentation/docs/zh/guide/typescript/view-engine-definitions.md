@@ -422,6 +422,7 @@ export const SALES_ORDER_VIEWS: SystemView[] = [
 // src/views/overview.ts
 import {
   emptyDashboardConfig,
+  inRows,
   systemInstanceId,
   text,
   type AnalysisViewConfig,
@@ -494,64 +495,72 @@ export const overview: DashboardDefinition = {
             required: true,
           },
         ],
-        panels: [
-          {
-            id: 'today',
-            kind: 'heading',
-            content: text('overview.today'),
-            layout: { x: 0, y: 0, w: 24, h: 1 },
-          },
-          {
-            id: 'total',
-            kind: 'view',
-            title: text('orders.total'),
-            bindings: [],
-            layout: { x: 0, y: 1, w: 6, h: 2 },
-            owned: { definitionId: SALES_ORDERS, config: card(total) },
-          },
-          {
-            id: 'to-ship-count',
-            kind: 'view',
-            title: text('orders.toShip'),
-            bindings: [],
-            // 现在还在等的，不管哪天付的款。
-            ignoresTime: true,
-            layout: { x: 6, y: 1, w: 6, h: 2 },
-            owned: {
-              definitionId: SALES_ORDERS,
-              config: card(
-                { type: 'COUNT', alias: 'orders', label: text('orders.count') },
-                [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
-              ),
+        panels: inRows(
+          [
+            {
+              id: 'today',
+              kind: 'heading',
+              content: text('overview.today'),
+              layout: { w: 24, h: 1 },
             },
-            // 「在工作台中打开」打开队列本身，而不是一个计数。
-            opens: systemInstanceId(SALES_ORDERS, 'to-ship'),
-          },
-          {
-            id: 'daily-total',
-            kind: 'view',
-            title: text('overview.dailyTotal'),
-            bindings: [],
-            layout: { x: 0, y: 3, w: 24, h: 6 },
-            owned: { definitionId: SALES_ORDERS, config: dailyTotal },
-          },
-          {
-            id: 'to-ship',
-            kind: 'view',
-            title: text('orders.toShip'),
-            bindings: [],
-            // 它的系统视图写了 timeField: null，所以整体读。
-            layout: { x: 0, y: 9, w: 24, h: 6 },
-            instanceId: systemInstanceId(SALES_ORDERS, 'to-ship'),
-          },
-        ],
+          ],
+          [
+            {
+              id: 'total',
+              kind: 'view',
+              title: text('orders.total'),
+              bindings: [],
+              layout: { w: 6, h: 2 },
+              owned: { definitionId: SALES_ORDERS, config: card(total) },
+            },
+            {
+              id: 'to-ship-count',
+              kind: 'view',
+              title: text('orders.toShip'),
+              bindings: [],
+              // 现在还在等的，不管哪天付的款。
+              ignoresTime: true,
+              layout: { w: 6, h: 2 },
+              owned: {
+                definitionId: SALES_ORDERS,
+                config: card(
+                  { type: 'COUNT', alias: 'orders', label: text('orders.count') },
+                  [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
+                ),
+              },
+              // 「在工作台中打开」打开队列本身，而不是一个计数。
+              opens: systemInstanceId(SALES_ORDERS, 'to-ship'),
+            },
+          ],
+          [
+            {
+              id: 'daily-total',
+              kind: 'view',
+              title: text('overview.dailyTotal'),
+              bindings: [],
+              layout: { w: 24, h: 6 },
+              owned: { definitionId: SALES_ORDERS, config: dailyTotal },
+            },
+          ],
+          [
+            {
+              id: 'to-ship',
+              kind: 'view',
+              title: text('orders.toShip'),
+              bindings: [],
+              // 它的系统视图写了 timeField: null，所以整体读。
+              layout: { w: 24, h: 6 },
+              instanceId: systemInstanceId(SALES_ORDERS, 'to-ship'),
+            },
+          ],
+        ),
       },
     },
   ],
 };
 ```
 
-- 栅格 24 列，同一行的面板共用一个 `y`。
+- 栅格 24 列。`inRows` 按行根据面板的尺寸排布：每一行从上一行最高的面板下方开始，所以增加面板或改变大小都不需要重新计算坐标。存下来的仍是每个面板的 `{ x, y, w, h }`。
 - **默认日期**是读者先查的那一段：日报开在「昨天」（一整天，已经结算），实时看板开在「今天」或一个短的相对窗口，一板待办的堆积不需要日期筛选。
 - **看板的日期与面板自己的时段是「且」。** 看板的窗口经 `timeField` 到达每块面板，与面板视图自己的条件取交集：一张自带「最近 30 天」的视图放到 7 天的看板上，读的是两者的重叠。给看板做的视图别带自己的时段。整张视图到处都整体读，就在它的系统视图上写 `timeField: null`；只有某一块面板不跟随，就在面板上写 `ignoresTime: true`。
 - **`opens`** 让「在工作台中打开」打开同一份定义的另一张视图：计数卡数的是队列列的东西时用它。

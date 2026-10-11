@@ -13,14 +13,15 @@
 
 import {
   emptyDashboardConfig,
+  inRows,
   systemInstanceId,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DashboardDefinition,
-  type DashboardPanel,
   type DashboardViewConfig,
   type FilterNode,
-  type PanelLayout,
+  type PanelSize,
+  type SizedPanel,
 } from "@ahoo-wang/wow-view-engine";
 import { ACTIVITY_ANALYSES } from "./activityAnalyses.ts";
 import {
@@ -310,13 +311,8 @@ function recoverabilityPie(): AnalysisViewConfig {
   });
 }
 
-/** A panel's frame on the board's 24-column grid. */
-const at = (x: number, y: number, w: number, h: number): PanelLayout => ({
-  x,
-  y,
-  w,
-  h,
-});
+/** A panel's size on the board's 24-column grid; `inRows` places it. */
+const size = (w: number, h: number): PanelSize => ({ w, h });
 
 /**
  * A panel showing one of the analyses the definitions offer as system views
@@ -327,9 +323,9 @@ const at = (x: number, y: number, w: number, h: number): PanelLayout => ({
  */
 function analysisPanel(
   view: string,
-  layout: PanelLayout,
+  layout: PanelSize,
   definitionId: string = EXECUTION_FAILED,
-): DashboardPanel {
+): SizedPanel {
   return {
     id: view,
     kind: "view",
@@ -371,11 +367,11 @@ function homeBoard(t: Text): DashboardViewConfig {
     id: string,
     title: string,
     filter: FilterNode[],
-    layout: PanelLayout,
+    layout: PanelSize,
     windowed = true,
     /** The queue 「在工作台中打开」 opens: the records the number counts. */
     opens?: string,
-  ): DashboardPanel => ({
+  ): SizedPanel => ({
     id,
     kind: "view",
     title,
@@ -419,8 +415,8 @@ function homeBoard(t: Text): DashboardViewConfig {
     id: string,
     title: string,
     config: AnalysisViewConfig,
-    layout: PanelLayout,
-  ): DashboardPanel => ({
+    layout: PanelSize,
+  ): SizedPanel => ({
     id,
     kind: "view",
     title,
@@ -441,119 +437,127 @@ function homeBoard(t: Text): DashboardViewConfig {
         required: true,
       },
     ],
-    panels: [
-      card("in-window", t.inWindow, [ACTIVE_CONDITION], at(0, 0, 4, 2)),
-      card(
-        "all-active",
-        t.allActive,
-        [ACTIVE_CONDITION],
-        at(4, 0, 4, 2),
-        false,
-      ),
-      card("actionable", t.actionable, DUE_FOR_RETRY, at(8, 0, 4, 2)),
-      card(
-        "timed-out",
-        t.timedOut,
-        [
-          { field: "state.status", operator: "IN", value: ["PREPARED"] },
-          TIMED_OUT,
-        ],
-        at(12, 0, 4, 2),
-      ),
-      // What the scheduler will not take again and no rule has closed: a
-      // person's to decide — force it, or mark it unrecoverable. In the test
-      // service's data, 154,000 of the 685,000 active failures.
-      card(
-        "exhausted",
-        t.exhausted,
-        EXHAUSTED,
-        at(16, 0, 4, 2),
-        false,
-        systemInstanceId(EXECUTION_FAILED, "non-retryable"),
-      ),
-      card("unrecoverable", t.unrecoverable, UNRECOVERABLE, at(20, 0, 4, 2)),
-      outcome(
-        "new-failures",
-        t.newFailures,
-        outcomeTrendCard("newFailures"),
-        at(0, 2, 4, 2),
-      ),
-      outcome(
-        "prepared",
-        t.prepared,
-        outcomeTrendCard("prepared"),
-        at(4, 2, 4, 2),
-      ),
-      outcome(
-        "retry-failed",
-        t.retryFailed,
-        outcomeTrendCard("retryFailed"),
-        at(8, 2, 4, 2),
-      ),
-      outcome(
-        "retry-succeeded",
-        t.retrySucceeded,
-        outcomeTrendCard("retrySucceeded"),
-        at(12, 2, 4, 2),
-      ),
-      outcome(
-        "net-backlog",
-        t.netBacklog,
-        derivedCard(["newFailures", "retrySucceeded"], netBacklog),
-        at(16, 2, 4, 2),
-      ),
-      outcome(
-        "retry-success",
-        t.retrySuccess,
-        derivedCard(["retrySucceeded", "retryFailed"], retrySuccess),
-        at(20, 2, 4, 2),
-      ),
-      {
-        id: "clusters",
-        kind: "view",
-        title: t.clusters,
-        bindings: [],
-        layout: at(0, 4, 24, 4),
-        // The old overview's cluster link: the cluster's active failures.
-        click: {
+    panels: inRows(
+      [
+        card("in-window", t.inWindow, [ACTIVE_CONDITION], size(4, 2)),
+        card("all-active", t.allActive, [ACTIVE_CONDITION], size(4, 2), false),
+        card("actionable", t.actionable, DUE_FOR_RETRY, size(4, 2)),
+        card(
+          "timed-out",
+          t.timedOut,
+          [
+            { field: "state.status", operator: "IN", value: ["PREPARED"] },
+            TIMED_OUT,
+          ],
+          size(4, 2),
+        ),
+        // What the scheduler will not take again and no rule has closed: a
+        // person's to decide — force it, or mark it unrecoverable. In the test
+        // service's data, 154,000 of the 685,000 active failures.
+        card(
+          "exhausted",
+          t.exhausted,
+          EXHAUSTED,
+          size(4, 2),
+          false,
+          systemInstanceId(EXECUTION_FAILED, "non-retryable"),
+        ),
+        card("unrecoverable", t.unrecoverable, UNRECOVERABLE, size(4, 2)),
+      ],
+      [
+        outcome(
+          "new-failures",
+          t.newFailures,
+          outcomeTrendCard("newFailures"),
+          size(4, 2),
+        ),
+        outcome(
+          "prepared",
+          t.prepared,
+          outcomeTrendCard("prepared"),
+          size(4, 2),
+        ),
+        outcome(
+          "retry-failed",
+          t.retryFailed,
+          outcomeTrendCard("retryFailed"),
+          size(4, 2),
+        ),
+        outcome(
+          "retry-succeeded",
+          t.retrySucceeded,
+          outcomeTrendCard("retrySucceeded"),
+          size(4, 2),
+        ),
+        outcome(
+          "net-backlog",
+          t.netBacklog,
+          derivedCard(["newFailures", "retrySucceeded"], netBacklog),
+          size(4, 2),
+        ),
+        outcome(
+          "retry-success",
+          t.retrySuccess,
+          derivedCard(["retrySucceeded", "retryFailed"], retrySuccess),
+          size(4, 2),
+        ),
+      ],
+      [
+        {
+          id: "clusters",
           kind: "view",
-          instanceId: systemInstanceId(EXECUTION_FAILED, "active"),
+          title: t.clusters,
+          bindings: [],
+          layout: size(24, 4),
+          // The old overview's cluster link: the cluster's active failures.
+          click: {
+            kind: "view",
+            instanceId: systemInstanceId(EXECUTION_FAILED, "active"),
+          },
+          ...owned(EXECUTION_FAILED, clustersTable(t)),
+          // Every column of it, in the workbench (W13).
+          opens: systemInstanceId(EXECUTION_FAILED, "clusters"),
         },
-        ...owned(EXECUTION_FAILED, clustersTable(t)),
-        // Every column of it, in the workbench (W13).
-        opens: systemInstanceId(EXECUTION_FAILED, "clusters"),
-      },
-      // Where the pile goes and where it is, whole: the scheduler's reach
-      // is decided by the recoverability at its end.
-      analysisPanel(FAILURE_ANALYSES.fate, at(0, 8, 24, 6)),
-      analysisPanel(FAILURE_ANALYSES.concentration, at(0, 14, 12, 5)),
-      // Of the failures of the window, how many compensation brought back.
-      analysisPanel(FAILURE_ANALYSES.repair, at(12, 14, 12, 5)),
-      {
-        id: "recoverability",
-        kind: "view",
-        title: t.recoverability,
-        bindings: [],
-        layout: at(0, 19, 12, 4),
-        ...owned(EXECUTION_FAILED, recoverabilityPie()),
-      },
-      {
-        id: "retries",
-        kind: "view",
-        title: t.retries,
-        bindings: [],
-        layout: at(12, 19, 12, 4),
-        ...owned(EXECUTION_FAILED, retriesTable(t)),
-      },
-      {
-        id: ATTENTION_PANEL,
-        kind: "view",
-        title: t.attention,
-        bindings: [],
-        layout: at(0, 23, 24, 7),
-        instanceId: systemInstanceId(EXECUTION_FAILED, "next-retry"),
-      },
-    ],
+      ],
+      [
+        // Where the pile goes and where it is, whole: the scheduler's reach
+        // is decided by the recoverability at its end.
+        analysisPanel(FAILURE_ANALYSES.fate, size(24, 6)),
+      ],
+      [
+        analysisPanel(FAILURE_ANALYSES.concentration, size(12, 5)),
+        // Of the failures of the window, how many compensation brought back.
+        analysisPanel(FAILURE_ANALYSES.repair, size(12, 5)),
+      ],
+      [
+        {
+          id: "recoverability",
+          kind: "view",
+          title: t.recoverability,
+          bindings: [],
+          layout: size(12, 4),
+          ...owned(EXECUTION_FAILED, recoverabilityPie()),
+        },
+        {
+          id: "retries",
+          kind: "view",
+          title: t.retries,
+          bindings: [],
+          layout: size(12, 4),
+          ...owned(EXECUTION_FAILED, retriesTable(t)),
+        },
+      ],
+      [
+        {
+          id: ATTENTION_PANEL,
+          kind: "view",
+          title: t.attention,
+          bindings: [],
+          layout: size(24, 7),
+          instanceId: systemInstanceId(EXECUTION_FAILED, "next-retry"),
+        },
+      ],
+    ),
   };
 }
 
@@ -581,18 +585,26 @@ function failuresBoard(t: Text): DashboardViewConfig {
     ...emptyDashboardConfig(),
     width: "full",
     fields: [windowField(t)],
-    panels: [
-      analysisPanel(A.fate, at(0, 0, 24, 6)),
-      analysisPanel(A.concentration, at(0, 6, 12, 5)),
-      analysisPanel(A.errorCodes, at(12, 6, 12, 5)),
-      analysisPanel(A.sources, at(0, 11, 12, 5)),
-      analysisPanel(A.backlogAge, at(12, 11, 12, 5)),
-      analysisPanel(A.arrivals, at(0, 16, 12, 5)),
-      analysisPanel(A.retries, at(12, 16, 12, 5)),
-      analysisPanel(A.repair, at(0, 21, 12, 5)),
-      analysisPanel(A.recovery, at(12, 21, 12, 5)),
-      analysisPanel(A.calendar, at(0, 26, 24, 5)),
-    ],
+    panels: inRows(
+      [analysisPanel(A.fate, size(24, 6))],
+      [
+        analysisPanel(A.concentration, size(12, 5)),
+        analysisPanel(A.errorCodes, size(12, 5)),
+      ],
+      [
+        analysisPanel(A.sources, size(12, 5)),
+        analysisPanel(A.backlogAge, size(12, 5)),
+      ],
+      [
+        analysisPanel(A.arrivals, size(12, 5)),
+        analysisPanel(A.retries, size(12, 5)),
+      ],
+      [
+        analysisPanel(A.repair, size(12, 5)),
+        analysisPanel(A.recovery, size(12, 5)),
+      ],
+      [analysisPanel(A.calendar, size(24, 5))],
+    ),
   };
 }
 
@@ -606,8 +618,8 @@ function activityBoard(t: Text): DashboardViewConfig {
   const outcome = (
     id: OutcomeMetric,
     title: string,
-    layout: PanelLayout,
-  ): DashboardPanel => ({
+    layout: PanelSize,
+  ): SizedPanel => ({
     id,
     kind: "view",
     title,
@@ -619,15 +631,19 @@ function activityBoard(t: Text): DashboardViewConfig {
     ...emptyDashboardConfig(),
     width: "full",
     fields: [windowField(t)],
-    panels: [
-      outcome("newFailures", t.newFailures, at(0, 0, 6, 2)),
-      outcome("prepared", t.prepared, at(6, 0, 6, 2)),
-      outcome("retryFailed", t.retryFailed, at(12, 0, 6, 2)),
-      outcome("retrySucceeded", t.retrySucceeded, at(18, 0, 6, 2)),
-      analysisPanel(A.activity, at(0, 2, 24, 6), EXECUTION_HISTORY),
-      analysisPanel(A.eventMix, at(0, 8, 12, 5), EXECUTION_HISTORY),
-      analysisPanel(A.interventions, at(12, 8, 12, 5), EXECUTION_HISTORY),
-    ],
+    panels: inRows(
+      [
+        outcome("newFailures", t.newFailures, size(6, 2)),
+        outcome("prepared", t.prepared, size(6, 2)),
+        outcome("retryFailed", t.retryFailed, size(6, 2)),
+        outcome("retrySucceeded", t.retrySucceeded, size(6, 2)),
+      ],
+      [analysisPanel(A.activity, size(24, 6), EXECUTION_HISTORY)],
+      [
+        analysisPanel(A.eventMix, size(12, 5), EXECUTION_HISTORY),
+        analysisPanel(A.interventions, size(12, 5), EXECUTION_HISTORY),
+      ],
+    ),
   };
 }
 

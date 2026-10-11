@@ -67,6 +67,48 @@ export function fitsGrid(
   );
 }
 
+/** A panel's size without a place: what `inRows` lays out. */
+export type PanelSize = Pick<PanelLayout, 'w' | 'h' | 'fixedHeight'>;
+
+/** A dashboard panel whose layout gives only its size, for `inRows`. */
+export type SizedPanel = DashboardPanel extends infer P
+  ? P extends DashboardPanel
+    ? Omit<P, 'layout'> & { layout: PanelSize }
+    : never
+  : never;
+
+/**
+ * Panels laid out row by row, so a board written in code says only how big
+ * each panel is: each row starts under the tallest panel of the row above,
+ * and its panels go left to right from the first column, each `w` wide.
+ * Adding or resizing a panel moves the ones after it, with nothing to
+ * renumber by hand.
+ *
+ * One call lays out one grid — one tab's panels. A row wider than the grid
+ * is laid out as written; `validateDashboard` reports it, as it would a
+ * hand-written layout.
+ */
+export function inRows(
+  ...rows: readonly (readonly SizedPanel[])[]
+): DashboardPanel[] {
+  const panels: DashboardPanel[] = [];
+  let y = 0;
+  for (const row of rows) {
+    let x = 0;
+    let height = 0;
+    for (const panel of row) {
+      panels.push({
+        ...panel,
+        layout: { x, y, ...panel.layout },
+      } as DashboardPanel);
+      x += panel.layout.w;
+      height = Math.max(height, panel.layout.h);
+    }
+    y += height;
+  }
+  return panels;
+}
+
 /** A panel's geometry under its id: what `placePanel` reads and returns. */
 export interface PlacedPanel extends PanelLayout {
   id: string;
