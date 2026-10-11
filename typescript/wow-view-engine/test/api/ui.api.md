@@ -3713,6 +3713,7 @@ export const en: {
     readonly 'label.kanban.lanes-max': "At most {max} lanes at a time.";
     readonly 'label.kanban.other': "Other";
     readonly 'label.kanban.load-more': "Load more";
+    readonly 'label.kanban.load-more-rest': "Load more ({count} left)";
     readonly 'label.kanban.empty-lane': "No records";
     readonly 'label.kanban.lane': "{lane}, {count} records";
     readonly 'label.kanban.lane-loaded': "{lane}, {count} shown";

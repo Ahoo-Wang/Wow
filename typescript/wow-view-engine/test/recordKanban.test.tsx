@@ -100,12 +100,15 @@ describe('RecordKanban in the workbench', () => {
   it("loads a lane's next cards under the ones it has", async () => {
     open();
     const lead = await lane('Lead, 3 records');
-    fireEvent.click(within(lead).getByRole('button', { name: 'Load more' }));
+    // Counted, so it says how many are still to come.
+    fireEvent.click(
+      within(lead).getByRole('button', { name: 'Load more (1 left)' }),
+    );
     await waitFor(() =>
       expect(cardTitles(lead)).toEqual(['d-1', 'd-2', 'd-3']),
     );
     expect(
-      within(lead).queryByRole('button', { name: 'Load more' }),
+      within(lead).queryByRole('button', { name: /^Load more/ }),
     ).toBeNull();
     // The other lanes never moved.
     expect(cardTitles(await lane('Won, 1 records'))).toEqual(['d-4']);
@@ -120,6 +123,50 @@ describe('RecordKanban in the workbench', () => {
       expect(screen.queryByRole('region', { name: /^Won/ })).toBeNull(),
     );
     expect(await lane('Lead, 3 records')).toBeTruthy();
+  });
+
+  it('heads a lane with its summaries, what each is beside its number', async () => {
+    open({
+      ...dealsKanban,
+      config: kanbanConfig({
+        pageSize: 2,
+        summaries: [{ field: 'amount', fn: 'SUM' }],
+      }),
+    });
+    const lead = await lane('Lead, 3 records');
+    const line = within(lead).getByRole('term').parentElement!;
+    expect(within(line).getByRole('term').textContent).toBe('Sum of Amount');
+    expect(within(line).getByRole('definition').textContent).toBe('60');
+  });
+
+  it('waits in the lanes it will draw, before a first answer', async () => {
+    const memory = memorySource(DEALS);
+    const engine = new ViewEngine({
+      resources: resourcesOf([dealsDefinition()], () => ({
+        ...memory,
+        cursor: () => new Promise(() => {}),
+      })),
+      store: new MemoryViewStore({ instances: [dealsKanban] }),
+    });
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="deals"
+        instanceId={dealsKanban.id}
+      />,
+    );
+    const skeleton = await waitFor(() => {
+      const found = document.querySelector(
+        '[data-slot="record-kanban-skeleton"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(
+      [...skeleton.querySelectorAll('[data-slot="kanban-lane-title"]')].map(
+        title => title.textContent,
+      ),
+    ).toEqual(['Lead', 'Won', 'Lost']);
   });
 
   it('switches a table into the kanban, its lanes written in', async () => {

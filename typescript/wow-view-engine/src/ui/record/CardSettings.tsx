@@ -12,7 +12,7 @@
  */
 
 import { useId, type ReactElement } from 'react';
-import { KanbanIcon, LayoutGridIcon } from 'lucide-react';
+import { Columns3CogIcon, LayoutGridIcon } from 'lucide-react';
 import {
   isFieldlessKind,
   type FieldDefinition,
@@ -107,7 +107,9 @@ export function CardSettings({
   const name = messages.label(
     kanban ? 'label.toolbar.kanban' : 'label.toolbar.card',
   );
-  const Icon = kanban ? KanbanIcon : LayoutGridIcon;
+  // Not the layout switch's own icon: the switch's pressed segment stands
+  // right beside this button, and two of one icon read as one control.
+  const Icon = kanban ? Columns3CogIcon : LayoutGridIcon;
   const ids = useId();
   const spec = table.cardSpec;
   // A field-less kind's name is a handle for the editor, not a path into a

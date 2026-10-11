@@ -11,14 +11,19 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
+  actions,
   type DataViewDefinition,
+  type RecordActions,
   type RecordData,
+  type RecordRow,
   type ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
+import { memorySource } from '@ahoo-wang/wow-view-engine/testing';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import { HOST_LANGUAGE, recordConfig } from './fixtures.js';
@@ -94,6 +99,49 @@ const OPPORTUNITIES: RecordData[] = [
   amount,
   owner,
 }));
+
+/** The stages an opportunity is advanced through, in order. */
+const PIPELINE = ['LEAD', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'WON'];
+
+/**
+ * One opportunity's commands, offered on its card and in its detail: move
+ * it on a stage, or mark it lost. Each writes the story's documents, so the
+ * refresh after it shows the card in its new lane.
+ */
+function opportunityActions(documents: RecordData[]): RecordActions {
+  const stageOf = (row: RecordRow) => String(row.data.stage ?? '');
+  const write = (row: RecordRow, stage: string) => {
+    const found = documents.find(document => document.id === row.key);
+    if (found) found.stage = stage;
+  };
+  return actions([
+    {
+      id: 'advance',
+      label: '推进阶段',
+      primary: true,
+      on: ['row', 'detail'],
+      available: row => {
+        const at = PIPELINE.indexOf(stageOf(row));
+        return at >= 0 && at < PIPELINE.length - 1 ? true : '这一阶段已经结束';
+      },
+      run: async row => {
+        write(row, PIPELINE[PIPELINE.indexOf(stageOf(row)) + 1]!);
+      },
+    },
+    {
+      id: 'lose',
+      label: '标记输单',
+      tone: 'danger',
+      on: ['row', 'detail'],
+      available: row =>
+        stageOf(row) === 'WON' || stageOf(row) === 'LOST'
+          ? '这一阶段已经结束'
+          : true,
+      confirm: { title: '把这个商机标记为输单？' },
+      run: async row => write(row, 'LOST'),
+    },
+  ]);
+}
 
 const pipeline: ViewInstance = {
   id: 'opportunity-pipeline',
@@ -209,13 +257,19 @@ const board: ViewInstance = {
 type Scene = 'opportunities' | 'requirements';
 
 function KanbanDemo({ scene }: { scene: Scene }) {
+  // The story's own copy, which its actions write: read on every query
+  // (no remembered answers), so a card moves the moment its stage does.
+  const [documents] = useState(() =>
+    OPPORTUNITIES.map(document => ({ ...document })),
+  );
+  const [declared] = useState(() => opportunityActions(documents));
   return (
     <StoryEngine
       key={scene}
       create={() =>
         new ViewEngine({
           resources: [
-            { definition: opportunities, source: rowSource(OPPORTUNITIES) },
+            { definition: opportunities, source: memorySource(documents) },
             { definition: requirements, source: rowSource(REQUIREMENTS) },
           ],
           store: new MemoryViewStore({ instances: [pipeline, board] }),
@@ -229,6 +283,7 @@ function KanbanDemo({ scene }: { scene: Scene }) {
             engine={engine}
             definitionId={opportunities.id}
             instanceId={pipeline.id}
+            record={{ actions: declared }}
             {...HOST_LANGUAGE}
           />
         ) : (
@@ -254,6 +309,7 @@ const description = `**布局 · 看板视图**（D83）
 - **一栏一条查询**：每栏是视图的条件加上这一栏的阶段，按游标取第一页；栏底「加载更多」只取这一栏的下一页。
 - **栏头**：阶段的徽章（语气照定义）与这一阶段的条数，条数与汇总（这里是预计金额的合计）由一条按阶段分组的聚合取齐。
 - **「其他」**：值不在选项里的记录（需求里那条已撤销阶段的），只在有卡片时才画，条数写已载入的张数。
+- **单条记录的操作**：宿主声明的操作照样在每张卡的卡脚（主操作是按钮，其余在「⋯」里）与详情里；商机这里是「推进阶段」与「标记输单」，执行后刷新，卡片到了新的一栏。看板视图首版不勾选，所以没有批量操作。
 - **设置**：工具栏的「看板视图设置」选分栏字段、收起展开各栏（最多 12 栏），下面是卡片的标题、正文与图片。
 
 - **数据源**：${FIXTURE}。`;

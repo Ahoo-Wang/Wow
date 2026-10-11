@@ -43,6 +43,7 @@ export const recordMessages = {
   'label.kanban.lanes-max': 'At most {max} lanes at a time.',
   'label.kanban.other': 'Other',
   'label.kanban.load-more': 'Load more',
+  'label.kanban.load-more-rest': 'Load more ({count} left)',
   'label.kanban.empty-lane': 'No records',
   'label.kanban.lane': '{lane}, {count} records',
   'label.kanban.lane-loaded': '{lane}, {count} shown',

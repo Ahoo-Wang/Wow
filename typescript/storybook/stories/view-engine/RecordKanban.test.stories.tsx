@@ -52,11 +52,11 @@ export const LanesLoadMore: Story = {
       await canvas.findByRole('region', { name: '赢单，2 条' }),
     ).toBeInTheDocument();
     await userEvent.click(
-      within(lead).getByRole('button', { name: '加载更多' }),
+      within(lead).getByRole('button', { name: '加载更多（还有 2 条）' }),
     );
     await waitFor(() => expect(cards(lead)).toHaveLength(5));
     await expect(
-      within(lead).queryByRole('button', { name: '加载更多' }),
+      within(lead).queryByRole('button', { name: /^加载更多/ }),
     ).toBeNull();
     // A lane's cards stand one under another, and the lanes side by side.
     const board = canvasElement.querySelector<HTMLElement>(
@@ -68,6 +68,38 @@ export const LanesLoadMore: Story = {
     await expect(lanes[1]!.getBoundingClientRect().left).toBeGreaterThan(
       lanes[0]!.getBoundingClientRect().right - 1,
     );
+    // The board takes what is left of the result, and every lane its height:
+    // a lane scrolls its own cards rather than the board growing to the
+    // tallest one.
+    const heights = new Set(
+      lanes.map(lane => Math.round(lane.getBoundingClientRect().height)),
+    );
+    await expect(heights.size).toBe(1);
+    const port = lanes[0]!.querySelector<HTMLElement>(
+      '[data-slot="kanban-lane-cards"]',
+    )!;
+    await expect(getComputedStyle(port).overflowY).toBe('auto');
+  },
+};
+
+/** A card's own action moves it on a stage, and the lanes follow. */
+export const RecordAction: Story = {
+  ...DisplayByStage,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const proposal = await canvas.findByRole('region', {
+      name: '方案报价，1 条',
+    });
+    await userEvent.click(
+      within(proposal).getByRole('button', { name: '推进阶段' }),
+    );
+    const negotiation = await canvas.findByRole('region', {
+      name: '商务谈判，2 条',
+    });
+    await expect(cards(negotiation)).toContain('供应链协同');
+    await expect(
+      await canvas.findByRole('region', { name: '方案报价，0 条' }),
+    ).toBeInTheDocument();
   },
 };
 

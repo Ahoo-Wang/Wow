@@ -3323,6 +3323,7 @@
   > :is(
     [data-slot='record-table'][data-scrolls],
     [data-slot='record-cards'],
+    [data-slot='record-kanban'],
     [data-slot='analysis-result']
   ) {
   flex: 1 1 0;
@@ -3769,6 +3770,15 @@
   overflow-y: auto;
   grid-auto-rows: max-content;
   align-content: start;
+}
+
+/*
+ * A kanban fills what is left like the cards do, and scrolls sideways at
+ * its foot; each lane scrolls its own cards inside that height (D83).
+ */
+.fve-root[data-embed-size='fill'] > [data-slot='record-kanban'] {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .fve-root[data-embed-size='fill'] > [data-slot='analysis-result'] {

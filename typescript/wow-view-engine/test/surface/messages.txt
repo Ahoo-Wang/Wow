@@ -1,4 +1,4 @@
-# Message keys — 2104.
+# Message keys — 2105.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1458,6 +1458,7 @@ label.kanban.lane-loaded
 label.kanban.lanes
 label.kanban.lanes-max
 label.kanban.load-more
+label.kanban.load-more-rest
 label.kanban.more
 label.kanban.other
 label.kanban.title

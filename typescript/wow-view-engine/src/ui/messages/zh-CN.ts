@@ -104,6 +104,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.kanban.lanes-max': '一次最多显示 {max} 栏。',
   'label.kanban.other': '其他',
   'label.kanban.load-more': '加载更多',
+  'label.kanban.load-more-rest': '加载更多（还有 {count} 条）',
   'label.kanban.empty-lane': '没有记录',
   'label.kanban.lane': '{lane}，{count} 条',
   'label.kanban.lane-loaded': '{lane}，已显示 {count} 条',
