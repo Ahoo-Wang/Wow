@@ -32,10 +32,9 @@ class SingleQueryHandlerFunction(
     private val rewriteResult: (Mono<ObjectNode>) -> Mono<ObjectNode>
 ) : HandlerFunction<ServerResponse> {
     private val support = QueryHandlerSupport(
-        aggregateMetadata,
-        queryRequestScope,
+        { queryRequestScope.resolve(aggregateMetadata, it) },
         exceptionHandler,
-        guard.of(queryGateway)
+        guard.of(queryGateway),
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =

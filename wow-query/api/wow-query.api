@@ -589,6 +589,17 @@ public final class me/ahoo/wow/query/dataset/DatasetQueryGateway$DefaultImpls {
 	public static fun isSameBoundedContext (Lme/ahoo/wow/query/dataset/DatasetQueryGateway;Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
 }
 
+public final class me/ahoo/wow/query/dataset/DatasetQueryGateways {
+	public static final field Companion Lme/ahoo/wow/query/dataset/DatasetQueryGateways$Companion;
+	public static final field NONE Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public fun <init> (Ljava/util/Collection;)V
+	public final fun get (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/dataset/DatasetQueryGateway;
+	public final fun getAll ()Ljava/util/Collection;
+}
+
+public final class me/ahoo/wow/query/dataset/DatasetQueryGateways$Companion {
+}
+
 public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/ahoo/wow/query/AbstractQueryGateway, me/ahoo/wow/query/dataset/DatasetQueryGateway {
 	public fun <init> (Lme/ahoo/wow/query/schema/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;)V
 	public synthetic fun <init> (Lme/ahoo/wow/query/schema/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1381,16 +1392,14 @@ public final class me/ahoo/wow/query/schema/QueryDatasetScope {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/query/schema/QueryDatasets : me/ahoo/wow/query/schema/QuerySchemaSource {
+public final class me/ahoo/wow/query/schema/QueryDatasets {
 	public static final field Companion Lme/ahoo/wow/query/schema/QueryDatasets$Companion;
 	public static final field NONE Lme/ahoo/wow/query/schema/QueryDatasets;
 	public fun <init> (Ljava/util/Collection;)V
 	public final fun get (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/schema/QueryDataset;
 	public final fun getAll ()Ljava/util/Collection;
-	public fun getPriority ()I
-	public fun load (Lme/ahoo/wow/query/schema/QuerySchemaContext;)Lreactor/core/publisher/Flux;
+	public final fun getSchemaSource ()Lme/ahoo/wow/query/schema/QuerySchemaSource;
 	public final fun profile (Lme/ahoo/wow/query/schema/QuerySchemaContext;)Lme/ahoo/wow/query/schema/QueryModelProfile;
-	public fun refresh (Lme/ahoo/wow/query/schema/QuerySchemaContext;)Lreactor/core/publisher/Flux;
 }
 
 public final class me/ahoo/wow/query/schema/QueryDatasets$Companion {

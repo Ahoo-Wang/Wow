@@ -310,6 +310,111 @@ public final class me/ahoo/wow/spring/boot/starter/bi/BiScriptTopologyProperties
 	public fun toString ()Ljava/lang/String;
 }
 
+public class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetAutoConfiguration {
+	public fun <init> ()V
+	public fun clickHouseDatasetClient (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;)Lcom/clickhouse/client/api/Client;
+	public fun clickHouseDatasetQueryBackendFactory (Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;)Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
+	public fun clickHouseExecutor (Lcom/clickhouse/client/api/Client;)Lme/ahoo/wow/clickhouse/query/ClickHouseExecutor;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;)V
+	public synthetic fun <init> (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component10 ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;
+	public final fun component11 ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/time/Duration;
+	public final fun component7 ()Ljava/time/Duration;
+	public final fun component8 ()I
+	public final fun component9 ()Ljava/time/Duration;
+	public final fun copy (ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/time/Duration;Ljava/time/Duration;ILjava/time/Duration;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConnectionTimeout ()Ljava/time/Duration;
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getEndpoints ()Ljava/util/List;
+	public final fun getHttp ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;
+	public final fun getInProcess ()Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;
+	public final fun getMaxConnections ()I
+	public final fun getMetadataTtl ()Ljava/time/Duration;
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getSocketTimeout ()Ljava/time/Duration;
+	public final fun getUsername ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setConnectionTimeout (Ljava/time/Duration;)V
+	public final fun setDatabase (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setEndpoints (Ljava/util/List;)V
+	public final fun setHttp (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;)V
+	public final fun setInProcess (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;)V
+	public final fun setMaxConnections (I)V
+	public final fun setMetadataTtl (Ljava/time/Duration;)V
+	public final fun setPassword (Ljava/lang/String;)V
+	public final fun setSocketTimeout (Ljava/time/Duration;)V
+	public final fun setUsername (Ljava/lang/String;)V
+	public final fun toOptions ()Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits {
+	public fun <init> ()V
+	public fun <init> (Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/time/Duration;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun component3 ()Ljava/lang/Long;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun copy (Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$HttpLimits;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMaxExecutionTime ()Ljava/time/Duration;
+	public final fun getMaxMemoryUsage ()Ljava/lang/Long;
+	public final fun getMaxResultRows ()Ljava/lang/Long;
+	public final fun getMaxRowsToRead ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public final fun setMaxExecutionTime (Ljava/time/Duration;)V
+	public final fun setMaxMemoryUsage (Ljava/lang/Long;)V
+	public final fun setMaxResultRows (Ljava/lang/Long;)V
+	public final fun setMaxRowsToRead (Ljava/lang/Long;)V
+	public final fun toLimits ()Lme/ahoo/wow/clickhouse/query/ClickHouseQueryLimits;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits {
+	public fun <init> ()V
+	public fun <init> (Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/time/Duration;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun component3 ()Ljava/lang/Long;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun copy (Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;Ljava/time/Duration;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/starter/clickhouse/ClickHouseDatasetProperties$Limits;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMaxExecutionTime ()Ljava/time/Duration;
+	public final fun getMaxMemoryUsage ()Ljava/lang/Long;
+	public final fun getMaxResultRows ()Ljava/lang/Long;
+	public final fun getMaxRowsToRead ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public final fun setMaxExecutionTime (Ljava/time/Duration;)V
+	public final fun setMaxMemoryUsage (Ljava/lang/Long;)V
+	public final fun setMaxResultRows (Ljava/lang/Long;)V
+	public final fun setMaxRowsToRead (Ljava/lang/Long;)V
+	public final fun toLimits ()Lme/ahoo/wow/clickhouse/query/ClickHouseQueryLimits;
+	public fun toString ()Ljava/lang/String;
+}
+
 public class me/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/command/CommandAutoConfiguration$Companion;
 	public static final field LOCAL_FIRST_COPIES Ljava/lang/String;
@@ -1355,6 +1460,33 @@ public class me/ahoo/wow/spring/boot/starter/projection/ProjectionDispatcherAuto
 	public fun projectionProcessorAutoRegistrar (Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/spring/projection/ProjectionProcessorAutoRegistrar;
 }
 
+public class me/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration {
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers {
+	public fun <init> (Lme/ahoo/wow/query/dataset/DatasetQueryGateways;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+}
+
+public class me/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$RouteContractConfiguration {
+	public fun <init> ()V
+	public fun datasetQueryRouteContributor ()Lme/ahoo/wow/openapi/catalog/RouteContributor;
+}
+
+public class me/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$WebFluxConfiguration {
+	public fun <init> ()V
+	public fun datasetAggregationHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun datasetCountHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun datasetCursorQueryHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun datasetListQueryHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun datasetPagedQueryHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun datasetQueryHandlers (Lme/ahoo/wow/query/dataset/DatasetQueryGateways;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;
+	public fun datasetQueryRequestScope ()Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;
+	public fun datasetSchemaHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+	public fun datasetSingleHandlerFunctionFactory (Lme/ahoo/wow/spring/boot/starter/query/DatasetQueryRouteAutoConfiguration$Handlers;)Lme/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory;
+}
+
 public final class me/ahoo/wow/spring/boot/starter/query/LegacyHttpQueryKeysKt {
 	public static final field LEGACY_HTTP_QUERY_PREFIX Ljava/lang/String;
 	public static final fun withLegacyKeys (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;
@@ -1363,27 +1495,35 @@ public final class me/ahoo/wow/spring/boot/starter/query/LegacyHttpQueryKeysKt {
 public class me/ahoo/wow/spring/boot/starter/query/QueryAutoConfiguration {
 	public fun <init> ()V
 	public fun abacQueryOptions (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/snapshot/filter/AbacQueryOptions;
+	public fun datasetQueryGateways (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public fun datasetQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryObserver;
 	public fun eventStreamQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryObserver;
 	public fun queryEntryPolicy (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryEntryPolicy;
-	public fun querySchemaCatalog (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/schema/QuerySchemaCatalog;
+	public fun querySchemaCatalog (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/schema/QuerySchemaCatalog;
 	public fun snapshotQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/query/QueryObserver;
 	public fun unavailableEventStreamQueryBackendFactory ()Lme/ahoo/wow/query/event/EventStreamQueryBackendFactory;
 	public fun unavailableSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
+}
+
+public final class me/ahoo/wow/spring/boot/starter/query/QueryAutoConfigurationKt {
+	public static final field DATASET_QUERY_OBSERVER_BEAN_NAME Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spring/boot/starter/query/QueryProperties {
 	public static final field Companion Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Companion;
 	public static final field PREFIX Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (ZZLme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;)V
-	public synthetic fun <init> (ZZLme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZZLme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;Ljava/util/List;)V
+	public synthetic fun <init> (ZZLme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getAbac ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;
+	public final fun getDatasets ()Ljava/util/List;
 	public final fun getHttp ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;
 	public final fun getRequireAuthenticatedScope ()Z
 	public final fun getRequireExplicitEntry ()Z
 	public final fun getSchema ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Schema;
 	public final fun getSensitivity ()Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Sensitivity;
 	public final fun setAbac (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Abac;)V
+	public final fun setDatasets (Ljava/util/List;)V
 	public final fun setHttp (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties$Http;)V
 	public final fun setRequireAuthenticatedScope (Z)V
 	public final fun setRequireExplicitEntry (Z)V
@@ -1482,6 +1622,7 @@ public class me/ahoo/wow/spring/boot/starter/query/QuerySchemaAutoConfiguration 
 	public fun beanQuerySchemaSource (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/schema/BeanQuerySchemaSource;
 	public fun classpathQuerySchemaSource ()Lme/ahoo/wow/query/schema/ClasspathQuerySchemaSource;
 	public fun inferredQuerySchemaSource (Lme/ahoo/wow/query/schema/QueryModelSource;)Lme/ahoo/wow/query/schema/InferredQuerySchemaSource;
+	public fun queryDatasets (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/schema/QueryDatasets;
 	public fun queryModelSource ()Lme/ahoo/wow/query/schema/QueryModelSource;
 	public fun querySensitivityPolicy (Lme/ahoo/wow/spring/boot/starter/query/QueryProperties;)Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;
 	public fun workingDirectoryQuerySchemaSource ()Lme/ahoo/wow/query/schema/WorkingDirectoryQuerySchemaSource;

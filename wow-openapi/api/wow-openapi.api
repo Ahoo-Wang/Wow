@@ -125,6 +125,17 @@ public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Comm
 	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Command;
 }
 
+public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Dataset {
+	public static final field AGGREGATION Ljava/lang/String;
+	public static final field COUNT Ljava/lang/String;
+	public static final field CURSOR_QUERY Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Dataset;
+	public static final field LIST_QUERY Ljava/lang/String;
+	public static final field PAGED_QUERY Ljava/lang/String;
+	public static final field SCHEMA Ljava/lang/String;
+	public static final field SINGLE Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Event {
 	public static final field AGGREGATION Ljava/lang/String;
 	public static final field COMPENSATE Ljava/lang/String;

@@ -248,6 +248,8 @@ StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积
 | `wow.query.abac.*` | 交给 `AbacQueryPolicy` 的收紧选项 |
 | `wow.query.sensitivity.display-comparable` | 过滤与分页排序能否比较 `DISPLAY` 敏感字段 |
 | `wow.query.schema.revalidate-interval` | 查询 Schema 从存储重新加载的间隔 |
+| `wow.query.datasets` | 服务提供的[数据集](../../guide/query/dataset-query.md) |
+| `wow.query.clickhouse.*` | 数据集的 ClickHouse 后端（`clickhouse-support`） |
 
 类型、默认值与细节见[基础设施配置](./infrastructure.md#query)。
 

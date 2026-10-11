@@ -35,6 +35,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * @property schema query schema maintenance.
  * @property abac the optional tightenings of `AbacQueryPolicy`, handed to it as the `AbacQueryOptions` bean.
  * @property sensitivity how sensitive fields are protected beyond their declared level.
+ * @property datasets the datasets this instance serves, each `{context}.{dataset}`: its declaration is read from
+ * `config/wow/dataset/{context}.{dataset}.json`, else `META-INF/wow/dataset/{context}.{dataset}.json`, and a dataset
+ * query backend (such as `wow.query.clickhouse`) serves it.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties
@@ -46,6 +49,7 @@ constructor(
     var schema: Schema = Schema(),
     var abac: Abac = Abac(),
     var sensitivity: Sensitivity = Sensitivity(),
+    var datasets: List<String> = emptyList(),
 ) {
     /**
      * @property requirePrincipalTags rejects (`403 IllegalAccessQueryScope`) an HTTP snapshot query whose principal

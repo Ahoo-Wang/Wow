@@ -28,7 +28,6 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.authenticatedQueryScope
 import me.ahoo.wow.query.queryScope
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.getRawRequest
@@ -50,8 +49,7 @@ import reactor.kotlin.test.test
 class QueryHandlerSupportTest {
     private val scope = TenantIdFilter("tenant-id")
     private val support = QueryHandlerSupport(
-        aggregateMetadata = MOCK_AGGREGATE_METADATA,
-        queryRequestScope = QueryRequestScope { _, _ -> QueryScope(declared = scope) },
+        scopeOf = { QueryScope(declared = scope) },
         exceptionHandler = WebFluxRequestExceptionHandler(),
         guard = HttpQueryGuard(idleTimeout = java.time.Duration.ZERO).of(me.ahoo.wow.query.QueryBudget.HTTP_DEFAULT),
     )

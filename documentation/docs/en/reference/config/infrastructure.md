@@ -176,10 +176,27 @@ Configuration class: `QueryProperties` (prefix `wow.query`); it is bound wheneve
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | How often each instance reloads its query schemas to pick up storage changes; `0s` disables it. The `wowQuerySchema` actuator endpoint revalidates on demand |
 | `wow.query.schema.legacy-declarations` | `warn` \| `fail` | `warn` | What a 9.1 declaration file (`wow-query-schema/{context}/{aggregate}/{model}.json`) means when no source declares that model in 9.2: `warn` serves the inferred schema and logs where the 9.2 file goes; `fail` makes that model's schema unavailable. See [moving a 9.1 declaration](../../guide/query/query-model-schema.md#declaration-91) |
 | `wow.query.sensitivity.display-comparable` | Boolean | `true` | Whether filters and paged sorts may compare the raw value of a `DISPLAY` sensitive field; `false` rejects them like `CONFIDENTIAL` fields (see [Field Masking](../../guide/query/masking.md)) |
+| `wow.query.datasets` | List\<String\> | `[]` | The datasets a service serves, each `{context}.{dataset}`; declarations are read from `config/wow/dataset/` or `META-INF/wow/dataset/` (see [Dataset Query](../../guide/query/dataset-query.md)) |
 
 Before 9.2 these limits were `wow.webflux.query.{max-list-size, max-page-size, max-page-window, max-filter-nodes, max-filter-values, allow-expensive-operators}`. Those keys are deprecated (removed in 10.0.0) and still apply, with a startup warning, to each limit whose `wow.query.http.*` key is not set. A configuration shared by 9.1 and 9.2 nodes can keep the old keys; rename them once every node runs 9.2.
 
 All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
+
+### ClickHouse Dataset Backend {#clickhouse}
+
+Configuration class: `ClickHouseDatasetProperties` (prefix `wow.query.clickhouse`); capability: `clickhouse-support`.
+
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.query.clickhouse.enabled` | Boolean | `false` | Serve datasets from ClickHouse |
+| `wow.query.clickhouse.endpoints` | List\<URI\> | `[]` | The HTTP endpoints, such as `http://clickhouse:8123`; required when enabled |
+| `wow.query.clickhouse.username` / `password` | String | `default` / empty | The account; use a read-only one |
+| `wow.query.clickhouse.database` | String | `default` | The database of a dataset whose `storage.table` names none |
+| `wow.query.clickhouse.connection-timeout` / `socket-timeout` | Duration | `5s` / `60s` | Connection and read timeouts |
+| `wow.query.clickhouse.max-connections` | Int | `16` | The connection pool limit |
+| `wow.query.clickhouse.metadata-ttl` | Duration | `1m` | How long a table's columns and engine are reused before `system.columns` is read again |
+| `wow.query.clickhouse.http.*` | — | `max-execution-time=30s`, `max-memory-usage=4294967296` | HTTP query limits: `max-execution-time`, `max-rows-to-read`, `max-result-rows`, `max-memory-usage`, sent as server settings; an over-limit query fails |
+| `wow.query.clickhouse.in-process.*` | — | unlimited | The same limits for in-process queries |
 
 ## WebFlux
 

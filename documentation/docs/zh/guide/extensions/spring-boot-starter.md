@@ -33,6 +33,7 @@ Spring Boot 从 `AutoConfiguration.imports` 加载 Wow 配置，再由 `@Conditi
 | `openapi-support` | `wow-openapi` + springdoc common |
 | `cosec-support` | `wow-cosec` |
 | `bi-support` | `wow-bi` API |
+| `clickhouse-support` | `wow-clickhouse` API；由 ClickHouse 提供数据集（[数据集查询](../query/dataset-query.md)） |
 
 请求完整坐标，例如 `requireCapability("me.ahoo.wow:mongo-support")`。Maven 不解析 Gradle feature variants，需要显式依赖相应模块。
 

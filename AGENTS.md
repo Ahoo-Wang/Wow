@@ -127,6 +127,7 @@ wow-rest-contract/          REST wire vocabulary: header names, route paths, Bat
 wow-openapi/                Route contracts and runtime OpenAPI generation
 wow-schema/                 JSON Schema generation
 wow-bi/                     BI sync script generation
+wow-clickhouse/             ClickHouse query backend of declared datasets
 wow-models/                 Shared model helpers
 wow-bom/, wow-dependencies/ BOM and centralized dependency versions
 test/                       wow-test DSL, TCK, mocks, integration tests, coverage report
@@ -149,7 +150,7 @@ wow-api -> wow-metadata -> wow-core -> wow-spring -> wow-spring-boot-starter
                         -> wow-compiler (KSP; no wow-core dependency)
 ```
 
-`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, `cosec-support`, and `bi-support` (`wow-bi`; the BI script route exists only when `wow-bi` is on the classpath).
+`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, `cosec-support`, `bi-support` (`wow-bi`; the BI script route exists only when `wow-bi` is on the classpath), and `clickhouse-support` (`wow-clickhouse`; datasets are served from ClickHouse when `wow.query.clickhouse.enabled=true`).
 
 
 ## Code Style

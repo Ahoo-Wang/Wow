@@ -280,6 +280,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                     ],
                 },
                 {text: '查询模型 Schema', link: 'query/query-model-schema'},
+                {text: '数据集查询', link: 'query/dataset-query'},
                 {text: '投影', link: 'projection'},
                 {text: '数据权限', link: 'data-access'},
             ],

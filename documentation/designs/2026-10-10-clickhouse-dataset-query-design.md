@@ -1,6 +1,6 @@
 # 数据集查询与 ClickHouse 后端设计
 
-日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 实施中。
+日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 已实施（Ahoo-Wang/Wow#4122）；S3 的 JVM 部分实施中，TypeScript 部分（wow-client、view-engine）随后。
 
 基线：`main` `d48d915e5`。本文建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)（下称“查询架构”）之上，沿用它的原理编号 P1～P9 与设计名；wow-bi 的布局见 [wow-bi 重构设计](2026-10-09-wow-bi-refactor-design.md)。
 
@@ -107,8 +107,8 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 
 ### 5.1 模块与装配
 
-- 新模块 `wow-clickhouse`：ClickHouse 存储适配器与 `DatasetQueryBackend` 实现（`ClickHouseDatasetQueryBackendFactory`）。依赖 `wow-query` 与 `clickhouse-client-v2`（已在版本目录，不新增依赖）。不放进 wow-bi，因为 wow-bi 只生成脚本、不执行查询，二者共享的只有驱动。S3 接入 starter 之前它是 incubating 模块，构建与测试照常，但不发布。
-- starter 新增 feature `clickhouse-support`。
+- 新模块 `wow-clickhouse`：ClickHouse 存储适配器与 `DatasetQueryBackend` 实现（`ClickHouseDatasetQueryBackendFactory`）。依赖 `wow-query` 与 `clickhouse-client-v2`（已在版本目录，不新增依赖）。不放进 wow-bi，因为 wow-bi 只生成脚本、不执行查询，二者共享的只有驱动。S2 中为 incubating，S3 起发布。
+- starter 新增 feature `clickhouse-support`：`wow.query.clickhouse.enabled=true` 时创建 ClickHouse 客户端与 `DatasetQueryBackendFactory`。与存储无关的部分在查询自动配置里：`wow.query.datasets` 列出的数据集从声明文件加载为 `QueryDatasets`，进入 Catalog，每个数据集一个 `DatasetQueryGateway`，经 `DatasetQueryGateways` Bean 按名提供。
 - 驱动返回 `CompletableFuture`，以 `Mono.fromFuture` 接入 Reactor；`JSONEachRow` 响应体在一个有界调度器上逐行解码，不占用事件循环线程。
 
 ### 5.2 存储事实
@@ -174,7 +174,7 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 ## 6. 交付与接入
 
 - **部署**：数据集查询是 starter 的可选 feature。参考部署是 view-store-server：它已经在 CoSec 网关后面、为 view-engine 服务。领域服务不需要连接 ClickHouse。
-- **路由**：`POST /dataset/{name}/{list|paged|cursor|count|aggregate}`，`GET /dataset/{name}/describe`；请求体与响应体与现有查询路由相同。这些是新增的 OpenAPI 契约。
+- **路由**：`GET /dataset/{context}/{dataset}/schema`，`POST /dataset/{context}/{dataset}/{count|list|paged|cursor|single|aggregation}`，同样提供 `/tenant/{tenantId}` 前缀的版本；请求体与响应体与聚合的查询路由相同，记录是 JSON 对象。路由契约是全局的 `DatasetQueryRouteContributor`，与 BI 脚本路由一样由 starter 在配置了数据集时加入。处理器与聚合路由共用同一条查询管道（HTTP 入口、预算、空闲超时、错误码、能力描述的 ETag），未提供的数据集返回 404。调用方范围由 `DatasetQueryRequestScope` 解析：`{tenantId}` 或 `Command-Tenant-Id`、`Command-Owner-Id`、`Wow-Space-Id`，均为声明的范围；聚合路由的 `ScopeContributor` 不作用于数据集路由。
 - **wow-client**：新增 `DatasetQueryApi`，与 `QueryApi` 同形，可以直接交给 view-engine 的 `resources`；`defineView` 从 describe 建定义。
 - **view-engine**：内核不改。Analysis 与 Dashboard 直接得到跨聚合能力；看板全局筛选跨数据集的字段映射沿用现有机制。
 
@@ -213,7 +213,7 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 | **S0 原型**（已完成） | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张宽表上翻译过滤、聚合与分页，并生成能力描述 | §11；不合并 |
 | **S1 核心**（已实施，#4116、#4120） | `QueryModel.DATASET` 与数据集 profile（内置模型的 profile 为 `BuiltInQueryModelProfile`）；`QueryModelSchema.profile`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
 | **S2 后端**（实施中） | `wow-clickhouse`（incubating）：存储适配器与声明一致性检查、四个原语、keyset 游标、`FINAL`、按入口的限额、取消；TCK `DatasetQueryBackendSpec` | TCK 语义矩阵与规格 + Testcontainers `integrationTest` |
-| **S3 接入** | starter `clickhouse-support`；HTTP 路由与 describe；OpenAPI；wow-client `DatasetQueryApi`；view-engine 示例；中英文用户文档 | 路由契约测试（入口为 `HTTP`）、OpenAPI 快照、typescript-contract |
+| **S3 接入**（JVM 部分实施中） | starter `clickhouse-support` 与数据集装配；HTTP 路由与 describe；OpenAPI 契约；`wow-clickhouse` 发布；中英文用户文档。随后：wow-client `DatasetQueryApi`、view-engine 示例 | starter 端到端测试（内存后端）、ClickHouse 自动配置测试；typescript-contract |
 | **S4 BI 联动** | 由 wow-bi 展开计划生成数据集声明，继承敏感等级 | wow-bi golden + 集成测试 |
 | 后续 | 协议演进：同比、环比、占比、累计、组内 TopN | 规范定义一次；各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE，ClickHouse 先做 NATIVE |
 

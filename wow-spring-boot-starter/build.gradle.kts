@@ -45,6 +45,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "bi-support", version.toString())
     }
+    registerFeature("clickhouseSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "clickhouse-support", version.toString())
+    }
 }
 dependencies {
     kapt(platform(project(":wow-dependencies")))
@@ -66,6 +70,7 @@ dependencies {
     "openapiSupportImplementation"(project(":wow-openapi"))
     "openapiSupportImplementation"("org.springdoc:springdoc-openapi-starter-common")
     "biSupportApi"(project(":wow-bi"))
+    "clickhouseSupportApi"(project(":wow-clickhouse"))
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.boot:spring-boot-starter-jackson")

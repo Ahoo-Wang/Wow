@@ -31,10 +31,9 @@ class CountQueryHandlerFunction(
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     private val support = QueryHandlerSupport(
-        aggregateMetadata,
-        queryRequestScope,
+        { queryRequestScope.resolve(aggregateMetadata, it) },
         exceptionHandler,
-        guard.of(queryGateway)
+        guard.of(queryGateway),
     )
     private val extractor = if (guard.strictCountFilter) STRICT_FILTER_EXPRESSION_EXTRACTOR else FILTER_EXPRESSION_EXTRACTOR
 

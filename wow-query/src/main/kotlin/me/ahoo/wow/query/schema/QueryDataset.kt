@@ -192,12 +192,8 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     }
 }
 
-/**
- * The datasets this instance serves, by name. It is also the schema source of their fields: a dataset's declaration
- * is the base of its model, as inference is for an aggregate's, and other sources (a declaration file, a bean) may
- * enrich it at a higher priority.
- */
-class QueryDatasets(datasets: Collection<QueryDataset>) : QuerySchemaSource {
+/** The datasets this instance serves, by name. */
+class QueryDatasets(datasets: Collection<QueryDataset>) {
     private val byName: Map<MaterializedNamedAggregate, QueryDataset> = datasets.associateBy { it.namedAggregate }
 
     init {
@@ -218,14 +214,20 @@ class QueryDatasets(datasets: Collection<QueryDataset>) : QuerySchemaSource {
         QueryModelProfile.of(context.model)
     }
 
-    override val priority: Int = QuerySchemaSourcePriority.INFERRED
+    /**
+     * The schema source of the datasets' fields: a dataset's declaration is the base of its model, as inference is
+     * for an aggregate's, and other sources (a declaration file, a bean) may enrich it at a higher priority.
+     */
+    val schemaSource: QuerySchemaSource = object : QuerySchemaSource {
+        override val priority: Int = QuerySchemaSourcePriority.INFERRED
 
-    override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> =
-        if (context.model == QueryModel.DATASET) {
-            get(context.namedAggregate)?.let { Flux.just(it.declaration) } ?: Flux.empty()
-        } else {
-            Flux.empty()
-        }
+        override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> =
+            if (context.model == QueryModel.DATASET) {
+                get(context.namedAggregate)?.let { Flux.just(it.declaration) } ?: Flux.empty()
+            } else {
+                Flux.empty()
+            }
+    }
 
     companion object {
         @JvmField

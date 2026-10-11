@@ -26,4 +26,10 @@ object RouteVariables {
 
     const val BATCH_AFTER_ID = "afterId"
     const val BATCH_LIMIT = "limit"
+
+    /** The bounded context of a dataset route. */
+    const val CONTEXT = "context"
+
+    /** The dataset of a dataset route, named within [CONTEXT]. */
+    const val DATASET = "dataset"
 }

@@ -248,6 +248,8 @@ The properties tune what the Gateway admits:
 | `wow.query.abac.*` | Tightenings handed to `AbacQueryPolicy` |
 | `wow.query.sensitivity.display-comparable` | Whether filters and paged sorts may compare `DISPLAY` sensitive fields |
 | `wow.query.schema.revalidate-interval` | How often query schemas are reloaded from storage |
+| `wow.query.datasets` | The [datasets](../../guide/query/dataset-query.md) a service serves |
+| `wow.query.clickhouse.*` | The ClickHouse backend of datasets (`clickhouse-support`) |
 
 Types, defaults and details are listed in [Infrastructure Configuration](./infrastructure.md#query).
 

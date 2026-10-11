@@ -279,6 +279,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                     ],
                 },
                 {text: 'Query Model Schema', link: 'query/query-model-schema'},
+                {text: 'Dataset Query', link: 'query/dataset-query'},
                 {text: 'Projection', link: 'projection'},
                 {text: 'Data Access Control', link: 'data-access'},
             ],

@@ -22,4 +22,17 @@ object RoutePaths {
     const val METADATA = "/${Wow.WOW}/metadata"
     const val GLOBAL_ID = "/${Wow.WOW}/id/global"
     const val BI_SCRIPT = "/${Wow.WOW}/bi/script"
+
+    /** A dataset, named by its bounded context and its name; the query operations follow it. */
+    const val DATASET = "/dataset/{${RouteVariables.CONTEXT}}/{${RouteVariables.DATASET}}"
+    const val DATASET_SCHEMA = "$DATASET/schema"
+    const val DATASET_COUNT = "$DATASET/count"
+    const val DATASET_AGGREGATION = "$DATASET/aggregation"
+    const val DATASET_LIST = "$DATASET/list"
+    const val DATASET_PAGED = "$DATASET/paged"
+    const val DATASET_CURSOR = "$DATASET/cursor"
+    const val DATASET_SINGLE = "$DATASET/single"
+
+    /** The tenant prefix of a dataset route, as on an aggregate's routes. */
+    const val TENANT_PREFIX = "/tenant/{${RouteVariables.TENANT_ID}}"
 }
