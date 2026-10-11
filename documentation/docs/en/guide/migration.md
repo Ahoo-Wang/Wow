@@ -66,7 +66,7 @@ binary after a new storage-format write is not a rollback.
 
 ## Upgrading from 9.7 to 9.8.0
 
-9.8.0 moves classes out of `wow-core`'s generic `messaging` package into the domain package each belongs to, and moves the storage batching package out of `infra`, so `messaging` imports no command, event or event-sourcing package and `infra` imports no metrics. These are internal implementation (see the scope in `docs/compat-debt.md`): only the package changes; class names, constructors, behaviour, configuration, header keys and wire formats are unchanged, so 9.7.x and 9.8.0 nodes can share one cluster. Applications that use only the starter and the public entry APIs need no change; code that imports these classes recompiles with the new imports.
+9.8.0 moves classes out of `wow-core`'s generic `messaging` package into the domain package each belongs to, and moves the storage batching package out of `infra`, so `messaging` imports no command, event or event-sourcing package and `infra` imports no metrics. In `wow-query`, `QuerySchemaCatalog` reads storages through a `QueryStorageLocator` instead of the read models' backend factories, so the `schema` package imports no read-model package. These are internal implementation (see the scope in `docs/compat-debt.md`): apart from that one constructor, only packages change; class names, the other constructors, behaviour, configuration, header keys and wire formats are unchanged, so 9.7.x and 9.8.0 nodes can share one cluster. Applications that use only the starter and the public entry APIs need no change; code that imports these classes recompiles with the new imports.
 
 | Change | Who is affected | What to do |
 |---|---|---|
@@ -74,6 +74,7 @@ binary after a new storage-format write is not a rollback.
 | `EventCompensator` and `EventCompensateSupporter` move from `me.ahoo.wow.messaging.compensation` to `me.ahoo.wow.event.compensation`. `CompensationMatcher` and `CompensationTarget` stay | Code that compensates events itself | Change the imports |
 | `CommandOperatorMessagePropagator` and `WaitPlanMessagePropagator` move from `me.ahoo.wow.messaging.propagation` to `me.ahoo.wow.command.propagation`. `MessagePropagator`, `MessagePropagators` and the other propagators stay | Code that builds a `MessagePropagators` list by hand, or lists these classes in a `META-INF/services` file | Change the imports and the service file entries |
 | `me.ahoo.wow.infra.batch` (`BatchOptions`, `BatchCoordinator`, `BatchWriter`, `BatchItemResult`, the batch exceptions) moves to `me.ahoo.wow.batch` | Code that builds MongoDB or Elasticsearch stores with `BatchOptions`, or uses the batch coordinator | Change the imports |
+| `QuerySchemaCatalog(snapshots, eventStreams, compiler, aggregates, meterRegistry)` becomes `QuerySchemaCatalog(storages, compiler, aggregates, meterRegistry)`: `storages` is a `QueryStorageLocator`, which returns an aggregate model's `QueryStorageAdapter` or `null` | Code that builds the Catalog itself (tests, tools, a custom `QuerySchemaCatalog` bean); the starter's Catalog is unchanged | Pass `QueryBackendStorages(snapshots, eventStreams)` in place of the two factories |
 
 ## Upgrading from 9.6 to 9.7.0
 

@@ -130,9 +130,18 @@ class DependencyRulesTest {
         )
         root.writeSource(
             "wow-query",
-            "me/ahoo/wow/query/schema/Allowed.kt",
+            "me/ahoo/wow/query/schema/Bad.kt",
             """
             package me.ahoo.wow.query.schema
+
+            import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+            """.trimIndent(),
+        )
+        root.writeSource(
+            "wow-query",
+            "me/ahoo/wow/query/Allowed.kt",
+            """
+            package me.ahoo.wow.query
 
             import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
             """.trimIndent(),
@@ -140,6 +149,7 @@ class DependencyRulesTest {
 
         DependencyRules.QUERY_ENGINE_IS_MODEL_NEUTRAL.violations(root).assert().containsExactly(
             "wow-query/src/main/kotlin/me/ahoo/wow/query/aggregation/Bad.kt:4: me.ahoo.wow.query.snapshot.SnapshotQueryBackend",
+            "wow-query/src/main/kotlin/me/ahoo/wow/query/schema/Bad.kt:3: me.ahoo.wow.query.event.EventStreamQueryBackendFactory",
         )
     }
 

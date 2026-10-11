@@ -64,7 +64,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.7 升级到 9.8.0
 
-9.8.0 把 `wow-core` 通用 `messaging` 包里的类移到各自所属的领域包，并把存储批处理包移出 `infra`，使 `messaging` 不再导入命令、事件与事件溯源包，`infra` 不再导入指标包。这些都属于内部实现（见 `docs/compat-debt.md` 的范围说明）：只有包名变化，类名、构造函数、行为、配置、请求头键与线格式都不变，9.7.x 与 9.8.0 节点可以共处一个集群。只使用 starter 与公开入口 API 的应用无需改动；导入了这些类的代码改用新的导入即可重新编译。
+9.8.0 把 `wow-core` 通用 `messaging` 包里的类移到各自所属的领域包，并把存储批处理包移出 `infra`，使 `messaging` 不再导入命令、事件与事件溯源包，`infra` 不再导入指标包。`wow-query` 中，`QuerySchemaCatalog` 改为通过 `QueryStorageLocator` 读取存储，而不再依赖各读模型的后端工厂，使 `schema` 包不再导入读模型包。这些都属于内部实现（见 `docs/compat-debt.md` 的范围说明）：除这一个构造函数外只有包名变化，类名、其他构造函数、行为、配置、请求头键与线格式都不变，9.7.x 与 9.8.0 节点可以共处一个集群。只使用 starter 与公开入口 API 的应用无需改动；导入了这些类的代码改用新的导入即可重新编译。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
@@ -72,6 +72,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `EventCompensator` 与 `EventCompensateSupporter` 从 `me.ahoo.wow.messaging.compensation` 移到 `me.ahoo.wow.event.compensation`；`CompensationMatcher` 与 `CompensationTarget` 不动 | 自行补偿事件的代码 | 修改导入 |
 | `CommandOperatorMessagePropagator` 与 `WaitPlanMessagePropagator` 从 `me.ahoo.wow.messaging.propagation` 移到 `me.ahoo.wow.command.propagation`；`MessagePropagator`、`MessagePropagators` 与其他传播器不动 | 手工组装 `MessagePropagators` 列表、或在 `META-INF/services` 文件中列出这些类的代码 | 修改导入与服务文件条目 |
 | `me.ahoo.wow.infra.batch`（`BatchOptions`、`BatchCoordinator`、`BatchWriter`、`BatchItemResult` 与批处理异常）移到 `me.ahoo.wow.batch` | 用 `BatchOptions` 构建 MongoDB 或 Elasticsearch 存储、或直接使用批处理协调器的代码 | 修改导入 |
+| `QuerySchemaCatalog(snapshots, eventStreams, compiler, aggregates, meterRegistry)` 改为 `QuerySchemaCatalog(storages, compiler, aggregates, meterRegistry)`：`storages` 是 `QueryStorageLocator`，返回某个聚合模型的 `QueryStorageAdapter` 或 `null` | 自行构建 Catalog 的代码（测试、工具、自定义的 `QuerySchemaCatalog` Bean）；starter 构建的 Catalog 不受影响 | 用 `QueryBackendStorages(snapshots, eventStreams)` 代替两个工厂参数 |
 
 ## 从 9.6 升级到 9.7.0
 

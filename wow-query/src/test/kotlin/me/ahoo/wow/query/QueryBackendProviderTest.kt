@@ -14,7 +14,16 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.UnavailableQueryStorageAdapter
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackendFactory
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -60,5 +69,25 @@ class QueryBackendProviderTest {
 
         provider.snapshot.assert().isNull()
         provider.eventStream.assert().isNull()
+    }
+
+    @Test
+    fun `backend storages locate each read model's storage through its factory`() {
+        val order = MaterializedNamedAggregate("example", "order")
+        val snapshotStorage = UnavailableQueryStorageAdapter("snapshot")
+        val eventStorage = UnavailableQueryStorageAdapter("event")
+        val snapshots = object : SnapshotQueryBackendFactory {
+            override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+                QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), snapshotStorage)
+        }
+        val eventStreams = EventStreamQueryBackendFactory {
+            QueryBackendBinding(NoOpEventStreamQueryBackend(it), eventStorage)
+        }
+
+        val storages = QueryBackendStorages(snapshots, eventStreams)
+        storages.storage(order, QueryModel.SNAPSHOT).assert().isSameAs(snapshotStorage)
+        storages.storage(order, QueryModel.EVENT_STREAM).assert().isSameAs(eventStorage)
+        storages.storage(order, QueryModel("CUSTOM")).assert().isNull()
+        QueryBackendStorages(snapshots).storage(order, QueryModel.EVENT_STREAM).assert().isNull()
     }
 }

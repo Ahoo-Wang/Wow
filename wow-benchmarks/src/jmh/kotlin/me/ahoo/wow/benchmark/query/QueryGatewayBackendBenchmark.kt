@@ -45,6 +45,7 @@ import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -213,7 +214,10 @@ open class QueryGatewayBackendBenchmark {
         return DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
             backend = factory.create(namedAggregate).backend,
-            schemaProvider = QuerySchemaCatalog(snapshots = factory, compiler = QueryModelCompiler.of(schemaSources))
+            schemaProvider = QuerySchemaCatalog(
+                QueryBackendStorages(snapshots = factory),
+                compiler = QueryModelCompiler.of(schemaSources),
+            )
                 .provider(namedAggregate, QueryModel.SNAPSHOT),
             targetType = targetType,
             filters = emptyList(),

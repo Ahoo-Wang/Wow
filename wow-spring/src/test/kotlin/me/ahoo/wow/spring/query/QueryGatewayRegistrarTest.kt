@@ -29,6 +29,7 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -198,8 +199,10 @@ class QueryGatewayRegistrarTest {
             QuerySchemaCatalog::class.java,
             Supplier {
                 QuerySchemaCatalog(
-                    snapshots = getBean(SnapshotQueryBackendFactory::class.java),
-                    eventStreams = getBean(EventStreamQueryBackendFactory::class.java),
+                    QueryBackendStorages(
+                        snapshots = getBean(SnapshotQueryBackendFactory::class.java),
+                        eventStreams = getBean(EventStreamQueryBackendFactory::class.java),
+                    ),
                 )
             },
         )

@@ -130,14 +130,15 @@ object DependencyRules {
 
     /**
      * The generic query engine is model-neutral: every snapshot and event-stream difference lives in the model's
-     * `QueryModelProfile`, so the DSL, filter, aggregation and mask packages import neither read model package.
+     * `QueryModelProfile`, so the DSL, schema, filter, aggregation and mask packages import neither read model
+     * package. The Catalog reads storages through a `QueryStorageLocator`, never the read models' backend factories.
      */
     val QUERY_ENGINE_IS_MODEL_NEUTRAL = DependencyRule(
-        name = "wow-query dsl, filter, aggregation and mask import no read model package",
+        name = "wow-query dsl, schema, filter, aggregation and mask import no read model package",
         modules = listOf("wow-query"),
         forbidden = listOf("me.ahoo.wow.query.event", "me.ahoo.wow.query.snapshot"),
         appliesToPackage = { pkg ->
-            listOf("dsl", "filter", "aggregation", "mask").any { inPackage("me.ahoo.wow.query.$it")(pkg) }
+            listOf("dsl", "schema", "filter", "aggregation", "mask").any { inPackage("me.ahoo.wow.query.$it")(pkg) }
         },
     )
 

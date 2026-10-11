@@ -14,17 +14,9 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
-import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -40,7 +32,7 @@ class QuerySchemaCatalogTest {
     @Test
     fun `revalidation reloads every schema and a failed reload keeps the previous version`() {
         val catalog = QuerySchemaCatalog(
-            snapshots = snapshots { SequenceStorage(exact, sortable, null) },
+            storages = snapshots { SequenceStorage(exact, sortable, null) },
             aggregates = listOf(order),
         )
 
@@ -62,7 +54,7 @@ class QuerySchemaCatalogTest {
     fun `revalidation publishes refresh timing, failures and version changes`() {
         val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
         val catalog = QuerySchemaCatalog(
-            snapshots = snapshots { SequenceStorage(exact, sortable, sortable, null) },
+            storages = snapshots { SequenceStorage(exact, sortable, sortable, null) },
             aggregates = listOf(order),
             meterRegistry = registry,
         )
@@ -85,7 +77,7 @@ class QuerySchemaCatalogTest {
     fun `a revalidation started when the previous one completes reloads again`() {
         val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
         val catalog = QuerySchemaCatalog(
-            snapshots = snapshots { SequenceStorage(exact, sortable, null) },
+            storages = snapshots { SequenceStorage(exact, sortable, null) },
             aggregates = listOf(order),
             meterRegistry = registry,
         )
@@ -100,16 +92,10 @@ class QuerySchemaCatalogTest {
     @Test
     fun `an aggregate can be selected and models without a backend are skipped`() {
         val catalog = QuerySchemaCatalog(
-            snapshots = snapshots { SequenceStorage(exact) },
-            eventStreams = object : AbstractEventStreamQueryBackendFactory() {
-                override fun createBinding(
-                    namedAggregate: NamedAggregate
-                ): QueryBackendBinding<EventStreamQueryBackend> =
-                    QueryBackendBinding(
-                        NoOpEventStreamQueryBackend(namedAggregate),
-                        UnavailableQueryStorageAdapter("none")
-                    )
-            },
+            storages = storages(
+                snapshot = { SequenceStorage(exact) },
+                eventStream = { UnavailableQueryStorageAdapter("none") }
+            ),
             aggregates = listOf(order, cart),
         )
         catalog.versions().map { it.aggregate to it.model }.collectList().block()!!.assert()
@@ -126,14 +112,7 @@ class QuerySchemaCatalogTest {
         val reloads = mutableMapOf<QueryModel, AtomicInteger>()
         val pending = reactor.core.publisher.Sinks.one<QueryModelSchema>()
         val catalog = QuerySchemaCatalog(
-            snapshots = snapshots { SequenceStorage(exact) },
-            eventStreams = object : AbstractEventStreamQueryBackendFactory() {
-                override fun createBinding(namedAggregate: NamedAggregate) =
-                    QueryBackendBinding<EventStreamQueryBackend>(
-                        NoOpEventStreamQueryBackend(namedAggregate),
-                        SequenceStorage(exact),
-                    )
-            },
+            storages = storages(snapshot = { SequenceStorage(exact) }, eventStream = { SequenceStorage(exact) }),
             compiler = { context, _ ->
                 val count = reloads.getOrPut(context.model) { AtomicInteger() }
                 object : QueryModelSchemaProvider {
@@ -161,7 +140,7 @@ class QuerySchemaCatalogTest {
     @Test
     fun `the catalog compiles each model once, from its sources and storage facts`() {
         val storage = SequenceStorage(exact)
-        val catalog = QuerySchemaCatalog(snapshots = snapshots { storage })
+        val catalog = QuerySchemaCatalog(snapshots { storage })
         val provider = catalog.provider(order, QueryModel.SNAPSHOT)
         catalog.provider(order, QueryModel.SNAPSHOT).assert().isSameAs(provider)
         val schema = catalog.schema(order, QueryModel.SNAPSHOT).block()!!
@@ -170,9 +149,17 @@ class QuerySchemaCatalogTest {
         storage.loads.get().assert().isOne()
     }
 
-    private fun snapshots(storage: () -> QueryStorageAdapter) = object : AbstractSnapshotQueryBackendFactory() {
-        override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), storage())
+    private fun snapshots(storage: () -> QueryStorageAdapter) = storages(snapshot = storage)
+
+    private fun storages(
+        snapshot: () -> QueryStorageAdapter,
+        eventStream: (() -> QueryStorageAdapter)? = null,
+    ) = QueryStorageLocator { _, model ->
+        when (model) {
+            QueryModel.SNAPSHOT -> snapshot()
+            QueryModel.EVENT_STREAM -> eventStream?.invoke()
+            else -> null
+        }
     }
 
     /**
