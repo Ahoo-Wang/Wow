@@ -1,4 +1,4 @@
-# Message keys — 2139.
+# Message keys — 2138.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -897,7 +897,6 @@ label.chart.target
 label.chart.target-value
 label.chart.target.of
 label.chart.target.reached
-label.chart.target.share
 label.chart.themeRiver.uncertain
 label.chart.themeRiver.uncertain-one
 label.chart.total

@@ -23,7 +23,6 @@ import {
 } from '../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { ChangeBadge, type ChangeBadgeProps } from '../kit/variants.js';
-import { formatNumber } from '../kit/numbers.js';
 import { formatChange, formatValue } from './axis.js';
 import { EChart } from './EChart.js';
 import { pointsText, type FamilyProps, type ValueLabel } from './family.js';
@@ -50,18 +49,19 @@ function formatDelta(
 const PERCENT = { style: 'percent', maximumFractionDigits: 1 } as const;
 
 /**
- * The bar toward a card's target, and the target under it in words.
+ * The bar toward a card's target, and the target beside it in words.
  *
  * The registry's `Progress`, not a div sized by an inline `width`: a bar
  * that fills is a progressbar, and only the real one carries the role, the
  * value and the bounds. The target is the one number the drawing knows and
  * the card did not print — a bar three-quarters full said nothing of what
- * it was three-quarters of (Storybook review P2) — so it is written under
- * the bar, with how much of it is reached, past a hundred where the value
- * went past it. The line is the bar's own reading, which the progressbar
- * already says (`aria-valuetext`), so it is not said twice. The track is
- * raised from the registry's 1px at the call site, as the export progress
- * does; the vendored file stays as it ships.
+ * it was three-quarters of (Storybook review P2) — so it is written at the
+ * bar's end, on the bar's own row: a line under it took the height of the
+ * trend below (the daily report's sparkline fell under 64px). It is the
+ * bar's own reading, which the progressbar already says (`aria-valuetext`),
+ * so it is not said twice. The track is raised from the registry's 1px at
+ * the call site, as the export progress does; the vendored file stays as
+ * it ships.
  */
 function TargetBar({
   value,
@@ -75,15 +75,13 @@ function TargetBar({
   foot: boolean;
 }) {
   const messages = useViewMessages();
-  const { locale } = useSurfaceDisplay();
-  const share =
-    target === 0
-      ? undefined
-      : formatNumber(value / target, WHOLE_PERCENT, locale);
   return (
     <div
       data-slot="metric-target"
-      className={cn('fve:flex fve:flex-col fve:gap-1', foot && 'fve:mt-auto')}
+      className={cn(
+        'fve:flex fve:items-center fve:gap-2',
+        foot && 'fve:mt-auto',
+      )}
     >
       <Progress
         aria-label={messages.label('label.chart.target')}
@@ -92,28 +90,17 @@ function TargetBar({
           target: show(target),
         })}
         value={reached(value, target)}
-        className="fve:[&_[data-slot=progress-track]]:h-2"
+        className="fve:min-w-0 fve:flex-1 fve:[&_[data-slot=progress-track]]:h-2"
       />
       <span
         aria-hidden="true"
-        className="fve:flex fve:justify-between fve:gap-2 fve:text-muted-foreground fve:text-xs fve:tabular-nums"
+        className="fve:shrink-0 fve:text-muted-foreground fve:text-xs fve:tabular-nums"
       >
-        <span>
-          {messages.label('label.chart.target.of', { target: show(target) })}
-        </span>
-        {share !== undefined && (
-          <span>{messages.label('label.chart.target.share', { share })}</span>
-        )}
+        {messages.label('label.chart.target.of', { target: show(target) })}
       </span>
     </div>
   );
 }
-
-/** A share of the target, to the whole percent: 「已达 87%」. */
-const WHOLE_PERCENT: Intl.NumberFormatOptions = {
-  style: 'percent',
-  maximumFractionDigits: 0,
-};
 
 /**
  * How much of the target the value has reached, out of a hundred.
