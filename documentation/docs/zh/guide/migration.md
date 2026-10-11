@@ -23,7 +23,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 当前系统 | 主路径 | 原因 |
 |---|---|---|
 | CRUD/事务脚本/直接写表，没有 Wow 历史 | [传统架构迁移](./migration/traditional-architecture.md) | 建立 command、aggregate、event、导入与流量所有权 |
-| 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 比较固定平台/API/存储契约，并在需要时执行数据硬切换 |
+| 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 已从本站下线：按 v8.16.3 标签中保存的指南升级到 v8.16，再[从 8.16 升级到 9.0.0](#从-8-16-升级到-9-0-0) |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
 | Wow 9.7.x | [从 9.7 升级到 9.8.0](#从-9-7-升级到-9-8-0) | 重新编译：类从 `wow-core` 的 `messaging` 包移入各自的领域包，`infra.batch` 改为 `me.ahoo.wow.batch`，指标装饰器移到 `me.ahoo.wow.metrics.decorator`；自己构建 `QuerySchemaCatalog` 或继承 `QueryGatewayRegistrar` 的集成需要修改 |
 | Wow 9.6.x | [从 9.6 升级到 9.7.0](#从-9-6-升级到-9-7-0) | 只有用到 `wow-webflux` 内部实现或已删除的弃用辅助方法的代码需要修改；路由、REST、配置与线上格式不变，9.6.x 与 9.7.0 节点可以共处一个集群 |
@@ -44,7 +44,6 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 页面 | 负责 | 不负责 |
 |---|---|---|
 | 传统架构迁移 | 领域边界、历史导入、shadow 追平、读写切换 | Wow 版本/平台升级假设 |
-| v6→v8 | 固定 Gradle/平台矩阵、源码破坏、存储格式、数据切换 | 重设计全部领域 |
 | 运行时编排 | `RuntimeComponent`、message receiver admission、Spring 生命周期所有权、停机 | 除非其他章节明确要求，否则不转换 event/snapshot 格式 |
 | V9 查询迁移 | 查询 Gateway/Backend、Filter/Mask、SnapshotStore 命名和 Condition 迁移窗口 | 部署或生产切换证明 |
 | 运行时生命周期 | 迁移后的稳定语义 | 迁移步骤本身 |
@@ -475,7 +474,7 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 <span id="依赖版本更新"></span>
 <span id="破坏性变更检查"></span>
 
-参见 [v6 → v8：通用升级步骤](./migration/v6-to-v8.md#通用升级步骤)。
+参见 [v6 → v8：通用升级步骤](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)。
 
 ### 从传统架构迁移
 
@@ -506,7 +505,7 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 <span id="消息格式兼容性"></span>
 
 参见 [领域模型继续演进](./migration/traditional-architecture.md#_4-领域模型继续演进)
-和 [v6 → v8：破坏性变更检查](./migration/v6-to-v8.md#破坏性变更检查)。
+和 [v6 → v8：破坏性变更检查](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)。
 
 ### 已知问题
 
@@ -519,7 +518,7 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 ### 迁移检查清单
 
 使用 [传统架构迁移检查清单](./migration/traditional-architecture.md#完成检查清单)
-或 [v6 → v8 验证清单](./migration/v6-to-v8.md#验证清单)，再补充环境特定的生产准入证据。
+或 [v6 → v8 验证清单](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)，再补充环境特定的生产准入证据。
 
 ### 回滚计划
 
@@ -531,26 +530,26 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 
 ### 移除版本化快照检查点
 
-参见 [v6 → v8：移除版本化快照检查点](./migration/v6-to-v8.md#移除版本化快照检查点)。
+参见 [v6 → v8：移除版本化快照检查点](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)。
 
 ### SnapshotStore 原子保存
 
-参见 [v6 → v8：SnapshotStore 原子保存](./migration/v6-to-v8.md#snapshotstore-原子保存)。
+参见 [v6 → v8：SnapshotStore 原子保存](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)。
 
 ### Redis EventStore Canonical v2 布局（v8.9.0 引入）
 
-参见 [v6 → v8：Redis EventStore Canonical v2 布局](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-布局-v8-9-0-引入)。
+参见 [v6 → v8：Redis EventStore Canonical v2 布局](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)。
 
 ### Mongo 所有权保护
 
-参见 [v6 → v8：Mongo 所有权保护](./migration/v6-to-v8.md#mongo-所有权保护)。
+参见 [v6 → v8：Mongo 所有权保护](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/zh/guide/migration/v6-to-v8.md)。
 
 ## 相关页面
 
 | 页面 | 关系 |
 |---|---|
 | [传统架构迁移](./migration/traditional-architecture.md) | 首次采用与流量所有权 |
-| [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 既有 Wow 平台/存储升级 |
+| [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | v6 → v8 指南的保存位置（v8.16.3 标签） |
 | [运行时编排迁移](./migration/runtime-orchestration.md) | 统一生命周期源码迁移 |
 | [V9 查询迁移](./query/v9-query-migration.md) | V8.16.x 到 V9 的查询与 SnapshotStore 源码迁移 |
 | [从 Fetcher 包迁移](./typescript/migration.md) | TypeScript 包改名与重新生成客户端 |

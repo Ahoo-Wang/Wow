@@ -151,7 +151,7 @@ layout 8 自 Wow 9.4.0 起生效。它去掉了 ownership registry，部署级�
 设置 `wow.bi.script.enabled=false` 只移除 route/OpenAPI operation/inspector wiring，不会停止 ClickHouse
 Kafka engine、恢复数据或回滚 offset。
 
-生成契约见 [商业智能](./bi)，跨版本门禁见 [Wow v6 迁移到 v8](./migration/v6-to-v8)。
+生成契约见 [商业智能](./bi)，跨版本门禁见[迁移指南](./migration#共同完成门禁)。
 
 <!-- Sources: BiOperationPolicy, plan/BiReconciler (durable inventory), BiObjectMetadata/BiAnchorState, layout/BiLayout,
 catalog/ClickHouseCatalogReader, ClickHouseBiDeploymentInspector, the golden scripts under

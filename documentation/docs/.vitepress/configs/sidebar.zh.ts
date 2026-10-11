@@ -322,7 +322,6 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                     collapsed: true,
                     items: [
                         {text: '传统架构迁移', link: 'migration/traditional-architecture'},
-                        {text: 'Wow v6 迁移到 v8', link: 'migration/v6-to-v8'},
                         {text: 'V9 查询迁移', link: 'query/v9-query-migration'},
                         {text: '运行时编排迁移', link: 'migration/runtime-orchestration'},
                         {text: 'TypeScript 包从 Fetcher 迁移', link: 'typescript/migration'},
