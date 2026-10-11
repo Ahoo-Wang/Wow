@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-generator — 14 names, from src/index.ts.
+# @ahoo-wang/wow-generator — 15 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  ApiClientConfiguration
@@ -14,4 +14,5 @@ type  GeneratorErrorKind
 type  GeneratorOptions
 type  LogLevel
 type  Logger
+type  SchemaDocs
 value SilentLogger

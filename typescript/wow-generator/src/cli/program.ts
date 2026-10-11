@@ -19,6 +19,24 @@ import { EXIT_CODES } from '../api/errors';
 import { DEFAULT_HTTP_TIMEOUT_MS } from '../input/resources';
 import { generateAction } from './runGenerate';
 
+/** The exit codes `generate --help` lists, as the README's table does. */
+export const EXIT_CODE_HELP = `
+Exit codes:
+  ${EXIT_CODES.success}    generated; or --help, help or --version printed
+  ${EXIT_CODES.internal}    internal error; rerun with --verbose for the stack trace
+  ${EXIT_CODES.input}    input or usage: unreadable, unfetchable or not OpenAPI 3.x; an invalid option
+  ${EXIT_CODES.configuration}    configuration: cannot be read, parsed or validated
+  ${EXIT_CODES.specification}    specification: cannot be generated, or --strict and the run had warnings
+  ${EXIT_CODES.output}    output: the manifest, a path outside the output, or a failed write
+  ${EXIT_CODES.interrupted}  interrupted (Ctrl-C)`;
+
+/**
+ * What the `fetcher-generator` bin prints to stderr before it runs: the name
+ * still works, and goes in v10.
+ */
+export const DEPRECATED_BIN_NOTICE =
+  'fetcher-generator is deprecated and will be removed in v10; run wow-generator instead.';
+
 /** Collects the values of an option given more than once, such as `--header`. */
 export function collect(value: string, previous: string[] = []): string[] {
   return [...previous, value];
@@ -41,8 +59,9 @@ export function setupCLI(target: Command = program): Command {
   // Before `command()`: a subcommand copies the exit override when it is
   // created.
   target.exitOverride();
-  // compat(fetcher): package.json also installs this CLI as `fetcher-generator`, the
-  // name existing scripts call; drop that bin alias in v10.
+  // compat(fetcher): package.json also installs this CLI as `fetcher-generator`
+  // (src/fetcherGeneratorCli.ts), the name existing scripts call; drop that
+  // bin alias in v10.
   target
     .name('wow-generator')
     .description('OpenAPI Specification TypeScript code generator for Wow')
@@ -83,6 +102,7 @@ export function setupCLI(target: Command = program): Command {
     .option('--strict', 'Exit with code 4 when the run logs a warning')
     .option('--verbose', 'Log every step, and the stack trace of a failure')
     .option('--quiet', 'Log only warnings and errors')
+    .addHelpText('after', EXIT_CODE_HELP)
     .action(generateAction);
 
   return target;

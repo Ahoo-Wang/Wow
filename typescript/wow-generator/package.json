@@ -39,7 +39,7 @@
   "types": "./dist/index.d.ts",
   "bin": {
     "wow-generator": "./dist/cli.js",
-    "fetcher-generator": "./dist/cli.js"
+    "fetcher-generator": "./dist/fetcherGeneratorCli.js"
   },
   "exports": {
     ".": {
