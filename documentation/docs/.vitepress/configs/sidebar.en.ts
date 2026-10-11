@@ -359,6 +359,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Spring-Boot-Starter', link: 'spring-boot-starter'},
                 {text: 'Compatibility Test Suite', link: 'tck'},
                 {text: 'View Store', link: 'view-store'},
+                {text: 'Analytics Service', link: 'analytics'},
             ],
         },
         {

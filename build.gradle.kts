@@ -54,13 +54,9 @@ val exampleProjects =
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
-// Libraries that build and test like the others but are not published yet: the dataset registry
-// (dataset platform design R1b), published with the analytics service (R5).
-val incubatingProjects = setOf(
-    project(":wow-dataset-registry-api"),
-    project(":wow-dataset-registry-domain"),
-    project(":wow-dataset-registry-starter"),
-)
+// Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform
+// design R1b) left with the analytics service (R5d).
+val incubatingProjects = emptySet<Project>()
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
