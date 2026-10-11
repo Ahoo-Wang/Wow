@@ -129,6 +129,33 @@ The caller scope comes from the `{tenantId}` path variable (else `Command-Tenant
 
 The `QueryDatasets` bean holds the datasets this service serves: the declarations of `wow.query.datasets` at startup, and whatever is `add`ed, `replace`d or `remove`d at run time. A change takes effect at once: the Catalog compiles the new declaration, and the gateways, routes and directory follow. `add` is refused, changing nothing, for a name an aggregate of the context already takes, or when the service has no dataset query backend.
 
+## Analysing a Dataset in the View Engine
+
+A dataset is published at run time, so the view engine takes no definition written for it: the definition is derived from its capability descriptor (`defineDataset`) and registered with the engine at run time (`engine.register`). Every field of the record the descriptor lists appears, labelled by its `description`, else its name:
+
+```typescript
+import { DatasetQueryClient } from '@ahoo-wang/wow-client';
+import { defineDataset, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+
+async function registerDataset(
+  engine: ViewEngine,
+  context: string,
+  dataset: string,
+  title: string,
+): Promise<void> {
+  const client = new DatasetQueryClient({ context, dataset });
+  const result = await client.describe();
+  if (result.notModified) return;
+  const id = `${context}.${dataset}`;
+  engine.register({
+    definition: defineDataset(result.descriptor, { id, source: id, title }),
+    source: client,
+  });
+}
+```
+
+A host reads the `GET /dataset` directory and registers each dataset. Registering one again replaces it whole; views already open keep the definition they opened on until reopened. Opening a saved view of a dataset not registered yet reports the definition as not found.
+
 ## In-Process Queries
 
 The `DatasetQueryGateways` bean holds each dataset's `DatasetQueryGateway` by name. It has the same ten methods as an aggregate's query gateway, and its records are `ObjectNode`s:

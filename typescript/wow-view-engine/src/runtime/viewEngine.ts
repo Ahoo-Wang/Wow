@@ -236,6 +236,7 @@ export class ViewEngine extends EngineResources {
       (found, resource) => this.report(found, resource),
     );
     this.registered = this.registry.definitions;
+    this.keepDefinitionsIn(definition => this.registry.register(definition));
     this.panelViews = new PanelViews({
       registry: this.registry,
       kinds: this.kinds,

@@ -936,6 +936,17 @@
   - **中文叫「看板视图」**：本包的中文里「看板」已经指仪表盘（看板筛选条、共享看板），所以布局开关、设置与消息里一律写全「看板视图」，不单写「看板」；代码与英文写 `kanban`。
 - **落点**：`src/model/record.ts`（`RecordKanbanSpec`、`MAX_KANBAN_LANES`）、`src/record/kanban.ts`（栏、栏的条件、条数聚合、投影）、`src/record/validate.ts`、`src/runtime/kanban.ts`（执行与加载更多）、`src/react/useRecordKanban.ts`、`src/ui/record/{RecordKanban,RecordCard,CardSettings,kanbanDrag}.tsx`、`src/ui/actions/kanbanMove.ts`、`src/runtime/actions.ts`（`moves`）；[model.md](model.md)、[kernels.md](kernels.md#看板视图一栏一条查询)、[runtime.md](runtime.md)、[react.md](react.md#userecordkanban)、[ui/record.md](ui/record.md#看板视图按阶段分栏)。
 
+## D84 数据集的定义从描述符派生，运行时登记（2026-10-11）
+
+- **来由**：Wow 的数据集（数据集平台化设计 R1）在运行时发布，企业接一张表不再发版。视图引擎若仍要求每个数据集先写定义、再发版，数据负责人发布了数据集，读者还是要等一次前端发版才能分析它，目标「不再另部署 BI 平台」落空。
+- **裁定**（用户 2026-10-11 确认方向）：
+  - **只对数据集放宽「定义是代码」**，聚合不变：聚合本身就是代码，定义随它发版；数据集不是。
+  - **定义从描述符派生**：`defineDataset(descriptor, { id, source, title })` 列出描述符记录层的每个字段（数据集的声明就是选过的字段），口径取 `description`、再取路径；其余照 **defineView**（host-integration.md 3.2）。
+  - **运行时登记**：`ViewEngine.register({ definition, source })` 加入或整份替换一份资源，与构造时同样准入与报告；已经打开的视图用旧定义直到重开（`SourceCapabilities` 的收窄按定义对象缓存，换了定义就重新收窄）。
+  - **不做打开时的异步解析**：已存视图引用的数据集宿主没登记时，报 `view.definition.not-found`；打开路径保持同步，读目录、取描述符、登记由宿主做。
+  - **不在这一批**：措辞覆盖（存视图存储，只能收窄与改词）、选数据集新建视图的入口（宿主的数据集选择器）、下线的数据集从引擎移除。
+- **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/definitions.ts`（`DefinitionRegistry.register`）、`src/runtime/resources.ts`（`EngineResources.register`，`ViewEngine` 继承）、`src/runtime/capabilities.ts`（收窄缓存认定义对象）；[host-integration.md 3.2](host-integration.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

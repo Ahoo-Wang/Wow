@@ -129,6 +129,33 @@ wow:
 
 `QueryDatasets` Bean 是本服务提供的数据集，启动时装入 `wow.query.datasets` 的声明，运行时可以 `add`、`replace`、`remove`。变更立即生效：Catalog 按新声明重新编译，网关、路由与目录随之更新。与本上下文的聚合同名、或本服务没有数据集查询后端时，`add` 被拒绝，什么都不改变。
 
+## 在视图引擎中分析数据集
+
+数据集在运行时发布，所以视图引擎不为它写定义，而是从它的能力描述派生（`defineDataset`），再在运行时登记到引擎（`engine.register`）。描述里记录层的每个字段都会出现，口径取字段的 `description`，没有时取字段名：
+
+```typescript
+import { DatasetQueryClient } from '@ahoo-wang/wow-client';
+import { defineDataset, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+
+async function registerDataset(
+  engine: ViewEngine,
+  context: string,
+  dataset: string,
+  title: string,
+): Promise<void> {
+  const client = new DatasetQueryClient({ context, dataset });
+  const result = await client.describe();
+  if (result.notModified) return;
+  const id = `${context}.${dataset}`;
+  engine.register({
+    definition: defineDataset(result.descriptor, { id, source: id, title }),
+    source: client,
+  });
+}
+```
+
+宿主读 `GET /dataset` 目录，逐个登记即可；同一个数据集再登记一次会整份替换，已经打开的视图用旧定义直到重开。已存的视图引用一个还没登记的数据集时，打开会报「定义不存在」。
+
 ## 进程内查询
 
 `DatasetQueryGateways` Bean 按名称提供每个数据集的 `DatasetQueryGateway`。它与聚合的查询网关有同样的十个方法，记录都是 `ObjectNode`：

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 866 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 868 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -156,6 +156,7 @@ type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
 type  DecimalNumeric
+type  DefineDatasetSpec
 type  DefineViewOptions
 type  DefineViewSpec
 type  DefinitionDescribed
@@ -566,6 +567,7 @@ value defaultKanbanSpec
 value defaultPanelSize
 value defaultRecordConfig
 value defaultRuntimeEnvironment
+value defineDataset
 value defineView
 value deletionFieldKind
 value derivedMetric
