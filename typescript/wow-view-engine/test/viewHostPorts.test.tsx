@@ -38,6 +38,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   systemInstanceId,
   text,
   type ViewNavigation,
@@ -369,6 +370,71 @@ describe('the address: two workbenches on one page', () => {
     await act(nextTask);
     await act(nextTask);
     expect(titles()).toContain('Other');
+  });
+
+  /** Both workbenches on `/?view=<id>`, over `engine`. */
+  function both(id: string, engine: ViewEngine) {
+    hosted(
+      {
+        '/': (
+          <>
+            <DataWorkbench definitionId="orders" />
+            <DashboardWorkbench definitionId="overview" />
+          </>
+        ),
+      },
+      `/?view=${id}`,
+      { engine },
+    );
+  }
+  const titles = () =>
+    [...document.querySelectorAll('[data-slot="view-title"]')].map(
+      title => title.textContent,
+    );
+  /** The list without `orders-2`, as a store that cut it short answers. */
+  function cutShort(engine: ViewEngine) {
+    const list = engine.store.list.bind(engine.store);
+    vi.spyOn(engine.store, 'list').mockImplementation(async definitionId =>
+      (await list(definitionId)).filter(item => item.id !== 'orders-2'),
+    );
+  }
+
+  // The ways the list and the ask by id fail (R2-103): what is not known
+  // to be another's is trusted, and only a view the store says is gone is
+  // set aside.
+  it('opens the view the address names on trust when the list cannot be read', async () => {
+    const engine = engineOf();
+    vi.spyOn(engine.store, 'list').mockRejectedValue(
+      new ViewStoreError('UNAVAILABLE', 'down'),
+    );
+    both('orders-2', engine);
+    await waitFor(() => expect(titles()).toContain('Other'));
+  });
+
+  it('opens it on trust when the ask by id fails for another reason', async () => {
+    const engine = engineOf();
+    cutShort(engine);
+    const get = engine.store.get.bind(engine.store);
+    // The workbench opens it on trust first; the address's ask after the
+    // list is the second read of it, and that one fails.
+    const asked = vi
+      .spyOn(engine.store, 'get')
+      .mockImplementationOnce(get)
+      .mockRejectedValueOnce(new ViewStoreError('UNAVAILABLE', 'down'))
+      .mockImplementation(get);
+    both('orders-2', engine);
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(2));
+    await act(nextTask);
+    await waitFor(() => expect(titles()).toContain('Other'));
+  });
+
+  it('sets aside a view the store says is gone, for the workbench’s default', async () => {
+    const engine = engineOf();
+    const asked = vi.spyOn(engine.store, 'get');
+    both('orders-gone', engine);
+    await waitFor(() => expect(asked).toHaveBeenCalledWith('orders-gone'));
+    await waitFor(() => expect(openIn('Orders')).not.toBeNull());
+    expect(screen.queryByText(/belongs to another page/)).toBeNull();
   });
 
   it('sets a declared view of another definition aside by its id alone', async () => {

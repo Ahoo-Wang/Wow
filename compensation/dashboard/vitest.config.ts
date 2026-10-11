@@ -30,11 +30,14 @@ export default mergeConfig(
           ...(configDefaults.coverage.exclude ?? []),
           "src/generated/**",
         ],
+        // A point under what the suite reaches (2026-10-11: 62.3 / 87.5 /
+        // 87.5 / 75.9), so coverage only moves up (R2-103); raise them as
+        // it does.
         thresholds: {
-          branches: 60,
-          functions: 75,
-          lines: 80,
-          statements: 70,
+          branches: 61,
+          functions: 86,
+          lines: 86,
+          statements: 74,
         },
       },
     },
