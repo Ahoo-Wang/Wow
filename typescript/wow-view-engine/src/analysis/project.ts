@@ -40,7 +40,7 @@ import {
   derivedOperands,
 } from './currency.js';
 import { metricReach, withoutOutOfReach } from './metricWindow.js';
-import { hostTimeZone } from './timeAxis.js';
+import { hostTimeZone, ongoingBucket } from './timeAxis.js';
 import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import { chartUnfit } from './fitCharts.js';
@@ -120,6 +120,13 @@ export interface AnalysisColumnView {
   dateUnit?: AnalysisDateUnit;
   /** For a date histogram group: the zone its buckets were cut in. */
   timeZone?: string;
+  /**
+   * For a date histogram group: the key of its bucket still under way when
+   * the question was asked (`ShapeContext.now`) — this month, while it runs.
+   * A table writes it 「2026年9月（进行中）」, as a chart marks the end of its
+   * axis: half a month read as a month is a drop that never happened.
+   */
+  ongoing?: unknown;
   /**
    * For a calendar part group: which part its keys are (the ISO weekday 1 to
    * 7, the hour 0 to 23…), so a key reads 「周一」 or 「20时」 rather than a
@@ -485,6 +492,16 @@ export function projectAnalysis(
     withoutOutOfReach(rows, reach).map(row => settleRow(row, currencies));
   const kept = cutShort(definition, config, settle(result), limits);
   const cut = { ...kept, rows: undatedLast(config, kept.rows) };
+  const ongoingOf = (alias: string) => {
+    const ongoing = ongoingBucket(
+      config,
+      alias,
+      cut.rows.map(row => row[alias]),
+      context.timeZone ?? hostTimeZone(),
+      context.now,
+    );
+    return ongoing ? { ongoing: ongoing.at } : {};
+  };
   const settledTotals = totals && settle(totals);
   const overall =
     settledTotals && settledTotals.length > 0 ? settledTotals[0] : undefined;
@@ -555,6 +572,7 @@ export function projectAnalysis(
         ...(metric && field ? numericOf(metric, field) : {}),
         ...(field && valued.has(alias) ? valueOf(field) : {}),
         ...bucketOf(groups.get(alias)),
+        ...(groups.has(alias) ? ongoingOf(alias) : {}),
         // What its number is a quantity of: the unit its format declares,
         // or the field itself where none is (`metricMeasure`).
         ...(metric

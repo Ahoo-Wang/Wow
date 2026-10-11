@@ -578,6 +578,11 @@ export const SplitByADateNamesTheUndated: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
     );
+    // The table writes the quarter still running as such (2026年 Q3 on the
+    // 22nd of September); the chart's series are named plain.
+    const running = formatMessage(zhCN, 'label.chart.ongoing', {
+      period: '2026年 Q3',
+    });
     await waitFor(() => {
       const table = canvasElement.querySelector<HTMLElement>(
         '[data-slot="analysis-table"] table',
@@ -585,7 +590,10 @@ export const SplitByADateNamesTheUndated: Story = {
       const first = [...(table?.querySelectorAll('tbody tr') ?? [])].map(
         row => row.querySelector('th, td')?.textContent?.trim() ?? '',
       );
-      expect(first).toEqual(periods);
+      expect(first).toContain(running);
+      expect(
+        first.map(name => (name === running ? '2026年 Q3' : name)),
+      ).toEqual(periods);
     });
   },
 };

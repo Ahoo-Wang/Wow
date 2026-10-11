@@ -455,6 +455,30 @@ export function unfinishedBucket(
 }
 
 /**
+ * The bucket of a time group still under way when the question was asked —
+ * this month, while the month runs — wherever the rows put it, so a table
+ * sorted newest first marks it as a chart's axis does at its end
+ * (`unfinishedBucket`). A bucket the question's conditions close before
+ * `now` has ended; one not yet begun is none.
+ */
+export function ongoingBucket(
+  config: AnalysisViewConfig,
+  alias: string,
+  keys: readonly unknown[],
+  timeZone: string,
+  now: Date | undefined,
+): { at: unknown } | undefined {
+  const group = timeGroup(config, alias);
+  if (!group || !now) return undefined;
+  const window = appliedWindow(config.filter, group.field, now, timeZone);
+  const at = keys.find(key => {
+    const span = bucketSpan(group, key, timeZone, now, window);
+    return span !== undefined && !span.ended && span.from <= now.getTime();
+  });
+  return at === undefined ? undefined : { at };
+}
+
+/**
  * Whether the buckets `items` stand for — earliest first — run one after
  * another, each starting where the one before it ended (`bucketSpan`), so
  * the point before one is its previous period. Items naming no moment (the

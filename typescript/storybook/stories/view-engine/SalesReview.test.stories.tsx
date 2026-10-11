@@ -81,9 +81,14 @@ export const SalesOverview: Story = {
     );
     await noPanelOut(canvasElement);
     await chartsDrawn(canvasElement);
+    // Newest first; September, still running, says so (Storybook review P2:
+    // half a month read as a month looked like a drop).
     const monthly = await findDataTable(panelOf('月度指标（今年）'));
     await waitFor(() =>
-      expect(readColumn(monthly, '下单时间（按月）')[0]).toBe('2026年9月'),
+      expect(readColumn(monthly, '下单时间（按月）').slice(0, 2)).toEqual([
+        label('label.chart.ongoing', { period: '2026年9月' }),
+        '2026年8月',
+      ]),
     );
   },
 };

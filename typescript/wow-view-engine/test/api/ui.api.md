@@ -176,6 +176,7 @@ interface AnalysisColumnView {
     named?: true;
     numberFormat?: NumberFormat;
     numeric?: FieldNumeric;
+    ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
     // (undocumented)

@@ -867,3 +867,39 @@ describe('a heatmap over a category its field lists', () => {
     });
   });
 });
+
+describe('the period still under way, in the table', () => {
+  const august = Date.UTC(2026, 7, 1);
+  const september = Date.UTC(2026, 8, 1);
+  const monthly = config({
+    layout: 'table',
+    groups: [
+      {
+        type: 'DATE_HISTOGRAM',
+        field: 'createdAt',
+        alias: 'month',
+        unit: 'MONTH',
+        timeZone: 'UTC',
+      },
+    ],
+    metrics: [{ type: 'COUNT', alias: 'orders' }],
+  });
+  // Newest first, as a monthly table is often sorted.
+  const rows = [
+    { month: september, orders: 410 },
+    { month: august, orders: 838 },
+  ];
+  const month = (now: Date) =>
+    projectAnalysis(definition(), monthly, rows, undefined, undefined, {
+      now,
+      timeZone: 'UTC',
+    }).columns.find(column => column.alias === 'month');
+
+  it('names the month still running, wherever the sort put it', () => {
+    expect(month(new Date(Date.UTC(2026, 8, 21)))?.ongoing).toBe(september);
+  });
+
+  it('names none once every month has ended', () => {
+    expect(month(new Date(Date.UTC(2026, 9, 2)))).not.toHaveProperty('ongoing');
+  });
+});

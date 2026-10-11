@@ -52,7 +52,8 @@ export function readingOf(column: AnalysisColumnView): string {
  * Money in a currency each record holds reads in the currency its `row`
  * says (`rowCurrency`) — and a row whose records are in several says
  * 「多种货币」 where its number would be, the kernel having taken that
- * number away as no amount.
+ * number away as no amount. The bucket of a date group still under way when
+ * the question was asked (`AnalysisColumnView.ongoing`) says so.
  */
 export function analysisCellText(
   value: unknown,
@@ -62,6 +63,22 @@ export function analysisCellText(
   row?: RecordData,
 ): string {
   const currency = rowCurrency(row, column);
+  const text = cellReading(value, column, messages, display, currency);
+  // The period still under way says so, as a chart marks its axis's end:
+  // 「2026年9月（进行中）」, not half a month read as a month.
+  return column.ongoing !== undefined && value === column.ongoing
+    ? messages.label('label.chart.ongoing', { period: text })
+    : text;
+}
+
+/** `analysisCellText` before an ongoing period is marked. */
+function cellReading(
+  value: unknown,
+  column: AnalysisColumnView,
+  messages: MessageFormatters,
+  display: DisplayContext,
+  currency: ReturnType<typeof rowCurrency>,
+): string {
   return (
     (currency?.type === 'mixed' || column.currency?.writes
       ? currencyText(
