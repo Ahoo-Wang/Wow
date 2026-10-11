@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.query
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
@@ -37,7 +36,6 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.serialization.toObject
 import org.reactivestreams.Publisher
-import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
@@ -118,36 +116,26 @@ abstract class AbstractQueryGateway<R : Any>(
                 .doOnError(trail::error)
                 .doFinally { signal -> audit(trail, signal) }
         }
-    }.doOnError { error -> observe { observer.onError(namedAggregate, operation.queryType, error) } }
+    }.doOnError { error -> observer.isolated { onError(namedAggregate, operation.queryType, error) } }
         .doFinally { observeTerminal(operation.queryType, it) }
 
     private fun trail(queryType: QueryType, query: Any, identity: ContextView): QueryAuditTrail? =
         if (observer.audits) QueryAuditTrail(namedAggregate, queryType, query, identity) else null
 
-    private fun audit(trail: QueryAuditTrail, signal: SignalType) = observe {
+    private fun audit(trail: QueryAuditTrail, signal: SignalType) = observer.isolated {
         val outcome = when (signal) {
             SignalType.ON_ERROR -> QueryAudit.Outcome.ERROR
             SignalType.CANCEL -> QueryAudit.Outcome.CANCEL
             else -> QueryAudit.Outcome.COMPLETE
         }
-        observer.onAudit(trail.audit(outcome))
+        onAudit(trail.audit(outcome))
     }
 
-    private fun observeTerminal(queryType: QueryType, signal: SignalType) = observe {
+    private fun observeTerminal(queryType: QueryType, signal: SignalType) = observer.isolated {
         when (signal) {
-            SignalType.ON_COMPLETE -> observer.onComplete(namedAggregate, queryType)
-            SignalType.CANCEL -> observer.onCancel(namedAggregate, queryType)
+            SignalType.ON_COMPLETE -> onComplete(namedAggregate, queryType)
+            SignalType.CANCEL -> onCancel(namedAggregate, queryType)
             else -> Unit
-        }
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private inline fun observe(callback: () -> Unit) {
-        try {
-            callback()
-        } catch (failure: Throwable) {
-            Exceptions.throwIfFatal(failure)
-            log.error(failure) { "Query observer failed." }
         }
     }
 
@@ -201,8 +189,4 @@ abstract class AbstractQueryGateway<R : Any>(
 
     override fun describe(entry: QueryEntry, defaultListSize: Int?): Mono<QueryModelDescriptor> =
         schema.map { it.describe(entryPolicy.budget(entry), defaultListSize) }
-
-    private companion object {
-        val log = KotlinLogging.logger { }
-    }
 }
