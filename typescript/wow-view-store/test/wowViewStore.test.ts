@@ -239,6 +239,8 @@ describe('WowViewStore', () => {
       expect(query.projection.include).toContain('state.config.kind');
       expect(query.projection.include).not.toContain('state.config');
       expect(query.limit).toBe(1000);
+      // And says so, so a list this full is said to be cut (R2-26).
+      expect(store.listLimit).toBe(1000);
 
       // Each is remembered where it was listed: a write goes there at once.
       server.on(

@@ -203,7 +203,7 @@ export class WowViewStore implements ViewStore {
 
 - **不生成客户端**：路由只有十来条，路径变量要留给拦截器填、重放要分辨 `204`、错误要按错误码读，生成的装饰器客户端这几样都帮不上，还要多一份与服务端逐字节核对的生成代码；所以请求在 **WowViewStore** 里手写，查询体用 wow-client 的 DSL。依赖不因此变：wow-client 本来就以 `fetcher-decorator` 与 `fetcher-eventstream` 为对等依赖，宿主随它一并安装（README 的「Use」列出）。
 - **路径参数**：`{tenantId}` 与个人视图的 `{ownerId}` 留空，由 fetcher 的拦截器填——fetcher-cosec 按令牌的 `tenantId` 与 `sub`；不登录的宿主（如补偿控制台）插入自己的拦截器注入缺省值。共享视图显式填 `(shared)`（拦截器只填没给的参数）。**WowViewStore** 不收租户、用户这类选项。
-- **列表**：个人与共享各查一次（快照列表，只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime`、`aggregateId` 升序，每种受众至多 1000 个——最早的 1000 个，即服务端的查询上限），再合并系统视图，三个请求一起发；按端口的顺序作答：系统、共享、个人。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属。
+- **列表**：个人与共享各查一次（快照列表，只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime`、`aggregateId` 升序，每种受众至多 1000 个——最早的 1000 个，即服务端的查询上限），再合并系统视图，三个请求一起发；按端口的顺序作答：系统、共享、个人。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属。`WowViewStore` 在自己身上声明这个上限（`listLimit = 1000`，端口的可选成员）：某种受众列满时，`engine.list` 带上 `cut`，侧栏的视图列表与「管理视图」写明「每组只列出前 N 个视图」（R2-26）；conformance 有对应用例，由声明了 `listLimit` 的被测对象运行（本包用上限为 2 的 `MemoryViewStore`）。
 - **错误的来处**：`ViewStoreError` 带 `cause`（请求本身的失败）与 `detail.code`（服务端的 `errorCode`），宿主据此分辨同为 `INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`。服务端自己的错误码常量在客户端叫 `WowViewStoreErrorCodes`，与引擎的 `ViewStoreErrorCode`（端口的码）分开。
 - **按 id 读写要知道是个人还是共享**：端口只给 id。客户端记住列表、读取、创建时得到的「id → 受众」；没见过的 id 依次按个人、共享、服务端系统视图去读。系统视图的 id 由系统视图接口给出，客户端认得。
 - 写入：显式带 `Command-Request-Id` 与期望版本，等到 `SNAPSHOT`，成功后按 id 读回实例作答；读回的版本已被别人推过时，按 `requestId` 重放读回这次写入留下的那一版。`share` 与删除发 `{}`，`claim` 不带请求体。

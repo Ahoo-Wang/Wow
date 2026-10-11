@@ -133,6 +133,12 @@ export interface ConformanceCapabilities {
    * to another audience. Left out or false, the case is skipped.
    */
   storedSystemViews?: boolean;
+  /**
+   * The store answers at most this many of one audience (`listLimit`) and
+   * says so on itself: the case makes one more than this and asks the list
+   * (R2-26). Keep it small — every view is a write. Left out, skipped.
+   */
+  listLimit?: number;
 }
 
 export interface ViewStoreConformance {
@@ -338,6 +344,24 @@ export function describeViewStoreConformance(
         const { alice } = await setup();
         await refusal(alice.get(`missing-${crypto.randomUUID()}`), 'NOT_FOUND');
       });
+
+      it.skipIf(capabilities.listLimit === undefined)(
+        'lists no more of an audience than its limit, oldest first, and says the limit',
+        async () => {
+          const limit = capabilities.listLimit!;
+          const { alice, definitionId, create } = await setup();
+          expect(alice.listLimit).toBe(limit);
+          const made: ViewInstance[] = [];
+          for (let at = 0; at <= limit; at += 1)
+            made.push(await create(`View ${at}`, own));
+
+          const listed = ids(await alice.list(definitionId)).filter(id =>
+            made.some(view => view.id === id),
+          );
+
+          expect(listed).toEqual(made.slice(0, limit).map(view => view.id));
+        },
+      );
 
       it.skipIf(!personal)(
         'lists shared views before personal ones, each oldest first',

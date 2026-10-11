@@ -213,6 +213,7 @@ export function reportingStore(
     ...(store.permissions
       ? { permissions: definitionId => store.permissions!(definitionId) }
       : {}),
+    ...(store.listLimit === undefined ? {} : { listLimit: store.listLimit }),
   };
 }
 

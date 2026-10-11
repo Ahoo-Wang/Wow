@@ -169,6 +169,7 @@ export interface ViewStore {
     ctx: WriteContext,
   ): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions; // 由应用预先取得，同步
+  readonly listLimit?: number; // 可选：list 每种受众至多答几个；某受众列满即视为截断，工作台写明（R2-26）
 }
 export interface WriteContext {
   requestId: string;

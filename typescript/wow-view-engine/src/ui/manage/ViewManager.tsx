@@ -239,6 +239,15 @@ export function ViewManager({
           })}
         </div>
       ))}
+      {/* As the sidebar says it: the store listed only so many (R2-26). */}
+      {list.cut !== undefined && (
+        <p
+          data-slot="view-manager-cut"
+          className={cn('fve:text-muted-foreground fve:px-1', TEXT_UI)}
+        >
+          {messages.label('label.view.list-cut', { limit: list.cut })}
+        </p>
+      )}
     </div>
   );
 

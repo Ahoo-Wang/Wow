@@ -149,6 +149,11 @@ const NOT_REPLAYED = Symbol('not replayed');
  * another store — another tab, a reload — makes a second view.
  */
 export class WowViewStore implements ViewStore {
+  /**
+   * The most of one audience a list answers (`LIST_LIMIT`): an audience
+   * listed this full was cut there, which the workbench then says (R2-26).
+   */
+  readonly listLimit = LIST_LIMIT;
   private readonly fetcher: Fetcher;
   /**
    * Where each view was last seen, by id. Kept after a delete, for its retry.
