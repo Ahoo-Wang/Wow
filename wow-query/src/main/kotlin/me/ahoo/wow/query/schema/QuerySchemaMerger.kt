@@ -30,7 +30,8 @@ internal class QuerySchemaMerger {
         } else {
             EVENT_PAYLOAD_ROOT
         }
-        extensions.forEach { extension ->
+        // S0 spike: a custom model without system fields declares its fields at the root.
+        extensions.takeIf { system.fields.isNotEmpty() }.orEmpty().forEach { extension ->
             extension.declaration.fields.forEach { (field, declaration) ->
                 if (!isEventBodyTypeEnumEnrichment(field, system, extensionRoot, declaration)) {
                     if (field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {

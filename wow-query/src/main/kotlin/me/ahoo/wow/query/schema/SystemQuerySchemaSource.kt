@@ -22,6 +22,7 @@ object SystemQuerySchemaSource : QuerySchemaSource {
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> =
         Flux.just(declaration(context.model))
 
+    // S0 spike: a custom model (a dataset) has no system fields; S1 replaces this with the dataset profile.
     fun declaration(model: QueryModel): QuerySchemaDeclaration = QueryModelProfile.of(model)?.systemDeclaration
-        ?: throw QuerySchemaValidationException("Unsupported System query model: [$model].")
+        ?: QuerySchemaDeclaration(emptyMap())
 }

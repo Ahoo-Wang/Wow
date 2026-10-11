@@ -55,7 +55,7 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
 // Libraries that build and test like the others but are not published yet. Empty since 9.2.0, which
 // publishes view-store/* (api, domain, starter) with the view engine.
-val incubatingProjects = emptySet<Project>()
+val incubatingProjects = setOf(project(":wow-clickhouse"))
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
@@ -70,6 +70,7 @@ val wowSpiProjects = setOf(
     project(":wow-core"),
     project(":wow-test"),
     project(":wow-query"),
+    project(":wow-clickhouse"),
     project(":wow-mongo"),
     project(":wow-elasticsearch"),
     project(":wow-kafka"),
@@ -107,6 +108,7 @@ val localContractTestProjects = setOf(
 )
 val integrationTestProjects = setOf(
     project(":wow-bi"),
+    project(":wow-clickhouse"),
     project(":wow-mongo"),
     project(":wow-redis"),
     project(":wow-kafka"),
