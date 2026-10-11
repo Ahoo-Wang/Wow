@@ -25,14 +25,14 @@ export default mergeConfig(
           'scripts/**',
         ],
         // Held about half a point below what the suite measured on src alone
-        // on 2026-09-24 (statements 97.53, branches 93.14, functions 99.27,
-        // lines 98.44): a coverage drop fails CI, a behaviour-preserving
+        // on 2026-10-10 (statements 98.62, branches 95.69, functions 100,
+        // lines 99.42): a coverage drop fails CI, a behaviour-preserving
         // refactor does not. Raise them as coverage rises, but never to 100.
         thresholds: {
-          statements: 97,
-          branches: 92.5,
-          functions: 98.5,
-          lines: 98,
+          statements: 98,
+          branches: 95,
+          functions: 99.5,
+          lines: 99,
         },
       },
     },
