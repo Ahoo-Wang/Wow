@@ -22,6 +22,7 @@ import type { DashboardController } from '../../react/index.js';
 import type { EditCommand, EditStep } from '../../runtime/index.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import type { MessageKey } from '../kit/messages.js';
+import { typing } from '../kit/surfaceKeys.js';
 
 /** What a step is, in the words the edit bar says it in, by its command. */
 const PHRASES: Readonly<
@@ -245,16 +246,6 @@ function shortcut(event: KeyboardEvent<HTMLElement>): 'undo' | 'redo' | null {
   if (key === 'z') return event.shiftKey ? 'redo' : 'undo';
   if (key === 'y' && event.ctrlKey && !event.shiftKey) return 'redo';
   return null;
-}
-
-/** Whether a key goes to a field of its own, whose undo it is. */
-function typing(target: Node): boolean {
-  return (
-    target instanceof Element &&
-    target.closest(
-      'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="textbox"], [role="combobox"]',
-    ) !== null
-  );
 }
 
 /** The keys each button answers, said on it (`aria-keyshortcuts`). */

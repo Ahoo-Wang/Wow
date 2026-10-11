@@ -23,7 +23,7 @@ Every view can be saved, shared and set as the one that opens first: [Saving and
 
 - **The view list** on the left groups views as **My views**, **Shared views** and **System views**. **New view** starts one. **Hide the view list** gives the view the whole width, and **Fill the screen** hides everything around it.
 - **The title bar** names the open view and says whether it is saved: **Not saved yet** for a new view, **Edited** after a change, **Only the look changed** when only the display changed. **Save** sits beside the name; **More view actions** holds the rest.
-- **The conditions line** says what is showing now, with a search box at its end when the data can be searched. A search runs when you press Enter.
+- **The conditions line** says what is showing now, with a search box at its end when the data can be searched. A search runs when you press Enter. Press **/** anywhere outside a field to jump to it.
 - **Refresh** reads the data again. Its arrow sets **Auto refresh**, and the result says when it was last updated.
 
 ## When something goes wrong

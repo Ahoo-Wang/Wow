@@ -12,7 +12,7 @@
  */
 
 import { SearchIcon, XIcon } from 'lucide-react';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import type { SearchBoxController } from '../../react/index.js';
 import {
   InputGroup,
@@ -23,6 +23,7 @@ import {
 import { isPlainEnter } from '../filter/enter.js';
 import { IconTooltip } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
+import { SEARCH_KEYS, typing, useSurfaceKey } from '../kit/surfaceKeys.js';
 
 /**
  * The view's search, at the end of the applied band — beside the conditions
@@ -41,12 +42,24 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
   const messages = useViewMessages();
   const hint = useId();
   const { field, value } = search;
+  const box = useRef<HTMLInputElement>(null);
+  // 「/」 puts the keyboard here from anywhere on the surface but a field,
+  // where it is a character (R2-100).
+  useSurfaceKey(box, event => {
+    if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey)
+      return;
+    if (event.defaultPrevented || typing(event.target)) return;
+    event.preventDefault();
+    box.current?.focus();
+  });
   return (
     <InputGroup data-slot="view-search" className="fve:w-56 fve:max-w-full">
       <InputGroupAddon>
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
+        ref={box}
+        aria-keyshortcuts={SEARCH_KEYS}
         // Text with the search role, not `type="search"`: WebKit draws its
         // own ✕ into a search input, beside the one this box carries.
         type="text"
