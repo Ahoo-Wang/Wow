@@ -18,7 +18,7 @@ import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendFactory
 
 @WowSpi
-interface SnapshotQueryBackendFactory : QueryBackendFactory<SnapshotQueryBackend>
+fun interface SnapshotQueryBackendFactory : QueryBackendFactory<SnapshotQueryBackend>
 
 @WowSpi
 abstract class AbstractSnapshotQueryBackendFactory :
