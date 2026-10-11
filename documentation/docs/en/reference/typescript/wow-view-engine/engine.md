@@ -48,6 +48,10 @@ export const engine = new ViewEngine({
 | `newId` | Makes idempotency keys; overridden in tests to keep them readable |
 | `onIssue` | Findings with no caller to reject and nothing thrown behind them: a definition's admission, a list entry that was dropped, a change listener that threw. Failures — a query, a store call, an export, a render — go to `environment.onError` instead. Left out, a development build (`NODE_ENV` of `development`) writes them to the console, grouped by resource, each with how to fix it; any other build drops them |
 
+**Give your fetcher a timeout.** `@ahoo-wang/fetcher` sets none by default, and the engine does not time a query out either: a server that takes the connection and never answers leaves a view opening for ever, and a few such queries hold every slot of the engine's queue (`maxConcurrentQueries`), so the other panels of a board never ask. Set one on the fetcher your sources and store use — `fetcher.timeout = 60_000`, or `new Fetcher({ timeout })` — and a query past it fails as any other does, with its retry. The only wait the engine bounds itself is the first read of a source's descriptor: past ten seconds the view opens on the definition as declared, as it does when the read fails, and the descriptor narrows it when it lands.
+
+**Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is. Where the file never reaches a spreadsheet, turn it off with `limits: { exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
+
 Why two channels, `onIssue` and `onError`: the first is the host's declarations being wrong, fixed in code; the second is a failure met at run time, which the screen has already said in place — this copy is for monitoring.
 
 ```ts
