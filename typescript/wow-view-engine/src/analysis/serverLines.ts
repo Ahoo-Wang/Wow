@@ -13,6 +13,7 @@
 
 import {
   AGGREGATION_LIMITS,
+  AggregationDateUnit,
   RunningFunction,
   SortDirection,
   aggregation,
@@ -23,7 +24,6 @@ import {
 } from '@ahoo-wang/wow-client';
 import type {
   AnalysisViewConfig,
-  DataViewDefinition,
   DerivedSeries,
   RecordData,
 } from '../model/index.js';
@@ -47,6 +47,10 @@ export function serverLineAlias(line: Line, window?: number): string {
       return `${line.metric}__cumulative`;
     case 'cumulative-share':
       return `${line.metric}__share`;
+    case 'previous':
+      return `${line.metric}__previous`;
+    case 'previous-year':
+      return `${line.metric}__previousYear`;
     default:
       return `${line.metric}__moving${window ?? ''}`;
   }
@@ -57,6 +61,8 @@ const NEEDS = {
   cumulative: ['RUNNING'],
   'cumulative-share': ['RUNNING', 'TOTAL'],
   'moving-average': ['RUNNING'],
+  previous: ['PREVIOUS'],
+  'previous-year': ['PREVIOUS'],
 } as const;
 
 /**
@@ -66,14 +72,16 @@ const NEEDS = {
  * it out anyway (a split, a moving average along categories, a running
  * line along categories the result is not sorted by), when its metric is
  * not one a window reads, when its alias is taken, or past Wow's
- * `MAX_WINDOWS`. `windowOf` is the moving average's window (`movingWindow`).
+ * `MAX_WINDOWS`. `offeredWindows` are the functions the source lists
+ * (`AnalysisCapability.windows`); `windowOf` is the moving average's window
+ * (`movingWindow`).
  */
 export function serverLineMetrics(
-  definition: DataViewDefinition,
+  offeredWindows: readonly string[],
   config: AnalysisViewConfig,
   windowOf: (line: DerivedSeries) => number,
 ): AggregationMetric[] {
-  const offered = new Set<string>(definition.analysis?.windows ?? []);
+  const offered = new Set<string>(offeredWindows);
   const spec = config.chart.cartesian;
   if (
     offered.size === 0 ||
@@ -97,7 +105,7 @@ export function serverLineMetrics(
     const alias = serverLineAlias(line, window);
     const order = orderOf(config, line, time);
     const reads =
-      line.kind === 'moving-average'
+      line.kind === 'moving-average' || isPrevious(line.kind)
         ? time && WINDOWED.has(metric?.type ?? '')
         : isAdditiveMetric(metric);
     if (
@@ -117,6 +125,11 @@ export function serverLineMetrics(
   return metrics;
 }
 
+/** Whether a derived kind is an earlier period's value of the metric (D88). */
+export function isPrevious(kind: DerivedSeries['kind']): boolean {
+  return kind === 'previous' || kind === 'previous-year';
+}
+
 /** The metric types a window reads: a number of the group, not a derived one. */
 const WINDOWED = new Set(['COUNT', 'NUMERIC', 'DISTINCT_COUNT', 'PERCENTILE']);
 
@@ -130,6 +143,9 @@ function orderOf(
   time: boolean,
 ): FieldSort | undefined {
   const x = config.chart.cartesian?.x;
+  // A week has no bucket a year earlier: 52 weeks back is no week of the year.
+  if (line.kind === 'previous-year' && timeGroup(config, x)?.unit === 'WEEK')
+    return undefined;
   if (time && x !== undefined)
     return { field: x, direction: SortDirection.ASC };
   const first = config.sort[0];
@@ -153,6 +169,12 @@ function expressionOf(
       return d.running(line.metric, order);
     case 'cumulative-share':
       return d.divide(d.running(line.metric, order), d.total(line.metric));
+    case 'previous':
+      return d.previous(line.metric, order.field);
+    case 'previous-year':
+      return d.previous(line.metric, order.field, {
+        period: AggregationDateUnit.YEAR,
+      });
     default:
       return d.running(line.metric, order, {
         frame: window,

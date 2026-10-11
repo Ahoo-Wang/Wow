@@ -475,6 +475,8 @@ export const analysisMessages = {
   'label.chart.derived.add.moving-average': 'Moving average',
   'label.chart.derived.add.cumulative': 'Running total',
   'label.chart.derived.add.cumulative-share': 'Running share',
+  'label.chart.derived.add.previous': 'Previous period',
+  'label.chart.derived.add.previous-year': 'Same period last year',
   'label.chart.derived.window': 'Periods',
   'label.chart.derived.window.hint': 'Left empty: {count}.',
   'label.chart.derived.metric': 'Computed from',
@@ -482,6 +484,9 @@ export const analysisMessages = {
   'label.chart.derived.moving-average': '{window}-period moving average',
   'label.chart.derived.cumulative': 'Running total',
   'label.chart.derived.cumulative-share': 'Running share',
+  'label.chart.derived.previous': 'Previous period',
+  'label.chart.derived.previous-year': 'Same period last year',
+  'label.chart.derived.change': 'vs {name}: {change}',
   'label.chart.derived.computed': '{name} (computed)',
   'label.chart.derived.of': '{name} · {series}',
   'label.chart.statistic.average': 'Average',
@@ -505,6 +510,8 @@ export const analysisMessages = {
   'label.chart.gap.not-additive':
     'a running total holds only for a metric that adds up (a record count or a sum).',
   'label.chart.gap.too-few': 'there are too few points to compute it.',
+  'label.chart.gap.unsupported':
+    'the data source does not compute earlier periods (or a year back over weeks).',
   'label.chart.gap.shares':
     'the chart draws shares of 100%, and a computed line of shares means nothing.',
   'label.chart.gap.statistic-split':

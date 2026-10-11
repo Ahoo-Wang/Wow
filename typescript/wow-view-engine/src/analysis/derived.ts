@@ -22,7 +22,12 @@ import type { CartesianData } from './cartesian.js';
 import { isPercentStacked } from './chartOptions.js';
 import { timeGroup } from './timeAxis.js';
 import { isAdditiveMetric } from './additive.js';
-import { serverLineAlias, serverLineValues } from './serverLines.js';
+import {
+  isPrevious,
+  serverLineAlias,
+  serverLineMetrics,
+  serverLineValues,
+} from './serverLines.js';
 
 /**
  * Why a derived series cannot be computed over this result (D33 Q53). Wow's
@@ -49,6 +54,8 @@ import { serverLineAlias, serverLineValues } from './serverLines.js';
  * - `not-additive`: a running total of an average is no total of anything.
  * - `too-few`: fewer measured points than the line needs (two for a trend,
  *   the window for a moving average).
+ * - `unsupported`: an earlier period's value (D88) the source does not
+ *   compute — its descriptor lists no `PREVIOUS`, or a year back over weeks.
  */
 export type DerivedGap =
   | 'split'
@@ -59,7 +66,8 @@ export type DerivedGap =
   | 'cut-short'
   | 'holes'
   | 'not-additive'
-  | 'too-few';
+  | 'too-few'
+  | 'unsupported';
 
 /** One computed line, as the drawing takes it: a value per point or none. */
 export interface DerivedLine {
@@ -136,6 +144,8 @@ export function derivedGap(
     if (config.sort[0]?.alias !== derived.metric) return 'not-sorted';
   }
   if (spec && isPercentStacked(spec, data.chart)) return 'shares';
+  // An earlier period is the source's alone: each point is the bucket's own.
+  if (isPrevious(derived.kind)) return server ? undefined : 'unsupported';
   if (!server && config.having !== undefined) return 'narrowed';
   if (!server && cutShort) return 'cut-short';
   const values = data.points.map(point => point.values[derived.metric]);
@@ -196,6 +206,10 @@ export function derivedValues(
     }
     case 'trend':
       return trendLine(values);
+    case 'previous':
+    case 'previous-year':
+      // Outside the rows: only the source knows it (D88, `unsupported`).
+      return values.map(() => null);
   }
 }
 
@@ -216,6 +230,39 @@ function trendLine(values: readonly number[]): number[] {
   });
   const slope = spread === 0 ? 0 : across / spread;
   return values.map((_value, index) => meanY + slope * (index - meanX));
+}
+
+/**
+ * Why `derived` cannot be drawn, judged before the query that would compute
+ * it (the options page's boxes): as `derivedGap`, but a line the source
+ * would compute (`windows`, D87–D88) is judged as computed by it.
+ */
+export function draftGap(
+  config: AnalysisViewConfig,
+  data: CartesianData,
+  derived: Pick<DerivedSeries, 'kind' | 'metric' | 'window'>,
+  cutShort: boolean,
+  windows: readonly string[],
+): DerivedGap | undefined {
+  const spec = config.chart.cartesian;
+  const asked =
+    spec !== undefined &&
+    serverLineMetrics(
+      windows,
+      {
+        ...config,
+        chart: { ...config.chart, cartesian: { ...spec, derived: [derived] } },
+      },
+      line => movingWindow(config, line),
+    ).length > 0;
+  const rows = asked
+    ? new Map<unknown, number | null>(
+        data.points
+          .filter(point => !point.filled?.includes(derived.metric))
+          .map(point => [point.x, null]),
+      )
+    : undefined;
+  return derivedGap(config, data, derived, cutShort, rows);
 }
 
 /**
@@ -282,6 +329,7 @@ function readServerLine(
 ): (number | null)[] {
   let last: number | null = 0;
   return data.points.map((point, index) => {
+    if (isPrevious(kind)) return server.get(point.x) ?? null;
     if (kind === 'moving-average')
       return index + 1 >= window ? (server.get(point.x) ?? null) : null;
     if (server.has(point.x)) last = server.get(point.x) ?? null;
