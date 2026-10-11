@@ -162,7 +162,7 @@ ClickHouse scope.
 Setting `wow.bi.script.enabled=false` removes only route/OpenAPI operation/inspector wiring. It does not stop
 ClickHouse Kafka engines, restore data, or roll back offsets.
 
-See [Business Intelligence](./bi) for the generated contract and [Wow v6 to v8 migration](./migration/v6-to-v8) for
+See [Business Intelligence](./bi) for the generated contract and the [Migration Guide](./migration#shared-completion-gates) for
 cross-version gates.
 
 <!-- Sources: BiOperationPolicy, plan/BiReconciler (durable inventory), BiObjectMetadata/BiAnchorState, layout/BiLayout,

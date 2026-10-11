@@ -63,7 +63,7 @@ describe('QueryErrorCodes', () => {
 describe('WowError.violation', () => {
   it('reads an admission rejection: the logical field path', () => {
     const errorMsg =
-      'Field [state.items.sku] requires its declared element scope.';
+      "Field [state.items.sku] requires its declared element scope: reach it through ELEMENT_MATCH in a filter, or expand it with the aggregation's elements.";
     const error = new WowError(
       {
         errorCode: ErrorCodes.QUERY_SCHEMA_VALIDATION,

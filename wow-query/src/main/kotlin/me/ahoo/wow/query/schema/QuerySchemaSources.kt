@@ -15,10 +15,13 @@ package me.ahoo.wow.query.schema
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.configuration.WowResourceLocator
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_DESCRIPTION
@@ -168,6 +171,85 @@ private fun parseConventionDeclaration(json: String): QuerySchemaDeclaration {
             require(declaration is ObjectNode) { "Query schema field [$field] must be an object." }
             QueryField(field) to declaration.toDeclaration(field)
         },
+    )
+}
+
+/**
+ * Parses a dataset file ([QueryDatasetProperties]) of [namedAggregate]: the profile columns, the opaque storage
+ * binding, and the fields, each of which may also declare its sensitivity.
+ */
+internal fun parseDatasetDocument(namedAggregate: MaterializedNamedAggregate, json: String): QueryDataset {
+    val root = JsonSerializer.readTree(json)
+    require(root is ObjectNode) { "Dataset root must be an object." }
+    val unknown = root.properties().map { it.key }.filterNot(QueryDatasetProperties.ROOT::contains)
+    require(unknown.isEmpty()) { "Unknown dataset properties: $unknown." }
+    val fields = root.get(FIELDS)
+    require(fields is ObjectNode) { "Dataset [$FIELDS] must be an object." }
+    val scope = root.get(QueryDatasetProperties.SCOPE)
+    require(scope is ObjectNode) { "Dataset [${QueryDatasetProperties.SCOPE}] must be an object." }
+    val scopeUnknown = scope.properties().map { it.key }.filterNot(QueryDatasetProperties.SCOPE_PROPERTIES::contains)
+    require(scopeUnknown.isEmpty()) { "Unknown dataset scope properties: $scopeUnknown." }
+    val storage = root.get(QueryDatasetProperties.STORAGE) ?: JsonSerializer.createObjectNode()
+    require(storage is ObjectNode) { "Dataset [${QueryDatasetProperties.STORAGE}] must be an object." }
+    return QueryDataset(
+        namedAggregate = namedAggregate,
+        scope = QueryDatasetScope(
+            tenant = requireNotNull(scope.fieldOf(QueryDatasetProperties.TENANT)) {
+                "Dataset [${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.TENANT}] is required."
+            },
+            owner = scope.fieldOf(QueryDatasetProperties.OWNER),
+            space = scope.fieldOf(QueryDatasetProperties.SPACE),
+        ),
+        declaration = QuerySchemaDeclaration(
+            fields.properties().associate { (field, declaration) ->
+                require(declaration is ObjectNode) { "Dataset field [$field] must be an object." }
+                QueryField(field) to declaration.toDatasetFieldDeclaration(field)
+            },
+        ),
+        identity = root.fieldOf(QueryDatasetProperties.IDENTITY),
+        eventTime = root.fieldOf(QueryDatasetProperties.EVENT_TIME),
+        title = root.get(QueryDatasetProperties.TITLE)?.let {
+            require(it.isString) { "Dataset [${QueryDatasetProperties.TITLE}] must be a string." }
+            it.stringValue()
+        },
+        storage = storage,
+    )
+}
+
+private fun ObjectNode.fieldOf(name: String): QueryField? = get(name)?.let {
+    require(it.isString) { "Dataset [$name] must name a field." }
+    QueryField(it.stringValue())
+}
+
+/** A query schema field declaration plus [QueryDatasetProperties.SENSITIVE], which only a dataset may declare. */
+private fun ObjectNode.toDatasetFieldDeclaration(field: String): QueryFieldDeclaration {
+    val sensitive = get(QueryDatasetProperties.SENSITIVE) ?: return toDeclaration(field)
+    require(sensitive is ObjectNode) { "Dataset field [$field.${QueryDatasetProperties.SENSITIVE}] must be an object." }
+    val unknown = sensitive.properties().map { it.key }.filterNot(QueryDatasetProperties.SENSITIVE_PROPERTIES::contains)
+    require(unknown.isEmpty()) { "Unknown dataset sensitivity properties: $unknown." }
+    val level = sensitive.get(QueryDatasetProperties.LEVEL)?.takeIf(JsonNode::isString)?.stringValue()
+        ?.let { name -> SensitivityLevel.entries.firstOrNull { it.name == name } }
+    require(level != null) {
+        "Dataset field [$field.${QueryDatasetProperties.SENSITIVE}.${QueryDatasetProperties.LEVEL}] must be one of " +
+            "${SensitivityLevel.entries}."
+    }
+    fun keep(name: String): Int = sensitive.get(name)?.let {
+        require(it.isInt && it.intValue() >= 0) {
+            "Dataset field [$field.${QueryDatasetProperties.SENSITIVE}.$name] must be a non-negative integer."
+        }
+        it.intValue()
+    } ?: 0
+    val rest = deepCopy().apply { remove(QueryDatasetProperties.SENSITIVE) }
+    return rest.toDeclaration(field).copy(
+        maskRule = DeclarationValue.Set(
+            MaskRule(
+                level,
+                Mask(
+                    keepPrefix = keep(QueryDatasetProperties.KEEP_PREFIX),
+                    keepSuffix = keep(QueryDatasetProperties.KEEP_SUFFIX)
+                )
+            ),
+        ),
     )
 }
 

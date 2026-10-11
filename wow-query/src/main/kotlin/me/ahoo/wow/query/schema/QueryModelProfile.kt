@@ -40,25 +40,32 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 /**
- * Record layout and invariants of one built-in [QueryModel].
+ * Record layout and invariants of one [QueryModel]: the built-in Snapshot and EventStream, and each declared dataset.
  *
- * Every snapshot/event-stream difference that the query runtime depends on lives here, so gateways,
- * validators, maskers and backends ask the profile instead of branching on [QueryModel] themselves.
- * Custom models have no profile; operations that need one of these facts reject them.
+ * Every model difference that the query runtime depends on lives here, so gateways, validators, maskers and backends
+ * ask the profile instead of branching on [QueryModel] themselves. A schema carries its profile
+ * ([QueryModelSchema.profile]); other custom models have none, and operations that need one of these facts reject
+ * them.
  */
 @WowSpi
 sealed class QueryModelProfile(val model: QueryModel) {
-    /** Unique record identity: the target of id filters and the tie-breaker of every cursor. */
-    abstract val identityField: QueryField
+    /**
+     * Unique record identity: the target of id filters and the tie-breaker of every cursor; `null` when the model
+     * declares none, which rejects both.
+     */
+    abstract val identityField: QueryField?
 
-    /** Logical field that holds the user payload; masked fields must live below it. */
-    abstract val payloadField: QueryField
+    /**
+     * Logical field that holds the user payload; masked fields and schema extensions must live below it. `null` when
+     * the whole record is payload, as in a dataset.
+     */
+    abstract val payloadField: QueryField?
 
     /** Field that names the payload type of each record, or `null` when the payload is monomorphic. */
     open val payloadTypeField: QueryField? = null
 
-    /** When the record last changed: the default `orderBy` of FIRST and LAST metrics. */
-    abstract val eventTimeField: QueryField
+    /** When the record last changed: the default `orderBy` of FIRST and LAST metrics; `null` when there is none. */
+    abstract val eventTimeField: QueryField?
 
     /** When the record's aggregate got its first event, or `null` when a record does not say. */
     open val firstEventTimeField: QueryField? = null
@@ -69,14 +76,20 @@ sealed class QueryModelProfile(val model: QueryModel) {
      * the isolation boundary of every built-in model.
      */
     val requiredScope: QueryField
-        get() = systemField(SystemField.TENANT_ID)
+        get() = checkNotNull(systemField(SystemField.TENANT_ID)) { "Query model [$model] declares no tenant." }
 
     /**
      * The logical field a system-field filter (ID, TENANT_ID, DELETION, ...) targets: [identityField] for the record
-     * identity, the shared record metadata otherwise.
+     * identity, the shared record metadata otherwise; `null` when the model does not carry [field].
      */
-    fun systemField(field: SystemField): QueryField = when (field) {
+    open fun systemField(field: SystemField): QueryField? = when (field) {
         SystemField.IDENTITY -> identityField
+        else -> metadataField(field)
+    }
+
+    /** The system fields of a built-in model, which carries every one of them. */
+    protected fun builtInSystemField(field: SystemField, identity: QueryField): QueryField = when (field) {
+        SystemField.IDENTITY -> identity
         else -> metadataField(field)
     }
 
@@ -131,6 +144,8 @@ data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
     override val payloadField: QueryField = QueryField(StateAggregateRecords.STATE)
     override val eventTimeField: QueryField = QueryField(StateAggregateRecords.EVENT_TIME)
     override val firstEventTimeField: QueryField = QueryField(StateAggregateRecords.FIRST_EVENT_TIME)
+
+    override fun systemField(field: SystemField): QueryField = builtInSystemField(field, identityField)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
@@ -184,6 +199,8 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
     override val payloadTypeField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
     override val variantElement: QueryField = QueryField(MessageRecords.BODY)
     override val eventTimeField: QueryField = QueryField(MessageRecords.CREATE_TIME)
+
+    override fun systemField(field: SystemField): QueryField = builtInSystemField(field, identityField)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
@@ -246,11 +263,6 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
     }
 }
 
-/** The profile of this schema's model, or `null` for a custom model. */
-@WowSpi
-val QueryModelSchema.profile: QueryModelProfile?
-    get() = QueryModelProfile.of(model)
-
 /**
  * The ordering field of a FIRST / LAST [metric]: its own `orderBy`, or the model's event time when the metric sits at
  * the record level ([scope] is `null`). Inside an element, and on a custom model, `orderBy` must be named.
@@ -260,11 +272,16 @@ fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: Que
         ?: throw QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)).rejection()
 
 /**
- * The logical field a system-field filter targets on this schema's model ([QueryModelProfile.systemField]). A custom
- * model shares the record metadata fields but defines no identity, so an identity filter on it is rejected.
+ * The logical field a system-field filter targets on this schema's model ([QueryModelProfile.systemField]). A model
+ * without an identity rejects an identity filter; a profile that does not carry another system field rejects its
+ * filter as naming an unknown field. A custom model without a profile shares the record metadata fields.
  */
-fun QueryModelSchema.systemField(field: SystemField): QueryField = profile?.systemField(field)
-    ?: if (field == SystemField.IDENTITY) requireIdentityField() else QueryModelProfile.metadataField(field)
+fun QueryModelSchema.systemField(field: SystemField): QueryField {
+    if (field == SystemField.IDENTITY) return requireIdentityField()
+    val profile = profile ?: return QueryModelProfile.metadataField(field)
+    return profile.systemField(field)
+        ?: throw QueryViolation.UnknownField(QueryModelProfile.metadataField(field)).rejection()
+}
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */
 fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField

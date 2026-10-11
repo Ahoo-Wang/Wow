@@ -19,16 +19,21 @@ A green local build can close the source gate. It does not close the other four.
 
 ## Choose a Migration Path
 
+<!-- One row per "Upgrading from x.y" section below: add it with the section. -->
 | Current system | Primary path | Why |
 |---|---|---|
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
-| Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
+| Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Retired from this site: follow the guide kept at the v8.16.3 tag to v8.16, then [Upgrading from 8.16 to 9.0.0](#upgrading-from-8-16-to-9-0-0) |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow 9.7.x | [Upgrading from 9.7 to 9.8.0](#upgrading-from-9-7-to-9-8-0) | Recompile: classes move out of `wow-core`'s `messaging` package into their domain packages, `infra.batch` becomes `me.ahoo.wow.batch`, and the metric decorators move to `me.ahoo.wow.metrics.decorator`; integrations that build `QuerySchemaCatalog` or subclass `QueryGatewayRegistrar` themselves need changes |
+| Wow 9.6.x | [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0) | Only code that uses `wow-webflux` internals or the removed deprecated helpers needs changes; routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes share one cluster |
 | Wow 9.5.x | [Upgrading from 9.5 to 9.6.0](#upgrading-from-9-5-to-9-6-0) | `wow-openapi` route contracts become pure data: the OpenAPI document is unchanged; recompile, and update custom `RouteContributor`s and callers of `mergeOpenAPIFromCatalog` |
 | Wow 9.4.x | [Upgrading from 9.4 to 9.5.0](#upgrading-from-9-4-to-9-5-0) | `wow-schema` is refactored: generated schemas are unchanged; recompile, move `OpenAPISchemaBuilder` imports to `me.ahoo.wow.openapi.schema` (in `wow-openapi`), drop the removed `SchemaGeneratorBuilder` members, and replace any use of the now-internal schema providers and checks |
 | Wow 9.3.x | [Upgrading from 9.3 to 9.4.0](#upgrading-from-9-3-to-9-4-0) | Only `wow-bi` changes: rebuild each BI deployment once with a confirmed `RESET`, and move Kotlin callers of the removed `wow-bi` API to `BiScriptService` or `generate(prepare(…))`; REST, storage and wire formats of everything else are unchanged |
 | Wow 9.2.x | [Upgrading from 9.2 to 9.3.0](#upgrading-from-9-2-to-9-3-0) | Recompile, migrate the removed and deprecated APIs, and roll out processing nodes before gateway-only services; REST, storage and wire formats are unchanged |
-| Wow v8.16.x using old query APIs or `SnapshotRepository` | [V9 Query Migration](./query/v9-query-migration.md) | Migrate Gateway/Backend, filters, masking, SnapshotStore, and Spring bean names |
+| Wow 9.1.x | [Upgrading from 9.1 to 9.2.0](#upgrading-from-9-1-to-9-2-0) | The query engine is rebuilt behind the same gateway and REST contracts: custom query backends and gateways, renamed beans and 9.1 declaration files change; four approved server-behaviour exceptions need steps before the upgrade |
+| Wow 9.0.x | [Upgrading from 9.0 to 9.1.0](#upgrading-from-9-0-to-9-1-0) | Additive aggregation features: recompile callers of the aggregation constructors |
+| Wow v8.16.x | [Upgrading from 8.16 to 9.0.0](#upgrading-from-8-16-to-9-0-0), then each 9.x section in order | The complete V8 → V9 path: queries move to `QueryGateway` and `QueryBackend` ([V9 Query Migration](./query/v9-query-migration.md)) and the v8 storage aliases are removed |
 | TypeScript client on `fetcher-wow`, `fetcher-generator`, or the Wow hooks of `fetcher-react` | [Migrate from Fetcher Packages](./typescript/migration.md) | Switch to `wow-client`, `wow-generator`, and `wow-react`, then regenerate generated clients |
 
 Do not combine first adoption and a v6→v8 upgrade into one undifferentiated release. Select a bounded context and an
@@ -39,7 +44,6 @@ exact source/target version for each change window.
 | Page | Owns | Does not own |
 |---|---|---|
 | Traditional architecture | Domain boundary, historical import, shadow catch-up, read/write cutover | Wow version/platform upgrade assumptions |
-| v6→v8 | Pinned Gradle/platform matrix, source breaks, storage formats, data cutover | Redesigning every domain |
 | Runtime orchestration | `RuntimeComponent`, message receiver admission, Spring lifecycle ownership, shutdown | Event/snapshot format conversion unless another section requires it |
 | V9 query migration | Query Gateway/Backend, filter/masking, SnapshotStore naming, and the Condition migration window | Deployment or production cutover proof |
 | Runtime lifecycle | Stable post-migration semantics | The migration procedure itself |
@@ -390,6 +394,78 @@ Kafka-received messages are now read-only, as Redis and in-memory ones already w
 
 `wow-compiler` (the KSP processor) depends on a new `wow-metadata` module instead of `wow-core`. The metadata model (`me.ahoo.wow.configuration.*`, `me.ahoo.wow.naming.*`) moved there with unchanged packages, `wow-core` depends on it, and `wow-bom` aligns its version, so code that depends on `wow-core` sees the same classes. A build that reached `wow-core` only through `wow-compiler` declares it itself. Generated `@Generated` annotations no longer carry a date, so repeated builds produce byte-identical sources.
 
+## Upgrading from 9.1 to 9.2.0
+
+9.2.0 rebuilds the query engine behind the same `QueryGateway` and REST contracts, adds the query capability descriptor, and ships the TypeScript packages with Wow. REST, storage and wire formats of existing aggregates are unchanged except for the four approved exceptions under [Server Behaviour](#server-behaviour-9-2), so 9.1.x and 9.2.x nodes can share a cluster during a rolling upgrade, with the differences each exception lists; keep that window short. TypeScript applications move from the fetcher packages through [Migrate from Fetcher Packages](./typescript/migration.md).
+
+### Before You Upgrade {#before-9-2}
+
+1. Declare `spaced = true` (since 9.3.0, `@Spaced`) on every aggregate whose data the space header was meant to keep apart, and set the space explicitly in sagas that create a spaced aggregate from a non-spaced one's event.
+2. Elasticsearch: grant `view_index_metadata` and `create_index` on the indices Wow ships definitions for (the view store and the compensation `execution_failed` snapshot) and, with `auto-init-template=true` (the default), the cluster privilege `manage_index_templates`; reindex an index that maps a decimal value as an integer ([reindex](./extensions/elasticsearch.md#reindex-existing-index)).
+3. Convert 9.1 query-schema declaration files to the 9.2 format ([Moving a 9.1 declaration file](./query/query-model-schema.md#declaration-91)).
+4. Override renamed Spring beans by their new names (see the table below).
+5. Clients that parse the `/schema` body move to the capability descriptor; clients that match query error messages match the error code instead.
+
+### Kotlin and SPI Changes {#kotlin-9-2}
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| A `QueryBackend` receives an `AdmittedQuery` and implements four primitives (`stream`, `page`, `count`, `aggregate`) plus a cursor-position codec; storages register through `QueryBackendProvider` (replacing `SnapshotQueryBackendFactoryBinding` and `EventStreamQueryBackendFactoryBinding`), and `QueryStorageAdapter` replaces `QuerySchemaBackendAdapter` | Custom storages, and code that subclasses a built-in backend or passes a custom filter compiler | Implement the four primitives and register a `QueryBackendProvider` under your storage name; see [Query Backend](./query/query-backend.md) |
+| `QueryCapability` is an enum; `AggregationExpression` is sealed; `AggregationGroup.field` is nullable; `QueryRequestScope.resolve` returns a `QueryScope`; `QueryContext` has two new required parameters; `HttpQueryGuard` takes three constructor parameters and no budget (bounded operations go through `guard.of(gateway)`); the `copy(...)` of `BindingError`, `Terms` and `Histogram` changed its JVM signature | Code that constructs or extends these types | Recompile; replace `QueryCapability(...)` with the enum constant |
+| A custom `QueryGateway` compiled against 9.1 gets `QueryEntryPolicy.DEFAULT` instead of the configured `wow.query.*` budget, and its `describe` (behind `GET …/schema`) fails with 503 `QuerySchemaUnavailable` | Custom gateways | Recompile, pass the configured policy and implement `describe`, or extend `AbstractQueryGateway` |
+| Types marked `@InternalWowApi` appear in public signatures: `QueryModelProfile.systemField`, and the TCK's `SnapshotQueryBackendSpec` and `FilterSemantics` (now in `wow-tck`, `me.ahoo.wow.tck.query`) | Third-party backends and TCK users | Add `@OptIn(InternalWowApi::class)` or the compiler flag |
+| Spring beans renamed: `noOp*QueryBackendFactory` → `unavailable*QueryBackendFactory`; `jsonQuerySchemaSource` → `inferredQuerySchemaSource`; `mongo*QueryBackendFactoryBinding` / `elasticsearch*QueryBackendFactoryBinding` → `mongo*QueryBackendProvider` / `elasticsearch*QueryBackendProvider`; `querySchemaCatalog` moved to `QueryAutoConfiguration` | A host that overrides one of them by bean name: the override is silently ignored | Override the new name |
+| Query-schema declarations are read only at `META-INF/wow/query-schema/{ctx}.{agg}.{model}.json` or `config/wow/query-schema/…`, in the 9.2 format. A file at the 9.1 location `wow-query-schema/{ctx}/{agg}/{model}.json` is skipped with a warning and the model uses its inferred schema (`wow.query.schema.legacy-declarations=fail` fails it instead); a 9.1-format file at the new path fails that model's schema | Applications with declaration files | Convert the file ([Moving a 9.1 declaration file](./query/query-model-schema.md#declaration-91)); during a rolling upgrade keep the 9.1 file at the old path and give each 9.2 node its 9.2 file in `config/wow/query-schema/` |
+| New startup checks: two routes of the same method whose templates differ only in variable names fail at startup, naming both (one was already unreachable), and a contained route is tried before its container; `wow.query.require-authenticated-scope=true` requires `wow.webflux.state.point-read-admission=true` | Services with such routes or settings | Remove the unreachable route; set both properties |
+| Query error messages name what is wrong in the framework's words (`limit must be between 1 and 10000.`); status and error codes are unchanged | Clients that match on the message | Match on the error code |
+| Removed or internal helpers: `FilterNormalizer.normalize(...)` (admit through `QueryAdmission.Trusted`), `ICursorQuery.withUniqueSort`, `selectTopRows`, `HttpQueryGuard.of(QueryBudget)`, `FilterExpression.walkFilterNodes()` / `filterNodeCount()`, `FieldArity`, the residual operators (`DenseFill`, `BoundedTopRows`, `matchesHaving`, …), `ResolvedField.definition` / `value` / `bindings`, `AdmittedQuery.schema`, `requireScalarMetricFilterFields`, `EventStore.appendResolvingOutcome`, `QueryModelSchemaMetadata`, `QueryValueSchemaMetadata` and `toMetadata()` | Code that called them | Use the gateway or `QueryAdmission`; there is no public replacement for the internal operators |
+
+Deprecated and still honoured until v10 (see `docs/compat-debt.md`): the 9.1 masking annotations (`@Mask`, `@KeepMask`, `@Masking`) and the old `QueryTemporal`, read as `@Sensitive` and the new `@QueryTemporal`; the `wow.webflux.query.max-*` keys, read with a warning where their `wow.query.http.*` key is unset; the 9.1 compensation console links, which redirect.
+
+### Server Behaviour {#server-behaviour-9-2}
+
+Each entry is an approved exception to the v9 freeze or a deployment step a 9.2 node needs.
+
+| Change | Before upgrading | Mixed 9.1/9.2 cluster |
+|---|---|---|
+| An aggregate that is not spaced never takes a space from a request, a command builder or a saga: its commands carry the default space `""` and its queries get no space filter from `Wow-Space-Id` (or `CoSec-Space-Id`). A space no longer passes through a non-spaced aggregate into a spaced one created by a saga ([details](./data-access.md#upgrading-from-9-1)) | Step 1 above | A 9.1 node stamps and filters by the header's space, a 9.2 node does not, so the same query can return different rows; upgrade gateways, aggregate and query nodes together. After a rollback, records 9.2 wrote in space `""` are rejected or hidden for clients that send a space header |
+| `GET …/snapshot/schema` and `GET …/event/schema` return the capability descriptor (`QueryModelDescriptor`) instead of the 9.1 schema metadata; `POST …/schema/refresh` stays as a deprecated alias until 10.0.0 | Step 5 above | The route answers in either shape depending on the node; the 9.2 view engine falls back to the host's declared definition |
+| Cursor tokens carry a version and a fingerprint of the aggregate, read model and sort; a token from 9.1, or for another model or sort, is rejected with `Invalid cursor.` (400) | Nothing: clients restart a cursor once | Tokens of one version are rejected by the other |
+| Elasticsearch: index definitions under `META-INF/wow/elasticsearch/` are created at startup (which needs the privileges of step 2); a decimal on an integral field offers presence filters only (400 `QuerySchemaValidation` for filters and sorts); `exists`, `isNull`, `notExists` and `isEmpty` also read `_ignored` | Step 2 above | A 9.1 node still filters and sorts such decimals and answers presence without `_ignored` |
+
+### Other Behaviour Changes {#behaviour-9-2}
+
+Visible but not breaking; nothing to migrate unless an entry says so:
+
+- **Elasticsearch.** A query of an index that does not exist yet answers empty instead of 503 (simulating the schema from the templates needs `manage_index_templates`); an index whose mapping drifted from its definition logs one warning naming the paths; new indices map dynamic `state` strings with a `.keyword` capped at 8191 and floating-point values as `double` — with `auto-init-template=true` on both versions the node that starts last decides the templates, so set it to `false` on 9.1 nodes for the upgrade or restart one 9.2 node afterwards; keywords with `ignore_above` 8191 or more become queryable; a page beyond `index.max_result_window` is refused with 400 at admission; distinct counts are exact up to 40000 per bucket.
+- **Query errors and admission.** Server faults answer 500 `InternalServerError` instead of 400, without the driver text; a sort of more than 32 fields or naming one field twice is refused; with `wow.query.http.allow-expensive-operators=false` HTTP also refuses `DATE_PART` groups, dense fill and `FIRST`/`LAST`; on MongoDB, a bad date operand is a 400 instead of a 5xx.
+- **Operations.** The example, compensation and view store images show health details only when authorized; a 5xx response is logged at `ERROR` with its stack trace and a client's 4xx on one line.
+- **View store.** If you deploy the view store (new in 9.2), restrict `…/tenant/(platform)/owner/(system)/**` to administrators at the gateway before you deploy; the server has no setting for who may write system views.
+
+## Upgrading from 9.0 to 9.1.0
+
+9.1.0 adds aggregation features — `DISTINCT_COUNT`, `STDDEV`, `VARIANCE`, `PERCENTILE`, per-metric filters, derived metrics, `HAVING`, dense date histograms and `TERMS.missingKey` — on MongoDB and Elasticsearch. Existing aggregation JSON is unchanged.
+
+- Recompile Kotlin and Java callers of the `AggregationGroup`, `AggregationMetric` and `AggregationQuery` constructors: they gained trailing parameters with defaults, which changes their JVM signatures.
+- Dense date histograms need MongoDB 5.1 or later.
+
+## Upgrading from 8.16 to 9.0.0
+
+9.0.0 replaces `QueryService` with the `QueryGateway` → `QueryBackend` architecture and removes the storage aliases v8 kept. Event and snapshot data layouts are unchanged.
+
+1. Migrate queries, filters, masking and custom backends with [V9 Query Migration](./query/v9-query-migration.md).
+2. Replace the removed storage aliases:
+
+| Removed in 9.0.0 | Use |
+|---|---|
+| `SnapshotRepository`, `NoOpSnapshotRepository`, `InMemorySnapshotRepository`, `ElasticsearchSnapshotRepository`, `TracingSnapshotRepository` | `SnapshotStore` and its implementations (`NoOpSnapshotStore`, …) |
+| The `*SnapshotRepository` Spring bean aliases (`mongoSnapshotRepository`, `inMemorySnapshotRepository`, …) | The `*SnapshotStore` beans |
+| The storage routing beans `<storage>-snapshot-query-service-factory` and `<storage>-event-stream-query-service-factory` | `<storage>-snapshot-query-backend-factory` and `<storage>-event-stream-query-backend-factory` (replaced again in 9.2 by `QueryBackendProvider`) |
+| The deprecated MongoDB index helpers of `AggregateSchemaInitializer` (`createAggregateIdIndex`, `createRequestIdUniqueIndex`, …) | Create the indexes your own collections need yourself |
+| The Elasticsearch `UNLIMITED_SIZE` and `Int.searchSize()` | Nothing: list queries use PIT and `search_after` |
+
+Then continue with each section above, oldest first, up to the target version.
+
 ## Legacy Link Navigation
 
 The former single-page topics now live in the three focused guides. These headings and explicit aliases preserve old
@@ -401,7 +477,7 @@ deep links.
 <span id="dependency-version-update"></span>
 <span id="breaking-changes-check"></span>
 
-See [v6 → v8: General Upgrade Steps](./migration/v6-to-v8.md#general-upgrade-steps).
+See [v6 → v8: General Upgrade Steps](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Migrating from Traditional Architecture
 
@@ -432,7 +508,7 @@ and [Reconcile, Then Move Reads and Writes Separately](./migration/traditional-a
 <span id="message-format-compatibility"></span>
 
 See [Continue Evolving the Domain Model](./migration/traditional-architecture.md#_4-continue-evolving-the-domain-model)
-and [v6 → v8: Breaking Changes Check](./migration/v6-to-v8.md#breaking-changes-check).
+and [v6 → v8: Breaking Changes Check](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Known Issues
 
@@ -445,7 +521,7 @@ See the [Release Notes](https://github.com/Ahoo-Wang/Wow/releases) and
 ### Migration Checklist
 
 Use the [Traditional Architecture Completion Checklist](./migration/traditional-architecture.md#completion-checklist)
-or [v6 → v8 Verification Checklist](./migration/v6-to-v8.md#verification-checklist), then add environment-specific
+or [v6 → v8 Verification Checklist](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md), then add environment-specific
 production admission evidence.
 
 ### Rollback Plan
@@ -461,26 +537,26 @@ See [Runtime Orchestration Migration](./migration/runtime-orchestration.md).
 
 ### Removal of Versioned Snapshot Checkpoints
 
-See [v6 → v8: Versioned Snapshot Checkpoint Removal](./migration/v6-to-v8.md#versioned-snapshot-checkpoint-removal).
+See [v6 → v8: Versioned Snapshot Checkpoint Removal](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Atomic SnapshotStore Saves
 
-See [v6 → v8: Atomic SnapshotStore Saves](./migration/v6-to-v8.md#atomic-snapshotstore-saves).
+See [v6 → v8: Atomic SnapshotStore Saves](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Redis EventStore Canonical v2 Layout (introduced in v8.9.0)
 
-See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-layout-introduced-in-v8-9-0).
+See [v6 → v8: Redis EventStore Canonical v2 Layout](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ### Mongo Ownership Guard
 
-See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).
+See [v6 → v8: Mongo Ownership Guard](https://github.com/Ahoo-Wang/Wow/blob/v8.16.3/documentation/docs/en/guide/migration/v6-to-v8.md).
 
 ## Related Pages
 
 | Page | Relationship |
 |---|---|
 | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | First adoption and traffic ownership |
-| [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Existing Wow platform/storage upgrade |
+| [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Where the v6 → v8 guide is kept (the v8.16.3 tag) |
 | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Unified lifecycle source migration |
 | [V9 Query Migration](./query/v9-query-migration.md) | V8.16.x to V9 query and SnapshotStore source migration |
 | [Migrate from Fetcher Packages](./typescript/migration.md) | TypeScript package renames and client regeneration |

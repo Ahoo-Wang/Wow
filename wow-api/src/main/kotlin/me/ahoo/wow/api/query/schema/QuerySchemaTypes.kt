@@ -35,6 +35,9 @@ data class QueryModel(
         val SNAPSHOT = QueryModel("SNAPSHOT")
         val EVENT_STREAM = QueryModel("EVENT_STREAM")
 
+        /** A declared dataset: a table-like record set named within a bounded context, such as a BI wide table. */
+        val DATASET = QueryModel("DATASET")
+
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         fun from(value: String): QueryModel = QueryModel(value)

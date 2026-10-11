@@ -61,7 +61,7 @@ export interface DomainEvent<BODY>
 }
 ```
 
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
+[typescript/wow-client/src/model/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/domainEventStream.ts)
 
 ### DomainEventStreamHeader {#api-DomainEventStreamHeader}
 
@@ -78,7 +78,7 @@ export interface DomainEventStreamHeader {
 }
 ```
 
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
+[typescript/wow-client/src/model/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/domainEventStream.ts)
 
 ### DomainEventStream {#api-DomainEventStream}
 
@@ -98,7 +98,7 @@ export interface DomainEventStream<DomainEventBody = unknown>
 }
 ```
 
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
+[typescript/wow-client/src/model/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/domainEventStream.ts)
 
 ### StateEvent {#api-StateEvent}
 
@@ -112,7 +112,7 @@ export interface StateEvent<DomainEventBody = unknown, S = unknown>
     DeletedCapable {}
 ```
 
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
+[typescript/wow-client/src/model/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/domainEventStream.ts)
 
 ### DomainEventStreamMetadataFields {#api-DomainEventStreamMetadataFields}
 
@@ -137,7 +137,7 @@ export const DomainEventStreamMetadataFields = Object.freeze({
 } as const);
 ```
 
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
+[typescript/wow-client/src/model/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/domainEventStream.ts)
 
 ### EventStreamQueryApi {#api-EventStreamQueryApi}
 

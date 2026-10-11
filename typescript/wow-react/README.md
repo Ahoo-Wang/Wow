@@ -135,6 +135,12 @@ Fetcher sends the request. The snapshot routes of an aggregate are
 `{aggregate}/snapshot/count`, behind the context alias and the owner or tenant
 path when the aggregate has them.
 
+A request is identified by `url` and the Fetcher: a named Fetcher by its name,
+an unnamed one by its `baseURL`. Two unnamed Fetchers with the same `baseURL`
+count as one endpoint even when their interceptors differ (for example one per
+tenant), so switching between them does not run the query again. Give each a
+name, or pass the name of a registered Fetcher, to tell them apart.
+
 ## Streaming a list
 
 `useListStreamQuery` and `useFetcherListStreamQuery` read a list as
@@ -202,7 +208,9 @@ result and the error.
 A failed request and `abort()` keep the last `result`, so a failed refresh does
 not blank the screen; `reset()` aborts the request in flight and clears
 `result` and `error`. A hook that runs on mount renders its first frame, on the
-server too, as `loading`.
+server too, as `loading`, and sends no request during server rendering. There
+is no `initialResult` option: server-rendered HTML holds the loading state, and
+the query runs once the page hydrates.
 
 Every hook returns `status`, `loading`, `result` (`items` and `done` for a
 stream), `error`, `execute`, `abort`, `reset`, `getQuery` and `setQuery`. The

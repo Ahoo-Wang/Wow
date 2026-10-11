@@ -1,6 +1,6 @@
 # Storage batching comparison
 
-Self-contained, bounded experiments for the batching refactor. This directory contains scripts and fixture source only; write JARs, CSVs, JFRs and generated classes outside the repository. See the [current review](../../../documentation/designs/storage-batching-review.md) for results and remaining acceptance gaps.
+Self-contained, bounded experiments for the batching refactor. This directory contains scripts and fixture source only; write JARs, CSVs, JFRs and generated classes outside the repository. See [§10 of the design record](../../../documentation/designs/2026-09-09-storage-batching-redesign.md#10-交付与验收状态) for results and remaining acceptance gaps.
 
 ## Prerequisites and commands
 

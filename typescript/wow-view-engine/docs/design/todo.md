@@ -23,7 +23,11 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 - **Firefox／WebKit 的视觉回归基线与 PR 任务**（D73）：首发前已在本机走查过一次（2026-09-30，没有视觉回归，查出的缺陷已修）。首发后两种引擎各立一套截图基线，PR 上加 Firefox／WebKit 的交互测试任务。判据：两种引擎各有一套基线、PR 上各有一个任务，差异修掉或记下原因。落点：Storybook 的截图脚本、`.github/workflows/typescript-storybook.yml`。
 - **E：看板布局不用手算坐标**：面板位置是手写的 `x/y/w/h`，插一个面板要重算后面的 `y`。加按行排布的辅助，或 `y` 省略时自动接在上一行后。判据：控制台的三块板改用它后布局不变。落点：`src/dashboard/layout.ts`。
 - **与上一期整段、去年同期对比（Q59）与注释**：要第二条查询与运行时路径；注释要随视图存下（视图存储已有，要在配置里加成员）。D71 里「对比上一期一步生成两个指标」一并在此。落点：`src/analysis/`、运行时（第二条查询）、[ui/analysis.md](ui/analysis.md)。
-- **Storybook 审查（2026-09-26）的 P2**：P0、P1 已全部处置。落点：`typescript/storybook/docs/review-2026-09-26.md`。
+- **Storybook 审查（2026-09-26，`ea8af0323`）的 P2**：P0、P1 已全部处置；P2 定为首发后再做，其中一部分可能已随第二轮审查（R2-xx）修掉。判据：在当前 Storybook 上逐条复核，已修的删掉，仍在的修掉或在本条写明不做的理由。落点：Storybook 的零售场景与能力页、`src/ui/charts/`、`src/ui/dashboard/`、`src/ui/workbench/`。
+  - 图能否回答它的问题：雷达图三根轴都是规模量，应改用比率；平行坐标图辨认不出各省；K 线图数据是随机量、涨跌配色与国内惯例相反；日历热力图被双 11 压扁、有空年份；漏斗 A-09 的口径是全部时间、提示框的量名写成「数值」；购买次数分布应按次数排序；城市等级的行序应按等级排；EMS 那一格离群；大促目标带横贯所有日子；销售复盘口径混在一起，9 月是半月却读起来像下跌。
+  - 业务可信度：头号会员一年 357 单；「（空）」应写成「非活动期」；新客／老客的措辞；筛选片「是 是」读起来生硬；「此处改为表格」像待办；目标进度条没标出目标值；gauge 的目标不现实。
+  - UI：列表标题、河流图首个 x 标签、商品名被截；时段轴标签太挤；空指标卡只剩大片空白（另见 R2-101）；无权限用红色报错样式、也没说找谁开权限；焦点环的负偏移压住卡片首行；131 个 dev 故事用英文自动名。
+  - 可达性：板上的图点没有键盘路径；宿主外壳没有「跳到主内容」；首页的交叉筛选提示片按 Enter 没反应。
 - **搜索在真服务端上命中**：示例服务端的快照在 MongoDB 上，没有全文能力，端到端只验证了 `SEARCH` 被拒且如实报出。判据：契约作业有了 Elasticsearch 快照后，搜索用例改为断言命中。落点：Wow 仓端到端的 `view-engine/recordView` 用例（`typescript/integration-test/`）。
 - **视图列表被截断时说出来**（用户 2026-10-01：首发后；R2-26 余项）：Wow 的视图存储每个受众最多列 1000 个视图（`LIST_LIMIT`，不排序），多出的静默丢掉。#3829 已让地址里不在列表中的 id 先 `store.get` 再判定；列表上的提示没做，因为 `ViewStore` 端口没有办法说「截断了」，要给端口加成员（只能是可选成员，[extension.md「宿主实现的接口怎样长」](extension.md#宿主实现的接口怎样长)）。判据：截断时工作台的视图列表与「管理视图」写明「只显示了前 N 个」（或报一条 issue），conformance 套件有截断的用例；未截断时行为不变。落点：`ViewStore` 端口、`typescript/wow-view-store/src/wowViewStore.ts`、`test/conformance/viewStoreConformance.ts`、`src/ui/workbench/address.ts`。
 - **「指定日期」切换时自动打开日历；看板筛选条吸顶**（R2-41 余项）：#3849 已做「指定日期」预填当前生效日、选一天即关上日历并把焦点交回日期按钮。没做的两点按 #3849 的理由：预填之后看板不再等日期，自动打开不再必要；吸顶是超出本项的布局改动。判据：真人走查（D73）或宿主反馈仍有「多一步」「选完看不到筛选条」时再做；做时切到「指定日期」即打开日历，筛选条滚动时吸顶，在 390 宽与键盘下不遮住面板与焦点。落点：[ui/dashboard.md](ui/dashboard.md)、`src/ui/dashboard/FilterBar.tsx`、`src/ui/filter/inputs/date.tsx`。
@@ -34,7 +38,6 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 - **视觉的 P3**（R2-101，外观问题，不影响读数）：图表卡顶部留白、轴标题方向不一致；无数据或无迷你图的指标卡留大块空白；单数值分析视图偏左；雷达等极坐标图在 390 宽截断轴名；演示应用两种涨跌色约定并存；打印保留了交互控件。判据：逐条修掉，截图基线随之更新。落点：`src/ui/charts/`、`src/ui/dashboard/`、[ui/theme.md](ui/theme.md#打印与强制颜色)、Storybook 演示应用。
 - **测试覆盖的缺口**（R2-103，不是已知错误，是回归的探测缺口）：conformance 未覆盖的端口行为；`src/ui/workbench/address.ts` 的失败分支；控制台 e2e 不触发存储失败与 409；控制台覆盖率阈值低；Playwright 在 CI 上重试 2 次；日期编辑器在 `environment.timeZone` 与浏览器时区不同时的偏移时刻；时区计算散在五处（`src/analysis/drill.ts`、`src/analysis/timeCharts.ts`、`src/ui/charts/periodSpan.ts`、`src/ui/filter/inputs/daterange.tsx` 等）。判据：各缺口有用例；时区计算收成一个带缓存的分区函数；控制台阈值提高、Playwright 重试降到 0 或写明原因。落点：`test/conformance/viewStoreConformance.ts`、上述文件、`compensation/dashboard/` 的 `vitest.config.ts`、`playwright.config.ts`、`e2e/support/viewStoreService.ts`。
 - **面向最终用户（运营）的使用文档**（用户 2026-10-03：不进阶段 7）：阶段 7 只写给宿主研发；在工作台里筛选、保存视图、搭看板、管理共享视图的读者没有一页能读，只有 Storybook。判据：文档站有一组面向使用者的页（记录视图、分析视图、仪表盘、管理视图各一页，中英两版），只讲界面上能做的事、不出现代码；宿主可以从自己的帮助入口链过去；Storybook 不再被当作使用说明引用。落点：文档站 `documentation/docs/{zh,en}/` 下新的一组页面与侧边栏组。
-- **9.3 精简包 README**（用户 2026-10-03：9.2 的 README 已随 npm 包冻结，不在阶段 7 改）：`README.md`／`README.zh-CN.md` 抄着文档站已经讲清的接入、主题、存储与 CSP，两处会走样。判据：9.3 的 README 只留包是什么、安装、入口表与最短的一个例子，其余各节换成文档站对应页的链接；`test/docsReferences.test.ts`、`test/quickstart.test.ts`、`test/themeGuide.test.ts` 与 `documentation/test/typescript-samples.mjs` 跟着改并通过；npm 上旧版本 README 里指向文档站的链接（主题页锚点、`compatibility#version-ranges`）仍然有效。落点：`typescript/wow-view-engine/README*.md`、`typescript/wow-view-store/README*.md`、上述测试。
 
 ### Wow 服务端（Kotlin）
 

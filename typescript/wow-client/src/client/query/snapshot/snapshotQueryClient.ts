@@ -26,7 +26,7 @@ import {
   type PagedList,
   singleQuery,
 } from '../../../dsl/queryable.js';
-import type { MaterializedSnapshot } from './snapshot.js';
+import type { MaterializedSnapshot } from '../../../model/snapshot.js';
 import type { DynamicDocument } from '../../../dsl/documents.js';
 import type { CursorPage, CursorQuery } from '../../../dsl/cursorQuery.js';
 import { QUERY_STREAM_ENDPOINT } from '../../../transport/endpoints.js';
@@ -49,6 +49,9 @@ import { bindMethods } from '../../bindMethods.js';
  *
  * @example
  * ```typescript
+ * import { Fetcher } from '@ahoo-wang/fetcher';
+ * import type { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
+ *
  * // Define the state interface
  * interface CartItem {
  *   productId: string;

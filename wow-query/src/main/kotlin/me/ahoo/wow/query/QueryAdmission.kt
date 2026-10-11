@@ -32,7 +32,6 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
-import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.query.schema.withCanonicalFields
 import reactor.core.publisher.Mono

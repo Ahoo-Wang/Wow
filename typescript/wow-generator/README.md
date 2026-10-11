@@ -23,7 +23,8 @@ second the generator and TypeScript. The generator's peers (`fetcher`,
 packages of the first line; `wow-client` has to be on the generator's minor
 version. Node 22.12 or later is required, and TypeScript 6 or later: CI tests
 6.0 through the latest 7.x. The command
-used to be `fetcher-generator`; that name stays as an alias until v10.
+used to be `fetcher-generator`; that name stays as an alias until v10 and
+prints a deprecation notice to stderr before it runs.
 
 Generated clients are decorator classes, so the project that compiles them
 needs `"experimentalDecorators": true` in its `tsconfig.json`. Released with

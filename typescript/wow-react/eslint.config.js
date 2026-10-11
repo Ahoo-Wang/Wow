@@ -21,10 +21,9 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
-      '**/**.test.ts',
-      '**/**.test.tsx',
       '**/**.stories.tsx',
       '**/node_modules/**',
+      'coverage/**',
     ],
   },
   {
@@ -39,7 +38,7 @@ export default tseslint.config(
       ...reactHooks.configs['recommended-latest'].rules,
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
-      'react-compiler/react-compiler': 'warn',
+      'react-compiler/react-compiler': 'error',
       '@typescript-eslint/consistent-type-imports': [
         'error',
         {

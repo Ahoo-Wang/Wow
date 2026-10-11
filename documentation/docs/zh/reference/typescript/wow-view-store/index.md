@@ -76,6 +76,55 @@ export declare const WowViewStoreErrorCodes: Readonly<{
 | 系统视图 | 配置的只读；存储的（全局，在 `tenant/(platform)/owner/(system)` 下）带 `stored: true`，在那里新建（以复制的方式发布）、保存、改名、删除，从不设为共享或收为个人。它们的 `revision` 是内容散列，store 写入时发它读到的版本。引擎的 `editSystem` 由宿主给，不说即关 |
 | 共享看板 | 被共享仪表盘显示着的视图保持共享：收为个人是 `INVALID`，`boards` 原样带上那几块看板的标题，由视图引擎用自己的话说出来 |
 
+## 请求 {#requests}
+
+端口的每个方法怎样变成发给视图存储服务端的请求。
+
+每条路由都在 `/view-store/tenant/{tenantId}/owner/{ownerId}` 之下，**所有者段就是受众**：个人视图在调用者自己的路径上，共享视图在 `owner/(shared)` 上。
+
+| 端口 | 请求 |
+| --- | --- |
+| `list` | 调用者路径与 `(shared)` 上的快照列表，投影为摘要（`state.config.kind`，不带配置），以及 `GET (shared)/system-views?definitionId=`，一起发出 |
+| `get` | 在最后一次见到该视图的路径上读它的快照；未知 id 依次在调用者路径、`(shared)`、系统视图中查找 |
+| `create` | 在其 `scope` 对应路径上 `POST …/view`（`system`：`tenant/(platform)/owner/(system)`）；id 由服务端生成 |
+| `save`、`rename`、`delete` | 在视图所在路径上 `PUT …/view/{id}/save`、`/rename`、`DELETE …/view/{id}` |
+| `changeAudience('shared')` | 在视图所在路径上 `PUT …/view/{id}/share` |
+| `changeAudience('personal')` | 在调用者自己的路径上 `PUT …/view/{id}/claim` |
+| `getPreferences`、`setPreferences` | 在调用者路径上 `GET`、`PUT …/definitions/{definitionId}/preferences` |
+
+列表按端口约定的顺序应答——系统视图、共享视图、调用者的视图，每种受众按创建先后（服务端按 `firstEventTime` 排序）——每种受众最多读 1,000 个，这是服务端的查询预算：最早的 1,000 个。超出的视图仍能按 id 读到，地址里点名的视图，工作台会先去读，再决定是否放弃。
+
+**写入**把端口的 `requestId` 作为 `Command-Request-Id`、`revision` 作为 `Command-Aggregate-Version`（从未写过的偏好为 `'0'`）发出，并等待快照。应答是按写入后的版本读回的视图。`share` 与 `delete` 发送 `{}`，`claim` 不带请求体。
+
+**重试应答第一次的结果。** 服务端以过期版本或重复请求 id 拒绝的写入，先按请求 id 查一次（`GET …/view/requests/{requestId}`，先查发出写入的路径，再查另一条）：如果第一次已经落下，它的结果就是应答。只有这之后，过期版本才是 `CONFLICT`，带上视图当前的样子——视图已不在时则是 `NOT_FOUND`。服务端查询失败不算应答：在写入所在的路径上，结果未知（`UNAVAILABLE`，可以安全重试）；在另一条路径上——`(shared)` 拒绝没有共享角色的调用者——视为没有重放，拒绝成立。写入已落下、但在读回之前又被别的写入者推进的，按重放路由给出的视图应答；那条路由问不到时，按读到的应答。偏好没有这样的路由：store 对重试应答它自己第一次的应答；第一次的应答丢失时，若存储的内容正是它写的，就应答存储的内容。
+
+**创建在服务端不是幂等的**，因为 id 由服务端生成。store 记住自己发起的创建的请求 id（最近 256 个），重试其中之一时先在其 `scope` 对应路径上问重放路由：第一次已经落下，就以那个视图应答，不再重复 POST。从另一个 store 实例发起的重试——另一个标签页、刷新之后——会生成第二个视图。
+
+**被移动过的视图。** 另一个标签页把 store 记为个人的视图设为共享（或反过来）后，写入会在旧路径上被拒绝；store 会重新查找视图，再把写入发到它现在所在的路径一次。
+
+**系统视图。** 服务端的系统视图（`GET (shared)/system-views`）分为配置的（只读）与存储的（`source: 'stored'`），`WowViewStore` 列出和读取后者时在摘要与实例上带 `stored: true`。存储的系统视图写在 `tenant/(platform)/owner/(system)`（`SYSTEM_TENANT_ID`、`SYSTEM_OWNER_ID`）上，与调用者的租户无关：它们是全局的。`create({ scope: 'system', … })` 发布一个（副本：源视图保留），`save`、`rename`、`delete` 编辑与取消发布；`changeAudience` 以及对配置的或代码中的系统视图的任何写入，在发出之前就是 `FORBIDDEN`。
+
+系统视图的 `revision` 是其内容的哈希，这是引擎判断草稿是否改动所需要的，而写入期望的是聚合版本：store 记住每次读取存储视图时与 revision 一起拿到的 `version` 并发送它；引擎持有一个它没有对应版本的 revision 时，先重新读一次视图——与视图当前不符的 revision 是 `CONFLICT`，带上视图当前的样子，什么也不发。写入的应答按写入后的版本从系统视图路由读回。服务端以重复请求拒绝的重试，可以通过系统路径上的重放路由找到，但那条路由应答的是快照，其内容哈希只有服务端会算：store 以系统视图**当前的样子**应答，这就是被重试的写入的结果，除非中间有别的管理员写过。第一次尝试已经把视图推进（它持有的 revision 不再是视图的）的重试，在被拒为 `CONFLICT` 之前会先问重放路由；被重试的系统视图创建，以系统视图中的那个视图应答，带上标记，revision 为其哈希。
+
+## 错误码映射 {#errors}
+
+每个拒绝都是引擎的 `ViewStoreError`，按 Wow 的错误码判定——只有应答里没有 store 认识的错误码时才看 HTTP 状态：
+
+| 服务端 | 端口 |
+| --- | --- |
+| `CommandExpectVersionConflict`、`EventVersionConflict`、`SourcingVersionConflict`；没有已知错误码时，409 与 412 | `CONFLICT` |
+| `NotFound`（也包括属于别的应用的视图）、`IllegalAccessDeletedAggregate`；没有已知错误码时，404 与 410 | `NOT_FOUND` |
+| `IllegalAccessOwnerAggregate`、`IllegalAccessSpaceAggregate`、`IllegalAccessQueryScope`、`SystemViewReadOnly`、`ViewEventStreamClosed`；没有已知错误码时，401 与 403 | `FORBIDDEN` |
+| `ViewInvalid`、`ViewAppRequired`、`ViewScopeRequired`、`BadRequest`、`CommandValidation`、`IllegalArgument`、`DuplicateAggregateId`、`QuerySchemaValidation`；没有已知错误码时，400 与 422；fetcher 的拦截器没有填上的路径变量（什么也不发） | `INVALID` |
+| `IllegalState`、`RequestTimeout`、`TooManyRequests`、`InternalServerError`、`QuerySchemaUnavailable`、`QuerySchemaConflict`；没有已知错误码时，其他任何状态；完全没有应答 | `UNAVAILABLE` |
+| 完全没有视图存储的服务端（在它之前发布的版本）返回的 `404`：一次列表，或一次每个位置都是 `404`、同时服务端的系统视图也是 `404` 的读取 | `UNSUPPORTED` |
+
+每个 `ViewStoreError` 都保留它的来源：请求的失败作为 `cause`，服务端的 `errorCode` 作为 `detail.code`（所以宿主能区分同为 `INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`）；服务端应答了的 `UNAVAILABLE`——5xx、服务端报告的超时、不是 JSON 的页面——带 `reachable: true`，引擎据此说「服务端暂时无法处理」而不是「无法连接服务端」。
+
+重复请求 id（`DuplicateRequestId`）本身不是错误：store 会去查第一次的尝试（见[请求](#requests)）。没有填上的路径变量是宿主的接线问题——它的拦截器没有填 `{tenantId}`，或个人路径上的 `{ownerId}`——所以是 `INVALID`，与服务端自己的 `ViewScopeRequired` 一样：请求构造得不对，重试只会发出同样的请求。
+
+因为共享仪表盘正在显示而被服务端拒绝的收为个人，错误的 `boards` 原样带上那些看板的**标题**，视图引擎用自己的措辞围绕它们说出拒绝：写成键的标题仍是键，在显示拒绝的地方按语言说出。`message` 保留服务端的原话，供日志使用。
+
 ## 宿主与网关
 
 宿主怎样接上 `WowViewStore`、怎样给出 `permissions`、不登录的页面怎样用它，见[视图存在哪里](../../../guide/typescript/view-engine-storage.md#wowviewstore-视图存在-wow-服务上)。服务端不做认证，每个部署都放在 CoSec 网关后面；网关的路径规则，包括只让平台管理员写系统视图的那一条，见[视图存储](../../../guide/extensions/view-store.md#安全模型)。

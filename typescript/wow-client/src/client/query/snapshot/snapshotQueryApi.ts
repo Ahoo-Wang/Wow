@@ -12,7 +12,7 @@
  */
 
 import type { QueryApi } from '../queryApi.js';
-import type { MaterializedSnapshot } from './snapshot.js';
+import type { MaterializedSnapshot } from '../../../model/snapshot.js';
 import type {
   ListQueryRequest,
   PagedQueryRequest,

@@ -23,15 +23,30 @@ Use the narrowest module task that covers the change. For example:
 
 ```bash
 ./gradlew :wow-core:test
-./gradlew :wow-core:test --tests "me.ahoo.wow.command.CommandGatewayTest"
+./gradlew :wow-core:test --tests "me.ahoo.wow.command.DefaultCommandGatewayTest"
 ./gradlew :example-domain:test --tests "me.ahoo.wow.example.domain.order.OrderSpec"
 ```
 
-For the compensation dashboard:
+JavaScript projects (the TypeScript packages under `typescript/`, the compensation dashboard and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
 
 ```bash
-cd compensation/dashboard
 pnpm install
+```
+
+For the TypeScript packages, run the workspace scripts from the root; package-specific rules are in [typescript/AGENTS.md](typescript/AGENTS.md):
+
+```bash
+pnpm build:typescript
+pnpm test
+pnpm lint
+pnpm typecheck
+```
+
+The compensation dashboard consumes the workspace packages through their `dist`, so build them first and again after changing them:
+
+```bash
+pnpm --filter wow-compensation-dashboard^... build
+cd compensation/dashboard
 pnpm test
 pnpm lint
 pnpm build
@@ -41,7 +56,6 @@ For the documentation site:
 
 ```bash
 cd documentation
-pnpm install
 pnpm docs:build
 ```
 
@@ -53,6 +67,7 @@ For an end-to-end repository introduction, start with the [contributor onboardin
 - Preserve reactive `Mono` and `Flux` paths; do not introduce blocking calls into core runtime flows.
 - Keep the public JVM ABI of published modules binary compatible within a 9.x line. `./gradlew check` fails when a public signature no longer matches the module's `api/<module>.api`; run `./gradlew updateKotlinAbi` and commit the dump. Only additions are accepted in a patch; see [Binary Compatibility](AGENTS.md#binary-compatibility).
 - Add or update tests for behavior changes and defect fixes.
+- Put documentation where its readers look for it and update it in the same change: user-facing pages in `documentation/docs/{en,zh}/`, module usage in the module README, design records in `documentation/designs/`. Plans, review notes and scratch evidence stay out of the repository; see [Documentation Governance](https://wow.ahoo.me/guide/advanced/documentation-governance.html).
 - Prefer the existing Wow test DSL and FluentAssert conventions in Kotlin tests.
 - Do not edit generated dashboard clients under `compensation/dashboard/src/generated/` when the generator source can be fixed.
 - Keep generated output, credentials, signing keys, tokens, IDE state, `.gradle/`, and `node_modules/` out of commits.

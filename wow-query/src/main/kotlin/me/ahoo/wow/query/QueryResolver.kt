@@ -86,7 +86,6 @@ import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.accepts
 import me.ahoo.wow.query.schema.firstLastOrderBy
 import me.ahoo.wow.query.schema.jsonValue
-import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.systemField
 import me.ahoo.wow.query.schema.temporal

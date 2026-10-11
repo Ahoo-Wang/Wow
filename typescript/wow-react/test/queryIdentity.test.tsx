@@ -12,10 +12,12 @@
  */
 
 /**
- * Characterization of what makes a query hook run again: the controlled
- * `query` compared by content, `attributes`, `url`, `fetcher` and
- * `autoExecute`. It pins the behaviour of today, fetcher-react 5.1.3
- * underneath, for the refactor of `docs/design/refactor-2026-09.md`.
+ * What makes a query hook run again: the controlled `query` compared by
+ * content, `attributes`, `url`, `fetcher` and `autoExecute` — the request
+ * identity of `docs/design/architecture.md` §4. Written as a characterization
+ * of fetcher-react 5.1.3 before the refactor of
+ * `docs/design/refactor-2026-09.md`; it now pins the package's own state
+ * machine.
  *
  * Batch B3 (#3371) made `url` and `fetcher` part of what identifies a request
  * (F7); the cells it changed carry a `B3 changed this` comment naming the

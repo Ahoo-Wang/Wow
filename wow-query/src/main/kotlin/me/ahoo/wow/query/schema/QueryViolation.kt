@@ -84,7 +84,9 @@ sealed interface QueryViolation {
             get() = QueryErrorCodes.ELEMENT_SCOPE_REQUIRED
 
         override val message: String
-            get() = "Field [${this.field}] requires its declared element scope."
+            get() =
+                "Field [${this.field}] requires its declared element scope: reach it through ELEMENT_MATCH in a " +
+                    "filter, or expand it with the aggregation's elements."
     }
 
     /** A filter value falls outside the field's declared domain; [field] is the name as the request wrote it. */

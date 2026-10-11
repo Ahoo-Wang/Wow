@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { DomainEventStream } from './domainEventStream.js';
+import type { DomainEventStream } from '../../../model/domainEventStream.js';
 import type { QueryApi } from '../queryApi.js';
 
 /**

@@ -134,8 +134,9 @@ compensation/               Compensation domain, API, core, server, and React da
 view-store/                 View engine storage backend: API, domain, Spring Boot starter, standalone server
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
 example/                    Kotlin order/cart sample and Java transfer sample
-documentation/              VitePress documentation site
-document/                   Design docs, diagrams, and static assets
+wow-benchmarks/             JMH benchmarks and reproducible performance reports
+documentation/              VitePress documentation site (docs/) and design records (designs/)
+docs/                       Ledgers: compat-debt.md (compatibility kept until v10), todo.md (JVM)
 skills/                     Project-local Codex skills and agent definitions
 ```
 
@@ -214,7 +215,7 @@ GitHub Actions run module-level checks from `.github/workflows/`:
 - `example-java-test.yml` builds the Java transfer example modules.
 - `codecov.yml` publishes coverage. Codecov (`codecov.yml` at the root) reports pull requests from the `local`, `contract` and `integration` flags: changed main code needs 90% patch coverage, and each published Kotlin module (and TypeScript package, from its own flag) is a component whose coverage must not drop by more than 1%; a module's coverage counts every layer, so storage adapters' I/O is covered by their container tests.
 - `documentation-deploy.yml`, `example-deploy.yml`, `compensation-deploy.yml`, and `view-store-deploy.yml` deploy the docs and push the Docker images of the example, compensation and standalone view store servers (DockerHub `ahoowang/`, GHCR `ghcr.io/ahoo-wang/`, Aliyun `registry.cn-shanghai.aliyuncs.com/ahoo/`). Each image workflow runs daily, on a push to `main` or a `v*.*.*` tag that touches its `paths` (the sources its server is built from), and on `workflow_dispatch`; keep those `paths` in step with the server's project dependencies. A release tag moves `latest` only when it is the highest stable `v*` tag (`.github/scripts/docker-latest.mjs`, the rule npm's dist-tag follows), so a patch to an older line keeps `latest` where it is.
-- `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
+- `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, its `docs-layout` job checks the documentation layout on every pull request, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
 - `typescript-contract.yml` runs the TypeScript client, generator and integration tests against an example server built from the same commit (the view engine and view store suites a second time with its events and snapshots on Elasticsearch, `contract-elasticsearch`), and type-checks code generated from the 8.10.8 and 8.11.5 server images; the shared scope script decides which part runs, and `typescript-contract-gate` is its merge signal.
 - `typescript-storybook.yml` runs when the stories, view-engine, wow-client or wow-react change: it type-checks, lints and builds `typescript/storybook` (verifying its index), then runs the story interactions in Chromium in four shards balanced by measured file durations (`typescript/storybook/test-durations.json`); `typescript-storybook-gate` is its merge signal.
 - `pr-labeler.yml` labels pull requests by branch and changed paths (`.github/labeler.yml`), and adds `breaking-change` to a title of the form `type(scope)!: …` or a description with a `BREAKING CHANGE:` line, the template's **Breaking** box ticked, or a `## Breaking` / `## Breaking changes` section that is not "None.", and to a diff that removes or changes a line of an ABI dump, API report or surface list (see Binary Compatibility; `.github/scripts/breaking-label.mjs`); `.github/release.yml` lists breaking changes first in generated release notes.
@@ -242,11 +243,14 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 
 ## Documentation
 
-- Root README: `README.md`
-- Chinese README: `README.zh-CN.md`
-- VitePress docs: `documentation/docs/`
-- Static documentation assets: `documentation/docs/public/`
-- Diagram sources Mermaid cannot express: `documentation/diagrams/`
-- `document/` and tracked `docs/superpowers/` are legacy migration sources; do not add new files there.
+Each kind of document has one home, chosen by its reader; [Documentation Governance](documentation/docs/en/guide/advanced/documentation-governance.md) is the full policy. `pnpm check:docs-layout` checks the tracked files against it; the `docs-layout` job of `typescript.yml` runs it on every pull request.
+
+- User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
+- Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
+- Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
+- Ledgers of decided work: `docs/compat-debt.md`, `docs/todo.md`, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
+- Performance evidence: `wow-benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
+- Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.
+- Do not commit implementation plans, review notes, QA comparisons or scratch evidence; keep them in the pull request or an ignored workspace. Do not add files under `document/` or `docs/superpowers/`.
 - Project-local skills: `skills/`; vendored Claude Code skills (shadcn): `.claude/skills/`

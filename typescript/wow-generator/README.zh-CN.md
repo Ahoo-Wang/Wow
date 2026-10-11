@@ -21,7 +21,7 @@ pnpm exec wow-generator generate \
 `fetcher-decorator`、`fetcher-eventstream`、`wow-client`）就是第一行的运行时包；`wow-client`
 须与生成器的次版本一致。需要 Node 22.12 或更高版本，以及 TypeScript 6 或更高版本：CI 测试
 6.0 到最新的 7.x。命令原名
-`fetcher-generator`，这个名字作为别名保留到 v10。
+`fetcher-generator`，这个名字作为别名保留到 v10，运行前会向 stderr 打印一行弃用提示。
 
 生成的客户端是装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置
 `"experimentalDecorators": true`。随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号。

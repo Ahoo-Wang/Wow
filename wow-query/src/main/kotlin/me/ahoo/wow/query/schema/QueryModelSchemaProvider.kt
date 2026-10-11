@@ -64,6 +64,8 @@ class DefaultQueryModelSchemaProvider(
     private val nanoTime: LongSupplier = LongSupplier(System::nanoTime),
     /** compat(wow<9.2): what a 9.1 declaration file of this model means when no source declares it in 9.2. */
     legacyDeclarationPolicy: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
+    /** The record layout of the model: a built-in model's, or a dataset's own ([QueryDatasets.profile]). */
+    private val profile: QueryModelProfile? = QueryModelProfile.of(context.model),
 ) : QueryModelSchemaProvider {
     private val sources = sources.toList()
     private val legacyDeclarations = LegacyQuerySchemaDeclarations(context, legacyDeclarationPolicy)
@@ -148,11 +150,18 @@ class DefaultQueryModelSchemaProvider(
             .zipWith(legacyFiles()) { loaded, legacy ->
                 // A 9.2 declaration is one any source but inference supplied: classpath, working directory or bean.
                 legacyDeclarations.check(legacy, declared = loaded.any { it.first !is InferredQuerySchemaSource })
-                merger.merge(SystemQuerySchemaSource.declaration(context.model), loaded.map { it.second }, sensitivity)
+                val profile = profile
+                    ?: throw QuerySchemaValidationException("Unsupported System query model: [${context.model}].")
+                merger.merge(
+                    profile.systemDeclaration,
+                    loaded.map { it.second },
+                    sensitivity,
+                    profile.payloadField?.path,
+                )
             }
             .flatMap { logicalSchema ->
                 val facts = if (refresh) adapter.refresh(logicalSchema) else adapter.facts(logicalSchema)
-                facts.map { it.compile(context.model, logicalSchema) }
+                facts.map { it.compile(context.model, logicalSchema, profile) }
             }
 
     /** compat(wow<9.2): the 9.1 declaration files of this model across every source. */

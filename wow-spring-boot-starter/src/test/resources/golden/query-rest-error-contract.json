@@ -361,10 +361,10 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.items.sku] requires its declared element scope.",
+  "errorMsg" : "Field [state.items.sku] requires its declared element scope: reach it through ELEMENT_MATCH in a filter, or expand it with the aggregation's elements.",
   "bindingErrors" : [ {
     "name" : "state.items.sku",
-    "msg" : "Field [state.items.sku] requires its declared element scope.",
+    "msg" : "Field [state.items.sku] requires its declared element scope: reach it through ELEMENT_MATCH in a filter, or expand it with the aggregation's elements.",
     "code" : "ELEMENT_SCOPE_REQUIRED"
   } ]
 }, {

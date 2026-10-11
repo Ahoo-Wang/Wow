@@ -136,7 +136,7 @@ export interface MaterializedSnapshot<S>
     DeletedCapable {}
 ```
 
-[typescript/wow-client/src/client/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshot.ts)
+[typescript/wow-client/src/model/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/snapshot.ts)
 
 ### MediumMaterializedSnapshot {#api-MediumMaterializedSnapshot}
 
@@ -156,7 +156,7 @@ export interface MediumMaterializedSnapshot<S>
     AbacTaggable {}
 ```
 
-[typescript/wow-client/src/client/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshot.ts)
+[typescript/wow-client/src/model/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/snapshot.ts)
 
 ### SmallMaterializedSnapshot {#api-SmallMaterializedSnapshot}
 
@@ -165,7 +165,7 @@ export interface SmallMaterializedSnapshot<S>
   extends StateCapable<S>, Version, FirstEventTimeCapable {}
 ```
 
-[typescript/wow-client/src/client/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshot.ts)
+[typescript/wow-client/src/model/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/snapshot.ts)
 
 ### SnapshotMetadataFields {#api-SnapshotMetadataFields}
 
@@ -187,7 +187,7 @@ export const SnapshotMetadataFields = Object.freeze({
 } as const);
 ```
 
-[typescript/wow-client/src/client/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshot.ts)
+[typescript/wow-client/src/model/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/snapshot.ts)
 
 ### SnapshotQueryApi {#api-SnapshotQueryApi}
 

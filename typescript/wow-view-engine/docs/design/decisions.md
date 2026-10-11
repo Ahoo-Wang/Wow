@@ -581,7 +581,7 @@
 
 ## D51 汇总列在视野外时，合计行写出它（2026-09-26）
 
-- **来由**：2026-09-26 的 Storybook 审查（[review-2026-09-26.md](../../../storybook/docs/review-2026-09-26.md) P1-3）看到首页、订单工作台、售后、运单宽表底下是一条「空的合计行」。查下来：这几个视图都有汇总列，只是那一列在右边、被横向滚动藏住了，看得见的那段只剩「全部／本页」。
+- **来由**：2026-09-26 的 Storybook 审查（`ea8af0323`，P1-3）看到首页、订单工作台、售后、运单宽表底下是一条「空的合计行」。查下来：这几个视图都有汇总列，只是那一列在右边、被横向滚动藏住了，看得见的那段只剩「全部／本页」。
 - **裁定**（用户 2026-09-26：「按你推荐」，协调者给的方案 B）：
   - 没有任何一列带汇总就不画合计行（记录道 PR1）。
   - 有汇总列在横向视野之外时，合计行左端固定的那一格写出它：「合计 · 实付 ¥1,401.49 →」，藏着几列就写第一列加「等 N 项」；这是一个按钮（点击或 Enter），滚到那一列；全部汇总列都看得见时这段不出现。随横向滚动与尺寸变化更新。
@@ -718,7 +718,7 @@
   - **无头**：不依赖 React、DOM 与样式表（`tsconfig.headless.json` 与 `test/architecture.test.ts` 的 `testing` 层：只能以纯类型引用 `runtime/source`，可用 `model`）。筛选交给 `mingo`（MongoDB 查询语言的 JavaScript 实现），构建时外置，只有 `/testing` 导入它。
   - **`mingo` 是可选的对等依赖**（评审 #3725）：`peerDependencies` 取 `catalog:peers` 的范围，`peerDependenciesMeta` 标 `optional`，本包自己的测试与构建经 `devDependencies` 拿到它。列成普通依赖会让每个宿主都装上它，而只有用 `/testing` 的宿主需要；用的宿主自己装（`pnpm add -D mingo`，README「Testing a host」写明）。仓内导入 `/testing` 的 Storybook 与补偿控制台都在开发依赖里声明它。
 - **没选**：私有工作区包（宿主拿不到，控制台之外的宿主还得再写一份）；放进根入口（生产代码从不需要它，还会把 `mingo` 带进每个宿主的包）。
-- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[README.md「Testing a host」](../../README.md#testing-a-host-an-in-memory-source)；`typescript/storybook/stories/view-engine/rowSource.ts`；`compensation/dashboard/e2e/support/executionFailedService.ts`。
+- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[宿主接入指南「用 /testing 测宿主」](https://wow.ahoo.me/zh/guide/typescript/view-engine-host#testing)；`typescript/storybook/stories/view-engine/rowSource.ts`；`compensation/dashboard/e2e/support/executionFailedService.ts`。
 
 ## D66 引擎的工具类带前缀 `fve:`，与宿主不再同名（2026-09-28）
 

@@ -25,7 +25,6 @@ flag_management:
   default_rules:
     carryforward: true
 ignore:
-  - "document/.*"
   - "test/wow-it/.*"
   - "test/wow-tck/.*"
   - "test/wow-test/.*"

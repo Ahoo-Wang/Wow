@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit
  * [BatchCoordinator] (4 lanes, the default size, delay and capacity) whose writer succeeds at once, and waits for
  * all results. The score is items per second, so it measures admission, lane hand-off, windowing and result
  * dispatch. Run with 1 and 4 producer threads: the 4-producer cell is the one the storage-batching acceptance
- * failed, with JFR pointing at the admission lock (`documentation/designs/storage-batching-review.md`).
+ * failed, with JFR pointing at the admission lock (`documentation/designs/2026-09-09-storage-batching-redesign.md` §10).
  *
  * Same cells as `wow-benchmarks/experiments/storage-batching/CoreBoundary.prepared`. Design WP X4.
  */

@@ -27,7 +27,7 @@
 ```
 src/
   index.ts  dsl.ts  legacy/index.ts   入口：只做转出
-  model/        线协议模型：wow-api 的混入（*Capable、TenantId、AggregateId…）与命令结果（CommandStage、CommandResult、WaitSignal）；只有类型和线协议枚举
+  model/        线协议模型：wow-api 的混入（*Capable、TenantId、AggregateId…）、命令结果（CommandStage、CommandResult、WaitSignal）、快照（MaterializedSnapshot）与事件流（DomainEventStream）；只有类型和线协议枚举
   error/        ErrorInfo、ErrorCodes、WowError、toWowError、WowHeaders；不引 fetcher，按形状读 fetcher 的错误
   dsl/          查询 DSL，不含 HTTP 代码
     filter/       operator、types、validate、datePattern（由 JVM 语料把关）、scope、builders（按形状表驱动，公开方法各一行委托）
@@ -97,7 +97,7 @@ graph TD
 | 名字       | `test/surface/{root,dsl,legacy}.txt` | `test/publicSurface.test.ts`；构建后 `scripts/verify-package.mjs` 对 ESM 与 CJS 再核一遍 |
 | 签名       | `test/api/{root,dsl,legacy}.api.md`  | `pnpm test:api`（API Extractor，读构建出的声明；入口的顶层声明缺文档注释也失败）         |
 | DSL 线协议 | `test/golden/dsl-wire.json`          | `test/dslWire.test.ts`：每个构建器（含嵌套命名空间）都要有用例                           |
-| 客户端端点 | `test/golden/client-endpoints.json`  | `test/clients/endpointTable.test.ts`：反射列出每个客户端方法，记下请求、结果与流在哪里停 |
+| 客户端端点 | `test/golden/client-endpoints.json`  | `test/client/endpointTable.test.ts`：反射列出每个客户端方法，记下请求、结果与流在哪里停  |
 
 行为不变的批次四份逐字节不变；API 变化的批次在 PR 里列出差异并有意接受（`-u`）。
 
@@ -111,7 +111,7 @@ graph TD
 
 ## 7. 首发前第二轮审查的决定（2026-09-25）
 
-出自 `typescript/docs/review-2026-09-round2-packages.md`。
+出自 9.2.0 首发前的第二轮审查（2026-09-25，基于 `b17f36a3c`）；其余 P2 记在 [typescript/TODO.md](../../../TODO.md)。
 
 ### 7.1 列表查询不带 `limit`：遵循 9.1.5（P0-1，用户拍板）
 
@@ -126,7 +126,7 @@ graph TD
 - **问题**：`useListQuery({ execute: client.listState })` 类型检查通过，运行时报 `Cannot read properties of undefined (reading 'requestExecutors')`。fetcher-decorator 生成的方法经 `this` 读客户端的元数据，方法离开实例就读不到。
 - **三条路**：让它能用；让它类型检查不过；给一条看得懂的错误。第二条做不到：类的方法不声明 `this` 参数，赋给 `QueryExecutor` 这样的函数类型总是合法的，给每个方法加 `this` 参数又会改动冻结的签名。第三条只能靠匹配运行时的错误文字，各引擎的措辞不同，也仍然让用户多改一次代码。
 - **决定：让它能用。** 六个客户端（`CommandClient`、`SnapshotQueryClient`、`EventStreamQueryClient`、`LoadStateAggregateClient`、`LoadOwnerStateAggregateClient`、`WowMetadataClient`）在构造函数里调用内部的 `client/bindMethods.ts`，把原型链上的每个方法绑定到实例上，作为不可枚举的自有属性。原型不变（端点表、接口比对仍按原型反射），展开与序列化不变，子类的覆盖方法是被绑定的那个，getter 不执行。`QueryClientFactory` 创建的、生成代码用的都是这些类，所以都能直接把方法传出去。
-- **把关**：`test/clients/endpointTable.test.ts` 对每个客户端的每个公开方法，把它脱离实例调用一次，请求与结果必须与正常调用相同。
+- **把关**：`test/client/endpointTable.test.ts` 对每个客户端的每个公开方法，把它脱离实例调用一次，请求与结果必须与正常调用相同。
 
 ### 7.3 查询能力描述的客户端（N5，2026-09-25）
 
@@ -239,7 +239,7 @@ graph LR
 
 - 线协议一致性有两道测试把关：规则登记表，以及对照服务端 OpenAPI 的枚举检查。这是这个包最有价值的资产，重构以它为护栏。
 - 公开面快照（D29）加上构建后的 `scripts/verify-package.mjs`，把住了名字和 `/dsl` 的纯净。
-- `test/clients/*` 用打桩的 fetch 测每个客户端方法，传输层有刻画测试。
+- `test/client/*` 用打桩的 fetch 测每个客户端方法，传输层有刻画测试。
 - `test/jsdocExamples.test.ts` 对 JSDoc 示例做类型检查，文档不会悄悄过时。
 - 错误模型（`WowError` + `toWowError`）集中在一个文件，流与非流两条路径最终汇合。
 
@@ -263,7 +263,7 @@ snapshot 17、event 9、queryApi 8…）。于是：
 
 - 空间聚合的查询要带 `Wow-Space-Id` 请求头（`wow-openapi/.../AggregateRouteScope.parameters`），
   tenant/owner 路由要带路径参数，而这些都只能在建客户端时写进 `ApiMetadata`，多租户应用得每个租户建一个客户端
-  （见 `test/clients/snapshotQueryClient.test.ts:255`）；
+  （见 `test/client/snapshotQueryClient.test.ts:255`）；
 - 不传 attributes 的调用方到处写 `undefined` 占位：`wow-view-engine/src/runtime/execute.ts:115-119`、
   `runtime/fetchRecord.ts:84`、`runtime/valueCandidates.ts:169`。
 
@@ -614,7 +614,7 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   元数据的方法生成实现，参数装饰器在这几个方法上只写元数据、没人读）；未用的 `SNAPSHOT_RESOURCE_NAME`、
   `EVENT_STREAM_RESOURCE_NAME`（内部文件，不在公开面）。`Object.setPrototypeOf` 随 `error/` 在 B6 处理。
 - 测试随源码搬：`test/client/command/`、`test/client/query/`（`factory.test.ts` 合并了原 `queryClients.test.ts` 与
-  `queryClientFactory.test.ts`）、`test/transport/`。`test/clients/`（打桩 fetch 的逐客户端用例与端点表）不动。
+  `queryClientFactory.test.ts`）、`test/transport/`。`test/client/`（打桩 fetch 的逐客户端用例与端点表）不动。
 - 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。F13 没有改变报告
   （`QueryClientOptions` 的形状没动）。
 
@@ -654,7 +654,7 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   只引类型不产生运行时依赖，`error/` 也不引 `model/`，没有环。
 - **`error/` 的文件**：`errorInfo.ts`（原 `types/error.ts`，避免 `error/error.ts`）、`wowError.ts`、`headers.ts`。模块注释写明 F18 的汇合规则。
 - **删除 `Object.setPrototypeOf`**：构建目标 ES2020，原生 `class … extends Error` 自己设好原型链；`instanceof WowError`
-  由 `test/transport/eventStreams.test.ts` 与 `test/clients/fetchStub.ts` 的断言把住。
+  由 `test/transport/eventStreams.test.ts` 与 `test/client/fetchStub.ts` 的断言把住。
 - **`any` → `unknown`**：`DynamicDocument`、`CommandResultCapable.result`、`DomainEventStream`/`StateEvent`（含 `S`）、
   `EventStreamQueryApi`、`EventStreamQueryClient`、`QueryClientFactory` 的 `DomainEventBody` 默认值、`QueryEventStreamResultExtractor`。
   `legacy/` 不动（3.1 节；`ConditionOptions` 的 `[key: string]: any` 改掉会破坏读取方，v10 随 `/legacy` 删除）。

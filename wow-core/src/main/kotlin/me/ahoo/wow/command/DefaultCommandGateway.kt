@@ -158,7 +158,7 @@ class DefaultCommandGateway(
                     it.toResult(waitCommandId = command.commandId, commandMessage = command),
                     it,
                 )
-            }.let { deadline.bound(it, DEFAULT_WAIT_TIMEOUT) }
+            }.let { deadline.bound(it, DEFAULT_WAIT_TIMEOUT, "stage [${CommandStage.SENT}]") }
 
     /**
      * Sends a command and streams its results as the waited stages report them.
@@ -184,7 +184,7 @@ class DefaultCommandGateway(
                         { it.handle.cancel() },
                     )
                 )
-        }.let { deadline.bound(it, waitPlan.timeout) }
+        }.let { deadline.bound(it, waitPlan.timeout, waitPlan.waited()) }
 
     /**
      * Sends a command and waits for the result of the waited stage.
@@ -218,7 +218,7 @@ class DefaultCommandGateway(
                         { it.handle.cancel() },
                     )
                 )
-        }.let { deadline.bound(it, waitPlan.timeout) }
+        }.let { deadline.bound(it, waitPlan.timeout, waitPlan.waited()) }
 
     /** Sends a command whose wait handle is registered, and hands its SENT signal to that handle. */
     private fun sendWaited(admitted: AdmittedWait<out WaitHandle>, waitPlan: WaitPlan): Mono<Void> {

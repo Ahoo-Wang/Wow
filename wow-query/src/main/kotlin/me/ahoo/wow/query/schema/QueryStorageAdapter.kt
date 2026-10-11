@@ -77,7 +77,12 @@ class QueryStorageFacts(
      * - an element scope is an array of objects, a union of objects included ([isElementScope]); storages only say
      *   whether their native structures can match one element.
      */
-    fun compile(model: QueryModel, logicalSchema: LogicalQuerySchema): QueryModelSchema = QueryModelSchema(
+    @JvmOverloads
+    fun compile(
+        model: QueryModel,
+        logicalSchema: LogicalQuerySchema,
+        profile: QueryModelProfile? = QueryModelProfile.of(model),
+    ): QueryModelSchema = QueryModelSchema(
         model = model,
         capabilities = capabilities,
         definition = logicalSchema,
@@ -86,6 +91,7 @@ class QueryStorageFacts(
         approximateMetrics = approximateMetrics,
         storage = storage,
         provisional = provisional,
+        profile = profile,
     )
 
     private fun QueryValueBindings.compile(path: QueryPathTemplate, value: QueryValueSchema?): QueryValueBindings {

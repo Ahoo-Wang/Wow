@@ -226,6 +226,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'API 客户端', link: 'command/api-client'},
                 {text: '完成语义', link: 'command/completion'},
                 {text: '失败与幂等', link: 'command/reliability'},
+                {text: '预分配 Key', link: 'advanced/prepare-key'},
                 {
                     text: '工作原理',
                     collapsed: true,
@@ -301,7 +302,6 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '测试套件', link: 'test-suite'},
                 {text: '应用测试', link: 'application-testing'},
-                {text: '框架测试与基准', link: 'test-runtime'},
             ],
         },
         {
@@ -313,6 +313,8 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'BI 部署与恢复', link: 'bi-operations'},
                 {text: '生产最佳实践', link: 'best-practices'},
                 {text: '备份、恢复与重放', link: 'recovery'},
+                {text: '可观测性', link: 'advanced/observability'},
+                {text: '指标', link: 'advanced/metrics'},
                 {text: '故障排查', link: 'troubleshooting'},
                 {
                     text: '迁移指南',
@@ -320,7 +322,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                     collapsed: true,
                     items: [
                         {text: '传统架构迁移', link: 'migration/traditional-architecture'},
-                        {text: 'Wow v6 迁移到 v8', link: 'migration/v6-to-v8'},
+                        {text: 'V9 查询迁移', link: 'query/v9-query-migration'},
                         {text: '运行时编排迁移', link: 'migration/runtime-orchestration'},
                         {text: 'TypeScript 包从 Fetcher 迁移', link: 'typescript/migration'},
                     ],
@@ -356,14 +358,21 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '序列化', link: 'serialization'},
                 {text: '数据流', link: 'data-flow'},
                 {text: '模块依赖', link: 'module-dependencies'},
-                {text: '文档治理', link: 'documentation-governance'},
                 {text: 'ID 生成器', link: 'id-generator'},
                 {text: '编译器', link: 'compiler'},
-                {text: '预分配 Key', link: 'prepare-key'},
                 {text: 'JSON Schema', link: 'schema'},
-                {text: '指标', link: 'metrics'},
-                {text: '可观测性', link: 'observability'},
                 {text: '按键执行器', link: 'keyed-executor'},
+            ],
+        },
+        {
+            // 给修改 Wow 本身的人看的页面，不是给基于 Wow 构建应用的人。
+            base: '/zh/guide/',
+            text: '参与贡献 Wow',
+            collapsed: true,
+            items: [
+                {text: '贡献者指南', link: '/zh/onboarding/contributor-guide'},
+                {text: '框架测试与基准', link: 'test-runtime'},
+                {text: '文档治理', link: 'advanced/documentation-governance'},
             ],
         },
     ],
