@@ -3980,6 +3980,7 @@ public final class me/ahoo/wow/api/query/schema/QueryModel {
 
 public final class me/ahoo/wow/api/query/schema/QueryModel$Companion {
 	public final fun from (Ljava/lang/String;)Lme/ahoo/wow/api/query/schema/QueryModel;
+	public final fun getDATASET ()Lme/ahoo/wow/api/query/schema/QueryModel;
 	public final fun getEVENT_STREAM ()Lme/ahoo/wow/api/query/schema/QueryModel;
 	public final fun getSNAPSHOT ()Lme/ahoo/wow/api/query/schema/QueryModel;
 }

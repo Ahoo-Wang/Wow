@@ -88,7 +88,7 @@ internal class QueryMaskDefinition private constructor(
             val paths = schema.protectedSources.responseMasks
             val profile = schema.profile
                 ?: throw QuerySchemaConflictException("Unsupported masked model: [${schema.model}].")
-            val prefix = profile.payloadField.path.split('.')
+            val prefix = profile.payloadField?.path?.split('.').orEmpty()
             paths.forEach { (path, value) ->
                 val names = path.segments.filterIsInstance<QueryPathSegment.Property>().map { it.name }
                 if (names.take(prefix.size) != prefix || !value.masked.maskable() || value.allowed.hasUnknownShape()) {

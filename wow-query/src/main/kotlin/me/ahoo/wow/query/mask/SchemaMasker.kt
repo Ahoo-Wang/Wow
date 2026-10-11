@@ -21,7 +21,6 @@ import me.ahoo.wow.query.schema.QueryMaskDefinition
 import me.ahoo.wow.query.schema.QueryMaskValue
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.profile
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.JsonNodeFactory

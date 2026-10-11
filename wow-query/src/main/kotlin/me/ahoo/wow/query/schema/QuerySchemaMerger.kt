@@ -20,20 +20,20 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 
 internal class QuerySchemaMerger {
+    /**
+     * Merges [extensions] over the [system] fields. Every extension field lies under [extensionRoot], the model's
+     * payload; `null` lets extensions declare fields anywhere, as a dataset's do.
+     */
     fun merge(
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
         sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+        extensionRoot: String? = payloadRootOf(system),
     ): LogicalQuerySchema {
-        val extensionRoot = if (QueryField(StateAggregateRecords.STATE) in system.fields) {
-            StateAggregateRecords.STATE
-        } else {
-            EVENT_PAYLOAD_ROOT
-        }
         extensions.forEach { extension ->
             extension.declaration.fields.forEach { (field, declaration) ->
                 if (!isEventBodyTypeEnumEnrichment(field, system, extensionRoot, declaration)) {
-                    if (field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {
+                    if (extensionRoot != null && field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {
                         throw QuerySchemaConflictException(
                             "Query schema extension must be under [$extensionRoot]: [$field]."
                         )
@@ -70,7 +70,7 @@ internal class QuerySchemaMerger {
     private fun isEventBodyTypeEnumEnrichment(
         field: QueryField,
         system: QuerySchemaDeclaration,
-        extensionRoot: String,
+        extensionRoot: String?,
         extension: QueryFieldDeclaration,
     ): Boolean = extensionRoot == EVENT_PAYLOAD_ROOT && field == EVENT_BODY_TYPE_FIELD &&
         system.fields[field]?.enumValues === DeclarationValue.Unset && extension.hasOnlyEnumValues()
@@ -102,6 +102,10 @@ internal class QuerySchemaMerger {
     }
 
     private companion object {
+        /** The payload root of a built-in model's [system] fields: the snapshot state, else the event bodies. */
+        fun payloadRootOf(system: QuerySchemaDeclaration): String =
+            if (QueryField(StateAggregateRecords.STATE) in system.fields) StateAggregateRecords.STATE else EVENT_PAYLOAD_ROOT
+
         const val EVENT_PAYLOAD_ROOT = "${MessageRecords.BODY}.${MessageRecords.BODY}"
         val EVENT_BODY_TYPE_FIELD = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
     }

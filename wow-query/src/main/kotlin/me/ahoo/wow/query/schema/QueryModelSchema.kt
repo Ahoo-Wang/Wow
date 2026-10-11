@@ -161,6 +161,8 @@ class QueryModelSchema(
     val storage: StorageSupport = StorageSupport.NATIVE,
     /** Compiled from [QueryStorageFacts.provisional] facts: the storage does not exist yet. */
     val provisional: Boolean = false,
+    /** The record layout of [model]: a built-in model's, a dataset's own, or `null` for another custom model. */
+    val profile: QueryModelProfile? = QueryModelProfile.of(model),
 ) {
     val approximateMetrics: Set<String> = Collections.unmodifiableSet(LinkedHashSet(approximateMetrics))
     val capabilities: Set<QueryCapability> = Collections.unmodifiableSet(LinkedHashSet(capabilities))
@@ -232,7 +234,7 @@ class QueryModelSchema(
      * until a restart.
      */
     internal fun compilesSameAs(other: QueryModelSchema): Boolean =
-        model == other.model && provisional == other.provisional &&
+        model == other.model && profile == other.profile && provisional == other.provisional &&
             fullProjectionAvailable == other.fullProjectionAvailable && storage == other.storage &&
             capabilities == other.capabilities && approximateMetrics == other.approximateMetrics &&
             definition.sensitivity == other.definition.sensitivity &&
