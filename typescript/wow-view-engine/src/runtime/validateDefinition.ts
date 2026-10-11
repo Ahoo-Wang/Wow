@@ -29,7 +29,7 @@ import {
   type ViewDefinition,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
-import { validateRecord } from '../record/index.js';
+import { laneFields, validateRecord } from '../record/index.js';
 import { analysisScope, validateAnalysis } from '../analysis/index.js';
 import { offerIssues } from '../analysis/validateOffers.js';
 import {
@@ -217,6 +217,15 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
   if (capability.layouts.length === 0)
     issues.push(
       issue('definition.record.layouts-empty', ['record', 'layouts']),
+    );
+  // A kanban is laid out by an enum's options (D83); with no such field it
+  // has no lane to draw, and no default config to build.
+  if (
+    capability.layouts.includes('kanban') &&
+    laneFields(definition).length === 0
+  )
+    issues.push(
+      issue('definition.record.kanban-no-lane', ['record', 'layouts']),
     );
   const rowKey = definition.fields.find(
     field => field.name === capability.rowKey,

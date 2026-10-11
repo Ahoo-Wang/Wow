@@ -139,3 +139,11 @@ describe('describeConfig', () => {
     ).toBe('2 of them');
   });
 });
+
+describe('a kanban described', () => {
+  it('names its layout in the catalogue’s words', () => {
+    expect(
+      describeConfig(recordConfig({ layout: 'kanban' }), wording()),
+    ).toContain(defaultMessages['label.layout.kanban']);
+  });
+});

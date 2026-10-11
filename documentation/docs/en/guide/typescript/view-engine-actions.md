@@ -172,6 +172,7 @@ Bind them on the resource: [`bind('orders', { route, actions: orderActions(order
 | `changesAt(row, ctx)` | When `available` next flips on its own (ms); left out where only a new state changes it |
 | `confirm` | What to ask first; or a function of the input |
 | `form` | What the command needs besides the record |
+| `moves` | The record field it sets: a kanban view's card dropped on another lane runs it ([below](#kanban-move)) |
 | `run(row, input)` | Sends the command for one record |
 | `timeout` | How long one record's `run` is waited for (ms); no deadline by default |
 
@@ -248,11 +249,53 @@ A field left out need not wait for production to show: **in a development build*
 | The row (and the card) | The `primary` one as a button; the rest in the "Actions for {record}" menu (⋯) |
 | The selection bar | The `primary` one as "{action} {count}", the rest by name; "{action} {able}/{count}" when not all can take it, disabled with the most common reason as its hint when none can |
 | The record's detail | The same set in the drawer's header (those whose `on` includes `detail`) |
+| A kanban view's card | As in the row; and a card dragged to another lane runs the action that `moves` the lane field ([moving a card](#kanban-move)) |
 | A board's record panel | As on the workbench: a record's actions in both tiers, a selection's in the interactive tier only; after a command the whole board is read again |
 
 - **A disabled button stays focusable.** It is not native `disabled` but `aria-disabled`: in the Tab order, opening the hint with its reason on focus, the reason also its accessible description; the menu lists the reasons, deduplicated, at its top.
 - While a command runs the ⋯ menu still opens with its items disabled; when the question closes, focus goes back to the button pressed.
 - [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) draws no declared actions: its row commands are only the host's own `rowActions`.
+
+## Moving a card between kanban lanes {#kanban-move}
+
+A [kanban view](./view-engine-definitions#kanban) lays a record view out in one lane per stage of an enum field. Moving a card to another lane is a command like any other, declared once with `moves` naming the field it sets:
+
+<!-- typecheck: file=dealActions.ts -->
+
+```ts
+// src/views/dealActions.ts
+import { actions, type RecordRow } from '@ahoo-wang/wow-view-engine';
+
+const STAGES = [
+  { value: 'LEAD', label: '线索' },
+  { value: 'PROPOSAL', label: '方案报价' },
+  { value: 'WON', label: '赢单' },
+];
+
+export const dealActions = (
+  changeStage: (id: string, stage: string) => Promise<void>,
+) =>
+  actions([
+    {
+      id: 'change-stage',
+      label: 'Change stage',
+      // A card dropped on another lane runs this with `{ stage: <the lane> }`.
+      moves: 'stage',
+      // And the card's menu offers the same move, a stage at a time.
+      form: { stage: { label: 'Stage', options: STAGES } },
+      available: (row: RecordRow, { input }) => {
+        if (row.data.stage === 'WON') return 'A won deal stays won';
+        if (input && input.stage === row.data.stage) return 'Already there';
+        return true;
+      },
+      run: (row, input) => changeStage(String(row.key), String(input.stage)),
+    },
+  ]);
+```
+
+- **A drag is a pointer's.** While a card is held, every lane its rule takes is drawn open and the one under the pointer lit; a lane it refuses is dimmed with the rule's reason under its name, and a card no lane takes is not picked up at all. The keyboard and a screen reader move a card through its menu — the `form` above — which is also the one-press way for a pointer that cannot drag.
+- **The card lands at once.** It is drawn in the lane it was dropped on while the command runs — asked first where `confirm` says so — and the view is read again afterwards, which puts every card where it really is; refused, failed or cancelled, it is back where it was, the outcome said on the line under the board like any other command's.
+- **The row carries its stage.** A kanban view always fetches the lane field, so `available` can read `row.data.stage` without `record.rowFields`.
 
 ## Confirmation and forms {#confirm}
 

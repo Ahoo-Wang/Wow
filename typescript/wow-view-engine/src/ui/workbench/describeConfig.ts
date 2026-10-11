@@ -12,6 +12,7 @@
  */
 
 import type { ViewConfig } from '../../model/index.js';
+import type { MessageKey } from '../kit/messages.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 /**
@@ -48,11 +49,7 @@ export function describeConfig(
         pageSize,
         // The layout is a word the catalogue already owns; the stored value
         // is `card`, and the label that names it is the plural one.
-        layout: messages.label(
-          read(config, 'layout') === 'card'
-            ? 'label.layout.cards'
-            : 'label.layout.table',
-        ),
+        layout: messages.label(layoutLabel(read(config, 'layout'))),
         columns,
         sorts,
       });
@@ -102,4 +99,13 @@ function countOf(value: unknown): number | null {
 /** A number as stored; `null` when it is anything else, `NaN` included. */
 function numberOf(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** A stored layout's word; anything unread is the table, as it opens. */
+function layoutLabel(layout: unknown): MessageKey {
+  return layout === 'card'
+    ? 'label.layout.cards'
+    : layout === 'kanban'
+      ? 'label.layout.kanban'
+      : 'label.layout.table';
 }

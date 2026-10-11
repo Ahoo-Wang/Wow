@@ -169,6 +169,7 @@ export const orderActions = actions([
 | `changesAt(row, context)` | `available` 下一次自己变化的时刻（毫秒）；引擎到时重问，宿主不用自己的计时器 |
 | `confirm` | 先问；可以是输入的函数。措辞里 `{count}` 是记录数（有 `-one` 形式给区分单数的语言），`{value}` 是选择的选项，`{record}` 是单条时的记录键。`ask: 'always'`（缺省）单条也问；`'bulk'` 只有选择才问。选择总是问 |
 | `form` | 命令除记录外还要的东西。只有一个带选项字段的表单就是一个选择：选项直接列在菜单里，选中的就是输入 |
+| `moves` | 这个命令设置的记录字段，供按它分栏的看板视图用：卡片拖到另一栏，就以那一栏的值为输入执行命令（`{ [moves]: value }`），`available` 也带着这个输入问，所以规则可以只拒某一个阶段。再给一个只有这个字段的表单（选项是各阶段），卡片的菜单就提供同一个移动——键盘移卡片走它。表单问了别的，`actions()` 拒绝 |
 | `on` | 在哪里提供：`row`、`bulk`、`detail`；缺省处处都有 |
 | `primary` | 读者最常按的那个：行里的按钮，不在菜单里 |
 | `tone` | `default` 或 `danger` |
@@ -185,6 +186,7 @@ export interface RecordAction {
   hidden?(row: RecordRow, context: ActionContext): boolean;
   readonly id: string;
   readonly label: string;
+  readonly moves?: string;
   readonly on?: readonly ActionPlace[];
   readonly primary?: boolean;
   run(row: RecordRow, input: ActionInput): Promise<unknown>;

@@ -103,6 +103,23 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 文件：`ui/record/RecordTable.tsx` 只留行与三层；`ui/record/` 下 `EmptyResult.tsx`、`SkeletonRows.tsx`、`cells.tsx`（表格卡片共用）、`SortableHeader.tsx`、`SummaryRows.tsx`、`Filler.tsx`、`columns.ts`（冻结列与表头／数字类名）（test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）。
 
+## 看板视图：按阶段分栏
+
+看板视图（`ui/record/RecordKanban.tsx`，[D83](../decisions.md#d83-记录视图的第三种布局看板视图2026-10-10)）把同一个视图的记录按分栏字段的选项排成一行栏，一栏一个阶段，栏里是卡片。模型、查询与条数见 [kernels.md「看板视图：一栏一条查询」](../kernels.md#看板视图一栏一条查询)。
+
+- **卡片就是卡片布局那一张**：`ui/record/RecordCard.tsx` 是两种布局共用的一张卡（标题两行、正文一列 `Item`、图片、行动作在卡脚），`RecordCards` 把它排成网格，`RecordKanban` 把它排进栏；`renderCell` 同一个签名。
+- **栏是一个有名字的区域，栏头是标题不是徽章**：`section`（`data-slot="kanban-lane"`、`data-lane` 为栏的 id），名字是「{栏名}，{条数} 条」（条数不知道时「{栏名}，已显示 {张数} 条」）。栏头第一行是阶段名作**标题**（`text-sm` 半粗），前面一个语气色的圆点（颜色与这个字段在表格里的徽章同一套；「其他」不是阶段，是空心圈），条数靠这一栏的右边——不知道全部时写已载入的张数，还有下一页时加「+」；栏头与卡片之间一道分隔线。不用徽章作栏头：徽章是行里一个值的语言（小字、底色、描边），放在一列的头上，这一列要说的那个词成了栏里最弱的东西，条数也跟着名字长短左右挪、栏与栏对不齐（用户 2026-10-10 走查）。配置了汇总时每个汇总一行账目：左边说它是什么（「预计金额的总和」，与汇总行悬停的说法同一句），右边是数、加粗、靠右对齐；**不写口径「全部」、不画汇总带**——一栏的数只会是这一栏的全部，而卡片网格下那条整宽的灰带放在栏头下，读成了阶段与卡片之间单独的一块。
+- **栏宽固定、栏一行排开，看板占满结果区剩下的高度**：每栏 `w-72`，整行横向滚动（`data-slot="record-kanban"`），窄屏同样横向滚动，不折行——折了行，一行里的第一栏就不再挨着上一阶段。工作台与铺满的嵌入里看板与卡片网格一样占满剩下的高度（`styles.css` 的结果区规则），所以横向滚动条贴在屏幕底部，不跟着最高的那一栏走；栏与看板等高、由一道边框划出（一列就是一个阶段；不用底色——卡片照卡片布局那样站在画布上，浅色模式下在卡片之下的底色到深色模式里比卡片还亮（0.35 对 0.29），每张卡都像陷了下去），窄屏上横滑停在一栏的开头（`snap-x`），**每栏自己纵向滚动它的卡片**，栏头与「加载更多」不动（用户 2026-10-10 走查）。仪表盘面板里没有给定的高度，栏照内容长高。
+- **空栏照画、写「没有记录」**：空着的阶段也是读数（这一阶段没有卡）；「其他」栏只在有卡片时画——它不是一个阶段。
+- **「加载更多」接在卡片后面，滚到栏底也会自己加载**：这一栏还有下一页时才有，紧跟在最后一张卡片之后（在栏的滚动区里，不钉在栏底——卡片少的一栏，钉在栏底的按钮与卡片之间空出一大块，读不出是谁的），栏有条数时写出还有几条（「加载更多（还有 2 条）」）；按下或把这一栏滚到离底 48px 以内都只问这一栏（`loadLane`），按钮在等待时转圈。一次只问一栏：一栏的下一页走视图唯一的请求通道，第二栏的会顶掉第一栏的，所以一栏在加载时各栏的按钮都停用，第一次渲染也不自动加载。
+- **三道门与卡片布局一样**：没有结果也不在跑时不画；首次加载画**栏的骨架**——草稿已经说了是哪几栏，每栏它的标题加两张骨架卡，答案落在等着它的形状里，而不是先画一片网格再跳成栏；跑完全部栏都没有卡片时是同一个 `EmptyResult` 与它的一个出口。
+- **不勾选、不批量**；卡片点开详情（`useOpenRows`，每栏是一组，↑／↓ 在栏内走，Enter／Space 打开）；**单条记录的操作照旧**——宿主声明的操作与行槽位在卡脚（主操作是按钮，其余在「⋯」里）与详情里，执行后刷新，换了阶段的卡片落到新的一栏。
+- **拖动换栏**（D83）：宿主声明了设置分栏字段的操作（`RecordAction.moves`）时，卡片可以用指针拖到另一栏（`ui/record/kanbanDrag.tsx`，工作台与仪表盘的交互档经 `ui/actions/kanbanMove.ts` 把它绑到记录面的执行器）。拿起的卡片不透明、微倾、带深阴影与一圈主色边（拖动库移动的就是这张卡片本身，变淡会让底下的卡片字透出来；深色里只靠阴影几乎看不见），它原来的位置留一个同样大小的虚线槽（库留下的隐藏副本的 `::before`）；规则接受的栏是虚线框（`data-drop="open"`），指针下的那一栏实线主色边加一层很淡的主色底（`data-over`），拒绝的变淡（`data-drop="shut"`）并在栏名下写出规则的理由；哪一栏都去不了的卡片拿不起来，「其他」栏不接受放入。放下即画在新栏的顶上、两栏条数随之移动，直到执行后的重读给出新结果；被拒、失败或取消回到原处。只接指针：键盘与读屏走卡片「⋯」里同一个操作的阶段选择。
+- **设置复用卡片设置那颗按钮**：`ResultToolbar` 在看板视图下照旧画 `CardSettings`（同一个 `data-control="columns"`），名字换成「看板视图设置」、图标换成 `Columns3CogIcon`（不用布局开关里看板视图的那个图标：按下的那一段就在它旁边，两个一样的图标读成一个控件），上面多两项——分栏字段（`Select`，只列带选项的 `enum` 字段）与显示的栏（每个选项一个复选框，勾满 `MAX_KANBAN_LANES` 栏后其余停用并说明）——下面仍是卡片的标题、正文与图片，「每行几张」不画；全走 `setKanban`／`setCard`。
+- **没有分页条**：看板视图的分页是每栏自己的「加载更多」，每栏一次取视图的 `pageSize` 张；分页条与它的每页条数选择器在看板视图下不画。
+
+文件：`ui/record/RecordKanban.tsx`、`ui/record/kanbanDrag.tsx`、`ui/record/RecordCard.tsx`、`ui/record/CardSettings.tsx`、`ui/actions/kanbanMove.ts`（见 test/recordKanban.test.tsx、test/kanbanMove.test.tsx、test/cardSettings.test.tsx；故事「布局/看板视图」的 `KanbanByStage`、`RequirementStates`，回归 `LanesLoadMore`、`RecordAction`、`DragToMove`、`OtherLane`）。
+
 ## 勾选：Shift 连选一段
 
 - **Shift 勾选是连选**：从**锚点**（上一次不带 Shift 的勾选）到这一行，两头都算、按结果顺序，整段跟着这一行走（原本没选就整段选中，选着就整段取消）；段外不动。**连选不挪锚点**；没有锚点时就是一次平点并落锚（test/rangeSelection.test.tsx「selects every row from the anchor down to the pressed one」「selects upwards just as it does downwards」「keeps the anchor through a range, so a second range re-draws from it」「clears the range when the pressed row is being cleared」「is a plain toggle with nothing to extend from, and sets the anchor」）；

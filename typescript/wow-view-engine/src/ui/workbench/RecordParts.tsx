@@ -18,6 +18,7 @@ import type { RecordViewRuntime } from '../../runtime/index.js';
 import type { RecordActions } from '../../runtime/actions.js';
 import {
   useRecordDetail,
+  useRecordKanban,
   useRecordTable,
   useSearchBox,
   type RecordActionSlots,
@@ -39,6 +40,8 @@ import { FilterPanel } from '../filter/FilterPanel.js';
 import { FilterModes } from '../filter/FilterModes.js';
 import { RecordCards } from '../record/RecordCards.js';
 import { RecordPagination } from '../record/RecordPagination.js';
+import { RecordKanban } from '../record/RecordKanban.js';
+import { kanbanMove } from '../actions/kanbanMove.js';
 import { RecordTable, type RecordCell } from '../record/RecordTable.js';
 import { RecordDetail } from '../record/RecordDetail.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
@@ -222,6 +225,7 @@ export function RecordParts({
   const messages = useViewMessages(wording, locale);
   const { filter, state } = workbench;
   const table = useRecordTable(record);
+  const kanban = useRecordKanban(record);
   const detail = useRecordDetail(record, {
     open: detailOptions?.open,
     onOpenChange: detailOptions?.onOpenChange,
@@ -402,6 +406,7 @@ export function RecordParts({
                 table={table}
                 fields={fields}
                 trigger={button(messages.label('label.status.open-card'))}
+                {...(table.layout === 'kanban' ? { kanban } : {})}
               />
             )
           );
@@ -436,6 +441,7 @@ export function RecordParts({
         bulkActions={surface.bulk}
         features={features}
         runtime={record}
+        kanban={kanban}
         exports={shown.export}
         filter={filter}
         title={state?.title ?? ''}
@@ -446,7 +452,20 @@ export function RecordParts({
     // said in this surface's one voice rather than a second region.
     result: (
       <SurfaceAnnouncer say={voice.say}>
-        {table.layout === 'card' ? (
+        {table.layout === 'kanban' ? (
+          <RecordKanban
+            table={table}
+            kanban={kanban}
+            renderCell={renderCell}
+            emptyTitle={emptyTitle}
+            emptyDescription={emptyDescription}
+            rowActions={surface.row}
+            onOpen={detail.open}
+            emptyWayOut={wayOut}
+            onEmptyAction={onEmptyAction}
+            move={kanbanMove(surface.controller, actions, kanban.spec?.lane)}
+          />
+        ) : table.layout === 'card' ? (
           <RecordCards
             table={table}
             renderCell={renderCell}
@@ -498,7 +517,8 @@ export function RecordParts({
             one (UX-8). */}
         {surface.status}
 
-        <RecordPagination table={table} />
+        {/* A kanban's lanes page on their own (「加载更多」, D83). */}
+        {table.layout !== 'kanban' && <RecordPagination table={table} />}
 
         {surface.dialog}
 

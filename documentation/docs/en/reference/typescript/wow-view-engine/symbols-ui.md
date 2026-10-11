@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/ui exports, generated from i
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/ui` exports — 250 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
 
 ::: v-pre
 
@@ -103,6 +103,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 250 — with its kind and
 | `ImagePanelProps` | interface | — | — |
 | `IssueStripProps` | interface | — | — |
 | `KIND_ICON` | const | The face each kind and each audience wears. | — |
+| `KanbanMove` | interface | Moving a kanban's card to another lane (D83): the host's declared action that sets the lane field (`RecordAction.moves`), as a record surface binds it — its rule asked for a lane, its run through the surface's runner, which asks first where it says so, runs, says how it went and reads the view again. | — |
 | `LeaveDialog` | function | The confirmation that stands between an open view and the next one. | — |
 | `LeaveDialogProps` | interface | — | — |
 | `LineAlert` | function | One callout, one line high. | — |
@@ -148,6 +149,8 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 250 — with its kind and
 | `RecordCardsProps` | interface | — | — |
 | `RecordCell` | interface | — | — |
 | `RecordDetailOptions` | interface | What a host says about the record detail (G2): who holds which record is open (`RecordDetailControl`, as `instanceId` and `onInstanceChange` hold the open view), and what the host adds to it. | — |
+| `RecordKanban` | function | The result as lanes, one per stage (D83): the lane field's options in the definition's order, each a named region holding its cards — the very cards the card layout draws — with its count, its summaries and, while it has more, a「加载更多」of its own. | — |
+| `RecordKanbanProps` | interface | — | — |
 | `RecordPagination` | function | How many rows there are and how to reach the next of them. | — |
 | `RecordPaginationProps` | interface | — | — |
 | `RecordPanelHost` | interface | What a host puts on a board's record panels (D39): its declared actions on the records — a row's and a selection's, as a record workbench places them — and its slots after them, and what reading the board again means after a command. | — |

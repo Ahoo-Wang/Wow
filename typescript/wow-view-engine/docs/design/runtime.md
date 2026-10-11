@@ -38,6 +38,7 @@ export interface RecordViewRuntime<
   page(target: RecordPageTarget<P>): void;
   select(keys: RecordKey[]): void;
   exportRows(options?: ExportRowsOptions): Promise<ExportedRows>; // 已应用口径的全量行，供导出；见「导出」
+  loadLane(laneId: string): void; // 看板视图：这一栏的下一页接在后面，安静地问（查询不转 loading），其余栏原样；没有下一页、不是看板视图的结果时为空操作（D83）
 }
 
 /** 打开一个实例得到的判别联合；按 runtime.kind 收窄。 */
@@ -162,6 +163,7 @@ export class ViewWriteError extends Error {
 - 选择绑定当前结果：`page`、`apply` 与解释环境变化清空 `selection`；`refresh` 后按新结果的行键求交集，消失的行自动移出。本轮不支持跨页选择，批量动作只作用于当前结果中仍存在的行。
 - 新的 `apply / refresh / page` 替代同一 runtime 的在途请求，旧响应到达后丢弃。这由 `RequestRunner` 用 per-runtime key 实现，全局并发上限与队列来自 `RuntimeLimits`（`maxConcurrentQueries`、`maxQueuedQueries`、`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`minRefreshInterval`、`maxRefreshInterval`、`maxFilterDepth`、`maxFilterNodes`、`maxQueryFilterNodes`、`maxFilterValues`、`maxDashboardPanels`、`exportMax`）。**呈现口径也在 `RuntimeLimits` 里**（2026-09-21，P-17）：每页条数梯子 `pageSizes` 与卡片的 `cardPageSizes`（缺省 12／24／48／96：12 在一行 1～4 张、以及窄屏退下来的列数下都是整行——用户 2026-09-23：卡片每页条数应是一行张数的倍数）、自动刷新梯子 `refreshIntervals`、新视图的 `defaultPageSize`／`defaultColumns`／`defaultCardFields`、导出文件是否中和公式的 `exportNeutralizeFormulas`（缺省开，[D37](decisions.md#d37-导出文件缺省中和公式2026-09-24)）——它们不是预算，是产品的选项与缺省，从前是模块常量、改一档就是一次发版；放在预算旁边是因为预算会裁它们（高于 `maxPageSize` 的档不提供），也因为交给引擎的是同一个对象。控件读 `runtime.limits`，视图保存时的那一档照旧折进梯子。
 - **只改画法的 `apply` 不查询**（Record 视图，`runtime/restyle.ts` 的 `restyledOnly`）：草稿与上次跑出结果的配置比，查询的来源一样——显示哪几列、条件、排序、页大小都没变，只差列宽、列序、固定或 `layout`——就在当前结果上重新投影（`restyleRecord`：行与分页不动，列与卡片按新配置），`applied` 照样落成草稿，不发请求、不清勾选、不回第一页；汇总也变了时只走一次聚合（`executeSummaries`，照旧可退回本页合计），这次请求是「安静」的（`execute` 的 `quiet`）：查询状态留在 `success`、表格不进等待态、不说「正在查询」，行一直画着直到汇总到。只在结果落定（`success`）且落在当前 `applied` 上时这样做：请求在途（安静的那种也算：此时 `result.own` 还不是 `applied`）或上次失败时整份照跑。草稿与上次跑出的完全一样时也整份照跑——无事可应用时点「应用」、搜索框里按 Enter、宿主调 `apply()`，都是「再查一次」，从第一页起、清掉勾选。（见 test/restyle.test.tsx）
+- **看板视图不在此列**（D83）：它问的是每一栏的第一页，表格、卡片与它之间切换、看板视图里换分栏字段或收起展开一栏，都是问题变了，整份照跑；看板视图里只改了汇总也整份照跑，因为汇总是逐栏的那条聚合与栏一起问。看板视图的执行与「加载更多」在 `runtime/kanban.ts`：`executeDataConfig` 见到 `layout: 'kanban'` 就交给它，各栏的第一页与条数聚合在同一个时隙里并发问；`loadLane(id)` 是一次安静的执行，只问这一栏的下一页、在当前结果上接上（`appendLane`），这一问失败时照常是查询失败，卡片留着；刷新与应用从每栏的第一页重来。（见 test/restyle.test.tsx、test/kanbanRuntime.test.ts）
 - 状态变更同步提交后再通知订阅者；相同状态返回相同对象，子对象引用稳定，以配合 `useSyncExternalStore`。`dispose` 是最后一次通知：订阅者据此读到 `disposed`，`useOpenView` 才能在实例被别处删除时自行重开，而不必等一次碰巧的渲染。
 - runtime 不做持久化。保存是 Engine 的命令，成功后 Engine 调用 `runtime.markSaved(instance)` 推进基线。
 - **`edit` 里值为 `undefined` 的成员是"删掉"，不是"置为 undefined"。** 配置是 JSON：没有这个成员与成员为 `undefined` 是同一份配置，却不是同一个对象，而 `dirty` 是与已保存配置的一次 `dequal`。把最后一条可选列表项删掉的编辑器因此会让视图就此一直"未保存"、离开守卫还会问一句用户早已撤销过的改动。`defaultRecordConfig` 同理：没有汇总时根本不写 `summaries` 这个键，而不是写一个 `undefined`。
@@ -176,6 +178,7 @@ export class ViewWriteError extends Error {
   - **`analysis.result.more-groups`**（路径 `['limit']`，参数 `{ limit }` 是读者设的那个上限，不是查询带的那个）——分析结果之下还有没列出的组；画成饼图时是 `warning`（份额只在已列出的组里算），其余是 `note`（每一行都是完整的数，视图本就只要前 N 组）。这是问出来的，不是猜的：分组查询要的是 `limit + 1`，多回来的那一行就是答案，随后被丢掉不上屏（判据见 [kernels.md#compileanalysis-与-projectanalysis](kernels.md#compileanalysis-与-projectanalysis)）。分析的合计行走自己的无分组查询，因此即使分组被截断它仍覆盖全部——两行加起来小于它们下面的合计，两个数都没错。
   - **`analysis.result.at-limit`**（同样的路径与参数）——探不成时的那一种：配置上限已经顶到天花板，多要一行会让查询被拒，于是只剩"恰好填满上限"这个二义信号，措辞相应是"**可能**还有更多"而不是断言。两条不会同时出现。
   - **这两条的级别与去留跟着屏上的图，不跟上一次运行时的图**（第二轮审查 R2-P1-1）：改图型、改表格／图表只是重画、不重跑，所以读结果发现的三处——分析工作台、仪表盘面板（面板改展示同样只重画）、嵌入视图——都经 `drawnResultIssues(state)` 读：用运行的事实（`truncated`／`atLimit`、运行时的排序与上限）加上草稿当下的布局与图型重判一遍（`cutShortIssues`，与运行时同一个函数）。排名画成柱或表格不提示，草稿里一改成饼图就警告，再改回表格就没有，保存与重开都不改变这个结论（test/resultIssues.test.tsx「follows the chart on screen through redraws」，故事「分析工作台/回归」`CutShortFollowsTheChart`）。
+  - **`runtime.kanban.counts-unavailable`**（路径 `['kanban']`）——看板视图各栏的条数与汇总那条聚合失败（D83）：卡片照画，栏头退回分页源这一栏的总数，游标源不写条数（只写已载入的张数），栏的汇总不画。与 `runtime.summary.page-only` 同一个理由：栏头那个数读者会当成这一阶段的全部。
   - 分析的**合计**查询单独失败不报：分组行仍然完整地回答了它们自己的问题，屏幕上没有哪个数字的含义与它的说法不符，少一行合计而已。（见 test/resultIssues.test.tsx）
 
 ## 自动刷新

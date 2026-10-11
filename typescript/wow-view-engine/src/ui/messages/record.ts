@@ -17,6 +17,7 @@ export const recordMessages = {
   'label.layout.table': 'Table',
   'label.layout.chart': 'Chart',
   'label.layout.cards': 'Cards',
+  'label.layout.kanban': 'Kanban',
 
   // The card settings, behind the same button as the column settings once
   // the cards are showing. A card is a row folded out, and its four
@@ -31,6 +32,23 @@ export const recordMessages = {
   'label.card.per-row': 'Cards per row',
   'label.card.per-row-option': '{count} per row',
 
+  // The kanban (D83): its settings are the card settings with the lanes on
+  // top, behind the same button. A lane is named by its option and how many
+  // records it holds — or, where that is not known, how many are shown.
+  'label.kanban.title': 'Kanban settings',
+  'label.kanban.hint':
+    "Lanes come from a field's options; cards take their title, body and image from here.",
+  'label.kanban.lane-field': 'Lanes by',
+  'label.kanban.lanes': 'Lanes shown',
+  'label.kanban.lanes-max': 'At most {max} lanes at a time.',
+  'label.kanban.other': 'Other',
+  'label.kanban.load-more': 'Load more',
+  'label.kanban.load-more-rest': 'Load more ({count} left)',
+  'label.kanban.empty-lane': 'No records',
+  'label.kanban.lane': '{lane}, {count} records',
+  'label.kanban.lane-loaded': '{lane}, {count} shown',
+  'label.kanban.more': '{count}+',
+
   // The record toolbar. The bar itself has a name because it is one stop
   // with the arrows inside it: a reader that lands there is told what it
   // has landed in before it starts moving along it.
@@ -40,6 +58,8 @@ export const recordMessages = {
   // The same button under the card layout: what a card shows is the
   // question the column settings answer for a row (D18 VI).
   'label.toolbar.card': 'Card settings',
+  // And under the kanban, whose lanes it sets as well.
+  'label.toolbar.kanban': 'Kanban settings',
   'label.toolbar.refresh': 'Refresh',
   // The two groups on the right of the toolbar, named so a screen reader
   // hears what a group is for rather than "group, group".
@@ -344,6 +364,11 @@ export const recordMessages = {
     '{field} is a search or metadata handle, not something a row holds.',
   'record.field.unknown': 'The column {field} no longer exists.',
   'record.layout.unsupported': 'The {layout} layout is not available here.',
+  'record.kanban.invalid': 'The kanban settings could not be read.',
+  'record.kanban.missing': 'The kanban has no lane field yet.',
+  'record.kanban.lane-not-enum': '{field} has no options to lay lanes out by.',
+  'record.kanban.too-many-lanes':
+    'The kanban shows {count} lanes; it shows at most {max}. Fold some away.',
   'record.filter.required':
     'This data source lists records only under a condition: add one first.',
   'record.pageSize.not-positive': 'The page size must be a positive number.',

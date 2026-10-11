@@ -32,6 +32,7 @@ import {
   useAnalysisResult,
   useFilterEditor,
   usePanelFollowUps,
+  useRecordKanban,
   useRecordTable,
   useViewRuntime,
   type DashboardPanelView,
@@ -57,6 +58,8 @@ import { AnalysisChart } from '../analysis/AnalysisChart.js';
 import { AnalysisTable } from '../analysis/AnalysisTable.js';
 import { AnalysisEmpty, emptyWithoutGroups } from '../analysis/EmptyResult.js';
 import { RecordTable } from '../record/RecordTable.js';
+import { RecordKanban } from '../record/RecordKanban.js';
+import { kanbanMove } from '../actions/kanbanMove.js';
 import { RecordPagination } from '../record/RecordPagination.js';
 import { useActionSurface } from '../actions/ActionSurface.js';
 import { useSurfaceAnnouncer } from '../kit/Announcer.js';
@@ -180,6 +183,7 @@ export function RecordPanel({
   name?: string;
 }) {
   const table = useRecordTable(runtime);
+  const kanban = useRecordKanban(runtime);
   const messages = useViewMessages();
   // What an empty panel says: a queue narrowed by its view, the board or
   // the page is empty of what it asks for, not of records altogether.
@@ -210,16 +214,37 @@ export function RecordPanel({
       {bulk && (
         <SelectionBar table={table} runtime={runtime} bulkActions={bulk} />
       )}
-      <RecordTable
-        table={table}
-        selectable={bulk !== undefined}
-        scrolls={false}
-        holdEnd={false}
-        readOnly={readOnly}
-        emptyDescription={messages.label(emptyHint)}
-        rowActions={surface.row}
-        {...(name === undefined ? {} : { name })}
-      />
+      {/* A view saved as a kanban stays one on a board (D83): its lanes,
+          read-only as they always are, in the panel's width. */}
+      {table.layout === 'kanban' ? (
+        <RecordKanban
+          table={table}
+          kanban={kanban}
+          emptyDescription={messages.label(emptyHint)}
+          rowActions={surface.row}
+          // A read-only board's panel moves nothing, as it acts on nothing.
+          {...(readOnly
+            ? {}
+            : {
+                move: kanbanMove(
+                  surface.controller,
+                  host?.actions,
+                  kanban.spec?.lane,
+                ),
+              })}
+        />
+      ) : (
+        <RecordTable
+          table={table}
+          selectable={bulk !== undefined}
+          scrolls={false}
+          holdEnd={false}
+          readOnly={readOnly}
+          emptyDescription={messages.label(emptyHint)}
+          rowActions={surface.row}
+          {...(name === undefined ? {} : { name })}
+        />
+      )}
       {/* Under the rows, which a line appearing above them would move. */}
       {surface.status}
       {surface.dialog}
@@ -246,6 +271,8 @@ export function RecordPanelPaging({
 }) {
   const table = useRecordTable(runtime);
   const messages = useViewMessages();
+  // A kanban's lanes page on their own (「加载更多」, D83).
+  if (table.layout === 'kanban') return null;
   return (
     <RecordPagination
       table={table}

@@ -12,18 +12,22 @@
  */
 
 import { useId, type ReactElement } from 'react';
-import { LayoutGridIcon } from 'lucide-react';
+import { Columns3CogIcon, LayoutGridIcon } from 'lucide-react';
 import {
   isFieldlessKind,
   type FieldDefinition,
   type RecordCardSpec,
 } from '../../model/index.js';
-import type { RecordTableController } from '../../react/index.js';
+import type {
+  RecordKanbanController,
+  RecordTableController,
+} from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { Checkbox } from '../components/checkbox.js';
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSet,
@@ -65,6 +69,12 @@ interface CardSettingsProps {
   trigger?: ReactElement<Record<string, unknown>>;
   /** One half of it, as `ColumnSettings`' `detached`. */
   detached?: DetachedPopover;
+  /**
+   * Under the kanban (D83): its lanes are set here too, above the cards'
+   * own settings, and a lane holds its cards one under another, so there is
+   * no「每行几张」. Left out, the card settings alone.
+   */
+  kanban?: RecordKanbanController;
 }
 
 /** The value the image select carries for "none": no field is named this. */
@@ -91,8 +101,15 @@ export function CardSettings({
   fields,
   trigger,
   detached,
+  kanban,
 }: CardSettingsProps) {
   const messages = useViewMessages();
+  const name = messages.label(
+    kanban ? 'label.toolbar.kanban' : 'label.toolbar.card',
+  );
+  // Not the layout switch's own icon: the switch's pressed segment stands
+  // right beside this button, and two of one icon read as one control.
+  const Icon = kanban ? Columns3CogIcon : LayoutGridIcon;
   const ids = useId();
   const spec = table.cardSpec;
   // A field-less kind's name is a handle for the editor, not a path into a
@@ -132,18 +149,16 @@ export function CardSettings({
                     // or a test that reaches for "the arrangement control"
                     // finds it under either layout.
                     data-control="columns"
-                    aria-label={messages.label('label.toolbar.card')}
+                    aria-label={name}
                     render={<Button variant="outline" size="icon-sm" />}
                   />
                 }
               />
             }
           >
-            <LayoutGridIcon />
+            <Icon />
           </TooltipTrigger>
-          <TooltipContent>
-            {messages.label('label.toolbar.card')}
-          </TooltipContent>
+          <TooltipContent>{name}</TooltipContent>
         </Tooltip>
       )}
     </>
@@ -155,13 +170,16 @@ export function CardSettings({
       {detached ? null : opener}
       <PopoverContent align="end" className="fve:w-80">
         <PopoverHeader>
-          <PopoverTitle>{messages.label('label.card.title')}</PopoverTitle>
+          <PopoverTitle>
+            {messages.label(kanban ? 'label.kanban.title' : 'label.card.title')}
+          </PopoverTitle>
           <PopoverDescription>
-            {messages.label('label.card.hint')}
+            {messages.label(kanban ? 'label.kanban.hint' : 'label.card.hint')}
           </PopoverDescription>
         </PopoverHeader>
 
         <FieldGroup>
+          {kanban && <KanbanLanes kanban={kanban} ids={ids} />}
           <Field data-slot="card-title-field">
             <FieldLabel id={`${ids}-title`}>
               {messages.label('label.card.title-field')}
@@ -242,34 +260,38 @@ export function CardSettings({
             </Select>
           </Field>
 
-          <Field data-slot="card-per-row">
-            <FieldTitle id={`${ids}-columns`}>
-              {messages.label('label.card.per-row')}
-            </FieldTitle>
-            <ToggleGroup
-              value={[String(spec.perRow ?? 3)]}
-              onValueChange={value => {
-                const next = PER_ROW.find(count => String(count) === value[0]);
-                if (next) patch({ perRow: next });
-              }}
-              variant="outline"
-              size="sm"
-              spacing={0}
-              aria-labelledby={`${ids}-columns`}
-            >
-              {PER_ROW.map(count => (
-                <ToggleGroupItem
-                  key={count}
-                  value={String(count)}
-                  aria-label={messages.label('label.card.per-row-option', {
-                    count,
-                  })}
-                >
-                  {count}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </Field>
+          {!kanban && (
+            <Field data-slot="card-per-row">
+              <FieldTitle id={`${ids}-columns`}>
+                {messages.label('label.card.per-row')}
+              </FieldTitle>
+              <ToggleGroup
+                value={[String(spec.perRow ?? 3)]}
+                onValueChange={value => {
+                  const next = PER_ROW.find(
+                    count => String(count) === value[0],
+                  );
+                  if (next) patch({ perRow: next });
+                }}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                aria-labelledby={`${ids}-columns`}
+              >
+                {PER_ROW.map(count => (
+                  <ToggleGroupItem
+                    key={count}
+                    value={String(count)}
+                    aria-label={messages.label('label.card.per-row-option', {
+                      count,
+                    })}
+                  >
+                    {count}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </Field>
+          )}
         </FieldGroup>
       </PopoverContent>
     </Popover>
@@ -325,5 +347,100 @@ function CardBodyFields({
           })}
       </FieldGroup>
     </FieldSet>
+  );
+}
+
+/**
+ * The kanban's lanes (D83): which field they are laid out by, and which of
+ * its options are shown. Every option keeps its checkbox; once the shown
+ * ones reach the most a kanban draws, the rest are switched off and say why.
+ */
+function KanbanLanes({
+  kanban,
+  ids,
+}: {
+  kanban: RecordKanbanController;
+  ids: string;
+}) {
+  const messages = useViewMessages();
+  const spec = kanban.spec;
+  const hidden = new Set<unknown>(spec?.hidden ?? []);
+  const shown = kanban.laneOptions.filter(
+    option => !hidden.has(option.value),
+  ).length;
+  const full = shown >= kanban.maxLanes;
+  const fields = kanban.laneFields.map(field => ({
+    value: field.name,
+    label: messages.say(field.label),
+  }));
+  const toggle = (value: string | number, on: boolean) =>
+    kanban.setKanban({
+      hidden: on
+        ? [...hidden].filter(
+            (entry): entry is string | number => entry !== value,
+          )
+        : [...(spec?.hidden ?? []), value],
+    });
+  return (
+    <>
+      <Field data-slot="kanban-lane-field">
+        <FieldLabel id={`${ids}-lane`}>
+          {messages.label('label.kanban.lane-field')}
+        </FieldLabel>
+        <Select
+          items={fields}
+          value={spec?.lane ?? null}
+          onValueChange={value => {
+            const next = fields.find(field => field.value === value);
+            if (next) kanban.setKanban({ lane: next.value });
+          }}
+        >
+          <SelectTrigger size="sm" aria-labelledby={`${ids}-lane`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {fields.map(field => (
+                <SelectItem key={field.value} value={field.value}>
+                  {field.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+      <FieldSet data-slot="kanban-lanes">
+        <FieldTitle>{messages.label('label.kanban.lanes')}</FieldTitle>
+        <FieldDescription>
+          {messages.label('label.kanban.lanes-max', { max: kanban.maxLanes })}
+        </FieldDescription>
+        <FieldGroup className="fve:gap-2">
+          {kanban.laneOptions.map(option => {
+            const on = !hidden.has(option.value);
+            const id = `${ids}-lane-${String(option.value)}`;
+            return (
+              <Field
+                key={String(option.value)}
+                orientation="horizontal"
+                data-lane={String(option.value)}
+                data-disabled={!on && full ? true : undefined}
+              >
+                <Checkbox
+                  id={id}
+                  checked={on}
+                  disabled={!on && full}
+                  onCheckedChange={checked => toggle(option.value, checked)}
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor={id} className="fve:font-normal">
+                    {messages.say(option.label)}
+                  </FieldLabel>
+                </FieldContent>
+              </Field>
+            );
+          })}
+        </FieldGroup>
+      </FieldSet>
+    </>
   );
 }

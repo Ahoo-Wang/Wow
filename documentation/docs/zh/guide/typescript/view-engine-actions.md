@@ -172,6 +172,7 @@ export const orderActions = (commands: OrderCommands) =>
 | `changesAt(row, ctx)` | `available` 下一次自己翻转的时刻（毫秒），只有新的状态才会改变它时不写 |
 | `confirm` | 先问什么；也可以是输入的函数 |
 | `form` | 命令除记录之外还要什么 |
+| `moves` | 它设置的记录字段：看板视图的卡片拖到另一栏就执行它（[见下](#kanban-move)） |
 | `run(row, input)` | 为一条记录发命令 |
 | `timeout` | 一条记录的 `run` 等多久（毫秒）；缺省不设期限 |
 
@@ -248,11 +249,53 @@ export const ordersDefinition = defineView(descriptor, {
 | 行（与卡片） | `primary` 的是按钮，其余在「{record} 的操作」菜单（「⋯」）里 |
 | 多选条 | `primary` 的写「{action} {count} 条」，其余按名字；不是全都能做时写「{action} {able}/{count} 条」，一条都不能做时停用，以最常见的理由为提示 |
 | 记录详情 | 抽屉头部画同一套（`on` 含 `detail` 的） |
+| 看板视图的卡片 | 与行一样；卡片拖到另一栏，执行设置分栏字段（`moves`）的那个操作（[换栏](#kanban-move)） |
 | 看板的记录面板 | 照工作台画：记录的操作两档都有，多选的只在交互档；命令后整块看板重读 |
 
 - **停用的按钮仍可获焦。** 它不用原生的 `disabled`，而是 `aria-disabled`：在 Tab 序里，获焦就打开写着理由的提示，理由也是按钮的无障碍描述；菜单顶端去重后列出各条理由。
 - 命令运行时「⋯」照样能开，菜单里的项停用；问题框关上时焦点回到按下的那个按钮。
 - [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) 不画声明的操作：它的行命令只有宿主自己的 `rowActions`。
+
+## 在看板视图里换栏 {#kanban-move}
+
+[看板视图](./view-engine-definitions#kanban)把记录视图按一个枚举字段的阶段排成一栏一栏。把卡片移到另一栏就是一个普通的命令，用 `moves` 点名它设置的字段，声明一次：
+
+<!-- typecheck: file=dealActions.ts -->
+
+```ts
+// src/views/dealActions.ts
+import { actions, type RecordRow } from '@ahoo-wang/wow-view-engine';
+
+const STAGES = [
+  { value: 'LEAD', label: '线索' },
+  { value: 'PROPOSAL', label: '方案报价' },
+  { value: 'WON', label: '赢单' },
+];
+
+export const dealActions = (
+  changeStage: (id: string, stage: string) => Promise<void>,
+) =>
+  actions([
+    {
+      id: 'change-stage',
+      label: '换阶段',
+      // 卡片拖到另一栏，就以 `{ stage: <那一栏> }` 执行它。
+      moves: 'stage',
+      // 卡片的菜单也提供同一个移动，一次一个阶段。
+      form: { stage: { label: '阶段', options: STAGES } },
+      available: (row: RecordRow, { input }) => {
+        if (row.data.stage === 'WON') return '赢单的商机不再换阶段';
+        if (input && input.stage === row.data.stage) return '已经在这一阶段';
+        return true;
+      },
+      run: (row, input) => changeStage(String(row.key), String(input.stage)),
+    },
+  ]);
+```
+
+- **拖动靠指针。** 卡片拿起来时，规则接受的每一栏都画成可放（虚线框），指针下的那一栏高亮；规则拒绝的栏变淡，名字下写出规则的理由；哪一栏都去不了的卡片拿不起来。键盘与读屏走卡片的菜单——上面的 `form`——它也是不能拖动的指针一次按下的办法。
+- **卡片当场落下。** 命令执行时（`confirm` 要求时先问）卡片就画在放下的那一栏，执行后重读视图，每张卡回到它真正所在的一栏；被拒、失败或取消，它回到原处，结局与其他命令一样写在看板视图下的状态条上。
+- **行上带着阶段。** 看板视图总是要回分栏字段，`available` 读 `row.data.stage` 不必写进 `record.rowFields`。
 
 ## 确认与表单 {#confirm}
 

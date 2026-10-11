@@ -23,7 +23,12 @@ export type RecordKey = string | number;
 /** Sort direction as stored in a config: Wow's `SortDirection` values. */
 export type SortDirection = 'ASC' | 'DESC';
 
-export type RecordLayout = 'table' | 'card';
+/**
+ * How a record view draws its rows: a table, a grid of cards, or the cards
+ * laid out in one lane per stage (`kanban`, D83). Table and cards draw the
+ * very same query; a kanban asks one per lane.
+ */
+export type RecordLayout = 'table' | 'card' | 'kanban';
 
 /** Which paging protocol the source offers; declared by the definition. */
 export type PagingMode = 'paged' | 'cursor';
@@ -117,8 +122,37 @@ export interface RecordCardSpec {
 }
 
 /**
- * Both layouts are stored together, so switching between table and card keeps
- * the other one's settings; `layout` only records the current choice.
+ * The most lanes a kanban draws at once, the「其他」lane not counted.
+ *
+ * Every lane is a query of its own, so the lanes shown are the requests one
+ * apply sends; a definition whose enum lists more stages than this asks the
+ * reader to fold some away (`record.kanban.too-many-lanes`), and a new view
+ * starts with the first this many shown.
+ */
+export const MAX_KANBAN_LANES = 12;
+
+/**
+ * The kanban half of a record view (D83): which field's stages the lanes
+ * are, and which of them the reader folded away. Its cards are the card
+ * half's (`RecordCardSpec`), so one record is the same card in either.
+ */
+export interface RecordKanbanSpec {
+  /**
+   * The field whose options are the lanes: an `enum` field that declares
+   * `options`, whose order, labels and tones the lanes take.
+   */
+  lane: string;
+  /**
+   * The values of the options whose lanes are not drawn, nor asked for.
+   * Folded rather than shown, so an option the definition adds later shows
+   * up on its own.
+   */
+  hidden?: (string | number)[];
+}
+
+/**
+ * Every layout's settings are stored together, so switching between them
+ * keeps the others'; `layout` only records the current choice.
  */
 export interface RecordViewConfig extends DataViewConfigBase {
   kind: 'record';
@@ -128,6 +162,12 @@ export interface RecordViewConfig extends DataViewConfigBase {
   layout: RecordLayout;
   table: RecordTableSpec;
   card: RecordCardSpec;
+  /**
+   * The kanban half, when the definition offers the kanban layout: optional,
+   * because a view of a definition without one has nothing to say here and
+   * every config saved before it existed has none.
+   */
+  kanban?: RecordKanbanSpec;
 }
 
 /**
@@ -136,7 +176,9 @@ export interface RecordViewConfig extends DataViewConfigBase {
  *
  * Table or cards is one of them: both layouts draw the very same rows from
  * the very same query, and both are stored side by side, so switching is
- * complete the moment it is done. An analysis layout is *not* one — the
+ * complete the moment it is done. The kanban asks other questions — one
+ * per lane — so the runtime runs a switch into or out of it all the same
+ * (`restyledOnly`); to the title bar it is still only a way of looking. An analysis layout is *not* one — the
  * kernel shapes a chart only for the layout that ran.
  */
 export const RECORD_PRESENTATION_MEMBERS = [

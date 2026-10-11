@@ -114,6 +114,10 @@ export {
   useRecordExport,
 } from './useRecordExport.js';
 export {
+  type RecordKanbanController,
+  useRecordKanban,
+} from './useRecordKanban.js';
+export {
   type RecordTableController,
   type ToggleSelectionOptions,
   type ToggleSortOptions,

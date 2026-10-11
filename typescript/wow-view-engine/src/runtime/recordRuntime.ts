@@ -29,6 +29,7 @@ import {
   type ExportedRows,
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
+import { executeLanePage } from './kanban.js';
 import { isCalledOff } from './failure/failures.js';
 import { restyledOnly } from './restyle.js';
 import { withScopeFilter } from './scope.js';
@@ -75,6 +76,36 @@ export class RecordDataViewRuntime
     this.target = target;
     this.store.setState({ selection: [] });
     this.execute({ keepSelection: false });
+  }
+
+  /**
+   * One kanban lane's next page put after the cards it has (D83), quietly:
+   * the board stays drawn and nothing says 「正在查询」 while it is out.
+   * Only over a kanban result that landed on what is applied; anything else
+   * — a query out, a failure, a lane with nothing more — leaves it be.
+   */
+  loadLane(laneId: string): void {
+    if (this.disposed) return;
+    const result = this.state.result;
+    const { query, applied } = this.state;
+    if (!result || query.status !== 'success' || result.own !== applied) return;
+    const data = result.data;
+    if (data.kind !== 'record') return;
+    const lane = data.view.lanes?.find(found => found.id === laneId);
+    if (!lane?.next) return;
+    this.execute({
+      keepSelection: true,
+      quiet: true,
+      fetch: (config, controller) =>
+        executeLanePage(
+          this.context,
+          config,
+          data.view,
+          laneId,
+          data.issues,
+          controller,
+        ),
+    });
   }
 
   select(keys: RecordKey[]): void {

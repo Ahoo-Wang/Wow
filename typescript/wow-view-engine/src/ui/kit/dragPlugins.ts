@@ -85,6 +85,31 @@ export function sortableList(
 }
 
 /**
+ * What a pointer-only drag's `DragDropProvider` runs — a kanban's cards
+ * (D83), whose own keys are taken: Enter and Space open a card, the arrows
+ * move between cards (`useOpenRows`), and the keyboard's way to move one is
+ * the card's menu. So no keyboard sensor, and none of the `Accessibility`
+ * plugin, which writes a role, a tab stop and a description onto every
+ * draggable and would break the cards' one stop. What stays: the pointer
+ * that has to travel first ({@link PRESS_OR_DRAG}, so a press still opens
+ * the card), the auto-scroll near an edge, the drag's own feedback, and the
+ * page's nonce under a strict CSP.
+ */
+export function pointerDrag(): {
+  plugins(defaults: Defaults<'plugins'>): Defaults<'plugins'>;
+  sensors(defaults: Defaults<'sensors'>): Defaults<'sensors'>;
+} {
+  return {
+    plugins: defaults => {
+      const plugins = defaults.filter(plugin => plugin !== Accessibility);
+      const nonce = cspNonce();
+      return nonce ? [...plugins, StyleInjector.configure({ nonce })] : plugins;
+    },
+    sensors: () => [PRESS_OR_DRAG],
+  };
+}
+
+/**
  * The plugins one sortable row runs: the library's defaults less the
  * optimistic sorting. That plugin reorders the DOM while the pointer moves,
  * which makes the indexes a row is rendered from stale exactly when the drop

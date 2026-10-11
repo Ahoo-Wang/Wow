@@ -85,6 +85,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - `RecordCapability.rowFields` 的每一项都必须是已声明、且行里真有值的字段（不是搜索／元数据这类无字段种类），否则报 `definition.record.row-field-unknown`／`row-field-not-a-path`：它每一页都要被要回来，一个要不回来的名字只会让读它的动作永远读到 `undefined`；
 - `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段（`definition.record.row-key-unknown`），`AnalysisCapability.fields[].field` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
 - 行键字段还必须 `sortable: true`（`definition.record.row-key-unsortable`）：每条记录查询都以行键收尾（见「Record 内核的规则」），后端对不可排序的字段排序会整条拒绝，所以这件事在准入时说，而不是在第一次翻页时；
+- `layouts` 写了 `'kanban'` 时，定义里至少要有一个声明了 `options` 的 `enum` 字段可作分栏字段（`definition.record.kanban-no-lane`，error）：看板视图没有分栏字段就画不出一栏（[D83](decisions.md#d83-记录视图的第三种布局看板视图2026-10-10)）；
 - `AnalysisCapability.elements` 是一条链，按链自根向内走：第一层是根上一个声明了 `elements` 的字段，第 i 层必须是第 i−1 层元素里声明了 `elements` 的字段，否则报 `definition.analysis.element-undeclared`——并列的两个根数组就是在这里被拒的，那是一条断链而不是两条链；层数不得超过 Wow 的 `AGGREGATION_LIMITS.MAX_ELEMENTS`（5），否则报 `definition.analysis.elements-too-many`：再深的一层任何配置都展开不到；
 - 每个 `views[].config.kind` 必须与所属定义的能力匹配：`kind: 'data'` 只接受 `record`／`analysis` 且对应能力已声明，`kind: 'dashboard'` 只接受 `dashboard`，否则报 error（系统视图不可覆盖，不能交付一个只能待修复的只读视图）；
 - 每个系统视图的配置还要通过对应的 `validate*`（Dashboard 系统视图在此只做本地结构校验，面板引用需要加载被引用实例与其定义，因此由 Engine 在注册或首次打开时用 `validateDashboard` 的完整入参复验，失败按该面板不可用处理）；
@@ -183,6 +184,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - `table.columns[].field`、`sort[].field` 与 `summaries[]` 的字段-函数对都不得重复，在第二次出现处报 `record.column.duplicate`／`record.sort.duplicate`／`record.summary.duplicate`；
 - `pageSize` 为不超过 `RuntimeLimits.maxPageSize` 的正整数；
 - `sort[].field` 必须存在且 `sortable` 为 true，游标模式下 `sort.length` 不超过 `MAX_CURSOR_SORT_FIELDS − 1`（31）：Wow 的上限是 32，行键占掉一格（`maxSortFields`）；
+- `kanban` 若存在必须是对象、`lane` 为字符串、`hidden` 若存在为字符串或数字的数组（`record.kanban.invalid`，属骨架）；`layout` 为 `'kanban'` 时必须有 `kanban`（`record.kanban.missing`），`lane` 必须是已声明的、带 `options` 的 `enum` 字段（`record.field.unknown`／`record.kanban.lane-not-enum`），显示的栏（选项减去 `hidden`）不超过 `MAX_KANBAN_LANES`（`record.kanban.too-many-lanes`）。`layout` 不是 `'kanban'` 时 `kanban` 只查骨架：存着的那一半等切回来再判，与 `card` 在表格布局下照样存着同理；
 - 每个 `summaries[]` 的函数必须出现在该字段的 `summary` 集合中。（见 test/record.test.ts「validateRecord」「a record config that lost its shape」）
 
 **排序以行键收尾，分页才不重不漏**（2026-09-22 生产复审）。`compileRecord` 把配置里的 `sort` 原样编译，再在末尾追加 `{ field: rowKey, direction: ASC }`——**分页与游标两种查询都加**，一条规则；配置的 `sort` 里已经有行键（哪个方向都算）就不加，因为那个顺序已经是全序。原因是实测：对真实的 Wow 补偿服务按默认的 `eventTime DESC` 逐页翻，许多失败执行的 `eventTime` 精确到毫秒都相同，50 个页边界里有 15 个落在相同时间戳上，30 页 × 20 行的扫描 12 次里 11 次出现**同一行出现在两页上**（于是另一些行哪一页都没有）；追加 `state.id ASC` 后 12 次里 0 次。Wow 服务端的查询网关只给游标查询补唯一排序键，分页查询不补，别的后端更不一定补，而导出也是按页码翻的——一份文件可能重复一些行、漏掉另一些。所以一致性归引擎：行键按定义唯一，以它收尾的排序对任何后端都是全序。
@@ -192,6 +194,28 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - 游标模式下它占 Wow `MAX_CURSOR_SORT_FIELDS` 的一格，用户可选的上限因此是 31（`maxSortFields`）。
 
 （见 test/stableOrder.test.ts「the row key breaks ties」、test/definition.test.ts「refuses a row key the definition does not declare sortable」、test/stableOrder.test.ts「a sort that ties, paged by index」与 test/recordWorkbenchInteraction.test.tsx「keeps the tie-breaking row key out of every sort control」）
+
+## 看板视图：一栏一条查询
+
+看板视图（`layout: 'kanban'`，[D83](decisions.md#d83-记录视图的第三种布局看板视图2026-10-10)）的问题不是「一页」，是「每一栏的第一页」。规则都在 `record/kanban.ts`：
+
+```ts
+kanbanLanes(def, cfg): KanbanLane[]                         // 显示的栏：分栏字段的选项按定义的顺序、减去 hidden，末尾一栏「其他」（value: null）
+laneConfig(cfg, lane, def): RecordViewConfig                 // 这一栏的问题：视图的条件 AND 这一栏的条件（选项栏 IN [值]，「其他」NOT_IN 全部选项），其余成员不动
+compileKanbanCounts(def, cfg, kinds, ctx): AggregationQuery | null   // 各栏的条数与汇总：terms(分栏字段) 分组，COUNT 加配置的汇总，条件 AND IN [显示的选项栏值]
+projectKanban(def, cfg, pages, counts, limits): RecordProjection     // 每栏投影后合成一份：rows 按栏的顺序接起来，lanes 记每栏的行键、条数、汇总与下一页
+appendLane(def, cfg, view, laneId, page, limits): RecordProjection   // 「加载更多」：这一栏的下一页接在后面，其余栏原样
+```
+
+- **栏的条件是引擎的，不是用户的**：它在 `laneConfig` 里并进条件树（`mergeFilters`，与宿主注入的范围同一种合并），走 `enum` 种类同一套编译，不经准入——它不在配置里，用户看不到也改不了。筛选摘要、「已修改」、保存读的都是视图自己的条件。
+- **栏的身份是选项的值**：`lane.id` 是 `option:` 加上值的 JSON（数字 `1` 与字符串 `'1'` 是两栏），「其他」是 `other`。「加载更多」按 id 找栏，栏的顺序变了也找得对。
+- **一条记录只在一栏**：选项栏互斥（`IN` 一个值），「其他」是它们的补集；投影仍按行键去重——加载更多之间一张卡换了栏，后来的那一页不会让它在新栏里出现两次，留在先到的那一栏，刷新后归位。
+- **条数**：`counts` 按分组别名读回每个选项栏的 `COUNT` 与汇总（`projectSummaries` 的 `total`，一栏一行）；没有聚合（失败、或这一栏不在结果里——聚合里没有的组就是零条）时选项栏读 0。「其他」不在聚合里，条数取分页源这一栏的总数，游标源为 `null`（界面写已载入的张数，`hasNext` 时加「+」）。聚合失败时选项栏同样退回分页源的总数、游标源的 `null`。
+- **每栏的分页**：栏的 `next` 是这一栏下一页的目标（分页源 `{ index: n + 1 }`、游标源 `{ cursor }`），没有下一页为 `null`；`view.paging` 不画分页条，取第一栏的那份只为类型完整。
+- **一页要哪些字段**照「一页要哪些字段」：定义提供卡片或看板视图时都要卡片的标题、图片与正文字段（`recordProjection`）。**分栏字段也要**：栏的条件虽已说了它的值，但宿主的换栏规则（`RecordAction.moves` 的 `available`）与卡片菜单里「除了这一阶段」的选项读的是行上的值，不要回来就读到 `undefined`、把每一栏都判成不能去。
+- **查询的重量**按最重的那一栏称——「其他」栏的 `NOT_IN` 带着全部选项（`weightIssues`）。
+
+（见 test/kanban.test.ts）
 
 ## 一页要哪些字段
 
