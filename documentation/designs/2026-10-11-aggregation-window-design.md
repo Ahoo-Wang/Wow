@@ -1,6 +1,6 @@
 # 聚合查询的窗口计算设计（数据集平台 R4）
 
-日期：2026-10-11。状态：§8 的决定已由用户确认（2026-10-11，「按你推荐，开始 R4a」）；R4a 分两步实施，见 §7：R4a-1 已实施（Ahoo-Wang/Wow#4169），R4a-2 已实施（Ahoo-Wang/Wow#4170）；wow-client 已实施（Ahoo-Wang/Wow#4172）；R4b 与 R4a-3 已实施。
+日期：2026-10-11。状态：§8 的决定已由用户确认（2026-10-11，「按你推荐，开始 R4a」）；R4a 分两步实施，见 §7：R4a-1 已实施（Ahoo-Wang/Wow#4169），R4a-2 已实施（Ahoo-Wang/Wow#4170）；wow-client 已实施（Ahoo-Wang/Wow#4172）；R4b 与 R4a-3 已实施（Ahoo-Wang/Wow#4173）；R4c 已实施（Ahoo-Wang/Wow#4179）；R4d 的算出的线已实施（view-engine D87，Ahoo-Wang/Wow#4175），整段对比与组内 TopN 待用户确认（平台设计 §11 的 T6、T7）。
 
 基线：`main` `6c2bff7651`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R4（其 §11 T1），建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)的聚合协议与 `StorageSupport` 之上；view-engine 侧的现状见 `typescript/wow-view-engine/docs/design/decisions.md` 的 Q53、Q59 与 D38。
 
