@@ -100,6 +100,12 @@ export interface HeatmapData {
   ys: unknown[];
   /** `cells[y][x]`, null where the query returned no row. */
   cells: (number | null)[][];
+  /**
+   * The columns run along time or a calendar part's cycle — days, the hours
+   * of a day — in their own order: their names are written flat every few,
+   * as a time axis's are, never slanted.
+   */
+  xAlong?: true;
 }
 
 export interface ScatterData {

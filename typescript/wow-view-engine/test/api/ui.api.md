@@ -657,6 +657,7 @@ interface CartesianData {
     // (undocumented)
     chart: ChartType;
     crowded?: true;
+    cycle?: true;
     derived?: DerivedLine[];
     extremes?: SeriesExtremes;
     gaps?: CartesianGap[];
@@ -3058,6 +3059,7 @@ export const en: {
     readonly 'label.chart.column.reached': "Of the target";
     readonly 'label.chart.target': "Toward target";
     readonly 'label.chart.target.reached': "{value} of {target}";
+    readonly 'label.chart.target.of': "Target {target}";
     readonly 'label.chart.period.week': "Week of {start}";
     readonly 'label.chart.period.so-far': "{period} so far";
     readonly 'label.chart.period.whole': "All in range";
@@ -4723,6 +4725,7 @@ interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
     type: 'heatmap';
+    xAlong?: true;
     // (undocumented)
     xs: unknown[];
     // (undocumented)
