@@ -822,6 +822,7 @@ src/
       RefreshControl.tsx      — Refresh now, and the auto-refresh cadence menu, as one split button
       ResultToolbar.tsx       — Selection, bulk slot, layout, columns, refresh
       SaveActions.tsx         — The split save button group: save in place, and the menu of the other ways to save
+      MoreViewActions.tsx     — 「更多视图操作」 beside the save button (R2-98): 另存为, 设为共享／设为个人 for the open view, and 复制链接 where a router puts the view in the address
       SaveAsDialog.tsx        — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked); the system audience offered only where `createSystem` is granted (D81)
       ViewHeader.tsx          — Title bar: kind, audience, title, unsaved mark, save commands
       ViewList.tsx            — What this list is a list of — the definition's own title

@@ -286,6 +286,44 @@ describe('the address: `?view=`, a new entry per view', () => {
     await waitFor(() => expect(current()).toBe('Mine'));
   });
 
+  it('copies the page’s address from the title bar’s menu (R2-98)', async () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: (text: string) => (written.push(text), Promise.resolve()),
+      },
+    });
+    try {
+      hosted(
+        { '/orders': <DataWorkbench definitionId="orders" /> },
+        '/orders?view=orders-1',
+      );
+      await waitFor(() => expect(current()).toBe('Mine'));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'More view actions' }),
+      );
+      fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Copy link' }),
+      );
+      expect(await screen.findByText('Link copied')).toBeTruthy();
+      expect(written).toEqual([window.location.href]);
+      // A page with no clipboard to write to says so.
+      Reflect.deleteProperty(navigator, 'clipboard');
+      fireEvent.click(
+        screen.getByRole('button', { name: 'More view actions' }),
+      );
+      fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Copy link' }),
+      );
+      expect(
+        await screen.findByText('The link could not be copied'),
+      ).toBeTruthy();
+    } finally {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    }
+  });
+
   it('keeps a host’s own `instanceId` in charge', async () => {
     const { at } = hosted(
       {
@@ -509,14 +547,17 @@ describe('the address: a board’s filters and tab in the history entry', () => 
     return null;
   }
 
-  function board(start: InitialEntry) {
+  function board(start: InitialEntry, boardsInAddress?: boolean) {
     const engine = engineOf();
     const router = createMemoryRouter(
       [
         {
           path: '*',
           element: (
-            <RoutedChildren engine={engine}>
+            <RoutedChildren
+              engine={engine}
+              {...(boardsInAddress === undefined ? {} : { boardsInAddress })}
+            >
               <Probe />
             </RoutedChildren>
           ),
@@ -532,6 +573,59 @@ describe('the address: a board’s filters and tab in the history entry', () => 
     const view = render(draw({}));
     return { router, give: (given: Board) => view.rerender(draw(given)) };
   }
+
+  // A host that keeps boards in the address (R2-98): the daily report on
+  // one day, sent as a link.
+  it('keeps the filters and tab in the search too where the host asks, and opens a link on them', async () => {
+    const { router } = board({ pathname: '/', search: '?view=x' }, true);
+    const next = { values: { day: '2026-09-21' } };
+    act(() => last.value.onFiltersChange?.(next));
+    await waitFor(() =>
+      expect(
+        JSON.parse(
+          new URLSearchParams(router.state.location.search).get('boards')!,
+        ),
+      ).toEqual({ b: { filters: next } }),
+    );
+    // The host's own parameters stay, and the entry still holds it.
+    expect(new URLSearchParams(router.state.location.search).get('view')).toBe(
+      'x',
+    );
+    expect(router.state.location.state).toMatchObject({
+      boards: { b: { filters: next } },
+    });
+    act(() => last.value.onTabChange?.('week'));
+    await waitFor(() =>
+      expect(
+        JSON.parse(
+          new URLSearchParams(router.state.location.search).get('boards')!,
+        ),
+      ).toEqual({ b: { filters: next, tab: 'week' } }),
+    );
+    cleanup();
+
+    // The link, opened afresh: no entry state, the search alone.
+    const link = router.state.location.search;
+    board({ pathname: '/', search: link }, true);
+    expect(last.value.initialFilters).toEqual(next);
+    expect(last.value.initialTab).toBe('week');
+  });
+
+  it('reads nothing from a search it cannot read, nor from one it was not asked to keep', () => {
+    const filters = { values: { day: 'today' } };
+    const search = `?boards=${encodeURIComponent(JSON.stringify({ b: { filters } }))}`;
+    board({ pathname: '/', search }, false);
+    expect(last.value.initialFilters).toBeNull();
+    cleanup();
+    for (const broken of ['not-json', '[1]', '{"b":3}', '"text"']) {
+      board(
+        { pathname: '/', search: `?boards=${encodeURIComponent(broken)}` },
+        true,
+      );
+      expect(last.value.initialFilters).toBeNull();
+      cleanup();
+    }
+  });
 
   it('opens on the entry’s filters and tab, and replaces the entry as they change', async () => {
     const filters = { values: { day: 'yesterday' } };
@@ -638,13 +732,20 @@ describe('the address: a board’s filters and tab in the history entry', () => 
 
 function RoutedChildren({
   engine,
+  boardsInAddress,
   children,
 }: {
   engine: ViewEngine;
+  boardsInAddress?: boolean;
   children: ReactNode;
 }) {
   return (
-    <ViewHost engine={engine} router={useReactRouter()} colorMode="host">
+    <ViewHost
+      engine={engine}
+      router={useReactRouter()}
+      colorMode="host"
+      {...(boardsInAddress === undefined ? {} : { boardsInAddress })}
+    >
       {children}
     </ViewHost>
   );

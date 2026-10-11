@@ -61,6 +61,15 @@ export interface ViewHostProps {
    */
   router?: ViewRouter;
   /**
+   * Whether a board's filters and tab are kept in the address's search too
+   * (`?boards=`), not in the history entry alone (R2-98): a link then opens
+   * the board on the same day and the same filters — the daily report sent
+   * as a link. Off by default: the search is the host's to keep tidy, and a
+   * board's filters spelled into it are long. The outer host's when left
+   * out; nothing without a `router`.
+   */
+  boardsInAddress?: boolean;
+  /**
    * Every way off a board or a view, in the host's own hands instead of the
    * router's: handed resolved through the route of the resource it leads
    * to (`ViewRoute`); a URL, and a resource with no route, as it came.
@@ -119,6 +128,7 @@ export function ViewHost({
   locale,
   messages,
   router: own,
+  boardsInAddress,
   navigate,
   bindings,
   theme,
@@ -149,6 +159,7 @@ export function ViewHost({
       navigate={routed}
       bindings={bindings}
       router={own}
+      {...(boardsInAddress === undefined ? {} : { boardsInAddress })}
       detail={detail}
       hosted
     >

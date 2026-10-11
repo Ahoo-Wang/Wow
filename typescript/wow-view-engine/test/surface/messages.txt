@@ -1,4 +1,4 @@
-# Message keys — 2119.
+# Message keys — 2122.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1424,6 +1424,9 @@ label.having.op.GTE
 label.having.op.LT
 label.having.op.LTE
 label.having.op.NE
+label.header.copy-link
+label.header.link-copied
+label.header.link-failed
 label.header.more
 label.header.new-view
 label.header.unsaved

@@ -86,6 +86,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.header.unsaved': '已修改',
   'label.header.unsaved-look': '只改了展示',
   'label.header.more': '更多视图操作',
+  'label.header.copy-link': '复制链接',
+  'label.header.link-copied': '链接已复制',
+  'label.header.link-failed': '链接没能复制',
   'label.editor.pending': '{count} 项未应用',
 
   // 记录视图：布局、工具栏、分页、行与汇总。

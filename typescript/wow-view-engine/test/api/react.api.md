@@ -3481,6 +3481,7 @@ interface SankeySpec {
 
 // @public (undocumented)
 export interface SaveAbilities {
+    changeAudience?: boolean;
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
@@ -3500,6 +3501,7 @@ export interface SaveCommands {
     abandon(write?: WriteState): void;
     // (undocumented)
     can: SaveAbilities;
+    changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
     // (undocumented)
     delete(): Promise<boolean>;
     // (undocumented)

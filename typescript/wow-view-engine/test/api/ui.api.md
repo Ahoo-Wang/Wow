@@ -3895,6 +3895,9 @@ export const en: {
     readonly 'label.header.unsaved': "Edited";
     readonly 'label.header.unsaved-look': "Only the look changed";
     readonly 'label.header.more': "More view actions";
+    readonly 'label.header.copy-link': "Copy link";
+    readonly 'label.header.link-copied': "Link copied";
+    readonly 'label.header.link-failed': "The link could not be copied";
     readonly 'label.editor.pending': "{count} not applied";
     readonly 'label.save.save': "Save";
     readonly 'label.save.save-as': "Save as";
@@ -6335,6 +6338,7 @@ interface SankeySpec {
 
 // @public (undocumented)
 interface SaveAbilities {
+    changeAudience?: boolean;
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
@@ -6394,6 +6398,7 @@ interface SaveCommands {
     abandon(write?: WriteState): void;
     // (undocumented)
     can: SaveAbilities;
+    changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
     // (undocumented)
     delete(): Promise<boolean>;
     // (undocumented)
@@ -8279,6 +8284,7 @@ export function ViewHost(input: ViewHostProps): JSX.Element;
 // @public (undocumented)
 export interface ViewHostProps {
     bindings?: readonly ViewBinding[];
+    boardsInAddress?: boolean;
     brand?: string;
     // (undocumented)
     children: ReactNode;

@@ -524,7 +524,12 @@ export const EditIsThePrimaryAtTheEnd: Story = {
     const saves = within(
       canvasElement.querySelector<HTMLElement>('[data-slot="save-actions"]')!,
     ).getAllByRole('button');
-    await expect(saves).toEqual([saveAsOf(canvasElement)]);
+    // The copy leads; beside it, the menu of what else is done to the
+    // board (R2-98), which is no save.
+    await expect(saves[0]).toBe(saveAsOf(canvasElement));
+    await expect(saves.slice(1).map(button => button.ariaLabel)).toEqual([
+      zhCN['label.dashboard.more'],
+    ]);
 
     await userEvent.click(edit);
     const bar = await canvas.findByRole('region', {

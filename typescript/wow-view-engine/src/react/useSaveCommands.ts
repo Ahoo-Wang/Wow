@@ -55,6 +55,12 @@ export interface SaveAbilities {
   /** True when a copy may be made in at least one scope. */
   saveAs: boolean;
   rename: boolean;
+  /**
+   * The open view may move to the other audience (`instanceAbilities`).
+   * Optional, as the command is: commands a host writes itself, without
+   * it, offer no such move.
+   */
+  changeAudience?: boolean;
   delete: boolean;
   /** True when there are edits and a saved baseline to take them back to. */
   revert: boolean;
@@ -134,6 +140,12 @@ export interface SaveCommands {
   save(): Promise<ViewInstance | null>;
   saveAs(input: SaveTargetInput): Promise<ViewInstance | null>;
   rename(title: string): Promise<ViewInstance | null>;
+  /**
+   * 设为共享／设为个人 for the open view, in place (`engine.changeAudience`,
+   * R2-98): the view, moved, or `null` where it did not land — its outcome
+   * is then the view's, on its band.
+   */
+  changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
   delete(): Promise<boolean>;
   /** Drops the edits and puts the saved config back in force. */
   revert(): void;
@@ -299,28 +311,10 @@ export function useSaveCommands(
     [engine, runtime, run],
   );
 
-  const rename = useCallback(
-    (title: string) =>
-      instanceId
-        ? run(
-            'view.rename.failed',
-            () => engine.rename(instanceId, title),
-            null,
-          )
-        : Promise.resolve(null),
-    [engine, instanceId, run],
-  );
-
-  const remove = useCallback(
-    () =>
-      instanceId
-        ? run(
-            'view.delete.failed',
-            () => engine.delete(instanceId).then(() => true),
-            false,
-          )
-        : Promise.resolve(false),
-    [engine, instanceId, run],
+  const { rename, changeAudience, remove } = useInstanceWrites(
+    engine,
+    instanceId,
+    run,
   );
 
   const retry = useCallback(() => {
@@ -405,6 +399,7 @@ export function useSaveCommands(
     save,
     saveAs,
     rename,
+    changeAudience,
     delete: remove,
     revert,
     retry,
@@ -416,6 +411,7 @@ export function useSaveCommands(
       save: (state?.saved ? instance?.save : creating) === true,
       saveAs: createPersonal || createShared || createSystem,
       rename: instance?.rename === true,
+      changeAudience: instance?.changeAudience === true,
       delete: instance?.delete === true,
       // Reverting writes nothing and needs no permission — it only puts back
       // what the store already holds.
@@ -467,4 +463,56 @@ function landedSave(instance: ViewInstance | null): boolean {
  */
 function wroteStore(write: RecoveredWrite): boolean {
   return write.written;
+}
+
+/** The run every command goes through (`useSaveCommands`'s `run`). */
+type Run = <T>(
+  code: string,
+  command: () => Promise<T>,
+  fallback: T,
+) => Promise<T>;
+
+/**
+ * The writes addressed to the open view by its id — rename, 设为共享／设为个人
+ * and delete — each a no-op answer while no saved view is open.
+ */
+function useInstanceWrites(
+  engine: ViewEngine,
+  instanceId: string | null,
+  run: Run,
+) {
+  const rename = useCallback(
+    (title: string) =>
+      instanceId
+        ? run(
+            'view.rename.failed',
+            () => engine.rename(instanceId, title),
+            null,
+          )
+        : Promise.resolve(null),
+    [engine, instanceId, run],
+  );
+  const changeAudience = useCallback(
+    (audience: ViewAudience) =>
+      instanceId
+        ? run(
+            'view.changeAudience.failed',
+            () => engine.changeAudience(instanceId, audience),
+            null,
+          )
+        : Promise.resolve(null),
+    [engine, instanceId, run],
+  );
+  const remove = useCallback(
+    () =>
+      instanceId
+        ? run(
+            'view.delete.failed',
+            () => engine.delete(instanceId).then(() => true),
+            false,
+          )
+        : Promise.resolve(false),
+    [engine, instanceId, run],
+  );
+  return { rename, changeAudience, remove };
 }

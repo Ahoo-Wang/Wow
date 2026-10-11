@@ -46,6 +46,8 @@ interface EngineContext {
   worded: ReadonlySet<ViewEngine>;
   /** The host's router (`ViewHost`'s `router`), where it gave one. */
   router: ViewRouter | undefined;
+  /** `ViewHost`'s `boardsInAddress`: boards kept in the search too. */
+  boardsInAddress: boolean;
   /**
    * The record open in the address (`?id=`), for every bound resource's
    * record detail that holds none of its own; see `ViewHost`.
@@ -63,6 +65,7 @@ const Context = createContext<EngineContext>({
   bindings: NO_BINDINGS,
   worded: new Set(),
   router: undefined,
+  boardsInAddress: false,
   detail: undefined,
   hosted: false,
 });
@@ -106,6 +109,8 @@ interface ViewEngineProviderProps {
   bindings?: readonly ViewBinding[];
   /** The host's router; the outer provider's when left out. */
   router?: ViewRouter;
+  /** Boards kept in the search too; the outer provider's when left out. */
+  boardsInAddress?: boolean;
   /** The record open in the address; the outer provider's when left out. */
   detail?: RecordDetailControl;
   /** Set by `ViewHost`: what is under it has a host above. */
@@ -135,6 +140,7 @@ export function ViewEngineProvider({
   navigate,
   bindings,
   router,
+  boardsInAddress,
   detail,
   hosted,
   children,
@@ -171,6 +177,7 @@ export function ViewEngineProvider({
           ? new Set([...outer.worded, own])
           : outer.worded,
       router: router ?? outer.router,
+      boardsInAddress: boardsInAddress ?? outer.boardsInAddress,
       detail: detail ?? outer.detail,
       hosted: hosted ?? outer.hosted,
     }),
@@ -183,6 +190,8 @@ export function ViewEngineProvider({
       outer.worded,
       router,
       outer.router,
+      boardsInAddress,
+      outer.boardsInAddress,
       detail,
       outer.detail,
       hosted,
@@ -307,6 +316,11 @@ export function useBindings(): (
 /** The host's router, from the `ViewHost` above; `undefined` without one. */
 export function useViewRouter(): ViewRouter | undefined {
   return useContext(Context).router;
+}
+
+/** Whether the `ViewHost` above keeps boards in the search too. */
+export function useBoardsInAddress(): boolean {
+  return useContext(Context).boardsInAddress;
 }
 
 /** Whether a `ViewHost` is above. */
