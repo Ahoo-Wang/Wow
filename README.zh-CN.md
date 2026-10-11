@@ -65,6 +65,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 | 生成的 HTTP 命令与状态路由 | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
 | 可选存储、消息、安全与可观测集成 | [wow-spring-boot-starter Feature Capabilities](wow-spring-boot-starter/build.gradle.kts) |
 | 补偿与恢复操作 | [补偿领域](compensation)与[补偿控制面](documentation/docs/zh/reference/example/compensation.md#补偿控制面) |
+| TypeScript 客户端、React 绑定、代码生成器与视图引擎（npm `@ahoo-wang/wow-*`） | [typescript](typescript)与 [TypeScript 指南](documentation/docs/zh/guide/typescript/index.md) |
 
 ## 特性
 
