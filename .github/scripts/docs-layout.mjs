@@ -37,6 +37,8 @@ export const MARKDOWN_LOCATIONS = [
   // Ledgers and release runbooks.
   /^docs\/(?:compat-debt|todo)\.md$/,
   /^typescript\/(?:TODO|MIGRATION|RELEASING|RELEASE_NOTES_TEMPLATE)\.md$/,
+  // A minor release's notes draft, deleted once the release is published.
+  /^typescript\/release-notes\/v[^/]+\.md$/,
   // Reproducible performance evidence.
   /^wow-benchmarks\//,
   // Agent capabilities, the project's own and vendored ones.

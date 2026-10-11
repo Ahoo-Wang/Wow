@@ -29,7 +29,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 | 跨 JVM 模块或全仓的设计记录 | 维护者 | `documentation/designs/` |
 | 单个 TypeScript 包或应用的设计 | 该包的维护者 | `<package>/docs/design/` |
 | 已决定待完成事项的台账 | 维护者 | `docs/compat-debt.md`（保留到 v10 的兼容）、`docs/todo.md`（JVM）、`typescript/TODO.md`（wow-client、wow-react、wow-generator）、`typescript/wow-view-engine/docs/design/todo.md`（视图引擎与视图存储）、`typescript/MIGRATION.md`（从 fetcher 迁入的包） |
-| 发布手册 | 发布维护者 | `AGENTS.md`（版本、兼容性、CI）、`typescript/RELEASING.md`、`typescript/RELEASE_NOTES_TEMPLATE.md` |
+| 发布手册 | 发布维护者 | `AGENTS.md`（版本、兼容性、CI）、`typescript/RELEASING.md`、`typescript/RELEASE_NOTES_TEMPLATE.md`；次版本的发布说明草稿放在 `typescript/release-notes/v<版本>.md`，发布后删除 |
 | 可复现性能证据 | 维护者 | `wow-benchmarks/results/` |
 | Agent 能力 | 编码 Agent | `skills/`；第三方 Skill 副本放在 `.claude/skills/` |
 | 已发布模块用法 | 模块使用者 | `<module>/README.md` 与 `README.zh-CN.md` |
