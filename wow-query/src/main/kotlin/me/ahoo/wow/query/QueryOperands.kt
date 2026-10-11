@@ -16,7 +16,7 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.query.schema.jsonValue
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.POJONode
 
@@ -78,11 +78,7 @@ fun JsonNode.requiredOperandValue(pojos: PojoOperands = PojoOperands.NORMALIZE):
     }
 }
 
-private fun JsonNode.normalizedPojo(): JsonNode {
-    val tree = JsonSerializer.valueToTree<JsonNode>((this as POJONode).pojo)
-    if (tree.isPojo) throw NON_SCALAR.rejection()
-    return tree
-}
+private fun JsonNode.normalizedPojo(): JsonNode = jsonValue().also { if (it.isPojo) throw NON_SCALAR.rejection() }
 
 private fun Number.requireFinite() {
     val finite = when (this) {

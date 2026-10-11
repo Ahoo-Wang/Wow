@@ -85,13 +85,12 @@ import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.accepts
 import me.ahoo.wow.query.schema.firstLastOrderBy
+import me.ahoo.wow.query.schema.jsonValue
 import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.systemField
 import me.ahoo.wow.query.schema.temporal
-import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.POJONode
 import java.time.Instant
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -381,7 +380,7 @@ internal class QueryResolver(
     /** An equality operand must be a scalar when the storage cannot compare whole arrays. */
     private fun requireScalarEquality(value: JsonNode, reference: Reference) {
         if (schema.storage.arrayEquality != SupportMode.NONE) return
-        requireValid(!value.canonical().isArray) { QueryViolation.ArrayEquality(reference.logical) }
+        requireValid(!value.jsonValue().isArray) { QueryViolation.ArrayEquality(reference.logical) }
     }
 
     /** The values checked against the field's domain; `null` when equality asks for presence instead. */
@@ -406,11 +405,9 @@ internal class QueryResolver(
 
     private fun equalityValues(value: JsonNode): Iterable<JsonNode>? {
         if (value.isNull) return null
-        val canonical = value.canonical()
+        val canonical = value.jsonValue()
         return if (canonical.isArray) canonical else listOf(canonical)
     }
-
-    private fun JsonNode.canonical(): JsonNode = if (this is POJONode) JsonSerializer.valueToTree(pojo) else this
 
     /** The request's values must fall within the field's declared domain: checked per request, not compiled. */
     private fun values(reference: Reference, values: Iterable<JsonNode>) {

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -65,3 +66,25 @@ internal fun boundSchemaFixture(
         }
     )
 }
+
+/**
+ * The physical field [field] is bound to for [capability], for tests that inspect a schema. Backends never look a
+ * field up: admission resolves every reference once and hands them [me.ahoo.wow.query.ResolvedField]s.
+ */
+internal fun QueryModelSchema.physicalField(
+    field: QueryField,
+    capability: QueryCapability,
+    logicalParent: QueryField? = null,
+): QueryField {
+    val logical = absoluteLogicalField(field, logicalParent)
+    val definition = this.field(logical) ?: throw QueryViolation.UnknownField(logical).rejection()
+    val ancestors = definition.elementAncestors
+    requireValid(ancestors != null && ancestors == requiredElementAncestors(logicalParent)) {
+        QueryViolation.ElementScopeRequired(logical)
+    }
+    return definition.binding(capability)?.physicalField
+        ?: throw QueryViolation.UnsupportedCapability(logical, setOf(capability)).rejection()
+}
+
+private fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
+    if (parent == null) emptyList() else field(parent)?.elementAncestors?.plus(parent)
