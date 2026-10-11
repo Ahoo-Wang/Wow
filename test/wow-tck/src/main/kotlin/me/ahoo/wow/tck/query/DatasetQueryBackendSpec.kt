@@ -23,6 +23,8 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RunningFunction
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -40,7 +42,9 @@ import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
+import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryDataset
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.single
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest
@@ -227,6 +231,69 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `windows read every group before HAVING, alike in the storage and in the core`() {
+        val query = aggregation {
+            filter { "tenant_id" eq "t1" }
+            terms("city", "city")
+            sum("amount", "gmv")
+            count("orders")
+            derived("share") { ref("gmv") / total("gmv") }
+            derived("rank") { rank("gmv") }
+            derived("cumulative") { running("orders", Sort(QueryField("gmv"), Sort.Direction.DESC)) }
+            having { "rank" lte 2.0 }
+            sort { "gmv".desc() }
+        }
+        listOf(false, true).forEach { residual ->
+            val rows = orders.aggregate(query, residual).collectList().block()!!
+            rows.map { it.path("city").asString() }.assert().containsExactly("Beijing", "Hangzhou")
+            rows.map { it.get("share").asDouble() }.assert().containsExactly(35.0 / 73.5, 30.75 / 73.5)
+            rows.map { it.get("rank").asDouble() }.assert().containsExactly(1.0, 2.0)
+            rows.map { it.get("cumulative").asDouble() }.assert().containsExactly(2.0, 4.0)
+        }
+    }
+
+    @Test
+    fun `running windows follow their order within each partition, alike in the storage and in the core`() {
+        val month = Sort(QueryField("month"), Sort.Direction.ASC)
+        val query = aggregation {
+            filter { "tenant_id" eq "t1" }
+            terms("city", "city")
+            dateHistogram("created_at", AggregationDateUnit.MONTH, "month")
+            sum("amount", "gmv")
+            derived("cumulative") { running("gmv", month, listOf("city")) }
+            derived("moving") { running("gmv", month, frame = 2, function = RunningFunction.AVG) }
+        }
+        listOf(false, true).forEach { residual ->
+            val rows = orders.aggregate(query, residual).collectList().block()!!
+            val cities = rows.map { it.path("city").asString() }
+            cities.assert().containsExactly("Beijing", "Beijing", "Hangzhou", "Shanghai")
+            rows.map { it.get("cumulative").asDouble() }.assert().containsExactly(30.0, 35.0, 30.75, 7.75)
+            // Along the month, ties by city: Beijing Jan, Hangzhou Jan, Beijing Feb, Shanghai Feb.
+            rows.map { it.get("moving").asDouble() }.assert()
+                .containsExactly(30.0, (30.75 + 5.0) / 2, (30.0 + 30.75) / 2, (5.0 + 7.75) / 2)
+        }
+    }
+
+    @Test
+    fun `previous reads the earlier period over the shifted range`() {
+        val rows = orders.aggregate(
+            aggregation {
+                filter {
+                    "tenant_id" eq "t1"
+                    "created_at" gte "2025-02-01T00:00:00Z"
+                }
+                terms("city", "city")
+                dateHistogram("created_at", AggregationDateUnit.MONTH, "month")
+                sum("amount", "gmv")
+                derived("previous") { previous("gmv", "month") }
+            },
+        ).collectList().block()!!
+        rows.map { it.path("city").asString() }.assert().containsExactly("Beijing", "Shanghai")
+        rows.map { it.get("previous").takeUnless { node -> node.isNull }?.asDouble() }.assert()
+            .containsExactly(30.0, null)
+    }
+
+    @Test
     fun `value metrics skip missing values and an empty input keeps the empty summary`() {
         val discounts = orders.aggregate(
             aggregation {
@@ -394,9 +461,25 @@ private fun QueryTarget<DatasetQueryBackend>.cursor(query: ICursorQuery) =
 private fun QueryTarget<DatasetQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { backend.count(QueryAdmission.Trusted.count(filter, it)) }
 
-private fun QueryTarget<DatasetQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
-    Mono.defer { schemaProvider.schema() }.flatMapMany {
+/** [query]'s groups; with [residual], the core computes every window the storage would. */
+private fun QueryTarget<DatasetQueryBackend>.aggregate(
+    query: AggregationQuery,
+    residual: Boolean = false,
+): Flux<ObjectNode> =
+    Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.aggregate(
-            QueryAdmission.Trusted.aggregate(query, it)
+            QueryAdmission.Trusted.aggregate(query, if (residual) schema.withResidualWindows() else schema)
         )
     }
+
+private fun QueryModelSchema.withResidualWindows() = QueryModelSchema(
+    model,
+    capabilities,
+    definition,
+    bindings,
+    fullProjectionAvailable,
+    approximateMetrics,
+    storage.copy(aggregation = storage.aggregation.copy(windows = AggregationSupport.RESIDUAL_WINDOWS)),
+    provisional,
+    profile,
+)

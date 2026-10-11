@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.GroupWindow
@@ -43,6 +44,9 @@ import me.ahoo.wow.query.schema.QueryViolation
  * `WHERE` or in another metric (ClickHouse resolves aliases before columns); the outer query renames, derives,
  * filters by HAVING, sorts and limits. HAVING compares in IEEE double space, and a NULL metric satisfies no
  * comparison, as the spec says.
+ *
+ * Windows ([DerivedExpression.Window]) run in a middle query between the two, `SELECT *, <window> AS __w0 FROM
+ * (inner) WHERE isNotNull(...)`: over every group, before HAVING, sort and limit, as the core's residual windows do.
  */
 internal class ClickHouseAggregationCompiler(
     private val admitted: AdmittedQuery<AggregationQuery>,
@@ -52,6 +56,10 @@ internal class ClickHouseAggregationCompiler(
     private val parameters = SqlParameters()
     private val filters = ClickHouseFilterCompiler(admitted, table, parameters)
     private val query = admitted.query
+    private val windows: List<DerivedExpression.Window> = query.metrics
+        .filterIsInstance<AggregationMetric.Derived>()
+        .flatMap { it.expression.windows() }
+        .distinct()
 
     fun compile(window: GroupWindow): ClickHouseStatement {
         if (query.elements.isNotEmpty()) throw QueryViolation.StorageUnsupported("element scopes").rejection()
@@ -68,11 +76,17 @@ internal class ClickHouseAggregationCompiler(
                 add("$value AS ${quoteIdentifier(metric.alias)}")
             }
         }
-        val conditions = query.groupBy.withIndex()
+        val present = query.groupBy.withIndex()
             .filter { (_, group) -> group.dropsMissingKeys() }
-            .map { "isNotNull(__g${it.index})" } + listOfNotNull(query.having?.let(::having))
+            .map { "isNotNull(__g${it.index})" }
+        // Windows read every present group, so the middle query drops the missing keys and HAVING waits outside.
+        val conditions = (if (windows.isEmpty()) present else emptyList()) + listOfNotNull(query.having?.let(::having))
         val sql = buildString {
             append("SELECT ").append(outer.joinToString(", "))
+            if (windows.isNotEmpty()) {
+                append(" FROM (SELECT *, ")
+                append(windows.withIndex().joinToString(", ") { (index, window) -> "${window(window)} AS __w$index" })
+            }
             append(" FROM (SELECT ").append(inner.joinToString(", "))
             append(" FROM ").append(source)
             append(" WHERE ").append(filters.compile(query.filter))
@@ -80,6 +94,10 @@ internal class ClickHouseAggregationCompiler(
                 append(" GROUP BY ").append(query.groupBy.indices.joinToString(", ") { "__g$it" })
             }
             append(")")
+            if (windows.isNotEmpty()) {
+                if (present.isNotEmpty()) append(" WHERE ").append(present.joinToString(" AND "))
+                append(")")
+            }
             if (conditions.isNotEmpty()) append(" WHERE ").append(conditions.joinToString(" AND "))
             if (query.groupBy.isNotEmpty()) {
                 append(" ORDER BY ").append(query.effectiveSort().joinToString(", ", transform = ::order))
@@ -196,9 +214,61 @@ internal class ClickHouseAggregationCompiler(
         AggregationFunction.VARIANCE -> "varPop"
     }
 
+    /**
+     * A window over the present groups, matching the core's residual windows: NULL values are skipped and a frame
+     * of NULLs is NULL; a NULL has no rank; a running order puts NULL first ascending and last descending, and
+     * breaks ties by the remaining groups ascending.
+     */
+    private fun window(window: DerivedExpression.Window): String {
+        val metric = metricColumn(window.metric)
+        return when (window) {
+            is DerivedExpression.Total -> "sum($metric) OVER (${partition(window.within)})"
+            is DerivedExpression.Rank -> {
+                val direction = if (window.direction == Sort.Direction.ASC) "ASC" else "DESC"
+                val over = listOf(partition(window.within), "ORDER BY $metric $direction NULLS LAST")
+                "if(isNull($metric), NULL, dense_rank() OVER (${over.filter(String::isNotEmpty).joinToString(" ")}))"
+            }
+            is DerivedExpression.Running -> {
+                val function = if (window.function == RunningFunction.AVG) "avg" else "sum"
+                val orderBy = window.order.field.path
+                val ascending = window.order.direction == Sort.Direction.ASC
+                val keys = listOf(
+                    "${column(orderBy)} ${if (ascending) "ASC NULLS FIRST" else "DESC NULLS LAST"}",
+                ) + query.groupBy.withIndex()
+                    .filter { (_, group) -> group.alias != orderBy && group.alias !in window.within }
+                    .map { "__g${it.index} ASC NULLS FIRST" }
+                val start = window.frame?.let { "${it - 1} PRECEDING" } ?: "UNBOUNDED PRECEDING"
+                val over = listOf(
+                    partition(window.within),
+                    "ORDER BY ${keys.joinToString(", ")}",
+                    "ROWS BETWEEN $start AND CURRENT ROW",
+                )
+                "$function($metric) OVER (${over.filter(String::isNotEmpty).joinToString(" ")})"
+            }
+            is DerivedExpression.Previous -> error("PREVIOUS is computed by the core.")
+        }
+    }
+
+    private fun partition(within: List<String>): String =
+        if (within.isEmpty()) "" else "PARTITION BY ${within.joinToString(", ", transform = ::column)}"
+
+    /** The middle query's column of a group or metric alias. */
+    private fun column(alias: String): String {
+        val group = query.groupBy.indexOfFirst { it.alias == alias }
+        return if (group >= 0) "__g$group" else metricColumn(alias)
+    }
+
     /** Null propagates; a division by zero is NULL. */
     private fun derived(expression: DerivedExpression): String = when (expression) {
-        is DerivedExpression.MetricRef -> "toFloat64(${metricColumn(expression.metric)})"
+        is DerivedExpression.MetricRef -> {
+            val metric = query.metrics.first { it.alias == expression.metric }
+            // A derived metric has no inner column: its arithmetic is inlined.
+            if (metric is AggregationMetric.Derived) {
+                derived(metric.expression)
+            } else {
+                "toFloat64(${metricColumn(metric.alias)})"
+            }
+        }
         is DerivedExpression.Constant -> expression.value.sqlLiteral()
         is DerivedExpression.Binary -> {
             val left = derived(expression.left)
@@ -210,7 +280,7 @@ internal class ClickHouseAggregationCompiler(
                 AggregationExpressionOperator.DIVIDE -> "if($right = 0, NULL, $left / $right)"
             }
         }
-        is DerivedExpression.Window -> error("Windows are computed by the core and never sent to storage.")
+        is DerivedExpression.Window -> "toFloat64(__w${windows.indexOf(expression)})"
     }
 
     /** A HAVING condition over the outer query's metric aliases, in double space; NULL satisfies no comparison. */
@@ -240,6 +310,12 @@ internal class ClickHouseAggregationCompiler(
     }
 
     private fun metricValue(alias: String): String = "toFloat64(${quoteIdentifier(alias)})"
+
+    private fun DerivedExpression.windows(): List<DerivedExpression.Window> = when (this) {
+        is DerivedExpression.Window -> listOf(this)
+        is DerivedExpression.Binary -> left.windows() + right.windows()
+        is DerivedExpression.MetricRef, is DerivedExpression.Constant -> emptyList()
+    }
 
     private fun metricColumn(alias: String): String {
         val index = query.metrics.indexOfFirst { it.alias == alias }
