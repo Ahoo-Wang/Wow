@@ -112,6 +112,19 @@ describe('CommandResultEventStreamResultExtractor', () => {
       errorMsg: 'waited 30s',
     });
   });
+
+  it('passes a result from a stage this version does not know', async () => {
+    const stream = await CommandResultEventStreamResultExtractor(
+      exchange(
+        'event:SENT\ndata:{"stage":"SENT","errorCode":"Ok"}',
+        'event:INDEXED\ndata:{"stage":"INDEXED","errorCode":"Ok"}',
+      ),
+    );
+    await expect(read(stream)).resolves.toEqual([
+      { stage: 'SENT', errorCode: 'Ok' },
+      { stage: 'INDEXED', errorCode: 'Ok' },
+    ]);
+  });
 });
 
 describe.each([
