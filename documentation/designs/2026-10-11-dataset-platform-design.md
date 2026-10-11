@@ -1,6 +1,6 @@
 # 数据集平台化设计
 
-日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施（Ahoo-Wang/Wow#4156）；R3a 已实施（`defineDataset`、`ViewEngine.register`，view-engine D84），措辞覆盖与选择器在 R3b。
+日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施（Ahoo-Wang/Wow#4156）；R3a 已实施（Ahoo-Wang/Wow#4159，`defineDataset`、`ViewEngine.register`，view-engine D84）；R3b 已实施（`DatasetDirectoryClient`、`ViewEngine.unregister`、`DatasetResources`，view-engine D85；选择器即导航，措辞覆盖留在 view-engine todo）。待用户讨论的事项见 §11。
 
 基线：`main` `ff0a57653`。本文接在[数据集查询与 ClickHouse 后端设计](2026-10-10-clickhouse-dataset-query-design.md)（下称“数据集设计”）之后，取代它 §10 中原定的 S4。view-engine 的原则与编号见 `typescript/wow-view-engine/docs/design/`。
 
@@ -247,3 +247,16 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 | **R3a 派生定义** | `deriveDatasetDefinition`；存储中的覆盖 | view-engine 单测：派生结果过 `admit`；覆盖只能收窄 |
 | **R3b 运行时资源** | `resolveResource`；数据集选择器 | view-engine 单测与 Storybook 故事；控制台端到端 |
 | **R4、R5** | 各自另起设计 | — |
+
+## 11. 待用户讨论
+
+用户 2026-10-11 授权自主推进，需要用户决策的事项记在这里，回来后讨论。每项给出推荐与理由；未决前按推荐的默认推进或暂缓，已注明。
+
+| # | 问题 | 推荐 | 未决前 |
+|---|---|---|---|
+| T1 | R4 服务端分析函数的范围与协议形状：同比、环比、占比、累计、组内 TopN 是做成聚合查询里的“派生指标”（指标引用另一个指标加窗口），还是独立的“后处理”阶段 | 派生指标：与现有 `metrics`、`having`、`sort` 同一层，能力描述按函数逐个声明 NATIVE/RESIDUAL/NONE，view-engine 的累计、趋势、整段对比直接改用；后处理阶段会让排序与截断的语义再分一层 | 先写 R4 设计记录（只文档），不动代码 |
+| T2 | R5 分析服务的形态：新的独立部署物（工作名 `wow-analytics-server`）是否带控制台界面；控制台复用补偿控制台的宿主骨架，还是新建 | 独立部署物，带控制台；控制台新建在 `typescript/` 下，复用 view-engine 与 view-store 的现成宿主接线（与补偿控制台同样的 `ViewHost` 写法），不复用补偿控制台的业务页面 | 暂缓，先完成 R4 设计 |
+| T3 | 主体标签的 CoSec 默认实现（§4.5 缺口 2）：从 CoSec 令牌的哪些 claim 或主体属性取标签 | 读 CoSec 主体的 `attributes` 中约定前缀（如 `abac.`）的键，值按逗号拆成列表；需要确认 CoSec 现有令牌里有没有这类属性 | 暂缓，随 R5 |
+| T4 | 能力描述是否发布字段标题（`title`）：派生定义目前用 `description` 作口径 | 发布：服务端已有字段标题（声明、`@Description` 推断），描述符加一个可选 `title`，`defineDataset` 先取标题；是纯增量 | 不阻塞；先用 `description` |
+| T5 | 数据集注册表模块的发布时机：现为孵化（不发布） | 随 R5 一起发布（与设计一致）；若有企业要先在自己的服务里嵌入注册表，可提前到下一个次版本 | 保持孵化 |
+

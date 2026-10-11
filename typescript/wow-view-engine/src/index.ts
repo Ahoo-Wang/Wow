@@ -918,6 +918,12 @@ export {
   type DefineDatasetSpec,
   defineDataset,
 } from './runtime/define/defineDataset.js';
+export {
+  type DatasetCatalog,
+  type DatasetRegistrar,
+  type DatasetResource,
+  DatasetResources,
+} from './runtime/datasetResources.js';
 export type {
   DefineViewSpec,
   FieldSpec,

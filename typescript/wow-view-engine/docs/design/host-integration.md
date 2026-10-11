@@ -102,7 +102,9 @@ export const executionFailed = defineView(executionFailedDescriptor, {
 - **`defineDataset(descriptor, { id, source, title })`** 是 **defineView** 的一种写法：`fields` 是描述符记录层的每个字段，按描述符的次序；口径取字段的 `description`，没有时取路径。数据集的声明本身就是选过的字段（没有声明的列不暴露），所以这里「全列」不违反 Q1。其余与 **defineView** 相同：敏感的自动退出分析，能力随当下的描述符，`rowKey` 取描述符的身份字段，没有身份字段的数据集只能分页。结果是一份普通的定义，准入照常判它。
 - **`engine.register({ definition, source })`** 在运行时加入一份资源，同 id 的整份替换：与构造时一样准入、一样经 `onIssue` 报问题；替换后新打开的视图用新定义，已经打开的用旧的，直到重开。宿主读数据集目录（`GET /dataset`）、取每个数据集的描述符、逐个登记，`source` 就是 wow-client 的 `DatasetQueryClient`。
 - **不在打开路径上异步解析**：已存的视图引用一个宿主还没登记的数据集时，按「定义不在」报（`view.definition.not-found`），与拼错的 id 同一条路。打开路径因此保持同步，宿主决定什么时候读目录。
-- 数据集的措辞覆盖（改口径、字段次序、默认列，存在视图存储里，只能收窄与改词）与选数据集新建视图的入口不在这一批：见 [todo.md](todo.md)。
+- **`engine.unregister(id)`** 移除一份资源（[D85](decisions.md)）：已经打开的视图照常读完，再打开报「定义不在」。
+- **`DatasetResources`** 让引擎跟上服务端的目录（D85）：每次 `refresh` 登记新列出的、版本变了的再登记、没再列出或 schema 编译不了（`version` 为 `null`）的移除；定义 id 是数据集名，标题取目录的；宿主在代码里同 id 的定义优先。`refresh` 答出提供着的数据集，宿主据此为每个生成绑定（`bind(id, { route })`）：导航里因此出现它们，**打开一个就是选数据集、开始一个视图**——不另做选择器。
+- 数据集的措辞覆盖（改口径、字段次序、默认列，存在视图存储里，只能收窄与改词）不在这一批：见 [todo.md](todo.md)。
 
 ## 4. 资源注册：数据在核心，行为在 React
 

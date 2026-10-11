@@ -1505,7 +1505,10 @@ abstract class EngineResources {
     checkBinding(definitionId: string): boolean;
     get definitions(): ReadonlyMap<string, ViewDefinition>;
     protected hasSource(key: string): boolean;
-    protected keepDefinitionsIn(keep: (definition: ViewDefinition) => void): void;
+    protected keepDefinitionsIn(keep: {
+        register(definition: ViewDefinition): void;
+        unregister(definitionId: string): void;
+    }): void;
     register(resource: {
         definition: ViewDefinition;
         source?: ViewSource;
@@ -1517,6 +1520,7 @@ abstract class EngineResources {
     resolveSource(key: string): ViewSource;
     setText(text: TextResolver | undefined, language?: string): void;
     startingWord(key: string): string | undefined;
+    unregister(definitionId: string): boolean;
 }
 
 // @public (undocumented)

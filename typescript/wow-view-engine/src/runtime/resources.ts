@@ -27,6 +27,12 @@ import {
 } from './failure/issueReport.js';
 import { ViewCommandError } from './write.js';
 
+/** Where definitions registered at run time are judged and kept. */
+interface DefinitionKeeper {
+  register(definition: ViewDefinition): void;
+  unregister(definitionId: string): void;
+}
+
 /** What the engine's resources are read from; see `ViewEngineOptions`. */
 export interface ResourceHost {
   resources: readonly {
@@ -52,7 +58,7 @@ export abstract class EngineResources {
    */
   protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
   /** Where `register` hands a definition to be judged and kept. */
-  private keep: ((definition: ViewDefinition) => void) | undefined;
+  private keep: DefinitionKeeper | undefined;
   /** The words the definitions' keys are checked against; see `EngineText`. */
   private readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
@@ -193,13 +199,34 @@ export abstract class EngineResources {
     const { definition, source } = resource;
     if (source && definition.kind === 'data')
       this.sources.set(definition.source, source);
-    this.keep?.(definition);
+    this.keep?.register(definition);
   }
 
-  /** Sets where `register` hands a definition: the engine's registry. */
-  protected keepDefinitionsIn(
-    keep: (definition: ViewDefinition) => void,
-  ): void {
+  /**
+   * Removes the resource of `definitionId` (D85): a dataset retired, or one
+   * the directory no longer lists. Views already open keep running on it;
+   * opening another reports the definition as not found, as a saved view of
+   * a resource never registered does. `false` when there was none.
+   */
+  unregister(definitionId: string): boolean {
+    const definition = this.registered.get(definitionId);
+    if (!definition) return false;
+    this.keep?.unregister(definitionId);
+    if (
+      definition.kind === 'data' &&
+      ![...this.registered.values()].some(
+        other => other.kind === 'data' && other.source === definition.source,
+      )
+    )
+      this.sources.delete(definition.source);
+    return true;
+  }
+
+  /** Sets where `register` and `unregister` hand a definition: the engine's registry. */
+  protected keepDefinitionsIn(keep: {
+    register(definition: ViewDefinition): void;
+    unregister(definitionId: string): void;
+  }): void {
     this.keep = keep;
   }
 
