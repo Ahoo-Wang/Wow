@@ -12,11 +12,12 @@
  */
 
 /**
- * Characterization of the request hooks: one table of event × state, run
- * against both implementations — a query client as `execute`
- * (`useCountQuery`) and a URL (`useFetcherCountQuery`). It pins the
- * behaviour of today, fetcher-react 5.1.3 underneath, so that the refactor
- * of `docs/design/refactor-2026-09.md` can claim "unchanged" cell by cell.
+ * The request hooks' table of event × state (`docs/design/architecture.md`
+ * §3), run against both implementations — a query client as `execute`
+ * (`useCountQuery`) and a URL (`useFetcherCountQuery`). Written as a
+ * characterization of fetcher-react 5.1.3, so that the refactor of
+ * `docs/design/refactor-2026-09.md` could claim "unchanged" cell by cell; it
+ * now pins the package's own state machine.
  *
  * Batch B3 (#3371) moved the hooks onto the package's own state machine and
  * changed the cells of section 3.3 of the plan on purpose; each carries a

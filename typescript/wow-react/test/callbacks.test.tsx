@@ -12,9 +12,10 @@
  */
 
 /**
- * Characterization of when `onSuccess` and `onError` run, and what they see.
- * It pins the behaviour of today, fetcher-react 5.1.3 underneath, for the
- * refactor of `docs/design/refactor-2026-09.md`.
+ * When `onSuccess` and `onError` run, and what they see: the callback rules of
+ * `docs/design/architecture.md` §3. Written as a characterization of
+ * fetcher-react 5.1.3 before the refactor of `docs/design/refactor-2026-09.md`;
+ * it now pins the package's own state machine.
  *
  * Cells that batch B3 (#3371) changed on purpose carry a `B3 changed this`
  * comment naming the value before.
