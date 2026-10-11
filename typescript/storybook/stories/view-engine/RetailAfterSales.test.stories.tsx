@@ -13,6 +13,7 @@
 
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   AfterSaleWorkbench as DisplayAfterSaleWorkbench,
 } from './RetailAfterSales.stories.js';
@@ -84,6 +85,19 @@ export const AfterSaleWorkbench: Story = {
 
     await userEvent.click(view('待处理'));
     await waitFor(async () => expect(await total(canvasElement)).toBe(2));
+
+    // The host's chase, declared, over both waiting cases: both taken
+    // (R2-100 — the scene had no action at all).
+    await userEvent.click(
+      canvas.getByRole('checkbox', { name: zhCN['label.record.select-all'] }),
+    );
+    await userEvent.click(canvas.getByRole('button', { name: '催处理 2 条' }));
+    const ask = await within(document.body).findByRole('dialog');
+    await userEvent.click(
+      within(ask).getByRole('button', { name: '催处理 2 条' }),
+    );
+    const done = zhCN['label.bulk.done'].replace('{done}', '2');
+    await waitFor(() => expect(canvasElement.textContent).toContain(done));
 
     // Finance's month: 70 cases, and what went back to the buyers.
     await userEvent.click(view('本月售后'));
