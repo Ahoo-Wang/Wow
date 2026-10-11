@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -55,13 +56,16 @@ import java.time.ZoneId
 
 /** A column of a TCK dataset table, in storage-neutral terms; each backend maps it to a native type. */
 data class DatasetColumn(val name: String, val type: Type, val nullable: Boolean = false) {
-    /** A date column stores instants natively and is declared with the `TEMPORAL_DATE` semantic. */
-    enum class Type { STRING, INTEGER, DECIMAL, DATE }
+    /**
+     * A date column stores instants natively and is declared with the `TEMPORAL_DATE` semantic. A string-array column
+     * is never nullable: a record without values holds an empty array.
+     */
+    enum class Type { STRING, INTEGER, DECIMAL, DATE, STRING_ARRAY }
 }
 
 /**
- * A table the spec loads: its columns and rows, each value a `String`, `Long`, `BigDecimal`, `Instant` or `null` as
- * its column's type says.
+ * A table the spec loads: its columns and rows, each value a `String`, `Long`, `BigDecimal`, `Instant`, a `List` of
+ * strings or `null` as its column's type says.
  */
 data class DatasetTable(val name: String, val columns: List<DatasetColumn>, val rows: List<Map<String, Any?>>)
 
@@ -279,6 +283,13 @@ abstract class DatasetQueryBackendSpec {
                             types(QueryValueType.STRING)
                             semantic(Temporal.Date)
                         }
+                        DatasetColumn.Type.STRING_ARRAY -> {
+                            kind(QueryValueKind.ARRAY)
+                            items {
+                                types(QueryValueType.STRING)
+                                nullable(false)
+                            }
+                        }
                     }
                     nullable(column.nullable)
                 }
@@ -292,9 +303,13 @@ abstract class DatasetQueryBackendSpec {
         private val SEMANTIC_FIELDS = mapOf(
             SemanticShape.STRING to "string_value",
             SemanticShape.NUMBER to "number_value",
+            SemanticShape.STRING_ARRAY to "array_value",
         )
 
-        /** One row per probe of the string and number shapes; a missing and a null probe both store NULL. */
+        /**
+         * One row per probe of each shape; a missing and a null probe both store NULL, or an empty array in the array
+         * column, which every row fills.
+         */
         val SEMANTIC = DatasetTable(
             name = "semantic",
             columns = listOf(
@@ -302,11 +317,22 @@ abstract class DatasetQueryBackendSpec {
                 DatasetColumn("tenant_id", DatasetColumn.Type.STRING),
                 DatasetColumn("string_value", DatasetColumn.Type.STRING, nullable = true),
                 DatasetColumn("number_value", DatasetColumn.Type.INTEGER, nullable = true),
+                DatasetColumn("array_value", DatasetColumn.Type.STRING_ARRAY),
             ),
             rows = SEMANTIC_FIELDS.flatMap { (shape, column) ->
                 SemanticProbe.ALL.getValue(shape).map { probe ->
-                    val value = probe.value?.takeUnless { it.isNull }?.let { if (it.isNumber) it.longValue() else it.stringValue() }
-                    mapOf(ID to FilterSemanticsMatrix.probeId(probe), "tenant_id" to "t1", column to value)
+                    val value = probe.value?.takeUnless { it.isNull }?.let {
+                        when {
+                            it.isArray -> it.values().map { element -> element.stringValue() }
+                            it.isNumber -> it.longValue()
+                            else -> it.stringValue()
+                        }
+                    }
+                    mapOf(
+                        ID to FilterSemanticsMatrix.probeId(probe),
+                        "tenant_id" to "t1",
+                        "array_value" to emptyList<String>(),
+                    ) + (column to (value ?: emptyList<String>().takeIf { shape == SemanticShape.STRING_ARRAY }))
                 }
             },
         )

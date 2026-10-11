@@ -98,7 +98,7 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 ### 4.4 治理
 
 - **范围**：`scope.tenant` 必填，它就是 `requiredScope`。调用方范围（`QueryRequestScope`、CoSec）在准入第 2 步强制追加到这些列上，与 Snapshot 相同。“范围缺失时拒绝”开关对数据集同样生效。
-- **ABAC**：资源标签只存在于 Snapshot 的 `tags` 系统字段，`AbacQueryPolicy` 只作用于 Snapshot，数据集与 EventStream 一样不受它限制（S1 的现状）。宽表要参与 ABAC，需要在声明里把标签列绑定到 `scope.tags`（`Map(String, Array(String))`），留待后续阶段。
+- **ABAC**：Snapshot 的资源标签是 `tags` 系统字段。数据集在声明的 `scope.tags` 中把每个标签键绑定到一列：单值标签用字符串列，多值标签用 `Array(String)` 列，空字符串或空数组表示没有这个标签。`AbacQueryPolicy` 对绑定了标签列的数据集按同样的规则生成条件（S3 之后实施）。没有选 `Map(String, Array(String))`：宽表本来是扁平的，按键分列让 SQL 翻译只需 `has`/`hasAny`，类型核对也只需放开字符串数组一种。
 - **敏感等级**：这是对查询架构 §6.4“敏感等级只能以字段注解声明”的**显式例外**。宽表的列没有类型，也就没有注解可以继承，声明是唯一的来源，所以数据集声明可以写 `sensitive`（等级与遮挡方式）。由 wow-bi 展开计划生成的数据集（§7）自动继承源字段的等级，声明只能更严、不能更宽。
 - **注入**：标识符只来自编译后的绑定，加反引号引用；取值一律用 ClickHouse 服务端参数（`{p0:String}`）传入，不拼接。
 - **纵深防御**：使用只读账号（`readonly=2`，只允许改设置）。行策略可选，不作为安全边界，安全边界在准入。
@@ -122,7 +122,8 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 | `Bool` | BOOLEAN | EXACT_MATCH、SORT、AGGREGATE_TERMS |
 | `Date`、`Date32`、`DateTime`、`DateTime64` | STRING + `TEMPORAL_DATE` | EXACT_MATCH、RANGE、SORT、AGGREGATE_TEMPORAL |
 | `Nullable(T)` | 同 T | 另授予 PRESENCE |
-| `Array(T)`、`Map`、`Tuple` 等 | — | S2 不支持：声明这样的列会让编译失败 |
+| `Array(String)`（元素可为 `LowCardinality(String)`、`FixedString`） | ARRAY of STRING | EXACT_MATCH（按元素：`has`/`hasAny`/`hasAll`）、PRESENCE（空数组即缺失：`empty`/`notEmpty`）；不排序、不聚合，不能作范围列或身份列 |
+| 其他 `Array(T)`、`Map`、`Tuple` 等 | — | 不支持：声明这样的列会让编译失败 |
 
 - **null 与缺省值**：非 `Nullable` 的列用类型缺省值代替 null，无法区分“缺失”与“空值”，所以不授予 PRESENCE，EQ/NE 取 null 时由准入拒绝（查询架构 §5.2“随取值变化的能力”），绝不把 `0` 与 `''` 当作缺失。`Nullable` 列上 NULL 是表里唯一的“缺失”，所以声明 `AbsentValues.AS_MISSING`：EXISTS 即 `isNotNull`，NOT_EXISTS 即 `isNull`。
 - **CURSOR_SORT**：只授予非 `Nullable` 的单值列。

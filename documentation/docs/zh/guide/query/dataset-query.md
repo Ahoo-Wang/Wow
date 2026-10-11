@@ -18,13 +18,15 @@ description: 把 ClickHouse 宽表等声明式数据集接入 Wow 查询：声�
   "title": "订单宽表",
   "identity": "order_id",
   "eventTime": "updated_at",
-  "scope": { "tenant": "tenant_id", "owner": "owner_id" },
+  "scope": { "tenant": "tenant_id", "owner": "owner_id", "tags": { "region": "region", "dept": "depts" } },
   "storage": { "table": "bi_db.order_wide", "deduplicate": "FINAL" },
   "fields": {
     "order_id": { "types": ["STRING"], "nullable": false },
     "tenant_id": { "types": ["STRING"], "nullable": false },
     "owner_id": { "types": ["STRING"], "nullable": false },
     "city": { "types": ["STRING"], "nullable": false },
+    "region": { "types": ["STRING"], "nullable": false },
+    "depts": { "kind": "ARRAY", "items": { "types": ["STRING"] }, "nullable": false },
     "amount": { "types": ["DECIMAL"], "nullable": false },
     "updated_at": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" } },
     "customer_phone": { "types": ["STRING"], "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 } }
@@ -37,6 +39,7 @@ description: 把 ClickHouse 宽表等声明式数据集接入 Wow 查询：声�
 | `fields` | 可查询的字段，每个是表的一列，使用[查询模型 Schema](./query-model-schema.md) 的声明词汇。没有声明的列不会暴露 |
 | `scope.tenant` | 必填。租户列：调用方范围中的 `tenantId` 落到这一列，`wow.query.require-authenticated-scope` 也要求它 |
 | `scope.owner`、`scope.space` | 可选。所有者列与空间列 |
+| `scope.tags` | 可选。ABAC 标签键到列的绑定，见 [ABAC](#abac) |
 | `identity` | 可选。每行的唯一标识：ID 过滤、游标分页与 View Engine 明细视图的 `rowKey` 都需要它 |
 | `eventTime` | 可选。`FIRST`/`LAST` 指标的默认 `orderBy` |
 | `fields.*.sensitive` | 字段的敏感等级与遮挡方式（`level`、`keepPrefix`、`keepSuffix`），语义同 `@Sensitive`。宽表的列没有类型可以携带注解，所以数据集声明是例外 |
@@ -82,9 +85,9 @@ Catalog 编译数据集时，用 `system.columns` 检查表是否符合声明，
 
 - 每个声明的字段都是表的一列，类型族与声明一致（字符串类、整数、`Float`/`Decimal`、`Bool`、日期）；
 - 日期列声明为 `TEMPORAL_DATE`；声明为非空的字段不能是 `Nullable` 列；
-- 范围列与身份列不能是 `Nullable`；
+- 范围列、标签列与身份列不能是 `Nullable`；范围列与身份列也不能是数组；
 - `FINAL` 需要会合并行的引擎；
-- `Array`、`Map`、`Tuple` 等列暂不支持。
+- 数组只支持 `Array(String)`（元素可以是 `LowCardinality(String)` 或 `FixedString`），声明为字符串数组；`Map`、`Tuple` 与其他数组暂不支持。
 
 每个入口的查询有上限，以服务端设置下发，超限的查询失败而不是返回截断的结果：HTTP 查询默认 30 秒、4 GiB 内存（`wow.query.clickhouse.http.*`），进程内查询默认不限（`wow.query.clickhouse.in-process.*`）。订阅取消时，后端在 ClickHouse 上停止对应的查询。
 
@@ -125,6 +128,20 @@ orders.aggregate(
 
 `QueryFilter` 与 `QueryPolicy` 同样作用于数据集查询；只想作用于数据集的过滤器实现 `DatasetQueryFilter`。
 
+## ABAC {#abac}
+
+`AbacQueryPolicy` 也作用于在 `scope.tags` 中绑定了标签列的数据集，规则与 Snapshot 的 `tags` 系统字段相同。每个标签键绑定一列：单值标签用字符串列，多值标签用 `Array(String)` 列。空字符串或空数组表示记录没有这个标签。
+
+| 主体标签 | 字符串列 | 数组列 |
+| --- | --- | --- |
+| `["a", "b"]` | 值为 `a` 或 `b`，或为空串 | 含 `a` 或 `b`，或为空数组 |
+| 通配 `["*"]` | 不为空串 | 不为空数组 |
+
+- 关闭 `wow.query.abac.match-missing-tag-key` 时，“为空”的记录不再作为公开资源匹配。
+- 数据集没有绑定的标签键，视为所有记录都不带这个标签：默认不限制；通配或关闭上一项时，什么都不匹配。
+- 没有 `scope.tags` 的数据集不受 `AbacQueryPolicy` 限制，也不解析主体标签。
+- 标签列是普通字段，调用方可以按元素过滤（`IN`、`CONTAINS_ALL`、`IS_EMPTY`），但不能排序或聚合数组列。
+
 ## TypeScript 客户端
 
 `@ahoo-wang/wow-client` 的 `DatasetQueryClient` 对应上面的路由。它满足 View Engine 的 `ViewSource`（包括 `describe`），可以直接作为 Record、Analysis 与 Dashboard 的数据源：
@@ -148,5 +165,5 @@ const byCity = await orders.aggregate(
 - **缺失值**：ClickHouse 表里唯一的缺失值是 `Nullable` 列中的 `NULL`。非 `Nullable` 的列不支持 `IS_NULL`、`EXISTS` 等存在性操作符，准入时拒绝；`Nullable` 列上 `EXISTS` 与 `IS_NOT_NULL` 相同，与 Elasticsearch 一样无法区分显式 `null` 与缺失。
 - **NE 与 NOT_IN** 也匹配 `NULL`，与 MongoDB 一致。
 - **DISTINCT_COUNT** 精确计算（`uniqExact`）；**PERCENTILE** 使用 t-digest 近似，能力描述标明 `approximate`。
-- **ABAC**：`AbacQueryPolicy` 只作用于 Snapshot，数据集与 EventStream 一样不受它限制。
+- **数组列**：标量操作数匹配任一元素。空数组就是缺失，所以 `IS_EMPTY`、`IS_NULL`、`NOT_EXISTS` 都匹配空数组，与 Elasticsearch 一致；不支持整个数组相等。
 - 单个数值字段按原生类型聚合，`Decimal` 求和不丢精度；表达式按 `Float64` 计算。

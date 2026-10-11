@@ -28,15 +28,24 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * The columns that bound a dataset's records to a caller: the tenant, the isolation boundary every caller scope pins,
- * and optionally the owner and space.
+ * optionally the owner and space, and the [tags] `AbacQueryPolicy` restricts by.
+ *
+ * Each ABAC tag key is bound to its own column, a string (one value per record) or an array of strings (several); a
+ * record without the tag holds an empty string or an empty array there. A principal tag key the dataset binds no
+ * column for is a tag no record carries.
  */
 data class QueryDatasetScope(
     val tenant: QueryField,
     val owner: QueryField? = null,
     val space: QueryField? = null,
+    val tags: Map<String, QueryField> = emptyMap(),
 ) {
+    init {
+        require(tags.keys.none(String::isBlank)) { "A dataset's ABAC tag key must not be blank." }
+    }
+
     val fields: List<QueryField>
-        get() = listOfNotNull(tenant, owner, space)
+        get() = listOfNotNull(tenant, owner, space) + tags.values
 }
 
 /**
@@ -86,6 +95,7 @@ class QueryDatasetBuilder(private val namedAggregate: MaterializedNamedAggregate
     private var tenant: QueryField? = null
     private var owner: QueryField? = null
     private var space: QueryField? = null
+    private val tags = linkedMapOf<String, QueryField>()
     private var identity: QueryField? = null
     private var eventTime: QueryField? = null
     private var title: String? = null
@@ -103,6 +113,11 @@ class QueryDatasetBuilder(private val namedAggregate: MaterializedNamedAggregate
 
     fun space(field: String) {
         space = QueryField(field)
+    }
+
+    /** Binds the ABAC tag [key] to [field], a string or string-array column. */
+    fun tag(key: String, field: String) {
+        tags[key] = QueryField(field)
     }
 
     fun identity(field: String) {
@@ -140,6 +155,7 @@ class QueryDatasetBuilder(private val namedAggregate: MaterializedNamedAggregate
                 tenant = requireNotNull(tenant) { "Dataset [$namedAggregate] must declare its tenant field." },
                 owner = owner,
                 space = space,
+                tags = tags.toMap(),
             ),
             declaration = QuerySchemaDeclaration(masked),
             identity = identity,
@@ -168,6 +184,10 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
 
     override val requiredScope: QueryField
         get() = dataset.scope.tenant
+
+    /** The column each ABAC tag key is bound to; empty when the dataset takes no part in ABAC. */
+    val tags: Map<String, QueryField>
+        get() = dataset.scope.tags
 
     /** None: a dataset's fields are its declaration, supplied by [QueryDatasets] as a schema source. */
     override val systemDeclaration: QuerySchemaDeclaration
@@ -243,7 +263,7 @@ class QueryDatasets(datasets: Collection<QueryDataset>) {
  *   "title": "Orders with their customers",
  *   "identity": "order_id",
  *   "eventTime": "updated_at",
- *   "scope": { "tenant": "tenant_id", "owner": "owner_id" },
+ *   "scope": { "tenant": "tenant_id", "owner": "owner_id", "tags": { "region": "region_tag" } },
  *   "storage": { "table": "bi_db.order_customer_wide" },
  *   "fields": {
  *     "order_id": { "types": ["STRING"], "nullable": false },
@@ -263,6 +283,7 @@ object QueryDatasetProperties {
     const val TENANT = "tenant"
     const val OWNER = "owner"
     const val SPACE = "space"
+    const val TAGS = "tags"
     const val STORAGE = "storage"
     const val SENSITIVE = "sensitive"
     const val LEVEL = "level"
@@ -270,7 +291,7 @@ object QueryDatasetProperties {
     const val KEEP_SUFFIX = "keepSuffix"
 
     internal val ROOT = setOf(TITLE, IDENTITY, EVENT_TIME, SCOPE, STORAGE, QuerySchemaDeclarationProperties.FIELDS)
-    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE)
+    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, TAGS)
     internal val SENSITIVE_PROPERTIES = setOf(LEVEL, KEEP_PREFIX, KEEP_SUFFIX)
 }
 

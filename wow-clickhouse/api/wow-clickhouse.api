@@ -6,6 +6,7 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseColumn {
 	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/clickhouse/query/ClickHouseColumn;
 	public static synthetic fun copy$default (Lme/ahoo/wow/clickhouse/query/ClickHouseColumn;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/clickhouse/query/ClickHouseColumn;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getArray ()Z
 	public final fun getBaseType ()Ljava/lang/String;
 	public final fun getFamily ()Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;
 	public final fun getName ()Ljava/lang/String;
@@ -177,6 +178,7 @@ public final class me/ahoo/wow/clickhouse/query/ClickHouseTypeFamily : java/lang
 	public static final field FLOAT Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;
 	public static final field INTEGER Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;
 	public static final field STRING Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;
+	public static final field STRING_ARRAY Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;
 	public static final field UNSUPPORTED Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/clickhouse/query/ClickHouseTypeFamily;

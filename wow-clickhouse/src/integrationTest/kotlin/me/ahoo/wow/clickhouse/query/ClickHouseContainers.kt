@@ -68,6 +68,7 @@ object ClickHouseContainers {
             DatasetColumn.Type.INTEGER -> "Int64"
             DatasetColumn.Type.DECIMAL -> "Decimal(18, 2)"
             DatasetColumn.Type.DATE -> "DateTime64(3, 'UTC')"
+            DatasetColumn.Type.STRING_ARRAY -> return "Array(String)"
         }
         return if (nullable) "Nullable($base)" else base
     }
@@ -78,6 +79,7 @@ object ClickHouseContainers {
         is Long, is Int -> value.toString()
         is BigDecimal -> value.toPlainString()
         is Instant -> "fromUnixTimestamp64Milli(${value.toEpochMilli()}, 'UTC')"
+        is List<*> -> value.joinToString(", ", "[", "]") { literal(it) }
         else -> error("Unsupported test value [$value].")
     }
 }

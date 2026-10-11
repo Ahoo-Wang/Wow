@@ -169,7 +169,7 @@ class AbacQueryPolicyTest {
             policy(tags).evaluate(Context.empty(), context(me.ahoo.wow.query.QueryEntry.HTTP)).test()
                 .expectErrorSatisfies {
                     it.assert().isInstanceOf(AbacPrincipalTagsRequiredException::class.java)
-                        .hasMessage("Snapshot query requires the principal's ABAC tags.")
+                        .hasMessage("Query requires the principal's ABAC tags.")
                     (it as AbacPrincipalTagsRequiredException).errorCode.assert()
                         .isEqualTo(me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE)
                 }

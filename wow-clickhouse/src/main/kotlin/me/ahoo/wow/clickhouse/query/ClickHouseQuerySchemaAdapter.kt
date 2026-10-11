@@ -62,7 +62,9 @@ class ClickHouseQuerySchemaAdapter(
             throw invalid("deduplicates with FINAL, but table [${table.name}] has engine [${table.engine}]")
         }
         val keys = dataset.scope.fields + listOfNotNull(dataset.identity)
-        val paths = logicalSchema.values.filterKeys { it.segments.isNotEmpty() }
+        val records = (dataset.scope.fields - dataset.scope.tags.values.toSet()) + listOfNotNull(dataset.identity)
+        // An array column's elements are part of the column: their path ends in an item segment.
+        val paths = logicalSchema.values.filterKeys { it.segments.isNotEmpty() && it.segments.last() != ITEM }
         if (paths.keys.any { it.segments.size > 1 }) {
             throw invalid(
                 "declares a nested field; a dataset declares root columns only"
@@ -73,6 +75,7 @@ class ClickHouseQuerySchemaAdapter(
             val column = table.columns[name] ?: throw invalid("declares [$name], which table [${table.name}] has no column for")
             column.requireDeclared(value)
             if (column.nullable && QueryField(name) in keys) throw invalid("keys on the Nullable column [$name]")
+            if (column.array && QueryField(name) in records) throw invalid("keys on the array column [$name]")
             val native = QueryFieldBindingTemplate(path, setOf(QueryStorageType(column.family.name)))
             QueryValueBindings(column.capabilities().associateWith { native }, path, path)
         }
@@ -90,7 +93,12 @@ class ClickHouseQuerySchemaAdapter(
                 "declares [$name] of the unsupported type [$type]"
             )
         }
-        if (value.kind != QueryValueKind.SCALAR) throw invalid("declares [$name] as ${value.kind}; columns are scalar")
+        if (array) return requireDeclaredArray(value)
+        if (value.kind != QueryValueKind.SCALAR) {
+            throw invalid(
+                "declares [$name] as ${value.kind}; column [$type] is scalar"
+            )
+        }
         val expected = when (family) {
             ClickHouseTypeFamily.STRING, ClickHouseTypeFamily.ENUM -> QueryValueType.STRING
             ClickHouseTypeFamily.INTEGER -> QueryValueType.INTEGER
@@ -108,10 +116,19 @@ class ClickHouseQuerySchemaAdapter(
         if (nullable && !value.nullable) throw invalid("declares [$name] non-null, but its column is Nullable")
     }
 
+    private fun ClickHouseColumn.requireDeclaredArray(value: QueryValueSchema) {
+        val strings = value.items?.takeIf { it.kind == QueryValueKind.SCALAR }?.valueTypes == setOf(QueryValueType.STRING)
+        if (value.kind != QueryValueKind.ARRAY || !strings) {
+            throw invalid("must declare the column [$name] of type [$type] as an array of strings")
+        }
+    }
+
     private fun invalid(message: String): QuerySchemaValidationException =
         QuerySchemaValidationException("Dataset [${dataset.namedAggregate}] $message.")
 
     companion object {
+        private val ITEM = QueryPathSegment.Item
+
         /**
          * Every paging and aggregation feature runs natively except dense fill, which the core computes so it
          * shares one implementation with every storage. A `NULL` is a table's only missing value.
@@ -125,12 +142,17 @@ class ClickHouseQuerySchemaAdapter(
         )
 
         /**
-         * A non-`Nullable` column stores a default for a missing value, so only a `Nullable` one proves presence;
-         * only a non-`Nullable` one sorts a cursor. A date or epoch column groups by time (the Catalog keeps
+         * A non-`Nullable` column stores a default for a missing value, so only a `Nullable` one proves presence (and
+         * an array, whose missing value is an empty one); only a non-`Nullable` scalar one sorts a cursor. A date or epoch column groups by time (the Catalog keeps
          * temporal aggregation for fields whose declaration encodes an instant).
          */
         internal fun ClickHouseColumn.capabilities(): Set<QueryCapability> = buildSet {
             add(QueryCapability.EXACT_MATCH)
+            // An array matches by element and is empty or not; it never sorts. An empty one is a record without values.
+            if (array) {
+                add(QueryCapability.PRESENCE)
+                return@buildSet
+            }
             add(QueryCapability.SORT)
             if (nullable) add(QueryCapability.PRESENCE) else add(QueryCapability.CURSOR_SORT)
             when (family) {
@@ -154,7 +176,7 @@ class ClickHouseQuerySchemaAdapter(
                     add(QueryCapability.RANGE)
                     add(QueryCapability.AGGREGATE_TEMPORAL)
                 }
-                ClickHouseTypeFamily.UNSUPPORTED -> Unit
+                ClickHouseTypeFamily.STRING_ARRAY, ClickHouseTypeFamily.UNSUPPORTED -> Unit
             }
         }
     }

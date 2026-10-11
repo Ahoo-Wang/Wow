@@ -589,6 +589,7 @@ public final class me/ahoo/wow/tck/query/DatasetColumn$Type : java/lang/Enum {
 	public static final field DECIMAL Lme/ahoo/wow/tck/query/DatasetColumn$Type;
 	public static final field INTEGER Lme/ahoo/wow/tck/query/DatasetColumn$Type;
 	public static final field STRING Lme/ahoo/wow/tck/query/DatasetColumn$Type;
+	public static final field STRING_ARRAY Lme/ahoo/wow/tck/query/DatasetColumn$Type;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/tck/query/DatasetColumn$Type;
 	public static fun values ()[Lme/ahoo/wow/tck/query/DatasetColumn$Type;

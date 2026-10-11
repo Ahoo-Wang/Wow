@@ -13,7 +13,7 @@ Wow 在写链路和读链路中携带四类数据访问上下文：
 3. **Space** — 通过请求头提供的可选命名空间元数据；
 4. **ABAC tags** — 资源标签与应用提供的 Principal 过滤器。
 
-在 WebFlux 查询路由中，Handler 用 `QueryRequestScope` 解析 tenant、owner、space scope 并放入 Reactor Context，由 Gateway 在 prepare 完成后合并。随后，Snapshot 与 EventStream Gateway 通过公共策略链评估 `QueryPolicy` 并追加规则条件，`AbacQueryPolicy` 负责其中适用于 Snapshot 的资源标签条件。
+在 WebFlux 查询路由中，Handler 用 `QueryRequestScope` 解析 tenant、owner、space scope 并放入 Reactor Context，由 Gateway 在 prepare 完成后合并。随后，Snapshot 与 EventStream Gateway 通过公共策略链评估 `QueryPolicy` 并追加规则条件，`AbacQueryPolicy` 负责其中适用于 Snapshot 与绑定了标签列的数据集的资源标签条件。
 
 ::: danger 作用域不是身份认证
 tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过滤数据，不能证明谁发送了请求，也不能证明该 Principal 有权选择这些值。应用必须先认证身份，在服务端绑定允许的作用域，授权命令和查询路由，并避免让不受信请求访问原始查询 Factory。

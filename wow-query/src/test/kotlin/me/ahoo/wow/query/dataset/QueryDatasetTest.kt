@@ -115,10 +115,11 @@ class QueryDatasetTest {
               "title": "Orders",
               "identity": "order_id",
               "eventTime": "updated_at",
-              "scope": { "tenant": "tenant_id", "owner": "owner_id" },
+              "scope": { "tenant": "tenant_id", "owner": "owner_id", "tags": { "region": "region" } },
               "storage": { "table": "bi_db.orders" },
               "fields": {
                 "order_id": { "types": ["STRING"], "nullable": false },
+                "region": { "types": ["STRING"], "nullable": false },
                 "tenant_id": { "types": ["STRING"] },
                 "owner_id": { "types": ["STRING"] },
                 "updated_at": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" } },
@@ -132,6 +133,8 @@ class QueryDatasetTest {
         dataset.identity.assert().isEqualTo(QueryField("order_id"))
         dataset.eventTime.assert().isEqualTo(QueryField("updated_at"))
         dataset.scope.owner.assert().isEqualTo(QueryField("owner_id"))
+        dataset.scope.tags.assert().isEqualTo(mapOf("region" to QueryField("region")))
+        dataset.profile.tags.assert().isEqualTo(dataset.scope.tags)
         dataset.storage.get("table").stringValue().assert().isEqualTo("bi_db.orders")
         dataset.declaration.fields[QueryField("phone")]!!.maskRule
             .assert().isEqualTo(DeclarationValue.Set(MaskRule(SensitivityLevel.CONFIDENTIAL, Mask(keepSuffix = 4))))
@@ -177,6 +180,10 @@ class QueryDatasetTest {
             """{ "scope": [], $fields }""",
             """{ "scope": { "tenant": "t", "region": "r" }, $fields }""",
             """{ $scope, $fields, "storage": [] }""",
+            """{ "scope": { "tenant": "t", "tags": [] }, $fields }""",
+            """{ "scope": { "tenant": "t", "tags": { "region": 1 } }, $fields }""",
+            """{ "scope": { "tenant": "t", "tags": { "region": "missing" } }, $fields }""",
+            """{ "scope": { "tenant": "t", "tags": { " ": "t" } }, $fields }""",
             """{ $scope, "fields": { "t": 1 } }""",
             """{ $scope, $fields, "title": 1 }""",
             """{ $scope, $fields, "identity": 1 }""",
@@ -215,17 +222,21 @@ class QueryDatasetTest {
             tenant("tenant_id")
             owner("owner_id")
             space("space_id")
+            tag("region", "region_id")
             title("Orders")
             storage(storage)
             field("tenant_id") { types(QueryValueType.STRING) }
             field("owner_id") { types(QueryValueType.STRING) }
             field("space_id") { types(QueryValueType.STRING) }
+            field("region_id") { types(QueryValueType.STRING) }
         }
         dataset.scope.fields.assert().containsExactly(
             QueryField("tenant_id"),
             QueryField("owner_id"),
-            QueryField("space_id")
+            QueryField("space_id"),
+            QueryField("region_id"),
         )
+        dataset.profile.tags.assert().isEqualTo(mapOf("region" to QueryField("region_id")))
         dataset.title.assert().isEqualTo("Orders")
         dataset.storage.assert().isEqualTo(storage)
         dataset.profile.systemField(SystemField.SPACE_ID).assert().isEqualTo(QueryField("space_id"))
