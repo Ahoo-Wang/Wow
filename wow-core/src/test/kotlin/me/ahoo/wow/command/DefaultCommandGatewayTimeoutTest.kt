@@ -245,6 +245,39 @@ class DefaultCommandGatewayTimeoutTest {
     }
 
     @Test
+    fun `a wait that runs out of time names the stage, the function and the timeout`() {
+        val gateway = commandGateway(waitCoordinator = DefaultWaitCoordinator())
+        val waitPlan = CommandWait.projected("wait-command-id", "example", "OrderProjector", "onOrderCreated")
+            .withTimeout(Duration.ofSeconds(10))
+
+        StepVerifier.withVirtualTime {
+            gateway.sendAndWait(TestCommandMessage(id = "command-id"), waitPlan)
+        }
+            .thenAwait(Duration.ofSeconds(10))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(TimeoutException::class.java)
+                it.message.assert().isEqualTo(
+                    "Waiting for stage [PROJECTED] of function [OrderProjector.onOrderCreated] timed out after 10000ms."
+                )
+            }
+            .verify()
+    }
+
+    @Test
+    fun `a stream that runs out of time names the stage and the timeout`() {
+        val gateway = commandGateway(waitCoordinator = DefaultWaitCoordinator())
+        val waitPlan = CommandWait.snapshot("wait-command-id").withTimeout(Duration.ofSeconds(1))
+
+        StepVerifier.withVirtualTime {
+            gateway.sendAndWaitStream(TestCommandMessage(id = "command-id"), waitPlan)
+        }
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.SENT) }
+            .thenAwait(Duration.ofSeconds(1))
+            .expectErrorMessage("Waiting for stage [SNAPSHOT] timed out after 1000ms.")
+            .verify()
+    }
+
+    @Test
     fun `send and wait timeout releases handle while command bus is pending`() {
         val commandBus = TimeoutTestCommandBus(Mono.never())
         val waitCoordinator = DefaultWaitCoordinator()
