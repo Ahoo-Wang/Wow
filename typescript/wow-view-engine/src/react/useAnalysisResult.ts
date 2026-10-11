@@ -39,6 +39,7 @@ import {
   drillSpan,
   drilledFields,
 } from '../analysis/drill.js';
+import { valueOrderOf } from '../analysis/project.js';
 import { foldsSplit } from '../analysis/splitOther.js';
 import { describeFilter, type FilterSummaryItem } from '../filter/index.js';
 import type {
@@ -335,10 +336,13 @@ export function useAnalysisResult(
               cutShort: view.truncated || view.atLimit !== undefined,
               ...(view.splitWhole ? { splitWhole: view.splitWhole } : {}),
               ...(view.approximate ? { approximate: view.approximate } : {}),
+              ...(definition?.analysis
+                ? { valueOrder: valueOrderOf(definition, ran) }
+                : {}),
             },
           )
         : undefined,
-    [view, ran, chart, drawable, timeZone, askedAt],
+    [view, ran, chart, drawable, timeZone, askedAt, definition],
   );
   const picked: Picked =
     analysis.layout === 'table' || !drawable ? 'table' : chart.type;

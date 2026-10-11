@@ -266,7 +266,14 @@ export const FAMILY_RULES = Object.freeze({
     }),
     shape: (chart, { config, rows, context, timeZone }) =>
       chart.heatmap &&
-      shapeHeatmap(chart.heatmap, config, rows, timeZone, context.now),
+      shapeHeatmap(
+        chart.heatmap,
+        config,
+        rows,
+        timeZone,
+        context.now,
+        context.valueOrder,
+      ),
     validate: heatmapIssues,
     boundTo: UNBOUND,
   },

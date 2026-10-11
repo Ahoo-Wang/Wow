@@ -817,3 +817,53 @@ describe('the whole beside the groups', () => {
     });
   });
 });
+
+describe('a heatmap over a category its field lists', () => {
+  it('runs its rows in the listed order, whatever order the sort met them', () => {
+    const listed = definition({
+      fields: definition().fields.map(field =>
+        field.name === 'warehouse'
+          ? {
+              ...field,
+              kind: 'enum',
+              options: [
+                { value: 'BJ', label: 'Beijing' },
+                { value: 'SH', label: 'Shanghai' },
+              ],
+            }
+          : field,
+      ),
+    });
+    const view = projectAnalysis(
+      listed,
+      config({
+        layout: 'chart',
+        groups: [
+          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+          {
+            type: 'DATE_HISTOGRAM',
+            field: 'createdAt',
+            alias: 'month',
+            unit: 'MONTH',
+          },
+        ],
+        metrics: [{ type: 'COUNT', alias: 'orders' }],
+        chart: {
+          type: 'heatmap',
+          heatmap: { x: 'month', y: 'wh', value: 'orders' },
+        },
+      }),
+      [
+        { wh: 'SH', month: '2026-09', orders: 3 },
+        { wh: 'GZ', month: '2026-09', orders: 5 },
+        { wh: 'BJ', month: '2026-09', orders: 2 },
+      ],
+    );
+    // A value the field does not list runs after those it does.
+    expect(view.chart).toMatchObject({
+      type: 'heatmap',
+      ys: ['BJ', 'SH', 'GZ'],
+      cells: [[2], [3], [5]],
+    });
+  });
+});
