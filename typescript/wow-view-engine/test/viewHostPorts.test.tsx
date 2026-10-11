@@ -286,6 +286,44 @@ describe('the address: `?view=`, a new entry per view', () => {
     await waitFor(() => expect(current()).toBe('Mine'));
   });
 
+  it('copies the page’s address from the title bar’s menu (R2-98)', async () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: (text: string) => (written.push(text), Promise.resolve()),
+      },
+    });
+    try {
+      hosted(
+        { '/orders': <DataWorkbench definitionId="orders" /> },
+        '/orders?view=orders-1',
+      );
+      await waitFor(() => expect(current()).toBe('Mine'));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'More view actions' }),
+      );
+      fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Copy link' }),
+      );
+      expect(await screen.findByText('Link copied')).toBeTruthy();
+      expect(written).toEqual([window.location.href]);
+      // A page with no clipboard to write to says so.
+      Reflect.deleteProperty(navigator, 'clipboard');
+      fireEvent.click(
+        screen.getByRole('button', { name: 'More view actions' }),
+      );
+      fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Copy link' }),
+      );
+      expect(
+        await screen.findByText('The link could not be copied'),
+      ).toBeTruthy();
+    } finally {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    }
+  });
+
   it('keeps a host’s own `instanceId` in charge', async () => {
     const { at } = hosted(
       {

@@ -23,5 +23,9 @@ export const headerMessages = {
   // Only the layout or the chart differs from what was saved (D23 Q15).
   'label.header.unsaved-look': 'Only the look changed',
   'label.header.more': 'More view actions',
+  // 「复制链接」 in that menu, and what the press came to (R2-98).
+  'label.header.copy-link': 'Copy link',
+  'label.header.link-copied': 'Link copied',
+  'label.header.link-failed': 'The link could not be copied',
   'label.editor.pending': '{count} not applied',
 } as const satisfies Record<string, string>;
