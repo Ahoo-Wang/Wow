@@ -28,7 +28,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 | Mermaid 无法表达的图源 | 维护者 | `documentation/diagrams/`（随第一个文件创建） |
 | 跨 JVM 模块或全仓的设计记录 | 维护者 | `documentation/designs/` |
 | 单个 TypeScript 包或应用的设计 | 该包的维护者 | `<package>/docs/design/` |
-| 已决定待完成事项的台账 | 维护者 | `docs/compat-debt.md`（保留到 v10 的兼容）、`docs/todo.md`（JVM）、`typescript/wow-view-engine/docs/design/todo.md`（视图引擎）、`typescript/MIGRATION.md`（从 fetcher 迁入的包） |
+| 已决定待完成事项的台账 | 维护者 | `docs/compat-debt.md`（保留到 v10 的兼容）、`docs/todo.md`（JVM）、`typescript/TODO.md`（wow-client、wow-react、wow-generator）、`typescript/wow-view-engine/docs/design/todo.md`（视图引擎与视图存储）、`typescript/MIGRATION.md`（从 fetcher 迁入的包） |
 | 发布手册 | 发布维护者 | `AGENTS.md`（版本、兼容性、CI）、`typescript/RELEASING.md`、`typescript/RELEASE_NOTES_TEMPLATE.md` |
 | 可复现性能证据 | 维护者 | `wow-benchmarks/results/` |
 | Agent 能力 | 编码 Agent | `skills/`；第三方 Skill 副本放在 `.claude/skills/` |
@@ -104,9 +104,9 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 
 ## 清理进度
 
-旧的 `document/` 目录与受跟踪的 `docs/superpowers/` 文件已经删除；其中唯一且有效的知识此前已迁到文档站页面、设计记录或 `wow-benchmarks/results/`。
+旧的 `document/` 目录、受跟踪的 `docs/superpowers/` 文件、已实施的查询分步计划和受跟踪的评审记录都已删除。其中唯一且有效的知识此前已迁到文档站页面、设计记录或 `wow-benchmarks/results/`，或者现在记在台账里：评审中未处理的发现已在 `main` 上逐条复核，移入 `typescript/TODO.md`、`docs/todo.md` 与视图引擎的 TODO。
 
-剩余清理沿用同一流程，每批一个可独立评审的 Pull Request：
+以后的清理沿用同一流程，每批一个可独立评审的 Pull Request：
 
 1. 盘点受跟踪文档、资产、链接和归属；
 2. 把每项标记为保留、迁移、归位或删除；
@@ -115,8 +115,6 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 5. 删除过期链接、导航、重复资产和旧迁移页面；
 6. 在 Pull Request 正文列出迁移与删除路径，不再提交另一份清理报告；
 7. 每批完成构建和 review 后再开始下一批。
-
-已知候选：`typescript/docs/` 与 `typescript/storybook/docs/` 下受跟踪的评审记录（先把其中未处理的发现移进视图引擎或 JVM 台账，再删除），以及 `documentation/designs/` 中已实施的分步计划（引用它们的测试改为指向设计记录后删除）。
 
 ## 计划中的自动检查
 

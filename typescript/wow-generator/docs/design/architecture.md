@@ -141,7 +141,7 @@ sequenceDiagram
 
 ### 生成代码的名字（2026-09-25 定）
 
-首发前第二轮审查（`typescript/docs/review-2026-09-round2-packages.md` P1-13，决定 3b、3c、3d）定下生成代码的三处形状，发布后再改都是破坏性改动：
+首发前第二轮审查（2026-09-25，`b17f36a3c`；P1-13，决定 3b、3c、3d）定下生成代码的三处形状，发布后再改都是破坏性改动：
 
 - **命令类型名不重复 `Command`**（3b）。命令的请求体类型声明为 `<请求体>Command = CommandBody<…>`；请求体本身已以 `Command` 结尾时不声明别名，方法直接用 `CommandBody<MountedCommand>`，调用方用模型本身。不叫 `MountedCommand` 的原因：别名和它包装的模型同名，`commandClient.ts` 里的导入与声明冲突，聚合的 `index.ts` 同时再导出两者也冲突。命令别名与聚合所在包的模型、或另一个命令的请求体同名（命令 `Foo` 与 `FooCommand`）时，分析层（`assertCommandTypeNamesFree`）以 `specification`（退出码 4）报错，写明命令、两个 schema，请用户改名其一；同一个请求体的两个命令共用一个别名。
 - **文件名一律 camelCase**（3c）。API 客户端文件以类名首字母小写命名（`cartApiClient.ts`），与 `commandClient.ts`、`boundedContext.ts` 一致。客户端名已按不区分大小写去重，所以不会有两个客户端落在同一个文件上。在不区分大小写的文件系统上，旧文件 `CartApiClient.ts` 与新文件是同一个文件：`OutputStore` 按项目里文件的精确路径移出旧文件（ts-morph 会记住按路径查询时的大小写），并在写盘前先删只改了大小写的陈旧文件，磁盘上留下的是新名字。

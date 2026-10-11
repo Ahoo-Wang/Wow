@@ -58,7 +58,7 @@ export const revenue: AggregationQuery = {
 
 ## Extended aggregation protocol
 
-Aligned with Wow `main` at `fd1b3cd46`. Existing builder calls keep their JSON shape; optional metric filters, `missingKey`, and `dense` are omitted unless supplied.
+Existing builder calls keep their JSON shape; optional metric filters, `missingKey`, and `dense` are omitted unless supplied.
 
 - `aggregation.distinctCount(expression, alias, { filter? })` counts distinct non-null contributions; `aggregation.percentile(expression, alias, { percentile, filter? })` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
 - Non-derived metrics accept an optional `{ filter }` option, a `FilterExpression` in the current aggregation scope. It affects only that metric. The backend validates scalar fields and rejects unsupported filter operators.

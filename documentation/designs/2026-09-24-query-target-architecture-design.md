@@ -421,7 +421,7 @@ sealed interface GroupSpec { /* TERMS、HISTOGRAM、DATE_HISTOGRAM，以及 §11
 ```
 
 - 规格对枚举穷尽，漏写就无法编译（P7）。
-- 实施时附一张对照表，把现有校验的每一个分支映射到规格，证明规格能表达全部现有规则。
+- 实施时附一张对照表，把现有校验的每一个分支映射到规格，证明规格能表达全部现有规则。这张表现在由 `wow-api` 的 `FilterOperatorSpecTest` 逐行维护；违规文案由 `QueryRestErrorContractTest` 黄金测试守住。
 - 以下都从这张表派生：
   - 能力表的计算与准入校验；
   - 入口门控；

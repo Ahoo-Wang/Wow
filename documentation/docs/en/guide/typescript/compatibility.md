@@ -52,7 +52,7 @@ pnpm add --save-exact @ahoo-wang/wow-client
 pnpm add -D --save-exact @ahoo-wang/wow-generator
 ```
 
-Move to the next minor on purpose, all Wow packages together, after reading the "Breaking" section of its release notes. The Fetcher peers follow semver; a caret range suits them.
+Move to the next minor on purpose, all Wow packages together, after reading the "Breaking" section of its release notes. The Fetcher peers follow semver; a caret range suits them, but the tilde setting above applies to every package you add, so add them with an explicit range (`pnpm add @ahoo-wang/fetcher@^<version>`) or accept the tilde.
 
 ### Support window
 
