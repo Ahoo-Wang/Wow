@@ -144,7 +144,7 @@ export async function addAndFollow(commands: CommandClient) {
   const results = await commands.sendAndWaitStream({
     path: 'add_cart_item',
     method: 'POST',
-    headers: waitStrategy({ stage: CommandStage.PROJECTED, timeoutMs: 10_000 }),
+    headers: waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
     body: { productId: 'book-1', quantity: 1 },
   });
   for await (const result of results) {
