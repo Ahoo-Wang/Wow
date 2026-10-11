@@ -210,6 +210,46 @@ describe('FilterPanel tree editing', () => {
     ).toBeTruthy();
   });
 
+  it('goes on from the search line to the fields, and ticks the one field a search came to', async () => {
+    const { filter } = panel();
+    const picker = await openPicker();
+    const search = within(picker).getByRole('textbox', {
+      name: 'Search fields',
+    });
+
+    // ↓ leads into the list it narrows (R2-99).
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(
+      within(picker).getAllByRole('checkbox')[0],
+    );
+
+    // Enter over one field left ticks it (R2-100), and a second Enter does
+    // not take it away again.
+    fireEvent.change(search, { target: { value: 'sta' } });
+    await waitFor(() =>
+      expect(within(picker).getAllByRole('checkbox')).toHaveLength(1),
+    );
+    fireEvent.keyDown(search, { key: 'Enter' });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    await waitFor(() =>
+      expect(
+        within(picker).getByRole('checkbox', { name: 'Status' }),
+      ).toHaveProperty('ariaChecked', 'true'),
+    );
+    expect(JSON.stringify(filter().tree)).toContain('"status"');
+
+    // Nothing left, or more than one: ↓ and Enter do nothing.
+    fireEvent.change(search, { target: { value: 'zzz' } });
+    await waitFor(() =>
+      expect(within(picker).queryAllByRole('checkbox')).toHaveLength(0),
+    );
+    search.focus();
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(document.activeElement).toBe(search);
+  });
+
   /**
    * A group holds at most one condition per field, and the list says so by
    * showing the field ticked rather than by dropping it: the tick is the

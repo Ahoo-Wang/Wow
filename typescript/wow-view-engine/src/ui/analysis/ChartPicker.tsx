@@ -146,19 +146,7 @@ export function ChartPicker({
     ...groups.suits,
     ...groups.others,
   ].map(value => ({ value, fit: fitOf(value) }));
-  // Arrow keys move the choice and the focus together, as a radiogroup's
-  // do; a greyed tile is passed over by the keys, though a tab may land on
-  // it and hear why.
-  const refs = useRef(new Map<Picked, HTMLButtonElement>());
-  const move = (from: number, step: number) => {
-    for (let at = 1; at <= tiles.length; at += 1) {
-      const next = tiles[(from + step * at + tiles.length * at) % tiles.length];
-      if (!next || !next.fit.available) continue;
-      onPick(next.value);
-      refs.current.get(next.value)?.focus();
-      return;
-    }
-  };
+  const { refs, arrow } = useTileKeys(tiles, onPick);
   return (
     <div
       data-slot="chart-picker"
@@ -283,16 +271,7 @@ export function ChartPicker({
                           if (fit.available) onPick(value);
                         }}
                         onKeyDown={event => {
-                          if (
-                            event.key === 'ArrowRight' ||
-                            event.key === 'ArrowDown'
-                          )
-                            move(index, 1);
-                          else if (
-                            event.key === 'ArrowLeft' ||
-                            event.key === 'ArrowUp'
-                          )
-                            move(index, -1);
+                          if (arrow(index, event.key)) event.preventDefault();
                           else if (event.key === ' ' || event.key === 'Enter') {
                             event.preventDefault();
                             if (fit.available) onPick(value);
@@ -342,4 +321,82 @@ export function ChartPicker({
       </div>
     </div>
   );
+}
+
+type Tile = { value: Picked; fit: ChartFit };
+
+/**
+ * The tiles' arrow keys, which move the choice and the focus together, as a
+ * radiogroup's do; a greyed tile is passed over by the keys, though a tab
+ * may land on it and hear why. ← and → step a tile. ↑ and ↓ go a row up or
+ * down, as a grid's do (APG; R2-99): to the tile that can draw nearest the
+ * same column in the nearest row that has one, and no further than the
+ * first or last row. Where the tiles stand in one row — or in no layout at
+ * all — a row is a tile, and ↑ and ↓ step as ← and →. `arrow` says whether
+ * the key was one of the four.
+ */
+function useTileKeys(tiles: readonly Tile[], onPick: (picked: Picked) => void) {
+  const refs = useRef(new Map<Picked, HTMLButtonElement>());
+  const go = (value: Picked) => {
+    onPick(value);
+    refs.current.get(value)?.focus();
+  };
+  const step = (from: number, by: number) => {
+    for (let at = 1; at <= tiles.length; at += 1) {
+      const next = tiles[(from + by * at + tiles.length * at) % tiles.length];
+      if (next?.fit.available) return go(next.value);
+    }
+  };
+  const row = (from: number, down: boolean) => {
+    const boxes = tiles.map(tile =>
+      refs.current.get(tile.value)?.getBoundingClientRect(),
+    );
+    const to = tileInRow(
+      boxes,
+      tiles.map(tile => tile.fit.available),
+      from,
+      down,
+    );
+    if (to === 'step') step(from, down ? 1 : -1);
+    else if (to !== null) go(tiles[to].value);
+  };
+  const arrow = (index: number, key: string): boolean => {
+    if (key === 'ArrowRight') step(index, 1);
+    else if (key === 'ArrowLeft') step(index, -1);
+    else if (key === 'ArrowDown') row(index, true);
+    else if (key === 'ArrowUp') row(index, false);
+    else return false;
+    return true;
+  };
+  return { refs, arrow };
+}
+
+/**
+ * Where ↑ or ↓ goes from tile `from`, by where the tiles stand: the index
+ * of the tile, `null` for nowhere (the first or last row), or `'step'` when
+ * the tiles stand in no rows at all.
+ */
+function tileInRow(
+  boxes: readonly (DOMRect | undefined)[],
+  available: readonly boolean[],
+  from: number,
+  down: boolean,
+): number | 'step' | null {
+  const here = boxes[from];
+  if (!here || boxes.every(box => !box || box.top === here.top)) return 'step';
+  let best: { at: number; dy: number; dx: number } | null = null;
+  for (let at = 0; at < boxes.length; at += 1) {
+    const box = boxes[at];
+    if (!box || !available[at]) continue;
+    const dy = down ? box.top - here.top : here.top - box.top;
+    if (dy < 1) continue;
+    const dx = Math.abs(box.left - here.left);
+    if (
+      !best ||
+      dy < best.dy - 1 ||
+      (Math.abs(dy - best.dy) < 1 && dx < best.dx)
+    )
+      best = { at, dy, dx };
+  }
+  return best?.at ?? null;
 }
