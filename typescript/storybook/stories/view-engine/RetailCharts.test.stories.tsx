@@ -141,12 +141,12 @@ export const DurationBandsDrawn: Story = {
 
 /**
  * K 线图：每周一根，开高低收四个数由 FIRST、MAX、MIN、LAST 算出；开与收都在
- * 高低之间，涨跌在读屏表里用文字写出；只算已付款的单，没有一周的最低是 ¥0。可视化面板里 K 线在「适合这个结果」，
+ * 高低之间，涨跌在读屏表里用文字写出；只算已付款的单，没有一周的最低是 ¥0（一件商品的成交单价，Storybook 审查 P2）。可视化面板里 K 线在「适合这个结果」，
  * 箱线图写着它为什么不行（没有五个数）。
  */
 export const CandlestickDrawn: Story = {
   ...DisplayCandlestick,
-  name: 'K 线图：每周每单实付',
+  name: 'K 线图：一件商品每周的成交单价',
   play: async ({ canvasElement }) => {
     const frame = await chartOf(canvasElement, 'candlestick');
     const rows = readingOf(canvasElement);
@@ -264,13 +264,13 @@ export const GaugeDrawn: Story = {
   },
 };
 
-/** 雷达图：各渠道一个形状、三根轴，图例列出每个渠道。 */
+/** 雷达图：各渠道一个形状、四根比率轴，图例列出每个渠道。 */
 export const RadarDrawn: Story = {
   ...DisplayRadar,
   name: '雷达图：各渠道',
   play: async ({ canvasElement }) => {
     const frame = await chartOf(canvasElement, 'radar');
-    await expect(frame).toHaveAttribute('data-axes', '3');
+    await expect(frame).toHaveAttribute('data-axes', '4');
     const rows = readingOf(canvasElement);
     await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
     const legend = frame.querySelector('[data-slot="chart-legend"]');
@@ -342,16 +342,17 @@ export const SankeyDrawn: Story = {
   },
 };
 
-/** 日历热力图：25 个月跨三个年份，一年一块；读屏表一天一行、从早到晚。 */
+/** 日历热力图：2025 年起跨两个年份，一年一块；读屏表一天一行、从早到晚。 */
 export const CalendarDrawn: Story = {
   ...DisplayCalendar,
   name: '日历热力图：每日 GMV',
   play: async ({ canvasElement }) => {
     const frame = await chartOf(canvasElement, 'calendar');
-    await expect(frame).toHaveAttribute('data-years', '3');
+    await expect(frame).toHaveAttribute('data-years', '2');
     const rows = readingOf(canvasElement);
     await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
-    await expect(rows.length).toBeGreaterThan(700);
+    // 2025 whole and 2026 to 22 September.
+    await expect(rows.length).toBeGreaterThan(600);
   },
 };
 
