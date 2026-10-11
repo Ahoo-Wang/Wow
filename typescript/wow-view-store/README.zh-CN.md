@@ -6,7 +6,7 @@
 保存的视图与偏好，由[视图存储](../../view-store/README.md)保管——两个 Wow 聚合，由独立的
 `wow-view-store-server` 提供，或由任何引入了 `wow-view-store-starter` 的 Wow 服务提供。
 
-随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号，与视图引擎和视图存储的服务端模块一起发布。
+随 Wow 发布，与 Wow 同一个 tag、同一个版本号，与视图引擎和视图存储的服务端模块一起发布。
 
 > **兼容性。** 从 9.2.0 起，补丁版本不破坏公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明
 > 逐条列出每个破坏与迁移步骤。Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
@@ -58,112 +58,13 @@ const engine = new ViewEngine({
 但引擎的 `editSystem`（发布、编辑、取消发布存储的系统视图）只在宿主明确答 `true` 时打开：按网关放行
 `tenant/(platform)/owner/(system)` 的角色给（`view-store/README.md`「System views」）。
 
-### 不登录的宿主
+## 文档
 
-没有令牌，就没有谁去填路径里的租户与所有者。这样的宿主加一个自己的拦截器，在请求没给时填上缺省值，并说明自己
-是哪个应用；所有者填 `(shared)`（`SHARED_OWNER_ID`）时，它只有共享视图与共享偏好，所以它的权限把
-`createPersonal` 关掉。
-
-<!-- typecheck-context
-import { Fetcher } from '@ahoo-wang/fetcher';
-declare const fetcher: Fetcher;
--->
-
-```ts
-import type { FetchExchange, RequestInterceptor } from '@ahoo-wang/fetcher';
-import { SHARED_OWNER_ID } from '@ahoo-wang/wow-view-store';
-
-class ConsoleDefaults implements RequestInterceptor {
-  readonly name = 'ConsoleDefaults';
-  readonly order = 0;
-
-  intercept(exchange: FetchExchange): void {
-    const path = exchange.ensureRequestUrlParams().path;
-    path.tenantId ??= '(0)';
-    path.ownerId ??= SHARED_OWNER_ID;
-    exchange.ensureRequestHeaders()['CoSec-App-Id'] = 'console';
-  }
-}
-
-fetcher.interceptors.request.use(new ConsoleDefaults());
-```
-
-## 端口怎样落到请求上
-
-所有路由都在 `/view-store/tenant/{tenantId}/owner/{ownerId}` 之下，**所有者段就是受众**：个人视图在调用者
-自己的路径上，共享视图在 `owner/(shared)` 上。
-
-| 端口                               | 请求                                                                                                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list`                             | 调用者路径与 `(shared)` 上的快照列表，只投影摘要的字段（`state.config.kind`，不含配置），以及 `GET (shared)/system-views?definitionId=`，三个请求一起发 |
-| `get`                              | 在上次见到这个视图的地方按 id 读快照；没见过的 id 依次在调用者路径、`(shared)`、系统视图上找                                                            |
-| `create`                           | 在其 `scope` 对应的路径上 `POST …/view`（`system`：`tenant/(platform)/owner/(system)`）；id 由服务端生成                                                |
-| `save`、`rename`、`delete`         | 在视图所在路径上 `PUT …/view/{id}/save`、`/rename`，`DELETE …/view/{id}`                                                                                |
-| `changeAudience('shared')`         | 在视图所在路径上 `PUT …/view/{id}/share`                                                                                                                |
-| `changeAudience('personal')`       | 在调用者自己的路径上 `PUT …/view/{id}/claim`                                                                                                            |
-| `getPreferences`、`setPreferences` | 调用者路径上的 `GET`、`PUT …/definitions/{definitionId}/preferences`                                                                                    |
-
-列表按端口规定的顺序作答——系统视图、共享视图、调用者的个人视图，每种受众按创建先后（服务端按 `firstEventTime`
-排序）——每种受众最多读 1000 个，即服务端的查询上限：最早的 1000 个。截断之外的视图仍可按 id 读到，地址里点名的
-视图工作台会先按 id 问一次，再决定是不是别的定义的。
-
-**写入**把端口的 `requestId` 作为 `Command-Request-Id`、`revision` 作为 `Command-Aggregate-Version`
-（从没写过的偏好是 `'0'`）发送，并等到快照落地。作答的是按这次写入留下的版本读回的视图。`share` 与 `delete`
-发送 `{}`，`claim` 不带请求体。
-
-**重试答第一次的结果。** 服务端以过期版本或重复的请求 id 拒绝一次写入时，先按请求 id 查一次
-（`GET …/view/requests/{requestId}`，先在这次发往的路径上，再在另一条上）：第一次已经落地，就以它的结果作答。
-之后过期版本才是 `CONFLICT`，带上视图现在的样子——视图已经不在了则是 `NOT_FOUND`。服务端答不上来的查询不算回答：
-在这次发往的路径上，结局未知（`UNAVAILABLE`，重试安全）；在另一条路径上——没有共享角色的调用者在 `(shared)`
-会被拒——就当没有重放，原来的拒绝照旧。已经落地、读回前又被别人推过的写入，以重放路由给的那一版作答；
-那条路由问不了时，以读回的作答。偏好没有这样的路由：
-store 以自己第一次得到的结果回答重试；第一次的回答丢了的重试，在存着的正是它写的内容时，以存着的作答。
-
-**创建在服务端不是幂等的**，id 由服务端生成。store 记着自己发出的创建的请求 id（最近 256 个），
-重试其中一个时先在其 `scope` 的路径上问重放路由：第一次已经落地，就以那个视图作答，不再发一次。
-从另一个 store 实例发出的重试——另一个标签页、刷新之后——会再建一个视图。
-
-**挪了地方的视图。** 另一个标签页把这个 store 记作个人的视图设为了共享（或反过来），写入在旧路径上被拒；
-store 重新找到视图，把写入再发一次到它现在所在的地方。
-
-**系统视图。** 服务端的系统视图（`GET (shared)/system-views`）有配置的，只读；也有存储的（`source: 'stored'`），
-`WowViewStore` 列出、读取它们时在摘要与实例上带 `stored: true`。存储的系统视图是全局的，不管调用者在哪个租户，
-都写在 `tenant/(platform)/owner/(system)`（`SYSTEM_TENANT_ID`、`SYSTEM_OWNER_ID`）上。`create({ scope: 'system', … })`
-发布一个（是复制，源视图不变），`save`、`rename`、`delete` 编辑与取消发布；`changeAudience`，以及对配置的或
-代码声明的系统视图的任何写入，都在发出请求之前就是 `FORBIDDEN`。
-
-系统视图的 `revision` 是内容的散列，引擎的「已改动」基线靠它；而写入要的是聚合版本：store 记着每次读到的存储视图
-在那个 revision 上的 `version`，写入时发这个版本；引擎拿着一个 store 没有版本的 revision 时，先重读一次——
-与视图当前不符的 revision 是 `CONFLICT`，带上视图现在的样子，什么都不发。写入的答复按它留下的版本从系统视图路由
-读回。服务端以重复请求拒绝的重试，会在系统路径上的重放路由里找到，但那条路由答的是快照，内容散列只有服务端算得出：
-store 以系统视图**现在的样子**作答——除非这期间另一位管理员写过，那就是这次重试的结果。第一次已经把视图推过、手里的 revision 已不是视图当前的那个的重试，
-先问重放路由，再以 `CONFLICT` 拒绝；重试的系统视图创建，从系统视图路由读回作答，带标记、用内容散列。
-
-## 错误
-
-所有拒绝都是引擎的 `ViewStoreError`，按 Wow 的错误码读——只有回答里没有 store 认得的错误码时才看 HTTP 状态：
-
-| 服务端                                                                                                                                                                                                                                  | 端口          |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| `CommandExpectVersionConflict`、`EventVersionConflict`、`SourcingVersionConflict`；没有认得的错误码时 409、412                                                                                                                          | `CONFLICT`    |
-| `NotFound`（别的应用的视图也是）、`IllegalAccessDeletedAggregate`；没有认得的错误码时 404、410                                                                                                                                          | `NOT_FOUND`   |
-| `IllegalAccessOwnerAggregate`、`IllegalAccessSpaceAggregate`、`IllegalAccessQueryScope`、`SystemViewReadOnly`、`ViewEventStreamClosed`；没有认得的错误码时 401、403                                                                     | `FORBIDDEN`   |
-| `ViewInvalid`、`ViewAppRequired`、`ViewScopeRequired`、`BadRequest`、`CommandValidation`、`IllegalArgument`、`DuplicateAggregateId`、`QuerySchemaValidation`；没有认得的错误码时 400、422；fetcher 的拦截器没填的路径变量（什么都没发） | `INVALID`     |
-| `IllegalState`、`RequestTimeout`、`TooManyRequests`、`InternalServerError`、`QuerySchemaUnavailable`、`QuerySchemaConflict`；没有认得的错误码时其余状态；根本没有回答                                                                   | `UNAVAILABLE` |
-| 没有视图存储的服务端（早于它发布的）答的 `404`：列表，或每处都 `404` 且服务端的系统视图也 `404` 的读写                                                                                                                                  | `UNSUPPORTED` |
-
-每个 `ViewStoreError` 都留着它的来处：请求本身的失败是 `cause`，服务端的 `errorCode` 是 `detail.code`（宿主据此分辨同为
-`INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`）；服务端答了话的 `UNAVAILABLE`——5xx、它报的超时、不是 JSON 的页面——带
-`reachable: true`，引擎据此说「服务端暂时无法处理」，而不是「无法连接服务端」。
-
-重复的请求 id（`DuplicateRequestId`）本身不是错误：store 去查第一次的结果（见上）。没填的路径变量是宿主的配置问题——
-拦截器没填 `{tenantId}`，或个人路径上的 `{ownerId}`——所以与服务端自己的 `ViewScopeRequired` 一样是 `INVALID`：
-请求一构造就是错的，重试发出的还是同一个。
-
-服务端因为有共享仪表盘显示着视图而拒绝收为个人时，错误的 `boards` 原样带上那几块看板的**标题**，由视图引擎用自己的话
-说出这次拒绝：以键写的标题仍是键，在显示拒绝的地方说成话。`message` 保留服务端的原话，供日志。
-
-`WowViewStoreErrorCodes` 列出视图存储自己的错误码。
+| 想做的事                                                          | 读                                                                                                             |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 选择视图放在哪里、接入 `WowViewStore`、给出权限、服务不登录的宿主 | [视图存放在哪里](https://wow.ahoo.me/zh/guide/typescript/view-engine-storage#wowviewstore-视图存在-wow-服务上) |
+| 导出、合同、端口发出的每个请求，以及服务端错误怎样映射到端口      | [wow-view-store 参考](https://wow.ahoo.me/zh/reference/typescript/wow-view-store/)                             |
+| 运行视图存储服务端、它的配置与网关规则                            | [视图存储](https://wow.ahoo.me/zh/guide/extensions/view-store)                                                 |
 
 ## 测试
 
