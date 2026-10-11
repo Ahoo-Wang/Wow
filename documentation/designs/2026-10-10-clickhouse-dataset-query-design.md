@@ -1,6 +1,6 @@
 # 数据集查询与 ClickHouse 后端设计
 
-日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 已实施（Ahoo-Wang/Wow#4122）；S3 已实施（JVM：Ahoo-Wang/Wow#4127；TypeScript：wow-client `DatasetQueryClient`，view-engine 以架构测试断言它是 `ViewSource`）。
+日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 已实施（Ahoo-Wang/Wow#4122）；S3 已实施（JVM：Ahoo-Wang/Wow#4127；TypeScript：wow-client `DatasetQueryClient`，view-engine 以架构测试断言它是 `ViewSource`）；数据集 ABAC 已实施（Ahoo-Wang/Wow#4133）；S4 由 [数据集平台化设计](2026-10-11-dataset-platform-design.md) 取代。
 
 基线：`main` `d48d915e5`。本文建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)（下称“查询架构”）之上，沿用它的原理编号 P1～P9 与设计名；wow-bi 的布局见 [wow-bi 重构设计](2026-10-09-wow-bi-refactor-design.md)。
 
@@ -98,7 +98,7 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 ### 4.4 治理
 
 - **范围**：`scope.tenant` 必填，它就是 `requiredScope`。调用方范围（`QueryRequestScope`、CoSec）在准入第 2 步强制追加到这些列上，与 Snapshot 相同。“范围缺失时拒绝”开关对数据集同样生效。
-- **ABAC**：Snapshot 的资源标签是 `tags` 系统字段。数据集在声明的 `scope.tags` 中把每个标签键绑定到一列：单值标签用字符串列，多值标签用 `Array(String)` 列，空字符串或空数组表示没有这个标签。`AbacQueryPolicy` 对绑定了标签列的数据集按同样的规则生成条件（S3 之后实施）。没有选 `Map(String, Array(String))`：宽表本来是扁平的，按键分列让 SQL 翻译只需 `has`/`hasAny`，类型核对也只需放开字符串数组一种。
+- **ABAC**：Snapshot 的资源标签是 `tags` 系统字段。数据集在声明的 `scope.tags` 中把每个标签键绑定到一列：单值标签用字符串列，多值标签用 `Array(String)` 列，空字符串或空数组表示没有这个标签。`AbacQueryPolicy` 对绑定了标签列的数据集按同样的规则生成条件（Ahoo-Wang/Wow#4133）。没有选 `Map(String, Array(String))`：宽表本来是扁平的，按键分列让 SQL 翻译只需 `has`/`hasAny`，类型核对也只需放开字符串数组一种。
 - **敏感等级**：这是对查询架构 §6.4“敏感等级只能以字段注解声明”的**显式例外**。宽表的列没有类型，也就没有注解可以继承，声明是唯一的来源，所以数据集声明可以写 `sensitive`（等级与遮挡方式）。由 wow-bi 展开计划生成的数据集（§7）自动继承源字段的等级，声明只能更严、不能更宽。
 - **注入**：标识符只来自编译后的绑定，加反引号引用；取值一律用 ClickHouse 服务端参数（`{p0:String}`）传入，不拼接。
 - **纵深防御**：使用只读账号（`readonly=2`，只允许改设置）。行策略可选，不作为安全边界，安全边界在准入。
@@ -213,9 +213,9 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 |---|---|---|
 | **S0 原型**（已完成） | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张宽表上翻译过滤、聚合与分页，并生成能力描述 | §11；不合并 |
 | **S1 核心**（已实施，#4116、#4120） | `QueryModel.DATASET` 与数据集 profile（内置模型的 profile 为 `BuiltInQueryModelProfile`）；`QueryModelSchema.profile`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
-| **S2 后端**（实施中） | `wow-clickhouse`（incubating）：存储适配器与声明一致性检查、四个原语、keyset 游标、`FINAL`、按入口的限额、取消；TCK `DatasetQueryBackendSpec` | TCK 语义矩阵与规格 + Testcontainers `integrationTest` |
+| **S2 后端**（已实施，#4122） | `wow-clickhouse`（incubating）：存储适配器与声明一致性检查、四个原语、keyset 游标、`FINAL`、按入口的限额、取消；TCK `DatasetQueryBackendSpec` | TCK 语义矩阵与规格 + Testcontainers `integrationTest` |
 | **S3 接入**（已实施） | starter `clickhouse-support` 与数据集装配；HTTP 路由与 describe；OpenAPI 契约；`wow-clickhouse` 发布；中英文用户文档。wow-client `DatasetQueryApi`/`DatasetQueryClient`，view-engine 的 `ViewSource` 断言 | starter 端到端测试（内存后端）、ClickHouse 自动配置测试；typescript-contract |
-| **S4 BI 联动** | 由 wow-bi 展开计划生成数据集声明，继承敏感等级 | wow-bi golden + 集成测试 |
+| **S4**（由 [数据集平台化设计](2026-10-11-dataset-platform-design.md) 取代） | 原为由 wow-bi 展开计划生成数据集声明，降级为后续；改为数据集运行时注册与目录、多数据源与平台级数据集、view-engine 免代码使用数据集 | 见该设计 §10 |
 | 后续 | 协议演进：同比、环比、占比、累计、组内 TopN | 规范定义一次；各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE，ClickHouse 先做 NATIVE |
 
 ## 11. S0 原型结论
