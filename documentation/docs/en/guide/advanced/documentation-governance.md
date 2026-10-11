@@ -33,6 +33,9 @@ Wow keeps each kind of documentation in one place, chosen by who reads it. This 
 | Reproducible performance evidence | Maintainers | `wow-benchmarks/results/` |
 | Agent capabilities | Coding agents | `skills/`; vendored third-party skills in `.claude/skills/` |
 | Published module usage | Module users | `<module>/README.md` and `README.zh-CN.md` |
+| Storybook's scenario catalog | Storybook maintainers | `typescript/storybook/docs/scenarios.md` |
+| Third-party notices | Package users | `typescript/<package>/THIRD_PARTY_NOTICES.md` |
+| Issue and pull request templates | Contributors | `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE` |
 | Generated contracts | Reviewers | `<module>/api/*.api`, `typescript/*/test/api/*.api.md`, `typescript/*/test/surface/*.txt` |
 
 Do not track files under `document/` or `docs/superpowers/`. `docs/superpowers/` remains an ignored local agent workspace; do not force-add its specs, plans, reports or review packages.
@@ -116,16 +119,16 @@ Future cleanup follows the same procedure, one reviewable pull request per batch
 6. list migrated and deleted paths in the pull request body instead of committing another cleanup report;
 7. build and review each batch before starting the next.
 
-## Planned Enforcement
+## Enforcement
 
-A follow-up pull request will add a documentation layout check. Once enabled, it will fail when:
+`.github/scripts/docs-layout.mjs` (`pnpm check:docs-layout`) runs on every pull request as the `docs-layout` job of `typescript.yml`, part of `typescript-gate`. It reads only the tracked files and fails when:
 
-- tracked files appear under `document/` or `docs/superpowers/`;
-- Markdown is added outside the locations in [Canonical Locations](#canonical-locations) or `.github/` templates;
-- a Mermaid-supported diagram adds PlantUML or a generated diagram SVG;
-- the VitePress site cannot build with the locked dependency graph.
+- a file is tracked under `document/` or `docs/superpowers/`;
+- Markdown is added outside the locations in [Canonical Locations](#canonical-locations);
+- PlantUML is added outside `documentation/diagrams/`;
+- an SVG sits beside a `.mmd` or PlantUML source of the same name.
 
-The check uses repository scripts and existing toolchains; it does not add a documentation framework or another archive directory. Until it lands, reviewers enforce this policy manually; this page does not claim the current CI already rejects layout violations.
+The Documentation job of the same workflow builds the VitePress site with the locked dependency graph whenever the site or its samples change. The check is structural: whether a document is current, has one owner, or is working material in disguise remains a review question.
 
 ## Review Checklist
 
@@ -136,4 +139,4 @@ The check uses repository scripts and existing toolchains; it does not add a doc
 - Is every retained experiment reproducible and owned by `wow-benchmarks`?
 - Are deleted paths free of inbound links?
 - Does the pull request avoid tracked plans, review notes, generated build output, and local agent state?
-- Do the VitePress build and `git diff --check` pass?
+- Do the documentation layout check, the VitePress build and `git diff --check` pass?
