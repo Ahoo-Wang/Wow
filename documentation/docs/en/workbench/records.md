@@ -28,7 +28,7 @@ The conditions line above the result always says what the result is filtered by.
 
 ## Open a record
 
-Press the empty part of a row — not its checkbox, a link or an action — to open its **Record detail** at the side: every field of the record, grouped, including long text and what the list does not show. With the keyboard, move through the rows with the arrow keys and press Enter or Space. Your application may add its own sections there.
+Press the empty part of a row — not its checkbox, a link or an action — to open its **Record detail** at the side: every field of the record, grouped, including long text and what the list does not show. With the keyboard, move through the rows with the arrow keys and press Enter or Space. In the detail, the arrows at its top — or **K** and **J** — move to the record before or after on this page without closing it. Your application may add its own sections there.
 
 ## Select and act
 

@@ -81,3 +81,6 @@ export function isSaveKey(event: KeyboardEvent): boolean {
 export const SAVE_KEYS = 'Meta+S Control+S';
 /** The key that puts the keyboard in the search box. */
 export const SEARCH_KEYS = '/';
+/** The keys a record's detail steps back and on by (`aria-keyshortcuts`). */
+export const PREVIOUS_RECORD_KEYS = 'K';
+export const NEXT_RECORD_KEYS = 'J';

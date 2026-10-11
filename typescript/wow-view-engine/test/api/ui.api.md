@@ -3769,6 +3769,11 @@ export const en: {
     readonly 'label.record.detail.element': "Item {index}";
     readonly 'label.record.detail.retry': "Try again";
     readonly 'label.record.detail.back': "Back to {key}";
+    readonly 'label.record.detail.previous': "Previous record";
+    readonly 'label.record.detail.next': "Next record";
+    readonly 'label.record.detail.first': "The first record on this page";
+    readonly 'label.record.detail.last': "The last record on this page";
+    readonly 'label.record.detail.position': "{index} of {total}";
     readonly 'label.copy-of': "Copy {value}";
     readonly 'label.copied': "Copied";
     readonly 'label.copy-failed': "Could not copy — select the value and copy it";

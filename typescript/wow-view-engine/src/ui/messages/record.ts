@@ -136,6 +136,13 @@ export const recordMessages = {
   // A detail opened from a list inside another one: the way back to the
   // record underneath, named by its key.
   'label.record.detail.back': 'Back to {key}',
+  // Stepping through the page without closing the panel (R2-97): each
+  // button names where it goes, or why it goes nowhere at the page's end.
+  'label.record.detail.previous': 'Previous record',
+  'label.record.detail.next': 'Next record',
+  'label.record.detail.first': 'The first record on this page',
+  'label.record.detail.last': 'The last record on this page',
+  'label.record.detail.position': '{index} of {total}',
 
   // A copyable cell's own button, and the two words a press can come back
   // with. The name carries the value because a table full of these buttons

@@ -11,9 +11,21 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { createContext, useContext, useEffect, useRef } from 'react';
-import { ArrowLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  RotateCcwIcon,
+} from 'lucide-react';
+import { IconButton } from '../kit/IconButton.js';
+import {
+  NEXT_RECORD_KEYS,
+  PREVIOUS_RECORD_KEYS,
+  typing,
+} from '../kit/surfaceKeys.js';
 import { cn } from 'cn';
 import type { RecordKey } from '../../model/index.js';
 import type { DetailSection, RecordRow } from '../../record/index.js';
@@ -68,6 +80,12 @@ interface RecordDetailProps {
   title?(row: RecordRow): string | undefined;
   /** Told of a host section that threw, as the workbench's other parts are. */
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * The page the record was opened from, in its order (R2-97): with it the
+   * header steps to the record before or after — buttons, and K／J — without
+   * closing the panel. A record not on it (opened by a link) has no steps.
+   */
+  rows?: readonly RecordRow[];
 }
 
 /**
@@ -109,6 +127,7 @@ export function RecordDetail({
   render,
   title: titleOf,
   onRenderFailure,
+  rows,
 }: RecordDetailProps) {
   const messages = useViewMessages();
   const { key, record } = detail;
@@ -152,6 +171,7 @@ export function RecordDetail({
         <SheetContent
           data-slot="record-detail"
           data-layer={nested ? 'nested' : undefined}
+          onKeyDown={event => stepKey(event, detail, rows)}
           aria-busy={detail.loading}
           initialFocus={heading}
           finalFocus={() => rowOf(anchor.current, last.current) ?? true}
@@ -203,6 +223,7 @@ export function RecordDetail({
             >
               {title ?? (key === null ? '' : String(key))}
             </SheetTitle>
+            {!layer && rows && <DetailStep detail={detail} rows={rows} />}
             {row && actions && (
               <div
                 data-slot="record-detail-actions"
@@ -432,4 +453,103 @@ function rowOf(
   const row = rows.find(one => one.dataset.rowKey === text) ?? null;
   takeStop(row, rows);
   return row;
+}
+
+/** Where the open record stands on the page, and its neighbours. */
+function neighbours(
+  key: RecordKey | null,
+  rows: readonly RecordRow[] | undefined,
+): { at: number; previous?: RecordRow; next?: RecordRow } | null {
+  if (key === null || !rows) return null;
+  const at = rows.findIndex(row => row.key === key);
+  if (at < 0) return null;
+  return { at, previous: rows[at - 1], next: rows[at + 1] };
+}
+
+/**
+ * K and J step to the record before and after, wherever the keyboard is in
+ * the panel but a field (R2-97) — not ↑ and ↓, which scroll a long record.
+ * A step opens the neighbour in this panel, as a press on its row would, so
+ * the address follows (`?id=`).
+ */
+function stepKey(
+  event: KeyboardEvent,
+  detail: RecordDetailController,
+  rows: readonly RecordRow[] | undefined,
+) {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const key = event.key.toLowerCase();
+  if (key !== 'j' && key !== 'k') return;
+  if (typing(event.target)) return;
+  const place = neighbours(detail.key, rows);
+  const to = key === 'j' ? place?.next : place?.previous;
+  if (!to) return;
+  event.preventDefault();
+  detail.open(to);
+}
+
+/**
+ * 「上一条／下一条」 in the header, with where the record stands. At the
+ * page's end the button stays where the keyboard is, says why it goes
+ * nowhere, and takes no press (`aria-disabled`, as a held action does).
+ */
+function DetailStep({
+  detail,
+  rows,
+}: {
+  detail: RecordDetailController;
+  rows: readonly RecordRow[];
+}) {
+  const messages = useViewMessages();
+  const place = neighbours(detail.key, rows);
+  if (!place || rows.length < 2) return null;
+  const step = (
+    to: RecordRow | undefined,
+    name: 'label.record.detail.previous' | 'label.record.detail.next',
+    end: 'label.record.detail.first' | 'label.record.detail.last',
+    keys: string,
+    icon: ReactNode,
+  ) => (
+    <IconButton
+      variant="ghost"
+      size="icon-sm"
+      label={messages.label(to ? name : end)}
+      aria-keyshortcuts={keys}
+      focusableWhenDisabled
+      aria-disabled={to ? undefined : true}
+      className="fve:aria-disabled:opacity-50"
+      onClick={() => {
+        if (to) detail.open(to);
+      }}
+    >
+      {icon}
+    </IconButton>
+  );
+  return (
+    <div
+      data-slot="record-detail-step"
+      className="fve:-ml-2 fve:flex fve:items-center fve:gap-1"
+    >
+      {step(
+        place.previous,
+        'label.record.detail.previous',
+        'label.record.detail.first',
+        PREVIOUS_RECORD_KEYS,
+        <ChevronUpIcon />,
+      )}
+      {step(
+        place.next,
+        'label.record.detail.next',
+        'label.record.detail.last',
+        NEXT_RECORD_KEYS,
+        <ChevronDownIcon />,
+      )}
+      <span className="fve:text-sm fve:text-muted-foreground fve:tabular-nums">
+        {messages.label('label.record.detail.position', {
+          index: place.at + 1,
+          total: rows.length,
+        })}
+      </span>
+    </div>
+  );
 }

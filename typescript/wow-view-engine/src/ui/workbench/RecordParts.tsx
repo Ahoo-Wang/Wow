@@ -495,6 +495,9 @@ export function RecordParts({
 
         <RecordDetail
           detail={detail}
+          // The page in its order, to step through (R2-97); a kanban's
+          // cards stand in lanes, which no one order reads.
+          {...(table.layout === 'kanban' ? {} : { rows: table.rows })}
           actions={surface.detail}
           sections={bindSections(
             detailOptions?.sections,

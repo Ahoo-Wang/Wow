@@ -198,6 +198,53 @@ describe('a record read whole', () => {
     expect(within(panel).getByRole('heading', { name: 'o-2' })).toBeTruthy();
   });
 
+  it('steps to the record before and after without closing, by button and by K and J (R2-97)', async () => {
+    await open();
+    const total = dataRows().length;
+    fireEvent.click(within(dataRows()[0]!).getAllByRole('cell')[2]!);
+    const panel = await screen.findByRole('dialog');
+    const heading = (name: string) =>
+      within(panel).findByRole('heading', { name });
+    const step = () =>
+      panel.querySelector<HTMLElement>('[data-slot="record-detail-step"]')!;
+
+    // The first of the page: no way back, and it says why.
+    expect(step().textContent).toContain(`1 of ${total}`);
+    const back = within(step()).getByRole('button', {
+      name: 'The first record on this page',
+    });
+    expect(back.getAttribute('aria-disabled')).toBe('true');
+    expect(back.getAttribute('aria-keyshortcuts')).toBe('K');
+    fireEvent.click(back);
+    expect(await heading('o-1')).toBeTruthy();
+
+    fireEvent.click(
+      within(step()).getByRole('button', { name: 'Next record' }),
+    );
+    expect(await heading('o-2')).toBeTruthy();
+    expect(step().textContent).toContain(`2 of ${total}`);
+
+    // K and J, from anywhere in the panel but a field.
+    fireEvent.keyDown(panel, { key: 'k' });
+    expect(await heading('o-1')).toBeTruthy();
+    fireEvent.keyDown(panel, { key: 'J' });
+    expect(await heading('o-2')).toBeTruthy();
+    fireEvent.keyDown(panel, { key: 'j', ctrlKey: true });
+    expect(await heading('o-2')).toBeTruthy();
+
+    // Out to the page's last: no way on.
+    for (let at = 2; at < total; at += 1)
+      fireEvent.keyDown(panel, { key: 'j' });
+    expect(await heading(`o-${total}`)).toBeTruthy();
+    expect(
+      within(step())
+        .getByRole('button', { name: 'The last record on this page' })
+        .getAttribute('aria-disabled'),
+    ).toBe('true');
+    fireEvent.keyDown(panel, { key: 'j' });
+    expect(await heading(`o-${total}`)).toBeTruthy();
+  });
+
   it('leaves the keys on something inside the row to that thing', async () => {
     await open();
     const box = screen.getByRole('checkbox', { name: 'Select o-1' });
