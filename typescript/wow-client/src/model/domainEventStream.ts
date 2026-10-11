@@ -11,23 +11,20 @@
  * limitations under the License.
  */
 
+import type { CommandId, CommandStage, RequestId } from './command.js';
+import type { Identifier, Version } from './common.js';
+import type { BodyCapable } from './messaging.js';
 import type {
   AggregateId,
   CreateTimeCapable,
   DeletedCapable,
   FirstEventTimeCapable,
   FirstOperatorCapable,
-  Identifier,
-  Named,
   OwnerId,
   SpaceIdCapable,
   StateCapable,
-  Version,
-  BodyCapable,
-  CommandId,
-  CommandStage,
-  RequestId,
-} from '../../../model/index.js';
+} from './modeling.js';
+import type { Named } from './naming.js';
 
 /**
  * Represents a domain event with a specific body type.
