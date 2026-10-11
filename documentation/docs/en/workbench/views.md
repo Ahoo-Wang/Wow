@@ -20,6 +20,8 @@ A saved view keeps the way you look at the data — conditions, columns, sort, m
 - **Save** keeps your changes in the open view. The first save of a new view asks for a title and **Who can see it**: **Only me** or **Everyone**. Saving a shared view asks first, because it changes it for everyone: **Update for everyone**.
 - **Save as** makes a new view from what you see; the view you started from stays as it was. It is how you keep your own version of a system view or of a shared view you may not change.
 - **Revert** goes back to the saved version, after asking.
+- **⌘S** (Ctrl+S on Windows and Linux) does what **Save** does, wherever you are in the workbench.
+- Leaving a view with unsaved changes — opening another one — asks first: **Stay**, or **Leave** and lose them. On one of **My views** it also offers **Save and leave**, which leaves only once the save went through.
 
 ## Manage views
 
@@ -35,4 +37,4 @@ A saved view keeps the way you look at the data — conditions, columns, sort, m
 
 If someone saved the same view after you opened it, saving offers three ways out: **Take theirs**, **Keep mine** (write yours over theirs) or **Save my copy**. Your changes are kept until you choose.
 
-If a save was sent but no answer came back — the network dropped, the server did not reply — the workbench says the outcome is unknown and offers **Try again**, which is safe to press, or **Abandon**.
+If a save was sent but no answer came back — the network dropped, the server did not reply — the workbench says the outcome is unknown and offers **Try again**, which is safe to press — the same request cannot take effect twice — or **Abandon**, which stops waiting and keeps your changes on screen, unsaved.

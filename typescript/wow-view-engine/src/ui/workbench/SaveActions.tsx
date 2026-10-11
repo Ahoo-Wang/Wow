@@ -43,6 +43,7 @@ import {
 } from '../components/dropdown-menu.js';
 import { Spinner } from '../components/spinner.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
+import { SAVE_KEYS, isSaveKey, useSurfaceKey } from '../kit/surfaceKeys.js';
 import { AlertDialogContent, DropdownMenuContent } from '../kit/popups.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 import type { ViewWriteCallbacks } from './WriteOutcome.js';
@@ -107,6 +108,18 @@ export function SaveActions({
   const [confirming, setConfirming] = useState(false);
   const { can, state } = commands;
   const group = useRef<HTMLDivElement>(null);
+  const primary = useRef<HTMLButtonElement>(null);
+  // ⌘S is a press of the button (R2-100): the same save, the same question
+  // over a shared view, the same dialog for a view never saved. Taken from
+  // the browser either way — its 「保存网页」 is never what was meant here —
+  // and a button that cannot save now does nothing, as a press would.
+  useSurfaceKey(group, event => {
+    if (!isSaveKey(event)) return;
+    event.preventDefault();
+    const button = primary.current;
+    if (button && !button.disabled) button.click();
+  });
+
   const confirmed = useRef(false);
   // Whether the question now closing was answered 「更新给所有人」. Kept apart
   // from `confirmed`, which the effect below lets go of once the write
@@ -245,8 +258,10 @@ export function SaveActions({
     >
       <ButtonGroup aria-label={messages.label(word('label.save.group'))}>
         <Button
+          ref={primary}
           variant="outline"
           size="sm"
+          aria-keyshortcuts={SAVE_KEYS}
           // A save with nothing to save is the one disabled button here: the
           // permission is held, so the button belongs on screen, and the
           // reason it does nothing is the state the user can see.
