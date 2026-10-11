@@ -21,7 +21,7 @@ import type {
   PagedQueryRequest,
 } from '../requests.js';
 import type { PagedList } from '../../../dsl/queryable.js';
-import type { DomainEventStream } from './domainEventStream.js';
+import type { DomainEventStream } from '../../../model/domainEventStream.js';
 import type { DynamicDocument } from '../../../dsl/documents.js';
 import { QUERY_STREAM_ENDPOINT } from '../../../transport/endpoints.js';
 import type { CursorPage, CursorQuery } from '../../../dsl/cursorQuery.js';
@@ -49,6 +49,9 @@ import { bindMethods } from '../../bindMethods.js';
  *
  * @example
  * ```typescript
+ * import { Fetcher } from '@ahoo-wang/fetcher';
+ * import type { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
+ *
  * // Create client options configuration
  * const clientOptions: ApiMetadata = {
  *   fetcher: new Fetcher({ baseURL: 'http://localhost:8080/' }),

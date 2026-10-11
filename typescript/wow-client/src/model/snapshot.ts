@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
+import type { AbacTaggable } from './abac.js';
+import type { Version } from './common.js';
 import type {
-  AbacTaggable,
   AggregateId,
   DeletedCapable,
   EventIdCapable,
@@ -25,8 +26,7 @@ import type {
   SpaceIdCapable,
   StateCapable,
   TenantId,
-  Version,
-} from '../../../model/index.js';
+} from './modeling.js';
 
 /**
  * Interface for materialized snapshots with full capabilities.

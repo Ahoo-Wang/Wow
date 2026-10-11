@@ -24,9 +24,10 @@
  * ```typescript
  * // Send a command into a space
  * await commandClient.send({
- *   method: HttpMethod.POST,
+ *   path: 'owner/{ownerId}/cart/add_cart_item',
+ *   method: 'POST',
  *   headers: { [WowHeaders.SPACE_ID]: 'store-1' },
- *   body: { ... },
+ *   body: { productId: 'p-1', quantity: 1 },
  * });
  * ```
  */

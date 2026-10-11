@@ -128,14 +128,12 @@ src/
       factory.ts              — QueryClientFactory; hands each client only ApiMetadata keys
       index.ts
       event/
-        domainEventStream.ts          — Domain event stream types
         eventStreamQueryApi.ts        — Event stream query API (no single; + load, loadStream)
         eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
         endpointPaths.ts              — (internal) its endpoint paths
         index.ts
       snapshot/
-        snapshot.ts                   — Materialized snapshot types
-        snapshotQueryApi.ts           — Snapshot query API (+ *State variants, getById/getByIds and their *State)
+            snapshotQueryApi.ts           — Snapshot query API (+ *State variants, getById/getByIds and their *State)
         snapshotQueryClient.ts        — Snapshot query client
         endpointPaths.ts              — (internal) its endpoint paths
         index.ts
@@ -154,6 +152,8 @@ src/
         index.ts
   model/                      — The wire model: wow-api's mixins and the command results; types and wire enums only
     command.ts                — CommandStage, CommandResult, WaitSignal and their mixins (CommandId, RequestId, …)
+    snapshot.ts               — MaterializedSnapshot and its smaller shapes, SnapshotMetadataFields
+    domainEventStream.ts      — DomainEventStream, DomainEvent, StateEvent, DomainEventStreamMetadataFields
     abac.ts, bi.ts, common.ts, function.ts,
     messaging.ts, modeling.ts, naming.ts, index.ts
   error/                      — The one error shape; imports no fetcher package
@@ -181,7 +181,7 @@ test/
   fixtures/java-date-patterns.json — What DateTimeFormatter.ofPattern accepts, written by wow-api's DatePatternCorpusTest
   dsl/datePattern.test.ts     — datePattern against that corpus, entry by entry
   dslWire.test.ts             — Every DSL builder's JSON against golden/dsl-wire.json
-  clients/                    — Every client method against a stubbed fetch
+  client/                     — The clients: every method against a stubbed fetch (fetchStub.ts), and their types
     endpointTable.test.ts     — Every client method's requests against golden/client-endpoints.json
 ```
 
@@ -267,7 +267,7 @@ refactor must leave all three unchanged:
 - **DSL wire protocol.** `test/dslWire.test.ts` runs every builder `/dsl`
   exports on fixed input and compares the JSON with
   `test/golden/dsl-wire.json`. A builder without a case fails the test.
-- **Client endpoints.** `test/clients/endpointTable.test.ts` calls every
+- **Client endpoints.** `test/client/endpointTable.test.ts` calls every
   public method of every client (found by reflection on its prototype) and
   compares the requests (method, URL, all headers, body), the result, and
   where each stream stops at an error event with

@@ -12,7 +12,7 @@
  */
 
 /**
- * The `@example` blocks of the query DSL and the command builders compile.
+ * The `@example` blocks of the source compile.
  *
  * An example is the first thing a reader copies, and one that stopped
  * compiling when a signature changed teaches the wrong call. Each block below
@@ -20,26 +20,28 @@
  * scope and a few declared clients for the examples that send.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-/** The files whose every example must compile. */
-const FILES = [
-  'src/dsl/filter/builders.ts',
-  'src/dsl/aggregation/builders.ts',
-  'src/dsl/aggregation/having.ts',
-  'src/dsl/queryable.ts',
-  'src/dsl/cursorQuery.ts',
-  'src/client/query/state/loadStateAggregateClient.ts',
-  'src/client/query/state/loadOwnerStateAggregateClient.ts',
-  'src/client/command/commandRequest.ts',
-  'src/error/wowError.ts',
-  'src/transport/endpoints.ts',
-];
-
 const root = new URL('../', import.meta.url);
+const readSource = (file: string) => readFileSync(new URL(file, root), 'utf8');
+
+/**
+ * The files whose every example must compile: each source file with a
+ * `typescript` block in a doc comment, except the deprecated /legacy entry,
+ * whose examples import from it rather than from the root entry.
+ */
+const FILES = readdirSync(new URL('src/', root), { recursive: true })
+  .map(path => `src/${String(path).split(sep).join('/')}`)
+  .filter(file => file.endsWith('.ts') && !file.startsWith('src/legacy/'))
+  .filter(file =>
+    /\/\*\*(?:(?!\*\/)[\s\S])*```typescript/.test(readSource(file)),
+  )
+  .sort();
+
 const entry = fileURLToPath(new URL('src/index.ts', root));
 
 /** Every name the root entry exports, from its surface list. */
@@ -48,17 +50,60 @@ const names = readFileSync(new URL('test/surface/root.txt', root), 'utf8')
   .filter(line => /^(type|value) /.test(line))
   .map(line => line.slice(6).trim());
 
-const PRELUDE = `
-import { ${names.join(', ')} } from ${JSON.stringify(entry.replace(/\.ts$/, '.js'))};
-declare const commandClient: CommandClient;
-declare const snapshotClient: SnapshotQueryClient<{ status: string }>;
-declare const requestId: string;
-declare const id: string;
-export {};
-`;
+const ENTRY = JSON.stringify(entry.replace(/\.ts$/, '.js'));
+
+/** The names an example may use without declaring them, with their types. */
+const CONTEXT: Record<string, string> = {
+  fetcher: 'Fetcher',
+  commandClient: 'CommandClient',
+  snapshotClient: 'SnapshotQueryClient<{ status: string }>',
+  snapshotQueryClient: 'SnapshotQueryClient<{ status: string }>',
+  eventStreamQueryClient: 'EventStreamQueryClient',
+  factory: 'QueryClientFactory<{ status: string }>',
+  requestId: 'string',
+  id: 'string',
+  cartId: 'string',
+};
+
+/** The names an example imports or declares at its top level. */
+function ownNames(code: string): Set<string> {
+  const own = new Set<string>();
+  for (const [, list] of code.matchAll(/^import(?: type)? \{([^}]*)\}/gm))
+    for (const part of list.split(','))
+      own.add(
+        part
+          .trim()
+          .split(/\s+as\s+/)
+          .pop()!
+          .replace(/^type /, ''),
+      );
+  for (const [, name] of code.matchAll(
+    /^(?:export )?(?:const|let|var|function|class|type|interface|enum) (\w+)/gm,
+  ))
+    own.add(name);
+  return own;
+}
+
+/**
+ * An example is compiled as a module with every root export and the
+ * {@link CONTEXT} names in scope, except those it imports or declares
+ * itself; an import of the package resolves to the source entry.
+ */
+function module(code: string): string {
+  const own = ownNames(code);
+  const imported = names.filter(name => !own.has(name));
+  const fetcher = own.has('Fetcher')
+    ? ''
+    : `import { Fetcher } from '@ahoo-wang/fetcher';\n`;
+  const context = Object.entries(CONTEXT)
+    .filter(([name]) => !own.has(name))
+    .map(([name, type]) => `declare const ${name}: ${type};\n`)
+    .join('');
+  return `import { ${imported.join(', ')} } from ${ENTRY};\n${fetcher}${context}export {};\n${code.split(`'@ahoo-wang/wow-client'`).join(ENTRY)}`;
+}
 
 function examples(file: string): { name: string; code: string }[] {
-  const source = readFileSync(new URL(file, root), 'utf8');
+  const source = readSource(file);
   const found: { name: string; code: string }[] = [];
   for (const comment of source.matchAll(/\/\*\*[\s\S]*?\*\//g)) {
     const text = comment[0]
@@ -108,7 +153,7 @@ describe('JSDoc examples', () => {
     const exists = host.fileExists.bind(host);
     host.readFile = name => {
       const example = files.get(name);
-      return example ? PRELUDE + example.code : read(name);
+      return example ? module(example.code) : read(name);
     };
     host.fileExists = name => files.has(name) || exists(name);
     const program = ts.createProgram([...files.keys()], options, host);

@@ -30,6 +30,15 @@ const COMMAND_STAGES: ReadonlySet<string> = new Set(
   Object.values(CommandStage),
 );
 
+/** True when the data is a command result: it names the stage it reports. */
+function namesStage(data: unknown): boolean {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    typeof (data as { stage?: unknown }).stage === 'string'
+  );
+}
+
 /**
  * Unwraps the events `isData` accepts to their data, and errors the stream
  * with a `WowError` at the first one it does not.
@@ -46,11 +55,11 @@ const COMMAND_STAGES: ReadonlySet<string> = new Set(
  * here it ends the stream the way a failed request ends a call.
  */
 function rowsUntilErrorEvent<T>(
-  isData: (eventName: string) => boolean,
+  isData: (event: JsonServerSentEvent<unknown>) => boolean,
 ): TransformStream<JsonServerSentEvent<unknown>, T> {
   return new TransformStream({
     transform(event, controller) {
-      if (isData(event.event)) {
+      if (isData(event)) {
         controller.enqueue(event.data as T);
         return;
       }
@@ -79,7 +88,7 @@ export const QueryEventStreamResultExtractor: ResultExtractor<
   ReadableStream<unknown>
 > = async exchange =>
   (await JsonEventStreamResultExtractor(exchange)).pipeThrough(
-    rowsUntilErrorEvent(eventName => eventName === ROW_EVENT),
+    rowsUntilErrorEvent(event => event.event === ROW_EVENT),
   );
 
 /**
@@ -87,7 +96,9 @@ export const QueryEventStreamResultExtractor: ResultExtractor<
  * stage the command reached, which errors with a {@link WowError} when the
  * server sends an error event. A command result whose own `errorCode` is not
  * `Ok` is still a result — the command failed in its processing — and is
- * passed on as one.
+ * passed on as one. So is a result from a stage this version does not know:
+ * a command result names its stage in `stage`, the error event's `ErrorInfo`
+ * does not, so a newer server's stage is not read as an error.
  *
  * Generated command clients take it through `COMMAND_STREAM_ENDPOINT`.
  */
@@ -95,7 +106,7 @@ export const CommandResultEventStreamResultExtractor: ResultExtractor<
   ReadableStream<CommandResult>
 > = async exchange =>
   (await JsonEventStreamResultExtractor(exchange)).pipeThrough(
-    rowsUntilErrorEvent<CommandResult>(eventName =>
-      COMMAND_STAGES.has(eventName),
+    rowsUntilErrorEvent<CommandResult>(
+      event => COMMAND_STAGES.has(event.event) || namesStage(event.data),
     ),
   );
