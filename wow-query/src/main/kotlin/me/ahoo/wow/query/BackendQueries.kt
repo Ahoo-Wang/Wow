@@ -114,7 +114,8 @@ fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): Mono<CursorPage<Obj
 /**
  * The groups of [query]. The core plans the residual operators the storage declares
  * [RESIDUAL][SupportMode.RESIDUAL]: it removes them from the query it sends down, asks for every group when an
- * operator needs them all, and applies dense fill, HAVING and top-N (or the limit) to the rows that come back.
+ * operator needs them all, and applies dense fill, windows, HAVING and top-N (or the limit) to the rows that come
+ * back.
  * An aggregation without groups always has its summary row: when the backend emits none, because no record
  * matched, the core emits the empty summary ([EmptyAggregationValues]).
  * When it reads every group, [budget]'s [QueryBudget.maxResidualGroups] bounds how many it processes, dense fill
@@ -146,6 +147,7 @@ fun QueryBackend.aggregate(
             indexed.t2
         }
     }
+    plan.windows?.let { windows -> rows = rows.collectList().flatMapIterable(windows::apply) }
     if (plan.having) rows = rows.filter(plan::applyHaving)
     if (plan.topN) {
         rows.collect(plan::topRows) { top, row -> top.add(row) }.flatMapIterable { it.result() }

@@ -47,7 +47,7 @@ data class AggregationQuery(
         require(limit in 1..MAX_LIMIT) { "limit must be between 1 and $MAX_LIMIT." }
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
         metrics.requireValidExpressions()
-        metrics.requireValidDerivedMetrics()
+        metrics.requireValidDerivedMetrics(groupBy)
         requireValidHaving(having, groupBy, metrics)
         groupBy.forEach { group ->
             if (group is AggregationGroup.DateHistogram && group.dense) {
@@ -455,12 +455,20 @@ sealed interface AggregationMetric {
     JsonSubTypes.Type(DerivedExpression.MetricRef::class, name = "METRIC_REF"),
     JsonSubTypes.Type(DerivedExpression.Constant::class, name = "CONSTANT"),
     JsonSubTypes.Type(DerivedExpression.Binary::class, name = "BINARY"),
+    JsonSubTypes.Type(DerivedExpression.Total::class, name = "TOTAL"),
+    JsonSubTypes.Type(DerivedExpression.Running::class, name = "RUNNING"),
+    JsonSubTypes.Type(DerivedExpression.Previous::class, name = "PREVIOUS"),
+    JsonSubTypes.Type(DerivedExpression.Rank::class, name = "RANK"),
 )
 @Schema(
     oneOf = [
         DerivedExpression.MetricRef::class,
         DerivedExpression.Constant::class,
         DerivedExpression.Binary::class,
+        DerivedExpression.Total::class,
+        DerivedExpression.Running::class,
+        DerivedExpression.Previous::class,
+        DerivedExpression.Rank::class,
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
@@ -478,7 +486,110 @@ sealed interface DerivedExpression {
         val left: DerivedExpression,
         val right: DerivedExpression,
     ) : DerivedExpression
+
+    /**
+     * A window over the groups of the aggregation: computed from every group the filter selects, after the row-level
+     * derived metrics and before HAVING, sort and limit, so neither HAVING nor the limit changes it. [metric] names a
+     * non-derived numeric metric declared before the derived metric. A null [metric] value contributes nothing.
+     */
+    sealed interface Window : DerivedExpression {
+        val metric: String
+    }
+
+    /**
+     * The sum of [metric] over the groups that share this group's [within] keys, every group when [within] is empty;
+     * `null` when every value is `null`. Only COUNT and SUM add up, so only they are accepted.
+     */
+    data class Total(
+        override val metric: String,
+        @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+        val within: List<String> = emptyList(),
+    ) : Window
+
+    /**
+     * [metric] accumulated along [order] over the groups that share this group's [within] keys: the [function] of
+     * every group up to and including this one, or of the last [frame] of them. Groups tied on [order] follow the
+     * remaining group keys ascending, in `groupBy` order. `null` when every value in the frame is `null`. SUM accepts
+     * only COUNT and SUM; AVG, a moving average with [frame], accepts any numeric metric.
+     */
+    data class Running(
+        override val metric: String,
+        /** A group alias or a non-derived numeric metric alias, with its direction. */
+        val order: Sort,
+        @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+        val within: List<String> = emptyList(),
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        @get:Schema(minimum = "1", maximum = MAX_FRAME_TEXT)
+        val frame: Int? = null,
+        val function: RunningFunction = RunningFunction.SUM,
+    ) : Window {
+        init {
+            require(frame == null || frame in 1..MAX_FRAME) { "running frame must be between 1 and $MAX_FRAME." }
+        }
+    }
+
+    /**
+     * [metric] of the group [shift] steps earlier along the `DATE_HISTOGRAM` group [along], every other group key
+     * equal: a step is one bucket of [along], or one [period] (such as `YEAR` for the same period last year). The
+     * earlier groups are read over the query's own range of [along]'s field, shifted. `null` when that group has no
+     * records.
+     */
+    data class Previous(
+        override val metric: String,
+        val along: String,
+        @get:Schema(defaultValue = "1", minimum = "1", maximum = MAX_SHIFT_TEXT)
+        val shift: Int = 1,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        val period: AggregationDateUnit? = null,
+    ) : Window {
+        init {
+            require(shift in 1..MAX_SHIFT) { "previous shift must be between 1 and $MAX_SHIFT." }
+        }
+    }
+
+    /**
+     * The dense rank of [metric] among the groups that share this group's [within] keys, in [direction]: tied values
+     * share a rank and ranks have no gaps. `null` for a group whose value is `null`.
+     */
+    data class Rank(
+        override val metric: String,
+        @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+        val within: List<String> = emptyList(),
+        val direction: Sort.Direction = Sort.Direction.DESC,
+    ) : Window
+
+    companion object {
+        /** The most windows one aggregation may compute. */
+        const val MAX_WINDOWS: Int = 8
+        const val MAX_FRAME: Int = AggregationQuery.MAX_LIMIT
+        const val MAX_SHIFT: Int = 1_000
+        private const val MAX_FRAME_TEXT = "10000"
+        private const val MAX_SHIFT_TEXT = "1000"
+    }
 }
+
+/** The window functions of [DerivedExpression.Window], as a storage declares and the descriptor lists them. */
+enum class WindowFunction {
+    TOTAL,
+    RUNNING,
+    PREVIOUS,
+    RANK,
+}
+
+/** What a [DerivedExpression.Running] window computes over its frame. */
+enum class RunningFunction {
+    SUM,
+    AVG,
+}
+
+/** The function of this window. */
+val DerivedExpression.Window.windowFunction: WindowFunction
+    get() = when (this) {
+        is DerivedExpression.Total -> WindowFunction.TOTAL
+        is DerivedExpression.Running -> WindowFunction.RUNNING
+        is DerivedExpression.Previous -> WindowFunction.PREVIOUS
+        is DerivedExpression.Rank -> WindowFunction.RANK
+    }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
 @JsonSubTypes(
@@ -632,46 +743,56 @@ private data class PendingDerivedExpression(
     val depth: Int,
 )
 
-private fun List<AggregationMetric>.requireValidDerivedMetrics() {
-    val declared = LinkedHashMap<String, String?>()
-    var nodes = 0
+private fun List<AggregationMetric>.requireValidDerivedMetrics(groupBy: List<AggregationGroup>) {
+    val declared = LinkedHashMap<String, AggregationMetric>()
+    val counter = DerivedCounter()
     forEach { metric ->
         if (metric is AggregationMetric.Derived) {
-            nodes = metric.requireValidDerivedExpression(declared, nodes)
+            metric.requireValidDerivedExpression(declared, groupBy, counter)
         }
-        declared[metric.alias] = when (metric) {
-            is AggregationMetric.Any -> "ANY"
-            is AggregationMetric.First -> "FIRST"
-            is AggregationMetric.Last -> "LAST"
-            else -> null
-        }
+        declared[metric.alias] = metric
     }
 }
 
-/** [declared] maps each earlier metric alias to its non-numeric metric type, or `null` when it is numeric. */
+/** The derived nodes and windows of a query, counted across its derived metrics. */
+private class DerivedCounter {
+    var nodes = 0
+    var windows = 0
+}
+
+/** The non-numeric type of [metric], or `null` when its value is a number. */
+internal fun nonNumericType(metric: AggregationMetric): String? = when (metric) {
+    is AggregationMetric.Any -> "ANY"
+    is AggregationMetric.First -> "FIRST"
+    is AggregationMetric.Last -> "LAST"
+    else -> null
+}
+
+/** [declared] holds the metrics declared before this one, by alias. */
 private fun AggregationMetric.Derived.requireValidDerivedExpression(
-    declared: Map<String, String?>,
-    visitedNodes: Int,
-): Int {
+    declared: Map<String, AggregationMetric>,
+    groupBy: List<AggregationGroup>,
+    counter: DerivedCounter,
+) {
     val pending = ArrayDeque<PendingDerivedExpression>()
     pending.addLast(PendingDerivedExpression(expression, 1))
-    var nodes = visitedNodes
     while (pending.isNotEmpty()) {
         val (current, depth) = pending.removeLast()
         require(depth <= AggregationQuery.MAX_EXPRESSION_DEPTH) {
             "derived expression depth must be at most ${AggregationQuery.MAX_EXPRESSION_DEPTH}."
         }
-        nodes++
-        require(nodes <= AggregationQuery.MAX_EXPRESSION_NODES) {
+        counter.nodes++
+        require(counter.nodes <= AggregationQuery.MAX_EXPRESSION_NODES) {
             "derived expressions must contain at most ${AggregationQuery.MAX_EXPRESSION_NODES} nodes."
         }
         when (current) {
             is DerivedExpression.MetricRef -> {
                 val reference = current.metric
-                require(reference in declared) {
+                val target = declared[reference]
+                require(target != null) {
                     "derived metric [$alias] must reference a metric declared before it, but was [$reference]."
                 }
-                val nonNumeric = declared.getValue(reference)
+                val nonNumeric = nonNumericType(target)
                 require(nonNumeric == null) {
                     "derived metric [$alias] cannot reference $nonNumeric metric [$reference]."
                 }
@@ -683,9 +804,16 @@ private fun AggregationMetric.Derived.requireValidDerivedExpression(
                 pending.addLast(PendingDerivedExpression(current.left, depth + 1))
                 pending.addLast(PendingDerivedExpression(current.right, depth + 1))
             }
+
+            is DerivedExpression.Window -> {
+                counter.windows++
+                require(counter.windows <= DerivedExpression.MAX_WINDOWS) {
+                    "an aggregation must compute at most ${DerivedExpression.MAX_WINDOWS} windows."
+                }
+                current.requireValidWindow(alias, declared, groupBy)
+            }
         }
     }
-    return nodes
 }
 
 private data class PendingHavingExpression(

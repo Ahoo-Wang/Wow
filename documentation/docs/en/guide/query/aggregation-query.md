@@ -210,6 +210,40 @@ Implementation and guardrails:
 - MongoDB evaluates derived metrics in additional `$project` stages after the aggregation projection, one stage per derived metric in declaration order; Elasticsearch uses `bucket_script` pipeline aggregations inside the bucket. Neither adds storage version requirements (`$project` and `bucket_script` both predate the supported MongoDB 7.0 / Elasticsearch 9.x baselines);
 - the HTTP query guard treats derived metrics as arithmetic expressions: they are rejected when `wow.query.http.allow-expensive-operators=false`, consistent with the existing metric arithmetic gating.
 
+### Windows: Derived Values Across Groups {#windows}
+
+Shares, running totals, moving averages and ranks within a group are computed across groups: the value of one group depends on others. Derived expressions offer four window nodes for them, which compose like `METRIC_REF`, `CONSTANT` and `BINARY` (a share is `gmv / TOTAL(gmv)`):
+
+| Node | Meaning | Parameters |
+|---|---|---|
+| `TOTAL` | The metric summed over the partition | `metric`; `within`: the partition's group aliases, every group by default |
+| `RUNNING` | A running sum or moving average along an order | `metric`; `order`: a group alias or metric with a direction; `within`; `frame`: the last N rows, from the start by default; `function`: `SUM` (default) or `AVG` |
+| `PREVIOUS` | The value one period earlier (period over period, year over year) | `metric`; `along`: a `DATE_HISTOGRAM` alias; `shift`: steps back, 1 by default; `period`: step by a calendar period such as `YEAR` |
+| `RANK` | The dense rank within the partition (ties share a rank, ranks have no gaps) | `metric`; `within`; `direction`: `DESC` by default |
+
+```kotlin
+aggregation {
+    terms("province", "province")
+    terms("city", "city")
+    sum("amount", "gmv")
+    derived("share") { ref("gmv") / total("gmv", "province") }
+    derived("rank") { rank("gmv", "province") }
+    having { "rank" lte 3.0 }
+}
+```
+
+Windows are computed over **every group** the filter selects, before `having`, `sort` and `limit`, so the share above is the share among all cities of the province, unaffected by the top-three filter and the limit; top N within a group is `having rank <= N`.
+
+Rules:
+
+- The `metric` a window reads must be a non-derived numeric metric declared before the derived metric; `TOTAL` and `RUNNING` with `SUM` accept only `COUNT` and `SUM`, which add up;
+- `within`, `order` and `along` reference group aliases of the query (`order` may also be a non-derived numeric metric); `RUNNING` cannot order by its own partition group; the `period` of `PREVIOUS` must be a whole number of `along`'s buckets (a monthly group steps by `YEAR`, `QUARTER` or `MONTH`);
+- A query computes at most 8 windows, and windows count toward the depth and node limits of derived expressions;
+- `null` values contribute nothing to totals and running values, which are `null` when every value is; a `null` value has no rank; groups tied on a `RUNNING` order follow the remaining group keys ascending;
+- Dense fill and windows combine: filled buckets take part in running values.
+
+Support is declared per function: `analysis.windows` in the `QueryModelDescriptor` lists the window functions the storage supports. A storage without a native implementation has the query service compute them after reading every group (RESIDUAL), bounded by `wow.query.http.max-residual-groups`; beyond it the query is rejected with `RESIDUAL_GROUPS_EXCEEDED` rather than computed wrong on truncated rows. `PREVIOUS` needs a second read over the shifted time range and is not available yet; a query using it is rejected with `STORAGE_UNSUPPORTED`.
+
 ### HAVING: Filter Groups by Aggregated Values {#having}
 
 `having` filters grouped rows by their per-row metric results after aggregation, mirroring SQL's `HAVING`: the root `filter` and metric filters act on records, while having acts on aggregated values. Omitting having disables filtering. Its AST is the recursive, polymorphic `HavingExpression`:

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.api.query.descriptor.AggregationLimitsDescriptor
 import me.ahoo.wow.api.query.descriptor.AnalysisDescriptor
 import me.ahoo.wow.api.query.descriptor.AnalysisSortDescriptor
@@ -387,6 +388,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             dateParts = AggregationDatePart.entries,
             dateDiffUnits = if (allowExpensive) DateDiffUnit.entries else emptyList(),
             firstLastOrderBy = schema.profile?.eventTimeField?.path?.takeIf { firstLast },
+            // A window is a derived metric, an expensive one.
+            windows = WindowFunction.entries.filter { allowExpensive && support.window(it) != SupportMode.NONE },
         )
     }
 

@@ -1,6 +1,6 @@
 # 聚合查询的窗口计算设计（数据集平台 R4）
 
-日期：2026-10-11。状态：设计稿，待用户确认 §8 的决定；确认前不动代码。
+日期：2026-10-11。状态：§8 的决定已由用户确认（2026-10-11，「按你推荐，开始 R4a」）；R4a 分两步实施，见 §7。
 
 基线：`main` `6c2bff7651`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R4（其 §11 T1），建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)的聚合协议与 `StorageSupport` 之上；view-engine 侧的现状见 `typescript/wow-view-engine/docs/design/decisions.md` 的 Q53、Q59 与 D38。
 
@@ -78,6 +78,7 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 - `within`、`order`、`along` 只能引用本查询的分组别名；`along` 必须是 `DATE_HISTOGRAM`；
 - 窗口节点计入现有的表达式深度与节点数上限；每个查询的窗口节点数另设上限（`maxWindows`，缺省 8）；
 - `dense` 日期直方图与窗口可以同时使用：补齐的空桶参与 `RUNNING`（值为 0）与 `PREVIOUS`。
+- 实现时补充的精确语义：`null` 值不参与 `TOTAL`、`RUNNING`，全为 `null` 时结果为 `null`；`null` 值没有名次；`RUNNING` 在 `order` 上并列的分组按其余分组键升序排列，`frame` 按行计；`RUNNING` 不能按自己的 `within` 分组排序；`PREVIOUS` 的 `period` 必须是 `along` 桶的整数倍（年、季只能平移年及以上；月可按年、季、月；周只能按周；日及更细可按年、季、月、周）。
 
 ## 4. 能力与实现
 
@@ -89,7 +90,7 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 | MongoDB | NATIVE：`$setWindowFields`（`TOTAL`、`RUNNING`、`RANK`）；`PREVIOUS` 用 `$facet` 跑平移范围再按键合并 |
 | Elasticsearch | RESIDUAL：核心取回完整分组再计算，见下 |
 
-**RESIDUAL 的边界**：核心要拿到**完整**的分组才能算对，所以以 `GroupWindow` 请求全部分组（上限 `maxResidualGroups`，缺省 10 000）；超过上限时查询被拒绝（`AGGREGATION_WINDOW_TOO_MANY_GROUPS`），而不是在截断的结果上算错。这条与 Q53 的「算不对的不画」同一原则，只是从客户端挪到了服务端。
+**RESIDUAL 的边界**：核心要拿到**完整**的分组才能算对，所以以 `GroupWindow` 请求全部分组（上限 `maxResidualGroups`，缺省 10 000）；超过上限时查询被拒绝，而不是在截断的结果上算错。实现沿用 HAVING、指标排序已有的残余上限（`QueryBudget.maxResidualGroups`，HTTP 入口为 `wow.query.http.max-residual-groups`）与错误码 `RESIDUAL_GROUPS_EXCEEDED`，不另设错误码。这条与 Q53 的「算不对的不画」同一原则，只是从客户端挪到了服务端。
 
 ## 5. view-engine 的衔接
 
@@ -107,13 +108,14 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 
 | 阶段 | 内容 | 证明 |
 |---|---|---|
-| **R4a 协议与核心** | `DerivedExpression` 的四种节点与校验；准入；`AggregationSupport.windows` 与能力描述；RESIDUAL 实现 | wow-api / wow-query 单测；TCK 增加窗口语义规格（同一份期望在每个存储上跑） |
+| **R4a-1 协议与核心** | `DerivedExpression` 的四种节点与校验；准入；`AggregationSupport.windows` 与能力描述（`analysis.windows`）；`TOTAL`、`RUNNING`、`RANK` 的 RESIDUAL 实现，所有存储缺省为 RESIDUAL，`PREVIOUS` 缺省为 NONE | wow-api / wow-query 单测 |
+| **R4a-2 `PREVIOUS`** | 平移范围（§3.2）与第二次分组读取的 RESIDUAL 实现；TCK 增加窗口语义规格（同一份期望在每个存储上跑） | wow-query 单测；TCK |
 | **R4b ClickHouse** | NATIVE 实现 | TCK + Testcontainers |
 | **R4c MongoDB、Elasticsearch** | Mongo NATIVE、ES RESIDUAL | TCK + Testcontainers |
 | **R4d view-engine** | 用服务端窗口结果，Q53 置灰收窄，Q59 落地，组内 TopN | view-engine 测试与故事 |
 | wow-client | DSL 的窗口节点 | API 报告 |
 
-## 8. 决定（待用户确认）
+## 8. 决定（用户已确认，2026-10-11）
 
 | # | 问题 | 推荐 |
 |---|---|---|

@@ -210,6 +210,40 @@ aggregation {
 - MongoDB 在聚合投影之后追加额外的 `$project` 阶段计算派生值，每个派生指标一个阶段，按声明顺序执行；Elasticsearch 在桶内使用 `bucket_script` 管道聚合。两者均无新增存储版本要求（`$project` 与 `bucket_script` 都早于受支持的 MongoDB 7.0 / Elasticsearch 9.x 基线）；
 - HTTP 查询保护把派生指标视为算术表达式：`wow.query.http.allow-expensive-operators=false` 时会被拒绝，与既有 metric 算术表达式门槛一致。
 
+### 窗口：跨组的派生值 {#windows}
+
+占比、累计、移动平均、组内排名都要跨组计算：一组的值依赖其他组。派生表达式为此提供四种窗口节点，它们与 `METRIC_REF`、`CONSTANT`、`BINARY` 一样可以组合（占比即 `gmv / TOTAL(gmv)`）：
+
+| 节点 | 含义 | 参数 |
+|---|---|---|
+| `TOTAL` | 指标在分区内的合计 | `metric`；`within`：分区的 group alias，缺省为全部分组 |
+| `RUNNING` | 沿一个次序的累计或移动平均 | `metric`；`order`：group alias 或指标及方向；`within`；`frame`：最近几行，缺省从头累计；`function`：`SUM`（缺省）或 `AVG` |
+| `PREVIOUS` | 上一期的值（环比、同比） | `metric`；`along`：一个 `DATE_HISTOGRAM` 的 alias；`shift`：前移几步，缺省 1；`period`：按日历周期前移，如 `YEAR` |
+| `RANK` | 分区内的密集名次（并列同名次，名次连续） | `metric`；`within`；`direction`：缺省 `DESC` |
+
+```kotlin
+aggregation {
+    terms("province", "province")
+    terms("city", "city")
+    sum("amount", "gmv")
+    derived("share") { ref("gmv") / total("gmv", "province") }
+    derived("rank") { rank("gmv", "province") }
+    having { "rank" lte 3.0 }
+}
+```
+
+窗口对 filter 选出的**全部分组**计算，在 `having`、`sort`、`limit` 之前完成，所以上例的占比是省内全部城市的占比，不受「每省前三」的筛选与 `limit` 截断影响；组内 TopN 就是 `having rank <= N`。
+
+规则：
+
+- 窗口读取的 `metric` 必须是先于该派生指标声明的、非派生的数值 metric；`TOTAL` 与 `RUNNING` 的 `SUM` 只接受可加的 `COUNT` 与 `SUM`；
+- `within`、`order`、`along` 只能引用本查询的 group alias（`order` 也可以是非派生的数值 metric）；`RUNNING` 不能按自己的分区字段排序；`PREVIOUS` 的 `period` 必须是 `along` 桶的整数倍（如按月分组可按 `YEAR`、`QUARTER`、`MONTH` 前移）；
+- 一个查询至多 8 个窗口，窗口计入派生表达式的深度与节点上限；
+- `null` 值不参与合计与累计，全为 `null` 时结果为 `null`；`null` 值没有名次；`RUNNING` 在 `order` 上并列的分组按其余 group key 升序排列；
+- 空桶补齐（`dense`）与窗口可以同时使用：补齐的桶参与累计。
+
+能力按函数声明：`QueryModelDescriptor` 的 `analysis.windows` 列出存储支持的窗口函数。没有原生实现的存储由查询服务在取回全部分组后计算（RESIDUAL），读取的分组数受 `wow.query.http.max-residual-groups` 限制，超出即以 `RESIDUAL_GROUPS_EXCEEDED` 拒绝，而不是在截断的结果上算错。`PREVIOUS` 需要按平移后的时间范围再读一次分组，目前尚未提供，使用它的查询以 `STORAGE_UNSUPPORTED` 拒绝。
+
 ### HAVING（按聚合值筛选分组） {#having}
 
 `having` 在聚合完成后按每行的 metric 结果筛选分组行，对应 SQL 的 `HAVING`：根 `filter` 与 metric filter 作用于记录，having 作用于聚合值。省略 having 时不筛选。它的 AST 是递归多态的 `HavingExpression`：

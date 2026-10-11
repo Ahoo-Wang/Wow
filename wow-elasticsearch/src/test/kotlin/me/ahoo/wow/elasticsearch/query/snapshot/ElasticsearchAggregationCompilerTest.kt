@@ -401,6 +401,16 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `windows are computed by the core and never compiled`() {
+        val query = aggregation {
+            terms("name", "name")
+            count("c")
+            derived("total") { total("c") }
+        }
+        assertThrows<IllegalStateException> { compiler.compile(query, schema) }
+    }
+
+    @Test
     fun `terms without missingKey keeps the physical field`() {
         val plan = compiler.compile(
             aggregation {

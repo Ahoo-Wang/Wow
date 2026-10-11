@@ -5276,6 +5276,12 @@
           },
           "sort" : {
             "$ref" : "#/components/schemas/wow.api.query.AnalysisSortDescriptor"
+          },
+          "windows" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.WindowFunction"
+            },
+            "type" : "array"
           }
         },
         "required" : [ "approximate", "dateDiffUnits", "dateParts", "dateUnits", "dense", "expressions", "having", "metrics", "sort" ],
@@ -5371,7 +5377,11 @@
           "mapping" : {
             "BINARY" : "#/components/schemas/wow.api.query.DerivedExpression.Binary",
             "CONSTANT" : "#/components/schemas/wow.api.query.DerivedExpression.Constant",
-            "METRIC_REF" : "#/components/schemas/wow.api.query.DerivedExpression.MetricRef"
+            "METRIC_REF" : "#/components/schemas/wow.api.query.DerivedExpression.MetricRef",
+            "PREVIOUS" : "#/components/schemas/wow.api.query.DerivedExpression.Previous",
+            "RANK" : "#/components/schemas/wow.api.query.DerivedExpression.Rank",
+            "RUNNING" : "#/components/schemas/wow.api.query.DerivedExpression.Running",
+            "TOTAL" : "#/components/schemas/wow.api.query.DerivedExpression.Total"
           },
           "propertyName" : "type"
         },
@@ -5381,6 +5391,14 @@
           "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Constant"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.MetricRef"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Previous"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Rank"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Running"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.DerivedExpression.Total"
         } ]
       },
       "wow.api.query.DerivedExpression.Binary" : {
@@ -5424,6 +5442,96 @@
           }
         },
         "required" : [ "metric", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression.Previous" : {
+        "properties" : {
+          "along" : {
+            "type" : "string"
+          },
+          "metric" : {
+            "type" : "string"
+          },
+          "period" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+            } ]
+          },
+          "shift" : {
+            "default" : 1,
+            "format" : "int32",
+            "maximum" : 1000,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "along", "metric" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression.Rank" : {
+        "properties" : {
+          "direction" : {
+            "$ref" : "#/components/schemas/wow.api.query.Sort.Direction"
+          },
+          "metric" : {
+            "type" : "string"
+          },
+          "within" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metric" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression.Running" : {
+        "properties" : {
+          "frame" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ],
+            "maximum" : 10000,
+            "minimum" : 1
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.api.query.RunningFunction"
+          },
+          "metric" : {
+            "type" : "string"
+          },
+          "order" : {
+            "$ref" : "#/components/schemas/wow.api.query.Sort"
+          },
+          "within" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metric", "order" ],
+        "type" : "object"
+      },
+      "wow.api.query.DerivedExpression.Total" : {
+        "properties" : {
+          "metric" : {
+            "type" : "string"
+          },
+          "within" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metric" ],
         "type" : "object"
       },
       "wow.api.query.DynamicFieldDescriptor" : {
@@ -7607,6 +7715,10 @@
         "required" : [ "type" ],
         "type" : "object"
       },
+      "wow.api.query.RunningFunction" : {
+        "enum" : [ "SUM", "AVG" ],
+        "type" : "string"
+      },
       "wow.api.query.SearchDescriptor" : {
         "properties" : {
           "fields" : {
@@ -7766,6 +7878,10 @@
         },
         "required" : [ "discriminator", "element", "values" ],
         "type" : "object"
+      },
+      "wow.api.query.WindowFunction" : {
+        "enum" : [ "TOTAL", "RUNNING", "PREVIOUS", "RANK" ],
+        "type" : "string"
       },
       "wow.command.CommandResult" : {
         "properties" : {

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.api.query.spec.MetricSpec
 
 /** How storage supports a query feature (design §5.5). */
@@ -51,8 +52,8 @@ data class PagingSupport(
 }
 
 /**
- * How a storage aggregates. HAVING, top-N by a metric and dense date-histogram fill may be RESIDUAL; percentiles and
- * distinct counts need the records themselves, so they are NATIVE or NONE.
+ * How a storage aggregates. HAVING, top-N by a metric, dense date-histogram fill and the TOTAL, RUNNING and RANK
+ * windows may be RESIDUAL; percentiles and distinct counts need the records themselves, so they are NATIVE or NONE.
  */
 @WowSpi
 data class AggregationSupport(
@@ -65,12 +66,33 @@ data class AggregationSupport(
     val distinctCount: SupportMode = SupportMode.NATIVE,
     /** FIRST and LAST: the value on the earliest or latest record of a group by an ordering field. */
     val firstLast: SupportMode = SupportMode.NATIVE,
+    /**
+     * The window functions of derived metrics; a function absent from the map is NONE. A RESIDUAL window is computed
+     * by the core over every group the storage returns.
+     */
+    val windows: Map<WindowFunction, SupportMode> = RESIDUAL_WINDOWS,
 ) {
     init {
         require(percentile != SupportMode.RESIDUAL && distinctCount != SupportMode.RESIDUAL) {
             "Percentile and distinct count have no residual implementation."
         }
         require(firstLast != SupportMode.RESIDUAL) { "FIRST and LAST have no residual implementation." }
+        require(windows[WindowFunction.PREVIOUS] != SupportMode.RESIDUAL) {
+            "PREVIOUS has no residual implementation."
+        }
+    }
+
+    /** How the storage supports [function]. */
+    fun window(function: WindowFunction): SupportMode = windows[function] ?: SupportMode.NONE
+
+    companion object {
+        /** The windows the core computes for any storage: every one but PREVIOUS. */
+        @JvmField
+        val RESIDUAL_WINDOWS: Map<WindowFunction, SupportMode> = mapOf(
+            WindowFunction.TOTAL to SupportMode.RESIDUAL,
+            WindowFunction.RUNNING to SupportMode.RESIDUAL,
+            WindowFunction.RANK to SupportMode.RESIDUAL,
+        )
     }
 }
 

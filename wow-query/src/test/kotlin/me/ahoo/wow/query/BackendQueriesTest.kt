@@ -259,8 +259,8 @@ class BackendQueriesTest {
         val admitted = QueryAdmission.Trusted.aggregate(query, residual)
         backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)).test()
             .expectErrorMessage(
-                "HTTP aggregation processes more than [2] groups, dense fill included, to compute HAVING or a " +
-                    "metric sort in the query service; narrow the filter or the period."
+                "HTTP aggregation processes more than [2] groups, dense fill included, to compute HAVING, a " +
+                    "metric sort or a window in the query service; narrow the filter or the period."
             )
             .verify()
         backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 3)).collectList().block()!!

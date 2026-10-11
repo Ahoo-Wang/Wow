@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -300,6 +301,34 @@ class DerivedExpressionDsl {
     fun ref(metric: String): DerivedExpression = DerivedExpression.MetricRef(metric)
 
     fun constant(value: Double): DerivedExpression = DerivedExpression.Constant(value)
+
+    /** The sum of [metric] over the groups sharing this group's [within] keys. */
+    fun total(metric: String, vararg within: String): DerivedExpression =
+        DerivedExpression.Total(metric, within.toList())
+
+    /** [metric] accumulated along [order] within the groups sharing this group's [within] keys. */
+    fun running(
+        metric: String,
+        order: Sort,
+        within: List<String> = emptyList(),
+        frame: Int? = null,
+        function: RunningFunction = RunningFunction.SUM,
+    ): DerivedExpression = DerivedExpression.Running(metric, order, within, frame, function)
+
+    /** [metric] of the group [shift] buckets, or [period]s, earlier along the DATE_HISTOGRAM group [along]. */
+    fun previous(
+        metric: String,
+        along: String,
+        shift: Int = 1,
+        period: AggregationDateUnit? = null,
+    ): DerivedExpression = DerivedExpression.Previous(metric, along, shift, period)
+
+    /** The dense rank of [metric] among the groups sharing this group's [within] keys. */
+    fun rank(
+        metric: String,
+        vararg within: String,
+        direction: Sort.Direction = Sort.Direction.DESC,
+    ): DerivedExpression = DerivedExpression.Rank(metric, within.toList(), direction)
 
     operator fun DerivedExpression.plus(other: DerivedExpression): DerivedExpression =
         binary(AggregationExpressionOperator.ADD, other)

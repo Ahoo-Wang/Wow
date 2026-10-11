@@ -399,8 +399,8 @@ sealed interface QueryViolation {
     }
 
     /**
-     * An aggregation whose HAVING or metric sort the core computes read more than [max] groups, dense fill rows
-     * included. Metered while the rows arrive, so it can fail after the response started streaming.
+     * An aggregation whose HAVING, metric sort or windows the core computes read more than [max] groups, dense fill
+     * rows included. Metered while the rows arrive, so it can fail after the response started streaming.
      */
     data class ResidualGroupsExceeded(val label: String, val max: Int) : QueryViolation {
         override val kind: Kind
@@ -413,8 +413,8 @@ sealed interface QueryViolation {
             get() = QueryErrorCodes.RESIDUAL_GROUPS_EXCEEDED
 
         override val message: String
-            get() = "$label aggregation processes more than [$max] groups, dense fill included, to compute HAVING " +
-                "or a metric sort in the query service; narrow the filter or the period."
+            get() = "$label aggregation processes more than [$max] groups, dense fill included, to compute HAVING, " +
+                "a metric sort or a window in the query service; narrow the filter or the period."
     }
 
     /** The gateway requires every query to state its entry, and this one ran under `UNSPECIFIED`. */

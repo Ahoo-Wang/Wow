@@ -26,6 +26,8 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RunningFunction
+import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 
@@ -386,6 +388,33 @@ class AggregationQueryDslTest {
             AggregationExpressionOperator.SUBTRACT,
             AggregationExpressionOperator.MULTIPLY,
             AggregationExpressionOperator.DIVIDE,
+        )
+    }
+
+    @Test
+    fun `derived expression windows build window nodes`() {
+        val month = Sort(QueryField("month"), Sort.Direction.ASC)
+        val query = aggregation {
+            terms("province", "province")
+            dateHistogram("createdAt", AggregationDateUnit.MONTH, "month")
+            sum("amount", "gmv")
+            derived("share") { ref("gmv") / total("gmv", "province") }
+            derived("cumulative") { running("gmv", month) }
+            derived("moving") { running("gmv", month, listOf("province"), 3, RunningFunction.AVG) }
+            derived("yoy") { previous("gmv", "month", period = AggregationDateUnit.YEAR) }
+            derived("rank") { rank("gmv", "province", direction = Sort.Direction.ASC) }
+        }
+
+        query.metrics.filterIsInstance<AggregationMetric.Derived>().map { it.expression }.assert().containsExactly(
+            DerivedExpression.Binary(
+                AggregationExpressionOperator.DIVIDE,
+                DerivedExpression.MetricRef("gmv"),
+                DerivedExpression.Total("gmv", listOf("province")),
+            ),
+            DerivedExpression.Running("gmv", month),
+            DerivedExpression.Running("gmv", month, listOf("province"), 3, RunningFunction.AVG),
+            DerivedExpression.Previous("gmv", "month", period = AggregationDateUnit.YEAR),
+            DerivedExpression.Rank("gmv", listOf("province"), Sort.Direction.ASC),
         )
     }
 }
