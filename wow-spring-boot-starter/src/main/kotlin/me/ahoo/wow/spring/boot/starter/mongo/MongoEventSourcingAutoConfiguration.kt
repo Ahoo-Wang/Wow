@@ -42,6 +42,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnaps
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
+import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.runtimeResourceOf
 import org.springframework.beans.factory.ObjectProvider
@@ -55,12 +56,14 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
 import org.springframework.context.annotation.Bean
 
+// Before QueryAutoConfiguration: its fallback query backends stand in only where no storage registered one.
 @AutoConfiguration(
     after = [
         WowAutoConfiguration::class,
         MongoReactiveAutoConfiguration::class,
         QuerySchemaAutoConfiguration::class,
     ],
+    before = [QueryAutoConfiguration::class],
 )
 @ConditionalOnWowEnabled
 @ConditionalOnMongoEnabled

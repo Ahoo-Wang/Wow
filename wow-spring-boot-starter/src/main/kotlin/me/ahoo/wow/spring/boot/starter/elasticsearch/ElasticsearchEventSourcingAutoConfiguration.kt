@@ -40,6 +40,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.queryBackendProviderName
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
+import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.runtimeResourceOf
 import org.springframework.beans.factory.ObjectProvider
@@ -56,9 +57,10 @@ import org.springframework.context.annotation.Bean
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 
+// Before QueryAutoConfiguration: its fallback query backends stand in only where no storage registered one.
 @AutoConfiguration(
     after = [ElasticsearchRestClientAutoConfiguration::class, QuerySchemaAutoConfiguration::class],
-    before = [ElasticsearchClientAutoConfiguration::class],
+    before = [ElasticsearchClientAutoConfiguration::class, QueryAutoConfiguration::class],
 )
 @ConditionalOnWowEnabled
 @ConditionalOnElasticsearchEnabled
