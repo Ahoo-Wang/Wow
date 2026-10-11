@@ -22,10 +22,6 @@
 
 ### wow-react
 
-- **README 写明 SSR 的边界与同端点判定**（R-8、R-14）：SSR 只做到「首帧 loading、不请求」，没有 `initialResult`；两个没有名字、`baseURL` 相同的 Fetcher 被当作同一个端点（例如按租户各建一个只差拦截器的 Fetcher，切换时不会重新查询）。判据：中英 README 各有一段说明这两点及绕法（给 Fetcher 起名）。落点：`wow-react/README.md`、`README.zh-CN.md`。
-- **测试文件头还写着 fetcher-react 5.1.3**（R-9）：三处测试的头注释说「pins the behaviour of today, fetcher-react 5.1.3 underneath」，迁移后已不依赖 fetcher-react。判据：注释改为它们现在固定的契约（§3.3 状态表等）。落点：`wow-react/test/callbacks.test.tsx`、`queryIdentity.test.tsx`、`requestStateTable.test.tsx`。
-- **覆盖率门槛远低于实测**（R-10）：门槛 95/83/92/98，审查时实测约 98.5/97/98.4/99.4。判据：抬到约 97/95/96/99。落点：`wow-react/vitest.config.ts`。
-- **lint 的缺口**（R-11）：eslint 忽略全部测试文件；构建依赖 React Compiler，`react-compiler/react-compiler` 却只是警告。判据：测试文件纳入 lint（可用较宽的规则集）；`react-compiler` 改为 error。落点：`wow-react/eslint.config.js`。
 - **集成测试缺口**（R-15）：对真服务端的用例只有 `cartQueryHooks.test.tsx` 的分页与计数，没有 `useSingleQuery`／`useListQuery`、经 `toWowError` 的 HTTP 错误、abort 与 reset。判据：各有一个对示例服务端的用例。落点：`integration-test/test/wow/react/`。
 
 ### wow-generator
