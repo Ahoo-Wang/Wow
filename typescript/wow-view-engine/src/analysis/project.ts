@@ -597,6 +597,7 @@ export function projectAnalysis(
             ...(splitWhole ? { splitWhole } : {}),
             approximate,
             cutShort: cut.truncated || cut.atLimit !== undefined,
+            valueOrder: listedValues(config.groups, byName),
           }),
         }
       : {}),
@@ -757,6 +758,36 @@ function settleRow(
  * is a programming error, and admission reports it long before a result
  * arrives here.
  */
+/**
+ * The values each group's field lists, in the host's order, by the group's
+ * alias (`ShapeContext.valueOrder`); a group over a field that lists none is
+ * left out.
+ */
+function listedValues(
+  groups: readonly AnalysisGroup[],
+  byName: ReadonlyMap<string, FieldDefinition>,
+): Record<string, (string | number)[]> {
+  return Object.fromEntries(
+    groups.flatMap(group => {
+      const options =
+        group.field === undefined
+          ? undefined
+          : byName.get(group.field)?.options;
+      return options && options.length > 0
+        ? [[group.alias, options.map(option => option.value)]]
+        : [];
+    }),
+  );
+}
+
+/** `listedValues` over the definition's analysis scope for `config`. */
+export function valueOrderOf(
+  definition: DataViewDefinition,
+  config: AnalysisViewConfig,
+): Record<string, (string | number)[]> {
+  return listedValues(config.groups, scopeFields(definition, config));
+}
+
 function scopeFields(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,

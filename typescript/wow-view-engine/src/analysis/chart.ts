@@ -138,6 +138,13 @@ export interface ShapeContext {
    * rest into 「其他」 against (D33 Q56). Left out, nothing is folded.
    */
   splitWhole?: readonly RecordData[];
+  /**
+   * The values each group's field lists (`FieldDefinition.options`), in the
+   * host's order, by the group's alias. A heatmap's category rows and columns
+   * run in it, a value it does not list after those it does; everything else
+   * keeps the view's sort. Left out, every category does.
+   */
+  valueOrder?: Readonly<Record<string, readonly (string | number)[]>>;
 }
 
 /**
@@ -147,8 +154,10 @@ export interface ShapeContext {
  *
  * Every time axis — a cartesian chart's x, a heatmap's rows or columns, the
  * card's sparkline — and a series split by time run earliest first
- * (`forwardInTime`); everything else keeps the order the rows came in, which
- * is the view's sort, because a category has no order of its own to restore.
+ * (`forwardInTime`); a heatmap's category runs in the order its field lists
+ * its values (`ShapeContext.valueOrder`), since a matrix is read along its
+ * rows; everything else keeps the order the rows came in, which is the
+ * view's sort, because a category has no order of its own to restore.
  * A time axis also runs without holes (`withoutHoles`), and what fills a
  * missing bucket or a missing split — 0 or nothing — is `absenceReader`'s
  * and the metric's to say.
