@@ -22,6 +22,7 @@ import { QueryDescriptorResult } from '@ahoo-wang/wow-client';
 import { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import { SearchMode } from '@ahoo-wang/wow-client';
 import { StringComparison } from '@ahoo-wang/wow-client';
+import { WindowFunction } from '@ahoo-wang/wow-client';
 
 // @public
 interface ActionConfirm {
@@ -172,6 +173,7 @@ interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    windows?: AnalysisWindowFunction[];
 }
 
 // @public
@@ -396,6 +398,9 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     table: AnalysisTableSpec;
 }
+
+// @public
+type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 type Availability = true | string;

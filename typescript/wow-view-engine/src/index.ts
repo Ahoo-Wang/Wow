@@ -162,6 +162,7 @@ export {
   type AnalysisElementCapability,
   type AnalysisLimits,
   type AnalysisSpec,
+  type AnalysisWindowFunction,
   DEFAULT_APPROXIMATE_METRICS,
   type DashboardDefinition,
   type DataViewDefinition,

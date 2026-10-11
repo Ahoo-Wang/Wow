@@ -23,6 +23,7 @@ import { QueryViolation } from '@ahoo-wang/wow-client';
 import { ReactNode } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client';
 import { StringComparison } from '@ahoo-wang/wow-client';
+import { WindowFunction } from '@ahoo-wang/wow-client';
 
 // @public
 interface ActionConfirm {
@@ -124,6 +125,7 @@ interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    windows?: AnalysisWindowFunction[];
 }
 
 // @public
@@ -544,6 +546,9 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     table: AnalysisTableSpec;
 }
+
+// @public
+type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;

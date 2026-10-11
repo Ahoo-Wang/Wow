@@ -16,6 +16,7 @@ import type {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
+  WindowFunction,
 } from '@ahoo-wang/wow-client';
 import type { AnalysisDateDiffUnit, AnalysisMetric } from './analysis.js';
 import type { FieldDefinition } from './field.js';
@@ -336,8 +337,17 @@ export interface AnalysisCapability {
    * expressions off.
    */
   dateDiffUnits?: AnalysisDateDiffUnit[];
+  /**
+   * The window functions the source computes over every group (D87), as its
+   * descriptor says (`analysis.windows`). Left out, none: running lines are
+   * computed over the rows that came back, as before.
+   */
+  windows?: AnalysisWindowFunction[];
   limits?: AnalysisLimits;
 }
+
+/** A window function of Wow's derived expressions (D87). */
+export type AnalysisWindowFunction = `${WindowFunction}`;
 
 /**
  * What a source estimates when nobody said otherwise: percentiles, which

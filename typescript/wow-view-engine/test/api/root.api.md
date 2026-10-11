@@ -26,6 +26,7 @@ import { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import { QueryViolation } from '@ahoo-wang/wow-client';
 import { SearchMode } from '@ahoo-wang/wow-client';
 import { StringComparison } from '@ahoo-wang/wow-client';
+import { WindowFunction } from '@ahoo-wang/wow-client';
 
 // @public
 export interface AbsoluteDateTimeValue {
@@ -182,6 +183,7 @@ export interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    windows?: AnalysisWindowFunction[];
 }
 
 // @public
@@ -488,6 +490,9 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     table: AnalysisTableSpec;
 }
+
+// @public
+export type AnalysisWindowFunction = `${WindowFunction}`;
 
 // @public
 export type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;

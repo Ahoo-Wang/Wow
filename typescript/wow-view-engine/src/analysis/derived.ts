@@ -16,11 +16,13 @@ import type {
   AnalysisViewConfig,
   DerivedKind,
   DerivedSeries,
+  RecordData,
 } from '../model/index.js';
 import type { CartesianData } from './cartesian.js';
 import { isPercentStacked } from './chartOptions.js';
 import { timeGroup } from './timeAxis.js';
 import { isAdditiveMetric } from './additive.js';
+import { serverLineAlias, serverLineValues } from './serverLines.js';
 
 /**
  * Why a derived series cannot be computed over this result (D33 Q53). Wow's
@@ -109,12 +111,18 @@ function derivedKey(
  * (`AnalysisProjection.truncated` or `atLimit`). The reasons are checked in the
  * order a reader fixes them: the chart's shape first, then the question,
  * then what came back.
+ *
+ * `server` is the line Wow computed over every group (D87), by x: then
+ * neither 「只保留」 nor a cut is a reason, a running line has no holes (a
+ * bucket without records adds nothing), and a moving average has one only
+ * where a point is not a row — Wow's frame counts rows, not buckets.
  */
 export function derivedGap(
   config: AnalysisViewConfig,
   data: CartesianData,
   derived: Pick<DerivedSeries, 'kind' | 'metric' | 'window'>,
   cutShort: boolean,
+  server?: ReadonlyMap<unknown, number | null>,
 ): DerivedGap | undefined {
   const spec = config.chart.cartesian;
   if (spec?.splitBy !== undefined) return 'split';
@@ -128,14 +136,14 @@ export function derivedGap(
     if (config.sort[0]?.alias !== derived.metric) return 'not-sorted';
   }
   if (spec && isPercentStacked(spec, data.chart)) return 'shares';
-  if (config.having !== undefined) return 'narrowed';
-  if (cutShort) return 'cut-short';
+  if (!server && config.having !== undefined) return 'narrowed';
+  if (!server && cutShort) return 'cut-short';
   const values = data.points.map(point => point.values[derived.metric]);
-  if (
-    (time && data.timeline !== true) ||
-    values.some(value => typeof value !== 'number')
-  )
-    return 'holes';
+  const holes = server
+    ? !running && data.points.some(point => !server.has(point.x))
+    : (time && data.timeline !== true) ||
+      values.some(value => typeof value !== 'number');
+  if (holes) return 'holes';
   if (
     running &&
     !isAdditiveMetric(
@@ -210,16 +218,29 @@ function trendLine(values: readonly number[]): number[] {
   return values.map((_value, index) => meanY + slope * (index - meanX));
 }
 
-/** Each asked-for line computed, or the reason it is not (`shapeCartesian`). */
+/**
+ * Each asked-for line computed, or the reason it is not (`shapeCartesian`).
+ * A line Wow computed (D87) is read off `rows`, where it is a hidden metric.
+ */
 export function deriveLines(
   config: AnalysisViewConfig,
   data: CartesianData,
   cutShort: boolean,
+  rows: readonly RecordData[] = [],
 ): { lines: DerivedLine[]; gaps: CartesianGap[] } {
   const lines: DerivedLine[] = [];
   const gaps: CartesianGap[] = [];
+  const x = config.chart.cartesian?.x;
   for (const derived of config.chart.cartesian?.derived ?? []) {
-    const gap = derivedGap(config, data, derived, cutShort);
+    const window =
+      derived.kind === 'moving-average'
+        ? movingWindow(config, derived)
+        : undefined;
+    const server =
+      derived.kind === 'trend' || x === undefined
+        ? undefined
+        : serverLineValues(rows, x, serverLineAlias(derived, window));
+    const gap = derivedGap(config, data, derived, cutShort, server);
     if (gap) {
       gaps.push({
         kind: derived.kind,
@@ -229,15 +250,13 @@ export function deriveLines(
       });
       continue;
     }
-    const window =
-      derived.kind === 'moving-average'
-        ? movingWindow(config, derived)
-        : undefined;
-    const values = derivedValues(
-      data.points.map(point => point.values[derived.metric] as number),
-      derived.kind,
-      window ?? 0,
-    );
+    const values = server
+      ? readServerLine(data, server, derived.kind, window ?? 0)
+      : derivedValues(
+          data.points.map(point => point.values[derived.metric] as number),
+          derived.kind,
+          window ?? 0,
+        );
     lines.push({
       key: derivedKey(derived, window),
       kind: derived.kind,
@@ -247,6 +266,27 @@ export function deriveLines(
     });
   }
   return { lines, gaps };
+}
+
+/**
+ * A line Wow computed, at each point: a point no row stands for is a bucket
+ * without records, where a running line holds its last value (it adds
+ * nothing); a moving average has no number before its window fills, as
+ * when the kernel computes it.
+ */
+function readServerLine(
+  data: CartesianData,
+  server: ReadonlyMap<unknown, number | null>,
+  kind: DerivedKind,
+  window: number,
+): (number | null)[] {
+  let last: number | null = 0;
+  return data.points.map((point, index) => {
+    if (kind === 'moving-average')
+      return index + 1 >= window ? (server.get(point.x) ?? null) : null;
+    if (server.has(point.x)) last = server.get(point.x) ?? null;
+    return last;
+  });
 }
 
 /**

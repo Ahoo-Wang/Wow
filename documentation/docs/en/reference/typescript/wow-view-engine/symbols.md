@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 873 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 874 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -59,6 +59,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 873 — with its kind and th
 | `AnalysisSpec` | interface | The analyses a host offers, narrowed from what the model grants. | — |
 | `AnalysisTableSpec` | interface | — | — |
 | `AnalysisViewConfig` | interface | Table and chart are stored together, like the two record layouts. | — |
+| `AnalysisWindowFunction` | type | A window function of Wow's derived expressions (D87). | — |
 | `AnyViewRuntime` | type | What opening an instance returns; narrow it by `runtime.kind`. | — |
 | `ArrangeStep` | type | One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. | — |
 | `ArrayFilterValue` | type | What one entry of an array field may be. | — |
