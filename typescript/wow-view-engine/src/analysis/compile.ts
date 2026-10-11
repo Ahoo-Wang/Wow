@@ -81,8 +81,10 @@ export function compileAnalysis(
   const query = baseQuery(definition, scope, config, kinds, context);
   const inner = innerPrefix(scope);
   // The running lines the source computes over every group (D87).
-  const lines = serverLineMetrics(definition, config, line =>
-    movingWindow(config, line),
+  const lines = serverLineMetrics(
+    definition.analysis?.windows ?? [],
+    config,
+    line => movingWindow(config, line),
   );
   return {
     ...query,

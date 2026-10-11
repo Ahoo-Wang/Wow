@@ -18,6 +18,7 @@ import {
   overlaid,
 } from '../model/index.js';
 import type {
+  AnalysisWindowFunction,
   FieldGroupDefinition,
   FilterTree,
   AnalysisDateDiffUnit,
@@ -70,6 +71,8 @@ import type { OptionSource, ViewRuntime } from '../runtime/index.js';
 import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
 import { comparePending, pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewEngine.js';
+
+const NO_WINDOWS: readonly AnalysisWindowFunction[] = [];
 
 export interface AnalysisEditorController extends QuestionEditing {
   /**
@@ -142,6 +145,12 @@ export interface AnalysisEditorController extends QuestionEditing {
   /** The picker groups the definition declares. */
   fieldGroups: readonly FieldGroupDefinition[];
   countable: boolean;
+  /**
+   * The window functions the source computes over every group (D87–D89):
+   * the computed lines and the per-group top N it may take on. Empty where
+   * the descriptor lists none.
+   */
+  windows: readonly AnalysisWindowFunction[];
   /**
    * True while the rows on screen answer an older question than the one
    * being asked: the runtime is about to run the draft on its own
@@ -482,6 +491,7 @@ export function useAnalysisEditor(
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
+    windows: capability?.windows ?? NO_WINDOWS,
     stale: state ? autoApplyDue(state) || answeringAnew(state) : false,
     havingAllowed: capability?.having === true,
     expressionsAllowed: capability?.expressions === true,

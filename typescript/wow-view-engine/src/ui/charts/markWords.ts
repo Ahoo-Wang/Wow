@@ -32,6 +32,11 @@ export interface MarkWords {
   ongoing: string;
   /** That period as the tooltip names it: 「2026年9月（进行中）」. */
   ongoingPeriod(period: string): string;
+  /**
+   * How a number moved from an earlier period's (D88), its change already
+   * written: 「较去年同期 +12.3%」. Absent, the tooltip says no change.
+   */
+  changeFrom?(kind: 'previous' | 'previous-year', change: string): string;
 }
 
 /**
@@ -72,6 +77,11 @@ export function markWords(messages: MessageFormatters): MarkWords {
     other: messages.label('label.chart.other'),
     ongoing: messages.label('label.chart.ongoing.band'),
     ongoingPeriod: period => messages.label('label.chart.ongoing', { period }),
+    changeFrom: (kind, change) =>
+      messages.label('label.chart.derived.change', {
+        name: messages.label(`label.chart.derived.${kind}`),
+        change,
+      }),
   };
 }
 

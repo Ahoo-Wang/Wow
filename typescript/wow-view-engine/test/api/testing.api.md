@@ -758,7 +758,7 @@ interface DefinitionNarrowing {
 }
 
 // @public
-const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share"];
+const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
 
 // @public
 type DerivedFormat = {

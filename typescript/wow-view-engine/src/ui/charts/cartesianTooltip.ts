@@ -87,10 +87,11 @@ export function cartesianTooltip(
       const index = first?.dataIndex ?? -1;
       const point = data.points[index];
       if (!point) return '';
+      const measured = series
+        .filter(entry => typeof point.values[entry.key] === 'number')
+        .map(entry => rowAt(entry, index));
       const rows: TooltipRow[] = [
-        ...series
-          .filter(entry => typeof point.values[entry.key] === 'number')
-          .map(entry => rowAt(entry, index)),
+        ...measured,
         // A derived line's number at this bucket, under its name that says
         // it was computed, in the ink its dashes are drawn in.
         ...plan.derived.flatMap(line => {
@@ -105,6 +106,7 @@ export function cartesianTooltip(
                     line.kind === 'cumulative-share'
                       ? formatShare(value, locale)
                       : label(line.metric, value),
+                  ...earlierChange(line, value, point.values[line.metric]),
                 },
               ]
             : [];
@@ -116,10 +118,39 @@ export function cartesianTooltip(
       return tooltipHtml(
         ongoing ? (context.words?.ongoingPeriod(name) ?? name) : name,
         rows,
-        rows.some(row => row.note !== undefined) ? context.against : undefined,
+        // The footnote names what a series' change is against; an earlier
+        // period's line names its own (D88).
+        measured.some(row => row.note !== undefined)
+          ? context.against
+          : undefined,
       );
     },
   };
+
+  /**
+   * An earlier period's line (D88) says how the metric moved from it, in
+   * words that name the period: 「较去年同期 +12.3%」.
+   */
+  function earlierChange(
+    line: CartesianPlan['derived'][number],
+    was: number,
+    value: number | null | undefined,
+  ): Pick<TooltipRow, 'note'> {
+    if (
+      (line.kind !== 'previous' && line.kind !== 'previous-year') ||
+      typeof value !== 'number' ||
+      !context.words?.changeFrom
+    )
+      return {};
+    const delta = value - was;
+    const change = { delta, ratio: was === 0 ? null : delta / Math.abs(was) };
+    return {
+      note: context.words.changeFrom(
+        line.kind,
+        changeText(change, amount => label(line.metric, amount)),
+      ),
+    };
+  }
 
   /** A change as the tooltip writes it: the share, or — from 0 — the amount. */
   function changeText(
