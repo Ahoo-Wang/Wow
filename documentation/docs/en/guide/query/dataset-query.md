@@ -125,6 +125,24 @@ orders.aggregate(
 
 `QueryFilter`s and `QueryPolicy`s apply to dataset queries too; a filter meant only for datasets implements `DatasetQueryFilter`.
 
+## TypeScript Client
+
+`@ahoo-wang/wow-client`'s `DatasetQueryClient` calls the routes above. It satisfies View Engine's `ViewSource`, `describe` included, so it serves Record, Analysis and Dashboard views as it is:
+
+```typescript
+import { DatasetQueryClient, aggregation } from '@ahoo-wang/wow-client';
+
+const orders = new DatasetQueryClient({ context: 'analytics', dataset: 'order_wide' });
+const byCity = await orders.aggregate(
+  aggregation.query({
+    groupBy: [aggregation.terms('city', 'city')],
+    metrics: [aggregation.sum(aggregation.field('amount'), 'gmv')],
+  }),
+);
+```
+
+`resourceAttribution: ResourceAttributionPathSpec.TENANT` sends the requests under `/tenant/{tenantId}`, with `{tenantId}` filled from `urlParams`.
+
 ## Semantic Differences
 
 - **Missing values**: a ClickHouse table's only missing value is `NULL` in a `Nullable` column. A non-`Nullable` column does not support presence operators such as `IS_NULL` and `EXISTS`, and admission rejects them; on a `Nullable` column `EXISTS` equals `IS_NOT_NULL`, so, as on Elasticsearch, an explicit `null` and a missing value cannot be told apart.

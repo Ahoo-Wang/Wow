@@ -125,6 +125,24 @@ orders.aggregate(
 
 `QueryFilter` 与 `QueryPolicy` 同样作用于数据集查询；只想作用于数据集的过滤器实现 `DatasetQueryFilter`。
 
+## TypeScript 客户端
+
+`@ahoo-wang/wow-client` 的 `DatasetQueryClient` 对应上面的路由。它满足 View Engine 的 `ViewSource`（包括 `describe`），可以直接作为 Record、Analysis 与 Dashboard 的数据源：
+
+```typescript
+import { DatasetQueryClient, aggregation } from '@ahoo-wang/wow-client';
+
+const orders = new DatasetQueryClient({ context: 'analytics', dataset: 'order_wide' });
+const byCity = await orders.aggregate(
+  aggregation.query({
+    groupBy: [aggregation.terms('city', 'city')],
+    metrics: [aggregation.sum(aggregation.field('amount'), 'gmv')],
+  }),
+);
+```
+
+`resourceAttribution: ResourceAttributionPathSpec.TENANT` 让请求走 `/tenant/{tenantId}` 前缀，`{tenantId}` 由 `urlParams` 填入。
+
 ## 语义差异
 
 - **缺失值**：ClickHouse 表里唯一的缺失值是 `Nullable` 列中的 `NULL`。非 `Nullable` 的列不支持 `IS_NULL`、`EXISTS` 等存在性操作符，准入时拒绝；`Nullable` 列上 `EXISTS` 与 `IS_NOT_NULL` 相同，与 Elasticsearch 一样无法区分显式 `null` 与缺失。

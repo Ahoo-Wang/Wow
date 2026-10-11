@@ -16,4 +16,5 @@ export * from './event/index.js';
 export * from './snapshot/index.js';
 export * from './state/index.js';
 export * from './descriptor/index.js';
+export * from './dataset/index.js';
 export * from './factory.js';

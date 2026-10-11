@@ -41,6 +41,8 @@ export const QueryModels = Object.freeze({
   SNAPSHOT: 'SNAPSHOT',
   /** The event stream query model: `{aggregate}/event/*`. */
   EVENT_STREAM: 'EVENT_STREAM',
+  /** A declared dataset, such as a ClickHouse wide table: `dataset/{context}/{dataset}/*`. */
+  DATASET: 'DATASET',
 } as const);
 
 /** A query model's name: one of {@link QueryModels}, or one a server added. */

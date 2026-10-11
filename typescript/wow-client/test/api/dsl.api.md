@@ -1101,6 +1101,7 @@ export interface QueryModelDescriptor {
 export const QueryModels: Readonly<{
     readonly SNAPSHOT: "SNAPSHOT";
     readonly EVENT_STREAM: "EVENT_STREAM";
+    readonly DATASET: "DATASET";
 }>;
 
 // @public
