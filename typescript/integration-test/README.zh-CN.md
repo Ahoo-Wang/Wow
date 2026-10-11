@@ -68,7 +68,7 @@ Prettier 都跳过这个目录。不要手改，也不要重新格式化。
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `recordView.test.ts` | 文本、枚举、数值区间、日期区间条件；两个字段的排序；三页；合计行；按五行一页分页的 CSV 导出；搜索——MongoDB 后端没有全文能力而拒绝，视图如实报出                                                         |
 | `analysis.test.ts`   | 按字段、按展开的数组、按日／周／月分组；`COUNT`、`SUM`、`AVG`、`DISTINCT_COUNT`、`PERCENTILE` 与派生指标；「只保留」；「前 N 组」与探针行；拆分并「其他」；饼图的「其他」；按秒补齐；本月至今对上月同期 |
-| `dashboard.test.ts`  | 仪表盘筛选接线到分析、指标卡和一个保存的记录视图；从一个面板交叉筛选；仪表盘的固定范围；走势卡锚定到板上日期筛选所选的那一天（D39），以及它还做不到的「较前一日」（`it.fails`，预期失败）               |
+| `dashboard.test.ts`  | 仪表盘筛选接线到分析、指标卡和一个保存的记录视图；从一个面板交叉筛选；仪表盘的固定范围；走势卡锚定到板上日期筛选所选的那一天（D39），在它自己的七天上运行，所以「较前一日」与一个已知的零比较           |
 
 单独运行时，按[前置条件](#前置条件)启动服务端。8080 端口被占用时：
 
@@ -134,11 +134,29 @@ bin/wow-view-store-server \
 示例服务端同样带上这四个 `--wow.view-store.system-views[0].…` 参数启动。`test` 等两个服务端都就绪，并先在每个
 服务端上把视图存储的两个聚合各预热一次。
 
+## 在 Elasticsearch 上
+
+`test/view-engine/` 与 `test/view-store/` 还会对一个事件与快照都存在 Elasticsearch 上的示例服务端再跑一遍：给测试设置 `WOW_EXAMPLE_STORAGE=elasticsearch`（默认是 `mongo`）。它选择随后端而不同的部分：`recordView.test.ts` 里的搜索会真正执行并核对返回的行，而不是断言被拒绝。`PERCENTILE(50)` 在两种后端上都只要求落在中间两个值之间（MongoDB 返回较小的那个，Elasticsearch 做插值）。启动不带安全设置的 Elasticsearch 9.2.6，以及带着 Wow 的模板和它自带索引定义（`wow.example.order.snapshot.json`、视图存储的定义）的示例服务端：
+
+```bash
+docker run -d --name wow-it-es -p 9200:9200 -e discovery.type=single-node \
+  -e xpack.security.enabled=false -e ES_JAVA_OPTS='-Xms1g -Xmx1g' \
+  docker.elastic.co/elasticsearch/elasticsearch:9.2.6
+cd example/example-server/build/install/example-server
+mkdir -p logs data
+SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+SPRING_ELASTICSEARCH_URIS=http://localhost:9200 \
+WOW_EVENTSOURCING_STORE_STORAGE=elasticsearch WOW_EVENTSOURCING_SNAPSHOT_STORAGE=elasticsearch \
+bin/example-server # 再加上四个 --wow.view-store.system-views[0].… 参数
+```
+
+`SPRING_AUTOCONFIGURE_EXCLUDE` 会替换安装包里的排除列表，这样 Elasticsearch 客户端才会被配置。视图存储服务端仍在 MongoDB 上：9.2.0 中它不支持 Elasticsearch。
+
 ## CI
 
 `.github/workflows/typescript-contract.yml` 在 Kotlin 源码、示例、Gradle 构建、这几个包、`wow-view-engine` 的源码或
 其端口一致性套件、`wow-view-store` 或 `view-store/` 有改动时，对着同一提交构建出来的示例服务端，以及旁边的视图存储服务端
-（8090 端口、同一个 MongoDB）跑上面这些步骤，两者都提供 `WowViewStore` 套件读取的系统视图。重新生成后 `src/generated` 有任何变化就失败，任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
+（8090 端口、同一个 MongoDB）跑上面这些步骤，两者都提供 `WowViewStore` 套件读取的系统视图。它的 `contract-elasticsearch` 作业也计入合并信号，会把 `test/view-engine/` 与 `test/view-store/` [在 Elasticsearch 上](#在-elasticsearch-上)再跑一遍，视图存储服务端仍在 MongoDB 上。重新生成后 `src/generated` 有任何变化就失败，任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
 `wow-example-server` 镜像 8.10.8、8.11.5、9.1.3 和 9.1.5 生成代码并做类型检查；除 8.10.8 外，还对每个镜像
 跑 `test/released/`（`vitest.released.config.ts`）：一条命令、快照读取，以及不带 `limit` 的列表和列表流，
 逐一对照兼容性页为该版本写明的结果（`WOW_SERVER_VERSION`）。同源作业也跑 `test/released/`，按当前版本对照。
