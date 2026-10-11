@@ -25,6 +25,7 @@ import type {
   FilterTree,
   ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
+import { SKU_BY_ID } from './catalog.js';
 import { RETAIL_ORDER_ANALYSIS } from './views.js';
 
 const and = (...children: FilterLeaf[]): FilterTree => ({
@@ -68,6 +69,14 @@ const SHIP_HOURS = {
 } as const;
 const ITEM_PAID = 'state.items.payAmount';
 
+/**
+ * The item a candle follows: the best seller of the last 12 months (长绒棉
+ * 毛巾 单只装), sold in every week — `SHOWCASE_SKU` in 「图型全景」.
+ */
+const PRICED_SKU = 'SPU-009-1';
+const PRICED_SKU_TITLE = SKU_BY_ID.get(PRICED_SKU)!.title;
+const SALE_PRICE = 'state.items.salePrice';
+
 const field = (name: string) => ({ type: 'FIELD', field: name }) as const;
 
 function sum(alias: string, name: string, label: string): AnalysisMetric {
@@ -85,6 +94,36 @@ const orders: AnalysisMetric = {
   type: 'COUNT',
   label: '订单数',
 };
+
+/** The orders a condition holds, counted. */
+function counted(
+  alias: string,
+  label: string,
+  where: FilterLeaf,
+): AnalysisMetric {
+  return { alias, type: 'COUNT', label, filter: and(where) };
+}
+
+/** One metric over another, as a percentage. */
+function share(
+  alias: string,
+  label: string,
+  over: string,
+  under: string,
+): AnalysisMetric {
+  return {
+    alias,
+    type: 'DERIVED',
+    label,
+    format: { style: 'percent' },
+    expression: {
+      type: 'BINARY',
+      operator: 'DIVIDE',
+      left: { type: 'METRIC_REF', metric: over },
+      right: { type: 'METRIC_REF', metric: under },
+    },
+  };
+}
 
 /** 一个字段的五个数：最小、P25、中位数、P75、最大（箱线图）。 */
 function fiveNumbers(
@@ -116,35 +155,6 @@ function fiveNumbers(
       expression,
       label: `${label}最长`,
     },
-  ];
-}
-
-/**
- * 一个字段的四个数：期初值、最高、最低、期末值（K 线），开与收按下单时间
- * 先后取。
- */
-function ohlc(name: string, label: string): AnalysisMetric[] {
-  const edge = (type: 'FIRST' | 'LAST', alias: string, word: string) =>
-    ({
-      alias,
-      type,
-      field: name,
-      orderBy: 'firstEventTime',
-      label: `${label}${word}`,
-    }) as AnalysisMetric;
-  const extreme = (fn: 'MAX' | 'MIN', alias: string, word: string) =>
-    ({
-      alias,
-      type: 'NUMERIC',
-      function: fn,
-      expression: field(name),
-      label: `${label}${word}`,
-    }) as AnalysisMetric;
-  return [
-    edge('FIRST', 'open', '（首单）'),
-    extreme('MAX', 'high', '（最高）'),
-    extreme('MIN', 'low', '（最低）'),
-    edge('LAST', 'close', '（末单）'),
   ];
 }
 
@@ -232,19 +242,62 @@ export const CHART_VIEWS: ViewInstance[] = [
   // 单不算，否则每周最低都是 ¥0（#3620）。
   shared(
     CHART_VIEW_IDS.candlestick,
-    '每周每单实付 K 线（近 12 周已付款的单）',
+    `「${PRICED_SKU_TITLE}」每周的成交单价 K 线（近 12 周）`,
     analysis({
       filter: and(recent('firstEventTime', 84, 'day'), PAID_ORDERS),
+      // One item's price, week by week: every order's paid total was as
+      // random a series as a basket is (Storybook review P2). A single
+      // item's sale price moves with the discounts, and is what a candle
+      // is for — the same item 「图型全景」 draws.
+      elements: [
+        {
+          path: 'state.items',
+          filter: and({
+            field: 'state.items.skuId',
+            operator: 'IN',
+            value: [PRICED_SKU],
+          } as FilterLeaf),
+        },
+      ],
       groups: [
         {
           type: 'DATE_HISTOGRAM',
-          field: 'firstEventTime',
+          field: 'state.items.placedAt',
           alias: 'week',
           unit: 'WEEK',
           label: '下单周',
         },
       ],
-      metrics: ohlc(PAID, '实付') as [AnalysisMetric, ...AnalysisMetric[]],
+      metrics: [
+        {
+          alias: 'open',
+          type: 'FIRST',
+          field: SALE_PRICE,
+          orderBy: 'state.items.placedAt',
+          label: '周内首单价',
+        },
+        {
+          alias: 'high',
+          type: 'NUMERIC',
+          function: 'MAX',
+          expression: field(SALE_PRICE),
+          label: '周内最高价',
+        },
+        {
+          alias: 'low',
+          type: 'NUMERIC',
+          function: 'MIN',
+          expression: field(SALE_PRICE),
+          label: '周内最低价',
+        },
+        {
+          alias: 'close',
+          type: 'LAST',
+          field: SALE_PRICE,
+          orderBy: 'state.items.placedAt',
+          label: '周内末单价',
+        },
+      ],
       sort: [{ alias: 'week', direction: 'ASC' }],
       chart: {
         type: 'candlestick',
@@ -326,21 +379,47 @@ export const CHART_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // 雷达：各渠道的经营轮廓——单量、GMV、退款各自一根轴、各自的刻度。
+  // 雷达：各渠道的经营轮廓——退款率、直降占比、老客占比、取消率，四根比率
+  // 轴。规模量（单量、GMV）放上去只会比出谁大，轮廓都是同一个形状（Storybook
+  // 审查 P2）；比率才说得出一个渠道「是什么样」。
   shared(
     CHART_VIEW_IDS.radar,
-    '各渠道的经营轮廓（近 3 个月）',
+    '各渠道的经营轮廓：退款、直降、老客、取消各占几成（近 3 个月）',
     analysis({
       filter: and(recent('firstEventTime', 3, 'month')),
       groups: [{ type: 'TERMS', field: 'state.channel', alias: 'channel' }],
       metrics: [
         orders,
-        sum('gmv', GMV, 'GMV'),
-        sum('refunded', REFUNDED, '退款额'),
+        counted('returning', '老客单', {
+          field: 'state.buyer.isNewBuyer',
+          operator: 'EQ',
+          value: false,
+        }),
+        counted('cancelled', '取消', {
+          field: 'state.cancelReason',
+          operator: 'IS_NOT_NULL',
+          value: null,
+        }),
+        sum('paid', PAID, '实付'),
+        sum('refunded', REFUNDED, '已退'),
+        sum('list', 'state.amounts.listAmount', '原价合计'),
+        sum('itemDiscount', 'state.amounts.itemDiscount', '单品直降'),
+        share('refundRate', '退款率', 'refunded', 'paid'),
+        share('discountRate', '直降占比', 'itemDiscount', 'list'),
+        share('returningRate', '老客占比', 'returning', 'orders'),
+        share('cancelRate', '取消率', 'cancelled', 'orders'),
       ],
       chart: {
         type: 'radar',
-        radar: { category: 'channel', metrics: ['orders', 'gmv', 'refunded'] },
+        radar: {
+          category: 'channel',
+          metrics: [
+            'refundRate',
+            'discountRate',
+            'returningRate',
+            'cancelRate',
+          ],
+        },
       },
     }),
   ),
@@ -429,8 +508,16 @@ export const CHART_VIEWS: ViewInstance[] = [
   // 几天是空的。
   shared(
     CHART_VIEW_IDS.calendar,
-    '每日 GMV（日历）',
+    '每日 GMV（日历，2025 年起）',
     analysis({
+      // From 2025 on: two blocks, the first a whole year. All 25 months
+      // drew 2024 as a year of empty squares with four months in its
+      // corner (Storybook review P2).
+      filter: and({
+        field: 'firstEventTime',
+        operator: 'GTE',
+        value: { type: 'absolute', from: '2025-01-01T00:00:00+08:00' },
+      } as FilterLeaf),
       groups: [
         {
           type: 'DATE_HISTOGRAM',

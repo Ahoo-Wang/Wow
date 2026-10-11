@@ -3121,6 +3121,7 @@ export class MemoryViewStore implements ViewStore {
     // (undocumented)
     getPreferences(definitionId: string): Promise<ViewPreferences>;
     list(definitionId: string): Promise<ViewInstanceSummary[]>;
+    readonly listLimit?: number;
     // (undocumented)
     readonly permissions?: (definitionId: string) => ViewPermissions;
     // (undocumented)
@@ -3135,6 +3136,7 @@ export class MemoryViewStore implements ViewStore {
 export interface MemoryViewStoreOptions {
     // (undocumented)
     instances?: ViewInstance[];
+    listLimit?: number;
     // (undocumented)
     permissions?: (definitionId: string) => ViewPermissions;
     // (undocumented)
@@ -5045,6 +5047,7 @@ export type ViewKind = ViewConfig['kind'];
 
 // @public
 export interface ViewListing {
+    cut?: number;
     // (undocumented)
     failed: Issue | null;
     // (undocumented)
@@ -5200,6 +5203,7 @@ export interface ViewStore {
     // (undocumented)
     getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
     list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+    readonly listLimit?: number;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
     // (undocumented)

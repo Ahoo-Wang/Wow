@@ -77,6 +77,12 @@ export interface ViewListState {
   defaultInstanceId: string | null;
   loading: boolean;
   error: Issue | null;
+  /**
+   * Where the store cut the list (`ViewListing.cut`): an audience holds as
+   * many as it answers, and there may be more (R2-26). Absent on a whole
+   * list, and on a state a host writes itself.
+   */
+  cut?: number;
   /** Kept apart: without preferences the list still works, in server order. */
   preferencesError: Issue | null;
   /**
@@ -98,6 +104,8 @@ interface Loaded<T> {
   definitionId: string;
   value: T | null;
   error: Issue | null;
+  /** The list's: where the store cut it, when it did. */
+  cut?: number;
 }
 
 const NOTHING_LOADED: Loaded<never> = {
@@ -174,6 +182,7 @@ export function useViewList(
               ? current.value
               : listing.items,
           error: listing.failed,
+          ...(listing.cut === undefined ? {} : { cut: listing.cut }),
         }));
       },
       // A refusal of the whole list — an unknown definition, an invalid one.
@@ -297,6 +306,7 @@ export function useViewList(
         : (items[0]?.id ?? null),
     loading: !settled,
     error: current.error,
+    ...(current.cut === undefined ? {} : { cut: current.cut }),
     preferencesError: currentPreferences.error,
     preferencesSettled,
     reload,

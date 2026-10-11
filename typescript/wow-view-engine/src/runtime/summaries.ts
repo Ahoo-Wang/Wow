@@ -50,7 +50,11 @@ export async function storedSummaries(
   store: ViewStore,
   definitionId: string,
   reserved: (id: string) => void,
-): Promise<{ stored: ViewInstanceSummary[]; failed: Issue | null }> {
+): Promise<{
+  stored: ViewInstanceSummary[];
+  failed: Issue | null;
+  cut?: number;
+}> {
   try {
     const listed = await store.list(definitionId);
     const stored = listed.filter(summary => {
@@ -58,10 +62,26 @@ export async function storedSummaries(
       reserved(summary.id);
       return false;
     });
-    return { stored, failed: null };
+    const cut = cutAt(listed, store.listLimit);
+    return { stored, failed: null, ...(cut === undefined ? {} : { cut }) };
   } catch (error) {
     return { stored: [], failed: toIssue(error, 'view.list.failed') };
   }
+}
+
+/**
+ * The limit a list was cut at: some audience holds as many as the store
+ * answers of one (`ViewStore.listLimit`), so more may stand behind it.
+ */
+function cutAt(
+  listed: readonly ViewInstanceSummary[],
+  limit: number | undefined,
+): number | undefined {
+  if (limit === undefined) return undefined;
+  const counts = new Map<string, number>();
+  for (const { scope } of listed)
+    counts.set(scope, (counts.get(scope) ?? 0) + 1);
+  return [...counts.values()].some(count => count >= limit) ? limit : undefined;
 }
 
 export class SummaryCache {

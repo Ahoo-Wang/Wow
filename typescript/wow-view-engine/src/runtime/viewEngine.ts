@@ -139,6 +139,11 @@ export interface ViewEngineOptions {
 export interface ViewListing {
   items: ViewInstanceSummary[];
   failed: Issue | null;
+  /**
+   * Where the store cut the list (`ViewStore.listLimit`): an audience holds
+   * this many, and there may be more. Absent on a whole list (R2-26).
+   */
+  cut?: number;
 }
 
 /**
@@ -298,7 +303,7 @@ export class ViewEngine extends EngineResources {
     // The failure is the host's to hear of through `onError`, which the
     // store's own door already told (`reportingStore`); `onIssue` is for
     // findings with nothing thrown behind them (D40).
-    const { stored, failed } = await storedSummaries(
+    const { stored, ...told } = await storedSummaries(
       this.store,
       definitionId,
       id =>
@@ -307,7 +312,8 @@ export class ViewEngine extends EngineResources {
     const items = [...declared, ...stored];
     this.summaries.noteAll(items);
     // Titles as they are, keys and all: whatever shows a list says them.
-    return { items, failed };
+    // The store's failure, and where it cut the list (`cut`), as it said.
+    return { items, ...told };
   }
 
   /**

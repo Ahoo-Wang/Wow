@@ -40,6 +40,12 @@ export interface MemoryViewStoreOptions {
   permissions?: (definitionId: string) => ViewPermissions;
   /** Lets an example keep its data across reloads; not a second store. */
   snapshot?: MemorySnapshot;
+  /**
+   * The most views `list` answers of one audience, oldest first, as a
+   * server with a query budget answers (`ViewStore.listLimit`). Left out,
+   * every view is listed. For a test of what a cut list does (R2-26).
+   */
+  listLimit?: number;
 }
 
 /**
@@ -110,12 +116,15 @@ export class MemoryViewStore implements ViewStore {
   private readonly preferenceOutcomes = new Map<string, ViewPreferences>();
   private readonly snapshot?: MemorySnapshot;
   readonly permissions?: (definitionId: string) => ViewPermissions;
+  /** See `MemoryViewStoreOptions.listLimit`; absent unless one was given. */
+  readonly listLimit?: number;
   private sequence = 0;
 
   constructor(options: MemoryViewStoreOptions = {}) {
     // Left undefined when the caller declared none, which the port reads as
     // "everything is allowed".
     if (options.permissions) this.permissions = options.permissions;
+    if (options.listLimit !== undefined) this.listLimit = options.listLimit;
     this.snapshot = options.snapshot;
 
     const restored = options.snapshot?.load();
@@ -136,7 +145,18 @@ export class MemoryViewStore implements ViewStore {
       .filter(instance => instance.definitionId === definitionId)
       .map(toSummary)
       .sort((a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope]);
-    return Promise.resolve(summaries);
+    const limit = this.listLimit;
+    if (limit === undefined) return Promise.resolve(summaries);
+    // The first `limit` of each audience, the rest left out as a server's
+    // budget would leave them.
+    const seen = new Map<string, number>();
+    return Promise.resolve(
+      summaries.filter(summary => {
+        const count = (seen.get(summary.scope) ?? 0) + 1;
+        seen.set(summary.scope, count);
+        return count <= limit;
+      }),
+    );
   }
 
   get(id: string): Promise<ViewInstance> {
