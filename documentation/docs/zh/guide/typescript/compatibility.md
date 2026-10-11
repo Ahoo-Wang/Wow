@@ -52,7 +52,7 @@ pnpm add --save-exact @ahoo-wang/wow-client
 pnpm add -D --save-exact @ahoo-wang/wow-generator
 ```
 
-升到下一个次版本要有意为之：先读它发布说明里的 “Breaking” 一节，再把所有 Wow 包一起升级。Fetcher 的 peer 遵循 semver，用插入符范围即可。
+升到下一个次版本要有意为之：先读它发布说明里的 “Breaking” 一节，再把所有 Wow 包一起升级。Fetcher 的 peer 遵循 semver，用插入符范围即可；但上面的波浪号设置对你添加的每个包都生效，所以添加 Fetcher 包时显式写出范围（`pnpm add @ahoo-wang/fetcher@^<version>`），或者接受波浪号。
 
 ### 支持期
 

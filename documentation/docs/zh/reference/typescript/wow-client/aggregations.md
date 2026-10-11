@@ -58,7 +58,7 @@ export const revenue: AggregationQuery = {
 
 ## 扩展聚合协议
 
-对齐 Wow `main` 的 `fd1b3cd46`。旧构造器调用保持原 JSON 形状；未提供的指标过滤、`missingKey` 和 `dense` 不写入请求。
+旧构造器调用保持原 JSON 形状；未提供的指标过滤、`missingKey` 和 `dense` 不写入请求。
 
 - `aggregation.distinctCount(expression, alias, { filter? })` 统计不同的非空贡献值；`aggregation.percentile(expression, alias, { percentile, filter? })` 只接受严格介于 0 与 100 之间的有限数值（中位数使用 50）。`stddev`、`variance` 计算总体标准差、总体方差。两种后端的百分位均为近似结果；Elasticsearch 去重计数可能近似，MongoDB 去重计数为精确值。
 - 非派生指标可传入 `{ filter }` 选项，即当前聚合范围内的 `FilterExpression`，只影响该指标。后端校验标量字段并拒绝不支持的过滤操作符。

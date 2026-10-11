@@ -12,7 +12,7 @@ pnpm --filter @ahoo-wang/wow-client build
 pnpm --filter @ahoo-wang/wow-client test
 
 # Run a single test file
-pnpm --filter @ahoo-wang/wow-client exec vitest run test/command/commandHttpHeaders.test.ts
+pnpm --filter @ahoo-wang/wow-client exec vitest run test/client/command/commandHttpHeaders.test.ts
 
 # Lint
 pnpm --filter @ahoo-wang/wow-client lint
