@@ -1826,6 +1826,7 @@ export const QueryErrorCodes: Readonly<{
     readonly SORT_FIELD_DUPLICATE: "SORT_FIELD_DUPLICATE";
     readonly IDENTITY_UNDEFINED: "IDENTITY_UNDEFINED";
     readonly STORAGE_UNSUPPORTED: "STORAGE_UNSUPPORTED";
+    readonly PREVIOUS_UNSHIFTABLE: "PREVIOUS_UNSHIFTABLE";
 }>;
 
 // @public

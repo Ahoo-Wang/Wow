@@ -185,6 +185,13 @@ export const QueryErrorCodes = Object.freeze({
    * say); `path` is the field, or `''`.
    */
   STORAGE_UNSUPPORTED: 'STORAGE_UNSUPPORTED',
+  /**
+   * A `PREVIOUS` window steps along a date group whose field the filter
+   * conditions where its range cannot be shifted to the earlier period:
+   * outside the top-level `AND`, or with a value that is not an instant;
+   * `path` is the field.
+   */
+  PREVIOUS_UNSHIFTABLE: 'PREVIOUS_UNSHIFTABLE',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */

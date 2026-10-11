@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.aggregation.AggregationPlan
 import me.ahoo.wow.query.aggregation.EmptyAggregationValues
+import me.ahoo.wow.query.aggregation.PreviousStep
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.serialization.JsonSerializer
@@ -130,13 +131,37 @@ fun QueryBackend.aggregate(
 ): Flux<ObjectNode> = Flux.defer {
     val plan = AggregationPlan.of(query.query, query.schema.storage.aggregation)
     val aggregation = query.query
-    val metrics = aggregation.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
-    var rows = aggregate(if (plan.adjusted) query.withQuery(plan.native) else query, plan.window)
-        .onErrorMap(::storageFault)
-        .map { row -> row.requireStandardAggregation(metrics) }
+    var rows = groups(if (plan.adjusted) query.withQuery(plan.native) else query, plan, budget)
     if (aggregation.groupBy.isEmpty()) {
         rows = rows.switchIfEmpty(Flux.defer { Flux.just(emptySummary(aggregation.metrics)) })
     }
+    plan.windows?.let { windows ->
+        rows = rows.collectList().flatMapMany { current ->
+            earlierGroups(query, plan, windows.previousSteps, current, budget)
+                .flatMapIterable { earlier -> windows.apply(current, earlier) }
+        }
+    }
+    if (plan.having) rows = rows.filter(plan::applyHaving)
+    if (plan.topN) {
+        rows.collect(plan::topRows) { top, row -> top.add(row) }.flatMapIterable { it.result() }
+    } else {
+        rows.take(plan.rowsLimit().toLong())
+    }
+}
+
+/**
+ * The groups [sent] reads, checked, dense filled and, when the plan reads every group, bounded by [budget]'s
+ * [QueryBudget.maxResidualGroups], fill rows included.
+ */
+private fun QueryBackend.groups(
+    sent: AdmittedQuery<AggregationQuery>,
+    plan: AggregationPlan,
+    budget: QueryBudget?,
+): Flux<ObjectNode> {
+    val metrics = plan.query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+    var rows = aggregate(sent, plan.window)
+        .onErrorMap(::storageFault)
+        .map { row -> row.requireStandardAggregation(metrics) }
     plan.dense?.let { rows = it.fill(rows) }
     val maxGroups = budget?.maxResidualGroups ?: 0
     if (plan.window == GroupWindow.All && maxGroups > 0) {
@@ -147,14 +172,29 @@ fun QueryBackend.aggregate(
             indexed.t2
         }
     }
-    plan.windows?.let { windows -> rows = rows.collectList().flatMapIterable(windows::apply) }
-    if (plan.having) rows = rows.filter(plan::applyHaving)
-    if (plan.topN) {
-        rows.collect(plan::topRows) { top, row -> top.add(row) }.flatMapIterable { it.result() }
-    } else {
-        rows.take(plan.rowsLimit().toLong())
-    }
+    return rows
 }
+
+/**
+ * The groups each PREVIOUS step reads: the query sent down with its range moved back by the step, or [current]
+ * when the filter has no range to move. Admission proved every range movable.
+ */
+private fun QueryBackend.earlierGroups(
+    query: AdmittedQuery<AggregationQuery>,
+    plan: AggregationPlan,
+    steps: List<PreviousStep>,
+    current: List<ObjectNode>,
+    budget: QueryBudget?,
+): Mono<Map<PreviousStep, List<ObjectNode>>> = Flux.fromIterable(steps).concatMap { step ->
+    val filter = plan.native.filter
+    val shifted = checkNotNull(step.shift(filter, query.field(step.field).temporal))
+    val rows = if (shifted == filter) {
+        Mono.just(current)
+    } else {
+        groups(query.withQuery(plan.native.copy(filter = shifted)), plan, budget).collectList()
+    }
+    rows.map { step to it }
+}.collectMap({ it.first }, { it.second })
 
 private fun emptySummary(metrics: List<AggregationMetric>): ObjectNode =
     JsonSerializer.valueToTree(EmptyAggregationValues.values(metrics))
