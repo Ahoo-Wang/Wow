@@ -465,11 +465,18 @@ export function AppShell({
 }) {
   const [folded, setFolded] = useState(false);
   const navId = useId();
+  const pageId = useId();
   const live = 'host' in service;
   const serviceLabel = live ? service.host : service.fixture;
   const ServiceIcon = live ? ServerIcon : DatabaseIcon;
   return (
     <div className="fve-tokens story-app" data-folded={folded || undefined}>
+      {/* The first stop of the page, shown once the keyboard is on it: past
+          the bar and the navigation, to what the page is for (WCAG 2.4.1;
+          Storybook review P2). */}
+      <a className="story-app-skip" href={`#${pageId}`}>
+        跳到主内容
+      </a>
       <header className="story-app-bar">
         <span className="story-app-logo" aria-hidden>
           W
@@ -543,6 +550,9 @@ export function AppShell({
 
       {/* Not a `main`: the workbench draws its own, and a page has one. */}
       <div
+        id={pageId}
+        // The skip link's landing: focusable by it, not by Tab.
+        tabIndex={-1}
         // `fve:bg-canvas` is the one token class the engine offers a host.
         className={grouped ? 'story-app-page fve:bg-canvas' : 'story-app-page'}
         data-padded={padded || undefined}

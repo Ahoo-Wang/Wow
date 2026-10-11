@@ -480,6 +480,7 @@ html.dark .story-intro {
  * hold without a colour of their own here.
  */
 .story-app {
+  position: relative;
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
   grid-template-rows: 52px minmax(0, 1fr);
@@ -496,6 +497,25 @@ html.dark .story-intro {
     'Segoe UI',
     sans-serif;
   font-size: 14px;
+}
+
+/* 「跳到主内容」: out of the grid's flow, off screen until focused. */
+.story-app-skip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  transform: translateY(-200%);
+}
+.story-app-skip:focus {
+  transform: none;
+}
+.story-app-page:focus {
+  outline: none;
 }
 
 .story-app[data-folded] {
