@@ -162,6 +162,19 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
 export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/typescript/': typescriptZh,
     '/zh/reference/typescript/': typescriptZh,
+    '/zh/workbench/': [
+        {
+            text: '使用工作台',
+            base: '/zh/workbench/',
+            items: [
+                {text: '概览', link: 'index.html'},
+                {text: '记录视图', link: 'records'},
+                {text: '分析视图', link: 'analysis'},
+                {text: '仪表盘', link: 'dashboards'},
+                {text: '保存与管理视图', link: 'views'},
+            ],
+        },
+    ],
     '/zh/articles/': [
         {
             text: '文章',

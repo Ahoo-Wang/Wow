@@ -105,6 +105,7 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 - [View Store](../extensions/view-store.md): the Kotlin server — the starter or the standalone server, the Docker image, properties, system views, and the [CoSec gateway rules](../extensions/view-store.md#security-model) it needs.
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points; its [topics](../../reference/typescript/wow-view-engine/#topics) give the signatures a host uses, one by one, and [Issue Codes](../../reference/typescript/wow-view-engine/issues.md) lists every code the engine can report.
 - [wow-view-store reference](../../reference/typescript/wow-view-store/): `WowViewStore`, the saved views on a Wow server.
+- [Using the Workbench](../../workbench/): for your application's users — record views, analysis views, dashboards and saved views, with no code; link it from your application's help.
 - [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.
 - [Accessibility of the View Engine](./view-engine-accessibility.md): the WCAG 2.2 AA conformance statement, the keyboard and screen-reader walkthroughs, and the known gaps.
 - [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the source of truth for the model.

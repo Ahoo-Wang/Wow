@@ -54,6 +54,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
                     {text: 'Commands and Queries', link: '/guide/typescript/commands-and-queries'},
                     {text: 'Generate a Client', link: '/guide/typescript/generated-client'},
                     {text: 'View Engine', link: '/guide/typescript/view-engine'},
+                    {text: 'Using the Workbench (for users)', link: '/workbench/'},
                     {text: 'Migrate from Fetcher Packages', link: '/guide/typescript/migration'},
                 ],
             },
