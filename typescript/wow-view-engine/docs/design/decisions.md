@@ -957,6 +957,15 @@
   - **什么时候 `refresh` 由宿主定**：启动时一次、之后定时或在导航打开时；引擎不自己轮询。
 - **落点**：`src/runtime/resources.ts`（`unregister`）、`src/runtime/definitions.ts`、`src/runtime/datasetResources.ts`；wow-client `DatasetDirectoryClient`；[host-integration.md 3.2](host-integration.md)。
 
+## D86 数据集的措辞覆盖：宿主的口径，只能收窄与改词（2026-10-11）
+
+- **来由**：派生的数据集定义只有描述符给的口径（字段的 `description`，否则列名），分析师的列名常常不是读者的词；有的列读者不需要看。
+- **裁定**（用户 2026-10-11 授权按推荐推进）：
+  - **覆盖写在派生的输入上**：`DefineDatasetSpec.fields` 每项是口径（字符串）、**defineView** 的 `FieldSpec`（收窄）或 `false`（隐藏）；写到的字段按写的次序在前，其余按描述符的次序在后。不能增加描述符没有的字段或能力：没有的路径被忽略（不是错误，数据集删了列，覆盖不该让定义坏掉）。
+  - **`DatasetCatalog.overrides(entry)`** 把标题、名词与字段覆盖交给 `DatasetResources`；覆盖变了（按 JSON 比较）即使版本没变也重新登记。
+  - **存在哪里不在这一批**：宿主可以写在代码或配置里；存进视图存储、由管理员编辑，留在 todo。
+- **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/datasetResources.ts`；[host-integration.md 3.2](host-integration.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

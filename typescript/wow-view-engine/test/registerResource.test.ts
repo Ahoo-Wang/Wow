@@ -19,6 +19,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import {
   DatasetResources,
+  type DatasetOverrides,
   MemoryViewStore,
   ViewEngine,
   defaultRecordConfig,
@@ -227,5 +228,33 @@ describe('DatasetResources', () => {
     expect(errors).toHaveLength(1);
     expect(engine.definitions.get(ID)).toBe(definition);
     expect(engine.definitions.has('analytics.returns')).toBe(false);
+  });
+
+  it("registers a dataset again when the host's words over it change", async () => {
+    const engine = engineOf();
+    const words = { current: { title: 'Orders' } as DatasetOverrides };
+    const source = vi.fn(() => sourceOf(descriptor('city', 'sha256:1')));
+    const datasets = new DatasetResources(engine, {
+      list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+      source,
+      overrides: () => words.current,
+    });
+    await datasets.refresh();
+    expect(engine.definitions.get(ID)?.title).toBe('Orders');
+    await datasets.refresh();
+    expect(source).toHaveBeenCalledTimes(1);
+
+    words.current = {
+      title: 'Order wide table',
+      fields: { city: 'Ship-to city' },
+    };
+    await datasets.refresh();
+    expect(source).toHaveBeenCalledTimes(2);
+    const definition = engine.definitions.get(ID) as DataViewDefinition;
+    expect(definition.title).toBe('Order wide table');
+    expect(definition.fields.map(field => field.label)).toEqual([
+      'Ship-to city',
+      'order_id',
+    ]);
   });
 });
