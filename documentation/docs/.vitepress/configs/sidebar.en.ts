@@ -161,6 +161,19 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
 export const sidebarEn: DefaultTheme.Sidebar = {
     '/guide/typescript/': typescriptEn,
     '/reference/typescript/': typescriptEn,
+    '/workbench/': [
+        {
+            text: 'Using the Workbench',
+            base: '/workbench/',
+            items: [
+                {text: 'Overview', link: 'index.html'},
+                {text: 'Record Views', link: 'records'},
+                {text: 'Analysis Views', link: 'analysis'},
+                {text: 'Dashboards', link: 'dashboards'},
+                {text: 'Saving and Managing Views', link: 'views'},
+            ],
+        },
+    ],
     '/articles/': [
         {
             text: 'Articles',

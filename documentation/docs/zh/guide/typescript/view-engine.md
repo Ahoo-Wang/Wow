@@ -105,6 +105,7 @@ Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--doc
 - [视图存储](../extensions/view-store.md)：Kotlin 服务端——嵌入 starter 还是独立服务端、Docker 镜像、配置项、系统视图，以及它需要的 [CoSec 网关规则](../extensions/view-store.md#安全模型)。
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点；[专题](../../reference/typescript/wow-view-engine/#topics)逐个给出宿主用到的签名，[Issue code](../../reference/typescript/wow-view-engine/issues.md) 列出引擎能报的每个 code。
 - [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图。
+- [使用工作台](../../workbench/)：写给应用的使用者——记录视图、分析视图、仪表盘与保存的视图，不涉及代码；可以从应用的帮助入口链接过去。
 - [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
 - [视图引擎的可访问性](./view-engine-accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：模型以它为准。
