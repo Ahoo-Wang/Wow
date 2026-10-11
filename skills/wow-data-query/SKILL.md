@@ -22,9 +22,10 @@ The deliverable is an answer: numbers, rows or a breakdown, what they mean for t
 4. Respect protection. A field with `sensitivity` is masked in results. A CONFIDENTIAL field (`comparable: false`) cannot be filtered, sorted or searched, and no protected field can be grouped or used as a metric. Do not try to recover masked values through filters, ranges or search.
 5. On event streams, a condition on one event's payload goes inside an `ELEMENT_MATCH` on `body`, together with its `bodyType` (see `variants`), so that both apply to the same event; the predicate's paths are relative to the event (`bodyType`, `body.<field>`). A stream is one command's events: say whether a number counts streams or events.
 6. Avoid `deprecated` fields; use the field its message points to. Mention it if the user named the deprecated one.
-7. Build the smallest query that answers the question: `count` for "how many", `aggregation` for breakdowns and trends, `list`, `paged` or `cursor` with a projection for examples. Write filters as `FilterExpression` (`{"op", "field", …}`). Use the read-only query routes only (see the reference). Never call command routes, the snapshot `PUT` regeneration routes or the schema refresh route.
-8. Run it. If it is rejected, read `bindingErrors[0].code` and `name`, fix the query within the descriptor, and retry once. If it still fails, or a result looks wrong, stop: that is a diagnosis for `wow-develop`.
-9. Answer in business terms first, then the evidence.
+7. A share, running total, moving average, comparison with the previous period or top N within each group is a derived metric's window when `analysis.windows` lists its function (`TOTAL`, `RUNNING`, `PREVIOUS`, `RANK`): the server computes it over every group before `having` and `limit`, so it is right where a hand computation over the returned rows is not. Without the function, compute nothing across groups from cut rows; say what is missing.
+8. Build the smallest query that answers the question: `count` for "how many", `aggregation` for breakdowns and trends, `list`, `paged` or `cursor` with a projection for examples. Write filters as `FilterExpression` (`{"op", "field", …}`). Use the read-only query routes only (see the reference). Never call command routes, the snapshot `PUT` regeneration routes or the schema refresh route.
+9. Run it. If it is rejected, read `bindingErrors[0].code` and `name`, fix the query within the descriptor, and retry once. If it still fails, or a result looks wrong, stop: that is a diagnosis for `wow-develop`.
+10. Answer in business terms first, then the evidence.
 
 ## Answer checklist
 
