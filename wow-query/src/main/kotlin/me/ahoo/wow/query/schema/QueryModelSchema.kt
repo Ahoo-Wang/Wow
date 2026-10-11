@@ -174,10 +174,7 @@ class QueryModelSchema(
     )
     private val bindingIndex = QueryBindingIndex(this.bindings)
     private val descriptors = ConcurrentHashMap<DescriptorKey, QueryModelDescriptor>()
-    private val dynamicFields = object : LinkedHashMap<QueryField, QueryFieldSchema>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<QueryField, QueryFieldSchema>?): Boolean =
-            size > MAX_CACHED_DYNAMIC_FIELDS
-    }
+    private val dynamicFields = ConcurrentHashMap<QueryField, QueryFieldSchema>()
     private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
         resolveField(field, matches)
     }
@@ -257,15 +254,15 @@ class QueryModelSchema(
 
     /**
      * A field outside the static paths (a map key such as ABAC `tags.<key>`, or an unknown path), resolved once and
-     * kept with its compiled capability record. Keys come from callers, so only fields that resolve are kept, the
-     * [MAX_CACHED_DYNAMIC_FIELDS] most recently used: unknown paths cannot fill the cache, and no run of distinct keys
-     * can pin it.
+     * kept with its compiled capability record. Every query naming such a field looks it up, so a lookup takes no
+     * lock. Keys come from callers, so only fields that resolve are kept, and the cache starts over once it holds
+     * [MAX_CACHED_DYNAMIC_FIELDS]: unknown paths cannot fill it, and no run of distinct keys can pin it.
      */
     private fun dynamicField(field: QueryField): QueryFieldSchema? {
-        synchronized(dynamicFields) { dynamicFields[field] }?.let { return it }
+        dynamicFields[field]?.let { return it }
         val resolved = resolveField(field) ?: return null
-        synchronized(dynamicFields) { dynamicFields.putIfAbsent(field, resolved) }
-        return resolved
+        if (dynamicFields.size >= MAX_CACHED_DYNAMIC_FIELDS) dynamicFields.clear()
+        return dynamicFields.putIfAbsent(field, resolved) ?: resolved
     }
 
     private fun resolveField(field: QueryField): QueryFieldSchema? = resolveField(
