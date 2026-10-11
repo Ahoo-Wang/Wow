@@ -23,7 +23,7 @@
  * Moving a client, sharing its endpoint options, or changing how it is
  * decorated must leave the file unchanged. A change to it is a change to the
  * transport and is made on purpose with
- * `pnpm exec vitest run test/clients/endpointTable.test.ts -u`.
+ * `pnpm exec vitest run test/client/endpointTable.test.ts -u`.
  *
  * The per-client suites beside this one cover cancellation, errors and the
  * stream error event; this table only pins what goes over the wire.
