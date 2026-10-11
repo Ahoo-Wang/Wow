@@ -179,6 +179,7 @@ export function OptionalSlotSelect({
 export function CheckField({
   label,
   hint,
+  describedBy,
   checked,
   disabled,
   onChange,
@@ -187,6 +188,11 @@ export function CheckField({
   label: string;
   /** Why the box reads as it does; shown under the label. */
   hint?: string;
+  /**
+   * A reason said once for several boxes, drawn by their list: its id, in
+   * place of a `hint` of the box's own.
+   */
+  describedBy?: string;
   checked: boolean;
   disabled?: boolean;
   onChange(checked: boolean): void;
@@ -199,7 +205,7 @@ export function CheckField({
       id={id}
       checked={checked}
       disabled={disabled}
-      aria-describedby={hint ? hintId : undefined}
+      aria-describedby={hint ? hintId : describedBy}
       onCheckedChange={next => onChange(next === true)}
     />
   );
@@ -218,6 +224,33 @@ export function CheckField({
       )}
     </Field>
   );
+}
+
+/**
+ * Reasons for a list of boxes, each said once: a reason the boxes either
+ * side share is drawn under the last of them (`under`) and describes each
+ * (`describedBy`, for `CheckField`); a reason of its own stays the box's
+ * `hint`.
+ */
+export function saidOnce(
+  reasons: readonly (string | undefined)[],
+  prefix: string,
+): {
+  hint?: string;
+  describedBy?: string;
+  under?: { id: string; text: string };
+}[] {
+  return reasons.map((reason, at) => {
+    if (reason === undefined) return {};
+    if (reasons[at - 1] !== reason && reasons[at + 1] !== reason)
+      return { hint: reason };
+    let first = at;
+    while (reasons[first - 1] === reason) first -= 1;
+    const id = `${prefix}-${first}`;
+    return reasons[at + 1] === reason
+      ? { describedBy: id }
+      : { describedBy: id, under: { id, text: reason } };
+  });
 }
 
 /** One choice among a few words, all of them on screen at once. */

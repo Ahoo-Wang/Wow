@@ -19,13 +19,8 @@ import {
   type DerivedGap,
 } from '../../analysis/index.js';
 import {
-  DERIVED_KINDS,
-  MAX_MOVING_WINDOW,
   REFERENCE_STATISTICS,
   without,
-  type CartesianSpec,
-  type DerivedKind,
-  type DerivedSeries,
   type ReferenceBand,
   type ReferenceLine,
 } from '../../model/index.js';
@@ -39,12 +34,12 @@ import { CompactSelect } from './CompactSelect.js';
 import { useListFocus } from './listFocus.js';
 import {
   CheckField,
-  NumberField,
   type OptionsPageProps,
   OptionsSection,
   ReferenceLabel,
-  SlotSelect,
 } from './optionControls.js';
+import { drawnMetrics, type SpecProps } from './cartesianSpec.js';
+import { DerivedLines } from './DerivedLines.js';
 
 /** Where a reference line stands: a number, or a statistic of a metric. */
 type LineKind = 'value' | (typeof REFERENCE_STATISTICS)[number];
@@ -69,18 +64,6 @@ export function ReferenceOptions(props: OptionsPageProps) {
       <DerivedLines {...props} spec={spec} />
     </>
   );
-}
-
-type SpecProps = OptionsPageProps & { spec: CartesianSpec };
-
-/** The metrics the chart draws, named as their columns are titled. */
-function drawnMetrics({ spec, shape }: SpecProps) {
-  const names = new Map(shape.quantities.map(item => [item.value, item.label]));
-  return spec.series.map(series => ({
-    value: series.metric,
-    label: names.get(series.metric) ?? series.metric,
-    axis: series.axis ?? 'left',
-  }));
 }
 
 function ReferenceLines(props: SpecProps) {
@@ -444,106 +427,5 @@ function Extremes({ chart, spec, onChange }: SpecProps) {
         })
       }
     />
-  );
-}
-
-/**
- * 「算出的线」: a trend, a moving average and a running total of one drawn
- * metric, each a box. A box the result cannot carry is greyed with the
- * reason (`derivedGap`, Q53) — and one already ticked stays pressable, so
- * a saved line can be taken off even while it cannot be drawn.
- */
-function DerivedLines(props: SpecProps) {
-  const { chart, spec, onChange, gapOf, defaultWindow } = props;
-  const messages = useViewMessages();
-  const metrics = drawnMetrics(props);
-  const derived = spec.derived ?? [];
-  if (metrics.length === 0) return null;
-  const metric =
-    metrics.find(entry => entry.value === derived[0]?.metric)?.value ??
-    metrics[0].value;
-  const setDerived = (next: DerivedSeries[]) =>
-    onChange({
-      ...chart,
-      cartesian:
-        next.length === 0
-          ? without(spec, 'derived')
-          : { ...spec, derived: next },
-    });
-  const entryOf = (kind: DerivedKind) =>
-    derived.find(entry => entry.kind === kind);
-  return (
-    <OptionsSection
-      name="derived"
-      title={messages.label('label.chart.derived')}
-    >
-      <p className="fve:text-quiet-foreground">
-        {messages.label('label.chart.derived.hint')}
-      </p>
-      {metrics.length > 1 && (
-        <SlotSelect
-          label={messages.label('label.chart.derived.metric')}
-          items={metrics}
-          value={metric}
-          onChange={next =>
-            setDerived(derived.map(entry => ({ ...entry, metric: next })))
-          }
-        />
-      )}
-      {DERIVED_KINDS.map(kind => {
-        const entry = entryOf(kind);
-        // Unticked, a moving average is judged at its narrowest window, so
-        // the box opens wherever some window fits; ticked, at its own — and
-        // 「点太少」 then says to lower the periods.
-        const gap = gapOf?.({
-          kind,
-          metric,
-          window:
-            entry === undefined && kind === 'moving-average'
-              ? 2
-              : entry?.window,
-        });
-        return (
-          <div key={kind} className="fve:flex fve:flex-col fve:gap-2">
-            <CheckField
-              data-slot={`chart-derived-${kind}`}
-              label={messages.label(`label.chart.derived.add.${kind}`)}
-              hint={gap ? gapReason(messages, { kind, ...gap }) : undefined}
-              checked={entry !== undefined}
-              disabled={gap !== undefined && entry === undefined}
-              onChange={on =>
-                setDerived(
-                  on
-                    ? [...derived, { kind, metric }]
-                    : derived.filter(one => one.kind !== kind),
-                )
-              }
-            />
-            {kind === 'moving-average' && entry && (
-              <NumberField
-                label={messages.label('label.chart.derived.window')}
-                hint={messages.label('label.chart.derived.window.hint', {
-                  count: defaultWindow ?? 3,
-                })}
-                value={entry.window}
-                min={2}
-                max={MAX_MOVING_WINDOW}
-                onChange={window =>
-                  setDerived(
-                    derived.map(one =>
-                      one.kind !== kind
-                        ? one
-                        : window === undefined
-                          ? without(one, 'window')
-                          : { ...one, window },
-                    ),
-                  )
-                }
-              />
-            )}
-          </div>
-        );
-      })}
-    </OptionsSection>
   );
 }

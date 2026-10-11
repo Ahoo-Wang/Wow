@@ -1999,7 +1999,13 @@ export const en: {
     readonly 'label.query.stale-conditions': "{error} · Showing the result from before the conditions changed";
     readonly 'label.query.retry': "Try again";
     readonly 'label.write.conflict': "Someone else saved this view first";
-    readonly 'label.write.unknown': "The result never came back";
+    readonly 'label.write.unknown': "{what} got no answer; it may already have gone through";
+    readonly 'label.write.action.save': "Saving";
+    readonly 'label.write.action.create': "Saving as new";
+    readonly 'label.write.action.rename': "Renaming";
+    readonly 'label.write.action.changeAudience': "Changing who can see it";
+    readonly 'label.write.action.delete': "Deleting";
+    readonly 'label.write.action.preferences': "Saving your preferences";
     readonly 'label.image.failed': "This image could not be loaded";
     readonly 'label.image.link': "Open the linked page";
     readonly 'label.embed.locked': "Set by this page";
@@ -3926,6 +3932,8 @@ export const en: {
     readonly 'label.conflict.summary.malformed': "Cannot be read";
     readonly 'label.unknown.leave': "Abandon";
     readonly 'label.unknown.retry': "Try again";
+    readonly 'label.unknown.hint': "Try again sends the same request, which cannot take effect twice.";
+    readonly 'label.unknown.hint.keeps': "Try again sends the same request, which cannot take effect twice. Abandon stops waiting; your edits stay here, unsaved.";
     readonly 'label.rejected.dismiss': "Dismiss";
     readonly 'label.leave.heading': "Leave this view?";
     readonly 'label.leave.consequence': "Unsaved changes will be lost.";

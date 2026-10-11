@@ -35,9 +35,22 @@ import { hostSource } from './hostSource.js';
 /** The statuses a reminder to the warehouse still makes sense for. */
 const AWAITING_SHIPMENT = new Set(['PAID', 'PARTIALLY_SHIPPED']);
 
-function awaitingShipment(row: RecordRow): boolean {
+/**
+ * Why an order cannot be reminded about, by where it stands: one reason for
+ * all of them told a cancelled or unpaid order it had shipped (R2-100).
+ */
+const NOT_AWAITING: Record<string, string> = {
+  PENDING_PAYMENT: '这张单还没付款，不用催',
+  CANCELLED: '这张单已经取消，不用催',
+  CLOSED: '这张单已经关闭，不用催',
+};
+
+/** `true` while the warehouse still owes the order a parcel, else why not. */
+function remindable(row: RecordRow): true | string {
   const state = (row.data.state ?? {}) as Record<string, unknown>;
-  return AWAITING_SHIPMENT.has(String(state.status));
+  const status = String(state.status);
+  if (AWAITING_SHIPMENT.has(status)) return true;
+  return NOT_AWAITING[status] ?? '这张单已经发出，不用催';
 }
 
 /**
@@ -47,7 +60,7 @@ function awaitingShipment(row: RecordRow): boolean {
  * not: a tag written by a story that cannot write the data would claim a
  * change the list never shows. The host says what and when; the engine puts
  * it in each row and over a selection, asks how many, sends it a few at a
- * time and reports. An order that has left the warehouse is refused with
+ * time and reports. An order the warehouse owes nothing is refused with
  * the reason before anything is sent, and stays selected.
  */
 const ORDER_ACTIONS = actions([
@@ -55,7 +68,7 @@ const ORDER_ACTIONS = actions([
     id: 'remind',
     label: '催发货',
     primary: true,
-    available: row => (awaitingShipment(row) ? true : '这张单已经发出，不用催'),
+    available: remindable,
     run: () => new Promise(resolve => setTimeout(resolve, 120)),
   },
 ]);
@@ -110,7 +123,7 @@ ${RETAIL_DATA_NOTE}
 
 - **系统视图**（跟着定义发布）：**发货超时**（值班队列，每 30 秒刷新，打开就是它）、全部订单、昨日订单、礼品加急（标记「全都包含」礼品与加急）、全额退款关闭。
 - **共享与个人视图**：客服组的「留言提到改地址」（全文搜索框）；品控组的「浴巾退款单（近 3 个月）」（商品行上的元素匹配：同一行既是竹纤维浴巾 70×140 · 米白、又退过款，A1）；个人的「我跟的大客户」（按买家筛，买家是远程搜索的引用字段，卡片布局）。
-- **看什么**：打开「发货超时」——付款 48 小时仍未发出、不是预售的单，最早付款的在前。这一刻有 ${OVERDUE_ORDERS.length} 张，**发货仓一列全是华东（嘉兴）**：那是 9 月 20 日起分拣线故障卡住的包裹（埋下的异常 A7）。勾几张按「催发货」，结果条逐条说成了几单；已经发出的单会被拒并说明原因。
+- **看什么**：打开「发货超时」——付款 48 小时仍未发出、不是预售的单，最早付款的在前。这一刻有 ${OVERDUE_ORDERS.length} 张，**发货仓一列全是华东（嘉兴）**：那是 9 月 20 日起分拣线故障卡住的包裹（埋下的异常 A7）。勾几张按「催发货」，结果条逐条说成了几单；已发出、已取消或还没付款的单会被拒，并按它的状态说明原因。
 - **还能做**：点任一行看分组后的全部字段；列设置、冻结、多重排序；本页与全部两行汇总（实付合计、最早下单时间）；在筛选里加「买家」搜「林」，从全部会员里挑；表格与卡片切换；导出 CSV；另存为自己的视图。`;
 
 /** What 「Show code」 shows on this page (`hostSource.ts`). */

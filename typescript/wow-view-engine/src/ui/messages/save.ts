@@ -89,6 +89,13 @@ export const saveMessages = {
   // engine calls that `abandonWrite`, and so should the word on the button.
   'label.unknown.leave': 'Abandon',
   'label.unknown.retry': 'Try again',
+  // What each way out does, under the line: a retry is the same request,
+  // which the store applies once; and where the write carried edits, giving
+  // up on it leaves them on screen, unsaved.
+  'label.unknown.hint':
+    'Try again sends the same request, which cannot take effect twice.',
+  'label.unknown.hint.keeps':
+    'Try again sends the same request, which cannot take effect twice. Abandon stops waiting; your edits stay here, unsaved.',
   // A refusal never reached the store, so there is nothing to recover — only
   // a line to take down once it has been read, which is what frees the view
   // to be written again.

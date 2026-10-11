@@ -193,7 +193,13 @@ describe('ViewManager outcomes', () => {
     const confirm = await screen.findByRole('alertdialog');
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
 
-    await screen.findByText('The result never came back');
+    await screen.findByText(
+      'Deleting got no answer; it may already have gone through',
+    );
+    // A delete carried no edits: the hint says only what a retry does.
+    expect(
+      document.querySelector('[data-slot="write-unknown-hint"]')?.textContent,
+    ).toBe('Try again sends the same request, which cannot take effect twice.');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await landed(store);
@@ -214,11 +220,13 @@ describe('ViewManager outcomes', () => {
     );
     renameTo('Renamed');
 
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
     fireEvent.click(screen.getByRole('button', { name: 'Abandon' }));
 
     await waitFor(() =>
-      expect(screen.queryByText('The result never came back')).toBeNull(),
+      expect(
+        screen.queryByText(/got no answer; it may already have gone through/),
+      ).toBeNull(),
     );
   });
 
@@ -267,7 +275,7 @@ describe('ViewManager outcomes', () => {
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
     renameTo('Renamed');
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
 
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'rename').mockReturnValueOnce(held.promise);

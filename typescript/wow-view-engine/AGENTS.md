@@ -456,13 +456,15 @@ src/
       MapOptions.tsx          — The data page of a map (D41): which registered map (where the host offers more than one), the region dimension and the shade
       LevelOptions.tsx        — The data pages of the D41 charts of levels and time: a sunburst's, a tree's or a sankey's levels carried by the shared handle (`OrderedCards`) and a size that adds up; a calendar's day dimension; a theme river's date, streams and width
       ChartOptions.tsx        — The visualization panel's second level: the chosen type's options on the data, display and axes pages (D20 屏 J)
-      ReferenceOptions.tsx    — The display page's marks over a cartesian chart (D33 batch B): reference lines at a number, the average or the median; target bands; the highest and lowest points; trend, moving average and running total, each greyed with why the result cannot carry it (Q53)
+      ReferenceOptions.tsx    — The display page's marks over a cartesian chart (D33 batch B): reference lines at a number, the average or the median; target bands; the highest and lowest points; then `DerivedLines`
+      DerivedLines.tsx        — The computed lines: trend, moving average and running total, each greyed with why the result cannot carry it (Q53), a reason two boxes share said once (`saidOnce`)
+      cartesianSpec.ts        — A cartesian options page with its spec in hand (`SpecProps`) and the metrics it draws (`drawnMetrics`)
       VisualizationPanel.tsx  — The visualization panel's two levels as the workbench and a panel's own look both draw them (`visualizationPanel`), the keyboard following the level (`useVisualizationFocus`), and `ignore`, a command a host cannot take
       drag.ts                 — What the panel's ordered lists (series, stages, levels) make of a drag: `listDrop` takes only a drop between two rows of that list, plus what a reader hears (`chartDragAccessibility`)
       DataTab.tsx             — The options' data page: each family's slots (`DATA_PAGES`, exhaustive over `ChartFamily`), position slots listing dimensions and measure slots listing metrics; a funnel's stages carried by the shared handle (`OrderedCards`), and a metric-staged one named by hand
       DisplayTab.tsx          — The options' display page: legend and value labels, then each family's own settings (`DISPLAY_SECTIONS`, exhaustive over `ChartFamily`; a cartesian chart's marks over it in `ReferenceOptions`); the table's totals row
       AxesTab.tsx             — The options' axes page, cartesian and scatter: title, bounds, number format and scale (linear or log, greyed with why over 0 or a negative) of each numeric axis
-      optionControls.tsx      — The few controls the options pages are built of: slot select, check, choice, number, text and name fields, and a titled section
+      optionControls.tsx      — The few controls the options pages are built of: slot select, check, choice, number, text and name fields, and a titled section; `saidOnce`, a reason a list of boxes shares said once
       CompactSelect.tsx       — The one select a tray card carries: a named choice among a few words
       CurrencyStrip.tsx       — What a result says about its money, over its rows, with the offer to group by the currency field and run
       CardMenu.tsx            — A tray card's name and the way to rename it (`CardName`), and the card's own menu (`CardMenu`): display name, the sentinel bucket, filling empty periods

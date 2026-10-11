@@ -135,7 +135,7 @@ describe('DataWorkbench', () => {
     act(() => engine.openRuntimes()[0].edit({ pageSize: 30 }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await screen.findByText('The result never came back');
+    await screen.findByText(/got no answer; it may already have gone through/);
     expect(engine.pendingWrites().size).toBe(1);
 
     fireEvent.click(screen.getByRole('button', { name: /^Yours/ }));

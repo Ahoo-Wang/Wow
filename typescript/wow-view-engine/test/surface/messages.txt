@@ -1,4 +1,4 @@
-# Message keys — 2105.
+# Message keys — 2113.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1922,6 +1922,8 @@ label.toolbar.previous
 label.toolbar.refresh
 label.toolbar.selected
 label.toolbar.title
+label.unknown.hint
+label.unknown.hint.keeps
 label.unknown.leave
 label.unknown.retry
 label.value.fields
@@ -1957,6 +1959,12 @@ label.workbench.expand-sidebar
 label.workbench.expand-view
 label.workbench.opening
 label.workbench.switch-view
+label.write.action.changeAudience
+label.write.action.create
+label.write.action.delete
+label.write.action.preferences
+label.write.action.rename
+label.write.action.save
 label.write.conflict
 label.write.unknown
 record.action.unfetched

@@ -550,9 +550,16 @@ describe('the display page', () => {
       name: 'Running total',
     });
     expect(box.hasAttribute('data-disabled')).toBe(true);
-    expect(describedText(box)).toBe(
-      'the result shows only the first 3 groups, so the line would be incomplete.',
-    );
+    const reason =
+      'the result shows only the first 3 groups, so the line would be incomplete.';
+    expect(describedText(box)).toBe(reason);
+    // One reason for every box is said once, under the last, and still
+    // describes each of them (R2-100).
+    expect(panel().textContent!.split(reason)).toHaveLength(2);
+    for (const name of ['Trend line', 'Moving average', 'Running share'])
+      expect(
+        describedText(within(panel()).getByRole('checkbox', { name })),
+      ).toBe(reason);
   });
 
   it('offers only a number for a reference line over a split, and says why', async () => {

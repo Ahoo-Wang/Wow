@@ -13,9 +13,13 @@
 
 import type { ReactNode } from 'react';
 import type { Issue } from '../../model/index.js';
-import type { WriteState } from '../../runtime/index.js';
+import type { WriteAction, WriteState } from '../../runtime/index.js';
 import { LineAlert, type AlertTone } from './alerts.js';
-import { AlertAction, AlertTitle } from '../components/alert.js';
+import {
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from '../components/alert.js';
 import { Button } from '../components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useKindIssue, useKindWord } from './kinds.js';
@@ -30,6 +34,12 @@ import { useKindIssue, useKindWord } from './kinds.js';
  * smaller type and with the smaller buttons; the view's is a framed band.
  */
 type OutcomeSurface = 'row' | 'view';
+
+/**
+ * The writes that carry the user's edits: given up on, they leave the edits
+ * where they are, unsaved — which is what 「放弃」 is afraid of (R2-100).
+ */
+const KEEPS_EDITS: ReadonlySet<WriteAction> = new Set(['save', 'create']);
 
 /**
  * The ways out this outcome is allowed to offer, as callbacks.
@@ -161,8 +171,21 @@ export function OutcomeActions({
         <AlertTitle>
           {state.issue
             ? messages.issue(state.issue)
-            : messages.label('label.write.unknown')}
+            : messages.label('label.write.unknown', {
+                what: messages.label(
+                  `label.write.action.${state.payload.action}`,
+                ),
+              })}
         </AlertTitle>
+        {actions.retry && (
+          <AlertDescription data-slot="write-unknown-hint">
+            {messages.label(
+              actions.leave && KEEPS_EDITS.has(state.payload.action)
+                ? 'label.unknown.hint.keeps'
+                : 'label.unknown.hint',
+            )}
+          </AlertDescription>
+        )}
         <AlertAction>
           {actions.retry && (
             <Button size={size} disabled={pending} onClick={actions.retry}>
