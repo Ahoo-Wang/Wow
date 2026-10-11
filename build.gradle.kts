@@ -46,9 +46,10 @@ val exampleLibraries = setOf(
     project(":example-transfer-domain")
 )
 val viewStoreServerProject = project(":wow-view-store-server")
+val analyticsServerProject = project(":wow-analytics-server")
 val exampleProjects =
     exampleLibraries + project(":example-server") + project(":example-transfer-server") + project(":wow-compensation-server") +
-        viewStoreServerProject
+        viewStoreServerProject + analyticsServerProject
 
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
@@ -104,7 +105,8 @@ enum class WowTestLayer(
 }
 
 val localTestProjects = libraryProjects - benchmarksProject
-val localTestTaskProjects = localTestProjects + project(":wow-compensation-server") + viewStoreServerProject
+val localTestTaskProjects =
+    localTestProjects + project(":wow-compensation-server") + viewStoreServerProject + analyticsServerProject
 val localContractTestProjects = setOf(
     project(":wow-core"),
     project(":wow-opentelemetry"),
@@ -298,6 +300,8 @@ tasks.register("allIntegrationTest") {
     description = "Runs all container-backed integration tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(integrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
+    // The analytics server registers its own layer (an application's Java plugin comes from its own build script).
+    dependsOn("${analyticsServerProject.path}:${WowTestLayer.INTEGRATION.taskName}")
 }
 
 tasks.register("benchmarkSmoke") {
