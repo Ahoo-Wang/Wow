@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 863 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 866 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -347,6 +347,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 863 — with its kind and th
 | `PanelPresentation` | interface | How a panel looks at its view, over what the view itself says (D22 D): the layout, the chart and the table's totals row — the members of a view that draw the result rather than ask for it. | — |
 | `PanelReference` | interface | What a panel refers to, once the engine has loaded it. | — |
 | `PanelReferences` | type | References by instance id. | — |
+| `PanelSize` | type | A panel's size without a place: what `inRows` lays out. | — |
 | `ParallelData` | interface | — | — |
 | `ParallelSpec` | interface | Parallel coordinates: several metrics per group as one line across as many upright axes, each on its own scale — where a group stands on each, and which move together. | — |
 | `Picked` | type | What the panel shows as chosen: a chart type, or the table. | — |
@@ -426,6 +427,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 863 — with its kind and th
 | `SeriesMark` | type | The mark a cartesian series is drawn as. | — |
 | `ShapeContext` | interface | What shaping reads besides the config and the rows. | — |
 | `ShapeFacts` | interface | The facts of a result's shape a family's fit reads. | — |
+| `SizedPanel` | type | A dashboard panel whose layout gives only its size, for `inRows`. | — |
 | `SortDirection` | type | Sort direction as stored in a config: Wow's `SortDirection` values. | — |
 | `StringComparisonName` | type | Wow's `StringComparison`, as the literal a definition writes. | — |
 | `StringFilterValue` | type | — | — |
@@ -641,6 +643,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 863 — with its kind and th
 | `hasResult` | function | Whether this view ever got a result, even one that is now out of date. | — |
 | `havingRows` | function | The rows a having expression is made of, or `null` when it is a shape the rows cannot say: a range, a set, a null check, an OR anywhere. | — |
 | `impliedDeletion` | function | The deletion reading in force that nobody wrote (D17-2). | — |
+| `inRows` | function | Panels laid out row by row, so a board written in code says only how big each panel is: each row starts under the tallest panel of the row above, and its panels go left to right from the first column, each `w` wide. | — |
 | `innermostElement` | function | The level the counting unit is: the last one expanded, or none at all. | — |
 | `insertAt` | function | Appends a node to the group at `parent`; `[]` is the root group. | — |
 | `isAdditiveMetric` | function | Metrics the projection may add up across rows: a pie's "other" slice and a metric card's trend headline are both sums of queried buckets, which only means something for a metric that adds. | — |

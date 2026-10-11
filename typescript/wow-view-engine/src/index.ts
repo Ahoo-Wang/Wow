@@ -825,7 +825,9 @@ export {
 export {
   type ArrangeStep,
   type OrderStep,
+  type PanelSize,
   type PlacedPanel,
+  type SizedPanel,
   STACKED_COLUMNS,
   arrangePanel,
   bottomOf,
@@ -833,6 +835,7 @@ export {
   fitsGrid,
   freeSpot,
   grownLayout,
+  inRows,
   overlaps,
   placePanel,
   placePanelIn,

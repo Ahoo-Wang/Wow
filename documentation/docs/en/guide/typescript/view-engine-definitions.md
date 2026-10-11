@@ -426,6 +426,7 @@ A board is a definition of its own (`kind: 'dashboard'`, no source), and its sys
 // src/views/overview.ts
 import {
   emptyDashboardConfig,
+  inRows,
   systemInstanceId,
   text,
   type AnalysisViewConfig,
@@ -499,64 +500,72 @@ export const overview: DashboardDefinition = {
             required: true,
           },
         ],
-        panels: [
-          {
-            id: 'today',
-            kind: 'heading',
-            content: text('overview.today'),
-            layout: { x: 0, y: 0, w: 24, h: 1 },
-          },
-          {
-            id: 'total',
-            kind: 'view',
-            title: text('orders.total'),
-            bindings: [],
-            layout: { x: 0, y: 1, w: 6, h: 2 },
-            owned: { definitionId: SALES_ORDERS, config: card(total) },
-          },
-          {
-            id: 'to-ship-count',
-            kind: 'view',
-            title: text('orders.toShip'),
-            bindings: [],
-            // What waits now, whenever it was paid.
-            ignoresTime: true,
-            layout: { x: 6, y: 1, w: 6, h: 2 },
-            owned: {
-              definitionId: SALES_ORDERS,
-              config: card(
-                { type: 'COUNT', alias: 'orders', label: text('orders.count') },
-                [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
-              ),
+        panels: inRows(
+          [
+            {
+              id: 'today',
+              kind: 'heading',
+              content: text('overview.today'),
+              layout: { w: 24, h: 1 },
             },
-            // "Open in workbench" opens the queue itself, not a count.
-            opens: systemInstanceId(SALES_ORDERS, 'to-ship'),
-          },
-          {
-            id: 'daily-total',
-            kind: 'view',
-            title: text('overview.dailyTotal'),
-            bindings: [],
-            layout: { x: 0, y: 3, w: 24, h: 6 },
-            owned: { definitionId: SALES_ORDERS, config: dailyTotal },
-          },
-          {
-            id: 'to-ship',
-            kind: 'view',
-            title: text('orders.toShip'),
-            bindings: [],
-            // Read whole: its system view says timeField: null.
-            layout: { x: 0, y: 9, w: 24, h: 6 },
-            instanceId: systemInstanceId(SALES_ORDERS, 'to-ship'),
-          },
-        ],
+          ],
+          [
+            {
+              id: 'total',
+              kind: 'view',
+              title: text('orders.total'),
+              bindings: [],
+              layout: { w: 6, h: 2 },
+              owned: { definitionId: SALES_ORDERS, config: card(total) },
+            },
+            {
+              id: 'to-ship-count',
+              kind: 'view',
+              title: text('orders.toShip'),
+              bindings: [],
+              // What waits now, whenever it was paid.
+              ignoresTime: true,
+              layout: { w: 6, h: 2 },
+              owned: {
+                definitionId: SALES_ORDERS,
+                config: card(
+                  { type: 'COUNT', alias: 'orders', label: text('orders.count') },
+                  [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
+                ),
+              },
+              // "Open in workbench" opens the queue itself, not a count.
+              opens: systemInstanceId(SALES_ORDERS, 'to-ship'),
+            },
+          ],
+          [
+            {
+              id: 'daily-total',
+              kind: 'view',
+              title: text('overview.dailyTotal'),
+              bindings: [],
+              layout: { w: 24, h: 6 },
+              owned: { definitionId: SALES_ORDERS, config: dailyTotal },
+            },
+          ],
+          [
+            {
+              id: 'to-ship',
+              kind: 'view',
+              title: text('orders.toShip'),
+              bindings: [],
+              // Read whole: its system view says timeField: null.
+              layout: { w: 24, h: 6 },
+              instanceId: systemInstanceId(SALES_ORDERS, 'to-ship'),
+            },
+          ],
+        ),
       },
     },
   ],
 };
 ```
 
-- The grid has 24 columns; panels in one row share a `y`.
+- The grid has 24 columns. `inRows` lays the panels out from their sizes, row by row: each row starts under the tallest panel of the row above, so adding or resizing a panel needs no renumbering. What is stored is still each panel's `{ x, y, w, h }`.
 - **The default date** is what readers check first: a daily report opens on "yesterday" (a whole day, settled), a live board on "today" or a short relative window, and a board of piles needs no date filter at all.
 - **A board's date and a panel's own period are ANDed.** The board's window reaches every panel through `timeField` and is intersected with the panel view's own conditions: a view with its own "last 30 days" placed on a 7-day board reads the overlap. Leave the period off a view made for a board. A view read whole everywhere says `timeField: null` on its system view; one panel that should not follow says `ignoresTime: true` on the panel.
 - **`opens`** makes "Open in workbench" open another view of the same definition: use it where a card counts what a queue lists.

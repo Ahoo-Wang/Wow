@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 863 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 866 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -333,6 +333,7 @@ type  PanelLayout
 type  PanelPresentation
 type  PanelReference
 type  PanelReferences
+type  PanelSize
 type  ParallelData
 type  ParallelSpec
 type  Picked
@@ -412,6 +413,7 @@ type  SeriesExtremes
 type  SeriesMark
 type  ShapeContext
 type  ShapeFacts
+type  SizedPanel
 type  SortDirection
 type  StringComparisonName
 type  StringFilterValue
@@ -627,6 +629,7 @@ value hasAsked
 value hasResult
 value havingRows
 value impliedDeletion
+value inRows
 value innermostElement
 value insertAt
 value isAdditiveMetric

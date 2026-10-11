@@ -18,6 +18,7 @@ import {
   fitsGrid,
   freeSpot,
   grownLayout,
+  inRows,
   overlaps,
   placePanel,
   placePanelIn,
@@ -28,6 +29,7 @@ import {
   withLayouts,
   type DashboardPanel,
   type PlacedPanel,
+  type SizedPanel,
 } from '../src/index.js';
 import { dashboardConfig } from './fixtures.js';
 
@@ -873,5 +875,54 @@ describe('grownLayout', () => {
     expect(
       grownLayout(stored, new Map([['a', 6]])).map(panel => panel.id),
     ).toEqual(['b', 'a']);
+  });
+});
+
+describe('inRows', () => {
+  const heading = (id: string, w: number, h: number): SizedPanel => ({
+    id,
+    kind: 'heading',
+    title: id,
+    content: id,
+    layout: { w, h },
+  });
+
+  it('places each row under the tallest panel of the row above, left to right', () => {
+    const panels = inRows(
+      [heading('a', 8, 2), heading('b', 8, 4), heading('c', 8, 3)],
+      [heading('d', 24, 5)],
+      [heading('e', 12, 1), heading('f', 12, 2)],
+    );
+    expect(panels.map(({ id, layout }) => ({ id, ...layout }))).toEqual([
+      { id: 'a', x: 0, y: 0, w: 8, h: 2 },
+      { id: 'b', x: 8, y: 0, w: 8, h: 4 },
+      { id: 'c', x: 16, y: 0, w: 8, h: 3 },
+      { id: 'd', x: 0, y: 4, w: 24, h: 5 },
+      { id: 'e', x: 0, y: 9, w: 12, h: 1 },
+      { id: 'f', x: 12, y: 9, w: 12, h: 2 },
+    ]);
+  });
+
+  it('keeps a panel sized by hand, and the rest of the panel as it was', () => {
+    const [panel] = inRows([
+      { ...heading('a', 6, 3), layout: { w: 6, h: 3, fixedHeight: true } },
+    ]);
+    expect(panel).toEqual({
+      id: 'a',
+      kind: 'heading',
+      title: 'a',
+      content: 'a',
+      layout: { x: 0, y: 0, w: 6, h: 3, fixedHeight: true },
+    });
+  });
+
+  it('lays out nothing from no rows, and skips an empty row', () => {
+    expect(inRows()).toEqual([]);
+    expect(inRows([], [heading('a', 4, 2)])[0].layout).toEqual({
+      x: 0,
+      y: 0,
+      w: 4,
+      h: 2,
+    });
   });
 });
