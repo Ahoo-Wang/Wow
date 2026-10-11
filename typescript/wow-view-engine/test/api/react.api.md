@@ -2268,12 +2268,15 @@ export interface LeaveGuard {
     cancel(): void;
     confirm(): void;
     request(next: () => void): void;
+    saveAndLeave?(): void;
+    saving?: boolean;
 }
 
 // @public (undocumented)
 export interface LeaveGuardOptions {
     guardUnload?: boolean;
     onLeave?(): void;
+    save?(): Promise<unknown>;
 }
 
 // @public

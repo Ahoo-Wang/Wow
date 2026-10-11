@@ -76,6 +76,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.leave.consequence': '未保存的修改会丢失。',
   'label.leave.stay': '留下',
   'label.leave.leave': '离开',
+  'label.leave.save': '保存并离开',
   'label.revert.heading': '回到已保存的那一份？',
   'label.revert.consequence': '未保存的修改会丢失。',
   'label.revert.keep': '继续编辑',

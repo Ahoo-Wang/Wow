@@ -42,6 +42,16 @@ export interface LeaveGuard {
   confirm(): void;
   /** No: drops what was held and stays where it is. */
   cancel(): void;
+  /**
+   * The third answer, where the view can be saved in place (R2-100): saves,
+   * and leaves only once the save landed. A save that did not land — a
+   * refusal, a conflict, no answer — keeps the view open with its outcome on
+   * screen, which is where it can be settled. Absent where no such save is
+   * on offer: a view never saved needs a name first.
+   */
+  saveAndLeave?(): void;
+  /** A `saveAndLeave` is on its way: the answers wait for it. */
+  saving?: boolean;
 }
 
 export interface LeaveGuardOptions {
@@ -61,6 +71,13 @@ export interface LeaveGuardOptions {
    * thing on that page (D18 Ⅸ).
    */
   guardUnload?: boolean;
+  /**
+   * A save in place the view can make right now, resolving to something
+   * truthy once it landed; offered as `saveAndLeave`. `useWorkbench` passes
+   * `commands.save` while the open view is saved, may be saved in place and
+   * has nothing in the way.
+   */
+  save?(): Promise<unknown>;
 }
 
 /**
@@ -130,11 +147,12 @@ function useUnloadGuard(blocking: boolean): void {
  */
 export function useLeaveGuard(
   state: LeaveGuardState | null,
-  { onLeave, guardUnload = true }: LeaveGuardOptions = {},
+  { onLeave, guardUnload = true, save }: LeaveGuardOptions = {},
 ): LeaveGuard {
   // The continuation, held until it is answered. Stored inside an object so
   // the state setter does not take it for an updater function.
   const [held, setHeld] = useState<{ next: () => void } | null>(null);
+  const [saving, setSaving] = useState(false);
   const blocking = costly(state);
   useUnloadGuard(guardUnload && blocking);
 
@@ -159,5 +177,24 @@ export function useLeaveGuard(
     cancel() {
       setHeld(null);
     },
+    ...(save && {
+      saving,
+      saveAndLeave() {
+        if (!held || saving) return;
+        setSaving(true);
+        void save().then(
+          saved => {
+            setSaving(false);
+            setHeld(null);
+            // Nothing is lost by now, so nothing is settled first.
+            if (saved) held.next();
+          },
+          () => {
+            setSaving(false);
+            setHeld(null);
+          },
+        );
+      },
+    }),
   };
 }

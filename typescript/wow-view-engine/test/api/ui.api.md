@@ -3939,6 +3939,7 @@ export const en: {
     readonly 'label.leave.consequence': "Unsaved changes will be lost.";
     readonly 'label.leave.stay': "Stay";
     readonly 'label.leave.leave': "Leave";
+    readonly 'label.leave.save': "Save and leave";
     readonly 'label.revert.heading': "Go back to the saved version?";
     readonly 'label.revert.consequence': "Unsaved changes will be lost.";
     readonly 'label.revert.keep': "Keep editing";
@@ -4813,6 +4814,8 @@ interface LeaveGuard {
     cancel(): void;
     confirm(): void;
     request(next: () => void): void;
+    saveAndLeave?(): void;
+    saving?: boolean;
 }
 
 // @public (undocumented)
