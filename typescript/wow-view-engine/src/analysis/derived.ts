@@ -28,6 +28,7 @@ import {
   serverLineMetrics,
   serverLineValues,
 } from './serverLines.js';
+import { narrowsGroups } from './top.js';
 
 /**
  * Why a derived series cannot be computed over this result (D33 Q53). Wow's
@@ -146,7 +147,7 @@ export function derivedGap(
   if (spec && isPercentStacked(spec, data.chart)) return 'shares';
   // An earlier period is the source's alone: each point is the bucket's own.
   if (isPrevious(derived.kind)) return server ? undefined : 'unsupported';
-  if (!server && config.having !== undefined) return 'narrowed';
+  if (!server && narrowsGroups(config)) return 'narrowed';
   if (!server && cutShort) return 'cut-short';
   const values = data.points.map(point => point.values[derived.metric]);
   const holes = server

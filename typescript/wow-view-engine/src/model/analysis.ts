@@ -394,6 +394,20 @@ export interface AnalysisSort {
 }
 
 /**
+ * 「每个省只留 GMV 前三的城市」 (D89): within each value of the `within`
+ * dimension, keep the first `count` groups by `metric` — highest first, or
+ * lowest with `ASC`. Wow ranks every group (a dense `RANK` window, so a tie
+ * keeps both) before the having, and the rank is kept beside 「只保留」:
+ * both must hold. `within` is a group alias, `metric` a metric alias.
+ */
+export interface AnalysisTop {
+  within: string;
+  metric: string;
+  count: number;
+  direction?: SortDirection;
+}
+
+/**
  * One column of the result table. It has no `pinned`: the analysis table
  * freezes nothing, so a stored pinning was a setting no renderer performed
  * and no control offered — a promise the screen never kept. When the table
@@ -430,6 +444,7 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
   groups: AnalysisGroup[];
   metrics: [AnalysisMetric, ...AnalysisMetric[]];
   having?: AnalysisHavingExpression;
+  top?: AnalysisTop;
   sort: AnalysisSort[];
   limit: number;
   layout: AnalysisLayout;
@@ -463,6 +478,7 @@ export const ANALYSIS_AUTO_RUN_MEMBERS = [
   'groups',
   'metrics',
   'having',
+  'top',
   'sort',
   'limit',
   'table',

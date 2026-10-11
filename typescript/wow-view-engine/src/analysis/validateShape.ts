@@ -61,5 +61,6 @@ export function validateShape(config: AnalysisViewConfig): Issue[] {
   if (!isObject(config.table)) malformed(['table']);
   else list(config.table.columns, ['table', 'columns'], true);
   if (!isObject(config.chart)) malformed(['chart']);
+  if (config.top !== undefined && !isObject(config.top)) malformed(['top']);
   return issues;
 }

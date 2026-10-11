@@ -126,6 +126,12 @@ export type IssuePath = (string | number)[];
 | `analysis.sort.too-many` | 结果最多按 {max} 个维度或指标排序。 |
 | `analysis.sort.unknown-alias` | 排序依据的「{alias}」不在这个结果里。 |
 | `analysis.split.whole-failed` | 没能把较小的系列并成「其他」，颜色会重复：{reason} |
+| `analysis.top.count-out-of-range` | 每个维度值里留下的个数须为 1～{max} 的整数。 |
+| `analysis.top.malformed` | 这个「只留前几个」没有可用的结构。 |
+| `analysis.top.requires-groups` | 每个维度值里只留前几个，至少需要两个维度。 |
+| `analysis.top.unknown-metric` | 「{metric}」不是能排名次的指标。 |
+| `analysis.top.unknown-within` | 「{within}」不是这里的维度，不能在它里面只留前几个。 |
+| `analysis.top.unsupported` | 这份数据不能在每个维度值里只留前几个。 |
 
 ### `binding.*` {#issues-binding}
 

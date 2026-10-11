@@ -201,6 +201,23 @@ export const analysisMessages = {
   'label.analysis.having-unreadable':
     'This view keeps groups by a rule this editor cannot show.',
   'label.analysis.clear-having': 'Clear',
+  'label.analysis.top-first': 'Top few in each…',
+  'label.analysis.top-title': 'Top few in each',
+  'label.analysis.top-each': 'In each',
+  'label.analysis.top-within': 'Dimension to rank within',
+  'label.analysis.top-keep': 'keep the top',
+  'label.analysis.top-count': 'How many to keep',
+  'label.analysis.top-by': 'by',
+  'label.analysis.top-metric': 'Metric to rank by',
+  'label.analysis.top-direction': 'Ranking order',
+  'label.analysis.top-direction.DESC': 'highest first',
+  'label.analysis.top-direction.ASC': 'lowest first',
+  'label.analysis.top-invalid': 'A whole number from 1 to {max}.',
+  'label.analysis.remove-top': 'Keep every group in each',
+  'label.analysis.top-note':
+    'Tied groups share a place, so a tie may keep more.',
+  'label.analysis.reading-top':
+    '{reading} · Top {count} in each {within} by {metric} ({order})',
   'label.having.op.GT': 'more than',
   'label.having.op.GTE': 'at least',
   'label.having.op.LT': 'less than',
@@ -940,6 +957,17 @@ export const analysisMessages = {
     'The source cannot keep groups by {metric}.',
   'analysis.having.unknown-metric':
     'The filter refers to {metric}, which is not a usable metric.',
+  'analysis.top.unsupported':
+    'This dataset cannot keep the first groups within each value of a dimension.',
+  'analysis.top.requires-groups':
+    'Keeping the first groups within a dimension needs at least two dimensions.',
+  'analysis.top.unknown-within':
+    'The first groups are kept within {within}, which is not one of the dimensions.',
+  'analysis.top.unknown-metric':
+    'The first groups are ranked by {metric}, which is not a metric that can rank them.',
+  'analysis.top.count-out-of-range':
+    'The number of groups kept within each value must be a whole number from 1 to {max}.',
+  'analysis.top.malformed': 'This top N has no usable shape.',
   'analysis.limit.out-of-range':
     'Top N groups must be a whole number from 1 to {max}.',
   'analysis.metric.type-unknown': 'The metric type {type} is not available.',

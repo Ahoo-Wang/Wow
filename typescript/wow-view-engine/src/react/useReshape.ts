@@ -176,9 +176,19 @@ export function useReshape({
           ...next.groups.map(group => group.alias),
           ...next.metrics.map(metric => metric.alias),
         ]);
+        // The per-group top N (D89) goes with the dimension it ranks within
+        // or the metric it ranks by, and with the second dimension: within
+        // the only one, every group is first.
+        const top = current.top;
+        const topLeaves =
+          top !== undefined &&
+          (next.groups.length < 2 ||
+            !next.groups.some(group => group.alias === top.within) ||
+            !next.metrics.some(metric => metric.alias === top.metric));
         return {
           ...next,
           ...(having === current.having ? {} : { having }),
+          ...(topLeaves ? { top: undefined } : {}),
           chart: fitTo(current.chart, { ...current, ...next }),
           // Wow refuses a sort over an ungrouped aggregation, and it has one
           // row anyway, so losing the last group empties the ordering too.
@@ -216,6 +226,7 @@ export function useReshape({
         groups: before.groups,
         metrics: before.metrics,
         having: before.having,
+        top: before.top,
         chart: before.chart,
         sort: before.sort,
         table: before.table,

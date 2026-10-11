@@ -12,6 +12,7 @@
  */
 
 import type { AnalysisViewConfig, RecordData } from '../model/index.js';
+import { narrowsGroups } from './top.js';
 
 /**
  * What every chart family reads its rows by: a group value as a key that
@@ -78,7 +79,7 @@ export function absenceReader(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): (at: Readonly<Record<string, unknown>>) => boolean {
-  if (config.having) return () => false;
+  if (narrowsGroups(config)) return () => false;
   const limit = config.limit;
   if (Number.isInteger(limit) && rows.length < limit) return () => true;
   const lead = config.sort[0]?.alias;

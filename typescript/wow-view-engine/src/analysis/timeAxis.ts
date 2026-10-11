@@ -27,6 +27,7 @@ import {
   type DateTimeFilterValue,
 } from '../filter/index.js';
 import { bucketRange, bucketStart, wallClockAt } from './buckets.js';
+import { narrowsGroups } from './top.js';
 
 /**
  * A time axis as the chart projection draws one: earliest first whatever
@@ -275,7 +276,7 @@ export function knownWindow(
   now: Date | undefined,
   timeZone: string,
 ): TimeWindow | undefined {
-  if (!now || config.having) return undefined;
+  if (!now || narrowsGroups(config)) return undefined;
   if (!Number.isInteger(config.limit) || rows >= config.limit) return undefined;
   const { from, to } = appliedWindow(config.filter, axis.field, now, timeZone);
   if (from === null) return undefined;

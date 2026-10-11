@@ -33,6 +33,7 @@ import { validateElements } from './validateElements.js';
 import { validateGroups } from './validateGroups.js';
 import { validateMetrics } from './validateMetrics.js';
 import { validateHaving } from './validateHaving.js';
+import { validateTop } from './validateTop.js';
 import { validateSortAndColumns } from './validateSort.js';
 import { validateLimits } from './validateLimits.js';
 
@@ -49,7 +50,8 @@ export interface ValidateAnalysisOptions {
  *
  * This file is the order the rule sets run in; each set lives in its own file
  * beside it — the skeleton, the tree budget shared by expressions and having,
- * aliases, the element domain, groups, metrics, having, sort with columns,
+ * aliases, the element domain, groups, metrics, having, the per-group top
+ * N, sort with columns,
  * and the declared limits.
  */
 export function validateAnalysis(
@@ -88,6 +90,7 @@ export function validateAnalysis(
   issues.push(...validateAliases(config));
   const moments = momentMetrics(config.metrics, scope.fields);
   issues.push(...validateHaving(config, capability, limits, moments));
+  issues.push(...validateTop(config, capability, moments));
   issues.push(...validateSortAndColumns(config, capability));
   issues.push(...validateLimits(config, capability, limits));
   issues.push(...chartFindings(config, moments));

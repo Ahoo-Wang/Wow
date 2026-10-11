@@ -56,6 +56,8 @@ export { limitBounds, type AnalysisLimitBounds } from './limitBounds.js';
 export * from './expand.js';
 export * from './granularity.js';
 export * from './having.js';
+export * from './top.js';
+export { rankable } from './validateTop.js';
 export * from './metricCondition.js';
 export {
   columnsAfterMove,

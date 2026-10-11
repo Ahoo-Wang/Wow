@@ -62,6 +62,7 @@ import {
   isDuration,
   isFormula,
 } from './formula.js';
+import { narrowsGroups } from './top.js';
 
 /** A column of the result table; groups come first, then metrics. */
 export interface AnalysisColumnView {
@@ -598,7 +599,7 @@ export function projectAnalysis(
     ...(overall && config.table.totals && config.groups.length > 0
       ? { totals: wholeOf(overall, config) }
       : {}),
-    ...(config.having !== undefined && config.groups.length > 0
+    ...(narrowsGroups(config) && config.groups.length > 0
       ? { narrowed: true as const }
       : {}),
     // The probe row is not one of the groups the reader asked for, so the

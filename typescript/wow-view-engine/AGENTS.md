@@ -234,6 +234,7 @@ src/
     expand.ts                 — The config re-scoped to an expansion chain (D20 屏 G): `withElements` keeps what still names the new unit's fields and starts the metrics again otherwise; `withLevel`, `withoutLevelsFrom`, `nextExpansion`; `dropped` says what a step took away (D71)
     granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
     having.ts                 — 「只保留」 as rows of one comparison each: `havingRows` reads a conjunction, `withHavingRows` writes it, any other shape is declined rather than flattened
+    top.ts                    — The per-group top N compiled (D89): the hidden `RANK` metric, the having that keeps ranks up to N beside 「只保留」, and `narrowsGroups`, the one test of a result that may lack groups
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; the one builder of a dimension (`groupOfType` over `GroupFacts`) and of a metric (`metricOfSummary`, `summaryChoices`, `summaryOf`), `groupableFields`, `aliasOf`, `DEFAULT_MISSING_KEY`, `DEFAULT_PERCENTILE`
     limitBounds.ts            — `limitBounds`, the range 「前 N 组」 takes and what a blank stands for: a leaf, so the split's fold reads it without the defaults above it
     expressions.ts            — Aggregate and derived expression walks; a time between two moments held to its units and its two times (`DATE_DIFF`, N3)
@@ -255,6 +256,7 @@ src/
     validateGroups.ts         — Group kinds, date units, calendar parts, dense, missing-value keys
     validateOffers.ts         — `offerIssues`: what a definition's analysis capability offers per field — a declared field, and `DATE_PART` only on one that holds time, only parts Wow has; read by definition admission, not re-exported
     validateHaving.ts         — Having: declared, grouped, over known metrics
+    validateTop.ts            — The per-group top N (D89): the source ranks, two dimensions, a known one to rank within, a metric that ranks (`rankable`), a count up to the row limit
     validateLimits.ts         — Declared limits under Wow's own ceilings; the row limit against `limitBounds`, one finding for every way out of range
     validateMetrics.ts        — One rule set per metric type, filters included
     validateShape.ts          — The skeleton every other rule reads through
@@ -474,6 +476,7 @@ src/
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       ElementsSlot.tsx        — The expansion row (D20 屏 G, D71): the chain of arrays counted inside, one card a level with its own gate (「只算满足条件的明细项」), 「+ 〈数组〉」 along the declared chain, and the counting unit at the row's end, louder once expanded
       FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula; a duration's two times, unit and summary (`DurationControls`, N3)
+      TopRow.tsx              — 「每个〈维度〉只留前 N 个」 (D89): its way in on the result's line, and the one card that says it as a sentence; a count out of range stays in the box, marked
       HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the result slot's first label; a stored having of another shape is shown and clearable
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); over a span (`Pick.through`, `pickOf`) the same menu for 「这段时间」, said aloud as it opens, and on a board 「设为〈筛选〉」 (D33 Q52); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row; on a dashboard panel the board's filters under its heading (`context`) and ↗ on each item (`away`)
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts, and in the workbench the record view's one way out (`wayOutOf`) — none with no condition in force

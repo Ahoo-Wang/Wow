@@ -48,6 +48,7 @@ export {
   type AnalysisNamed,
   type AnalysisSort,
   type AnalysisTableSpec,
+  type AnalysisTop,
   type AnalysisViewConfig,
   DATE_PART_DOMAINS,
   DERIVED_FORMAT_STYLES,

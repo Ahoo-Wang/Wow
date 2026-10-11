@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 874 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -58,6 +58,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 874 — with its kind and th
 | `AnalysisSort` | interface | — | — |
 | `AnalysisSpec` | interface | The analyses a host offers, narrowed from what the model grants. | — |
 | `AnalysisTableSpec` | interface | — | — |
+| `AnalysisTop` | interface | 「每个省只留 GMV 前三的城市」 (D89): within each value of the `within` dimension, keep the first `count` groups by `metric` — highest first, or lowest with `ASC`. | — |
 | `AnalysisViewConfig` | interface | Table and chart are stored together, like the two record layouts. | — |
 | `AnalysisWindowFunction` | type | A window function of Wow's derived expressions (D87). | — |
 | `AnyViewRuntime` | type | What opening an instance returns; narrow it by `runtime.kind`. | — |

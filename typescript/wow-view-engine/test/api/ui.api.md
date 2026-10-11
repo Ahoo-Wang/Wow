@@ -431,6 +431,18 @@ interface AnalysisTableSpec {
 }
 
 // @public
+interface AnalysisTop {
+    // (undocumented)
+    count: number;
+    // (undocumented)
+    direction?: SortDirection;
+    // (undocumented)
+    metric: string;
+    // (undocumented)
+    within: string;
+}
+
+// @public
 interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     chart: ChartSpec;
@@ -452,6 +464,8 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     sort: AnalysisSort[];
     // (undocumented)
     table: AnalysisTableSpec;
+    // (undocumented)
+    top?: AnalysisTop;
 }
 
 // @public
@@ -2666,6 +2680,21 @@ export const en: {
     readonly 'label.analysis.having-note': "Groups without a value are not kept.";
     readonly 'label.analysis.having-unreadable': "This view keeps groups by a rule this editor cannot show.";
     readonly 'label.analysis.clear-having': "Clear";
+    readonly 'label.analysis.top-first': "Top few in each…";
+    readonly 'label.analysis.top-title': "Top few in each";
+    readonly 'label.analysis.top-each': "In each";
+    readonly 'label.analysis.top-within': "Dimension to rank within";
+    readonly 'label.analysis.top-keep': "keep the top";
+    readonly 'label.analysis.top-count': "How many to keep";
+    readonly 'label.analysis.top-by': "by";
+    readonly 'label.analysis.top-metric': "Metric to rank by";
+    readonly 'label.analysis.top-direction': "Ranking order";
+    readonly 'label.analysis.top-direction.DESC': "highest first";
+    readonly 'label.analysis.top-direction.ASC': "lowest first";
+    readonly 'label.analysis.top-invalid': "A whole number from 1 to {max}.";
+    readonly 'label.analysis.remove-top': "Keep every group in each";
+    readonly 'label.analysis.top-note': "Tied groups share a place, so a tie may keep more.";
+    readonly 'label.analysis.reading-top': "{reading} · Top {count} in each {within} by {metric} ({order})";
     readonly 'label.having.op.GT': "more than";
     readonly 'label.having.op.GTE': "at least";
     readonly 'label.having.op.LT': "less than";
@@ -3140,6 +3169,12 @@ export const en: {
     readonly 'analysis.having.undeclared': "This dataset does not offer filtering the result.";
     readonly 'analysis.having.metric-unsupported': "The source cannot keep groups by {metric}.";
     readonly 'analysis.having.unknown-metric': "The filter refers to {metric}, which is not a usable metric.";
+    readonly 'analysis.top.unsupported': "This dataset cannot keep the first groups within each value of a dimension.";
+    readonly 'analysis.top.requires-groups': "Keeping the first groups within a dimension needs at least two dimensions.";
+    readonly 'analysis.top.unknown-within': "The first groups are kept within {within}, which is not one of the dimensions.";
+    readonly 'analysis.top.unknown-metric': "The first groups are ranked by {metric}, which is not a metric that can rank them.";
+    readonly 'analysis.top.count-out-of-range': "The number of groups kept within each value must be a whole number from 1 to {max}.";
+    readonly 'analysis.top.malformed': "This top N has no usable shape.";
     readonly 'analysis.limit.out-of-range': "Top N groups must be a whole number from 1 to {max}.";
     readonly 'analysis.metric.type-unknown': "The metric type {type} is not available.";
     readonly 'analysis.metricFilter.empty': "This filter has no conditions, so the metric covers every record.";
