@@ -50,6 +50,8 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.DatasetQueryModelProfile
 import me.ahoo.wow.query.schema.QueryDataset
+import me.ahoo.wow.query.schema.QueryDatasetChange
+import me.ahoo.wow.query.schema.QueryDatasetListener
 import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelCompiler
@@ -200,9 +202,118 @@ class DatasetQueryGatewayTest {
     }
 
     @Test
+    fun `datasets change in place, every listener validating before any applies`() {
+        val datasets = QueryDatasets()
+        val seen = mutableListOf<String>()
+        datasets.listen(
+            object : QueryDatasetListener {
+                override fun validate(change: QueryDatasetChange) {
+                    require(change.dataset.title != "refused") { "refused" }
+                    seen += "validate ${change::class.simpleName}"
+                }
+
+                override fun apply(change: QueryDatasetChange) {
+                    seen += "apply ${change::class.simpleName}"
+                }
+            },
+        )
+        datasets.add(orders)
+        assertThrows<IllegalArgumentException> { datasets.add(orders) }
+        datasets.replace(orders.copy(title = "Orders"))
+        datasets[orders.namedAggregate]!!.title.assert().isEqualTo("Orders")
+        assertThrows<IllegalArgumentException> { datasets.replace(orders.copy(title = "refused")) }
+        datasets[orders.namedAggregate]!!.title.assert().isEqualTo("Orders")
+        val other = QueryDatasetTest.orders().copy(namedAggregate = OTHER)
+        assertThrows<IllegalArgumentException> { datasets.replace(other) }
+        datasets.remove(orders.namedAggregate).assert().isTrue()
+        datasets.remove(orders.namedAggregate).assert().isFalse()
+        datasets.all.assert().isEmpty()
+        seen.assert().containsExactly(
+            "validate Added",
+            "apply Added",
+            "validate Replaced",
+            "apply Replaced",
+            "validate Removed",
+            "apply Removed",
+        )
+        val ignoring = object : QueryDatasetListener {
+            override fun apply(change: QueryDatasetChange) = Unit
+        }
+        assertThrows<IllegalStateException> { QueryDatasets.NONE.add(orders) }
+        assertThrows<IllegalStateException> { QueryDatasets.NONE.listen(ignoring) }
+    }
+
+    @Test
+    fun `the catalog recompiles a dataset that changes and refuses one that takes an aggregate's name`() {
+        val datasets = QueryDatasets(listOf(orders))
+        val catalog = QuerySchemaCatalog(
+            storages = QueryBackendStorages(
+                datasetFactory = { QueryBackendBinding(RecordingBackend(), ADAPTER) },
+                datasets = datasets,
+            ),
+            compiler = QueryModelCompiler.of(datasets = datasets),
+            aggregates = listOf(OTHER),
+            datasets = datasets,
+        )
+        catalog.schema(
+            orders.namedAggregate,
+            QueryModel.DATASET
+        ).block()!!.field(QueryField("city")).assert().isNotNull()
+        val renamed = QueryDataset.of(orders.namedAggregate) {
+            tenant("tenant_id")
+            field("tenant_id") {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+            field("region") {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+        }
+        datasets.replace(renamed)
+        val schema = catalog.schema(orders.namedAggregate, QueryModel.DATASET).block()!!
+        schema.field(QueryField("region")).assert().isNotNull()
+        schema.field(QueryField("city")).assert().isNull()
+        catalog.versions().map { it.aggregate }.collectList().block()!!.assert().contains("analytics.orders")
+        assertThrows<IllegalArgumentException> { datasets.add(QueryDatasetTest.orders().copy(namedAggregate = OTHER)) }
+            .message.assert().contains("aggregate")
+        datasets[OTHER].assert().isNull()
+    }
+
+    @Test
+    fun `gateways follow the datasets, and an abstract factory rebinds a changed dataset`() {
+        val datasets = QueryDatasets()
+        val created = mutableListOf<QueryDataset>()
+        val factory = object : AbstractDatasetQueryBackendFactory() {
+            override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
+                created += dataset
+                return QueryBackendBinding(RecordingBackend(), ADAPTER)
+            }
+        }
+        val gateways = DatasetQueryGateways.of(datasets, requireServable = { require(it.title != "unservable") }) {
+            factory.create(it)
+            gateway(dataset = it)
+        }
+        datasets.add(orders)
+        val first = gateways[orders.namedAggregate]!!
+        datasets.replace(orders.copy(title = "Orders"))
+        gateways[orders.namedAggregate].assert().isNotSameAs(first)
+        gateways[orders.namedAggregate]!!.dataset.title.assert().isEqualTo("Orders")
+        factory.create(orders.copy(title = "Orders"))
+        created.size.assert().isEqualTo(2)
+        assertThrows<IllegalArgumentException> {
+            datasets.add(QueryDatasetTest.orders().copy(namedAggregate = OTHER, title = "unservable"))
+        }
+        gateways[OTHER].assert().isNull()
+        datasets.remove(orders.namedAggregate)
+        gateways.all.assert().isEmpty()
+        DatasetQueryGateways.of(QueryDatasets.NONE) { gateway(dataset = it) }.all.assert().isEmpty()
+    }
+
+    @Test
     fun `a dataset never takes the name of an aggregate of its context`() {
         assertThrows<IllegalArgumentException> {
-            QuerySchemaCatalog(aggregates = listOf(orders.namedAggregate), datasets = listOf(orders.namedAggregate))
+            QuerySchemaCatalog(aggregates = listOf(orders.namedAggregate), datasets = QueryDatasets(listOf(orders)))
         }
     }
 
@@ -351,7 +462,7 @@ class DatasetQueryGatewayTest {
                 datasets = datasets,
             ),
             compiler = QueryModelCompiler.of(datasets = datasets),
-            datasets = listOf(dataset.namedAggregate),
+            datasets = datasets,
         )
     }
 
@@ -403,6 +514,8 @@ class DatasetQueryGatewayTest {
     }
 
     private companion object {
+        val OTHER = me.ahoo.wow.modeling.MaterializedNamedAggregate("analytics", "other")
+
         val CAPABILITIES = setOf(
             QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH, QueryCapability.LITERAL_MATCH,
             QueryCapability.RANGE, QueryCapability.SORT, QueryCapability.CURSOR_SORT,

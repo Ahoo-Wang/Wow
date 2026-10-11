@@ -43,7 +43,7 @@ import me.ahoo.wow.rest.RouteVariables
 
 /**
  * The query routes of every dataset this instance serves (dataset query design §6): `/dataset/{context}/{dataset}/…`,
- * and the same under `/tenant/{tenantId}`. A dataset's records are untyped rows, so the routes describe them as JSON
+ * and the same under `/tenant/{tenantId}`, and the directory `/dataset` (dataset platform design §4.4). A dataset's records are untyped rows, so the routes describe them as JSON
  * objects; a dataset's fields are what its capability descriptor (`…/schema`) says. Not one of
  * [me.ahoo.wow.openapi.contributor.DefaultRouteContributors]: whoever serves datasets (the Spring Boot starter, when
  * datasets are configured) adds it next to the handlers.
@@ -172,8 +172,30 @@ object DatasetQueryRouteContributor : RouteContributor {
         ),
     )
 
+    private val directoryEntrySchema = ObjectSchema()
+        .addProperty("contextName", StringSchema())
+        .addProperty("name", StringSchema())
+        .addProperty("title", StringSchema().nullable(true))
+        .addProperty(
+            "version",
+            StringSchema().nullable(true).description("null while the dataset's schema cannot be compiled"),
+        )
+        .required(listOf("contextName", "name"))
+
+    /** `GET /dataset`, the directory: one route, outside any tenant, since datasets are not a tenant's. */
+    private val directory = HttpRouteContract(
+        routeId = RouteIdSpec().prefix(RESOURCE).resourceName(RESOURCE).operation("directory").build(),
+        method = Https.Method.GET,
+        path = RoutePaths.DATASETS,
+        handlerKey = Dataset.DIRECTORY,
+        summary = "List Datasets",
+        accept = listOf(Https.MediaType.APPLICATION_JSON),
+        responses = listOf(jsonResponse(ArraySchema().items(directoryEntrySchema))),
+        tags = tags,
+    )
+
     override fun contributeGlobal(currentContext: NamedBoundedContext): List<HttpRouteContract> =
-        listOf(false, true).flatMap { withinTenant -> routes.map { it.contract(withinTenant) } }
+        listOf(directory) + listOf(false, true).flatMap { withinTenant -> routes.map { it.contract(withinTenant) } }
 
     private fun Route.contract(withinTenant: Boolean): HttpRouteContract = HttpRouteContract(
         routeId = RouteIdSpec().prefix(RESOURCE).appendTenant(withinTenant).resourceName(RESOURCE)

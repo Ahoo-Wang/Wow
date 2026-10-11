@@ -97,6 +97,7 @@ Give Wow a read-only account (`readonly=2`). The security boundary is Wow's admi
 
 | Method | Path | Body and response |
 | --- | --- | --- |
+| `GET` | `/dataset` | The directory: each served dataset's context, name, title and descriptor version (`null` while its schema does not compile) |
 | `GET` | `/dataset/{context}/{dataset}/schema` | The capability descriptor (ETag, 304 while unchanged) |
 | `POST` | `/dataset/{context}/{dataset}/count` | `FilterExpression` → the record count |
 | `POST` | `/dataset/{context}/{dataset}/list` | `ListQuery` → rows (a JSON array or SSE) |
@@ -105,9 +106,13 @@ Give Wow a read-only account (`readonly=2`). The security boundary is Wow's admi
 | `POST` | `/dataset/{context}/{dataset}/single` | `SingleQuery` → one row, 404 when none |
 | `POST` | `/dataset/{context}/{dataset}/aggregation` | `AggregationQuery` → rows (a JSON array or SSE) |
 
-Every route is also served under `/tenant/{tenantId}`. These routes run the same pipeline as an aggregate's query routes: the HTTP entry, the HTTP budget, the idle timeout, the error codes and the capability descriptor. A dataset the service does not serve answers 404.
+These routes are registered when a dataset query backend (ClickHouse, say) is configured. Every route but the directory is also served under `/tenant/{tenantId}`. These routes run the same pipeline as an aggregate's query routes: the HTTP entry, the HTTP budget, the idle timeout, the error codes and the capability descriptor. A dataset the service does not serve answers 404.
 
-The caller scope comes from the `{tenantId}` path variable (else `Command-Tenant-Id`), `Command-Owner-Id` and `Wow-Space-Id`; the last two apply only when the dataset declares the matching column. They all come from the request, so the scope is **declared**; when a trusted gateway (CoSec, say) authenticates them, register your own `DatasetQueryRequestScope` that marks them authenticated. The `ScopeContributor`s of the aggregate routes do not apply to dataset routes.
+The caller scope comes from the `{tenantId}` path variable (else `Command-Tenant-Id`), `Command-Owner-Id` and `Wow-Space-Id`; the last two apply only when the dataset declares the matching column. They all come from the request, so the scope is **declared**; when a trusted gateway (CoSec, say) authenticates them, register your own `DatasetQueryRequestScope` that marks them authenticated. A `ScopeContributor` applies to aggregate routes by default: a dataset's columns are not an aggregate's, so a contributor restricts datasets only when it overrides `contribute(dataset, request)`.
+
+## Adding and Removing Datasets at Run Time
+
+The `QueryDatasets` bean holds the datasets this service serves: the declarations of `wow.query.datasets` at startup, and whatever is `add`ed, `replace`d or `remove`d at run time. A change takes effect at once: the Catalog compiles the new declaration, and the gateways, routes and directory follow. `add` is refused, changing nothing, for a name an aggregate of the context already takes, or when the service has no dataset query backend.
 
 ## In-Process Queries
 

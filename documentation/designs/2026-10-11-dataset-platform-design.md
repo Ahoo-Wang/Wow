@@ -94,7 +94,7 @@ R1 与 R3 决定整体形态，本文写到可实施的粒度；R2 写清约束�
 
 数据集设计中，`QueryDatasets`、`QuerySchemaCatalog` 的数据集名单与 `DatasetQueryGateways` 都在启动时确定。R1 把它们改为可变：
 
-- **`QueryDatasetRegistry`**：按名读写数据集。`add`、`replace`、`remove` 时，同步更新 Catalog 的数据集名单，并使对应的 schema 失效。名字冲突的检查（数据集设计 Q5）在 `add` 时进行。
+- **`QueryDatasets` 成为注册表**：按名读写数据集。`add`、`replace`、`remove` 时通知监听者：Catalog 更新数据集名单并使对应的 schema 失效，网关随之增删。名字冲突的检查（数据集设计 Q5）在 `add` 时进行；监听者拒绝时，变更回滚。
 - **`DatasetQueryGateways`**：在注册表变化时增删网关。HTTP 路由每次请求都按名查找网关（`DatasetQueryHandlerFunction`），所以不需要改；它按名缓存的 handler 要在数据集替换时一并失效。
 - **来源**：声明文件中的数据集在启动时加入；注册表中的已发布版本由注册表的投影加入。每个查询实例在启动时读取已发布的快照，然后订阅事件，按 `DatasetPublished`、`DatasetRetired` 增删。名字相同时，声明文件优先，注册表中的同名数据集无法发布（Q2）。
 
@@ -111,6 +111,23 @@ R1 与 R3 决定整体形态，本文写到可实施的粒度；R2 写清约束�
 | 能看哪些列的原值 | 敏感等级 |
 
 目录本身会暴露数据集是否存在；需要隐藏的部署，用网关规则限制 `GET /dataset`。
+
+### 4.5 租户与 ABAC
+
+数据集的范围与 ABAC 和聚合走同一条准入管道、同一套 `QueryPolicy`，差别只在调用方范围从哪里读、资源标签存在哪一列：
+
+| 层 | 聚合 | 数据集 |
+|---|---|---|
+| 调用方范围 | `QueryRequestScope` 加 `ScopeContributor` | `DatasetQueryRequestScope`：租户取 `/tenant/{tenantId}`，再取 `Command-Tenant-Id`；owner、space 取请求头，只在声明了对应列时生效 |
+| 范围成为安全边界 | 覆盖 provenance 为 `AUTHENTICATED`，并开启 `wow.query.require-authenticated-scope` | 相同：可信网关（CoSec）校验租户后，注册返回 `AUTHENTICATED` 的 `DatasetQueryRequestScope` |
+| 范围落到哪里 | 系统字段 | 声明的范围列；平台级数据集只属于平台租户（§5.2） |
+| 主体标签 | 应用实现 `AbacQueryPolicy.getPrincipalTags` | 同一个策略 Bean（Ahoo-Wang/Wow#4133） |
+| 资源标签 | Snapshot 的 `tags` 系统字段 | `scope.tags` 绑定的列，由宽表加工时填入；标签键必须与主体标签同一套词汇 |
+
+两个缺口：
+
+1. **`ScopeContributor` 不作用于数据集路由**。它的参数是 `AggregateMetadata`，数据集没有。用它追加范围的应用，到了数据集路由就失去这一维。R1a 给 `ScopeContributor` 增加数据集的入口（缺省不贡献），数据集路由像聚合路由一样组合它们：贡献者对数据集是否生效由它自己显式决定，因为数据集的列与聚合不同。
+2. **没有开箱即用的主体标签来源**。每个应用都要自己实现 `getPrincipalTags`。R5 的分析服务提供基于 CoSec 的默认实现，从令牌或主体属性中取标签；CoSec 能提供哪些属性在 R5 设计时确认。
 
 ## 5. R2：企业数据的接入面
 
@@ -187,7 +204,7 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 
 **R4 服务端分析函数**：同比、环比、占比、累计、组内 TopN 进入聚合查询协议。规范只定义一次，各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE；ClickHouse 用窗口函数原生执行。view-engine 改用服务端结果：累计与趋势不再受行截断影响（解除 Q53 的置灰），整段对比一次查询完成（落实 Q59）。另起设计。
 
-**R5 开箱即用的分析服务**：新增一个独立的部署物（名字待定，如 `wow-analytics-server`），组合 `wow-view-store-starter`、`wow-dataset-registry-starter` 与 ClickHouse 数据集查询，并提供一个控制台界面（宿主，含 §6.4 的选择器）。企业部署这一个服务，接上自己的 ClickHouse 和 CoSec，就有完整的分析能力。它与 `wow-view-store-server` 共享 starter、不共享部署物：
+**R5 开箱即用的分析服务**（含 §4.5 缺口 2 的 CoSec 主体标签）：新增一个独立的部署物（名字待定，如 `wow-analytics-server`），组合 `wow-view-store-starter`、`wow-dataset-registry-starter` 与 ClickHouse 数据集查询，并提供一个控制台界面（宿主，含 §6.4 的选择器）。企业部署这一个服务，接上自己的 ClickHouse 和 CoSec，就有完整的分析能力。它与 `wow-view-store-server` 共享 starter、不共享部署物：
 
 | 部署物 | 组成 | 给谁用 |
 |---|---|---|
@@ -215,6 +232,8 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 | Q6 | view-engine 与“定义是代码” | 只对数据集放宽：定义从描述派生，存储中的覆盖只能收窄与改词（§6） |
 | Q7 | 运行时资源 | `resolveResource(id)` 按需解析，失败按“定义不在”报告（§6.3） |
 | Q8 | 注册表的宿主 | 不放进 `wow-view-store-server`；由 R5 新增的分析服务组合 view-store 与注册表的 starter，也可嵌入任意业务服务（§4.1、§7） |
+| Q9 | 数据集路由上的范围贡献者 | `ScopeContributor` 增加数据集入口，缺省不贡献，由贡献者显式决定（§4.5），随 R1a 实施 |
+| Q10 | 主体标签来源 | R5 提供基于 CoSec 的 `AbacQueryPolicy` 默认实现（§4.5） |
 
 ## 10. 实施阶段
 
@@ -222,7 +241,7 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 
 | 阶段 | 内容 | 证明 |
 |---|---|---|
-| **R1a 动态数据集** | `QueryDatasetRegistry`；Catalog、网关、路由缓存随注册表变化；`GET /dataset` 目录 | wow-query 单测；starter 测试：运行时加入、替换、移除数据集，路由立即生效 |
+| **R1a 动态数据集** | `QueryDatasets` 可变；Catalog、网关、路由缓存随它变化；`GET /dataset` 目录；数据集路由组合 `ScopeContributor`（§4.5） | wow-query 单测；starter 测试：运行时加入、替换、移除数据集，路由立即生效 |
 | **R1b 注册表** | `dataset-registry` 的 api、domain、starter；起草（读 `system.columns`）、审核、发布、下线；发布门槛；投影进查询。不依赖分析服务：以 starter 测试验证，需要真实运行时时嵌入示例应用 | 聚合规格测试（发布门槛的每一条）；ClickHouse 集成测试：起草到发布到查询 |
 | **R2** | 命名数据源；平台级数据集 | 单测与集成测试：两个数据源；平台租户与其他租户的结果 |
 | **R3a 派生定义** | `deriveDatasetDefinition`；存储中的覆盖 | view-engine 单测：派生结果过 `admit`；覆盖只能收窄 |

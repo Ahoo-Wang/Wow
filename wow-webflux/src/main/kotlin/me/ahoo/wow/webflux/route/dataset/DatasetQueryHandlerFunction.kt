@@ -42,6 +42,7 @@ import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.SINGLE_QUERY
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.STRICT_FILTER_EXPRESSION_EXTRACTOR
 import me.ahoo.wow.webflux.route.query.QueryHandlerSupport
 import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunction
+import me.ahoo.wow.webflux.route.query.ScopeContributor
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -86,6 +87,36 @@ open class DefaultDatasetQueryRequestScope : DatasetQueryRequestScope {
     companion object INSTANCE : DefaultDatasetQueryRequestScope()
 }
 
+/**
+ * The caller scope of the dataset routes: the host's [identity] scope followed by every [ScopeContributor]'s dataset
+ * dimension, each half appended to the same half, as [me.ahoo.wow.webflux.route.query.CompositeQueryRequestScope]
+ * does for the aggregate routes. Since 9.9.0.
+ */
+class CompositeDatasetQueryRequestScope(
+    val identity: DatasetQueryRequestScope,
+    val contributors: List<ScopeContributor>,
+) : DatasetQueryRequestScope {
+    override fun resolve(dataset: QueryDataset, request: ServerRequest): QueryScope =
+        contributors.fold(identity.resolve(dataset, request)) { scope, contributor ->
+            scope.and(contributor.contribute(dataset, request))
+        }
+
+    companion object {
+        /** [identity] with [contributors] appended; [identity] itself when there are none. */
+        fun of(identity: DatasetQueryRequestScope, contributors: List<ScopeContributor>): DatasetQueryRequestScope =
+            if (contributors.isEmpty()) identity else CompositeDatasetQueryRequestScope(identity, contributors)
+    }
+}
+
+private fun QueryScope.and(other: QueryScope): QueryScope = if (other == QueryScope.NONE) {
+    this
+} else {
+    QueryScope(authenticated = authenticated.and(other.authenticated), declared = declared.and(other.declared))
+}
+
+private fun FilterExpression.and(other: FilterExpression): FilterExpression =
+    if (other == MatchAllFilter) this else appendFilter(other)
+
 /** The query operations a dataset route serves. */
 enum class DatasetQueryOperation { SCHEMA, COUNT, AGGREGATION, LIST, PAGED, CURSOR, SINGLE }
 
@@ -101,7 +132,9 @@ class DatasetQueryHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler,
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
-    private val handlers = ConcurrentHashMap<MaterializedNamedAggregate, HandlerFunction<ServerResponse>>()
+    // Keyed by name and checked against the gateway: a dataset replaced by another declaration has a new gateway.
+    private val handlers =
+        ConcurrentHashMap<MaterializedNamedAggregate, Pair<DatasetQueryGateway, HandlerFunction<ServerResponse>>>()
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val name = MaterializedNamedAggregate(
@@ -112,7 +145,10 @@ class DatasetQueryHandlerFunction(
             request,
             NotFoundResourceException("Dataset [$name] is not served here."),
         )
-        return handlers.computeIfAbsent(name) { handler(gateway) }.handle(request)
+        val handler = handlers.compute(name) { _, cached ->
+            cached?.takeIf { it.first === gateway } ?: (gateway to handler(gateway))
+        }.let(::checkNotNull).second
+        return handler.handle(request)
     }
 
     private fun handler(gateway: DatasetQueryGateway): HandlerFunction<ServerResponse> {

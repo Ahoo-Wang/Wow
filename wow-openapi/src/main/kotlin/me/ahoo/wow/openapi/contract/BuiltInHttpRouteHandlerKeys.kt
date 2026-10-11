@@ -77,6 +77,7 @@ object BuiltInHttpRouteHandlerKeys {
     }
 
     object Dataset {
+        const val DIRECTORY = "$DATASET.directory"
         const val SCHEMA = "$DATASET.schema"
         const val COUNT = "$DATASET.count"
         const val AGGREGATION = "$DATASET.aggregation"

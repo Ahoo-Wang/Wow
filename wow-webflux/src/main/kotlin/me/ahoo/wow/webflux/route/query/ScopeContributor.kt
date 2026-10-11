@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.QueryScopeProvenance
+import me.ahoo.wow.query.schema.QueryDataset
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
@@ -40,6 +41,13 @@ import org.springframework.web.reactive.function.server.ServerRequest
  */
 fun interface ScopeContributor {
     fun contribute(aggregateMetadata: AggregateMetadata<*, *>, request: ServerRequest): QueryScope
+
+    /**
+     * This dimension on a dataset route. A dataset's columns are not an aggregate's, so a contributor restricts a
+     * dataset only when it says so here: by default it adds nothing ([QueryScope.NONE]). The dataset's own scope
+     * columns ([QueryDataset.scope]) say which filters admission can map. Since 9.9.0.
+     */
+    fun contribute(dataset: QueryDataset, request: ServerRequest): QueryScope = QueryScope.NONE
 }
 
 /**

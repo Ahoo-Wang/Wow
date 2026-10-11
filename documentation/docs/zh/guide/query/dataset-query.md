@@ -97,6 +97,7 @@ Catalog 编译数据集时，用 `system.columns` 检查表是否符合声明，
 
 | 方法 | 路径 | 请求体与响应 |
 | --- | --- | --- |
+| `GET` | `/dataset` | 目录：本服务提供的每个数据集的上下文、名字、标题与能力描述版本（schema 不能编译时为 `null`） |
 | `GET` | `/dataset/{context}/{dataset}/schema` | 能力描述（ETag，未变化时 304） |
 | `POST` | `/dataset/{context}/{dataset}/count` | `FilterExpression` → 记录数 |
 | `POST` | `/dataset/{context}/{dataset}/list` | `ListQuery` → 行（JSON 数组或 SSE） |
@@ -105,9 +106,13 @@ Catalog 编译数据集时，用 `system.columns` 检查表是否符合声明，
 | `POST` | `/dataset/{context}/{dataset}/single` | `SingleQuery` → 一行，没有时 404 |
 | `POST` | `/dataset/{context}/{dataset}/aggregation` | `AggregationQuery` → 行（JSON 数组或 SSE） |
 
-每个路由也在 `/tenant/{tenantId}` 下提供。这些路由与聚合的查询路由走同一条管道：HTTP 入口、HTTP 预算、空闲超时、错误码与能力描述。服务没有提供的数据集返回 404。
+配置了数据集查询后端（例如 ClickHouse）时注册这些路由。除目录外，每个路由也在 `/tenant/{tenantId}` 下提供。这些路由与聚合的查询路由走同一条管道：HTTP 入口、HTTP 预算、空闲超时、错误码与能力描述。服务没有提供的数据集返回 404。
 
-调用方范围取自路径中的 `{tenantId}`（没有时取 `Command-Tenant-Id`）、`Command-Owner-Id` 与 `Wow-Space-Id`，后两者只在数据集声明了对应列时生效。它们都来自请求，所以是**声明**的范围；由可信网关（例如 CoSec）认证时，注册自己的 `DatasetQueryRequestScope` 并将其标记为已认证。聚合路由上的 `ScopeContributor` 不作用于数据集路由。
+调用方范围取自路径中的 `{tenantId}`（没有时取 `Command-Tenant-Id`）、`Command-Owner-Id` 与 `Wow-Space-Id`，后两者只在数据集声明了对应列时生效。它们都来自请求，所以是**声明**的范围；由可信网关（例如 CoSec）认证时，注册自己的 `DatasetQueryRequestScope` 并将其标记为已认证。`ScopeContributor` 默认只作用于聚合路由：数据集的列与聚合不同，贡献者覆盖 `contribute(dataset, request)` 才会限制数据集。
+
+## 运行时增删数据集
+
+`QueryDatasets` Bean 是本服务提供的数据集，启动时装入 `wow.query.datasets` 的声明，运行时可以 `add`、`replace`、`remove`。变更立即生效：Catalog 按新声明重新编译，网关、路由与目录随之更新。与本上下文的聚合同名、或本服务没有数据集查询后端时，`add` 被拒绝，什么都不改变。
 
 ## 进程内查询
 

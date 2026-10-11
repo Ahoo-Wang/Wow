@@ -129,6 +129,7 @@ public final class me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Data
 	public static final field AGGREGATION Ljava/lang/String;
 	public static final field COUNT Ljava/lang/String;
 	public static final field CURSOR_QUERY Ljava/lang/String;
+	public static final field DIRECTORY Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys$Dataset;
 	public static final field LIST_QUERY Ljava/lang/String;
 	public static final field PAGED_QUERY Ljava/lang/String;

@@ -212,9 +212,38 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     }
 }
 
-/** The datasets this instance serves, by name. */
-class QueryDatasets(datasets: Collection<QueryDataset>) {
-    private val byName: Map<MaterializedNamedAggregate, QueryDataset> = datasets.associateBy { it.namedAggregate }
+/** One change to [QueryDatasets]: a dataset added, replaced by a new declaration, or removed. */
+sealed interface QueryDatasetChange {
+    /** The dataset the change leaves in place, or the one it removed. */
+    val dataset: QueryDataset
+
+    data class Added(override val dataset: QueryDataset) : QueryDatasetChange
+
+    data class Replaced(val previous: QueryDataset, override val dataset: QueryDataset) : QueryDatasetChange
+
+    data class Removed(override val dataset: QueryDataset) : QueryDatasetChange
+}
+
+/**
+ * What follows [QueryDatasets]: the Catalog, the gateways. A change is first [validated][validate] by every listener,
+ * in registration order, and refused, with nothing changed, when one throws; it is then [applied][apply], which must
+ * not fail.
+ */
+interface QueryDatasetListener {
+    fun validate(change: QueryDatasetChange) = Unit
+
+    fun apply(change: QueryDatasetChange)
+}
+
+/**
+ * The datasets this instance serves, by name. Datasets join and leave at run time (dataset platform design §4.3):
+ * declaration files at startup, a registry's published versions afterwards. Reads take no lock; changes are
+ * serialized and reach every [listener][listen] before the next one starts.
+ */
+class QueryDatasets(datasets: Collection<QueryDataset> = emptyList()) {
+    @Volatile
+    private var byName: Map<MaterializedNamedAggregate, QueryDataset> = datasets.associateBy { it.namedAggregate }
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<QueryDatasetListener>()
 
     init {
         require(
@@ -226,6 +255,51 @@ class QueryDatasets(datasets: Collection<QueryDataset>) {
         get() = byName.values
 
     operator fun get(namedAggregate: NamedAggregate): QueryDataset? = byName[namedAggregate.materialize()]
+
+    /** Follows every later change; the datasets already here are [all]. */
+    fun listen(listener: QueryDatasetListener) {
+        check(this !== NONE) { "QueryDatasets.NONE never changes." }
+        listeners += listener
+    }
+
+    /** Adds [dataset]; refused when a dataset of that name is already here, or a listener refuses it. */
+    fun add(dataset: QueryDataset) = change {
+        require(dataset.namedAggregate !in byName) { "Dataset [${dataset.namedAggregate}] is already served." }
+        QueryDatasetChange.Added(dataset)
+    }
+
+    /** Replaces the dataset of [dataset]'s name with this declaration; refused when there is none. */
+    fun replace(dataset: QueryDataset) = change {
+        val previous = requireNotNull(byName[dataset.namedAggregate]) {
+            "Dataset [${dataset.namedAggregate}] is not served."
+        }
+        QueryDatasetChange.Replaced(previous, dataset)
+    }
+
+    /** Removes the dataset of [namedAggregate]; `false` when there is none. */
+    fun remove(namedAggregate: NamedAggregate): Boolean {
+        var removed = false
+        change {
+            val dataset = byName[namedAggregate.materialize()] ?: return@change null
+            removed = true
+            QueryDatasetChange.Removed(dataset)
+        }
+        return removed
+    }
+
+    private inline fun change(propose: () -> QueryDatasetChange?) {
+        check(this !== NONE) { "QueryDatasets.NONE never changes." }
+        synchronized(this) {
+            val change = propose() ?: return
+            listeners.forEach { it.validate(change) }
+            val name = change.dataset.namedAggregate
+            byName = when (change) {
+                is QueryDatasetChange.Removed -> byName - name
+                else -> byName + (name to change.dataset)
+            }
+            listeners.forEach { it.apply(change) }
+        }
+    }
 
     /** The profile of [context]'s model: the dataset's own for [QueryModel.DATASET], the built-in one otherwise. */
     fun profile(context: QuerySchemaContext): QueryModelProfile? = if (context.model == QueryModel.DATASET) {
@@ -250,6 +324,7 @@ class QueryDatasets(datasets: Collection<QueryDataset>) {
     }
 
     companion object {
+        /** No dataset, ever: it refuses every change. */
         @JvmField
         val NONE: QueryDatasets = QueryDatasets(emptyList())
     }

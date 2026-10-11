@@ -68,19 +68,39 @@ class QuerySchemaCatalog(
     private val meterRegistry: MeterRegistry? = null,
     /**
      * The datasets [versions] and [revalidate] cover, each compiled as its [QueryModel.DATASET] model. A dataset
-     * occupies its context's name slot, so it never takes the name of one of [aggregates].
+     * occupies its context's name slot, so it never takes the name of one of [aggregates]: the Catalog refuses such a
+     * dataset now and when it joins later. A dataset that joins, changes or leaves drops its compiled schema, so the
+     * next reader compiles the current declaration; the Catalog follows [datasets] before any listener registered
+     * after it is built, such as the gateways.
      */
-    datasets: Collection<NamedAggregate> = emptyList(),
+    private val datasets: QueryDatasets = QueryDatasets.NONE,
 ) {
     private val aggregates = aggregates.map { it.materialize() }.distinct()
-    private val datasets = datasets.map { it.materialize() }.distinct()
-
-    init {
-        val shared = this.datasets.intersect(this.aggregates.toSet())
-        require(shared.isEmpty()) { "Datasets must not take the name of an aggregate of their context: $shared." }
-    }
+    private val aggregateNames = this.aggregates.toSet()
     private val providers = ConcurrentHashMap<Pair<MaterializedNamedAggregate, QueryModel>, QueryModelSchemaProvider>()
     private val inFlight = ConcurrentHashMap<QueryModelSchemaProvider, Mono<Status>>()
+
+    init {
+        datasets.all.forEach { requireDatasetName(it.namedAggregate) }
+        if (datasets !== QueryDatasets.NONE) {
+            datasets.listen(
+                object : QueryDatasetListener {
+                    override fun validate(change: QueryDatasetChange) {
+                        if (change is QueryDatasetChange.Added) requireDatasetName(change.dataset.namedAggregate)
+                    }
+
+                    // Also on an addition: a reader may have asked for the name before it was served.
+                    override fun apply(change: QueryDatasetChange) {
+                        providers.remove(change.dataset.namedAggregate to QueryModel.DATASET)
+                    }
+                },
+            )
+        }
+    }
+
+    private fun requireDatasetName(name: MaterializedNamedAggregate) {
+        require(name !in aggregateNames) { "Dataset [$name] must not take the name of an aggregate of its context." }
+    }
 
     /** One schema provider of one aggregate's model. */
     private data class Entry(
@@ -121,7 +141,7 @@ class QuerySchemaCatalog(
     private fun entries(): List<Entry> = (
         aggregates.flatMap { namedAggregate ->
             BUILT_IN_MODELS.map { model -> Entry(namedAggregate, model, provider(namedAggregate, model)) }
-        } + datasets.map { Entry(it, QueryModel.DATASET, provider(it, QueryModel.DATASET)) }
+        } + datasets.all.map { Entry(it.namedAggregate, QueryModel.DATASET, provider(it.namedAggregate, QueryModel.DATASET)) }
         ).filterNot { it.provider is UnavailableQueryModelSchemaProvider }
 
     /** The current version of every schema, loading those not loaded yet. */
@@ -206,7 +226,7 @@ fun interface QueryModelCompiler {
             legacyDeclarations: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
             datasets: QueryDatasets = QueryDatasets.NONE,
         ): QueryModelCompiler {
-            val declared = if (datasets.all.isEmpty()) sources.toList() else sources + datasets.schemaSource
+            val declared = if (datasets === QueryDatasets.NONE) sources.toList() else sources + datasets.schemaSource
             return QueryModelCompiler { context, storage ->
                 DefaultQueryModelSchemaProvider(
                     context = context,

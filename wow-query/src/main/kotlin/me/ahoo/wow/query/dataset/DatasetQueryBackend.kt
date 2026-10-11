@@ -33,13 +33,19 @@ fun interface DatasetQueryBackendFactory {
     fun create(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend>
 }
 
-/** A [DatasetQueryBackendFactory] that creates each dataset's binding once and reuses it. */
+/**
+ * A [DatasetQueryBackendFactory] that creates each dataset's binding once and reuses it while the dataset keeps its
+ * declaration; a dataset replaced by another declaration (another table, say) gets a new binding.
+ */
 @WowSpi
 abstract class AbstractDatasetQueryBackendFactory : DatasetQueryBackendFactory {
-    private val bindingCache = ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<DatasetQueryBackend>>()
+    private val bindingCache =
+        ConcurrentHashMap<MaterializedNamedAggregate, Pair<QueryDataset, QueryBackendBinding<DatasetQueryBackend>>>()
 
     override fun create(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> =
-        bindingCache.computeIfAbsent(dataset.namedAggregate) { createBinding(dataset) }
+        bindingCache.compute(dataset.namedAggregate) { _, cached ->
+            cached?.takeIf { it.first == dataset } ?: (dataset to createBinding(dataset))
+        }.let(::checkNotNull).second
 
     protected abstract fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend>
 }
