@@ -16,6 +16,7 @@ package me.ahoo.wow.query.dataset
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
@@ -30,6 +31,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.CursorPositionCodec
@@ -40,6 +42,7 @@ import me.ahoo.wow.query.QueryBackendProvider
 import me.ahoo.wow.query.QueryBackendProviders
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.SimpleQueryBackendProvider
 import me.ahoo.wow.query.dsl.aggregation
@@ -64,6 +67,7 @@ import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
+import me.ahoo.wow.query.withQueryEntry
 import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.toObjectNode
 import org.junit.jupiter.api.Test
@@ -311,6 +315,48 @@ class DatasetQueryGatewayTest {
     }
 
     @Test
+    fun `a platform-level dataset is the platform tenant's and other tenants read nothing`() {
+        val platform = QueryDataset.of(orders.namedAggregate) {
+            platform()
+            identity("order_id")
+            field("order_id") {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+            field("city") {
+                types(QueryValueType.STRING)
+                nullable(false)
+            }
+        }
+        platform.scope.fixedTenantId.assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
+        platform.profile.requiredScope.assert().isEqualTo(QueryField("tenantId"))
+        platform.profile.systemField(SystemField.TENANT_ID).assert().isNull()
+        val backend = RecordingBackend()
+        fun count(tenant: String) {
+            gateway(backend, platform).count(filter { "city" eq "Hangzhou" })
+                .contextWrite { it.withQueryScope(TenantIdFilter(tenant)) }
+                .test().expectNext(1).verifyComplete()
+        }
+        count(TenantId.DEFAULT_TENANT_ID)
+        (backend.admitted.last().query as FilterExpression).assert().isEqualTo(filter { "city" eq "Hangzhou" })
+        count("t1")
+        (backend.admitted.last().query as FilterExpression).assert().isSameAs(MatchNoneFilter)
+
+        val authenticated = QueryEntryPolicy(requireAuthenticatedScope = true)
+        gateway(backend, platform, entryPolicy = authenticated).count(MatchAllFilter)
+            .contextWrite { it.withQueryEntry(QueryEntry.HTTP) }
+            .test().expectError(me.ahoo.wow.query.QueryScopeRequiredException::class.java).verify()
+        gateway(backend, platform, entryPolicy = authenticated).count(MatchAllFilter)
+            .contextWrite {
+                it.withQueryEntry(QueryEntry.HTTP)
+                    .withQueryScope(
+                        me.ahoo.wow.query.QueryScope(authenticated = TenantIdFilter(TenantId.DEFAULT_TENANT_ID))
+                    )
+            }
+            .test().expectNext(1).verifyComplete()
+    }
+
+    @Test
     fun `a dataset never takes the name of an aggregate of its context`() {
         assertThrows<IllegalArgumentException> {
             QuerySchemaCatalog(aggregates = listOf(orders.namedAggregate), datasets = QueryDatasets(listOf(orders)))
@@ -470,11 +516,13 @@ class DatasetQueryGatewayTest {
         backend: DatasetQueryBackend = RecordingBackend(),
         dataset: QueryDataset = orders,
         policies: List<QueryPolicy> = emptyList(),
+        entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     ): DatasetQueryGateway = DefaultDatasetQueryGateway(
         dataset = dataset,
         backend = backend,
         schemaProvider = catalog(dataset, backend).provider(dataset.namedAggregate, QueryModel.DATASET),
         policies = policies,
+        entryPolicy = entryPolicy,
     )
 
     private class RecordingBackend : DatasetQueryBackend {

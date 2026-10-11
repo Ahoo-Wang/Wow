@@ -39,20 +39,29 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
-/** Creates each dataset's ClickHouse backend and storage adapter over one [executor]. */
-class ClickHouseDatasetQueryBackendFactory(
+/**
+ * Creates each dataset's ClickHouse backend and storage adapter: over the default source's executor, or over the
+ * named source among `sources` that its storage binding names.
+ */
+class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
     private val executor: ClickHouseExecutor,
     private val options: ClickHouseDatasetOptions = ClickHouseDatasetOptions(),
+    private val sources: Map<String, ClickHouseSource> = emptyMap(),
 ) : AbstractDatasetQueryBackendFactory() {
     override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
-        val storage = ClickHouseDatasetStorage.of(dataset, options.defaultDatabase)
-        val table = executor.table(storage.database, storage.table).cache(
+        val storage = ClickHouseDatasetStorage.of(
+            dataset,
+            options.defaultDatabase,
+            sources.mapValues { it.value.database }
+        )
+        val reader = storage.source?.let { sources.getValue(it).executor } ?: executor
+        val table = reader.table(storage.database, storage.table).cache(
             { options.metadataTtl },
             { Duration.ZERO },
             { Duration.ZERO },
         )
         return QueryBackendBinding(
-            ClickHouseDatasetQueryBackend(dataset, storage, executor, options) { table },
+            ClickHouseDatasetQueryBackend(dataset, storage, reader, options) { table },
             ClickHouseQuerySchemaAdapter(dataset, storage) { table },
         )
     }

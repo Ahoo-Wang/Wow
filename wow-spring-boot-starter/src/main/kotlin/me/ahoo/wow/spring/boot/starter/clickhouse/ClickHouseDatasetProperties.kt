@@ -36,6 +36,8 @@ import java.time.Duration
  * @property metadataTtl how long a table's columns and engine are reused before `system.columns` is read again.
  * @property http the limits of an HTTP query, sent as server settings; an over-limit query fails.
  * @property inProcess the limits of an in-process query; none by default, as in-process callers are trusted code.
+ * @property sources other ClickHouse servers, by name, that a dataset reads from when its `storage.source` names one
+ * (dataset platform design §5.1); the settings above are the default source's. The limits apply to every source.
  */
 @ConfigurationProperties(prefix = ClickHouseDatasetProperties.PREFIX)
 data class ClickHouseDatasetProperties(
@@ -50,7 +52,23 @@ data class ClickHouseDatasetProperties(
     var metadataTtl: Duration = Duration.ofMinutes(1),
     var http: HttpLimits = HttpLimits(),
     var inProcess: Limits = Limits(),
+    var sources: Map<String, Source> = emptyMap(),
 ) {
+    /** One named ClickHouse server: its connection, as the default source's settings say for it. */
+    data class Source(
+        var endpoints: List<URI> = emptyList(),
+        var username: String = "default",
+        var password: String = "",
+        var database: String = "default",
+        var connectionTimeout: Duration = Duration.ofSeconds(5),
+        var socketTimeout: Duration = Duration.ofSeconds(60),
+        var maxConnections: Int = 16,
+    )
+
+    /** The default source's connection, as a [Source]. */
+    fun defaultSource(): Source =
+        Source(endpoints, username, password, database, connectionTimeout, socketTimeout, maxConnections)
+
     /** What one HTTP query may cost: 30 seconds and 4 GiB of memory unless set; untrusted callers get a bound. */
     data class HttpLimits(
         @DefaultValue("30s")

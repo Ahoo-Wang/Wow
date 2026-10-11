@@ -29,6 +29,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.clickhouse.ClickHouseDatasetAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.clickhouse.ClickHouseDatasetProperties
+import me.ahoo.wow.spring.boot.starter.clickhouse.ClickHouseDatasetSources
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import me.ahoo.wow.spring.query.snapshotQueryGatewayBeanName
@@ -98,13 +99,18 @@ class DatasetRegistryAutoConfiguration {
         fun clickHouseDatasetTableInspector(
             executor: ClickHouseExecutor,
             properties: ClickHouseDatasetProperties,
-        ): DatasetTableInspector = ClickHouseDatasetTableInspector(executor, properties.database)
+            sources: ObjectProvider<ClickHouseDatasetSources>,
+        ): DatasetTableInspector = ClickHouseDatasetTableInspector(
+            executor,
+            properties.database,
+            sources.ifAvailable?.sources.orEmpty(),
+        )
     }
 
     /** Without a backend that can read a table, drafting is refused. */
     @Bean
     @ConditionalOnMissingBean
-    fun datasetTableInspector(): DatasetTableInspector = DatasetTableInspector {
+    fun datasetTableInspector(): DatasetTableInspector = DatasetTableInspector { _, _ ->
         Mono.error(DatasetRegistryException.invalid("No dataset backend here can read a table to draft from."))
     }
 

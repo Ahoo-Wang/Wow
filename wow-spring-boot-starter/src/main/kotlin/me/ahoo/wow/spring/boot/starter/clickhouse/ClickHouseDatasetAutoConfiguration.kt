@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.clickhouse
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory
 import me.ahoo.wow.clickhouse.query.ClickHouseExecutor
+import me.ahoo.wow.clickhouse.query.ClickHouseSource
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
@@ -40,31 +41,57 @@ import java.time.temporal.ChronoUnit
 class ClickHouseDatasetAutoConfiguration {
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean
-    fun clickHouseDatasetClient(properties: ClickHouseDatasetProperties): Client {
-        require(
-            properties.endpoints.isNotEmpty()
-        ) { "${ClickHouseDatasetProperties.PREFIX}.endpoints must not be empty." }
-        val builder = Client.Builder()
-        properties.endpoints.forEach { builder.addEndpoint(it.toASCIIString()) }
-        return builder
-            .setUsername(properties.username)
-            .setPassword(properties.password)
-            .setConnectTimeout(properties.connectionTimeout.toMillis())
-            .setSocketTimeout(properties.socketTimeout.toMillis())
-            .setMaxConnections(properties.maxConnections)
-            .setConnectionRequestTimeout(properties.connectionTimeout.toMillis(), ChronoUnit.MILLIS)
-            .useAsyncRequests(true)
-            .build()
-    }
+    fun clickHouseDatasetClient(properties: ClickHouseDatasetProperties): Client =
+        client(properties.defaultSource(), ClickHouseDatasetProperties.PREFIX)
 
     @Bean
     @ConditionalOnMissingBean
     fun clickHouseExecutor(client: Client): ClickHouseExecutor = ClickHouseExecutor(client)
 
+    /** The named sources of `wow.query.clickhouse.sources`, each over its own client. */
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean
+    fun clickHouseDatasetSources(properties: ClickHouseDatasetProperties): ClickHouseDatasetSources =
+        ClickHouseDatasetSources(
+            properties.sources.mapValues { (name, source) ->
+                client(source, "${ClickHouseDatasetProperties.PREFIX}.sources.$name") to source.database
+            },
+        )
+
     @Bean
     @ConditionalOnMissingBean(DatasetQueryBackendFactory::class)
     fun clickHouseDatasetQueryBackendFactory(
         executor: ClickHouseExecutor,
+        sources: ClickHouseDatasetSources,
         properties: ClickHouseDatasetProperties,
-    ): DatasetQueryBackendFactory = ClickHouseDatasetQueryBackendFactory(executor, properties.toOptions())
+    ): DatasetQueryBackendFactory =
+        ClickHouseDatasetQueryBackendFactory(executor, properties.toOptions(), sources.sources)
+
+    private fun client(source: ClickHouseDatasetProperties.Source, prefix: String): Client {
+        require(source.endpoints.isNotEmpty()) { "$prefix.endpoints must not be empty." }
+        val builder = Client.Builder()
+        source.endpoints.forEach { builder.addEndpoint(it.toASCIIString()) }
+        return builder
+            .setUsername(source.username)
+            .setPassword(source.password)
+            .setConnectTimeout(source.connectionTimeout.toMillis())
+            .setSocketTimeout(source.socketTimeout.toMillis())
+            .setMaxConnections(source.maxConnections)
+            .setConnectionRequestTimeout(source.connectionTimeout.toMillis(), ChronoUnit.MILLIS)
+            .useAsyncRequests(true)
+            .build()
+    }
+}
+
+/** The named ClickHouse sources and the clients they own, closed with the context. */
+class ClickHouseDatasetSources(clients: Map<String, Pair<Client, String>>) : AutoCloseable {
+    private val clients: List<Client> = clients.values.map { it.first }
+
+    /** Each named source, by name. */
+    val sources: Map<String, ClickHouseSource> =
+        clients.mapValues { (_, client) -> ClickHouseSource(ClickHouseExecutor(client.first), client.second) }
+
+    override fun close() {
+        clients.forEach(Client::close)
+    }
 }

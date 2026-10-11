@@ -37,7 +37,8 @@ A dataset is named within a bounded context, such as `analytics.order_wide`. Its
 | Key | Meaning |
 | --- | --- |
 | `fields` | The queryable fields, each a column of the table, in the [Query Model Schema](./query-model-schema.md) declaration vocabulary. A column that is not declared is never exposed |
-| `scope.tenant` | Required. The tenant column: the caller scope's `tenantId` lands on it, and `wow.query.require-authenticated-scope` requires it |
+| `scope.tenant` | The tenant column: the caller scope's `tenantId` lands on it, and `wow.query.require-authenticated-scope` requires it. Exactly one of it and `scope.platform` |
+| `scope.platform` | `true` for a table without a tenant column: the dataset belongs to the platform tenant `(0)`, so a caller of tenant `(0)` reads every record and a caller of any other tenant reads none; it is never open to every tenant. For an enterprise warehouse's tables that have no tenant |
 | `scope.owner`, `scope.space` | Optional. The owner and space columns |
 | `scope.tags` | Optional. ABAC tag keys bound to columns; see [ABAC](#abac) |
 | `identity` | Optional. Each row's unique identity: ID filters, cursor pages and the View Engine record view's `rowKey` need it |
@@ -79,7 +80,7 @@ wow:
       database: bi_db
 ```
 
-A dataset's `storage` names its `table` (`database.table`, or a table in `wow.query.clickhouse.database`) and optionally `deduplicate`: `NONE` (the default) or `FINAL`. `FINAL` merges a Replacing or Collapsing MergeTree's rows at read time, so reads are final-consistent.
+A dataset's `storage` names its `table` (`database.table`, or a table in its source's default database), optionally `deduplicate`: `NONE` (the default) or `FINAL`, and optionally `source`. `FINAL` merges a Replacing or Collapsing MergeTree's rows at read time, so reads are final-consistent.
 
 When the Catalog compiles a dataset it checks the table against the declaration through `system.columns`; any mismatch fails the compile, and the Catalog keeps the previous version:
 
@@ -88,6 +89,20 @@ When the Catalog compiles a dataset it checks the table against the declaration 
 - the scope, tag and identity columns are not `Nullable`, and the scope and identity columns are not arrays;
 - `FINAL` needs an engine that merges rows;
 - the only array is `Array(String)` (of `LowCardinality(String)` or `FixedString` too), declared as an array of strings; `Map`, `Tuple` and other arrays are not supported yet.
+
+The connection settings under `wow.query.clickhouse` are the default source; `wow.query.clickhouse.sources.{name}` configures other named sources (`endpoints`, `username`, `password`, `database`, `connection-timeout`, `socket-timeout`, `max-connections`), each over its own connection. A dataset's `storage.source` names one; without it the default source serves the dataset:
+
+```yaml
+wow:
+  query:
+    clickhouse:
+      sources:
+        warehouse:
+          endpoints: [ http://dw:8123 ]
+          username: wow_reader
+          password: ${DW_PASSWORD}
+          database: dw
+```
 
 Each entry's queries have limits, sent as server settings; an over-limit query fails rather than returning a truncated result. HTTP queries default to 30 seconds and 4 GiB of memory (`wow.query.clickhouse.http.*`); in-process queries are unlimited by default (`wow.query.clickhouse.in-process.*`). When a subscription is cancelled, the backend stops the query on ClickHouse.
 

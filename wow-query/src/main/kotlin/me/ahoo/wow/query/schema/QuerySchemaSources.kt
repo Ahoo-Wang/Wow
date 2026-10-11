@@ -191,12 +191,22 @@ internal fun parseDatasetDocument(namedAggregate: MaterializedNamedAggregate, js
     require(scopeUnknown.isEmpty()) { "Unknown dataset scope properties: $scopeUnknown." }
     val storage = root.get(QueryDatasetProperties.STORAGE) ?: JsonSerializer.createObjectNode()
     require(storage is ObjectNode) { "Dataset [${QueryDatasetProperties.STORAGE}] must be an object." }
+    val platform = scope.get(QueryDatasetProperties.PLATFORM)?.let {
+        require(it.isBoolean && it.booleanValue()) {
+            "Dataset [${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.PLATFORM}] must be true when present."
+        }
+        true
+    } ?: false
+    val tenant = scope.fieldOf(QueryDatasetProperties.TENANT)
+    require((tenant != null) != platform) {
+        "Dataset [${QueryDatasetProperties.SCOPE}] declares exactly one of " +
+            "[${QueryDatasetProperties.TENANT}] (its tenant column) and [${QueryDatasetProperties.PLATFORM}]."
+    }
     return QueryDataset(
         namedAggregate = namedAggregate,
         scope = QueryDatasetScope(
-            tenant = requireNotNull(scope.fieldOf(QueryDatasetProperties.TENANT)) {
-                "Dataset [${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.TENANT}] is required."
-            },
+            tenant = tenant,
+            platform = platform,
             owner = scope.fieldOf(QueryDatasetProperties.OWNER),
             space = scope.fieldOf(QueryDatasetProperties.SPACE),
             tags = scope.tagsOf(),

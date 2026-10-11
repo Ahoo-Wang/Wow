@@ -53,7 +53,7 @@ class Dataset(private val state: DatasetState) {
                 "Dataset [${command.id}] needs a table to draft from."
             )
         }
-        return inspector.draft(table).map { draft ->
+        return inspector.draft(table, command.source?.trim()?.takeIf(String::isNotEmpty)).map { draft ->
             DatasetDocuments.requireNoSensitivity(command.id, draft.document)
             DatasetDrafted(table = table, document = draft.document, skipped = draft.skipped)
         }

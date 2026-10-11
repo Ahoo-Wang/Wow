@@ -197,6 +197,7 @@ spring:
 | `wow.query.clickhouse.metadata-ttl` | Duration | `1m` | 表的列与引擎缓存多久后重新读取 `system.columns` |
 | `wow.query.clickhouse.http.*` | — | `max-execution-time=30s`、`max-memory-usage=4294967296` | HTTP 查询的上限：`max-execution-time`、`max-rows-to-read`、`max-result-rows`、`max-memory-usage`，以服务端设置下发，超限时查询失败 |
 | `wow.query.clickhouse.in-process.*` | — | 不限 | 进程内查询的同一组上限 |
+| `wow.query.clickhouse.sources.{name}.*` | — | — | 命名数据源：`endpoints`（必填）、`username`、`password`、`database`、`connection-timeout`、`socket-timeout`、`max-connections`，默认值同上；数据集用 `storage.source` 指定，上限对所有数据源生效 |
 
 ## WebFlux
 

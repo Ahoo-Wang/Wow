@@ -23,10 +23,11 @@ data class DatasetDraft(val document: ObjectNode, val skipped: List<SkippedColum
 
 /**
  * Drafts a dataset declaration from a table of the backend that serves datasets, such as ClickHouse's
- * `system.columns`. An unknown table is a [DatasetRegistryException.invalid].
+ * `system.columns`, in the named [source][draft] (the default one when `null`); the draft's storage binding names that
+ * source. An unknown table or source is a [DatasetRegistryException.invalid].
  */
 fun interface DatasetTableInspector {
-    fun draft(table: String): Mono<DatasetDraft>
+    fun draft(table: String, source: String?): Mono<DatasetDraft>
 }
 
 /**

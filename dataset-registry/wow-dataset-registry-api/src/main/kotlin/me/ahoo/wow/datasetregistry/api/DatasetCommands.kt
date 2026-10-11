@@ -34,8 +34,13 @@ data class DraftDataset(
     @CommandRoute.PathVariable
     @AggregateId
     val id: String,
-    /** `database.table`, or a table of the backend's default database. */
+    /** `database.table`, or a table of the source's default database. */
     val table: String,
+    /**
+     * The named source the table lives in, such as a ClickHouse server of `wow.query.clickhouse.sources`; the default
+     * one when `null`.
+     */
+    val source: String? = null,
 )
 
 /** A column the draft leaves out because a dataset cannot declare its type. */

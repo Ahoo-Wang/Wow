@@ -19,7 +19,7 @@ The aggregate id is the dataset's name, `{context}.{dataset}`; the aggregate has
 
 | Command | Effect |
 | --- | --- |
-| `DraftDataset` | Drafts the declaration from a table's columns (`system.columns`): types, nullability, dates, string arrays; suggests the scope and identity |
+| `DraftDataset` | Drafts the declaration from a table's columns (`system.columns`), in the default or a named source: types, nullability, dates, string arrays; suggests the scope and identity |
 | `ReviseDataset` | Replaces the draft declaration; a field whose declaration is unchanged keeps its review |
 | `ReviewSensitivity` | Records, field by field, sensitive at a level or not sensitive |
 | `PublishDataset` | Publishes the next version once the declaration is valid, every string field is reviewed, and it compiles against its table |

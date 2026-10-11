@@ -25,24 +25,37 @@ import java.time.Duration
  * "storage": { "table": "bi_db.order_customer_wide", "deduplicate": "FINAL" }
  * ```
  *
- * `table` is `database.table`, or a table in the backend's default database; `deduplicate` is `NONE` (the default)
- * or `FINAL`, which merges a replacing or collapsing engine's rows at read time and makes reads final-consistent.
+ * `table` is `database.table`, or a table in the default database of its source; `deduplicate` is `NONE` (the
+ * default) or `FINAL`, which merges a replacing or collapsing engine's rows at read time and makes reads
+ * final-consistent; `source` names one of the backend's [ClickHouseSource]s, the default one when absent (dataset
+ * platform design §5.1).
  */
 data class ClickHouseDatasetStorage(
     val database: String,
     val table: String,
     val deduplicate: Deduplicate = Deduplicate.NONE,
+    val source: String? = null,
 ) {
     enum class Deduplicate { NONE, FINAL }
 
     companion object {
         const val TABLE = "table"
         const val DEDUPLICATE = "deduplicate"
-        private val KNOWN = setOf(TABLE, DEDUPLICATE)
+        const val SOURCE = "source"
+        private val KNOWN = setOf(TABLE, DEDUPLICATE, SOURCE)
 
         // Each check states one way the binding can be malformed.
         @Suppress("ThrowsCount")
-        fun of(dataset: QueryDataset, defaultDatabase: String): ClickHouseDatasetStorage {
+        /**
+         * The binding of [dataset]: [defaultDatabase] is the default source's database, [sourceDatabases] each named
+         * source's; a dataset naming a source not in it fails.
+         */
+        @JvmOverloads
+        fun of(
+            dataset: QueryDataset,
+            defaultDatabase: String,
+            sourceDatabases: Map<String, String> = emptyMap(),
+        ): ClickHouseDatasetStorage {
             fun fail(message: String): QuerySchemaValidationException =
                 QuerySchemaValidationException("Dataset [${dataset.namedAggregate}] $message.")
             val binding = dataset.storage
@@ -56,10 +69,15 @@ data class ClickHouseDatasetStorage(
                 Deduplicate.entries.firstOrNull { node.isString && it.name == node.stringValue() }
                     ?: throw fail("must set [$DEDUPLICATE] to one of ${Deduplicate.entries}")
             } ?: Deduplicate.NONE
+            val source = binding.get(SOURCE)?.let { node ->
+                node.takeIf { it.isString }?.stringValue()?.takeIf { it in sourceDatabases }
+                    ?: throw fail("names an unknown ClickHouse [$SOURCE] [$node]; the sources are ${sourceDatabases.keys}")
+            }
             return ClickHouseDatasetStorage(
-                database = if (parts.size == 2) parts[0] else defaultDatabase,
+                database = if (parts.size == 2) parts[0] else source?.let(sourceDatabases::getValue) ?: defaultDatabase,
                 table = parts.last(),
                 deduplicate = deduplicate,
+                source = source,
             )
         }
     }
@@ -102,6 +120,9 @@ data class ClickHouseQueryLimits(
         )
     }
 }
+
+/** A named ClickHouse server a dataset can be read from: its [executor] and the [database] of a bare table name. */
+data class ClickHouseSource(val executor: ClickHouseExecutor, val database: String)
 
 /** How a [ClickHouseDatasetQueryBackendFactory] reaches its datasets. */
 data class ClickHouseDatasetOptions(

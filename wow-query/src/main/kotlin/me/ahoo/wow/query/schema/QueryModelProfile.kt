@@ -78,6 +78,13 @@ sealed class QueryModelProfile(val model: QueryModel) {
     abstract val requiredScope: QueryField
 
     /**
+     * The one tenant every record belongs to, for a model with no tenant field (a platform-level dataset); `null`
+     * otherwise. A tenant filter then matches every record when it names this tenant and none when it names another,
+     * and it pins [requiredScope].
+     */
+    open val fixedTenantId: String? = null
+
+    /**
      * The logical field a system-field filter (ID, TENANT_ID, DELETION, ...) targets: [identityField] for the record
      * identity; `null` when the model does not carry [field].
      */

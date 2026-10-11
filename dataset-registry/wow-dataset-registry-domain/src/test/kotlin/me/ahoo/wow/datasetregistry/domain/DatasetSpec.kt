@@ -62,7 +62,7 @@ private val ALL_REVIEWED = mapOf(
     "depts" to NOT_SENSITIVE,
 )
 
-private val INSPECTOR = DatasetTableInspector { table ->
+private val INSPECTOR = DatasetTableInspector { table, _ ->
     if (table == "bi.missing") {
         Mono.error(DatasetRegistryException.invalid("Table [bi.missing] does not exist."))
     } else {

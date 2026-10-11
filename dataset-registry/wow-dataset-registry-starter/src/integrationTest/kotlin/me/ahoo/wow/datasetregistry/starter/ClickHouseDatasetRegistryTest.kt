@@ -16,7 +16,9 @@ package me.ahoo.wow.datasetregistry.starter
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory
+import me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions
 import me.ahoo.wow.clickhouse.query.ClickHouseExecutor
+import me.ahoo.wow.clickhouse.query.ClickHouseSource
 import me.ahoo.wow.datasetregistry.api.DatasetRegistryErrorCodes
 import me.ahoo.wow.datasetregistry.api.SkippedColumn
 import me.ahoo.wow.datasetregistry.domain.DatasetRegistryException
@@ -70,7 +72,7 @@ class ClickHouseDatasetRegistryTest {
 
     @Test
     fun `a draft declares the table's columns and can be served as it is`() {
-        val draft = inspector.draft("orders").block()!!
+        val draft = inspector.draft("orders", null).block()!!
         draft.skipped.assert().containsExactly(SkippedColumn("attrs", "Map(String, String)"))
         draft.document.at("/scope/tenant").stringValue().assert().isEqualTo("tenant_id")
         draft.document.at("/storage/deduplicate").stringValue().assert().isEqualTo("FINAL")
@@ -84,9 +86,32 @@ class ClickHouseDatasetRegistryTest {
     }
 
     @Test
+    fun `a draft from a named source binds its datasets to that source`() {
+        val warehouse = ClickHouseSource(executor, DATABASE)
+        val named = ClickHouseDatasetTableInspector(executor, "default", mapOf("warehouse" to warehouse))
+        val draft = named.draft("orders", "warehouse").block()!!
+        draft.document.at("/storage/source").stringValue().assert().isEqualTo("warehouse")
+        draft.document.at("/storage/table").stringValue().assert().isEqualTo("$DATABASE.orders")
+        val dataset = QueryDataset.parse(MaterializedNamedAggregate("analytics", "orders"), draft.document.toString())
+        CompilingDatasetPublicationCheck(
+            datasets = QueryDatasets(),
+            registered = { emptySet() },
+            aggregates = emptySet(),
+            factory = ClickHouseDatasetQueryBackendFactory(
+                executor,
+                ClickHouseDatasetOptions(defaultDatabase = "default"),
+                mapOf("warehouse" to warehouse),
+            ),
+        ).check(dataset).test().verifyComplete()
+        named.draft("orders", "lake").test().expectErrorSatisfies {
+            it.assert().isInstanceOf(DatasetRegistryException::class.java).hasMessageContaining("[lake]")
+        }.verify()
+    }
+
+    @Test
     fun `a draft of a table that does not exist, or of a malformed name, is refused`() {
         listOf("$DATABASE.missing", "a.b.c", ".orders").forEach { table ->
-            inspector.draft(table).test().expectErrorSatisfies {
+            inspector.draft(table, null).test().expectErrorSatisfies {
                 (it as DatasetRegistryException).errorCode.assert().isEqualTo(DatasetRegistryErrorCodes.DATASET_INVALID)
             }.verify()
         }
@@ -94,7 +119,7 @@ class ClickHouseDatasetRegistryTest {
 
     @Test
     fun `a declaration the table contradicts is not publishable`() {
-        val draft = inspector.draft("$DATABASE.orders").block()!!.document
+        val draft = inspector.draft("$DATABASE.orders", null).block()!!.document
         (draft.get("fields") as tools.jackson.databind.node.ObjectNode).putObject("missing").putArray("types").add("STRING")
         val dataset = QueryDataset.parse(MaterializedNamedAggregate("analytics", "orders"), draft.toString())
         CompilingDatasetPublicationCheck(QueryDatasets(), { emptySet() }, emptySet(), ClickHouseDatasetQueryBackendFactory(executor))

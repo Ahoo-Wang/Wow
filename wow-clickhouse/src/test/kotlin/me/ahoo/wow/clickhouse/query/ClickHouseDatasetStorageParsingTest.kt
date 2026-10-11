@@ -95,6 +95,20 @@ class ClickHouseDatasetStorageParsingTest {
     }
 
     @Test
+    fun `the storage binding may name a source, whose database a bare table lives in`() {
+        val sources = mapOf("warehouse" to "dw")
+        ClickHouseDatasetStorage.of(dataset("""{"table":"orders","source":"warehouse"}"""), "default", sources)
+            .assert().isEqualTo(ClickHouseDatasetStorage("dw", "orders", source = "warehouse"))
+        ClickHouseDatasetStorage.of(dataset("""{"table":"bi.orders","source":"warehouse"}"""), "default", sources)
+            .assert().isEqualTo(ClickHouseDatasetStorage("bi", "orders", source = "warehouse"))
+        listOf("""{"table":"orders","source":"lake"}""", """{"table":"orders","source":1}""").forEach { storage ->
+            assertThrows<QuerySchemaValidationException>(storage) {
+                ClickHouseDatasetStorage.of(dataset(storage), "default", sources)
+            }.message.assert().contains("source")
+        }
+    }
+
+    @Test
     fun `limits become server settings that fail an overflowing query`() {
         ClickHouseQueryLimits.NONE.settings.assert().isEmpty()
         ClickHouseQueryLimits(
