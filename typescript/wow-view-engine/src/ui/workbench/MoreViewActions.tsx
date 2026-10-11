@@ -12,7 +12,12 @@
  */
 
 import { useState } from 'react';
-import { ChevronDownIcon, CopyIcon, LinkIcon } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  CopyIcon,
+  LayoutDashboardIcon,
+  LinkIcon,
+} from 'lucide-react';
 import type { SaveCommands } from '../../react/index.js';
 import type { ViewAudience } from '../../model/index.js';
 import { Button } from '../components/button.js';
@@ -27,6 +32,7 @@ import { AUDIENCE_ICON, useKindWord } from '../kit/kinds.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { DropdownMenuContent } from '../kit/popups.js';
 import { useViewRouter } from './ViewEngineProvider.js';
+import { AddToDashboardDialog } from './AddToDashboardDialog.js';
 
 /**
  * 「更多视图操作」 beside the save button: what else is done to the open
@@ -60,6 +66,7 @@ export function MoreViewActions({
   const word = useKindWord();
   const router = useViewRouter();
   const [said, say] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
   const { can, state } = commands;
   const moveTo: ViewAudience | null =
     can.changeAudience === true &&
@@ -72,7 +79,12 @@ export function MoreViewActions({
       : null;
   const linkable =
     router !== undefined && !state.isNew && typeof window !== 'undefined';
-  if (!onSaveAs && moveTo === null && !linkable) return null;
+  // 放进仪表盘: offered on a saved view whose commands can; whether any
+  // board will take it is read when the dialog opens.
+  const { boards, addToDashboard } = commands;
+  const placeable =
+    !state.isNew && boards !== undefined && addToDashboard !== undefined;
+  if (!onSaveAs && moveTo === null && !linkable && !placeable) return null;
   const Audience = moveTo === null ? null : AUDIENCE_ICON[moveTo];
 
   const move = (to: ViewAudience) => {
@@ -134,6 +146,18 @@ export function MoreViewActions({
                 )}
               </DropdownMenuItem>
             )}
+            {placeable && (
+              <DropdownMenuItem
+                data-slot="add-to-board"
+                onClick={() => {
+                  say(null);
+                  setPlacing(true);
+                }}
+              >
+                <LayoutDashboardIcon />
+                {messages.label('label.header.add-to-board')}
+              </DropdownMenuItem>
+            )}
             {linkable && (
               <DropdownMenuItem data-slot="copy-link" onClick={copyLink}>
                 <LinkIcon />
@@ -143,6 +167,19 @@ export function MoreViewActions({
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+      {placeable && (
+        <AddToDashboardDialog
+          open={placing}
+          onOpenChange={setPlacing}
+          commands={{ boards, addToDashboard, state }}
+          title={title}
+          onAdded={board =>
+            say(
+              messages.label('label.board-pick.added', { board: board.title }),
+            )
+          }
+        />
+      )}
       {/* Drawn once there is something to say, as the save button's own
           「已保存」 is: a second region standing empty beside it would be
           one more place a reader is told nothing. */}

@@ -553,6 +553,10 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | Code | Default wording |
 |---|---|
 | `view.abandon.failed` | That write could not be set aside. |
+| `view.addToDashboard.failed` | It could not be added to the dashboard. |
+| `view.addToDashboard.full` | The dashboard already holds {max} panels. |
+| `view.addToDashboard.not-board` | That is not a dashboard. |
+| `view.addToDashboard.unsaved` | The dashboard is open here with changes not yet saved: save or revert them first. |
 | `view.change.notify-failed` | A listener on view changes failed: {reason}. The list may be a revision behind. |
 | `view.changeAudience.failed` | Who this view is for could not be changed. |
 | `view.changeAudience.forbidden` | You may not change who this view is for; save a copy of your own instead. |

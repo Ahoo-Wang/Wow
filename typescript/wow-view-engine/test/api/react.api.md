@@ -555,6 +555,17 @@ interface AxisSpec {
 }
 
 // @public
+export interface BoardChoice {
+    // (undocumented)
+    definitionId: string;
+    definitionTitle: string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 interface BoardOrigin {
     // (undocumented)
     back: DashboardTarget;
@@ -3494,6 +3505,8 @@ export interface SaveAbilities {
 // @public (undocumented)
 export interface SaveCommands {
     abandon(write?: WriteState): void;
+    addToDashboard?(boardId: string): Promise<ViewInstance | null>;
+    boards?(): Promise<readonly BoardChoice[]>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
@@ -3903,6 +3916,7 @@ type ViewDefinition = DataViewDefinition | DashboardDefinition;
 class ViewEngine extends EngineResources {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
+    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: ViewRuntime, panelId: string, input: {

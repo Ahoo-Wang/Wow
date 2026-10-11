@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 118 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 119 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -20,6 +20,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 118 — with its kind 
 | `AnalysisEditorController` | interface | — | — |
 | `AnalysisFieldOption` | interface | One field and what the definition allows doing with it. | — |
 | `AnalysisResultController` | interface | — | — |
+| `BoardChoice` | interface | A board 「放进仪表盘…」 offers: its id, its title, and its definition's. | — |
 | `BulkActionView` | interface | One action as the selection's bar draws it. | — |
 | `BulkFailure` | interface | One record the command did not take, and the reason why: the source's words, or the action's own refusal as written (a key stays a key). | — |
 | `BulkOutcome` | interface | What one command came to, once every record it started has settled. | — |

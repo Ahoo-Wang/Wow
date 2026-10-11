@@ -11,12 +11,32 @@
  * limitations under the License.
  */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MemoryViewStore, ViewEngine } from '../src/index.js';
+import {
+  DEFAULT_RUNTIME_LIMITS,
+  MemoryViewStore,
+  ViewEngine,
+  type DashboardViewConfig,
+  type ViewInstance,
+} from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { mine, ordersDefinition, resourcesOf, testSource } from './fixtures.js';
+import {
+  dashboardConfig,
+  mine,
+  ordersDefinition,
+  overviewDefinition,
+  resourcesOf,
+  testSource,
+} from './fixtures.js';
+import { panel, pending } from './fixtures/dashboard.js';
 
 afterEach(cleanup);
 
@@ -68,5 +88,79 @@ describe('the title bar’s more menu (R2-98)', () => {
     await user.click(more());
     await screen.findByRole('menuitem', { name: 'Make shared' });
     expect(screen.queryByRole('menuitem', { name: 'Copy link' })).toBeNull();
+  });
+});
+
+describe('放进仪表盘… (R2-98)', () => {
+  const board = (panels: number): ViewInstance => ({
+    id: 'board-1',
+    definitionId: 'overview',
+    title: 'Daily',
+    scope: 'personal',
+    revision: 'r1',
+    config: dashboardConfig({
+      panels: Array.from({ length: panels }, (_, at) =>
+        panel({ id: `p${at}`, layout: { x: 0, y: at * 4, w: 6, h: 4 } }),
+      ),
+    }),
+  });
+
+  async function openWith(instances: ViewInstance[], maxDashboardPanels = 40) {
+    const store = new MemoryViewStore({
+      instances: [mine, pending, ...instances],
+    });
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
+      store,
+      limits: { ...DEFAULT_RUNTIME_LIMITS, maxDashboardPanels },
+    });
+    const user = userEvent.setup();
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await screen.findAllByRole('row');
+    await user.click(more());
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Add to dashboard…' }),
+    );
+    return { store, user, dialog: await screen.findByRole('dialog') };
+  }
+
+  it('puts the open view on the board picked, and says so', async () => {
+    const { store, user, dialog } = await openWith([board(1)]);
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Daily' }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const saved = (await store.get('board-1')).config as DashboardViewConfig;
+    expect(saved.panels[saved.panels.length - 1]).toMatchObject({
+      instanceId: 'orders-1',
+    });
+    expect(await screen.findByText('Added to “Daily”')).toBeTruthy();
+  });
+
+  it('says why a board would not take it, and stays open', async () => {
+    const { user, dialog } = await openWith([board(1)], 1);
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Daily' }),
+    );
+    expect((await within(dialog).findByRole('alert')).textContent).toMatch(
+      /already holds 1 panels/,
+    );
+    expect(screen.getByRole('dialog')).toBe(dialog);
+  });
+
+  it('says so where there is no board to change', async () => {
+    const { dialog } = await openWith([]);
+    expect(
+      await within(dialog).findByText('There is no dashboard you may change.'),
+    ).toBeTruthy();
   });
 });

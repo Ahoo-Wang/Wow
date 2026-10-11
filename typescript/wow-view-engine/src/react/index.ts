@@ -126,6 +126,7 @@ export {
 export {
   type SaveAbilities,
   type SaveCommandState,
+  type BoardChoice,
   type SaveCommands,
   type SaveTargetInput,
   useSaveCommands,

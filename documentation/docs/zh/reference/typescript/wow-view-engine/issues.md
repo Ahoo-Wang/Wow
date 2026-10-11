@@ -553,6 +553,10 @@ export type IssuePath = (string | number)[];
 | 代码 | 默认措辞 |
 |---|---|
 | `view.abandon.failed` | 无法放弃那次写入。 |
+| `view.addToDashboard.failed` | 没能放进仪表盘。 |
+| `view.addToDashboard.full` | 这个仪表盘已经有 {max} 块面板了。 |
+| `view.addToDashboard.not-board` | 那不是一个仪表盘。 |
+| `view.addToDashboard.unsaved` | 这个仪表盘在本页打开着，还有没保存的修改：先保存或还原。 |
 | `view.change.notify-failed` | 视图变化的订阅者出错：{reason}。列表可能慢一拍。 |
 | `view.changeAudience.failed` | 没能改变这个视图的可见范围。 |
 | `view.changeAudience.forbidden` | 你不能改变这个视图的可见范围，另存一份自己的吧。 |

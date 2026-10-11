@@ -1,4 +1,4 @@
-# Issue codes — 508.
+# Issue codes — 512.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -450,6 +450,10 @@ runtime.query.unreachable
 runtime.source.unresolved
 runtime.summary.page-only
 view.abandon.failed
+view.addToDashboard.failed
+view.addToDashboard.full
+view.addToDashboard.not-board
+view.addToDashboard.unsaved
 view.change.notify-failed
 view.changeAudience.failed
 view.changeAudience.forbidden

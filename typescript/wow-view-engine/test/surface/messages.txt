@@ -1,4 +1,4 @@
-# Message keys — 2122.
+# Message keys — 2134.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -563,6 +563,13 @@ label.applied.implied
 label.applied.scoped
 label.applied.title
 label.applied.title-of
+label.board-pick.added
+label.board-pick.cancel
+label.board-pick.description
+label.board-pick.heading
+label.board-pick.loading
+label.board-pick.none
+label.board-pick.of
 label.boolean.false
 label.boolean.true
 label.bulk.dismiss
@@ -1424,6 +1431,7 @@ label.having.op.GTE
 label.having.op.LT
 label.having.op.LTE
 label.having.op.NE
+label.header.add-to-board
 label.header.copy-link
 label.header.link-copied
 label.header.link-failed
@@ -2063,6 +2071,10 @@ runtime.query.unreachable
 runtime.source.unresolved
 runtime.summary.page-only
 view.abandon.failed
+view.addToDashboard.failed
+view.addToDashboard.full
+view.addToDashboard.not-board
+view.addToDashboard.unsaved
 view.change.notify-failed
 view.changeAudience.failed
 view.changeAudience.forbidden
