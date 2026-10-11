@@ -235,8 +235,13 @@ describe('reading and building a dashboard (D22 A)', () => {
       refresh.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     // Nothing to save while it is read: the copy, and no Save to grey out.
+    // Beside it the menu of what else is done to the board (R2-98).
     const saves = within(slot('save-actions')!).getAllByRole('button');
-    expect(saves.map(button => button.textContent)).toEqual(['Save as']);
+    expect(
+      saves.map(
+        button => button.textContent || button.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Save as', 'More dashboard actions']);
 
     await enter(user);
     const save = slot('dashboard-save')!;
@@ -320,7 +325,7 @@ describe('reading and building a dashboard (D22 A)', () => {
     // The keyboard is back on the way in.
     expect(document.activeElement).toBe(slot('dashboard-edit'));
     // The header says the save landed, on the copy that waits meanwhile.
-    const landedFace = within(slot('save-actions')!).getByRole('button');
+    const landedFace = within(slot('save-actions')!).getAllByRole('button')[0]!;
     expect(landedFace.textContent).toBe('Saved');
     expect((landedFace as HTMLButtonElement).disabled).toBe(true);
   });

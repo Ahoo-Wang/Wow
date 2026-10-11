@@ -50,6 +50,7 @@ describe('useSaveCommands', () => {
       save: false,
       saveAs: false,
       rename: false,
+      changeAudience: false,
       delete: false,
       revert: false,
       createPersonal: false,

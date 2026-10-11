@@ -12,13 +12,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  CopyIcon,
-  RotateCcwIcon,
-  SaveIcon,
-} from 'lucide-react';
+import { CheckIcon, CopyIcon, RotateCcwIcon, SaveIcon } from 'lucide-react';
 import type { SaveCommands } from '../../react/index.js';
 import { unsettled } from '../../react/writes.js';
 import { cn } from 'cn';
@@ -33,18 +27,13 @@ import {
 } from '../components/alert-dialog.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
-import { IconButton, IconTooltip } from '../kit/IconButton.js';
+import { IconButton } from '../kit/IconButton.js';
 import { ButtonGroup } from '../components/button-group.js';
-import {
-  DropdownMenu,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/dropdown-menu.js';
 import { Spinner } from '../components/spinner.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SAVE_KEYS, isSaveKey, useSurfaceKey } from '../kit/surfaceKeys.js';
-import { AlertDialogContent, DropdownMenuContent } from '../kit/popups.js';
+import { AlertDialogContent } from '../kit/popups.js';
+import { MoreViewActions } from './MoreViewActions.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 import type { ViewWriteCallbacks } from './WriteOutcome.js';
 import { useKindWord } from '../kit/kinds.js';
@@ -288,41 +277,12 @@ export function SaveActions({
           />
         </Button>
 
-        {menuSaveAs && (
-          <DropdownMenu>
-            <IconTooltip
-              label={messages.label(word('label.header.more'))}
-              render={
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      // Nothing in the menu may run while a write is in
-                      // flight: reverting mid-save would leave the old config
-                      // as a dirty draft over a baseline that has just become
-                      // the new one. Nor while an outcome is unsettled: Retry
-                      // or Keep mine is still to land, and a revert taken
-                      // first would be undone by the write the user is about
-                      // to choose.
-                      disabled={stopped}
-                    />
-                  }
-                />
-              }
-            >
-              <ChevronDownIcon />
-            </IconTooltip>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setCopying(true)}>
-                  <CopyIcon />
-                  {messages.label('label.save.save-as')}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <MoreViewActions
+          commands={commands}
+          title={title}
+          stopped={stopped}
+          {...(menuSaveAs ? { onSaveAs: () => setCopying(true) } : {})}
+        />
       </ButtonGroup>
 
       {/* Announced rather than only shown: the word appears on the control
