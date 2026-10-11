@@ -253,7 +253,7 @@ export const GaugeDrawn: Story = {
       zhCN['label.chart.column.scale-min'],
       zhCN['label.chart.column.scale-max'],
     ]);
-    await expect(rows[1]?.[1]).toBe('¥300,000.00');
+    await expect(rows[1]?.[1]).toBe('¥200,000.00');
     const panel = await visualize(canvasElement);
     await expect(
       tile(panel, 'metric').querySelector('[data-slot="chart-hint"]'),

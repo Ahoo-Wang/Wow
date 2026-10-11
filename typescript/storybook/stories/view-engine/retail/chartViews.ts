@@ -206,8 +206,12 @@ export const CHART_VIEW_IDS = {
   themeRiver: 'chart-river-channel-gmv',
 } as const;
 
-/** 本月 GMV 的目标（刻度盘）：一个月的计划数。 */
-export const MONTH_GMV_TARGET = 300_000;
+/**
+ * 本月 GMV 的目标（刻度盘）：一个月的计划数，比 8 月的约 17.5 万高一成多。
+ * 9 月走过 21 天（七成）时达成七成出头，正在进度上——原来的 30 万比双 11 那个
+ * 月还高，刻度盘停在一半，读起来像落后了一大截（Storybook 审查 P2）。
+ */
+export const MONTH_GMV_TARGET = 200_000;
 
 export const CHART_VIEWS: ViewInstance[] = [
   // 箱线图：各仓付款到发货要几个小时——不只看中位数，也看拖得最久的那头。
