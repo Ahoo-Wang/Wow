@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { zonedDay } from '../../../analysis/index.js';
 import { useEffect, useState } from 'react';
 import { sameJson, type FilterValue } from '../../../model/index.js';
 import {
@@ -256,12 +257,6 @@ function daysInForce(
     display.clock?.now() ?? new Date(),
     zone,
   );
-  const day = (instant: string) =>
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: zone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date(instant));
+  const day = (instant: string) => zonedDay(new Date(instant).getTime(), zone);
   return { type: 'absolute', from: day(from), to: day(to ?? from) };
 }

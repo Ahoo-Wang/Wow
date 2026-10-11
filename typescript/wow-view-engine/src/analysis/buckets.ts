@@ -101,7 +101,8 @@ export function bucketStart(
   }
 }
 
-interface WallClock {
+/** The calendar fields of a moment on one zone's clock. */
+export interface WallClock {
   year: number;
   month: number;
   day: number;
@@ -162,7 +163,13 @@ function wallClockOf(timeZone: string): Intl.DateTimeFormat {
   return found;
 }
 
-function zonedParts(ms: number, timeZone: string): WallClock {
+/**
+ * The calendar fields of `ms` on `timeZone`'s clock — the one reading every
+ * caller that needs a zone's day or time asks, on the reader kept per zone
+ * above (R2-103: the same question used to be asked five ways, each building
+ * its own formatter on every call).
+ */
+export function zonedParts(ms: number, timeZone: string): WallClock {
   const parts = wallClockOf(timeZone).formatToParts(new Date(ms));
   const read = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find(part => part.type === type)?.value ?? '0');
@@ -174,6 +181,22 @@ function zonedParts(ms: number, timeZone: string): WallClock {
     minute: read('minute'),
     second: read('second'),
   };
+}
+
+/** `YYYY-MM-DD` of `ms` on `timeZone`'s clock. */
+export function zonedDay(ms: number, timeZone: string): string {
+  const { year, month, day } = zonedParts(ms, timeZone);
+  return `${String(year).padStart(4, '0')}-${pad2(month)}-${pad2(day)}`;
+}
+
+/** `HH:mm` of `ms` on `timeZone`'s clock. */
+export function zonedTime(ms: number, timeZone: string): string {
+  const { hour, minute } = zonedParts(ms, timeZone);
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
+
+function pad2(part: number): string {
+  return String(part).padStart(2, '0');
 }
 
 /**

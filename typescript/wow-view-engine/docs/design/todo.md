@@ -33,7 +33,7 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 - **记录详情的上一条／下一条**（R2-97）：逐单处理要关抽屉 → ↓ → Enter。推迟：有替代路径，是新功能。判据：抽屉头有「上一条／下一条」与 ↑／↓（或 J／K），在当前页内移动并同步 `?id=`；到页首页尾时停用并说明。落点：[ui/record.md](ui/record.md#记录详情把一条读全)。
 - **工作台的「放进仪表盘…」「设为共享」「复制链接」；看板的日期与筛选进地址**（R2-98）：「更多视图操作」只有「另存为」，分析师要绕到看板编辑态再找视图；看板筛选在 history state（`src/ui/workbench/address.ts`），运营不能把某一天的日报作为链接发出去。推迟：P3，有替代路径。判据：标题栏菜单有这三项；宿主选项打开时看板的筛选序列化进查询串，链接打开得到同一份筛选。落点：`src/ui/workbench/`、[host-integration.md](host-integration.md) 4.2。
 - **视觉的 P3**（R2-101，外观问题，不影响读数）：图表卡顶部留白、轴标题方向不一致；无数据或无迷你图的指标卡留大块空白；单数值分析视图偏左；雷达等极坐标图在 390 宽截断轴名；演示应用两种涨跌色约定并存；打印保留了交互控件。判据：逐条修掉，截图基线随之更新。落点：`src/ui/charts/`、`src/ui/dashboard/`、[ui/theme.md](ui/theme.md#打印与强制颜色)、Storybook 演示应用。
-- **测试覆盖的缺口**（R2-103，不是已知错误，是回归的探测缺口；地址的失败分支、控制台覆盖率阈值与 Playwright 重试已补）：conformance 未覆盖的端口行为；控制台 e2e 不触发存储失败与 409；日期编辑器在 `environment.timeZone` 与浏览器时区不同时的偏移时刻；时区计算散在五处（`src/analysis/drill.ts`、`src/analysis/timeCharts.ts`、`src/ui/charts/periodSpan.ts`、`src/ui/filter/inputs/daterange.tsx` 等）。判据：各缺口有用例；时区计算收成一个带缓存的分区函数。落点：`test/conformance/viewStoreConformance.ts`、上述文件、`compensation/dashboard/e2e/support/viewStoreService.ts`。
+- **测试覆盖的缺口**（R2-103，不是已知错误，是回归的探测缺口；地址的失败分支、控制台覆盖率阈值与 Playwright 重试、日期编辑器的偏移时刻与时区计算的收拢已补）：conformance 未覆盖的端口行为；控制台 e2e 不触发存储失败与 409。判据：各缺口有用例。落点：`test/conformance/viewStoreConformance.ts`、`compensation/dashboard/e2e/support/viewStoreService.ts`。
 
 ### Wow 服务端（Kotlin）
 

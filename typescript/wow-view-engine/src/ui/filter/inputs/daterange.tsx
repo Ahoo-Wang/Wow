@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { zonedDay, zonedTime } from '../../../analysis/index.js';
 import { CalendarIcon } from 'lucide-react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
@@ -65,8 +66,8 @@ export function AbsoluteDate({
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const blank = messages.label('label.date.pick');
-  const from = readBound(value.from, withTime);
-  const to = readBound(value.to, withTime);
+  const from = readBound(value.from, withTime, display.timeZone);
+  const to = readBound(value.to, withTime, display.timeZone);
 
   /**
    * One submission for the whole control: whichever half moved, the leaf is
@@ -232,7 +233,11 @@ const WALL_CLOCK = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::(\d{2}))?)?$/;
  * invisibly, and a plain date field would come out of this editor asking for
  * midnight instead of for the day.
  */
-function readBound(text: string | undefined, withTime: boolean): DayTime {
+export function readBound(
+  text: string | undefined,
+  withTime: boolean,
+  zone: string | undefined,
+): DayTime {
   if (!text) return { day: '', time: '' };
   const wall = WALL_CLOCK.exec(text);
   const read = wall
@@ -240,15 +245,24 @@ function readBound(text: string | undefined, withTime: boolean): DayTime {
         day: wall[1],
         time: wall[2] ?? '',
       }
-    : instantAt(text);
+    : instantAt(text, zone);
   return withTime ? read : { day: read.day, time: '' };
 }
 
-/** An instant that names its own offset, on the local clock. */
-function instantAt(text: string): DayTime {
+/**
+ * An instant that names its own offset, on the surface's clock — the zone
+ * the trigger beside it reads the same instant in (`formatDate`). Read on
+ * the browser's, a view pinned to `Asia/Shanghai` showed a London reader
+ * the London hour in the boxes and the Shanghai hour on the trigger, and a
+ * time edited there went back as a Shanghai wall clock eight hours off
+ * (R2-103). Without a zone of its own the surface's clock is the browser's.
+ */
+function instantAt(text: string, zone: string | undefined): DayTime {
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return { day: '', time: '' };
-  return { day: dayOf(parsed), time: timeOf(parsed) };
+  if (zone === undefined) return { day: dayOf(parsed), time: timeOf(parsed) };
+  const ms = parsed.getTime();
+  return { day: zonedDay(ms, zone), time: zonedTime(ms, zone) };
 }
 
 /**

@@ -18,7 +18,15 @@
  */
 export { isAdditiveMetric } from './additive.js';
 export * from './bucketChange.js';
-export { bucketRange, wallClockAt, type BucketRange } from './buckets.js';
+export {
+  bucketRange,
+  wallClockAt,
+  zonedDay,
+  zonedParts,
+  zonedTime,
+  type BucketRange,
+  type WallClock,
+} from './buckets.js';
 export * from './candidates.js';
 export * from './capability.js';
 export * from './chart.js';
