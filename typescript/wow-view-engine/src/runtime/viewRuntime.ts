@@ -22,7 +22,7 @@ import {
   type RuntimeLimits,
   type ViewInstance,
 } from '../model/index.js';
-import type { FieldKindRegistry } from '../filter/index.js';
+import { askedConfig, type FieldKindRegistry } from '../filter/index.js';
 import { periodRollover } from '../analysis/index.js';
 import {
   NO_REFUSAL,
@@ -197,6 +197,7 @@ export class DataViewRuntime<
       admit: draft => this.admit(draft),
       apply: () => this.apply(),
       refresh: () => this.refresh(),
+      asked: config => askedConfig(config, this.fields, this.kinds),
       // A panel inside a dashboard is timed by the board, so it holds its own
       // timer for good; otherwise it is held while its one request is in
       // flight, and for whatever reason of its own the kind has (`holds`).

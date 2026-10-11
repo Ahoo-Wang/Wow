@@ -66,6 +66,12 @@ interface RuntimeStoreHost<S extends ViewRuntimeState<ViewConfig>> {
   /** Whatever the runtime holds besides the store, let go of on `dispose`. */
   release(): void;
   /**
+   * A config as `isDirty` compares it: what it asks, without what the
+   * runtime knows asks nothing — a data view's blank conditions
+   * (`withoutBlankLeaves`). Left out, the config as it is.
+   */
+  asked?(config: S['draft']): ViewConfig;
+  /**
    * A draft that has just replaced the one on screen without an edit having
    * made it — `revert`. A dashboard starts loading the references the
    * restored panels name; a data view has nothing to do here, which is the
@@ -215,7 +221,9 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
    * hold keys where a definition wrote them, so they compare in no language.
    */
   isDirty(draft: S['draft'], saved: ViewInstance | null): boolean {
-    return saved === null || !dequal(draft, saved.config);
+    if (saved === null) return true;
+    const asked = this.host.asked ?? ((config: ViewConfig) => config);
+    return !dequal(asked(draft), asked(saved.config));
   }
 
   /**
