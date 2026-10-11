@@ -76,8 +76,8 @@ export function categoryFit(
   measure: (text: string) => number,
   horizontal: boolean,
   /**
-   * The names are the days or months of a time axis, in order. Those are
-   * never slanted: a reader carries a date across the gap between two
+   * The names are the days or months of a time axis, or the parts of a
+   * cycle, in order. Those are never slanted: a reader carries a date across the gap between two
    * ticks, so the axis writes every few flat, the first always among them,
    * as Metabase's time axis does.
    */
@@ -238,7 +238,9 @@ export function cartesianFit(
   text: Pick<ChartTheme['text'], 'size' | 'labelSize'> = CHART_FALLBACK.text,
 ): EChartsCoreOption {
   const { horizontal, series, data, sides } = plan;
-  const dated = plan.context.ticks !== undefined;
+  // A cycle — the hours of a day — is read along as a time axis is: its
+  // names written flat every few, not 24 of them slanted (Storybook review).
+  const dated = plan.context.ticks !== undefined || data.cycle === true;
   const shown = visibleCount(data.points.length, window);
   const first = window
     ? Math.min(

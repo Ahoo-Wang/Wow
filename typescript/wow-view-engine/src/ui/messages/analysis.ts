@@ -802,6 +802,7 @@ export const analysisMessages = {
   // as the percentage the role would otherwise announce.
   'label.chart.target': 'Toward target',
   'label.chart.target.reached': '{value} of {target}',
+  'label.chart.target.of': 'Target {target}',
 
   // Which span a trend card's big number covers, said over it, and how it
   // moved from the period before.

@@ -49,6 +49,60 @@ function formatDelta(
 const PERCENT = { style: 'percent', maximumFractionDigits: 1 } as const;
 
 /**
+ * The bar toward a card's target, and the target beside it in words.
+ *
+ * The registry's `Progress`, not a div sized by an inline `width`: a bar
+ * that fills is a progressbar, and only the real one carries the role, the
+ * value and the bounds. The target is the one number the drawing knows and
+ * the card did not print — a bar three-quarters full said nothing of what
+ * it was three-quarters of (Storybook review P2) — so it is written at the
+ * bar's end, on the bar's own row: a line under it took the height of the
+ * trend below (the daily report's sparkline fell under 64px). It is the
+ * bar's own reading, which the progressbar already says (`aria-valuetext`),
+ * so it is not said twice. The track is raised from the registry's 1px at
+ * the call site, as the export progress does; the vendored file stays as
+ * it ships.
+ */
+function TargetBar({
+  value,
+  target,
+  show,
+  foot,
+}: {
+  value: number;
+  target: number;
+  show: (value: number) => string;
+  foot: boolean;
+}) {
+  const messages = useViewMessages();
+  return (
+    <div
+      data-slot="metric-target"
+      className={cn(
+        'fve:flex fve:items-center fve:gap-2',
+        foot && 'fve:mt-auto',
+      )}
+    >
+      <Progress
+        aria-label={messages.label('label.chart.target')}
+        aria-valuetext={messages.label('label.chart.target.reached', {
+          value: show(value),
+          target: show(target),
+        })}
+        value={reached(value, target)}
+        className="fve:min-w-0 fve:flex-1 fve:[&_[data-slot=progress-track]]:h-2"
+      />
+      <span
+        aria-hidden="true"
+        className="fve:shrink-0 fve:text-muted-foreground fve:text-xs fve:tabular-nums"
+      >
+        {messages.label('label.chart.target.of', { target: show(target) })}
+      </span>
+    </div>
+  );
+}
+
+/**
  * How much of the target the value has reached, out of a hundred.
  *
  * A saved target is whatever a configuration put there, zero included, and a
@@ -412,29 +466,13 @@ export function MetricCard({
           })}
         </span>
       )}
-      {/*
-        The registry's `Progress`, not a div sized by an inline `width`. A bar
-        that fills is a progressbar, and only the real one carries the role,
-        the value and the bounds — the div said "how far along the target this
-        is" to a pair of eyes and to nothing else. The target itself is the
-        one number the drawing knows and the card does not print, so it is
-        said here as well as in the reading table. The track is raised from
-        the registry's 1px at the call site, as the export progress does; the
-        vendored file stays as it ships.
-      */}
       {data.target !== undefined && typeof data.value === 'number' && (
-        <Progress
-          aria-label={messages.label('label.chart.target')}
-          aria-valuetext={messages.label('label.chart.target.reached', {
-            value: show(data.value),
-            target: show(data.target),
-          })}
-          value={reached(data.value, data.target)}
-          className={cn(
-            'fve:[&_[data-slot=progress-track]]:h-2',
-            // Without a trend under it, the bar is the card's foot.
-            !trend?.length && 'fve:mt-auto',
-          )}
+        <TargetBar
+          value={data.value}
+          target={data.target}
+          show={show}
+          // Without a trend under it, the bar is the card's foot.
+          foot={!trend?.length}
         />
       )}
       {/*
