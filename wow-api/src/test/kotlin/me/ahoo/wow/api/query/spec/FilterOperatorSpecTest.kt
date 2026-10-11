@@ -82,8 +82,9 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.JsonNodeFactory
 
 /**
- * The operator table of the step 2 plan (documentation/designs/2026-09-25-query-step2-operator-spec-plan.md), row by
- * row. A change here is a change to what every operator requires.
+ * The operator table, row by row: every operator's target, value rule, capability and cost (design:
+ * documentation/designs/2026-09-24-query-target-architecture-design.md §6.1). A change here is a change to what every
+ * operator requires.
  */
 class FilterOperatorSpecTest {
     private data class Row(
