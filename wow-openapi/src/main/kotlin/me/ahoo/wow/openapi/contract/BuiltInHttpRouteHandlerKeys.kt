@@ -20,6 +20,7 @@ object BuiltInHttpRouteHandlerKeys {
     private const val AGGREGATE_STATE = "$OPENAPI.aggregate.state"
     private const val AGGREGATE_SNAPSHOT = "$OPENAPI.aggregate.snapshot"
     private const val AGGREGATE_EVENT = "$OPENAPI.aggregate.event"
+    private const val DATASET = "$OPENAPI.dataset"
 
     object Global {
         const val COMMAND_WAIT = "$GLOBAL.command.wait"
@@ -73,5 +74,15 @@ object BuiltInHttpRouteHandlerKeys {
         const val LOAD = "$AGGREGATE_EVENT.load"
         const val COMPENSATE = "$AGGREGATE_EVENT.compensate"
         const val RESEND_STATE = "$AGGREGATE_EVENT.state.resend"
+    }
+
+    object Dataset {
+        const val SCHEMA = "$DATASET.schema"
+        const val COUNT = "$DATASET.count"
+        const val AGGREGATION = "$DATASET.aggregation"
+        const val LIST_QUERY = "$DATASET.list-query"
+        const val PAGED_QUERY = "$DATASET.paged-query"
+        const val CURSOR_QUERY = "$DATASET.cursor-query"
+        const val SINGLE = "$DATASET.single"
     }
 }

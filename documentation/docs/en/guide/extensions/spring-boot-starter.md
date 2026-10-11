@@ -33,6 +33,7 @@ Spring Boot loads Wow entries from `AutoConfiguration.imports`. `@ConditionalOnC
 | `openapi-support` | `wow-openapi` + springdoc common |
 | `cosec-support` | `wow-cosec` |
 | `bi-support` | `wow-bi` API |
+| `clickhouse-support` | `wow-clickhouse` API; serves datasets from ClickHouse ([Dataset Query](../query/dataset-query.md)) |
 
 Request the full coordinate, for example `requireCapability("me.ahoo.wow:mongo-support")`. Maven does not resolve Gradle feature variants, so it needs explicit module dependencies.
 

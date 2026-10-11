@@ -33,10 +33,9 @@ class PagedQueryHandlerFunction(
     private val rewriteResult: (Mono<PagedList<ObjectNode>>) -> Mono<PagedList<ObjectNode>>
 ) : HandlerFunction<ServerResponse> {
     private val support = QueryHandlerSupport(
-        aggregateMetadata,
-        queryRequestScope,
+        { queryRequestScope.resolve(aggregateMetadata, it) },
         exceptionHandler,
-        guard.of(queryGateway)
+        guard.of(queryGateway),
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =

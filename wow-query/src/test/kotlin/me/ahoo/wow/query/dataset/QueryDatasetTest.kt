@@ -99,9 +99,9 @@ class QueryDatasetTest {
         datasets.profile(context).assert().isInstanceOf(DatasetQueryModelProfile::class.java)
         datasets.profile(QuerySchemaContext(ORDERS, QueryModel.SNAPSHOT)).assert().isSameAs(SnapshotQueryModelProfile)
         datasets.profile(QuerySchemaContext(OTHER, QueryModel.DATASET)).assert().isNull()
-        datasets.load(context).test().expectNext(orders().declaration).verifyComplete()
-        datasets.load(QuerySchemaContext(ORDERS, QueryModel.SNAPSHOT)).test().verifyComplete()
-        datasets.load(QuerySchemaContext(OTHER, QueryModel.DATASET)).test().verifyComplete()
+        datasets.schemaSource.load(context).test().expectNext(orders().declaration).verifyComplete()
+        datasets.schemaSource.load(QuerySchemaContext(ORDERS, QueryModel.SNAPSHOT)).test().verifyComplete()
+        datasets.schemaSource.load(QuerySchemaContext(OTHER, QueryModel.DATASET)).test().verifyComplete()
         assertThrows<IllegalArgumentException> { QueryDatasets(listOf(orders(), orders())) }
     }
 

@@ -53,9 +53,9 @@ val exampleProjects =
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
-// Libraries that build and test like the others but are not published yet. wow-clickhouse publishes once the starter
-// wires datasets (dataset query design, S3).
-val incubatingProjects = setOf(project(":wow-clickhouse"))
+// Libraries that build and test like the others but are not published yet. Empty since 9.2.0, which
+// publishes view-store/* (api, domain, starter) with the view engine.
+val incubatingProjects = emptySet<Project>()
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects

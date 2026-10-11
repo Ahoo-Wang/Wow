@@ -41,8 +41,8 @@ import reactor.core.publisher.Mono
  * request in the Reactor context (the gateway checks the HTTP budget at admission), bound the response and render it.
  */
 internal class QueryHandlerSupport(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryRequestScope: QueryRequestScope,
+    /** The caller scope of one request: an aggregate route's from its [QueryRequestScope], a dataset route's its own. */
+    private val scopeOf: (ServerRequest) -> QueryScope,
     private val exceptionHandler: RequestExceptionHandler,
     val guard: HttpQueryGuard.Bound,
 ) {
@@ -53,7 +53,7 @@ internal class QueryHandlerSupport(
         execute: (Q) -> Mono<R>,
     ): Mono<ServerResponse> = request.body(extractor)
         .flatMap { query ->
-            val scope = queryRequestScope.resolve(aggregateMetadata, request)
+            val scope = scopeOf(request)
             val result = guard.mono { execute(query) }.withQueryContext(scope, request)
             if (notFoundIfEmpty) result.throwNotFoundIfEmpty() else result
         }.toServerResponse(request, exceptionHandler)
@@ -66,7 +66,7 @@ internal class QueryHandlerSupport(
     ): Mono<ServerResponse> = request.body(extractor)
         .flatMapMany { body ->
             val query = prepare(body)
-            val scope = queryRequestScope.resolve(aggregateMetadata, request)
+            val scope = scopeOf(request)
             guard.flux(request) { execute(query) }.withQueryContext(scope, request)
         }.toServerResponse(request, exceptionHandler)
 }

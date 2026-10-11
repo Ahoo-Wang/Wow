@@ -49,9 +49,18 @@ public final class me/ahoo/wow/rest/RoutePaths {
 	public static final field BI_SCRIPT Ljava/lang/String;
 	public static final field COMMAND_SEND Ljava/lang/String;
 	public static final field COMMAND_WAIT Ljava/lang/String;
+	public static final field DATASET Ljava/lang/String;
+	public static final field DATASET_AGGREGATION Ljava/lang/String;
+	public static final field DATASET_COUNT Ljava/lang/String;
+	public static final field DATASET_CURSOR Ljava/lang/String;
+	public static final field DATASET_LIST Ljava/lang/String;
+	public static final field DATASET_PAGED Ljava/lang/String;
+	public static final field DATASET_SCHEMA Ljava/lang/String;
+	public static final field DATASET_SINGLE Ljava/lang/String;
 	public static final field GLOBAL_ID Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/rest/RoutePaths;
 	public static final field METADATA Ljava/lang/String;
+	public static final field TENANT_PREFIX Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/rest/RouteSuffixes {
@@ -90,7 +99,9 @@ public final class me/ahoo/wow/rest/RouteSuffixes {
 public final class me/ahoo/wow/rest/RouteVariables {
 	public static final field BATCH_AFTER_ID Ljava/lang/String;
 	public static final field BATCH_LIMIT Ljava/lang/String;
+	public static final field CONTEXT Ljava/lang/String;
 	public static final field CREATE_TIME Ljava/lang/String;
+	public static final field DATASET Ljava/lang/String;
 	public static final field HEAD_VERSION Ljava/lang/String;
 	public static final field ID Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/rest/RouteVariables;

@@ -33,7 +33,11 @@ class CursorQueryHandlerFunction(
     private val rewriteResult: (Mono<CursorPage<ObjectNode>>) -> Mono<CursorPage<ObjectNode>> = { it },
 ) : HandlerFunction<ServerResponse> {
     private val support =
-        QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard.of(queryGateway))
+        QueryHandlerSupport(
+            { queryRequestScope.resolve(aggregateMetadata, it) },
+            exceptionHandler,
+            guard.of(queryGateway),
+        )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         support.mono(request, CURSOR_QUERY_EXTRACTOR) {

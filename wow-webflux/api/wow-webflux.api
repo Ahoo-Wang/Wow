@@ -285,6 +285,46 @@ public final class me/ahoo/wow/webflux/route/command/extractor/DefaultCommandMes
 	public fun extract (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Ljava/lang/Object;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
+public final class me/ahoo/wow/webflux/route/dataset/DatasetQueryHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
+	public fun <init> (Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;Lme/ahoo/wow/query/dataset/DatasetQueryGateways;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
+	public synthetic fun <init> (Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;Lme/ahoo/wow/query/dataset/DatasetQueryGateways;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/webflux/route/dataset/DatasetQueryHandlerFunctionFactory : me/ahoo/wow/webflux/route/HttpRouteHandlerFunctionFactory {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;Lme/ahoo/wow/query/dataset/DatasetQueryGateways;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;Lme/ahoo/wow/query/dataset/DatasetQueryGateways;Lme/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;Lme/ahoo/wow/webflux/route/query/HttpQueryGuard;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun create (Lme/ahoo/wow/openapi/contract/HttpRouteContract;Lme/ahoo/wow/openapi/contract/HttpRouteHandlerMetadata;)Lorg/springframework/web/reactive/function/server/HandlerFunction;
+	public fun getHandlerKey ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/webflux/route/dataset/DatasetQueryOperation : java/lang/Enum {
+	public static final field AGGREGATION Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static final field COUNT Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static final field CURSOR Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static final field LIST Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static final field PAGED Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static final field SCHEMA Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static final field SINGLE Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+	public static fun values ()[Lme/ahoo/wow/webflux/route/dataset/DatasetQueryOperation;
+}
+
+public abstract interface class me/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope {
+	public abstract fun resolve (Lme/ahoo/wow/query/schema/QueryDataset;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lme/ahoo/wow/query/QueryScope;
+}
+
+public class me/ahoo/wow/webflux/route/dataset/DefaultDatasetQueryRequestScope : me/ahoo/wow/webflux/route/dataset/DatasetQueryRequestScope {
+	public static final field INSTANCE Lme/ahoo/wow/webflux/route/dataset/DefaultDatasetQueryRequestScope$INSTANCE;
+	public fun <init> ()V
+	protected fun provenance (Lme/ahoo/wow/query/schema/QueryDataset;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lme/ahoo/wow/query/QueryScopeProvenance;
+	public fun resolve (Lme/ahoo/wow/query/schema/QueryDataset;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lme/ahoo/wow/query/QueryScope;
+}
+
+public final class me/ahoo/wow/webflux/route/dataset/DefaultDatasetQueryRequestScope$INSTANCE : me/ahoo/wow/webflux/route/dataset/DefaultDatasetQueryRequestScope {
+}
+
 public final class me/ahoo/wow/webflux/route/event/EventCompensateHandlerFunction : org/springframework/web/reactive/function/server/HandlerFunction {
 	public fun <init> (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;Lme/ahoo/wow/event/compensation/EventCompensateSupporter;Lme/ahoo/wow/webflux/exception/RequestExceptionHandler;)V
 	public fun handle (Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;

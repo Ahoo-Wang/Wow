@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.spring.boot.starter.query
 
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.ClasspathQuerySchemaSource
 import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.query.schema.QueryDatasetFiles
+import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModelSource
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
@@ -53,8 +56,27 @@ class QuerySchemaAutoConfiguration {
     @Bean
     fun classpathQuerySchemaSource(): ClasspathQuerySchemaSource = ClasspathQuerySchemaSource()
 
+    /** The datasets of `wow.query.datasets`, read from their declaration files. */
+    @Bean
+    @ConditionalOnMissingBean
+    fun queryDatasets(queryProperties: QueryProperties): QueryDatasets =
+        if (queryProperties.datasets.isEmpty()) {
+            QueryDatasets.NONE
+        } else {
+            QueryDatasetFiles().loadAll(queryProperties.datasets.map(::datasetName))
+        }
+
     @Bean
     fun beanQuerySchemaSource(
         registrations: ObjectProvider<QuerySchemaRegistration>,
     ): BeanQuerySchemaSource = BeanQuerySchemaSource(registrations.toList())
+}
+
+/** `{context}.{dataset}`: the dataset name follows the last dot, so a context name may hold dots. */
+internal fun datasetName(name: String): MaterializedNamedAggregate {
+    val separator = name.lastIndexOf('.')
+    require(separator > 0 && separator < name.length - 1) {
+        "wow.query.datasets entry [$name] must be {context}.{dataset}."
+    }
+    return MaterializedNamedAggregate(name.substring(0, separator), name.substring(separator + 1))
 }

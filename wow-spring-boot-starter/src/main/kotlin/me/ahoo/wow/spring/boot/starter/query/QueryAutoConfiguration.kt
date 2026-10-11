@@ -13,6 +13,7 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.query.CompositeQueryObserver
 import me.ahoo.wow.query.QueryBackendStorages
@@ -20,7 +21,13 @@ import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryMetricsObserver
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DefaultDatasetQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
@@ -34,6 +41,7 @@ import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar.Companion.EVENT
 import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar.Companion.SNAPSHOT_QUERY_OBSERVER_BEAN_NAME
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -101,21 +109,72 @@ class QueryAutoConfiguration {
         meterRegistry: ObjectProvider<MeterRegistry>,
         environment: Environment,
         queryProperties: QueryProperties,
-    ): QuerySchemaCatalog = QuerySchemaCatalog(
-        storages = QueryBackendStorages(
-            snapshots = snapshotQueryBackendFactories.getIfAvailable { UnavailableSnapshotQueryBackendFactory },
-            eventStreams = eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory },
-        ),
-        compiler = compiler.getIfAvailable {
-            QueryModelCompiler.of(
-                sources = sources.orderedStream().toList(),
-                sensitivity = sensitivity.getIfAvailable { QuerySensitivityPolicy.DEFAULT },
-                legacyDeclarations = queryProperties.schema.legacyDeclarations,
-            )
-        },
-        aggregates = MetadataSearcher.namedAggregateType.keys,
-        meterRegistry = meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() },
-    )
+        queryDatasets: ObjectProvider<QueryDatasets>,
+        datasetQueryBackendFactory: ObjectProvider<DatasetQueryBackendFactory>,
+    ): QuerySchemaCatalog {
+        val datasets = queryDatasets.getIfAvailable { QueryDatasets.NONE }
+        return QuerySchemaCatalog(
+            storages = QueryBackendStorages(
+                snapshots = snapshotQueryBackendFactories.getIfAvailable { UnavailableSnapshotQueryBackendFactory },
+                eventStreams = eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory },
+                datasetFactory = datasetQueryBackendFactory.getIfAvailable(),
+                datasets = datasets,
+            ),
+            compiler = compiler.getIfAvailable {
+                QueryModelCompiler.of(
+                    sources = sources.orderedStream().toList(),
+                    sensitivity = sensitivity.getIfAvailable { QuerySensitivityPolicy.DEFAULT },
+                    legacyDeclarations = queryProperties.schema.legacyDeclarations,
+                    datasets = datasets,
+                )
+            },
+            aggregates = MetadataSearcher.namedAggregateType.keys,
+            meterRegistry = meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() },
+            datasets = datasets.all.map { it.namedAggregate },
+        )
+    }
+
+    @Bean(DATASET_QUERY_OBSERVER_BEAN_NAME)
+    @ConditionalOnMissingBean(name = [DATASET_QUERY_OBSERVER_BEAN_NAME])
+    fun datasetQueryObserver(meterRegistry: ObjectProvider<MeterRegistry>, environment: Environment): QueryObserver =
+        queryObserver(meterRegistry, environment)
+
+    /**
+     * One gateway per dataset of `wow.query.datasets`, admitted like an aggregate's: the same filters, policies and
+     * entry policy, the Catalog's schema and the dataset backend's storage.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @Suppress("LongParameterList")
+    fun datasetQueryGateways(
+        queryDatasets: ObjectProvider<QueryDatasets>,
+        datasetQueryBackendFactory: ObjectProvider<DatasetQueryBackendFactory>,
+        catalog: QuerySchemaCatalog,
+        filters: ObjectProvider<QueryFilter>,
+        policies: ObjectProvider<QueryPolicy>,
+        @Qualifier(DATASET_QUERY_OBSERVER_BEAN_NAME) observer: QueryObserver,
+        entryPolicy: QueryEntryPolicy,
+    ): DatasetQueryGateways {
+        val datasets = queryDatasets.getIfAvailable { QueryDatasets.NONE }
+        if (datasets.all.isEmpty()) return DatasetQueryGateways.NONE
+        val factory = requireNotNull(datasetQueryBackendFactory.getIfAvailable()) {
+            "wow.query.datasets names datasets, but no dataset query backend is configured " +
+                "(enable one, such as wow.query.clickhouse)."
+        }
+        return DatasetQueryGateways(
+            datasets.all.map { dataset ->
+                DefaultDatasetQueryGateway(
+                    dataset = dataset,
+                    backend = factory.create(dataset).backend,
+                    schemaProvider = catalog.provider(dataset.namedAggregate, QueryModel.DATASET),
+                    filters = filters.orderedStream().toList(),
+                    policies = policies.orderedStream().toList(),
+                    observer = observer,
+                    entryPolicy = entryPolicy,
+                )
+            },
+        )
+    }
 
     @Bean
     @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)
@@ -127,3 +186,6 @@ class QueryAutoConfiguration {
     fun unavailableEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory =
         UnavailableEventStreamQueryBackendFactory
 }
+
+/** The bean name of the observer the dataset gateways share; register a bean of this name to replace it. */
+const val DATASET_QUERY_OBSERVER_BEAN_NAME = "datasetQueryObserver"

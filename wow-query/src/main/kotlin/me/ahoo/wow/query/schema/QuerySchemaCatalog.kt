@@ -206,7 +206,7 @@ fun interface QueryModelCompiler {
             legacyDeclarations: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
             datasets: QueryDatasets = QueryDatasets.NONE,
         ): QueryModelCompiler {
-            val declared = if (datasets.all.isEmpty()) sources.toList() else sources + datasets
+            val declared = if (datasets.all.isEmpty()) sources.toList() else sources + datasets.schemaSource
             return QueryModelCompiler { context, storage ->
                 DefaultQueryModelSchemaProvider(
                     context = context,
