@@ -8279,6 +8279,7 @@ export function ViewHost(input: ViewHostProps): JSX.Element;
 // @public (undocumented)
 export interface ViewHostProps {
     bindings?: readonly ViewBinding[];
+    boardsInAddress?: boolean;
     brand?: string;
     // (undocumented)
     children: ReactNode;

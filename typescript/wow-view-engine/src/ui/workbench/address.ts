@@ -43,13 +43,43 @@ import type {
   ViewRouter,
 } from '../../runtime/routes.js';
 import type { RecordDetailControl } from '../../react/index.js';
-import { useViewRouter } from './ViewEngineProvider.js';
+import { useBoardsInAddress, useViewRouter } from './ViewEngineProvider.js';
 
 /** The search parameter naming the open view (or board). */
 const VIEW_PARAM = 'view';
 
 /** The search parameter naming the record open in the detail. */
 const RECORD_PARAM = 'id';
+
+/**
+ * The search parameter a host that asks for it keeps every board's filters
+ * and tab in, too (`ViewHost`'s `boardsInAddress`): the entry's `boards`,
+ * as JSON — one parameter for all of them, so two boards on a page each
+ * find their own in a link as they do in the history entry.
+ */
+const BOARDS_PARAM = 'boards';
+
+type KeptBoards = NonNullable<ViewRouteState['boards']>;
+
+/** The boards the search holds, or `{}` where it holds none it can read. */
+function boardsOf(location: ViewLocation): KeptBoards {
+  const text = paramOf(location, BOARDS_PARAM);
+  if (text === null) return {};
+  try {
+    const read: unknown = JSON.parse(text);
+    // A link is anybody's to type: only an object of objects is read.
+    if (typeof read !== 'object' || read === null || Array.isArray(read))
+      return {};
+    return Object.fromEntries(
+      Object.entries(read).filter(
+        ([, board]) =>
+          typeof board === 'object' && board !== null && !Array.isArray(board),
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
 
 /** A search parameter of `location`, or `null`. */
 function paramOf(location: ViewLocation, name: string): string | null {
@@ -303,6 +333,20 @@ export function boardKey(
   return instanceId ?? `default:${definitionId ?? ''}`;
 }
 
+/**
+ * What the board kept under `key` holds: the history entry's, and over it —
+ * where the host keeps boards in the address — what the search says, which
+ * is what a link someone sent opens on.
+ */
+function heldBoard(
+  location: ViewLocation,
+  key: string,
+  inAddress: boolean,
+): { filters?: DashboardFilters; tab?: string | null } {
+  const entry = boardState(routeStateOf(location), key);
+  return inAddress ? { ...entry, ...boardsOf(location)[key] } : entry;
+}
+
 /** What the history entry holds for the board kept under `key`. */
 function boardState(
   state: ViewRouteState,
@@ -337,6 +381,11 @@ export function useAddressedBoard<P extends BoardAddress>(
   key: string,
 ): P {
   const router = useViewRouter();
+  const inAddress = useBoardsInAddress();
+  const latestInAddress = useRef(inAddress);
+  useLayoutEffect(() => {
+    latestInAddress.current = inAddress;
+  });
   const latest = useLatestRouter(router);
   const latestKey = useRef(key);
   useLayoutEffect(() => {
@@ -348,19 +397,27 @@ export function useAddressedBoard<P extends BoardAddress>(
       if (!now) return;
       const board = latestKey.current;
       const state = routeStateOf(now.location);
-      const held = boardState(state, board);
+      const address = latestInAddress.current;
+      const held = heldBoard(now.location, board, address);
       if (JSON.stringify(held[member]) === JSON.stringify(value)) return;
+      const kept = { ...state.boards?.[board], [member]: value };
       const { pathname, search } = now.location;
-      now.go(`${pathname}${search}`, {
-        state: {
-          ...state,
-          boards: {
-            ...state.boards,
-            [board]: { ...state.boards?.[board], [member]: value },
-          },
+      now.go(
+        address
+          ? withParam(
+              now.location,
+              BOARDS_PARAM,
+              JSON.stringify({
+                ...boardsOf(now.location),
+                [board]: { ...boardsOf(now.location)[board], [member]: value },
+              }),
+            )
+          : `${pathname}${search}`,
+        {
+          state: { ...state, boards: { ...state.boards, [board]: kept } },
+          replace: true,
         },
-        replace: true,
-      });
+      );
     },
     [latest],
   );
@@ -373,7 +430,7 @@ export function useAddressedBoard<P extends BoardAddress>(
     [keep],
   );
   if (!router) return props;
-  const held = boardState(routeStateOf(router.location), key);
+  const held = heldBoard(router.location, key, inAddress);
   const filtersHeld =
     props.initialFilters === undefined && props.onFiltersChange === undefined;
   const tabHeld =

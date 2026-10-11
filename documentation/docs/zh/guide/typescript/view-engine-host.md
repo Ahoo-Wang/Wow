@@ -177,7 +177,7 @@ export const BINDINGS = [
 
 - **打开的视图在 `?view=`。** 宿主没给 `instanceId`／`onInstanceChange` 的工作台（[`DataWorkbench`](../../reference/typescript/wow-view-engine/components.md#api-DataWorkbench)、[`DashboardWorkbench`](../../reference/typescript/wow-view-engine/components.md#api-DashboardWorkbench)）打开地址里的 `?view=`，读者换视图时写回去，一个视图一条历史。它**只认自己定义的视图**：一页上两个工作台共用一个 `?view=`，另一个定义的视图它搁着不管，也不把自己的缺省写回去盖掉别人的。
 - **打开的记录在 `?id=`。** 绑定了的资源，记录详情跟着地址的 `?id=`（替换当前历史，不加新的），除非 `reading` 自己管着 `open`。
-- **交接、筛选与标签页在历史条目的 state 里。** 看板「在工作台中打开」、追问、面板的去处，都按目标资源的 `route` 去，带着 `ViewRouteState`：交接过去的视图（`handOver`），看板的 `filters` 与 `tab`。一页上几块看板各记各的，刷新后各自找回自己的。
+- **交接、筛选与标签页在历史条目的 state 里。** 看板「在工作台中打开」、追问、面板的去处，都按目标资源的 `route` 去，带着 `ViewRouteState`：交接过去的视图（`handOver`），看板的 `filters` 与 `tab`。一页上几块看板各记各的，刷新后各自找回自己的。`ViewHost` 加上 `boardsInAddress` 时，看板的筛选与标签页还会写进查询串（`?boards=`），链接打开就是同一天、同一份筛选——日报可以作为链接发出去。缺省关闭：查询串是宿主自己的，要它整洁。
 - **别的地方。** 以 `/` 开头的宿主路径也走路由；别的站点另开一个窗口。
 
 参数名固定是 `view` 与 `id`：`route` 是宿主的函数，引擎读不回它拼出的路径，只能与宿主约定这两个名字。宿主把打开的视图记在别处（例如一个页面同时由链接上的别的参数决定），才传 `instanceId` 与 `onInstanceChange`，像受控的 `<input>` 那样。
