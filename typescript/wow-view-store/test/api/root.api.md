@@ -32,6 +32,7 @@ export class WowViewStore implements ViewStore {
     get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
     getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
     list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+    readonly listLimit = 1000;
     readonly permissions?: (definitionId: string) => ViewPermissions;
     rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
     save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;

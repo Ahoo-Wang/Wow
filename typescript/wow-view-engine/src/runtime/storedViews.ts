@@ -80,6 +80,7 @@ export function readingStore(store: ViewStore): ViewStore {
     ...(store.permissions
       ? { permissions: definitionId => store.permissions!(definitionId) }
       : {}),
+    ...(store.listLimit === undefined ? {} : { listLimit: store.listLimit }),
   };
 }
 

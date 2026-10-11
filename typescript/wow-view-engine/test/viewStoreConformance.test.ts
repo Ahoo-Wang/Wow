@@ -64,6 +64,17 @@ describeViewStoreConformance({
   },
 });
 
+// A store with a query budget, as `WowViewStore` has one of 1000: a small
+// one here, so the case that fills it stays quick (R2-26).
+describeViewStoreConformance({
+  name: 'MemoryViewStore with a list limit',
+  capabilities: { ...MEMORY, listLimit: 2 },
+  connect: () => {
+    const store = new MemoryViewStore({ instances: [system], listLimit: 2 });
+    return () => store;
+  },
+});
+
 let keys: string[] = [];
 afterEach(() => {
   for (const key of keys) localStorage.removeItem(key);

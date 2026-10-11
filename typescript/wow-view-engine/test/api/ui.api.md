@@ -3230,6 +3230,7 @@ export const en: {
     readonly 'label.kind.dashboard': "Dashboard";
     readonly 'label.view.list': "Views";
     readonly 'label.view.list-failed': "The list could not be loaded.";
+    readonly 'label.view.list-cut': "Only the first {limit} views of each group are listed; a link to another still opens it.";
     readonly 'label.view.none-hint': "Make one to start looking at the data.";
     readonly 'label.view.new': "New view";
     readonly 'label.view.new-title': "Untitled view";
@@ -8376,6 +8377,7 @@ export function ViewList(input: ViewListProps): JSX.Element;
 
 // @public
 interface ViewListing {
+    cut?: number;
     // (undocumented)
     failed: Issue | null;
     // (undocumented)
@@ -8406,6 +8408,7 @@ interface ViewListReloadOptions {
 // @public (undocumented)
 interface ViewListState {
     all: ViewInstanceSummary[];
+    cut?: number;
     defaultInstanceId: string | null;
     // (undocumented)
     error: Issue | null;
@@ -8698,6 +8701,7 @@ interface ViewStore {
     // (undocumented)
     getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
     list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+    readonly listLimit?: number;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
     // (undocumented)

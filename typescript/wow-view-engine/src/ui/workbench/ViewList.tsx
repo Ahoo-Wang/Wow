@@ -265,6 +265,18 @@ function ViewListBody({
       {retry && <AlertAction>{retry}</AlertAction>}
     </LineAlert>
   );
+  // A list the store cut short says so, under it (R2-26): the views past
+  // the cut are not gone, only not listed — a link still opens one.
+  const cut = list.cut !== undefined && (
+    <p
+      data-slot="view-list-cut"
+      // `sidebar-foreground/70`, as the empty line beside it: the muted
+      // grey falls under 4.5:1 on this column's ground.
+      className={cn('fve:text-sidebar-foreground/70 fve:px-1.5', TEXT_UI)}
+    >
+      {messages.label('label.view.list-cut', { limit: list.cut })}
+    </p>
+  );
   if (list.loading)
     return (
       <div className="fve:flex fve:flex-col fve:gap-2">
@@ -324,6 +336,7 @@ function ViewListBody({
           />
         );
       })}
+      {cut}
     </>
   );
 }

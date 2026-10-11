@@ -197,7 +197,7 @@ Preferences carry a `revision` too. When a preference write conflicts, the engin
 
 ## The store
 
-`ViewStore` is the one port a backend satisfies: eight methods (list, get, create, save, rename and delete views; read and write preferences), plus two optional ones: `changeAudience`, and a synchronous `permissions` (left out, everything but `editSystem` is allowed). The signatures and rules are in the [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence).
+`ViewStore` is the one port a backend satisfies: eight methods (list, get, create, save, rename and delete views; read and write preferences), plus optional members: `changeAudience`, a synchronous `permissions` (left out, everything but `editSystem` is allowed), and `listLimit`, the most views of one audience `list` answers — where an audience fills it, the workbench says the list was cut. The signatures and rules are in the [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence).
 
 - **Only two things are stored.** Saved views (`ViewInstance`) and each user's preferences on each definition (`ViewPreferences`). Definitions are not stored, nor is runtime state.
 - **The list order is part of the port.** System views, shared views, personal views, each in order of creation; without preferences the first one opens, so a different store still opens the same default view.

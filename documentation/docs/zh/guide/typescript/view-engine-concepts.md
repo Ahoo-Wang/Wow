@@ -194,7 +194,7 @@ export const store = new WowViewStore({
 
 ## 存储
 
-`ViewStore` 是后端唯一要满足的端口：八个方法（列出、读取、新建、保存、改名、删除视图，读写偏好），外加两个可选的：`changeAudience`，与同步的 `permissions`（不实现时除 `editSystem` 外全部允许）。签名与规则见 [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence)。
+`ViewStore` 是后端唯一要满足的端口：八个方法（列出、读取、新建、保存、改名、删除视图，读写偏好），外加几个可选成员：`changeAudience`；同步的 `permissions`（不实现时除 `editSystem` 外全部允许）；`listLimit`，`list` 每种受众至多答几个——某种受众列满时，工作台会写明列表被截断了。签名与规则见 [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence)。
 
 - **只存两样东西。** 保存的视图（`ViewInstance`）与每个用户在每份定义上的偏好（`ViewPreferences`）。定义不存，运行时状态不存。
 - **列表顺序是端口的一部分。** 系统视图、共享视图、个人视图，各组按创建先后；没有偏好时打开第一个，所以换一个 store 打开的仍是同一个默认视图。

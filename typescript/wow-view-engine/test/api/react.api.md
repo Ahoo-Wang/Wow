@@ -4061,6 +4061,7 @@ type ViewKind = ViewConfig['kind'];
 
 // @public
 interface ViewListing {
+    cut?: number;
     // (undocumented)
     failed: Issue | null;
     // (undocumented)
@@ -4080,6 +4081,7 @@ export interface ViewListReloadOptions {
 // @public (undocumented)
 export interface ViewListState {
     all: ViewInstanceSummary[];
+    cut?: number;
     defaultInstanceId: string | null;
     // (undocumented)
     error: Issue | null;
@@ -4299,6 +4301,7 @@ interface ViewStore {
     // (undocumented)
     getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
     list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+    readonly listLimit?: number;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
     // (undocumented)

@@ -120,6 +120,13 @@ export interface ViewStore {
   ): Promise<ViewInstance>;
   /** Synchronous, because the application fetched it before creating the engine. */
   permissions?(definitionId: string): ViewPermissions;
+  /**
+   * The most views `list` answers of one audience, where the store answers
+   * no more (R2-26): `WowViewStore` lists the first 1000 of each. A list
+   * holding this many of an audience was cut there, and the workbench says
+   * so rather than leaving the rest unmentioned. Left out, a list is whole.
+   */
+  readonly listLimit?: number;
 }
 
 /**
