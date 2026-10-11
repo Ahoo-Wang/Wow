@@ -31,7 +31,9 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | Wow 9.4.x | [从 9.4 升级到 9.5.0](#从-9-4-升级到-9-5-0) | `wow-schema` 重构，生成的 Schema 不变：重新编译；`OpenAPISchemaBuilder` 的 import 改为 `me.ahoo.wow.openapi.schema`（位于 `wow-openapi`），删掉对已删除 `SchemaGeneratorBuilder` 成员的调用；改掉对已转为内部的 Provider 与检查的引用 |
 | Wow 9.3.x | [从 9.3 升级到 9.4.0](#从-9-3-升级到-9-4-0) | 只有 `wow-bi` 变化：每个 BI 部署用确认后的 `RESET` 重建一次，直接调用已删除 `wow-bi` API 的 Kotlin 代码改用 `BiScriptService` 或 `generate(prepare(…))`；其余部分的 REST、存储与线上格式不变 |
 | Wow 9.2.x | [从 9.2 升级到 9.3.0](#从-9-2-升级到-9-3-0) | 重新编译，迁移已删除与已弃用的 API，先升级处理节点再升级只做网关的服务；REST、存储与线上格式不变 |
-| Wow v8.16.x 使用旧查询 API 或 `SnapshotRepository` | [V9 查询迁移](./query/v9-query-migration.md) | 迁移 Gateway/Backend、Filter、Mask、SnapshotStore 与 Spring Bean 名 |
+| Wow 9.1.x | [从 9.1 升级到 9.2.0](#从-9-1-升级到-9-2-0) | 在不变的网关与 REST 合同之下重建查询引擎：自定义查询后端与网关、改名的 Bean、9.1 声明文件需要修改；四项经批准的服务端行为例外需要在升级之前处理 |
+| Wow 9.0.x | [从 9.0 升级到 9.1.0](#从-9-0-升级到-9-1-0) | 新增聚合能力：重新编译调用聚合构造函数的代码 |
+| Wow v8.16.x | [从 8.16 升级到 9.0.0](#从-8-16-升级到-9-0-0)，再依次完成各个 9.x 章节 | 完整的 V8 → V9 路径：查询迁到 `QueryGateway` 与 `QueryBackend`（[V9 查询迁移](./query/v9-query-migration.md)），并删除 v8 的存储别名 |
 | TypeScript 客户端使用 `fetcher-wow`、`fetcher-generator` 或 `fetcher-react` 的 Wow Hook | [从 Fetcher 包迁移](./typescript/migration.md) | 换用 `wow-client`、`wow-generator` 和 `wow-react`，并重新生成客户端代码 |
 
 不要把首次采用 Wow 与 v6→v8 升级混成一次无法区分的发布。每个变更窗口都应选择一个 bounded context
@@ -390,6 +392,78 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 ### 构建：`wow-metadata` 与可复现的 KSP 输出
 
 `wow-compiler`（KSP 处理器）改为依赖新的 `wow-metadata` 模块，不再依赖 `wow-core`。元数据模型（`me.ahoo.wow.configuration.*`、`me.ahoo.wow.naming.*`）以不变的包名移到那里，`wow-core` 依赖它，`wow-bom` 对齐它的版本，所以依赖 `wow-core` 的代码看到的类不变。原来只经由 `wow-compiler` 拿到 `wow-core` 的构建需要自己声明它。生成代码上的 `@Generated` 不再带日期，重复构建产生逐字节一致的源码。
+
+## 从 9.1 升级到 9.2.0
+
+9.2.0 在不变的 `QueryGateway` 与 REST 合同之下重建了查询引擎，新增查询能力描述，并让 TypeScript 包随 Wow 一起发布。现有聚合的 REST、存储与线上格式不变，只有[服务端行为](#server-behaviour-9-2)下列出的四项经批准的例外，所以滚动升级期间 9.1.x 与 9.2.x 节点可以共处一个集群，差异见各项说明；请尽量缩短这段混部时间。TypeScript 应用按[从 Fetcher 包迁移](./typescript/migration.md)切换。
+
+### 升级之前 {#before-9-2}
+
+1. 在每个依靠空间请求头隔离数据的聚合上声明 `spaced = true`（自 9.3.0 起为 `@Spaced`）；Saga 由非空间聚合的事件创建空间聚合时，显式设置空间。
+2. Elasticsearch：对 Wow 自带定义的索引（视图存储与补偿的 `execution_failed` 快照）授予 `view_index_metadata` 与 `create_index`，在 `auto-init-template=true`（默认）时还要授予集群权限 `manage_index_templates`；把小数映射为整数的索引重建一次（[重建索引](./extensions/elasticsearch.md#reindex-existing-index)）。
+3. 把 9.1 的查询 Schema 声明文件转换为 9.2 格式（[迁移 9.1 的声明文件](./query/query-model-schema.md#declaration-91)）。
+4. 按新名字覆盖改名的 Spring Bean（见下表）。
+5. 解析 `/schema` 响应体的客户端改用能力描述；按错误文案匹配查询错误的客户端改为按错误码匹配。
+
+### Kotlin 与 SPI 变化 {#kotlin-9-2}
+
+| 变化 | 受影响的代码 | 怎么做 |
+|---|---|---|
+| `QueryBackend` 接收 `AdmittedQuery`，实现四个原语（`stream`、`page`、`count`、`aggregate`）和一个游标位置编解码器；存储通过 `QueryBackendProvider` 注册（取代 `SnapshotQueryBackendFactoryBinding` 与 `EventStreamQueryBackendFactoryBinding`），`QueryStorageAdapter` 取代 `QuerySchemaBackendAdapter` | 自定义存储，以及继承内置 Backend 或传入自定义过滤编译器的代码 | 实现四个原语，并以存储名注册 `QueryBackendProvider`；见[查询后端](./query/query-backend.md) |
+| `QueryCapability` 改为枚举；`AggregationExpression` 改为 sealed；`AggregationGroup.field` 可空；`QueryRequestScope.resolve` 返回 `QueryScope`；`QueryContext` 新增两个必填参数；`HttpQueryGuard` 只接受三个构造参数且不再带预算（有界操作经 `guard.of(gateway)`）；`BindingError`、`Terms`、`Histogram` 的 `copy(...)` 改变了 JVM 签名 | 构造或继承这些类型的代码 | 重新编译；把 `QueryCapability(...)` 换成枚举常量 |
+| 按 9.1 编译的自定义 `QueryGateway` 拿到的是 `QueryEntryPolicy.DEFAULT` 而不是配置的 `wow.query.*` 预算，它的 `describe`（`GET …/schema` 背后）以 503 `QuerySchemaUnavailable` 失败 | 自定义网关 | 重新编译，传入配置的策略并实现 `describe`，或者继承 `AbstractQueryGateway` |
+| 标注 `@InternalWowApi` 的类型出现在公开签名里：`QueryModelProfile.systemField`，以及 TCK 的 `SnapshotQueryBackendSpec` 与 `FilterSemantics`（现位于 `wow-tck` 的 `me.ahoo.wow.tck.query`） | 第三方后端与 TCK 使用者 | 加上 `@OptIn(InternalWowApi::class)` 或对应的编译参数 |
+| Spring Bean 改名：`noOp*QueryBackendFactory` → `unavailable*QueryBackendFactory`；`jsonQuerySchemaSource` → `inferredQuerySchemaSource`；`mongo*QueryBackendFactoryBinding` / `elasticsearch*QueryBackendFactoryBinding` → `mongo*QueryBackendProvider` / `elasticsearch*QueryBackendProvider`；`querySchemaCatalog` 移到 `QueryAutoConfiguration` | 按 Bean 名覆盖其中之一的宿主：覆盖会被静默忽略 | 按新名字覆盖 |
+| 查询 Schema 声明只从 `META-INF/wow/query-schema/{ctx}.{agg}.{model}.json` 或 `config/wow/query-schema/…` 读取，且须为 9.2 格式。位于 9.1 位置 `wow-query-schema/{ctx}/{agg}/{model}.json` 的文件会被跳过并给出警告，该模型使用推断的 Schema（`wow.query.schema.legacy-declarations=fail` 则直接失败）；新路径上的 9.1 格式文件会让该模型的 Schema 失败 | 有声明文件的应用 | 转换文件（[迁移 9.1 的声明文件](./query/query-model-schema.md#declaration-91)）；滚动升级期间把 9.1 文件留在旧位置，并给每个 9.2 节点在 `config/wow/query-schema/` 放上 9.2 文件 |
+| 新的启动检查：同一方法下模板只有变量名不同的两条路由在启动时失败并同时报出两条（其中一条原本就无法到达），被包含的路由先于包含它的路由匹配；`wow.query.require-authenticated-scope=true` 要求 `wow.webflux.state.point-read-admission=true` | 有这类路由或配置的服务 | 删掉无法到达的那条路由；两个属性一起设置 |
+| 查询错误文案用框架自己的话说明错在哪里（`limit must be between 1 and 10000.`）；状态码与错误码不变 | 按文案匹配的客户端 | 改为按错误码匹配 |
+| 删除或改为内部的辅助方法：`FilterNormalizer.normalize(...)`（改经 `QueryAdmission.Trusted` 准入）、`ICursorQuery.withUniqueSort`、`selectTopRows`、`HttpQueryGuard.of(QueryBudget)`、`FilterExpression.walkFilterNodes()` / `filterNodeCount()`、`FieldArity`、残余算子（`DenseFill`、`BoundedTopRows`、`matchesHaving` 等）、`ResolvedField.definition` / `value` / `bindings`、`AdmittedQuery.schema`、`requireScalarMetricFilterFields`、`EventStore.appendResolvingOutcome`、`QueryModelSchemaMetadata`、`QueryValueSchemaMetadata` 与 `toMetadata()` | 调用它们的代码 | 改用网关或 `QueryAdmission`；内部算子没有公开的替代 |
+
+已弃用、在 v10 之前仍然有效（见 `docs/compat-debt.md`）：9.1 的脱敏注解（`@Mask`、`@KeepMask`、`@Masking`）与旧的 `QueryTemporal`，分别按 `@Sensitive` 与新的 `@QueryTemporal` 读取；`wow.webflux.query.max-*` 键，在对应的 `wow.query.http.*` 键未设置时读取并给出警告；9.1 补偿控制台的链接，会重定向。
+
+### 服务端行为 {#server-behaviour-9-2}
+
+每一项都是对 v9 冻结的经批准的例外，或 9.2 节点需要的部署步骤。
+
+| 变化 | 升级之前 | 9.1/9.2 混部集群 |
+|---|---|---|
+| 非空间聚合不再从请求、命令构造器或 Saga 取空间：它的命令带默认空间 `""`，它的查询不再按 `Wow-Space-Id`（或 `CoSec-Space-Id`）过滤。空间也不再经过非空间聚合传到 Saga 创建的空间聚合（[详情](./data-access.md#从-9-1-升级)） | 上面第 1 步 | 9.1 节点按请求头的空间写入并过滤，9.2 节点不会，所以同一查询可能因应答节点不同而返回不同的行；网关、聚合节点与查询节点一起升级。回滚之后，9.2 在空间 `""` 写下的记录，对发送空间请求头的客户端会被拒绝或隐藏 |
+| `GET …/snapshot/schema` 与 `GET …/event/schema` 返回能力描述（`QueryModelDescriptor`），而不是 9.1 的 Schema 元数据；`POST …/schema/refresh` 作为弃用别名保留到 10.0.0 | 上面第 5 步 | 同一路由按应答节点以两种形状之一应答；9.2 的视图引擎会回退到宿主声明的定义 |
+| 游标 token 带有版本以及聚合、读模型与排序的指纹；9.1 签发的、或属于别的模型或排序的 token 以 `Invalid cursor.`（400）拒绝 | 无需操作：客户端重新开始一次游标 | 一个版本签发的 token 会被另一个版本拒绝 |
+| Elasticsearch：`META-INF/wow/elasticsearch/` 下的索引定义在启动时创建（需要第 2 步的权限）；整数字段上的小数只提供存在性过滤（过滤与排序返回 400 `QuerySchemaValidation`）；`exists`、`isNull`、`notExists`、`isEmpty` 也读取 `_ignored` | 上面第 2 步 | 9.1 节点仍对这类小数过滤和排序，存在性判断也不看 `_ignored` |
+
+### 其他行为变化 {#behaviour-9-2}
+
+可见但不破坏兼容；除非条目另有说明，无需迁移：
+
+- **Elasticsearch。** 查询尚不存在的索引时返回空，而不是 503（根据模板模拟 Schema 需要 `manage_index_templates`）；索引映射与其定义不一致时，启动日志给出一条警告并列出路径；新索引把 `state` 下的动态字符串映射为带 `.keyword`（上限 8191）的字段、浮点值映射为 `double`——两个版本都开着 `auto-init-template=true` 时，最后启动的节点决定模板，所以升级期间在 9.1 节点上设为 `false`，或在升级后重启一个 9.2 节点；`ignore_above` 不小于 8191 的 keyword 变为可查询；超出 `index.max_result_window` 的分页在准入时以 400 拒绝；去重计数每个桶在 40000 以内是精确的。
+- **查询错误与准入。** 服务端故障以 500 `InternalServerError` 应答而不是 400，且不再带出驱动的文字；超过 32 个排序字段或重复同一字段的排序会被拒绝；`wow.query.http.allow-expensive-operators=false` 时，HTTP 也拒绝 `DATE_PART` 分组、补齐与 `FIRST`/`LAST`；MongoDB 上错误的日期操作数返回 400 而不是 5xx。
+- **运维。** 示例、补偿与视图存储镜像只在授权时显示健康详情；5xx 响应以 `ERROR` 级别连同堆栈记录，客户端的 4xx 只记一行。
+- **视图存储。** 如果部署视图存储（9.2 新增），部署之前先在网关把 `…/tenant/(platform)/owner/(system)/**` 限制为管理员；服务端没有控制谁能写系统视图的设置。
+
+## 从 9.0 升级到 9.1.0
+
+9.1.0 在 MongoDB 与 Elasticsearch 上新增聚合能力：`DISTINCT_COUNT`、`STDDEV`、`VARIANCE`、`PERCENTILE`、指标级过滤、派生指标、`HAVING`、补齐的日期直方图与 `TERMS.missingKey`。现有聚合 JSON 不变。
+
+- 重新编译调用 `AggregationGroup`、`AggregationMetric`、`AggregationQuery` 构造函数的 Kotlin 与 Java 代码：它们新增了带默认值的末尾参数，JVM 签名随之改变。
+- 补齐的日期直方图需要 MongoDB 5.1 或更高版本。
+
+## 从 8.16 升级到 9.0.0
+
+9.0.0 用 `QueryGateway` → `QueryBackend` 架构取代 `QueryService`，并删除 v8 保留的存储别名。事件与快照的数据布局不变。
+
+1. 按 [V9 查询迁移](./query/v9-query-migration.md) 迁移查询、过滤、脱敏与自定义后端。
+2. 替换已删除的存储别名：
+
+| 9.0.0 删除的 | 改用 |
+|---|---|
+| `SnapshotRepository`、`NoOpSnapshotRepository`、`InMemorySnapshotRepository`、`ElasticsearchSnapshotRepository`、`TracingSnapshotRepository` | `SnapshotStore` 及其实现（`NoOpSnapshotStore` 等） |
+| `*SnapshotRepository` Spring Bean 别名（`mongoSnapshotRepository`、`inMemorySnapshotRepository` 等） | `*SnapshotStore` Bean |
+| 存储路由 Bean `<storage>-snapshot-query-service-factory` 与 `<storage>-event-stream-query-service-factory` | `<storage>-snapshot-query-backend-factory` 与 `<storage>-event-stream-query-backend-factory`（9.2 又由 `QueryBackendProvider` 取代） |
+| `AggregateSchemaInitializer` 上已弃用的 MongoDB 建索引辅助方法（`createAggregateIdIndex`、`createRequestIdUniqueIndex` 等） | 自己的集合需要的索引自行创建 |
+| Elasticsearch 的 `UNLIMITED_SIZE` 与 `Int.searchSize()` | 无需替代：列表查询使用 PIT 与 `search_after` |
+
+然后按版本从旧到新，依次完成上面各节，直到目标版本。
 
 ## 旧链接导航
 
