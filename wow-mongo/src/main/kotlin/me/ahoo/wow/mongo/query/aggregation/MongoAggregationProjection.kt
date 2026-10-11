@@ -256,4 +256,5 @@ private fun DerivedExpression.toDerivedDocument(): Any = when (this) {
      */
     is DerivedExpression.Constant -> Document("\$literal", value)
     is DerivedExpression.Binary -> nullSafeBinary(operator, left.toDerivedDocument(), right.toDerivedDocument())
+    is DerivedExpression.Window -> error("Windows are computed by the core and never sent to storage.")
 }

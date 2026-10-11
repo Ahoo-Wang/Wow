@@ -38,6 +38,7 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.childFilters
+import me.ahoo.wow.api.query.windowFunction
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.valueCount
@@ -250,7 +251,31 @@ private class QueryShapeWriter {
             derived(expression.left, reference)
             derived(expression.right, reference)
         }
+        is DerivedExpression.Window -> window(expression, reference)
     }
+
+    /** A window's shape: what it reads and the groups it names; its shift and frame are values. */
+    private fun window(window: DerivedExpression.Window, reference: (String) -> String) =
+        group(window.windowFunction.name) {
+            token(reference(window.metric))
+            when (window) {
+                is DerivedExpression.Total -> window.within.forEach { token(reference(it)) }
+                is DerivedExpression.Running -> {
+                    token(window.function.name)
+                    sort(listOf(window.order)) { token(reference(it.path)) }
+                    group("within") { window.within.forEach { token(reference(it)) } }
+                    if (window.frame != null) token("frame")
+                }
+                is DerivedExpression.Previous -> {
+                    token(reference(window.along))
+                    window.period?.let { token(it.name) }
+                }
+                is DerivedExpression.Rank -> {
+                    token(window.direction.name)
+                    window.within.forEach { token(reference(it)) }
+                }
+            }
+        }
 
     private fun having(expression: HavingExpression, reference: (String) -> String): Unit = when (expression) {
         is HavingExpression.Condition -> group(expression.operator.name) { token(reference(expression.metric)) }

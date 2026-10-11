@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.spec.MetricSpec
 import me.ahoo.wow.api.query.spec.spec
+import me.ahoo.wow.api.query.windowFunction
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryViolation
@@ -53,12 +54,43 @@ val AggregationQuery.metricSorted: Boolean
         return sort.any { it.field.path in metrics }
     }
 
+/** Which operators of an aggregation the core computes instead of the storage. */
+private class Residual(val dense: Boolean, val windows: Boolean, val having: Boolean, val topN: Boolean) {
+    val any: Boolean
+        get() = dense || windows || having || topN
+
+    /** Whether an operator needs every group: dense fill alone walks the groups the limit keeps. */
+    val allGroups: Boolean
+        get() = windows || having || topN
+
+    companion object {
+        fun of(query: AggregationQuery, support: AggregationSupport): Residual {
+            val dense = query.denseGroup != null && support.denseFill == SupportMode.RESIDUAL
+            // Windows read every group, the fill rows included.
+            val windows = query.windows.let { windows ->
+                windows.isNotEmpty() &&
+                    (dense || windows.any { support.window(it.windowFunction) == SupportMode.RESIDUAL })
+            }
+            // HAVING and a metric sort must see the fill rows the core adds and may read a window: run natively,
+            // they would act on the storage's rows before the fill, and a native top-N would also break the key
+            // order the fill walks.
+            val after = dense || windows
+            return Residual(
+                dense = dense,
+                windows = windows,
+                having = query.having != null && (support.having == SupportMode.RESIDUAL || after),
+                topN = query.metricSorted && (support.topN == SupportMode.RESIDUAL || after),
+            )
+        }
+    }
+}
+
 /**
  * How the core runs one aggregation over a storage's [AggregationSupport]: the query and window it sends down, and
- * the residual operators it applies, in order, to the rows that come back (dense fill, then HAVING, then top-N or the
- * limit). A feature the storage declares [SupportMode.NONE] was rejected at admission ([requireSupported]). When
- * dense fill is residual,
- * HAVING and top-N are residual too, since both must see the fill rows.
+ * the residual operators it applies, in order, to the rows that come back (dense fill, then windows, then HAVING,
+ * then top-N or the limit). A feature the storage declares [SupportMode.NONE] was rejected at admission
+ * ([requireSupported]). When dense fill is residual, windows, HAVING and top-N are residual too, since they must see
+ * the fill rows; when windows are residual, HAVING and top-N are too, since they may read a window.
  */
 internal class AggregationPlan private constructor(
     val query: AggregationQuery,
@@ -67,6 +99,7 @@ internal class AggregationPlan private constructor(
     val dense: DenseFill?,
     val having: Boolean,
     val topN: Boolean,
+    val windows: GroupWindows? = null,
 ) {
     val adjusted: Boolean
         get() = native !== query
@@ -84,27 +117,23 @@ internal class AggregationPlan private constructor(
 
     companion object {
         fun of(query: AggregationQuery, support: AggregationSupport): AggregationPlan {
-            val dense = query.denseGroup
-            val metricSorted = query.metricSorted
-
             query.denseDatePart?.let { return datePart(query, it) }
-            val residualDense = dense != null && support.denseFill == SupportMode.RESIDUAL
-            // HAVING and a metric sort must see the fill rows the core adds: run natively, they would act on the
-            // storage's rows before the fill, and a native top-N would also break the key order the fill walks.
-            val residualHaving = query.having != null && (support.having == SupportMode.RESIDUAL || residualDense)
-            val residualTopN = metricSorted && (support.topN == SupportMode.RESIDUAL || residualDense)
-            if (!residualDense && !residualHaving && !residualTopN) {
+            val residual = Residual.of(query, support)
+            if (!residual.any) {
                 return AggregationPlan(query, query, GroupWindow.First(query.limit), null, false, false)
             }
-            val native = query.native(dense?.takeIf { residualDense }, residualHaving, residualTopN)
-            val window = if (residualHaving || residualTopN) GroupWindow.All else GroupWindow.First(query.limit)
+            val dense = query.denseGroup?.takeIf { residual.dense }
+            val windowed = if (residual.windows) windowedMetrics(query) else emptySet()
+            val native = query.native(dense, residual.having, residual.topN, windowed)
+            val window = if (residual.allGroups) GroupWindow.All else GroupWindow.First(query.limit)
             return AggregationPlan(
                 query,
                 native,
                 window,
-                if (residualDense) DateHistogramFill(checkNotNull(dense), query.metrics) else null,
-                residualHaving,
-                residualTopN,
+                dense?.let { DateHistogramFill(it, native.metrics) },
+                residual.having,
+                residual.topN,
+                windowed.takeIf { it.isNotEmpty() }?.let { GroupWindows(query, it) },
             )
         }
 
@@ -114,8 +143,10 @@ internal class AggregationPlan private constructor(
          */
         private fun datePart(query: AggregationQuery, group: AggregationGroup.DatePart): AggregationPlan {
             val direction = query.effectiveSort().first { it.field.path == group.alias }.direction
+            val windowed = windowedMetrics(query)
             val native = query.copy(
                 groupBy = listOf(group.copy(dense = false)),
+                metrics = query.metrics.filterNot { it.alias in windowed },
                 sort = query.sort.filter { it.field.path == group.alias },
                 having = null,
             )
@@ -123,21 +154,24 @@ internal class AggregationPlan private constructor(
                 query,
                 native,
                 GroupWindow.All,
-                DatePartFill(group, direction, query.metrics),
+                DatePartFill(group, direction, native.metrics),
                 query.having != null,
                 query.metricSorted,
+                windowed.takeIf { it.isNotEmpty() }?.let { GroupWindows(query, it) },
             )
         }
 
-        /** The query sent down: without the residual [dense] flag, HAVING or metric sort. */
+        /** The query sent down: without the residual [dense] flag, HAVING, metric sort or [windowed] metrics. */
         private fun AggregationQuery.native(
             dense: AggregationGroup.DateHistogram?,
             residualHaving: Boolean,
             residualTopN: Boolean,
+            windowed: Set<String>,
         ): AggregationQuery {
             val groupAliases = groupBy.mapTo(hashSetOf(), AggregationGroup::alias)
             return copy(
                 groupBy = dense?.let { listOf(it.copy(dense = false)) } ?: groupBy,
+                metrics = metrics.filterNot { it.alias in windowed },
                 sort = if (residualTopN) sort.filter { it.field.path in groupAliases } else sort,
                 having = if (residualHaving) null else having,
             )
@@ -157,6 +191,9 @@ internal fun requireSupported(query: AggregationQuery, storage: StorageSupport) 
     val used = query.metrics.mapTo(hashSetOf()) { it.spec }
     OFFERED_METRICS.forEach { (spec, feature) ->
         requireValid(spec !in used || storage.offers(spec)) { QueryViolation.StorageUnsupported(feature) }
+    }
+    query.windows.mapTo(linkedSetOf()) { it.windowFunction }.forEach { function ->
+        support.window(function).require(true, "the $function window")
     }
 }
 

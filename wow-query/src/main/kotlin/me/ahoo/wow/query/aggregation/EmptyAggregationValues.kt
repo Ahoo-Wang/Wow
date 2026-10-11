@@ -55,5 +55,8 @@ internal object EmptyAggregationValues {
                     }
             }.takeIf { it.isFinite() }
         }
+
+        // A window reads the other groups: the core computes it over the complete rows (GroupWindows).
+        is DerivedExpression.Window -> null
     }
 }

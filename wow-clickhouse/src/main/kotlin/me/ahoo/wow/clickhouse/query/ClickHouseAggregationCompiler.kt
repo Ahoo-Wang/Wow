@@ -210,6 +210,7 @@ internal class ClickHouseAggregationCompiler(
                 AggregationExpressionOperator.DIVIDE -> "if($right = 0, NULL, $left / $right)"
             }
         }
+        is DerivedExpression.Window -> error("Windows are computed by the core and never sent to storage.")
     }
 
     /** A HAVING condition over the outer query's metric aliases, in double space; NULL satisfies no comparison. */

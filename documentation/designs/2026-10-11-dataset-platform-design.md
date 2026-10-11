@@ -1,6 +1,6 @@
 # 数据集平台化设计
 
-日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施（Ahoo-Wang/Wow#4156）；R3a 已实施（Ahoo-Wang/Wow#4159，`defineDataset`、`ViewEngine.register`，view-engine D84）；R3b 已实施（Ahoo-Wang/Wow#4160，`DatasetDirectoryClient`、`ViewEngine.unregister`、`DatasetResources`，view-engine D85；选择器即导航）；措辞覆盖的形状与套用已实施（Ahoo-Wang/Wow#4163，view-engine D86），存储留在 view-engine todo；注册表的端到端测试已补（Ahoo-Wang/Wow#4164，顺带修正 Mongo、Elasticsearch 自动配置的次序）；Skills 已补（Ahoo-Wang/Wow#4162）。R4 设计稿已写（Ahoo-Wang/Wow#4161），R4、R5 待用户讨论的事项见 §11。
+日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施（Ahoo-Wang/Wow#4156）；R3a 已实施（Ahoo-Wang/Wow#4159，`defineDataset`、`ViewEngine.register`，view-engine D84）；R3b 已实施（Ahoo-Wang/Wow#4160，`DatasetDirectoryClient`、`ViewEngine.unregister`、`DatasetResources`，view-engine D85；选择器即导航）；措辞覆盖的形状与套用已实施（Ahoo-Wang/Wow#4163，view-engine D86），存储留在 view-engine todo；注册表的端到端测试已补（Ahoo-Wang/Wow#4164，顺带修正 Mongo、Elasticsearch 自动配置的次序）；Skills 已补（Ahoo-Wang/Wow#4162）。R4 设计稿已写（Ahoo-Wang/Wow#4161）并经用户确认，§11 的 T1～T5 按推荐采纳（2026-10-11）；R4a-1（窗口的协议与核心）已实施（Ahoo-Wang/Wow#4169）。
 
 基线：`main` `ff0a57653`。本文接在[数据集查询与 ClickHouse 后端设计](2026-10-10-clickhouse-dataset-query-design.md)（下称“数据集设计”）之后，取代它 §10 中原定的 S4。view-engine 的原则与编号见 `typescript/wow-view-engine/docs/design/`。
 
@@ -250,7 +250,7 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 
 ## 11. 待用户讨论
 
-用户 2026-10-11 授权自主推进，需要用户决策的事项记在这里，回来后讨论。每项给出推荐与理由；未决前按推荐的默认推进或暂缓，已注明。
+用户 2026-10-11 授权自主推进，需要用户决策的事项记在这里，回来后讨论。每项给出推荐与理由；未决前按推荐的默认推进或暂缓，已注明。T1～T5 已由用户按推荐采纳（2026-10-11，「按你推荐，开始 R4a」）。
 
 | # | 问题 | 推荐 | 未决前 |
 |---|---|---|---|

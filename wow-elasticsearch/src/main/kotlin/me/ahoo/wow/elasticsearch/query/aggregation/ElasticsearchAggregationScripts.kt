@@ -84,6 +84,8 @@ private fun DerivedExpression.toScript(
         // all-double operands follow IEEE: x / 0.0 -> ±Infinity, unified to null by the final wrap
         "(${painlessBinary(leftScript, operator, rightScript)})"
     }
+
+    is DerivedExpression.Window -> error("Windows are computed by the core and never sent to storage.")
 }
 
 /**

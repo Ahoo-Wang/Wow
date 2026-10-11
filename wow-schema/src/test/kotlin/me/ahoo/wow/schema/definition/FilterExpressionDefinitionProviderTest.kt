@@ -161,6 +161,10 @@ class FilterExpressionDefinitionProviderTest {
                 "#/definitions/wow.api.query.DerivedExpression.MetricRef",
                 "#/definitions/wow.api.query.DerivedExpression.Constant",
                 "#/definitions/wow.api.query.DerivedExpression.Binary",
+                "#/definitions/wow.api.query.DerivedExpression.Total",
+                "#/definitions/wow.api.query.DerivedExpression.Running",
+                "#/definitions/wow.api.query.DerivedExpression.Previous",
+                "#/definitions/wow.api.query.DerivedExpression.Rank",
             )
         val derivedBinary = definitions.path("wow.api.query.DerivedExpression.Binary")
         derivedBinary.path("properties").path("left").path("\$ref").stringValue()

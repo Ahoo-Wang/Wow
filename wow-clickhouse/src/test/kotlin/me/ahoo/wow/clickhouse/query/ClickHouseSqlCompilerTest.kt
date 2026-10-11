@@ -532,6 +532,18 @@ class ClickHouseSqlCompilerTest {
     private fun grouped(group: AggregationGroup): String =
         compile(AggregationQuery(groupBy = listOf(group), metrics = listOf(AggregationMetric.Count("orders"))))
 
+    @Test
+    fun `windows are computed by the core and never compiled`() {
+        assertThrows<IllegalStateException> {
+            aggregate(
+                metrics = listOf(
+                    AggregationMetric.Count("orders"),
+                    AggregationMetric.Derived("total", DerivedExpression.Total("orders")),
+                ),
+            )
+        }
+    }
+
     private fun aggregate(
         metrics: List<AggregationMetric> = listOf(AggregationMetric.Count("orders")),
         having: HavingExpression? = null,

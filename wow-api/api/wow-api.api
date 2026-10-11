@@ -1391,6 +1391,7 @@ public final class me/ahoo/wow/api/query/AggregationQuery$Companion {
 public final class me/ahoo/wow/api/query/AggregationQueryKt {
 	public static final fun getFields (Lme/ahoo/wow/api/query/AggregationExpression;)Ljava/util/List;
 	public static final fun getInputExpression (Lme/ahoo/wow/api/query/AggregationGroup;)Lme/ahoo/wow/api/query/AggregationExpression;
+	public static final fun getWindowFunction (Lme/ahoo/wow/api/query/DerivedExpression$Window;)Lme/ahoo/wow/api/query/WindowFunction;
 }
 
 public final class me/ahoo/wow/api/query/AndFilter : me/ahoo/wow/api/query/FilterExpression {
@@ -1735,6 +1736,10 @@ public final class me/ahoo/wow/api/query/DeletionState : java/lang/Enum {
 }
 
 public abstract interface class me/ahoo/wow/api/query/DerivedExpression {
+	public static final field Companion Lme/ahoo/wow/api/query/DerivedExpression$Companion;
+	public static final field MAX_FRAME I
+	public static final field MAX_SHIFT I
+	public static final field MAX_WINDOWS I
 }
 
 public final class me/ahoo/wow/api/query/DerivedExpression$Binary : me/ahoo/wow/api/query/DerivedExpression {
@@ -1750,6 +1755,12 @@ public final class me/ahoo/wow/api/query/DerivedExpression$Binary : me/ahoo/wow/
 	public final fun getRight ()Lme/ahoo/wow/api/query/DerivedExpression;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/DerivedExpression$Companion {
+	public static final field MAX_FRAME I
+	public static final field MAX_SHIFT I
+	public static final field MAX_WINDOWS I
 }
 
 public final class me/ahoo/wow/api/query/DerivedExpression$Constant : me/ahoo/wow/api/query/DerivedExpression {
@@ -1772,6 +1783,78 @@ public final class me/ahoo/wow/api/query/DerivedExpression$MetricRef : me/ahoo/w
 	public final fun getMetric ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/DerivedExpression$Previous : me/ahoo/wow/api/query/DerivedExpression$Window {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;ILme/ahoo/wow/api/query/AggregationDateUnit;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILme/ahoo/wow/api/query/AggregationDateUnit;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()I
+	public final fun component4 ()Lme/ahoo/wow/api/query/AggregationDateUnit;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;ILme/ahoo/wow/api/query/AggregationDateUnit;)Lme/ahoo/wow/api/query/DerivedExpression$Previous;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/DerivedExpression$Previous;Ljava/lang/String;Ljava/lang/String;ILme/ahoo/wow/api/query/AggregationDateUnit;ILjava/lang/Object;)Lme/ahoo/wow/api/query/DerivedExpression$Previous;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlong ()Ljava/lang/String;
+	public fun getMetric ()Ljava/lang/String;
+	public final fun getPeriod ()Lme/ahoo/wow/api/query/AggregationDateUnit;
+	public final fun getShift ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/DerivedExpression$Rank : me/ahoo/wow/api/query/DerivedExpression$Window {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/query/Sort$Direction;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/query/Sort$Direction;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Lme/ahoo/wow/api/query/Sort$Direction;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/query/Sort$Direction;)Lme/ahoo/wow/api/query/DerivedExpression$Rank;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/DerivedExpression$Rank;Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/query/Sort$Direction;ILjava/lang/Object;)Lme/ahoo/wow/api/query/DerivedExpression$Rank;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDirection ()Lme/ahoo/wow/api/query/Sort$Direction;
+	public fun getMetric ()Ljava/lang/String;
+	public final fun getWithin ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/DerivedExpression$Running : me/ahoo/wow/api/query/DerivedExpression$Window {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/query/Sort;Ljava/util/List;Ljava/lang/Integer;Lme/ahoo/wow/api/query/RunningFunction;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/query/Sort;Ljava/util/List;Ljava/lang/Integer;Lme/ahoo/wow/api/query/RunningFunction;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/api/query/Sort;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun component5 ()Lme/ahoo/wow/api/query/RunningFunction;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/query/Sort;Ljava/util/List;Ljava/lang/Integer;Lme/ahoo/wow/api/query/RunningFunction;)Lme/ahoo/wow/api/query/DerivedExpression$Running;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/DerivedExpression$Running;Ljava/lang/String;Lme/ahoo/wow/api/query/Sort;Ljava/util/List;Ljava/lang/Integer;Lme/ahoo/wow/api/query/RunningFunction;ILjava/lang/Object;)Lme/ahoo/wow/api/query/DerivedExpression$Running;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFrame ()Ljava/lang/Integer;
+	public final fun getFunction ()Lme/ahoo/wow/api/query/RunningFunction;
+	public fun getMetric ()Ljava/lang/String;
+	public final fun getOrder ()Lme/ahoo/wow/api/query/Sort;
+	public final fun getWithin ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/DerivedExpression$Total : me/ahoo/wow/api/query/DerivedExpression$Window {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/api/query/DerivedExpression$Total;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/DerivedExpression$Total;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/api/query/DerivedExpression$Total;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getMetric ()Ljava/lang/String;
+	public final fun getWithin ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/api/query/DerivedExpression$Window : me/ahoo/wow/api/query/DerivedExpression {
+	public abstract fun getMetric ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/query/EarlierDaysFilter : me/ahoo/wow/api/query/RelativeTimeFilter {
@@ -3055,6 +3138,14 @@ public abstract interface class me/ahoo/wow/api/query/RewritableProjection {
 	public abstract fun withProjection (Lme/ahoo/wow/api/query/Projection;)Lme/ahoo/wow/api/query/RewritableProjection;
 }
 
+public final class me/ahoo/wow/api/query/RunningFunction : java/lang/Enum {
+	public static final field AVG Lme/ahoo/wow/api/query/RunningFunction;
+	public static final field SUM Lme/ahoo/wow/api/query/RunningFunction;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/query/RunningFunction;
+	public static fun values ()[Lme/ahoo/wow/api/query/RunningFunction;
+}
+
 public final class me/ahoo/wow/api/query/SearchFilter : me/ahoo/wow/api/query/FilterExpression {
 	public fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/api/query/SearchMode;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;Lme/ahoo/wow/api/query/SearchMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -3370,6 +3461,16 @@ public final class me/ahoo/wow/api/query/TomorrowFilter : me/ahoo/wow/api/query/
 	public synthetic fun withFilter (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/RewritableFilter;
 }
 
+public final class me/ahoo/wow/api/query/WindowFunction : java/lang/Enum {
+	public static final field PREVIOUS Lme/ahoo/wow/api/query/WindowFunction;
+	public static final field RANK Lme/ahoo/wow/api/query/WindowFunction;
+	public static final field RUNNING Lme/ahoo/wow/api/query/WindowFunction;
+	public static final field TOTAL Lme/ahoo/wow/api/query/WindowFunction;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/query/WindowFunction;
+	public static fun values ()[Lme/ahoo/wow/api/query/WindowFunction;
+}
+
 public final class me/ahoo/wow/api/query/YesterdayFilter : me/ahoo/wow/api/query/RelativeTimeFilter {
 	public fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Ljava/time/format/DateTimeFormatter;Ljava/util/concurrent/TimeUnit;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Ljava/time/format/DateTimeFormatter;Ljava/util/concurrent/TimeUnit;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -3479,10 +3580,11 @@ public final class me/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor 
 }
 
 public final class me/ahoo/wow/api/query/descriptor/AnalysisDescriptor {
-	public fun <init> (Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/util/List;
 	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/util/List;
 	public final fun component2 ()Ljava/util/List;
 	public final fun component3 ()Z
 	public final fun component4 ()Lme/ahoo/wow/api/query/descriptor/HavingDescriptor;
@@ -3491,8 +3593,8 @@ public final class me/ahoo/wow/api/query/descriptor/AnalysisDescriptor {
 	public final fun component7 ()Ljava/util/List;
 	public final fun component8 ()Ljava/util/List;
 	public final fun component9 ()Ljava/util/List;
-	public final fun copy (Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;)Lme/ahoo/wow/api/query/descriptor/AnalysisDescriptor;
-	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/descriptor/AnalysisDescriptor;Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/query/descriptor/AnalysisDescriptor;
+	public final fun copy (Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/api/query/descriptor/AnalysisDescriptor;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/descriptor/AnalysisDescriptor;Ljava/util/List;Ljava/util/List;ZLme/ahoo/wow/api/query/descriptor/HavingDescriptor;Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;ZLjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/api/query/descriptor/AnalysisDescriptor;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getApproximate ()Ljava/util/List;
 	public final fun getDateDiffUnits ()Ljava/util/List;
@@ -3504,6 +3606,7 @@ public final class me/ahoo/wow/api/query/descriptor/AnalysisDescriptor {
 	public final fun getHaving ()Lme/ahoo/wow/api/query/descriptor/HavingDescriptor;
 	public final fun getMetrics ()Ljava/util/List;
 	public final fun getSort ()Lme/ahoo/wow/api/query/descriptor/AnalysisSortDescriptor;
+	public final fun getWindows ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

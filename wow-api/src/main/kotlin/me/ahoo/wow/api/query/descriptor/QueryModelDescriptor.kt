@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -148,6 +149,8 @@ data class AnalysisDescriptor(
      */
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val firstLastOrderBy: String? = null,
+    /** The window functions a derived metric may compute over the groups; empty when DERIVED is not offered. */
+    val windows: List<WindowFunction> = emptyList(),
 )
 
 data class HavingDescriptor(val metrics: List<String>)
