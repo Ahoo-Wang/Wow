@@ -1,6 +1,6 @@
 # 数据集平台化设计
 
-日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施。
+日期：2026-10-11。状态：方向已由用户确认（2026-10-11）：按 §3 的 R1～R5 推进，wow-bi 视图派生降级到 §8。§9 的决定按推荐采纳，各阶段实施前可再调整。R1a 已实施（Ahoo-Wang/Wow#4153）；R1b 已实施（Ahoo-Wang/Wow#4155），模块孵化中，随 R5 发布；R2 已实施（Ahoo-Wang/Wow#4156）；R3a 已实施（`defineDataset`、`ViewEngine.register`，view-engine D84），措辞覆盖与选择器在 R3b。
 
 基线：`main` `ff0a57653`。本文接在[数据集查询与 ClickHouse 后端设计](2026-10-10-clickhouse-dataset-query-design.md)（下称“数据集设计”）之后，取代它 §10 中原定的 S4。view-engine 的原则与编号见 `typescript/wow-view-engine/docs/design/`。
 
@@ -173,12 +173,12 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 
 ### 6.2 派生定义
 
-`deriveDatasetDefinition(descriptor)`：
+`defineDataset(descriptor, { id, source, title })`（view-engine D84，实施时由 `deriveDatasetDefinition` 改名，与 `defineView` 同族）：
 
 | 定义的内容 | 来自描述的 |
 |---|---|
-| 定义 id | `dataset:{context}.{dataset}` |
-| 字段与它们的词 | 每个字段的 `title`、`description`、枚举描述；没有标题时用字段名 |
+| 定义 id | 数据集名 `{context}.{dataset}`（定义 id 不能含 `:`，它是系统视图 id 的分隔符） |
+| 字段与它们的词 | 每个字段的 `description`、枚举描述；没有描述时用字段名（描述符不发布字段标题） |
 | 字段的 kind | 类型、日期语义、枚举与数组 |
 | 记录视图 | `rowKey` 取 `identity`；没有 `identity` 时不提供游标分页 |
 | 默认列 | 全部可投影的字段；敏感字段照常遮挡 |
@@ -186,15 +186,15 @@ view-engine 的原则是“定义是代码”：字段、类型、操作符来�
 
 派生的结果是一份普通的定义，准入（`admit`）照常检查它；之后的视图、看板与聚合上的视图没有区别。
 
-需要调整措辞或默认列时，可以在**存储里**为数据集保存一份覆盖（标题、字段顺序、默认列、默认视图），存法与系统视图相同（view-engine management.md）。覆盖只能在派生结果的范围内收窄、改词，不能增加描述里没有的字段或能力。
+需要调整措辞或默认列时，可以在**存储里**为数据集保存一份覆盖（标题、字段顺序、默认列、默认视图），存法与系统视图相同（view-engine management.md）。覆盖只能在派生结果的范围内收窄、改词，不能增加描述里没有的字段或能力。覆盖不在 R3a，记在 view-engine 的 todo.md。
 
 ### 6.3 运行时资源
 
-当前 `ViewEngineOptions.resources` 是启动时给定的只读数组。R3 增加按需解析的资源：
+当前 `ViewEngineOptions.resources` 是启动时给定的只读数组。R3 增加运行时登记（实施时由「打开时按需解析」改定，view-engine D84）：
 
-- `resolveResource(id)`：引擎遇到不在 `resources` 里的定义 id 时调用它。对 `dataset:` 前缀的 id，宿主返回由 `DatasetQueryClient` 作为数据源、由派生定义作为定义的资源；
-- 已保存的视图与看板按定义 id 引用数据集，打开时按需解析；
-- 解析失败（数据集已下线、无权访问）时，按“定义不在”的现有规则报告，不抛错（view-engine runtime.md 中 `dashboard.panel.definition-unknown` 的同一处理）。
+- `engine.register({ definition, source })`：加入一份资源，同 id 的整份替换，与构造时一样准入、一样报问题。宿主读目录（§4.4）、取每个数据集的描述符、逐个登记，`source` 是 `DatasetQueryClient`；
+- 已保存的视图与看板按定义 id 引用数据集；宿主还没登记时打开，按“定义不在”的现有规则报告（`view.definition.not-found`），与拼错的 id 同一条路；
+- 不在打开路径上异步解析：打开路径保持同步，读目录的时机由宿主决定。
 
 ### 6.4 数据集选择器
 

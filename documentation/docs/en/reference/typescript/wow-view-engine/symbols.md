@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 866 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 868 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -170,6 +170,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 866 — with its kind and th
 | `DateTimeFilterValue` | type | — | — |
 | `DateTimePreset` | type | Named calendar windows, in three directions. | — |
 | `DecimalNumeric` | interface | — | — |
+| `DefineDatasetSpec` | interface | What a host says of a dataset beyond its descriptor. | — |
 | `DefineViewOptions` | interface | What `defineView` needs beyond the snapshot and the host's choices: the field kinds the host registers (`ViewEngineOptions.kinds`) — the snapshot's comparisons are written on a field of a host's own kind only when its kind is known here, since it is built before any engine is. | [Definitions and Field Kinds](./definitions#api-DefineViewOptions) |
 | `DefineViewSpec` | interface | One data definition's choices over its descriptor. | [Definitions and Field Kinds](./definitions#api-DefineViewSpec) |
 | `DefinitionDescribed` | interface | What `defineView` found; see `DataViewDefinition.described`. | — |
@@ -580,6 +581,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 866 — with its kind and th
 | `defaultPanelSize` | function | How big a new panel starts, in cells of the 24-column grid (D22 A): a metric card a quarter, a chart half, a table the full width; a heading a full-width line, a note or a picture beside a chart. | — |
 | `defaultRecordConfig` | function | A complete starting config, because `create` takes a config rather than inventing one: a definition that `validateDefinition` accepted always has a layout and a row key to build from. | — |
 | `defaultRuntimeEnvironment` | function | The default host: the ambient clock and timers, the ambient zone, and a page that is always visible. | — |
+| `defineDataset` | function | A dataset's definition, derived from its descriptor (host-integration.md 3.2, D84): a dataset is published at run time, so its definition is not code. | — |
 | `defineView` | function | A data definition built from its source's descriptor (host-integration.md 3, D67): the descriptor gives the facts — which paths there are, what each is, what it sorts and feeds — as an upper bound, and `spec` picks, names and narrows within it. | [Definitions and Field Kinds](./definitions#api-defineView) |
 | `deletionFieldKind` | const | Whether soft-deleted records are shown: Wow's `DELETION` filter, as a dimension a definition declares (D4) rather than one every view carries. | — |
 | `derivedMetric` | function | A derived metric's first shape: the first metric divided by the second. | — |

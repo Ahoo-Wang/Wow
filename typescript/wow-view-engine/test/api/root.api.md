@@ -1553,6 +1553,19 @@ export function defaultRecordConfig(definition: DataViewDefinition, limits?: Run
 export function defaultRuntimeEnvironment(overrides?: Partial<RuntimeEnvironment>): RuntimeEnvironment;
 
 // @public
+export function defineDataset(descriptor: QueryModelDescriptor, spec: DefineDatasetSpec, options?: DefineViewOptions): DataViewDefinition;
+
+// @public
+export interface DefineDatasetSpec {
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    recordNoun?: string;
+    source: string;
+    title: string;
+}
+
+// @public
 export function defineView(descriptor: QueryModelDescriptor, spec: DefineViewSpec, options?: DefineViewOptions): DataViewDefinition;
 
 // @public
@@ -1822,6 +1835,11 @@ export abstract class EngineResources {
     checkBinding(definitionId: string): boolean;
     get definitions(): ReadonlyMap<string, ViewDefinition>;
     protected hasSource(key: string): boolean;
+    protected keepDefinitionsIn(keep: (definition: ViewDefinition) => void): void;
+    register(resource: {
+        definition: ViewDefinition;
+        source?: ViewSource;
+    }): void;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
     protected report(found: Issue, resource?: string): void;
     // (undocumented)
