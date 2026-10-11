@@ -16,6 +16,7 @@ package me.ahoo.wow.tck.query
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryModelCompiler
@@ -38,7 +39,7 @@ fun SnapshotQueryBackendFactory.target(
 ): QueryTarget<SnapshotQueryBackend> = QueryTarget(
     create(namedAggregate).backend,
     QuerySchemaCatalog(
-        snapshots = this,
+        QueryBackendStorages(snapshots = this),
         compiler = QueryModelCompiler.of(sources)
     ).provider(namedAggregate, QueryModel.SNAPSHOT),
 )
@@ -50,7 +51,7 @@ fun EventStreamQueryBackendFactory.target(
 ): QueryTarget<EventStreamQueryBackend> = QueryTarget(
     create(namedAggregate).backend,
     QuerySchemaCatalog(
-        eventStreams = this,
+        QueryBackendStorages(eventStreams = this),
         compiler = QueryModelCompiler.of(sources)
     ).provider(namedAggregate, QueryModel.EVENT_STREAM),
 )

@@ -29,6 +29,7 @@ import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.aggregate
@@ -208,8 +209,7 @@ class QueryAutoConfigurationTest {
             }
             .verify()
         val catalog = QuerySchemaCatalog(
-            UnavailableSnapshotQueryBackendFactory,
-            UnavailableEventStreamQueryBackendFactory,
+            QueryBackendStorages(UnavailableSnapshotQueryBackendFactory, UnavailableEventStreamQueryBackendFactory),
         )
         catalog.schema(MOCK_AGGREGATE_METADATA, QueryModel.SNAPSHOT)
             .test()

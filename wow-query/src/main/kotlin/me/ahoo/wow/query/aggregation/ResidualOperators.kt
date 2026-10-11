@@ -71,16 +71,6 @@ private fun compare(left: Double, operator: ComparisonOperator, right: Double): 
 /** Fills the empty buckets of a sole dense group; fill rows carry each metric's empty value ([EmptyAggregationValues]). */
 internal sealed interface DenseFill {
     fun fill(rows: Flux<ObjectNode>): Flux<ObjectNode>
-
-    companion object {
-        /** The fill of [group], or `null` when it is not a dense group. */
-        fun of(group: AggregationGroup, direction: Sort.Direction, metrics: List<AggregationMetric>): DenseFill? =
-            when (group) {
-                is AggregationGroup.DateHistogram -> DateHistogramFill(group, metrics).takeIf { group.dense }
-                is AggregationGroup.DatePart -> DatePartFill(group, direction, metrics).takeIf { group.dense }
-                is AggregationGroup.Terms, is AggregationGroup.Histogram -> null
-            }
-    }
 }
 
 private fun emptyRow(alias: String, key: Any, emptyMetrics: Map<String, Any?>): ObjectNode {
@@ -174,10 +164,6 @@ internal class BoundedTopRows(
 
     fun result(): List<ObjectNode> = rows.sortedWith(comparator).map(RankedRow::row)
 }
-
-/** The top [limit] of [rows] under [sort]; see [BoundedTopRows]. */
-internal fun selectTopRows(rows: Iterable<ObjectNode>, sort: List<Sort>, limit: Int): List<ObjectNode> =
-    BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
 
 private class RankedRow(
     val row: ObjectNode,

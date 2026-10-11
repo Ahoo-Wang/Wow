@@ -78,16 +78,16 @@ internal fun QueryValueSchema.accepts(values: Iterable<JsonNode>): Boolean {
     return values.all { input ->
         if (input.isNull) return@all true
         // A runtime POJO is compared as the JSON it serializes to, converted once for every domain and type.
-        val canonical = input.canonicalValue() ?: return@all false
+        val canonical = input.jsonValue().takeUnless { it.isPojo } ?: return@all false
         domains.any { domain -> domain.valueTypes.any { canonical.matches(it) } }
     }
 }
 
-/** This value as JSON: a runtime POJO serialized to its tree, or `null` when it serializes to a POJO again. */
-private fun JsonNode.canonicalValue(): JsonNode? {
-    if (!isPojo) return this
-    return JsonSerializer.valueToTree<JsonNode>((this as POJONode).pojo).takeUnless { it.isPojo }
-}
+/**
+ * This value as the JSON a record stores: a runtime POJO (an enum or value class from the Kotlin DSL) serialized to
+ * its tree, any other node itself. The tree is a POJO again when the value has no JSON form.
+ */
+internal fun JsonNode.jsonValue(): JsonNode = if (this is POJONode) JsonSerializer.valueToTree(pojo) else this
 
 private fun JsonNode.matches(type: QueryValueType): Boolean = when (type) {
     QueryValueType.STRING -> isString

@@ -90,6 +90,70 @@ class DependencyRulesTest {
     }
 
     @Test
+    fun `query dsl rule should catch a runtime import inside the dsl only`(@TempDir root: File) {
+        root.writeSource(
+            "wow-query",
+            "me/ahoo/wow/query/dsl/Bad.kt",
+            """
+            package me.ahoo.wow.query.dsl
+
+            import me.ahoo.wow.api.query.FilterExpression
+            import me.ahoo.wow.query.schema.QueryModelSchema
+            """.trimIndent(),
+        )
+        root.writeSource(
+            "wow-query",
+            "me/ahoo/wow/query/Allowed.kt",
+            """
+            package me.ahoo.wow.query
+
+            import me.ahoo.wow.query.schema.QueryModelSchema
+            """.trimIndent(),
+        )
+
+        DependencyRules.QUERY_DSL_BUILDS_API_ONLY.violations(root).assert().containsExactly(
+            "wow-query/src/main/kotlin/me/ahoo/wow/query/dsl/Bad.kt:4: me.ahoo.wow.query.schema.QueryModelSchema",
+        )
+    }
+
+    @Test
+    fun `query engine rule should catch a read model import in a generic package only`(@TempDir root: File) {
+        root.writeSource(
+            "wow-query",
+            "me/ahoo/wow/query/aggregation/Bad.kt",
+            """
+            package me.ahoo.wow.query.aggregation
+
+            import me.ahoo.wow.query.schema.QueryModelSchema
+            import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+            """.trimIndent(),
+        )
+        root.writeSource(
+            "wow-query",
+            "me/ahoo/wow/query/schema/Bad.kt",
+            """
+            package me.ahoo.wow.query.schema
+
+            import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+            """.trimIndent(),
+        )
+        root.writeSource(
+            "wow-query",
+            "me/ahoo/wow/query/Allowed.kt",
+            """
+            package me.ahoo.wow.query
+
+            import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+            """.trimIndent(),
+        )
+
+        DependencyRules.QUERY_ENGINE_IS_MODEL_NEUTRAL.violations(root).assert().containsExactly(
+            "wow-query/src/main/kotlin/me/ahoo/wow/query/aggregation/Bad.kt:4: me.ahoo.wow.query.snapshot.SnapshotQueryBackend",
+            "wow-query/src/main/kotlin/me/ahoo/wow/query/schema/Bad.kt:3: me.ahoo.wow.query.event.EventStreamQueryBackendFactory",
+        )
+    }
+
+    @Test
     fun `messaging rule should catch a domain import inside messaging only`(@TempDir root: File) {
         root.writeSource(
             "wow-core",

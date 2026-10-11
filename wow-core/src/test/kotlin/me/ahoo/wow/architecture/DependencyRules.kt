@@ -119,6 +119,29 @@ object DependencyRules {
         forbidden = HTTP + ALL_DRIVERS + "org.springframework",
     )
 
+    /** The query DSL builds `wow-api` queries only: it imports none of the query runtime it feeds. */
+    val QUERY_DSL_BUILDS_API_ONLY = DependencyRule(
+        name = "wow-query dsl imports no query runtime package",
+        modules = listOf("wow-query"),
+        forbidden = listOf("schema", "filter", "aggregation", "mask", "event", "snapshot")
+            .map { "me.ahoo.wow.query.$it" },
+        appliesToPackage = { it == "me.ahoo.wow.query.dsl" },
+    )
+
+    /**
+     * The generic query engine is model-neutral: every snapshot and event-stream difference lives in the model's
+     * `QueryModelProfile`, so the DSL, schema, filter, aggregation and mask packages import neither read model
+     * package. The Catalog reads storages through a `QueryStorageLocator`, never the read models' backend factories.
+     */
+    val QUERY_ENGINE_IS_MODEL_NEUTRAL = DependencyRule(
+        name = "wow-query dsl, schema, filter, aggregation and mask import no read model package",
+        modules = listOf("wow-query"),
+        forbidden = listOf("me.ahoo.wow.query.event", "me.ahoo.wow.query.snapshot"),
+        appliesToPackage = { pkg ->
+            listOf("dsl", "schema", "filter", "aggregation", "mask").any { inPackage("me.ahoo.wow.query.$it")(pkg) }
+        },
+    )
+
     val BACKENDS_ARE_INDEPENDENT: List<DependencyRule> = BACKEND_DRIVERS.keys.map { backend ->
         DependencyRule(
             name = "$backend imports no other backend module or driver",
@@ -189,6 +212,8 @@ object DependencyRules {
         listOf(
             CORE_HAS_NO_HTTP_OR_DRIVERS,
             QUERY_CORE_HAS_NO_HTTP_OR_DRIVERS,
+            QUERY_DSL_BUILDS_API_ONLY,
+            QUERY_ENGINE_IS_MODEL_NEUTRAL,
             MESSAGING_HAS_NO_DOMAIN,
             INFRA_HAS_NO_UPPER_LAYERS,
             METRICS_PORT_HAS_NO_DOMAIN,

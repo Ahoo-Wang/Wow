@@ -198,4 +198,7 @@ class ResidualOperatorsTest {
     }
 
     private fun Map<String, Any?>.toObjectNode(): ObjectNode = JsonSerializer.valueToTree(this)
+
+    private fun selectTopRows(rows: Iterable<ObjectNode>, sort: List<Sort>, limit: Int): List<ObjectNode> =
+        BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
 }

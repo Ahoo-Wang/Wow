@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.query
 import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.query.CompositeQueryObserver
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryMetricsObserver
@@ -101,8 +102,10 @@ class QueryAutoConfiguration {
         environment: Environment,
         queryProperties: QueryProperties,
     ): QuerySchemaCatalog = QuerySchemaCatalog(
-        snapshots = snapshotQueryBackendFactories.getIfAvailable { UnavailableSnapshotQueryBackendFactory },
-        eventStreams = eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory },
+        storages = QueryBackendStorages(
+            snapshots = snapshotQueryBackendFactories.getIfAvailable { UnavailableSnapshotQueryBackendFactory },
+            eventStreams = eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory },
+        ),
         compiler = compiler.getIfAvailable {
             QueryModelCompiler.of(
                 sources = sources.orderedStream().toList(),

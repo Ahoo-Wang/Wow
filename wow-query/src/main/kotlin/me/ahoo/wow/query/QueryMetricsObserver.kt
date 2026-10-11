@@ -100,29 +100,14 @@ class CompositeQueryObserver(private val delegates: List<QueryObserver>) : Query
     override val audits: Boolean = delegates.any { it.audits }
 
     override fun onComplete(namedAggregate: NamedAggregate, queryType: QueryType) =
-        each { onComplete(namedAggregate, queryType) }
+        delegates.forEach { it.isolated { onComplete(namedAggregate, queryType) } }
 
     override fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) =
-        each { onError(namedAggregate, queryType, error) }
+        delegates.forEach { it.isolated { onError(namedAggregate, queryType, error) } }
 
     override fun onCancel(namedAggregate: NamedAggregate, queryType: QueryType) =
-        each { onCancel(namedAggregate, queryType) }
+        delegates.forEach { it.isolated { onCancel(namedAggregate, queryType) } }
 
-    override fun onAudit(audit: QueryAudit) = delegates.filter { it.audits }.forEachIsolated { onAudit(audit) }
-
-    private inline fun each(crossinline callback: QueryObserver.() -> Unit) = delegates.forEachIsolated(callback)
-
-    @Suppress("TooGenericExceptionCaught")
-    private inline fun List<QueryObserver>.forEachIsolated(crossinline callback: QueryObserver.() -> Unit) =
-        forEach { delegate ->
-            try {
-                delegate.callback()
-            } catch (failure: Exception) {
-                log.error(failure) { "Query observer [${delegate.javaClass.name}] failed." }
-            }
-        }
-
-    private companion object {
-        val log = io.github.oshai.kotlinlogging.KotlinLogging.logger { }
-    }
+    override fun onAudit(audit: QueryAudit) =
+        delegates.forEach { if (it.audits) it.isolated { onAudit(audit) } }
 }
