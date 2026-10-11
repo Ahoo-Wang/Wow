@@ -89,6 +89,12 @@ export class DefinitionRegistry {
     this.judge(definition);
   }
 
+  /** Removes `definitionId` and what was said of it (D85). */
+  unregister(definitionId: string): void {
+    this.registered.delete(definitionId);
+    this.findings.delete(definitionId);
+  }
+
   private judge(definition: ViewDefinition): void {
     const { host, text } = this;
     const found = [

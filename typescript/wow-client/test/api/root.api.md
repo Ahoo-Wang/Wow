@@ -588,6 +588,27 @@ export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<F
 export function datasetBasePath(context: string, dataset: string, resourceAttribution?: ResourceAttributionPathSpec): string;
 
 // @public
+export class DatasetDirectoryClient implements ApiMetadataCapable {
+    constructor(apiMetadata?: ApiMetadata | undefined);
+    // (undocumented)
+    readonly apiMetadata?: ApiMetadata | undefined;
+    // (undocumented)
+    list(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<DatasetDirectoryEntry[]>;
+}
+
+// @public
+export interface DatasetDirectoryEntry {
+    // (undocumented)
+    contextName: string;
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    title: string | null;
+    // (undocumented)
+    version: string | null;
+}
+
+// @public
 export interface DatasetQueryApi<R = DynamicDocument, FIELDS extends string = string> {
     aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
     aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;

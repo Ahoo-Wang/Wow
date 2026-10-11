@@ -18,6 +18,7 @@ import {
 } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DatasetResources,
   MemoryViewStore,
   ViewEngine,
   defaultRecordConfig,
@@ -119,5 +120,112 @@ describe('ViewEngine.register', () => {
       'definition.source.unregistered',
     );
     expect(() => create(engine)).toThrow();
+  });
+
+  it('removes a resource: open views keep running, opening another reports it unknown', () => {
+    const engine = engineOf();
+    const described = descriptor('city', 'sha256:1');
+    engine.register({
+      definition: datasetOf(described),
+      source: sourceOf(described),
+    });
+    const open = create(engine);
+
+    expect(engine.unregister(ID)).toBe(true);
+    expect(engine.unregister(ID)).toBe(false);
+    expect(engine.definitions.has(ID)).toBe(false);
+    expect(names(open.fields)).toEqual(['order_id', 'city']);
+    expect(() => create(engine)).toThrow();
+    expect(() => engine.resolveSource(ID)).toThrow();
+    // A source another definition still reads is kept.
+    expect(engine.unregister('orders')).toBe(true);
+  });
+});
+
+describe('DatasetResources', () => {
+  const entry = (
+    name: string,
+    version: string | null,
+    title: string | null = null,
+  ) => ({
+    contextName: 'analytics',
+    name,
+    title,
+    version,
+  });
+
+  function catalogOf(listed: { current: ReturnType<typeof entry>[] }) {
+    const described = new Map<string, QueryModelDescriptor>();
+    const sources = vi.fn((found: ReturnType<typeof entry>) => {
+      const column = found.version === 'sha256:2' ? 'region' : 'city';
+      const result = descriptor(column, found.version ?? '');
+      described.set(found.name, result);
+      return sourceOf(result);
+    });
+    return {
+      catalog: { list: () => Promise.resolve(listed.current), source: sources },
+      sources,
+    };
+  }
+
+  it('registers what the directory lists, again when its version changes, and removes what it drops', async () => {
+    const engine = engineOf();
+    const listed = {
+      current: [
+        entry('order_wide', 'sha256:1', 'Orders'),
+        entry('broken', null),
+      ],
+    };
+    const { catalog, sources } = catalogOf(listed);
+    const datasets = new DatasetResources(engine, catalog);
+
+    const first = await datasets.refresh();
+    expect(first.map(found => found.id)).toEqual([ID]);
+    expect(engine.definitions.get(ID)?.title).toBe('Orders');
+    expect(engine.definitions.has('analytics.broken')).toBe(false);
+
+    await datasets.refresh();
+    expect(sources).toHaveBeenCalledTimes(1);
+
+    listed.current = [
+      entry('order_wide', 'sha256:2', 'Orders'),
+      entry('returns', 'sha256:1'),
+    ];
+    const second = await datasets.refresh();
+    expect(second.map(found => found.id)).toEqual([ID, 'analytics.returns']);
+    expect(
+      names((engine.definitions.get(ID) as DataViewDefinition).fields),
+    ).toEqual(['order_id', 'region']);
+    expect(engine.definitions.get('analytics.returns')?.title).toBe('returns');
+
+    listed.current = [];
+    expect(await datasets.refresh()).toEqual([]);
+    expect(datasets.resources).toEqual([]);
+    expect(engine.definitions.has(ID)).toBe(false);
+  });
+
+  it('leaves out a dataset it cannot describe, or one a definition the host registered already names', async () => {
+    const engine = engineOf();
+    const own = descriptor('city', 'sha256:own');
+    const definition = datasetOf(own);
+    engine.register({ definition, source: sourceOf(own) });
+    const errors: unknown[] = [];
+    const datasets = new DatasetResources(
+      engine,
+      {
+        list: () =>
+          Promise.resolve([
+            entry('order_wide', 'sha256:1'),
+            entry('returns', 'sha256:1'),
+          ]),
+        // A source without `describe`: there is no descriptor to derive from.
+        source: () => testSource(),
+      },
+      (_, error) => errors.push(error),
+    );
+    expect(await datasets.refresh()).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(engine.definitions.get(ID)).toBe(definition);
+    expect(engine.definitions.has('analytics.returns')).toBe(false);
   });
 });

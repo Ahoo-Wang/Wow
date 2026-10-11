@@ -12,6 +12,7 @@ import { AggregationGroupType } from '@ahoo-wang/wow-client';
 import { AggregationQuery } from '@ahoo-wang/wow-client';
 import { CursorPage } from '@ahoo-wang/wow-client';
 import { CursorQuery } from '@ahoo-wang/wow-client';
+import { DatasetDirectoryEntry } from '@ahoo-wang/wow-client';
 import { DateDiffUnit } from '@ahoo-wang/wow-client';
 import { DeletionState } from '@ahoo-wang/wow-client';
 import { DerivedExpression } from '@ahoo-wang/wow-client';
@@ -1414,6 +1415,42 @@ export interface DataPanelSource {
 }
 
 // @public
+export interface DatasetCatalog {
+    list(): Promise<readonly DatasetDirectoryEntry[]>;
+    source(entry: DatasetDirectoryEntry): ViewSource;
+}
+
+// @public
+export interface DatasetRegistrar {
+    // (undocumented)
+    readonly definitions: ReadonlyMap<string, unknown>;
+    // (undocumented)
+    register(resource: {
+        definition: ReturnType<typeof defineDataset>;
+        source: ViewSource;
+    }): void;
+    // (undocumented)
+    unregister(definitionId: string): boolean;
+}
+
+// @public
+export interface DatasetResource {
+    // (undocumented)
+    entry: DatasetDirectoryEntry;
+    // (undocumented)
+    id: string;
+}
+
+// @public
+export class DatasetResources {
+    constructor(engine: DatasetRegistrar, catalog: DatasetCatalog,
+    onError?: (entry: DatasetDirectoryEntry, error: unknown) => void);
+    // (undocumented)
+    refresh(): Promise<readonly DatasetResource[]>;
+    get resources(): readonly DatasetResource[];
+}
+
+// @public
 export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 // @public
@@ -1835,7 +1872,10 @@ export abstract class EngineResources {
     checkBinding(definitionId: string): boolean;
     get definitions(): ReadonlyMap<string, ViewDefinition>;
     protected hasSource(key: string): boolean;
-    protected keepDefinitionsIn(keep: (definition: ViewDefinition) => void): void;
+    protected keepDefinitionsIn(keep: {
+        register(definition: ViewDefinition): void;
+        unregister(definitionId: string): void;
+    }): void;
     register(resource: {
         definition: ViewDefinition;
         source?: ViewSource;
@@ -1847,6 +1887,7 @@ export abstract class EngineResources {
     resolveSource(key: string): ViewSource;
     setText(text: TextResolver | undefined, language?: string): void;
     startingWord(key: string): string | undefined;
+    unregister(definitionId: string): boolean;
 }
 
 // @public

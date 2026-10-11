@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 868 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 872 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -164,6 +164,10 @@ Every name `@ahoo-wang/wow-view-engine` exports — 868 — with its kind and th
 | `DataViewConfig` | type | The two kinds that ask a question of their own (`DataViewConfigBase`) and that a `ViewRuntime` executes; a dashboard owns child runtimes. | — |
 | `DataViewConfigBase` | interface | What a view that asks one question of its own — a record view, an analysis — stores besides: its conditions, and the editor mode they are shown in. | — |
 | `DataViewDefinition` | interface | — | — |
+| `DatasetCatalog` | interface | What `DatasetResources` reads: the dataset directory, and each dataset's source. | — |
+| `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
+| `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
+| `DatasetResources` | class | Keeps an engine's datasets in step with a service's directory (D85): each`refresh` registers a dataset the directory newly lists, registers again one whose descriptor version changed, and removes one it no longer lists or whose schema does not compile (`version` `null`). | — |
 | `DateInstant` | interface | The instant a value of this kind names, and what kind of value said it. | — |
 | `DatePartOffer` | interface | What `datePartsOf` reads: a capability, or the editor's option of one. | — |
 | `DateTemporal` | interface | — | — |

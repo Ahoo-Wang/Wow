@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregation,
   cursorQuery,
+  DatasetDirectoryClient,
   DatasetQueryClient,
   datasetBasePath,
   filter,
@@ -202,5 +203,39 @@ describe('DatasetQueryClient', () => {
         version: 'sha256:abc',
       });
     });
+  });
+});
+
+describe('DatasetDirectoryClient', () => {
+  const entries = [
+    {
+      contextName: 'analytics',
+      name: 'order_wide',
+      title: 'Orders',
+      version: 'sha256:1',
+    },
+    { contextName: 'erp', name: 'skus', title: null, version: null },
+  ];
+  describeClientCases<DatasetDirectoryClient>(
+    () => new DatasetDirectoryClient({ fetcher: testFetcher() }),
+    [
+      {
+        name: 'list',
+        call: (c, abort) => c.list(undefined, abort),
+        method: 'GET',
+        path: '/dataset',
+        result: entries,
+      },
+    ],
+  );
+
+  it('reads the directory under a base path', async () => {
+    const { requests } = stubFetch(() => jsonResponse(entries));
+    const client = new DatasetDirectoryClient({
+      basePath: 'bi',
+      fetcher: testFetcher(),
+    });
+    expect(await client.list()).toStrictEqual(entries);
+    expect(requests[0].url).toBe(`${BASE_URL}/bi/dataset`);
   });
 });
