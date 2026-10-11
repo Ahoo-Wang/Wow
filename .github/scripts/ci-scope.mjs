@@ -204,10 +204,10 @@ const RULES = [
     /^skills\/wow-(?:view-definition|view-host|client)\/(?!evals\/).+\.md$/,
     [DOCS],
   ],
-  // Other Gradle modules, the dashboard (dashboard-test.yml)
-  // and prose.
+  // Other Gradle modules, the dashboard (dashboard-test.yml), the analytics
+  // service and its console (analytics-console-test.yml) and prose.
   [
-    /^(?:test|config|deploy|document|docs|skills|scripts|compensation|dataset-registry|\.claude\/skills)\//,
+    /^(?:test|config|deploy|document|docs|skills|scripts|compensation|dataset-registry|analytics|\.claude\/skills)\//,
     [],
   ],
   [/^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/, []],
