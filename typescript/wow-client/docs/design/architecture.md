@@ -111,7 +111,7 @@ graph TD
 
 ## 7. 首发前第二轮审查的决定（2026-09-25）
 
-出自 `typescript/docs/review-2026-09-round2-packages.md`。
+出自 9.2.0 首发前的第二轮审查（2026-09-25，基于 `b17f36a3c`）；其余 P2 记在 [typescript/TODO.md](../../../TODO.md)。
 
 ### 7.1 列表查询不带 `limit`：遵循 9.1.5（P0-1，用户拍板）
 
