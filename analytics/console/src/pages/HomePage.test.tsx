@@ -22,7 +22,7 @@ describe('HomePage', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('reads the directory and offers the boards', async () => {
-    const fetch = vi.fn(
+    const fetch = vi.fn<typeof globalThis.fetch>(
       async () =>
         new Response('[]', { headers: { 'Content-Type': 'application/json' } }),
     );
