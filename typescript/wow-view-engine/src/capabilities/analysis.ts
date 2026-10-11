@@ -111,6 +111,11 @@ export function narrowAnalysis(
   if (offered.firstLastOrderBy !== undefined)
     next.firstLastOrderBy = offered.firstLastOrderBy;
   else delete next.firstLastOrderBy;
+  // Which windows Wow computes over every group is the source's to say too
+  // (D87): a server before 9.9 sends none.
+  if (offered.windows && offered.windows.length > 0)
+    next.windows = [...offered.windows];
+  else delete next.windows;
   next.limits = lowered(capability.limits, descriptor);
 
   if (!constructible(next)) {
