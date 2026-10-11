@@ -301,6 +301,9 @@ export function FieldChecklist({
             placeholder={messages.label('label.field.search')}
             aria-label={messages.label('label.field.search')}
             onChange={event => setQuery(event.target.value)}
+            onKeyDown={event =>
+              searchKey(event, listed, held, disabled ? null : toggle)
+            }
           />
         </InputGroup>
 
@@ -345,6 +348,34 @@ export function FieldChecklist({
       </PopoverContent>
     </Popover>
   );
+}
+
+/**
+ * The search line leads into what it narrows (R2-99): ↓ goes on to the
+ * first field, and Enter ticks the one field a search came down to (R2-100)
+ * — one already ticked stays ticked, and a list that cannot be changed
+ * (`toggle` null) is left alone.
+ */
+function searchKey(
+  event: React.KeyboardEvent<HTMLInputElement>,
+  listed: readonly FieldDefinition[],
+  held: ReadonlyMap<string, unknown>,
+  toggle: ((field: FieldDefinition, ticked: boolean) => void) | null,
+) {
+  if (event.key === 'ArrowDown') {
+    const first = firstControl(
+      event.currentTarget
+        .closest('[data-slot="popover-content"]')
+        ?.querySelector<HTMLElement>('[data-slot="field-checklist"]') ?? null,
+    );
+    if (!first) return;
+    event.preventDefault();
+    first.focus();
+  } else if (event.key === 'Enter' && listed.length === 1) {
+    event.preventDefault();
+    const only = listed[0];
+    if (toggle && !held.has(only.name)) toggle(only, true);
+  }
 }
 
 /**

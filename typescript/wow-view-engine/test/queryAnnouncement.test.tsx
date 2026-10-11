@@ -36,7 +36,7 @@ import {
 } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { recordTableController } from './fixtures/ui.js';
-import { cursorPaging } from '../src/record/index.js';
+import { cursorPaging, pagedPaging } from '../src/record/index.js';
 
 afterEach(cleanup);
 
@@ -147,6 +147,25 @@ describe('what a record query says out loud', () => {
         messages,
       ),
     ).toBe('2 on this page');
+  });
+
+  it('says which page, past the first (R2-99)', () => {
+    const messages = formattersFor(defaultMessages);
+    const said = (paging: Parameters<typeof pagedPaging>[0]) =>
+      querySentence(
+        recordTableController({ paging: pagedPaging(paging) }),
+        messages,
+      );
+
+    // A page turned over the same total would be read back word for word.
+    expect(said({ index: 2, size: 20, total: 45 })).toBe(
+      '45 records in all; Page 2 of 3',
+    );
+    // A source with no total: the page reached, on its own.
+    expect(said({ index: 3, size: 20 })).toBe('2 on this page; Page 3');
+    // The first page goes unsaid, of one page or of many.
+    expect(said({ index: 1, size: 20, total: 12 })).toBe('12 records in all');
+    expect(said({ index: 1, size: 20, total: 45 })).toBe('45 records in all');
   });
 
   it('leaves a failure to the alert that already interrupts', async () => {

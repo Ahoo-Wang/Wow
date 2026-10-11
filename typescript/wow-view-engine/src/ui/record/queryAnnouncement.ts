@@ -49,10 +49,25 @@ export function querySentence(
   // The number the reader asked about when the source gives one, and the
   // number that did arrive when it does not — the rule the pagination bar
   // reads by, so the bar and the announcement never disagree.
-  const total = table.paging?.mode === 'paged' ? table.paging.total : undefined;
-  return total === undefined
-    ? messages.label('label.pagination.on-page', { count: table.rows.length })
-    : messages.label('label.pagination.total', { count: total });
+  const paging = table.paging;
+  const total = paging?.mode === 'paged' ? paging.total : undefined;
+  const count =
+    total === undefined
+      ? messages.label('label.pagination.on-page', { count: table.rows.length })
+      : messages.label('label.pagination.total', { count: total });
+  // Which page, past the first: a page turned over the same total is
+  // otherwise read back word for word as the page it left (R2-99). The
+  // first goes unsaid, as every query that lands there would say it; turned
+  // back to, it still differs from the page before. In the bar's words.
+  if (paging?.mode !== 'paged' || paging.index <= 1) return count;
+  const page =
+    paging.pages === undefined
+      ? messages.label('label.toolbar.page', { index: paging.index })
+      : messages.label('label.toolbar.page-of', {
+          index: paging.index,
+          pages: paging.pages,
+        });
+  return messages.label('label.status.then', { first: count, then: page });
 }
 
 /**
