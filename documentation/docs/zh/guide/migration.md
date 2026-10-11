@@ -19,11 +19,14 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 选择迁移路径
 
+<!-- 下文每个「从 x.y 升级」章节对应一行：新增章节时同时加上。 -->
 | 当前系统 | 主路径 | 原因 |
 |---|---|---|
 | CRUD/事务脚本/直接写表，没有 Wow 历史 | [传统架构迁移](./migration/traditional-architecture.md) | 建立 command、aggregate、event、导入与流量所有权 |
 | 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 比较固定平台/API/存储契约，并在需要时执行数据硬切换 |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
+| Wow 9.7.x | [从 9.7 升级到 9.8.0](#从-9-7-升级到-9-8-0) | 重新编译：类从 `wow-core` 的 `messaging` 包移入各自的领域包，`infra.batch` 改为 `me.ahoo.wow.batch`，指标装饰器移到 `me.ahoo.wow.metrics.decorator`；自己构建 `QuerySchemaCatalog` 或继承 `QueryGatewayRegistrar` 的集成需要修改 |
+| Wow 9.6.x | [从 9.6 升级到 9.7.0](#从-9-6-升级到-9-7-0) | 只有用到 `wow-webflux` 内部实现或已删除的弃用辅助方法的代码需要修改；路由、REST、配置与线上格式不变，9.6.x 与 9.7.0 节点可以共处一个集群 |
 | Wow 9.5.x | [从 9.5 升级到 9.6.0](#从-9-5-升级到-9-6-0) | `wow-openapi` 路由合同改为纯数据，OpenAPI 文档不变：重新编译，修改自定义 `RouteContributor` 与 `mergeOpenAPIFromCatalog` 的调用 |
 | Wow 9.4.x | [从 9.4 升级到 9.5.0](#从-9-4-升级到-9-5-0) | `wow-schema` 重构，生成的 Schema 不变：重新编译；`OpenAPISchemaBuilder` 的 import 改为 `me.ahoo.wow.openapi.schema`（位于 `wow-openapi`），删掉对已删除 `SchemaGeneratorBuilder` 成员的调用；改掉对已转为内部的 Provider 与检查的引用 |
 | Wow 9.3.x | [从 9.3 升级到 9.4.0](#从-9-3-升级到-9-4-0) | 只有 `wow-bi` 变化：每个 BI 部署用确认后的 `RESET` 重建一次，直接调用已删除 `wow-bi` API 的 Kotlin 代码改用 `BiScriptService` 或 `generate(prepare(…))`；其余部分的 REST、存储与线上格式不变 |
