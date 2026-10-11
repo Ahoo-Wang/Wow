@@ -12,6 +12,7 @@
  */
 
 import type * as React from 'react';
+import { useState } from 'react';
 import {
   DragDropProvider,
   useDragOperation,
@@ -43,16 +44,31 @@ export interface KanbanMove {
 
 /**
  * A card drawn in the lane it was dropped on before the source says it is
- * there. It holds over the result it was dropped on (`rows`, the table's
- * rows then) and while the move is busy: the read after the command brings a
- * new result, which draws the card where it now is, and a refused or
- * cancelled move leaves the card where it was.
+ * there; `useDroppedCard` says for how long.
  */
 export interface DroppedCard {
   key: RecordKey;
   from: string;
   to: string;
-  rows: readonly RecordRow[];
+}
+
+/**
+ * The card a drop moved, held in its new lane until the board shows the
+ * move itself (D83): while the move is busy — a refresh landing meanwhile
+ * still reads the old stage, and would draw the card back where it was —
+ * and then while a read is on its way (`reading`), which is the one the
+ * command asks for after it writes. A move refused or called off with
+ * nothing being read lets the card go back at once; once let go, a later
+ * read does not bring it back.
+ */
+export function useDroppedCard(
+  busy: boolean,
+  reading: boolean,
+): [DroppedCard | null, (card: DroppedCard) => void] {
+  const [dropped, setDropped] = useState<DroppedCard | null>(null);
+  const holding = busy || reading;
+  if (dropped && !holding) setDropped(null);
+  return [holding ? dropped : null, setDropped];
 }
 
 /** A card's id among the drag's sources: lanes are the targets. */

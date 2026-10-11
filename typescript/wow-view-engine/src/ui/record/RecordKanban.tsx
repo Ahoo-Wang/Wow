@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import { useId, useRef, useState } from 'react';
+import { useId, useRef } from 'react';
 import type {
   RecordKanbanController,
   RecordTableController,
@@ -32,7 +32,7 @@ import {
   cardDragId,
   useLaneDrop,
   withDroppedCard,
-  type DroppedCard,
+  useDroppedCard,
   type KanbanMove,
 } from './kanbanDrag.js';
 import type { RecordCell } from './RecordTable.js';
@@ -99,11 +99,10 @@ export function RecordKanban({
   onEmptyAction,
   move,
 }: RecordKanbanProps) {
-  const [dropped, setDropped] = useState<DroppedCard | null>(null);
-  // Drawn moved only over the result it was dropped on and while the move
-  // is on its way: the next result, or a move refused or called off, ends it.
-  const held =
-    dropped && dropped.rows === table.rows && move?.busy ? dropped : null;
+  const [held, setDropped] = useDroppedCard(
+    move?.busy ?? false,
+    table.status === 'loading',
+  );
   const lanes = withDroppedCard(kanban.lanes, held);
   if (!table.hasResult && table.status !== 'loading') return null;
   // The lanes it will draw, already: the draft says which they are, so the
@@ -131,7 +130,7 @@ export function RecordKanban({
       lanes={lanes}
       onDrop={(row, from, to) => {
         if (to.value === null || !move) return;
-        setDropped({ key: row.key, from, to: to.id, rows: table.rows });
+        setDropped({ key: row.key, from, to: to.id });
         move.run(row, to.value);
       }}
     >

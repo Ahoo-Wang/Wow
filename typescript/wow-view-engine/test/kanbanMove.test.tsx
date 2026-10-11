@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { actions, type RecordLaneView, type RecordRow } from '../src/index.js';
 import type { RecordActionsController } from '../src/react/index.js';
@@ -24,6 +25,7 @@ import {
   cardDragId,
   dropOf,
   laneStanding,
+  useDroppedCard,
   withDroppedCard,
   type KanbanMove,
 } from '../src/ui/record/kanbanDrag.js';
@@ -157,7 +159,6 @@ describe('withDroppedCard', () => {
       key: 'd-1',
       from: 'a',
       to: 'b',
-      rows: [],
     });
     expect(moved[0]).toMatchObject({ rows: [], total: 2 });
     expect(moved[1]).toMatchObject({ rows: [lead, won], total: null });
@@ -169,24 +170,67 @@ describe('withDroppedCard', () => {
       key: 'd-1',
       from: 'a',
       to: 'b',
-      rows: [],
     });
     expect(moved[2]).toBe(third);
   });
 
   it('leaves the lanes alone with nothing dropped, or a card no longer there', () => {
     expect(withDroppedCard(lanes, null)).toBe(lanes);
-    expect(
-      withDroppedCard(lanes, { key: 'gone', from: 'a', to: 'b', rows: [] }),
-    ).toBe(lanes);
-    expect(
-      withDroppedCard(lanes, { key: 'd-1', from: 'a', to: 'x', rows: [] }),
-    ).toBe(lanes);
+    expect(withDroppedCard(lanes, { key: 'gone', from: 'a', to: 'b' })).toBe(
+      lanes,
+    );
+    expect(withDroppedCard(lanes, { key: 'd-1', from: 'a', to: 'x' })).toBe(
+      lanes,
+    );
   });
 
   it("names a card apart from a lane, and a key's type apart", () => {
     expect(cardDragId('1')).not.toBe(cardDragId(1));
     expect(cardDragId('d-1')).toBe('card:"d-1"');
+  });
+});
+
+describe('useDroppedCard', () => {
+  const card = { key: 'd-1', from: 'LEAD', to: 'WON' };
+  const hold = (busy: boolean, reading: boolean) => ({ busy, reading });
+
+  function dropped() {
+    const hook = renderHook(
+      ({ busy, reading }) => useDroppedCard(busy, reading),
+      { initialProps: hold(false, false) },
+    );
+    // A drop starts the move in the same handler: the next render is busy.
+    act(() => {
+      hook.result.current[1](card);
+      hook.rerender(hold(true, false));
+    });
+    return hook;
+  }
+
+  it('holds the card while the move is asked or runs, through a refresh landing meanwhile', () => {
+    const hook = dropped();
+    expect(hook.result.current[0]).toBe(card);
+    // The timer's refresh asks and lands with the stage as it was.
+    hook.rerender(hold(true, true));
+    hook.rerender(hold(true, false));
+    expect(hook.result.current[0]).toBe(card);
+  });
+
+  it("holds it until the command's own read lands, and not after", () => {
+    const hook = dropped();
+    hook.rerender(hold(false, true));
+    expect(hook.result.current[0]).toBe(card);
+    hook.rerender(hold(false, false));
+    expect(hook.result.current[0]).toBeNull();
+    // A later read does not bring it back.
+    hook.rerender(hold(false, true));
+    expect(hook.result.current[0]).toBeNull();
+  });
+
+  it('lets it go at once for a move called off with nothing being read', () => {
+    const hook = dropped();
+    hook.rerender(hold(false, false));
+    expect(hook.result.current[0]).toBeNull();
   });
 });
 
