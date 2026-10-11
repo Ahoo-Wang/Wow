@@ -13,7 +13,6 @@
 ## 以后
 
 - **组件 Builder 的媒体类型参数名统一**（v10）：`ApiResponseBuilder.content(mediaTypeName = …)` 与 `RequestBodyBuilder.content(name = …)` 参数名不同；改名会破坏以命名实参调用的代码，只能在 v10 做。判据：两者参数名相同，迁移指南写明。落点：`wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/ApiResponseBuilder.kt`、`…/RequestBodyBuilder.kt`。
-- **数组路径分组被拒时指向 `elements`**：对数组路径做 `TERMS` 分组（`state.items.productId`）时，报错只说字段需要声明的元素作用域，不说怎么写（第二轮审查 X-5）。判据：`QueryViolation.ElementScopeRequired` 的文案指出用聚合的 `elements` 展开该数组再分组；`QueryRestErrorContractTest` 的黄金文案随之更新并写进发布说明。落点：`wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QueryViolation.kt`。
 
 ## 待议
 

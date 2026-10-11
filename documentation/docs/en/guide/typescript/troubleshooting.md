@@ -52,7 +52,7 @@ Most request failures reach your code as the fetcher's `ExchangeError`; its `mes
 | `RequestTimeout` | 408 | The wait stage did not arrive within `timeoutMs` | The command was received and may still complete; read the state instead of resending |
 | `DuplicateRequestId` | 400 | A request id was sent twice | The first attempt reached the server; do not resend |
 | `EventVersionConflict`, `CommandExpectVersionConflict` | 409 | Another write came first | Reload the state and decide again |
-| `QuerySchemaValidation`: `Field [state.items.productId] requires its declared element scope` | 400 | A field inside an array was filtered directly | Match it with `filter.elementMatch('state.items', filter.eq('productId', …))` |
+| `QuerySchemaValidation`: `Field [state.items.productId] requires its declared element scope` | 400 | A field inside an array was filtered, grouped or measured directly | In a filter, match it with `filter.elementMatch('state.items', filter.eq('productId', …))`; in an aggregation, expand the array first with `elements: [aggregation.element('state.items')]` and name the field relative to it (`productId`) |
 | `QuerySchemaValidation` on a field name | 400 | The field is not queryable on this aggregate | Use the generated field names; regenerate if the service changed |
 | `QuerySchemaUnavailable`: `No query backend is configured for aggregate` | 503 | The service has no snapshot store for queries (for example an in-memory setup) | Configure the service's query backend |
 | `400` from a Wow 8.11 or later server on a `/legacy` query with `raw()` | 400 | `raw()` reaches only Wow 8.10 | Rewrite the query with `filter.*` |
