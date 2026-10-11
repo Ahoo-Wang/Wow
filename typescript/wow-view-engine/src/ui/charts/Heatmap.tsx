@@ -67,7 +67,8 @@ export function Heatmap({
       ),
     [data, spec, label, column, animate, pickable, lit],
   );
-  // The names along the bottom turn as a bar chart's do, and the numbers
+  // The names along the bottom turn as a bar chart's do — flat every few
+  // along time or a cycle, as a time axis is (`xAlong`) — and the numbers
   // are written in every cell or in none (`heatmapLabelsFit`).
   const labelled = valueLabelsOn(spec);
   const adapt = useCallback(
@@ -84,6 +85,7 @@ export function Heatmap({
           width,
           measure,
           false,
+          data.xAlong === true,
         ),
         ...(labelled
           ? {

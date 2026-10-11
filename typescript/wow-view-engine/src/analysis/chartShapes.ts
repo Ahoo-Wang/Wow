@@ -149,6 +149,7 @@ export function shapeHeatmap(
     xs,
     ys,
     cells: ys.map(y => xs.map(x => cells.get(cellKey(y, x)) ?? null)),
+    ...(across || cycleAcross ? { xAlong: true as const } : {}),
   };
 }
 

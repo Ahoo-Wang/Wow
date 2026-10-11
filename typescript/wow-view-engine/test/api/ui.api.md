@@ -657,6 +657,7 @@ interface CartesianData {
     // (undocumented)
     chart: ChartType;
     crowded?: true;
+    cycle?: true;
     derived?: DerivedLine[];
     extremes?: SeriesExtremes;
     gaps?: CartesianGap[];
@@ -4717,6 +4718,7 @@ interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
     type: 'heatmap';
+    xAlong?: true;
     // (undocumented)
     xs: unknown[];
     // (undocumented)
