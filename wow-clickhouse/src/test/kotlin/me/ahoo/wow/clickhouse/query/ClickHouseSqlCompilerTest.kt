@@ -52,6 +52,7 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
@@ -533,15 +534,87 @@ class ClickHouseSqlCompilerTest {
         compile(AggregationQuery(groupBy = listOf(group), metrics = listOf(AggregationMetric.Count("orders"))))
 
     @Test
-    fun `windows are computed by the core and never compiled`() {
-        assertThrows<IllegalStateException> {
-            aggregate(
-                metrics = listOf(
-                    AggregationMetric.Count("orders"),
-                    AggregationMetric.Derived("total", DerivedExpression.Total("orders")),
+    fun `windows run in a middle query over every present group, before HAVING`() {
+        val sql = compile(windowedQuery())
+        sql.assert().contains(
+            "FROM (SELECT *, sum(__m0) OVER (PARTITION BY __g0) AS __w0, " +
+                "if(isNull(__m0), NULL, dense_rank() OVER (ORDER BY __m0 DESC NULLS LAST)) AS __w1, " +
+                "sum(__m0) OVER (PARTITION BY __g0 ORDER BY __g1 ASC NULLS FIRST " +
+                "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS __w2, " +
+                "avg(__m0) OVER (ORDER BY __m0 DESC NULLS LAST, __g0 ASC NULLS FIRST, __g1 ASC NULLS FIRST " +
+                "ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS __w3, " +
+                "sum(__m0) OVER () AS __w4, " +
+                "if(isNull(__m0), NULL, dense_rank() OVER (PARTITION BY __g0 ORDER BY __m0 ASC NULLS LAST)) AS __w5 " +
+                "FROM (SELECT ",
+        )
+        sql.assert().contains(
+            "if(toFloat64(__w0) = 0, NULL, toFloat64(__m0) / toFloat64(__w0)) AS `share`, " +
+                "(if(toFloat64(__w0) = 0, NULL, toFloat64(__m0) / toFloat64(__w0)) * toFloat64(100.0)) AS `percent`, " +
+                "toFloat64(__w1) AS `rank`",
+        )
+        sql.assert().contains(
+            "GROUP BY __g0, __g1) WHERE isNotNull(__g1)) WHERE ifNull(toFloat64(`rank`) <= toFloat64(3.0), 0)",
+        )
+    }
+
+    private fun windowedQuery(): AggregationQuery {
+        val gmv = AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(AMOUNT), "gmv")
+        val month = Sort(QueryField("month"), Sort.Direction.ASC)
+        val query = AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.Terms(CITY, "city"),
+                AggregationGroup.DateHistogram(CREATED_AT, "month", AggregationDateUnit.MONTH),
+            ),
+            metrics = listOf(
+                gmv,
+                AggregationMetric.Derived(
+                    "share",
+                    DerivedExpression.Binary(
+                        AggregationExpressionOperator.DIVIDE,
+                        DerivedExpression.MetricRef("gmv"),
+                        DerivedExpression.Total("gmv", listOf("city")),
+                    ),
                 ),
-            )
-        }
+                AggregationMetric.Derived(
+                    "percent",
+                    DerivedExpression.Binary(
+                        AggregationExpressionOperator.MULTIPLY,
+                        DerivedExpression.MetricRef("share"),
+                        DerivedExpression.Constant(100.0),
+                    ),
+                ),
+                AggregationMetric.Derived("rank", DerivedExpression.Rank("gmv")),
+                AggregationMetric.Derived("cumulative", DerivedExpression.Running("gmv", month, listOf("city"))),
+                AggregationMetric.Derived(
+                    "moving",
+                    DerivedExpression.Running(
+                        "gmv",
+                        Sort(QueryField("gmv"), Sort.Direction.DESC),
+                        frame = 3,
+                        function = RunningFunction.AVG,
+                    ),
+                ),
+                AggregationMetric.Derived("total", DerivedExpression.Total("gmv")),
+                AggregationMetric.Derived(
+                    "low",
+                    DerivedExpression.Rank("gmv", listOf("city"), Sort.Direction.ASC),
+                ),
+            ),
+            having = HavingExpression.Condition("rank", ComparisonOperator.LTE, 3.0),
+        )
+        return query
+    }
+
+    @Test
+    fun `PREVIOUS is computed by the core and never compiled`() {
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.DateHistogram(CREATED_AT, "month", AggregationDateUnit.MONTH)),
+            metrics = listOf(
+                AggregationMetric.Count("orders"),
+                AggregationMetric.Derived("previous", DerivedExpression.Previous("orders", "month")),
+            ),
+        )
+        assertThrows<IllegalStateException> { compile(query) }
     }
 
     private fun aggregate(

@@ -609,10 +609,13 @@ public abstract class me/ahoo/wow/tck/query/DatasetQueryBackendSpec {
 	public final fun having filters groups before the metric sort and limit ()V
 	public final fun keyset pages walk every record once in sort order ()V
 	public final fun offset pages carry the total ()V
+	public final fun previous reads the earlier period over the shifted range ()V
 	public final fun records sort, project and limit ()V
+	public final fun running windows follow their order within each partition, alike in the storage and in the core ()V
 	public fun setup ()V
 	public final fun the tenant filter reads the dataset's tenant column ()V
 	public final fun value metrics skip missing values and an empty input keeps the empty summary ()V
+	public final fun windows read every group before HAVING, alike in the storage and in the core ()V
 }
 
 public final class me/ahoo/wow/tck/query/DatasetQueryBackendSpec$Companion {
