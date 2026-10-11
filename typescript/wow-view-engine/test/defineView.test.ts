@@ -131,6 +131,21 @@ describe('defineView', () => {
     ]);
   });
 
+  it('keeps a yes-or-no field one when the host names its two answers', () => {
+    const [paid] = define({
+      fields: {
+        paid: { label: 'Paid', options: { true: '已付', false: '未付' } },
+      },
+    }).fields;
+    expect(paid).toMatchObject({
+      kind: 'boolean',
+      options: [
+        { value: 'true', label: '已付' },
+        { value: 'false', label: '未付' },
+      ],
+    });
+  });
+
   it('keeps a moment’s seconds in a table cell where the host asks', () => {
     const { fields } = define({
       fields: {

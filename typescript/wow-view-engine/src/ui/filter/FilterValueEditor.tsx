@@ -194,6 +194,7 @@ function FilterValueControl({
           disabled={disabled}
           invalid={invalid}
           control={control}
+          {...(editor.options ? { options: editor.options } : {})}
         />
       );
 

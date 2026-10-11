@@ -474,6 +474,19 @@ describe('cellText', () => {
     expect(text(undefined)).toBe('');
   });
 
+  it('reads a yes or a no as the field names it, or as the catalogue does', () => {
+    const named: DisplayField = {
+      kind: 'boolean',
+      options: [
+        { value: 'true', label: '新客' },
+        { value: 'false', label: '老客' },
+      ],
+    };
+    expect(text(true, named)).toBe('新客');
+    expect(text(false, named)).toBe('老客');
+    expect(text(true, { kind: 'boolean' })).toBe('Yes');
+  });
+
   it('reads a badge as its label, and several as a list', () => {
     const field = {
       kind: 'enum',
@@ -1065,6 +1078,18 @@ describe('summaryText', () => {
     expect(late('EQ', true)).toBe('Late: Yes');
     expect(late('EQ', false)).toBe('Late: No');
     expect(late('NE', true)).toBe('Late is not Yes');
+    // A field that names its answers (新客／老客) says the answer alone.
+    expect(
+      say(
+        item({
+          field: 'isNew',
+          label: '新客',
+          kind: 'boolean',
+          operator: 'EQ',
+          value: { kind: 'text', value: false, label: '老客' },
+        }),
+      ),
+    ).toBe('老客');
   });
 
   it('uses the label a kind resolved rather than resolving it again', () => {
