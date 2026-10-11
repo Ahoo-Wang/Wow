@@ -18,7 +18,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 // Type-only, so this suite still runs with nothing built — the whole point
 // of reading the Wow sources off disk below.
-import type { QueryApi } from '@ahoo-wang/wow-client';
+import type { DatasetQueryApi, QueryApi } from '@ahoo-wang/wow-client';
 import type { RecordData, ViewSource } from '../src/index.js';
 
 /**
@@ -1045,6 +1045,13 @@ describe('architecture', () => {
     it('is a shape a Wow query client satisfies without an adapter', () => {
       const client = {} as QueryApi<RecordData>;
       const source: ViewSource = client;
+      expect(source).toBe(client);
+    });
+
+    /** A dataset client (a ClickHouse wide table, say) is a source too, describe included. */
+    it('is a shape a Wow dataset client satisfies without an adapter', () => {
+      const client = {} as DatasetQueryApi<RecordData>;
+      const source: Required<ViewSource> = client;
       expect(source).toBe(client);
     });
 

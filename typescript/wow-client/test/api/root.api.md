@@ -585,6 +585,57 @@ export interface CursorQuery<FIELDS extends string = string> {
 export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
 // @public
+export function datasetBasePath(context: string, dataset: string, resourceAttribution?: ResourceAttributionPathSpec): string;
+
+// @public
+export interface DatasetQueryApi<R = DynamicDocument, FIELDS extends string = string> {
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
+    count(filter: FilterExpression<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
+    cursor<T extends Partial<R> = R>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    describe(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
+    list<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    listStream<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
+    paged<T extends Partial<R> = R>(query: FilterPagedQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
+    single<T extends Partial<R> = R>(query: FilterSingleQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
+}
+
+// @public
+export class DatasetQueryClient<R = DynamicDocument, FIELDS extends string = string> implements DatasetQueryApi<R, FIELDS>, ApiMetadataCapable {
+    constructor(options: DatasetQueryClientOptions);
+    // (undocumented)
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    // (undocumented)
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
+    // (undocumented)
+    readonly apiMetadata: ApiMetadata;
+    // (undocumented)
+    count(filter: FilterExpression<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
+    // (undocumented)
+    cursor<T extends Partial<R> = R>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    // (undocumented)
+    describe(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
+    // (undocumented)
+    list<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    // (undocumented)
+    listStream<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
+    // (undocumented)
+    paged<T extends Partial<R> = R>(query: FilterPagedQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
+    // (undocumented)
+    single<T extends Partial<R> = R>(query: FilterSingleQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
+}
+
+// @public
+export interface DatasetQueryClientOptions extends PartialBy<ApiMetadata, 'basePath'> {
+    // (undocumented)
+    context: string;
+    // (undocumented)
+    dataset: string;
+    // (undocumented)
+    resourceAttribution?: ResourceAttributionPathSpec.NONE | ResourceAttributionPathSpec.TENANT;
+}
+
+// @public
 export interface DateDiffAggregationExpression<FIELDS extends string = string> {
     from: QueryField<FIELDS>;
     to: QueryField<FIELDS>;
@@ -1796,6 +1847,7 @@ export interface QueryModelDescriptor {
 export const QueryModels: Readonly<{
     readonly SNAPSHOT: "SNAPSHOT";
     readonly EVENT_STREAM: "EVENT_STREAM";
+    readonly DATASET: "DATASET";
 }>;
 
 // @public

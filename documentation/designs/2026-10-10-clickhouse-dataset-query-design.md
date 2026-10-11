@@ -1,6 +1,6 @@
 # 数据集查询与 ClickHouse 后端设计
 
-日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 已实施（Ahoo-Wang/Wow#4122）；S3 的 JVM 部分实施中，TypeScript 部分（wow-client、view-engine）随后。
+日期：2026-10-10。状态：§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 已实施（Ahoo-Wang/Wow#4116，后续 Ahoo-Wang/Wow#4120）；S2 已实施（Ahoo-Wang/Wow#4122）；S3 已实施（JVM：Ahoo-Wang/Wow#4127；TypeScript：wow-client `DatasetQueryClient`，view-engine 以架构测试断言它是 `ViewSource`）。
 
 基线：`main` `d48d915e5`。本文建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)（下称“查询架构”）之上，沿用它的原理编号 P1～P9 与设计名；wow-bi 的布局见 [wow-bi 重构设计](2026-10-09-wow-bi-refactor-design.md)。
 
@@ -213,7 +213,7 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 | **S0 原型**（已完成） | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张宽表上翻译过滤、聚合与分页，并生成能力描述 | §11；不合并 |
 | **S1 核心**（已实施，#4116、#4120） | `QueryModel.DATASET` 与数据集 profile（内置模型的 profile 为 `BuiltInQueryModelProfile`）；`QueryModelSchema.profile`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
 | **S2 后端**（实施中） | `wow-clickhouse`（incubating）：存储适配器与声明一致性检查、四个原语、keyset 游标、`FINAL`、按入口的限额、取消；TCK `DatasetQueryBackendSpec` | TCK 语义矩阵与规格 + Testcontainers `integrationTest` |
-| **S3 接入**（JVM 部分实施中） | starter `clickhouse-support` 与数据集装配；HTTP 路由与 describe；OpenAPI 契约；`wow-clickhouse` 发布；中英文用户文档。随后：wow-client `DatasetQueryApi`、view-engine 示例 | starter 端到端测试（内存后端）、ClickHouse 自动配置测试；typescript-contract |
+| **S3 接入**（已实施） | starter `clickhouse-support` 与数据集装配；HTTP 路由与 describe；OpenAPI 契约；`wow-clickhouse` 发布；中英文用户文档。wow-client `DatasetQueryApi`/`DatasetQueryClient`，view-engine 的 `ViewSource` 断言 | starter 端到端测试（内存后端）、ClickHouse 自动配置测试；typescript-contract |
 | **S4 BI 联动** | 由 wow-bi 展开计划生成数据集声明，继承敏感等级 | wow-bi golden + 集成测试 |
 | 后续 | 协议演进：同比、环比、占比、累计、组内 TopN | 规范定义一次；各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE，ClickHouse 先做 NATIVE |
 

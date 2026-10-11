@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 268 names, from src/index.ts.
+# @ahoo-wang/wow-client — 272 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -71,6 +71,9 @@ type  CursorPage
 type  CursorQuery
 value DEFAULT_CURSOR_SIZE
 value DEFAULT_PAGINATION
+type  DatasetQueryApi
+value DatasetQueryClient
+type  DatasetQueryClientOptions
 type  DateDiffAggregationExpression
 value DateDiffUnit
 type  DateHistogramAggregationGroup
@@ -258,6 +261,7 @@ value aggregation
 value asc
 value commandHeaders
 value cursorQuery
+value datasetBasePath
 value desc
 value filter
 value isErrorInfo
