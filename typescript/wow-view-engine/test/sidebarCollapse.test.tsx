@@ -418,6 +418,9 @@ describe('the view switcher', () => {
         name: defaultMessages['label.filter.pick-done'],
       }),
     );
+    // Filled in: a condition with no value yet is not an edit (R2-100).
+    await user.type(screen.getByLabelText('Warehouse value'), 'north');
+    await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('button', { name: SWITCH }));
     await user.click(

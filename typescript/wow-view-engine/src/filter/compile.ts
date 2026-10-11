@@ -23,6 +23,58 @@ import { readFilter } from './read.js';
 import { isFilterGroup, isFilterNode } from './tree.js';
 
 /**
+ * The tree with what narrows nothing taken out: the blank leaves
+ * `compileFilter` skips, and the groups that leaves nothing in. Two trees
+ * that differ only there ask the same question — a condition added and not
+ * yet filled in is not an edit of the view (R2-100). A leaf over a field or
+ * kind this definition does not know is kept: what it says is not this
+ * function's to judge.
+ */
+export function withoutBlankLeaves(
+  fields: readonly FieldDefinition[],
+  tree: FilterTree,
+  kinds: FieldKindRegistry,
+): FilterTree {
+  const byName = new Map(fields.map(field => [field.name, field]));
+  const prune = (group: FilterGroup): FilterGroup => {
+    const children: FilterNode[] = [];
+    for (const child of group.children) {
+      if (isFilterGroup(child)) {
+        const kept = prune(child);
+        if (kept.children.length > 0) children.push(kept);
+        continue;
+      }
+      const field = isFilterNode(child) ? byName.get(child.field) : undefined;
+      const kind = field && kinds.get(field.kind);
+      if (
+        field &&
+        kind &&
+        isBlankLeafValue(child.value, child.operator, field, kind, kinds)
+      )
+        continue;
+      children.push(child);
+    }
+    return children.length === group.children.length &&
+      children.every((child, at) => child === group.children[at])
+      ? group
+      : { ...group, children };
+  };
+  return prune(tree);
+}
+
+/** A data view's config with its blank conditions out (`withoutBlankLeaves`). */
+export function askedConfig<C extends { filter: FilterTree }>(
+  config: C,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+): C {
+  return {
+    ...config,
+    filter: withoutBlankLeaves(fields, config.filter, kinds),
+  };
+}
+
+/**
  * When a filter is evaluated, and in which zone. Relative conditions are
  * resolved here rather than by the backend, so a compilation is reproducible.
  */

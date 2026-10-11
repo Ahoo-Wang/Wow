@@ -117,6 +117,26 @@ describe('DataViewRuntime state', () => {
     );
   });
 
+  it('does not count a condition with no value yet as an edit (R2-100)', () => {
+    const { runtime } = harness({ saved: savedInstance });
+    const blank = { field: 'warehouse', operator: 'EQ', value: '' } as const;
+
+    // Added and not filled in, alone or in a group of its own: it asks
+    // nothing, so the view is as saved.
+    runtime.edit({
+      filter: {
+        op: 'and',
+        children: [blank, { op: 'or', children: [blank] }],
+      },
+    });
+    expect(runtime.getSnapshot().dirty).toBe(false);
+
+    runtime.edit({
+      filter: { op: 'and', children: [{ ...blank, value: 'CN' }] },
+    });
+    expect(runtime.getSnapshot().dirty).toBe(true);
+  });
+
   it('notifies subscribers and stops after they unsubscribe', () => {
     const { runtime } = harness();
     const listener = vi.fn();
