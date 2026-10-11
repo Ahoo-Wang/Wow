@@ -21,7 +21,13 @@ import {
 } from '../src/index.js';
 import { memorySource } from '../src/testing/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
-import { resourcesOf } from './fixtures.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
+import {
+  dashboardConfig,
+  nextTask,
+  overviewDefinition,
+  resourcesOf,
+} from './fixtures.js';
 import {
   DEALS,
   dealsDefinition,
@@ -164,5 +170,66 @@ describe('restyledOnly under a kanban', () => {
         summaries: [{ field: 'amount', fn: 'SUM' }],
       }),
     ).toBeNull();
+  });
+});
+
+describe("a board's record panel looked at as a kanban", () => {
+  it('runs again into its lanes and back, since the lanes are questions of their own', async () => {
+    const source = memorySource(DEALS);
+    const table = {
+      ...dealsKanban,
+      id: 'deals-table',
+      config: kanbanConfig({ layout: 'table', pageSize: 2 }),
+    };
+    const store = new MemoryViewStore({ instances: [table] });
+    const engine = new ViewEngine({
+      resources: resourcesOf(
+        [dealsDefinition(), overviewDefinition()],
+        () => source,
+      ),
+      store,
+    });
+    const board = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Overview',
+        scope: 'personal',
+        config: dashboardConfig({
+          panels: [
+            {
+              id: 'p',
+              kind: 'view',
+              instanceId: table.id,
+              bindings: [],
+              layout: { x: 0, y: 0, w: 12, h: 4 },
+            },
+          ],
+        }),
+      },
+      { requestId: 'r' },
+    );
+    const runtime = await engine.open(board.id);
+    if (!(runtime instanceof DashboardViewRuntime)) throw new Error('board');
+    runtime.setBuilding(true);
+    await nextTask();
+    const child = () =>
+      runtime.getSnapshot().panels[0]!.runtime as RecordViewRuntime;
+    await vi.waitFor(() =>
+      expect(child().getSnapshot().query.status).toBe('success'),
+    );
+
+    runtime.setPresentation('p', { layout: 'kanban' });
+    await vi.waitFor(() =>
+      expect(lanesOf(child()).map(lane => lane.label)).toEqual([
+        'Lead',
+        'Won',
+        'Lost',
+        '',
+      ]),
+    );
+
+    runtime.setPresentation('p', null);
+    await vi.waitFor(() => expect(lanesOf(child())).toEqual([]));
+    runtime.dispose();
   });
 });

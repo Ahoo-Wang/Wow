@@ -29,6 +29,7 @@ import type {
 } from '../../dashboard/index.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import { hasError } from '../runtimeStore.js';
+import { kanbanQuestion } from '../restyle.js';
 import { atPanel, panelIssues } from './panels.js';
 
 /**
@@ -327,6 +328,14 @@ function replacing(
  * the members that never ask the source (`presentationMembers`).
  */
 function drawsOnly(previous: DataViewConfig, next: DataViewConfig): boolean {
+  // `layout` draws only between table and cards: into or out of a kanban it
+  // asks one question per lane (D83), so the child runs again.
+  if (
+    previous.kind === 'record' &&
+    next.kind === 'record' &&
+    !dequal(kanbanQuestion(previous), kanbanQuestion(next))
+  )
+    return false;
   const drawn = presentationMembers(next.kind);
   const before: Record<string, unknown> = { ...previous };
   const after: Record<string, unknown> = { ...next };

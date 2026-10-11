@@ -53,7 +53,7 @@ export function restyledOnly(
  * which lanes. Table and cards ask the same, so they compare equal here; the
  * kanban half a table keeps stored asks nothing until it is the layout.
  */
-function kanbanQuestion(config: RecordViewConfig): unknown {
+export function kanbanQuestion(config: RecordViewConfig): unknown {
   return config.layout === 'kanban' ? (config.kanban ?? null) : null;
 }
 
