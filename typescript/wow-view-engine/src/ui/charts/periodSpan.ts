@@ -11,34 +11,19 @@
  * limitations under the License.
  */
 
-import type { MetricPeriod } from '../../analysis/index.js';
+import { zonedParts, type MetricPeriod } from '../../analysis/index.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 const DAY_MS = 86_400_000;
 
-/** The calendar numbers of a moment in `zone`. */
+/** The calendar numbers of a moment in `zone`, and whether it is midnight. */
 function partsOf(ms: number, zone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(ms));
-  const read = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find(part => part.type === type)?.value ?? 0);
+  const { year, month, day, hour, minute, second } = zonedParts(ms, zone);
   return {
-    year: read('year'),
-    month: read('month'),
-    day: read('day'),
-    midnight:
-      read('hour') === 0 &&
-      read('minute') === 0 &&
-      read('second') === 0 &&
-      ms % 1000 === 0,
+    year,
+    month,
+    day,
+    midnight: hour === 0 && minute === 0 && second === 0 && ms % 1000 === 0,
   };
 }
 

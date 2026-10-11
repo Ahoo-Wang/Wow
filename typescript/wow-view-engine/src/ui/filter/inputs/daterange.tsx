@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { zonedDay, zonedTime } from '../../../analysis/index.js';
 import { CalendarIcon } from 'lucide-react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
@@ -260,23 +261,8 @@ function instantAt(text: string, zone: string | undefined): DayTime {
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return { day: '', time: '' };
   if (zone === undefined) return { day: dayOf(parsed), time: timeOf(parsed) };
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: zone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    })
-      .formatToParts(parsed)
-      .map(part => [part.type, part.value]),
-  );
-  return {
-    day: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}:${parts.minute}`,
-  };
+  const ms = parsed.getTime();
+  return { day: zonedDay(ms, zone), time: zonedTime(ms, zone) };
 }
 
 /**

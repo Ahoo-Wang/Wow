@@ -25,6 +25,7 @@ import {
   OTHER_SERIES_KEY,
   seriesKey,
 } from './chartRows.js';
+import { zonedDay } from './buckets.js';
 import { forwardInTime, timeGroup, withoutHoles } from './timeAxis.js';
 
 /** One day of a calendar: its bucket, its date in the zone, its number. */
@@ -53,16 +54,6 @@ export interface CalendarData {
   unfinished?: { at: unknown };
 }
 
-/** `YYYY-MM-DD` of an instant in a zone. */
-function dayIn(ms: number, zone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(ms);
-}
-
 /**
  * A calendar heatmap's days: each row a day of the one daily dimension, its
  * date written in the zone its bucket was cut in, earliest first. A day the
@@ -83,7 +74,7 @@ export function shapeCalendar(
     const instant = readInstant(row[spec.date]);
     if (value === null || !instant) continue;
     const zone = instant.wallClock ? 'UTC' : (group?.timeZone ?? timeZone);
-    days.push({ at: row[spec.date], date: dayIn(instant.ms, zone), value });
+    days.push({ at: row[spec.date], date: zonedDay(instant.ms, zone), value });
   }
   const values = days.map(day => day.value);
   return {

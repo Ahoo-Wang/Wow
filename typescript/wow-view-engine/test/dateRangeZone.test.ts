@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { zonedDay, zonedParts, zonedTime } from '../src/analysis/index.js';
 import { readBound } from '../src/ui/filter/inputs/daterange.js';
 
 describe('a stored instant in the date editor (R2-103)', () => {
@@ -51,6 +52,39 @@ describe('a stored instant in the date editor (R2-103)', () => {
     expect(readBound('soon', true, 'Asia/Shanghai')).toEqual({
       day: '',
       time: '',
+    });
+  });
+});
+
+describe('the one zone reader (R2-103)', () => {
+  const at = Date.UTC(2026, 0, 31, 16, 0, 0);
+
+  it('reads a day and a time on the zone’s clock', () => {
+    expect(zonedDay(at, 'Asia/Shanghai')).toBe('2026-02-01');
+    expect(zonedTime(at, 'Asia/Shanghai')).toBe('00:00');
+    expect(zonedDay(at, 'America/Los_Angeles')).toBe('2026-01-31');
+    expect(zonedTime(at, 'America/Los_Angeles')).toBe('08:00');
+  });
+
+  it('keeps the hour of a clock that moves (a DST change in New York)', () => {
+    // 2026-03-08 07:00 UTC is 03:00 EDT, the hour after the jump.
+    expect(zonedTime(Date.UTC(2026, 2, 8, 7, 0), 'America/New_York')).toBe(
+      '03:00',
+    );
+  });
+
+  it('writes the year in four digits', () => {
+    expect(zonedDay(Date.UTC(999, 0, 1), 'UTC')).toBe('0999-01-01');
+  });
+
+  it('answers every field, the second included', () => {
+    expect(zonedParts(at + 7_000, 'UTC')).toEqual({
+      year: 2026,
+      month: 1,
+      day: 31,
+      hour: 16,
+      minute: 0,
+      second: 7,
     });
   });
 });
