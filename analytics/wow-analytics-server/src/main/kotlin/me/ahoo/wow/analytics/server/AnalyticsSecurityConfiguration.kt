@@ -38,5 +38,8 @@ class AnalyticsSecurityConfiguration {
         AnalyticsAccessFilter(properties)
 
     @Bean
+    fun consolePagesFilter(properties: AnalyticsProperties): ConsolePagesFilter = ConsolePagesFilter(properties)
+
+    @Bean
     fun datasetQueryRequestScope(): DatasetQueryRequestScope = CoSecDatasetQueryRequestScope()
 }

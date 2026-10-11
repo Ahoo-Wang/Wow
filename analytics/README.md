@@ -25,13 +25,27 @@ enforces what a CoSec gateway would in front of the view store server:
 - a dataset query reads the tenant CoSec authenticated, and the ABAC tags of the principal's `abac.*` attributes;
   a principal without tags is refused (`wow.query.abac.require-principal-tags`).
 
+## Console
+
+`console` signs in with the CoSec token the enterprise issued (a single sign-on that stores it under `cosec-token`
+signs the console in too), lists the published datasets and the boards, opens a dataset's workbench and the boards'
+workbench, and gives the registry's admins its management page: draft from a table, revise the declaration, review
+each field's sensitivity, publish and retire. The server answers each console page (`/datasets/…`, `/boards`, …) with
+its `index.html`.
+
+```bash
+pnpm --filter wow-analytics-console... build
+```
+
+`pnpm dev` in `console` forwards the API to `ANALYTICS_SERVER` (`http://localhost:8080`).
+
 ## Run it
 
 ```bash
 ./gradlew :wow-analytics-server:installDist
 ```
 
-The distribution is in `analytics/wow-analytics-server/build/install/wow-analytics-server`; review
+Build the console first: the distribution copies `console/dist` into its `ui/`. The distribution is in `analytics/wow-analytics-server/build/install/wow-analytics-server`; review
 `config/application.yaml` (MongoDB, Redis, Kafka, ClickHouse) and start `bin/wow-analytics-server` with
 `COSEC_JWT_SECRET` set. The end-to-end tests run on Testcontainers:
 

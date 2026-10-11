@@ -53,6 +53,15 @@ pnpm build
 pnpm coverage
 ```
 
+Analytics console (`analytics/console`, served by `wow-analytics-server` from its `ui/`):
+
+```bash
+pnpm --filter wow-analytics-console... build
+cd analytics/console
+pnpm test
+pnpm lint
+```
+
 Documentation site:
 
 ```bash
