@@ -347,6 +347,7 @@ export function AnalysisParts({
         analysis.submit();
       },
       onChange: next => analysis.updateChart(next),
+      windows: analysis.windows,
       onLevel: setPanel,
       onBack: () => setPanel(null),
       ...(visualizationBack === undefined

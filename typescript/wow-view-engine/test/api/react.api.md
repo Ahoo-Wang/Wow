@@ -268,6 +268,7 @@ export interface AnalysisEditorController extends QuestionEditing {
     unit: string | null;
     // (undocumented)
     updateChart(patch: Partial<ChartSpec>): void;
+    windows: readonly AnalysisWindowFunction[];
 }
 
 // @public
@@ -777,6 +778,7 @@ interface CartesianData {
     // (undocumented)
     chart: ChartType;
     crowded?: true;
+    cycle?: true;
     derived?: DerivedLine[];
     extremes?: SeriesExtremes;
     gaps?: CartesianGap[];
@@ -1379,7 +1381,7 @@ interface DefinitionNarrowing {
 }
 
 // @public
-const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share"];
+const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
 
 // @public
 type DerivedFormat = {
@@ -1395,7 +1397,7 @@ type DerivedFormat = {
 };
 
 // @public
-type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few';
+type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few' | 'unsupported';
 
 // @public (undocumented)
 type DerivedKind = (typeof DERIVED_KINDS)[number];
@@ -2191,6 +2193,7 @@ interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
     type: 'heatmap';
+    xAlong?: true;
     // (undocumented)
     xs: unknown[];
     // (undocumented)

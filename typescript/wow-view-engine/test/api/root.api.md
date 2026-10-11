@@ -739,6 +739,7 @@ export interface CartesianData {
     // (undocumented)
     chart: ChartType;
     crowded?: true;
+    cycle?: true;
     derived?: DerivedLine[];
     extremes?: SeriesExtremes;
     gaps?: CartesianGap[];
@@ -1683,7 +1684,7 @@ export const deletionFieldKind: FieldKind;
 export const DERIVED_FORMAT_STYLES: readonly ["number", "percent", "currency"];
 
 // @public
-export const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share"];
+export const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
 
 // @public
 export type DerivedFormat = {
@@ -1699,7 +1700,7 @@ export type DerivedFormat = {
 };
 
 // @public
-export type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few';
+export type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few' | 'unsupported';
 
 // @public (undocumented)
 export type DerivedKind = (typeof DERIVED_KINDS)[number];
@@ -2675,6 +2676,7 @@ export interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
     type: 'heatmap';
+    xAlong?: true;
     // (undocumented)
     xs: unknown[];
     // (undocumented)

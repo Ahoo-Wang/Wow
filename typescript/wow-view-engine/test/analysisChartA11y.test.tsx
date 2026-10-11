@@ -645,6 +645,24 @@ describe('the metric card still says its value out loud', () => {
     expect(Number(bar.getAttribute('aria-valuenow'))).toBeCloseTo(91.12, 2);
   });
 
+  /**
+   * Storybook review P2: a bar nine-tenths full said nothing of what it was
+   * nine-tenths of. The target is written at the bar's end, on its row, and
+   * left to the bar for a screen reader, which already says both numbers.
+   */
+  it('writes the target beside the bar', () => {
+    const { container } = draw(
+      { type: 'metric', value: 8201, target: 9000 },
+      { type: 'metric', metric: { metric: 'orders' } },
+      columns,
+    );
+    const row = container.querySelector('[data-slot="metric-target"]')!;
+    const words = row.querySelector('[aria-hidden="true"]')!;
+
+    expect(row.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(words.textContent).toBe('Target 9,000');
+  });
+
   /** Nothing to fall short of still has to be drawable. */
   it('draws a target of zero without dividing by it', () => {
     const { container } = draw(

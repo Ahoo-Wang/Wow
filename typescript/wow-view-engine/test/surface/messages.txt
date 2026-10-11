@@ -1,4 +1,4 @@
-# Message keys — 2137.
+# Message keys — 2144.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -674,7 +674,10 @@ label.chart.derived
 label.chart.derived.add.cumulative
 label.chart.derived.add.cumulative-share
 label.chart.derived.add.moving-average
+label.chart.derived.add.previous
+label.chart.derived.add.previous-year
 label.chart.derived.add.trend
+label.chart.derived.change
 label.chart.derived.computed
 label.chart.derived.cumulative
 label.chart.derived.cumulative-share
@@ -682,6 +685,8 @@ label.chart.derived.hint
 label.chart.derived.metric
 label.chart.derived.moving-average
 label.chart.derived.of
+label.chart.derived.previous
+label.chart.derived.previous-year
 label.chart.derived.trend
 label.chart.derived.window
 label.chart.derived.window.hint
@@ -720,6 +725,7 @@ label.chart.gap.shares
 label.chart.gap.split
 label.chart.gap.statistic-split
 label.chart.gap.too-few
+label.chart.gap.unsupported
 label.chart.gauge.above
 label.chart.gauge.auto
 label.chart.gauge.below
@@ -895,6 +901,7 @@ label.chart.tab.data
 label.chart.tab.display
 label.chart.target
 label.chart.target-value
+label.chart.target.of
 label.chart.target.reached
 label.chart.themeRiver.uncertain
 label.chart.themeRiver.uncertain-one

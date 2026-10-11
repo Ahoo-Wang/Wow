@@ -87,6 +87,12 @@ export interface CartesianData {
    */
   timeline?: true;
   /**
+   * The x runs a calendar part's whole cycle (`alongPart`) — the hours of a
+   * day, the days of a week — in its own order: an axis read along, whose
+   * names are written flat every few as a time axis's are, never slanted.
+   */
+  cycle?: true;
+  /**
    * The period still under way at the axis's end (`unfinishedBucket`): drawn
    * and marked, and left out of what the chart is read to say. Absent when
    * every period had ended, or when the question carries no `now`.
@@ -260,6 +266,7 @@ export function shapeCartesian(
     ...(axis && consecutive(points, point => point.x, axis, timeZone)
       ? { timeline: true as const }
       : {}),
+    ...(cycle ? { cycle: true as const } : {}),
     series: splitOrder(config, spec, points, series),
   };
   // Past the palette, a split that may fold (`splitFoldable`: it adds up,

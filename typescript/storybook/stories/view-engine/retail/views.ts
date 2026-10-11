@@ -415,9 +415,6 @@ const SAME_PERIOD_LAST_MONTH = and(preset('firstEventTime', 'lastMonthToDate'));
 /** 已付款的单：退款率、超时率这些「按实付算」的口径只数它们。 */
 const PAID_ONLY = leaf('state.timing.paidAt', 'IS_NOT_NULL', null);
 
-/** A-11：运营给 2025 年双 11 当天定的 GMV 目标区间（元）。 */
-export const DOUBLE11_DAY_TARGET = { from: 30_000, to: 50_000 } as const;
-
 export const ANALYSIS_VIEWS: ViewInstance[] = [
   // A-01：本月 GMV 较上月同期。指标卡，对比写百分比。
   shared(
@@ -903,8 +900,9 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     }),
   ),
   // A-11：大促到底拉动了多少——2025 年双 11 前后的日 GMV。中位线、平均线与
-  // 峰谷点：11 月 11 日当天是平日的好几倍；目标区间是运营给大促当天定的
-  // 3～5 万（`DOUBLE11_DAY_TARGET`），只有 11 月 11 日那一根柱落进去。
+  // 峰谷点：11 月 11 日当天是平日的好几倍。不画「大促日目标」区间：那是只给
+  // 11 月 11 日一天定的数，画成参考带却横贯 37 天，读起来像每天都该够到
+  // （Storybook 审查 P2）；参考带的例子在 A-12，那条目标每周都适用。
   shared(
     ANALYSTS,
     'a11-double11',
@@ -931,14 +929,6 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
               statistic: 'average',
               metric: 'gmv',
               label: '日均',
-            },
-          ],
-          referenceBands: [
-            {
-              axis: 'left',
-              from: DOUBLE11_DAY_TARGET.from,
-              to: DOUBLE11_DAY_TARGET.to,
-              label: '大促日目标',
             },
           ],
           extremes: true,

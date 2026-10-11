@@ -29,7 +29,7 @@ import {
 } from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { ANALYSIS_GOLDEN } from './retail/goldens.js';
-import { BATH_TOWEL_TITLE, DOUBLE11_DAY_TARGET } from './retail/views.js';
+import { BATH_TOWEL_TITLE } from './retail/views.js';
 import { matchScreenshot } from './screenshot.js';
 
 /**
@@ -784,9 +784,10 @@ const crossings = (frame: HTMLElement) => {
 const money = (text: string) => Number(text.replace(/[¥,]/g, ''));
 
 /**
- * 批 B in the scenes: A-11 draws the median and the daily average and the
- * promotion-day target band, which only 2025-11-11 reaches; A-12 draws a
- * 4-week moving average and a target band under the 5% red line; the
+ * 批 B in the scenes: A-11 draws the median and the daily average, and no
+ * band for a target set for one day alone (it ran across all 37 days,
+ * Storybook review P2); A-12 draws a 4-week moving average and a target
+ * band under the 5% red line; the
  * quarterly review buckets by QUARTER and reads a STDDEV.
  */
 export const ReferencesInTheScenes: Story = {
@@ -801,18 +802,9 @@ export const ReferencesInTheScenes: Story = {
       const texts = plotTexts(promotion);
       expect(texts.some(text => /^中位数/.test(text))).toBe(true);
       expect(texts.some(text => /^日均/.test(text))).toBe(true);
-      expect(texts).toContain('大促日目标');
+      expect(texts).not.toContain('大促日目标');
     });
     await expect(crossings(promotion)).toEqual([]);
-    const days = await reading(canvasElement);
-    const gmv = readColumn(days, 'GMV').map(money);
-    const inBand = readColumn(days, '日期').filter(
-      (_, index) =>
-        gmv[index]! >= DOUBLE11_DAY_TARGET.from &&
-        gmv[index]! <= DOUBLE11_DAY_TARGET.to,
-    );
-    // Only the day itself reaches the target band.
-    await expect(inBand).toEqual(['2025年11月11日']);
 
     const sla = await openAnalysis(canvasElement, '每周发货超时率');
     await waitFor(() => {

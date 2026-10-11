@@ -258,13 +258,17 @@ export interface CartesianSpec {
  * (`cumulative`, a metric that adds up only), and the running total as a
  * share of the whole (`cumulative-share`, 累计占比). The two running kinds
  * also run along a categorical axis the result is sorted by the metric on —
- * the Pareto chart (D38).
+ * the Pareto chart (D38). The metric one bucket earlier (`previous`, 上一期)
+ * and a year earlier (`previous-year`, 去年同期) are the source's to compute
+ * (D88): only a source whose descriptor lists `PREVIOUS` draws them.
  */
 export const DERIVED_KINDS = [
   'trend',
   'moving-average',
   'cumulative',
   'cumulative-share',
+  'previous',
+  'previous-year',
 ] as const satisfies readonly string[];
 
 export type DerivedKind = (typeof DERIVED_KINDS)[number];

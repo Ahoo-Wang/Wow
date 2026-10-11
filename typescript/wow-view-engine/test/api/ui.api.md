@@ -658,6 +658,7 @@ interface CartesianData {
     // (undocumented)
     chart: ChartType;
     crowded?: true;
+    cycle?: true;
     derived?: DerivedLine[];
     extremes?: SeriesExtremes;
     gaps?: CartesianGap[];
@@ -1561,7 +1562,7 @@ interface DefinitionNarrowing {
 }
 
 // @public
-const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share"];
+const DERIVED_KINDS: readonly ["trend", "moving-average", "cumulative", "cumulative-share", "previous", "previous-year"];
 
 // @public
 type DerivedFormat = {
@@ -1577,7 +1578,7 @@ type DerivedFormat = {
 };
 
 // @public
-type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few';
+type DerivedGap = 'split' | 'not-time' | 'not-sorted' | 'shares' | 'narrowed' | 'cut-short' | 'holes' | 'not-additive' | 'too-few' | 'unsupported';
 
 // @public (undocumented)
 type DerivedKind = (typeof DERIVED_KINDS)[number];
@@ -2844,6 +2845,8 @@ export const en: {
     readonly 'label.chart.derived.add.moving-average': "Moving average";
     readonly 'label.chart.derived.add.cumulative': "Running total";
     readonly 'label.chart.derived.add.cumulative-share': "Running share";
+    readonly 'label.chart.derived.add.previous': "Previous period";
+    readonly 'label.chart.derived.add.previous-year': "Same period last year";
     readonly 'label.chart.derived.window': "Periods";
     readonly 'label.chart.derived.window.hint': "Left empty: {count}.";
     readonly 'label.chart.derived.metric': "Computed from";
@@ -2851,6 +2854,9 @@ export const en: {
     readonly 'label.chart.derived.moving-average': "{window}-period moving average";
     readonly 'label.chart.derived.cumulative': "Running total";
     readonly 'label.chart.derived.cumulative-share': "Running share";
+    readonly 'label.chart.derived.previous': "Previous period";
+    readonly 'label.chart.derived.previous-year': "Same period last year";
+    readonly 'label.chart.derived.change': "vs {name}: {change}";
     readonly 'label.chart.derived.computed': "{name} (computed)";
     readonly 'label.chart.derived.of': "{name} · {series}";
     readonly 'label.chart.statistic.average': "Average";
@@ -2867,6 +2873,7 @@ export const en: {
     readonly 'label.chart.gap.holes': "the time axis has gaps no one can put a number on, so the line would be wrong.";
     readonly 'label.chart.gap.not-additive': "a running total holds only for a metric that adds up (a record count or a sum).";
     readonly 'label.chart.gap.too-few': "there are too few points to compute it.";
+    readonly 'label.chart.gap.unsupported': "the data source does not compute earlier periods (or a year back over weeks).";
     readonly 'label.chart.gap.shares': "the chart draws shares of 100%, and a computed line of shares means nothing.";
     readonly 'label.chart.gap.statistic-split': "a split draws a line per value, and an average or median line is drawn on an unsplit chart only.";
     readonly 'label.chart.gap.none-measured': "there is no measured value to take it of.";
@@ -3053,6 +3060,7 @@ export const en: {
     readonly 'label.chart.column.reached': "Of the target";
     readonly 'label.chart.target': "Toward target";
     readonly 'label.chart.target.reached': "{value} of {target}";
+    readonly 'label.chart.target.of': "Target {target}";
     readonly 'label.chart.period.week': "Week of {start}";
     readonly 'label.chart.period.so-far': "{period} so far";
     readonly 'label.chart.period.whole': "All in range";
@@ -4718,6 +4726,7 @@ interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
     type: 'heatmap';
+    xAlong?: true;
     // (undocumented)
     xs: unknown[];
     // (undocumented)

@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, type ReactElement, type RefObject } from 'react';
-import { derivedGap, movingWindow } from '../../analysis/derived.js';
+import { draftGap, movingWindow } from '../../analysis/derived.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import type { AnalysisResultController } from '../../react/index.js';
 import { ChartOptions } from './ChartOptions.js';
@@ -73,6 +73,8 @@ export function useVisualizationFocus(
   return { heading, optionsButton, visualizeRef };
 }
 
+const NO_WINDOWS: readonly string[] = [];
+
 interface VisualizationPanelProps {
   /** The level on screen; nothing is drawn for `null`. */
   level: VisualizationLevel | null;
@@ -99,6 +101,8 @@ interface VisualizationPanelProps {
   onBack?(): void;
   /** What that way back is called (`ChartPickerProps.backLabel`). */
   backLabel?: string;
+  /** The window functions the source computes (D87–D88); none when absent. */
+  windows?: readonly string[];
 }
 
 /**
@@ -124,6 +128,7 @@ export function visualizationPanel({
   onLevel,
   onBack,
   backLabel,
+  windows = NO_WINDOWS,
 }: VisualizationPanelProps): ReactElement | null {
   const question = result.question;
   if (level === 'picker')
@@ -152,7 +157,7 @@ export function visualizationPanel({
     const gapOf: OptionsPageProps['gapOf'] =
       data &&
       (derived => {
-        const gap = derivedGap(drafted, data, derived, cutShort);
+        const gap = draftGap(drafted, data, derived, cutShort, windows);
         return gap && { gap, limit: drafted.limit };
       });
     return (
