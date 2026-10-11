@@ -133,7 +133,9 @@ describe('defineView', () => {
 
   it('keeps a yes-or-no field one when the host names its two answers', () => {
     const [paid] = define({
-      fields: { paid: { label: 'Paid', options: { true: '已付', false: '未付' } } },
+      fields: {
+        paid: { label: 'Paid', options: { true: '已付', false: '未付' } },
+      },
     }).fields;
     expect(paid).toMatchObject({
       kind: 'boolean',
