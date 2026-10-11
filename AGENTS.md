@@ -134,8 +134,9 @@ compensation/               Compensation domain, API, core, server, and React da
 view-store/                 View engine storage backend: API, domain, Spring Boot starter, standalone server
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
 example/                    Kotlin order/cart sample and Java transfer sample
-documentation/              VitePress documentation site
-document/                   Design docs, diagrams, and static assets
+wow-benchmarks/             JMH benchmarks and reproducible performance reports
+documentation/              VitePress documentation site (docs/) and design records (designs/)
+docs/                       Ledgers: compat-debt.md (compatibility kept until v10), todo.md (JVM)
 skills/                     Project-local Codex skills and agent definitions
 ```
 
@@ -242,11 +243,14 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 
 ## Documentation
 
-- Root README: `README.md`
-- Chinese README: `README.zh-CN.md`
-- VitePress docs: `documentation/docs/`
-- Static documentation assets: `documentation/docs/public/`
-- Diagram sources Mermaid cannot express: `documentation/diagrams/`
-- `document/` and tracked `docs/superpowers/` are legacy migration sources; do not add new files there.
+Each kind of document has one home, chosen by its reader; [Documentation Governance](documentation/docs/en/guide/advanced/documentation-governance.md) is the full policy.
+
+- User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
+- Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
+- Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
+- Ledgers of decided work: `docs/compat-debt.md`, `docs/todo.md`, `typescript/wow-view-engine/docs/design/todo.md`. Delete an entry when it is done.
+- Performance evidence: `wow-benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
+- Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.
+- Do not commit implementation plans, review notes, QA comparisons or scratch evidence; keep them in the pull request or an ignored workspace. Do not add files under `document/` or `docs/superpowers/`.
 - Project-local skills: `skills/`; vendored Claude Code skills (shadcn): `.claude/skills/`
