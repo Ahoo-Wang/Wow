@@ -78,6 +78,13 @@ const chinese = (locale: string | undefined) =>
  */
 const SMALL = 5 / 6;
 
+/**
+ * The room either side of a river's axis: half its widest name — a day with
+ * its year, 「2025年9月22日」, some 80px at the axis's size — and a little
+ * air, since the library centres every name on its point and clips none.
+ */
+const RIVER_SIDE = 52;
+
 export function calendarOption(
   data: CalendarData,
   context: TimeContext,
@@ -309,8 +316,11 @@ export function themeRiverOption(
       min: 0,
       max: Math.max(0, data.times.length - 1),
       minInterval: 1,
-      left: 24,
-      right: 24,
+      // Half the widest name either side: a name is centred on its week,
+      // and 24px let 「2025年9月22日」 run off the panel's left edge as
+      // 「5年9月22日」, and the last one off the right (Storybook review P2).
+      left: RIVER_SIDE,
+      right: RIVER_SIDE,
       top: 16,
       bottom: 32,
       axisLine: { lineStyle: { ...theme.grid } },
