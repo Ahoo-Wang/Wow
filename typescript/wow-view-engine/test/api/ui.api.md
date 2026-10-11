@@ -3054,7 +3054,6 @@ export const en: {
     readonly 'label.chart.target': "Toward target";
     readonly 'label.chart.target.reached': "{value} of {target}";
     readonly 'label.chart.target.of': "Target {target}";
-    readonly 'label.chart.target.share': "{share} reached";
     readonly 'label.chart.period.week': "Week of {start}";
     readonly 'label.chart.period.so-far': "{period} so far";
     readonly 'label.chart.period.whole': "All in range";
