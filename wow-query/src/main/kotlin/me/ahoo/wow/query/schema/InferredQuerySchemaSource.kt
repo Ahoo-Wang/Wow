@@ -89,22 +89,20 @@ class InferredQuerySchemaSource(
         }
     }
 
-    private fun describe(profile: QueryModelProfile, type: Class<*>): InferredFacts = when (profile) {
+    private fun describe(profile: BuiltInQueryModelProfile, type: Class<*>): InferredFacts = when (profile) {
         is SnapshotQueryModelProfile -> InferredFacts(mapOf(type to modelSource.describe(type)))
         is EventStreamQueryModelProfile -> {
             val events = type.aggregateEventTypes()
             InferredFacts(events.associateWith { modelSource.describe(it) })
                 .also { if (events.isNotEmpty()) warnInconsistentSensitivity(type, it.types) }
         }
-        // A dataset is declared, not inferred: QueryModelProfile.of never yields its profile.
-        is DatasetQueryModelProfile -> InferredFacts(emptyMap())
     }
 
     /** The described [types]: a snapshot's state type, or an event stream's event types in name order. */
     private class InferredFacts(val types: Map<Class<*>, QueryTypeFact>) {
         val refersIntoOwnContext: Boolean = types.values.any { it.refersIntoOwnContext() }
 
-        fun declaration(profile: QueryModelProfile, contextName: String?): QuerySchemaDeclaration = when (profile) {
+        fun declaration(profile: BuiltInQueryModelProfile, contextName: String?): QuerySchemaDeclaration = when (profile) {
             is SnapshotQueryModelProfile -> QuerySchemaDeclaration(
                 mapOf(
                     profile.payloadField to types.values.single()
@@ -112,7 +110,6 @@ class InferredQuerySchemaSource(
                 ),
             )
             is EventStreamQueryModelProfile -> eventStream(profile, contextName)
-            is DatasetQueryModelProfile -> QuerySchemaDeclaration(emptyMap())
         }
 
         private fun eventStream(profile: EventStreamQueryModelProfile, contextName: String?): QuerySchemaDeclaration {

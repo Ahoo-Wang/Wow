@@ -1154,6 +1154,15 @@ public final class me/ahoo/wow/query/schema/BeanQuerySchemaSource : me/ahoo/wow/
 	public fun refresh (Lme/ahoo/wow/query/schema/QuerySchemaContext;)Lreactor/core/publisher/Flux;
 }
 
+public abstract class me/ahoo/wow/query/schema/BuiltInQueryModelProfile : me/ahoo/wow/query/schema/QueryModelProfile {
+	public synthetic fun <init> (Lme/ahoo/wow/api/query/schema/QueryModel;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public abstract fun getEventTimeField ()Lme/ahoo/wow/api/query/QueryField;
+	public abstract fun getIdentityField ()Lme/ahoo/wow/api/query/QueryField;
+	public abstract fun getPayloadField ()Lme/ahoo/wow/api/query/QueryField;
+	public final fun getRequiredScope ()Lme/ahoo/wow/api/query/QueryField;
+	public final fun systemField (Lme/ahoo/wow/api/query/spec/SystemField;)Lme/ahoo/wow/api/query/QueryField;
+}
+
 public final class me/ahoo/wow/query/schema/ClasspathQuerySchemaSource : me/ahoo/wow/query/schema/QuerySchemaSource {
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/ClassLoader;)V
@@ -1169,6 +1178,7 @@ public final class me/ahoo/wow/query/schema/DatasetQueryModelProfile : me/ahoo/w
 	public fun getEventTimeField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getIdentityField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getPayloadField ()Lme/ahoo/wow/api/query/QueryField;
+	public fun getRequiredScope ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getSystemDeclaration ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
 	public fun hashCode ()I
 	public fun systemField (Lme/ahoo/wow/api/query/spec/SystemField;)Lme/ahoo/wow/api/query/QueryField;
@@ -1199,7 +1209,7 @@ public final class me/ahoo/wow/query/schema/DeclarationValue$Unset : me/ahoo/wow
 public final class me/ahoo/wow/query/schema/DefaultQueryModelSchemaProvider$Companion {
 }
 
-public final class me/ahoo/wow/query/schema/EventStreamQueryModelProfile : me/ahoo/wow/query/schema/QueryModelProfile {
+public final class me/ahoo/wow/query/schema/EventStreamQueryModelProfile : me/ahoo/wow/query/schema/BuiltInQueryModelProfile {
 	public static final field INSTANCE Lme/ahoo/wow/query/schema/EventStreamQueryModelProfile;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getEventTimeField ()Lme/ahoo/wow/api/query/QueryField;
@@ -1209,7 +1219,6 @@ public final class me/ahoo/wow/query/schema/EventStreamQueryModelProfile : me/ah
 	public fun getSystemDeclaration ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
 	public fun getVariantElement ()Lme/ahoo/wow/api/query/QueryField;
 	public fun hashCode ()I
-	public fun systemField (Lme/ahoo/wow/api/query/spec/SystemField;)Lme/ahoo/wow/api/query/QueryField;
 	public fun toString ()Ljava/lang/String;
 	public fun validateProjection (Lme/ahoo/wow/api/query/Projection;)V
 }
@@ -1516,15 +1525,15 @@ public abstract class me/ahoo/wow/query/schema/QueryModelProfile {
 	public final fun getModel ()Lme/ahoo/wow/api/query/schema/QueryModel;
 	public abstract fun getPayloadField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getPayloadTypeField ()Lme/ahoo/wow/api/query/QueryField;
-	public final fun getRequiredScope ()Lme/ahoo/wow/api/query/QueryField;
+	public abstract fun getRequiredScope ()Lme/ahoo/wow/api/query/QueryField;
 	public abstract fun getSystemDeclaration ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
 	public fun getVariantElement ()Lme/ahoo/wow/api/query/QueryField;
-	public fun systemField (Lme/ahoo/wow/api/query/spec/SystemField;)Lme/ahoo/wow/api/query/QueryField;
+	public abstract fun systemField (Lme/ahoo/wow/api/query/spec/SystemField;)Lme/ahoo/wow/api/query/QueryField;
 	public fun validateProjection (Lme/ahoo/wow/api/query/Projection;)V
 }
 
 public final class me/ahoo/wow/query/schema/QueryModelProfile$Companion {
-	public final fun of (Lme/ahoo/wow/api/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/QueryModelProfile;
+	public final fun of (Lme/ahoo/wow/api/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/BuiltInQueryModelProfile;
 }
 
 public final class me/ahoo/wow/query/schema/QueryModelProfileKt {
@@ -2577,7 +2586,7 @@ public final class me/ahoo/wow/query/schema/QueryViolation$ValueMismatch : me/ah
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/query/schema/SnapshotQueryModelProfile : me/ahoo/wow/query/schema/QueryModelProfile {
+public final class me/ahoo/wow/query/schema/SnapshotQueryModelProfile : me/ahoo/wow/query/schema/BuiltInQueryModelProfile {
 	public static final field INSTANCE Lme/ahoo/wow/query/schema/SnapshotQueryModelProfile;
 	public fun defaultScope (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/FilterExpression;
 	public fun equals (Ljava/lang/Object;)Z
@@ -2587,7 +2596,6 @@ public final class me/ahoo/wow/query/schema/SnapshotQueryModelProfile : me/ahoo/
 	public fun getPayloadField ()Lme/ahoo/wow/api/query/QueryField;
 	public fun getSystemDeclaration ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
 	public fun hashCode ()I
-	public fun systemField (Lme/ahoo/wow/api/query/spec/SystemField;)Lme/ahoo/wow/api/query/QueryField;
 	public fun toString ()Ljava/lang/String;
 }
 

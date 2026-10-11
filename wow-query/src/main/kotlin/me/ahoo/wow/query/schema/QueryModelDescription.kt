@@ -178,9 +178,10 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
      * relative to the element, and each field's capabilities as admission resolves the shared logical path.
      */
     private fun variants(): VariantsDescriptor? {
-        val profile = schema.profile ?: return null
+        // Only an event stream's payload has variants.
+        val profile = schema.profile as? BuiltInQueryModelProfile ?: return null
         val element = profile.variantElement?.path ?: return null
-        val payloadField = profile.payloadField ?: return null
+        val payloadField = profile.payloadField
         val payload = schema.definition.value(payloadField.toPathTemplate()) ?: return null
         val variants = if (payload.variant != null) {
             listOf(

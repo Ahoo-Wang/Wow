@@ -75,23 +75,13 @@ sealed class QueryModelProfile(val model: QueryModel) {
      * [requireAuthenticatedScope][me.ahoo.wow.query.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
      * the isolation boundary of every built-in model.
      */
-    val requiredScope: QueryField
-        get() = checkNotNull(systemField(SystemField.TENANT_ID)) { "Query model [$model] declares no tenant." }
+    abstract val requiredScope: QueryField
 
     /**
      * The logical field a system-field filter (ID, TENANT_ID, DELETION, ...) targets: [identityField] for the record
-     * identity, the shared record metadata otherwise; `null` when the model does not carry [field].
+     * identity; `null` when the model does not carry [field].
      */
-    open fun systemField(field: SystemField): QueryField? = when (field) {
-        SystemField.IDENTITY -> identityField
-        else -> metadataField(field)
-    }
-
-    /** The system fields of a built-in model, which carries every one of them. */
-    protected fun builtInSystemField(field: SystemField, identity: QueryField): QueryField = when (field) {
-        SystemField.IDENTITY -> identity
-        else -> metadataField(field)
-    }
+    abstract fun systemField(field: SystemField): QueryField?
 
     /** The element whose variants are typed payloads (an event stream's `body`), or `null` for a monomorphic payload. */
     open val variantElement: QueryField? = null
@@ -129,7 +119,7 @@ sealed class QueryModelProfile(val model: QueryModel) {
         private val DELETED = QueryField(StateAggregateRecords.DELETED)
 
         /** Returns the profile of a built-in [model], or `null` for a custom model. */
-        fun of(model: QueryModel): QueryModelProfile? = when (model) {
+        fun of(model: QueryModel): BuiltInQueryModelProfile? = when (model) {
             QueryModel.SNAPSHOT -> SnapshotQueryModelProfile
             QueryModel.EVENT_STREAM -> EventStreamQueryModelProfile
             else -> null
@@ -137,15 +127,32 @@ sealed class QueryModelProfile(val model: QueryModel) {
     }
 }
 
+/**
+ * The profile of an aggregate's read model, Snapshot or EventStream: every record carries an identity, a payload, an
+ * event time and every system field, the record metadata shared by both models.
+ */
+@WowSpi
+sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(model) {
+    abstract override val identityField: QueryField
+    abstract override val payloadField: QueryField
+    abstract override val eventTimeField: QueryField
+
+    final override val requiredScope: QueryField
+        get() = metadataField(SystemField.TENANT_ID)
+
+    final override fun systemField(field: SystemField): QueryField = when (field) {
+        SystemField.IDENTITY -> identityField
+        else -> metadataField(field)
+    }
+}
+
 /** Materialized aggregate snapshots: one record per aggregate, payload under `state`. */
 @WowSpi
-data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
+data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAPSHOT) {
     override val identityField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
     override val payloadField: QueryField = QueryField(StateAggregateRecords.STATE)
     override val eventTimeField: QueryField = QueryField(StateAggregateRecords.EVENT_TIME)
     override val firstEventTimeField: QueryField = QueryField(StateAggregateRecords.FIRST_EVENT_TIME)
-
-    override fun systemField(field: SystemField): QueryField = builtInSystemField(field, identityField)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
@@ -193,14 +200,12 @@ data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
 
 /** Aggregated domain event streams: one record per command, typed event payloads under `body[].body`. */
 @WowSpi
-data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_STREAM) {
+data object EventStreamQueryModelProfile : BuiltInQueryModelProfile(QueryModel.EVENT_STREAM) {
     override val identityField: QueryField = QueryField(MessageRecords.ID)
     override val payloadField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY}")
     override val payloadTypeField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
     override val variantElement: QueryField = QueryField(MessageRecords.BODY)
     override val eventTimeField: QueryField = QueryField(MessageRecords.CREATE_TIME)
-
-    override fun systemField(field: SystemField): QueryField = builtInSystemField(field, identityField)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
