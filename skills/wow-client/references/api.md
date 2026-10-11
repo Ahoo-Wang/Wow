@@ -169,6 +169,8 @@ useQuery({ queryKey: ['carts', query], queryFn: ({ signal }) => snapshotClient.p
 
 `GET {id}/snapshot` and `GET {id}/state/tracing` have no client method; call them through a Fetcher.
 
+`DatasetQueryClient<R, FIELDS>` queries one dataset (a wide table or a warehouse table the service declares): `new DatasetQueryClient({ context, dataset, fetcher, resourceAttribution? })` sends to `dataset/{context}/{dataset}/…` (with `ResourceAttributionPathSpec.TENANT`, under `tenant/{tenantId}` filled from `urlParams`). Methods: `single`, `list`, `listStream`, `paged`, `cursor`, `count`, `aggregate`, `aggregateStream`, `describe(previous?)`. Fields are columns at the record root (no `state.`); the filter DSL is the same, `Condition` is not accepted. `DatasetDirectoryClient.list()` reads the service's dataset directory (`GET dataset`): each entry's `contextName`, `name`, `title` and descriptor `version` (`null` while the dataset is unavailable).
+
 `LoadStateAggregateClient<S>`: `load(id)`, `loadVersioned(id, version)`, `loadTimeBased(id, time)`. `LoadOwnerStateAggregateClient<S>` (owner from the path, no id): `load()`, `loadVersioned(version)`, `loadTimeBased(time)`.
 
 `WowMetadataClient`: `new WowMetadataClient({ fetcher }).metadata()` reads `GET /wow/metadata` (bounded contexts, aggregates, commands, events) relative to the fetcher's base URL.

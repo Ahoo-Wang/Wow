@@ -21,6 +21,13 @@ In depth: [Query](https://wow.ahoo.me/guide/query.html), [Filter Expressions](ht
 - Out of bounds for this Skill: command routes; the snapshot `PUT` routes (`{aggregate}/snapshot/{afterId}/{limit}` regeneration, `{aggregate}/{id}/snapshot`); the deprecated `POST …/schema/refresh` (it reloads the schema on that instance); state-replay and tracing routes unless the user asked for one aggregate's history.
 - Ask for JSON (`Accept: application/json`); `list` and `aggregation` can also stream SSE.
 
+**Datasets** (`model` `DATASET`): wide tables and warehouse tables a service serves beside its aggregates. `GET {base}/dataset` lists them (`contextName`, `name`, `title`, `version`; `version` `null` means the dataset is unavailable now). Each one's routes are `{base}/dataset/{context}/{dataset}/{schema|count|aggregation|list|paged|cursor|single}`, also under `{base}/tenant/{tenantId}/…`, with the same bodies as the snapshot routes. Differences that change a query:
+
+- fields are columns at the record root: no `state.` prefix, no elements, no event variants;
+- a dataset has no default deletion scope unless it declares one, and its `record.identity` may be absent (then no `cursor`);
+- presence: a column that is not `Nullable` has no `IS_NULL`/`EXISTS`, and an array column reads an empty array as missing (`NULL_OR_EMPTY_AS_MISSING`);
+- `PERCENTILE` is listed in `analysis.approximate`; `DISTINCT_COUNT` is exact.
+
 The descriptor answers an `ETag` that is its `version` in double quotes (`"sha256:…"`). Send it back exactly as received in `If-None-Match` (quotes included) to get `304` while it is unchanged.
 
 ## Reading the descriptor

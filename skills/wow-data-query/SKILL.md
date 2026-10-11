@@ -1,6 +1,6 @@
 ---
 name: "wow-data-query"
-description: "Answer business data questions from a running Wow service: read its query capability descriptor, run read-only snapshot or event-stream queries, and explain counts, lists, breakdowns or trends with the exact query and caveats. Use when the deliverable is numbers from live data, not code or a view. Exclude query code (wow-client), failing-query diagnosis (wow-develop), and non-Wow databases."
+description: "Answer business data questions from a running Wow service: read its query capability descriptor, run read-only snapshot, event-stream or dataset (wide-table) queries, and explain counts, lists, breakdowns or trends with the exact query and caveats. Use when the deliverable is numbers from live data, not code or a view. Exclude query code (wow-client), failing-query diagnosis (wow-develop), and non-Wow databases."
 ---
 
 # wow-data-query
@@ -12,10 +12,11 @@ The deliverable is an answer: numbers, rows or a breakdown, what they mean for t
 1. **Pick the environment with the user.** Use a development or staging service by default. Querying production needs the user's explicit consent in this conversation; a production URL found in config, docs or history is not consent.
 2. **Credentials come from the environment** (an exported token, a configured CLI or proxy). Never ask the user to paste a password or token into the chat, and never print one.
 3. **Read the descriptor first**: `GET {base}/{aggregate}/snapshot/schema` (or `event/schema` for event history). Record its `version`. Load `references/descriptor.md` for how to read it.
+   - A dataset (a wide table across aggregates, or a warehouse table) has its own routes: `GET {base}/dataset` lists them, and `GET {base}/dataset/{context}/{dataset}/schema` is one's descriptor.
 
 ## Workflow
 
-1. Restate the question as a query plan in business terms: which aggregate, snapshot state or event history, which records, which measure, which breakdown and period.
+1. Restate the question as a query plan in business terms: which aggregate or dataset, snapshot state or event history, which records, which measure, which breakdown and period. A question across aggregates (orders by customer segment) is a dataset's if one serves it; never join two queries' results by hand.
 2. Map every field in the plan to a descriptor `path` (or one of its `aliases`). A field the descriptor does not list does not exist for querying; never invent or guess one. Say what is missing instead.
 3. Stay inside what the descriptor grants: only listed `filter.operators`, `sort.paged` or `sort.cursor`, `aggregate.groups` and metric kinds, and the `limits`. Never widen a capability. If the question needs something not granted, say so and offer the closest granted alternative.
 4. Respect protection. A field with `sensitivity` is masked in results. A CONFIDENTIAL field (`comparable: false`) cannot be filtered, sorted or searched, and no protected field can be grouped or used as a metric. Do not try to recover masked values through filters, ranges or search.
@@ -33,7 +34,8 @@ The deliverable is an answer: numbers, rows or a breakdown, what they mean for t
   - fields in a `NULL_OR_EMPTY_AS_MISSING` constraint treat null and empty as missing;
   - masked fields show masked values;
   - a limit or top-N may have cut the rows;
-  - the default deletion scope hides deleted aggregates unless the query selects them.
+  - the default deletion scope hides deleted aggregates unless the query selects them;
+  - a dataset is a copy (a BI wide table): say that its data lags the source by its refresh.
 - The evidence: environment, descriptor `version`, and the exact query JSON sent.
 
 ## References
