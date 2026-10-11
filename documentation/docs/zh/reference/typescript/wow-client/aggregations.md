@@ -149,6 +149,8 @@ export const refundsByStatus: AggregationQuery = aggregation.query({
 
 派生指标只能引用它之前的指标，不能引用 `any`、`first` 或 `last`，也没有记录过滤：要过滤，就过滤它所引用的指标。空操作数或除以零得到 null。
 
+同一个回调也构造跨组的窗口（Wow 9.9 起，能力描述的 `analysis.windows` 列出支持的函数）：`d.total(metric, ...within)`、`d.running(metric, order, { within, frame, function })`、`d.previous(metric, along, { shift, period })`、`d.rank(metric, { within, direction })`，分别构造 `TOTAL`、`RUNNING`、`PREVIOUS`、`RANK` 节点，可与四则运算组合（`d.divide(d.ref('gmv'), d.total('gmv', 'province'))` 即占比）。Wow 对 filter 选出的全部分组计算它们，在 `having`、`sort`、`limit` 之前；窗口读取的是先于它声明的非派生数值指标，一个查询至多 `AGGREGATION_LIMITS.MAX_WINDOWS` 个窗口。规则见[窗口](../../../guide/query/aggregation-query.md#windows)。
+
 ## 只保留部分行
 
 `having` 在分组之后过滤行，引用的是指标别名而不是字段路径。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的同名类型）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。结果是 `HavingExpression`（`CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`；比较用 `ComparisonOperator` 的 `EQ` … `LTE`）。

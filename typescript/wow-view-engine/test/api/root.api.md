@@ -15,7 +15,6 @@ import { CursorQuery } from '@ahoo-wang/wow-client';
 import { DatasetDirectoryEntry } from '@ahoo-wang/wow-client';
 import { DateDiffUnit } from '@ahoo-wang/wow-client';
 import { DeletionState } from '@ahoo-wang/wow-client';
-import { DerivedExpression } from '@ahoo-wang/wow-client';
 import { FilterExpression } from '@ahoo-wang/wow-client';
 import { FilterOperator } from '@ahoo-wang/wow-client';
 import { FilterPagedQuery } from '@ahoo-wang/wow-client';
@@ -233,8 +232,19 @@ export type AnalysisDatePart = `${AggregationDatePart}`;
 // @public (undocumented)
 export type AnalysisDateUnit = `${AggregationDateUnit}`;
 
-// @public (undocumented)
-export type AnalysisDerivedExpression = LiteralEnums<DerivedExpression>;
+// @public
+export type AnalysisDerivedExpression = {
+    type: 'METRIC_REF';
+    metric: string;
+} | {
+    type: 'CONSTANT';
+    value: number;
+} | {
+    type: 'BINARY';
+    operator: AnalysisExpressionOperator;
+    left: AnalysisDerivedExpression;
+    right: AnalysisDerivedExpression;
+};
 
 // @public
 export interface AnalysisElement {

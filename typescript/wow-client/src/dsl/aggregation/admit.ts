@@ -26,6 +26,7 @@ import {
   type AggregationQuery,
   type DerivedAggregationMetric,
   type DerivedExpression,
+  type DerivedWindow,
   type HavingExpression,
 } from './types.js';
 
@@ -128,10 +129,12 @@ const NON_NUMERIC: ReadonlySet<string> = new Set([
 function validateDerivedMetrics(metrics: readonly AggregationMetric[]): void {
   // Each earlier alias, with its type when that is not a number.
   const declared = new Map<string, string | undefined>();
-  let nodes = 0;
+  const derived = new Set<string>();
+  const counter = { nodes: 0, windows: 0 };
   metrics.forEach(metric => {
     if (metric.type === AggregationMetricType.DERIVED) {
-      nodes = validateDerivedExpression(metric, declared, nodes);
+      validateDerivedExpression(metric, declared, derived, counter);
+      derived.add(metric.alias);
     }
     declared.set(
       metric.alias,
@@ -143,12 +146,12 @@ function validateDerivedMetrics(metrics: readonly AggregationMetric[]): void {
 function validateDerivedExpression(
   metric: DerivedAggregationMetric,
   declared: ReadonlyMap<string, string | undefined>,
-  visitedNodes: number,
-): number {
+  derived: ReadonlySet<string>,
+  counter: { nodes: number; windows: number },
+): void {
   const pending: { expression: DerivedExpression; depth: number }[] = [
     { expression: metric.expression, depth: 1 },
   ];
-  let nodes = visitedNodes;
   while (pending.length > 0) {
     const { expression, depth } = pending.pop()!;
     if (depth > AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH) {
@@ -156,8 +159,8 @@ function validateDerivedExpression(
         `derived expression depth must be at most ${AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH}.`,
       );
     }
-    nodes++;
-    if (nodes > AGGREGATION_LIMITS.MAX_EXPRESSION_NODES) {
+    counter.nodes++;
+    if (counter.nodes > AGGREGATION_LIMITS.MAX_EXPRESSION_NODES) {
       throw new TypeError(
         `derived expressions must contain at most ${AGGREGATION_LIMITS.MAX_EXPRESSION_NODES} nodes.`,
       );
@@ -187,13 +190,48 @@ function validateDerivedExpression(
         pending.push({ expression: expression.left, depth: depth + 1 });
         pending.push({ expression: expression.right, depth: depth + 1 });
         break;
+      case DerivedExpressionType.TOTAL:
+      case DerivedExpressionType.RUNNING:
+      case DerivedExpressionType.PREVIOUS:
+      case DerivedExpressionType.RANK:
+        counter.windows++;
+        if (counter.windows > AGGREGATION_LIMITS.MAX_WINDOWS) {
+          throw new TypeError(
+            `an aggregation must compute at most ${AGGREGATION_LIMITS.MAX_WINDOWS} windows.`,
+          );
+        }
+        requireWindowMetric(metric.alias, expression, declared, derived);
+        break;
       default:
         throw new TypeError(
           `Unsupported derived expression: ${String((expression as { type: unknown }).type)}.`,
         );
     }
   }
-  return nodes;
+}
+
+/**
+ * A window reads a non-derived numeric metric declared before the derived
+ * one; the rest of its rules (which metrics add up, which groups it names)
+ * the server checks against the whole query.
+ */
+function requireWindowMetric(
+  alias: string,
+  window: DerivedWindow,
+  declared: ReadonlyMap<string, string | undefined>,
+  derived: ReadonlySet<string>,
+): void {
+  const target = window.metric;
+  if (!declared.has(target)) {
+    throw new TypeError(
+      `${window.type} window of derived metric [${alias}] must read a metric declared before it, but was [${target}].`,
+    );
+  }
+  if (declared.get(target) !== undefined || derived.has(target)) {
+    throw new TypeError(
+      `${window.type} window of derived metric [${alias}] must read a non-derived numeric metric, but was [${target}].`,
+    );
+  }
 }
 
 function requireValidHavingMetric(

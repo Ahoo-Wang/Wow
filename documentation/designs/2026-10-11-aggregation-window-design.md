@@ -115,7 +115,7 @@ BI 平台最常用的几类分析——**占比、累计（含帕累托）、环
 | **R4b ClickHouse** | NATIVE 实现 | TCK + Testcontainers |
 | **R4c MongoDB、Elasticsearch** | Mongo NATIVE、ES RESIDUAL | TCK + Testcontainers |
 | **R4d view-engine** | 用服务端窗口结果，Q53 置灰收窄，Q59 落地，组内 TopN | view-engine 测试与故事 |
-| wow-client | DSL 的窗口节点 | API 报告 |
+| wow-client | DSL 的窗口节点、`analysis.windows`（已实施）；view-engine 的分析配置暂只收四则运算，窗口留给 R4d | API 报告；同源契约测试 |
 
 ## 8. 决定（用户已确认，2026-10-11）
 

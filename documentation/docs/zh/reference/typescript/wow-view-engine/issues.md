@@ -524,6 +524,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.not_projectable` | 「{field}」不能作为这份数据的列显示。 |
 | `runtime.query.failed.not_single_string` | 「{field}」不是单个文本，不能判断是否为空。 |
 | `runtime.query.failed.parallel_array_sort` | 「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。 |
+| `runtime.query.failed.previous_unshiftable` | 与上一期对比要把「{field}」的时间范围前移，但筛选里对它的条件没法前移；把它的条件放在最外层的「且」里。 |
 | `runtime.query.failed.protected_aggregation` | 「{field}」受保护，不能用来汇总。 |
 | `runtime.query.failed.protected_comparison` | 「{field}」受保护，不能用来筛选、排序或搜索。 |
 | `runtime.query.failed.residual_groups_exceeded` | 这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。 |

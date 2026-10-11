@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 151 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 154 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -48,6 +48,7 @@ type  DerivedAggregationMetric
 type  DerivedExpression
 type  DerivedExpressionDsl
 value DerivedExpressionType
+type  DerivedWindow
 type  DistinctCountAggregationMetric
 value DomainEventStreamMetadataFields
 type  DurationSemantic
@@ -121,6 +122,7 @@ value QueryValueTypes
 type  RecordDescriptor
 type  ReferenceSemantic
 type  RelativeTimeFilterOptions
+value RunningFunction
 type  SearchBuilder
 type  SearchDescriptor
 type  SearchFilter
@@ -141,6 +143,7 @@ type  TermsAggregationOptions
 value TimeUnit
 type  VariantDescriptor
 type  VariantsDescriptor
+value WindowFunction
 value aggregation
 value asc
 value cursorQuery
