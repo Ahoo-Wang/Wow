@@ -75,7 +75,7 @@ import {
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
 import type { MessageKey } from '../kit/messages.js';
-import { FOCUS_INSET, PanelCard } from '../kit/variants.js';
+import { FOCUS_PANEL, PanelCard } from '../kit/variants.js';
 import { CardContent, CardHeader, CardTitle } from '../components/card.js';
 import { Truncated } from '../kit/Truncated.js';
 
@@ -333,6 +333,7 @@ export function DashboardPanel({
       data-warning={warned || undefined}
       className={cn(
         'fve:h-full fve:gap-2 fve:overflow-hidden fve:py-(--_fve-panel-padding-block)',
+        FOCUS_PANEL,
         heading && 'fve:justify-center',
       )}
     >
@@ -367,12 +368,13 @@ export function DashboardPanel({
           tabIndex={0}
           aria-label={name}
           ref={setBody}
+          data-panel-body
           data-scroll-more={scroll.more}
           data-scroll-below={scroll.below || undefined}
           style={scroll.style}
           className={cn(
-            'fve:relative fve:min-h-0 fve:flex-1 fve:overflow-auto fve:px-(--_fve-panel-padding)',
-            FOCUS_INSET,
+            // The mark is the card's (`FOCUS_PANEL`).
+            'fve:relative fve:min-h-0 fve:flex-1 fve:overflow-auto fve:px-(--_fve-panel-padding) fve:outline-none',
           )}
         >
           {/* One boundary per panel: a markdown body or a row that throws

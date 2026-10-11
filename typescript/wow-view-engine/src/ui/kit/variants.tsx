@@ -554,7 +554,7 @@ export function PillSelectTrigger({
  * above and below, the first and the last close the sides, and together
  * they read as one ring round the row.
  *
- * The edge is the recipe every control wears (`Button`, `FOCUS_INSET`): a
+ * The edge is the recipe every control wears (`Button`, `FOCUS_CARD`): a
  * `--ring` line at full strength, which holds the 3:1 WCAG 1.4.11 asks
  * of a focus indicator, and the half-strength halo inside it as emphasis.
  * It is `focus-width` wide (1px unset, the registry's edge; D76), so a
@@ -593,18 +593,18 @@ export const FOCUS_CARD = cn(
 );
 
 /**
- * The mark on a region that scrolls when the keyboard is on it — a
- * dashboard panel's body (U-03) — drawn *inside* its edge: the region is
- * as wide as the card that clips it (`overflow-hidden`), so a ring drawn
- * outside lost both sides and left a grey hairline at 1.77:1. It is the
- * one recipe every control wears (`Button`: a `--ring` edge, which holds
- * 3:1, and the 3px halo, `--_fve-focus-halo`), turned inward: `focus-width`
- * wide (1px unset), and a `focus-offset` the theme gives is kept as a gap
- * inside the edge rather than outside it (D76).
+ * The mark on a dashboard panel whose body — the region that scrolls, a Tab
+ * stop of its own (U-03) — the keyboard is on, drawn on the card round it:
+ * `FOCUS_CARD`'s edge and halo, worn while the body is focused. The body is
+ * as wide as the card that clips it (`overflow-hidden`), so a ring outside
+ * the body lost both sides and left a grey hairline at 1.77:1; turned inward
+ * it covered the body's first line — the month over a metric card, a table's
+ * head — 4px deep (Storybook review P2). The card clips its children, not
+ * its own outline, and its padding keeps the mark off every word.
  */
-export const FOCUS_INSET = cn(
-  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-[length:var(--_fve-focus-width,1px)] fve:focus-visible:outline-offset-[calc(var(--_fve-focus-width,1px)*-1_-_max(0px,var(--_fve-focus-offset)))] fve:focus-visible:outline-ring',
-  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-inset fve:focus-visible:ring-(color:--_fve-focus-halo)',
+export const FOCUS_PANEL = cn(
+  'fve:has-[[data-panel-body]:focus-visible]:outline-solid fve:has-[[data-panel-body]:focus-visible]:outline-[length:var(--_fve-focus-width,1px)] fve:has-[[data-panel-body]:focus-visible]:outline-offset-[var(--fve-focus-offset,var(--fvp-focus-offset,calc(var(--_fve-focus-width,1px)*-1)))] fve:has-[[data-panel-body]:focus-visible]:outline-ring',
+  'fve:has-[[data-panel-body]:focus-visible]:ring-[3px] fve:has-[[data-panel-body]:focus-visible]:ring-(color:--_fve-focus-halo)',
 );
 
 /**
