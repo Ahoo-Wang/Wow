@@ -45,7 +45,9 @@ export default tseslint.config(
  * entry as a second line.
  */
 function layerBoundaries() {
-  const dir = name => `(^|/)${name}/`;
+  // A folder, its index without the slash (`../transport`), or a file of the
+  // same name (`../dsl.js`, the /dsl entry).
+  const dir = name => `(^|/)${name}(/|\\.js$|$)`;
   const layer = {
     client: dir('client'),
     transport: dir('transport'),

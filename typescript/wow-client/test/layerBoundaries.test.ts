@@ -34,6 +34,8 @@ async function restricted(file: string, code: string): Promise<boolean> {
 const FORBIDDEN: [from: string, source: string][] = [
   ['src/dsl/probe.ts', '../client/command/commandClient.js'],
   ['src/dsl/probe.ts', '../transport/endpoints.js'],
+  ['src/dsl/probe.ts', '../transport'],
+  ['src/model/probe.ts', '../dsl.js'],
   ['src/dsl/probe.ts', '../error/wowError.js'],
   ['src/dsl/probe.ts', '../legacy/condition.js'],
   ['src/dsl/probe.ts', '@ahoo-wang/fetcher'],
