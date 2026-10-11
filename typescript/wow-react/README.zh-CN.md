@@ -124,6 +124,10 @@ export function PaidOrders() {
 一个聚合的快照路由是 `{aggregate}/snapshot/{single|list|paged}[/state]` 与
 `{aggregate}/snapshot/count`；聚合有上下文别名、owner 或租户路径时，路由前面还要加上它们。
 
+一次请求由 `url` 与 Fetcher 决定：有名字的 Fetcher 按名字区分，无名的按 `baseURL` 区分。
+两个 `baseURL` 相同的无名 Fetcher 即使拦截器不同（例如按租户各建一个），也被视为同一个端点，
+在它们之间切换不会重新查询。给每个 Fetcher 起名，或者传已注册 Fetcher 的名字，才能区分它们。
+
 ## 流式读取列表
 
 `useListStreamQuery` 与 `useFetcherListStreamQuery` 以服务端推送事件（SSE）读取列表，
@@ -185,7 +189,8 @@ export function PaidOrderFeed() {
 
 请求失败和 `abort()` 都保留上一次的 `result`，刷新失败不会让界面变空白；`reset()`
 会中止进行中的请求，并清空 `result` 与 `error`。挂载即执行的 hook 首帧（服务端也一样）
-就是 `loading`。
+就是 `loading`，服务端渲染时不发请求。没有 `initialResult` 选项：服务端渲染出的 HTML
+是加载状态，页面水合之后才执行查询。
 
 每个 hook 都返回 `status`、`loading`、`result`（流式 hook 为 `items` 与 `done`）、
 `error`、`execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。各 hook 的选项与返回
