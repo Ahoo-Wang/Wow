@@ -55,10 +55,10 @@ it('sets its own result extractor and Accept header on the endpoint hook', () =>
 });
 
 it('takes a query client stream method as execute', () => {
-  const read = (client: SnapshotQueryClient<Item, Fields>) =>
+  const useRead = (client: SnapshotQueryClient<Item, Fields>) =>
     useListStreamQuery<Item, Fields>({
       execute: (query, attributes, abortController) =>
         client.listStateStream(query, attributes, abortController),
     }).items;
-  expectTypeOf(read).returns.toEqualTypeOf<Item[]>();
+  expectTypeOf(useRead).returns.toEqualTypeOf<Item[]>();
 });

@@ -76,7 +76,7 @@ graph TD
 
 一次执行由什么决定：受控 `query` 的内容（`dequal`）；`useFetcher*` 还有 `url` 与 Fetcher 的身份。`execute`、`attributes` 和回调在执行开始或落定时读取最新值，它们变化不触发执行。
 
-Fetcher 的身份（`endpointIdentity`）：有名字的 Fetcher（字符串名、`NamedFetcher`）按名字比较；没传时视为默认 Fetcher 的名字；无名实例按 `baseURL` 比较。所以渲染里内联 `new Fetcher({ baseURL })` 只发一次请求。代价：两个 `baseURL` 相同、拦截器不同的无名 Fetcher 被视为同一个，要用名字区分（R-14，README 待补）。
+Fetcher 的身份（`endpointIdentity`）：有名字的 Fetcher（字符串名、`NamedFetcher`）按名字比较；没传时视为默认 Fetcher 的名字；无名实例按 `baseURL` 比较。所以渲染里内联 `new Fetcher({ baseURL })` 只发一次请求。代价：两个 `baseURL` 相同、拦截器不同的无名 Fetcher 被视为同一个，要用名字区分（R-14，README「With an endpoint URL」写明）。
 
 ## 5. 关键决定
 

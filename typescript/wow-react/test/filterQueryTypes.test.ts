@@ -20,9 +20,7 @@ import type {
   FilterPagedQuery,
   FilterSingleQuery,
   SnapshotQueryClient,
-  WowError,
 } from '@ahoo-wang/wow-client';
-import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   Condition,
   ListQuery,
@@ -72,10 +70,10 @@ type InitialQuery<T extends { initialQuery?: unknown }> = NonNullable<
 type SetQuery<T> = T extends { setQuery: (query: infer Q) => void } ? Q : never;
 
 it('defaults custom-executor hooks to filter request subtypes', () => {
-  const getListQuery = (options: UseListQueryOptions<Item, Fields>) =>
+  const useGetListQuery = (options: UseListQueryOptions<Item, Fields>) =>
     useListQuery<Item, Fields>(options).getQuery();
 
-  expectTypeOf<ReturnType<typeof getListQuery>>().toEqualTypeOf<
+  expectTypeOf(useGetListQuery).returns.toEqualTypeOf<
     FilterListQuery<Fields> | undefined
   >();
   expectTypeOf<InitialQuery<UseListQueryOptions<Item, Fields>>>().toEqualTypeOf<
@@ -111,10 +109,11 @@ it('defaults custom-executor hooks to filter request subtypes', () => {
 });
 
 it('defaults Fetcher hooks to filter request subtypes', () => {
-  const getPagedQuery = (options: UseFetcherPagedQueryOptions<Item, Fields>) =>
-    useFetcherPagedQuery<Item, Fields>(options).getQuery();
+  const useGetPagedQuery = (
+    options: UseFetcherPagedQueryOptions<Item, Fields>,
+  ) => useFetcherPagedQuery<Item, Fields>(options).getQuery();
 
-  expectTypeOf<ReturnType<typeof getPagedQuery>>().toEqualTypeOf<
+  expectTypeOf(useGetPagedQuery).returns.toEqualTypeOf<
     FilterPagedQuery<Fields> | undefined
   >();
   expectTypeOf<
@@ -339,7 +338,7 @@ it('still accepts the legacy request subtypes in Fetcher hooks', () => {
 
 it('runs a cursor query through useSingleQuery until a cursor hook exists', () => {
   // The README's pattern: the page is the result, setQuery moves to the next.
-  const page = (
+  const usePage = (
     client: SnapshotQueryClient<Item, Fields>,
     first: CursorQuery<Fields>,
   ) =>
@@ -347,10 +346,11 @@ it('runs a cursor query through useSingleQuery until a cursor hook exists', () =
       initialQuery: first,
       execute: client.cursorState,
     });
-  expectTypeOf<ReturnType<typeof page>['result']>().toEqualTypeOf<
-    CursorPage<Item> | undefined
-  >();
-  expectTypeOf<ReturnType<typeof page>['setQuery']>()
+  expectTypeOf(usePage)
+    .returns.toHaveProperty('result')
+    .toEqualTypeOf<CursorPage<Item> | undefined>();
+  expectTypeOf(usePage)
+    .returns.toHaveProperty('setQuery')
     .parameter(0)
     .toEqualTypeOf<CursorQuery<Fields>>();
 });
