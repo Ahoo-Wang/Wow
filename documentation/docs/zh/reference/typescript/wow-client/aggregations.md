@@ -5,68 +5,120 @@ description: '聚合构造器 — @ahoo-wang/wow-client'
 
 # 聚合构造器
 
-AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提供一个 metric。`aggregate(query, attributes?, abort?)` 返回以 alias 为键的扁平行；`aggregateStream` 返回同样这些行的 ReadableStream，需要显式消费。泛型描述行但不校验内容。
+`AggregationQuery` 请服务端对记录分组并计量，它不是 JavaScript 的 reducer。`aggregate(query, attributes?, abort?)` 返回以别名为键的扁平行，`aggregateStream` 返回同样这些行的 `ReadableStream`，由你自己读取和取消。传入的行类型只是编译期的描述，不会据此校验行的内容。
 
-| 构造器                                                                    | 输入 / 结果                                                                                 |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| aggregation.element(path, predicate?)                                     | 选择数组/嵌套元素路径，可带元素相对 filter；predicate 内拒绝根元数据/search/deletion 过滤。 |
-| field(field)、constant(number)                                            | 字段引用或有限数值常量表达式。                                                              |
-| add/subtract/multiply/divide(left, right)                                 | 二元表达式树，除法由后端求值，不在此执行。                                                  |
-| dateDiff(from, to, unit)                                                  | 以 `DateDiffUnit`（SECOND、MINUTE、HOUR、DAY；DAY 恰为 24 小时）计的 `to − from`，有符号小数；任一时间缺失时无值。Wow 9.2。 |
-| terms(field | expression, alias, { missingKey? })  | 按字段分组，或以表达式代替字段（Wow 9.2，代价高）；`missingKey` 不能为空白且只能配字段。|
-| histogram(field | expression, alias, { interval })  | interval 须有限且 &gt; 0；可以用表达式代替字段（Wow 9.2）。|
-| dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit 从 YEAR 到 SECOND，时区默认 UTC；空时区或非法枚举抛错。                 |
-| datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart；键为整数（DAY_OF_WEEK 按 ISO，1 为周一、7 为周日；HOUR_OF_DAY 为该时区墙上时间的 0–23）；时区默认 UTC；空时区或非法枚举抛错。 |
-| count(alias, { filter? })                                                 | count 指标，没有字段参数。                                                                  |
-| any(field, alias, { filter? })                                            | 后端选择的值，不保证是确定性的第一行。                                                      |
-| first/last(field, alias, { orderBy?, filter? })                           | 组内按 `orderBy`（默认是模型的事件时间，即 `analysis.firstLastOrderBy`）最早/最晚记录上该字段的值，类型与字段相同，可能为 null；派生指标与 HAVING 不能引用。 |
-| sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | 对表达式进行数值聚合。                                                                  |
-| percentile(expression, alias, { percentile, filter? })                    | 百分位必须严格介于 0 与 100 之间。                                                          |
-| derived(d => …, alias)、derived(expression, alias)                        | 按别名由之前的指标计算出的指标；回调用 `d.ref`、`d.constant`、`d.add`/`subtract`/`multiply`/`divide` 构造算式。 |
-| having.eq/ne/gt/gte/lt/lte(metric, value)、having.between(metric, lower, upper)、having.isIn(metric, values)、having.isNull/isNotNull(metric)、having.and/or(operands) | 查询的 `having`，引用指标别名。非有限数值、上下界颠倒、空列表按 Wow 的报错文字抛出。 |
-| query(query)                                                              | 按 Wow 接收时执行的规则（上限、别名冲突、sort 与 having 的引用）检查组装好的查询，返回副本。 |
+一个查询由以下几部分组成，下面按通常书写的顺序逐一说明：
 
-每个分组与指标都是目标在前、别名第二，其余选项作为末尾的对象传入。
+| 部分            | 回答的问题             | 用什么构造                                                         |
+| --------------- | ---------------------- | ------------------------------------------------------------------ |
+| `filter`        | 哪些记录参与           | `filter.*`                                                         |
+| `elements`      | 哪些嵌套元素作为记录   | `aggregation.element`                                              |
+| `groupBy`       | 行怎样形成             | `terms`、`histogram`、`dateHistogram`、`datePart`                  |
+| `metrics`       | 每行计量什么（至少一个） | `count`、`sum` … `percentile`、`any`、`first`、`last`、`derived` |
+| `having`        | 保留哪些行             | `aggregation.having.*`                                             |
+| `sort`、`limit` | 行的顺序与数量         | `asc`、`desc`、一个数字                                            |
 
-查询字段为 filter、elements、groupBy、metrics（非空元组）、sort、limit、having。根 filter 选择源文档，elements 描述嵌套元素遍历/过滤，分组和指标字段相对于该聚合作用域。结果仍为扁平行，elements 不表示嵌套响应。sort 使用输出 alias。省略 filter/groupBy/sort/limit 保持 undefined，没有隐藏客户端 limit 或分组。
+每个分组与指标都是目标在前、别名第二，其余选项作为末尾的对象传入。省略的部分保持 `undefined`：客户端不会暗中补上 limit、分组或排序。
 
-字段语法由 filter 使用的逻辑字段校验器验证。alias 必须为合法单段，不能含点或以 `__wow` 开头。非法 alias、非有限常量、非法 histogram 选项抛 TypeError；不保证字段存在、为数值或后端支持，服务错误仍可拒绝。构造器无 I/O，无须清理；放弃流式读取时需取消并释放 reader。
+## 分组并计量
 
-## 完整示例
+已付款订单按 SKU 统计营收，从高到低：
 
 ```ts
-import { aggregation, filter, desc } from '@ahoo-wang/wow-client';
-import type { AggregationQuery } from '@ahoo-wang/wow-client';
-export const revenue: AggregationQuery = {
-  filter: filter.eq('state.status', 'PAID'),
-  elements: [aggregation.element('state.lines', filter.gt('quantity', 0))],
-  groupBy: [aggregation.terms('sku', 'sku')],
-  metrics: [
-    aggregation.sum(
-      aggregation.multiply(
-        aggregation.field('price'),
-        aggregation.field('quantity'),
-      ),
-      'revenue',
-    ),
-    aggregation.count('rows'),
-  ],
-  sort: [desc('revenue')],
-  limit: 20,
-};
+import {
+  aggregation,
+  desc,
+  filter,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
+
+interface Order {
+  status: string;
+}
+
+export function revenueBySku(orders: SnapshotQueryClient<Order>) {
+  return orders.aggregate<{ sku: string; revenue: number; rows: number }>(
+    aggregation.query({
+      filter: filter.eq('state.status', 'PAID'),
+      elements: [aggregation.element('state.lines', filter.gt('quantity', 0))],
+      groupBy: [aggregation.terms('sku', 'sku')],
+      metrics: [
+        aggregation.sum(
+          aggregation.multiply(
+            aggregation.field('price'),
+            aggregation.field('quantity'),
+          ),
+          'revenue',
+        ),
+        aggregation.count('rows'),
+      ],
+      sort: [desc('revenue')],
+      limit: 20,
+    }),
+  );
+}
 ```
 
-## 扩展聚合协议
+无论组成部分如何，结果都是扁平的：每行一个对象，以分组与指标的别名为键。
 
-旧构造器调用保持原 JSON 形状；未提供的指标过滤、`missingKey` 和 `dense` 不写入请求。
+## 选择记录
 
-- `aggregation.distinctCount(expression, alias, { filter? })` 统计不同的非空贡献值；`aggregation.percentile(expression, alias, { percentile, filter? })` 只接受严格介于 0 与 100 之间的有限数值（中位数使用 50）。`stddev`、`variance` 计算总体标准差、总体方差。两种后端的百分位均为近似结果；Elasticsearch 去重计数可能近似，MongoDB 去重计数为精确值。
-- 非派生指标可传入 `{ filter }` 选项，即当前聚合范围内的 `FilterExpression`，只影响该指标。后端校验标量字段并拒绝不支持的过滤操作符。
-- `aggregation.derived(d => …, alias)` 用交给回调的 `DerivedExpressionDsl`（对应 Kotlin 的 `DerivedExpressionDsl`）构造 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）：`d.ref(metric)`、`d.constant(value)`（须有限）、`d.add`、`d.subtract`、`d.multiply`、`d.divide`。`aggregation.derived(tree, alias)` 仍接受手搭的树。只能引用之前声明的指标，不能引用 `ANY`、`FIRST` 或 `LAST`。派生指标没有记录过滤，应过滤它所引用的指标。空操作数或除零产生 null。
-- `having?: HavingExpression` 支持 `CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`，引用指标别名而非字段路径。`ComparisonOperator` 包含 `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`。HAVING 必须有分组，不能引用 `ANY`、`FIRST` 或 `LAST`，在排序与 limit 之前执行。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的 `HavingDsl`）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。每个构造器按 Wow 的报错文字拒绝非有限数值、`lower > upper` 与空列表；`aggregation.query()` 检查引用、分组与深度，服务端会再全部检查一遍。
-- `terms(field, alias, { missingKey })` 可将缺失/null 值合并到非空白字符串桶键，后端校验字段是否支持字符串分组。`dateHistogram(field, alias, { unit, timeZone?, dense: true })` 填充日期内部缺口，要求它是唯一分组维度。没有结果行时不生成日期范围。`datePart(field, alias, { part, timeZone?, dense: true })` 返回该部分固定取值域（1–7、1–31、0–23 或 1–12）的每个键，空的也补上；同样要求它是唯一分组维度。多个 `datePart` 分组可以组合，例如星期 × 小时。
+- `filter` 在根上选择源文档，用的是与列表查询相同的 `filter.*` 构造器。
+- `elements` 把嵌套数组变成记录：`aggregation.element(path, predicate?)` 进入元素路径，可选的 predicate 相对元素过滤。只适用于根的过滤（元数据、全文搜索、删除状态）在 predicate 里会被拒绝。有了 `elements` 之后，分组与指标的字段相对元素读取，就像上例的 `sku` 与 `price`。
 
-仍需满足后端版本要求（日期补桶需要 MongoDB 5.1+，百分位需要 7.0+）；客户端不探测后端能力。直接构造的类型化表达式对象不提供运行时校验。
+## 形成行
+
+| 构造器                                                     | 行                                                                                                                                                                         |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `terms(field \| expression, alias, { missingKey? })`      | 每个不同的取值一行。用表达式代替字段需要 Wow 9.2，代价高。`missingKey` 把缺失与 null 值归入一个非空白的字符串键；它只能配字段，后端会检查字段是否为字符串。               |
+| `histogram(field \| expression, alias, { interval })`     | 每个桶一行，`interval` 须为大于 0 的有限数；可以用表达式代替字段（Wow 9.2）。                                                                                               |
+| `dateHistogram(field, alias, { unit, timeZone?, dense? })` | 在 `timeZone`（默认 UTC）下每个日历 `unit`（`AggregationDateUnit`，从 `YEAR` 到 `SECOND`）一行。                                                                            |
+| `datePart(field, alias, { part, timeZone?, dense? })`      | 日期部分（`AggregationDatePart`）的每个取值一行，键为整数：`DAY_OF_WEEK` 按 ISO（1 为周一、7 为周日），`DAY_OF_MONTH` 为 1–31，`HOUR_OF_DAY` 为该时区墙上时间的 0–23，`MONTH_OF_YEAR` 为 1–12。 |
+
+空时区或未知的枚举值会抛错。
+
+`dense: true` 补齐缺口，要求该分组是唯一的分组。对 `dateHistogram`，它补齐日期之间的空档；没有结果行时没有范围可补。对 `datePart`，它返回该部分固定取值域的每个键，空的也补上。多个 `datePart` 分组可以组合，例如星期 × 小时：
+
+```ts
+import {
+  AggregationDatePart,
+  aggregation,
+  type AggregationQuery,
+} from '@ahoo-wang/wow-client';
+
+export const ordersByWeekdayAndHour: AggregationQuery = aggregation.query({
+  groupBy: [
+    aggregation.datePart('state.createTime', 'weekday', {
+      part: AggregationDatePart.DAY_OF_WEEK,
+      timeZone: 'Asia/Shanghai',
+    }),
+    aggregation.datePart('state.createTime', 'hour', {
+      part: AggregationDatePart.HOUR_OF_DAY,
+      timeZone: 'Asia/Shanghai',
+    }),
+  ],
+  metrics: [aggregation.count('orders')],
+});
+```
+
+## 计量每一行
+
+| 构造器                                                                        | 值                                                                                                                                         |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `count(alias, { filter? })`                                                  | 记录数，没有字段参数。                                                                                                                     |
+| `sum`、`avg`、`min`、`max`、`stddev`、`variance` `(expression, alias, { filter? })` | 对表达式求数值函数。`stddev` 与 `variance` 为总体标准差、总体方差。                                                                  |
+| `distinctCount(expression, alias, { filter? })`                              | 不同的非空取值个数：MongoDB 上精确，Elasticsearch 上可能是近似值。                                                                         |
+| `percentile(expression, alias, { percentile, filter? })`                     | 严格介于 0 与 100 之间的百分位（中位数用 50）；两种后端都是近似值。                                                                        |
+| `any(field, alias, { filter? })`                                             | 后端从组内选出的一个值，不保证是确定的第一行。                                                                                             |
+| `first(field, alias, { orderBy?, filter? })`、`last(…)`                      | 组内按 `orderBy`（默认是模型的事件时间，即描述中的 `analysis.firstLastOrderBy`）最早或最晚的记录上该字段的值，类型与字段相同，可能为 null。 |
+
+数值指标接受一个表达式，由以下部分构成：
+
+- `aggregation.field(path)` 与 `aggregation.constant(number)`（须有限）；
+- `add`、`subtract`、`multiply`、`divide(left, right)`，由后端求值，除法也是；
+- `dateDiff(from, to, unit)`：以 `DateDiffUnit`（`SECOND`、`MINUTE`、`HOUR`、`DAY`，`DAY` 恰为 24 小时）计的 `to − from`，为有符号小数；任一时间缺失时没有值（Wow 9.2）。
+
+除 `derived` 外，每个指标都可以传 `{ filter }`：当前聚合范围内的 `FilterExpression`，只限定这个指标统计哪些记录。后端校验标量字段，并拒绝它不支持的过滤操作符。
 
 ```ts
 import {
@@ -75,7 +127,7 @@ import {
   type AggregationQuery,
 } from '@ahoo-wang/wow-client';
 
-const query: AggregationQuery = {
+export const refundsByStatus: AggregationQuery = aggregation.query({
   groupBy: [
     aggregation.terms('state.status', 'status', { missingKey: 'Unknown' }),
   ],
@@ -84,18 +136,63 @@ const query: AggregationQuery = {
     aggregation.count('refunded', {
       filter: filter.eq('state.refunded', true),
     }),
-    aggregation.sum(aggregation.field('state.amount'), 'revenue'),
     aggregation.percentile(aggregation.field('state.amount'), 'p95Amount', {
       percentile: 95,
     }),
+  ],
+});
+```
+
+## 由其他指标派生
+
+`aggregation.derived(d => …, alias)` 按别名由之前的指标算出一个指标。回调收到一个 `DerivedExpressionDsl`（对应 Kotlin 的同名类型）：`d.ref(metric)`、`d.constant(value)`（须有限）、`d.add`、`d.subtract`、`d.multiply`、`d.divide`，构造出 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）。`aggregation.derived(tree, alias)` 仍接受手搭的树。
+
+派生指标只能引用它之前的指标，不能引用 `any`、`first` 或 `last`，也没有记录过滤：要过滤，就过滤它所引用的指标。空操作数或除以零得到 null。
+
+## 只保留部分行
+
+`having` 在分组之后过滤行，引用的是指标别名而不是字段路径。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的同名类型）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。结果是 `HavingExpression`（`CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`；比较用 `ComparisonOperator` 的 `EQ` … `LTE`）。
+
+`having` 需要 `groupBy`，不能引用 `any`、`first` 或 `last`，在 `sort` 与 `limit` 之前执行。每个构造器遇到非有限数值、`lower > upper` 或空列表，都按 Wow 的报错文字抛出。
+
+```ts
+import {
+  aggregation,
+  type AggregationQuery,
+} from '@ahoo-wang/wow-client';
+
+export const bigSpenders: AggregationQuery = aggregation.query({
+  groupBy: [aggregation.terms('state.customerId', 'customer')],
+  metrics: [
+    aggregation.count('orders'),
+    aggregation.sum(aggregation.field('state.amount'), 'revenue'),
     aggregation.derived(
       d => d.divide(d.ref('revenue'), d.ref('orders')),
       'averageOrderValue',
     ),
   ],
-  having: aggregation.having.gte('averageOrderValue', 100),
-};
+  having: aggregation.having.and([
+    aggregation.having.gte('orders', 3),
+    aggregation.having.gte('averageOrderValue', 100),
+  ]),
+});
 ```
+
+## 排序并限制行数
+
+`sort` 用的是输出别名，不是字段路径：`asc('revenue')`、`desc('revenue')`。`limit` 限制行数；不给时服务端返回 `AGGREGATION_LIMITS.DEFAULT_LIMIT`（100）行，任何查询都不能超过 `MAX_LIMIT`（10,000）。
+
+## 发送之前检查
+
+`aggregation.query(query)` 按 Wow 执行的规则检查组装好的查询并返回副本：`AGGREGATION_LIMITS` 的各项上限、别名冲突，以及 `sort`、`having` 与派生指标引用了什么，包括它们的分组与深度。各个构造器已经检查过自己的参数：
+
+- 别名是一个合法的段：不含点，也不以 `__wow` 开头。
+- 字段路径经过与 `filter` 相同的逻辑字段校验。
+- 非法别名、非有限常量或非法的 histogram 选项抛出 `TypeError`。
+
+这些检查不能证明字段存在、是数值，也不能证明后端支持这个查询；服务端会再全部检查一遍，它拒绝的调用照样被拒绝。后端还有各自的要求：`dense` 分组需要 MongoDB 5.1 或更高版本，百分位需要 7.0 或更高版本；客户端不探测后端能力。构造器不做任何 I/O，手写的表达式对象在运行时不受校验。
+
+可选部分让线上形状保持精简：指标的 `filter`、`missingKey` 与 `dense` 只在你提供时才发送，所以以前的构造器调用产生的 JSON 不变。
 
 ## 公开签名与类型
 

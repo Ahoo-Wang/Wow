@@ -5,68 +5,120 @@ description: 'Aggregation builders — @ahoo-wang/wow-client'
 
 # Aggregation builders
 
-AggregationQuery describes a server aggregation, not a JavaScript reducer. Supply at least one metric. `aggregate(query, attributes?, abort?)` returns flat rows keyed by your aliases; `aggregateStream` returns a ReadableStream of the same rows and needs explicit stream consumption. Generics describe rows but do not validate their contents.
+An `AggregationQuery` asks the server to group and measure records; it is not a JavaScript reducer. `aggregate(query, attributes?, abort?)` resolves to flat rows keyed by your aliases, and `aggregateStream` to a `ReadableStream` of the same rows, which you read and cancel yourself. The row type you pass is a compile-time description; nothing checks the rows against it.
 
-| Builder                                                                   | Inputs / result                                                                                                                                  |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| aggregation.element(path, predicate?)                                     | Select an array/nested element path, with optional element-relative filter; root metadata/search/deletion filters are rejected inside predicate. |
-| field(field), constant(number)                                            | Field reference or finite numeric constant expression.                                                                                           |
-| add/subtract/multiply/divide(left, right)                                 | Binary expression tree; division is evaluated by the backend, not here.                                                                          |
-| dateDiff(from, to, unit)                                                  | `to − from` in a `DateDiffUnit` (SECOND, MINUTE, HOUR, DAY; a DAY is exactly 24 h), a signed decimal; no value when either instant is absent. Wow 9.2. |
-| terms(field | expression, alias, { missingKey? })  | Terms grouping by a field, or by an expression in its place (Wow 9.2, expensive); a `missingKey` must not be blank and needs a field. |
-| histogram(field | expression, alias, { interval })  | Finite interval &gt; 0; an expression may replace the field (Wow 9.2). |
-| dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit from YEAR to SECOND, timeZone defaults UTC; empty zone and invalid enum throw.                                               |
-| datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart; integer keys (DAY_OF_WEEK is ISO, 1 Monday to 7 Sunday; HOUR_OF_DAY 0–23 on the zone's wall clock); timeZone defaults UTC; empty zone and invalid enum throw. |
-| count(alias, { filter? })                                                 | Count metric; no field argument.                                                                                                                 |
-| any(field, alias, { filter? })                                            | Backend-selected value; do not treat it as a deterministic first row.                                                                            |
-| first/last(field, alias, { orderBy?, filter? })                           | The field's value on the group's earliest/latest record by `orderBy` (the model's event time, `analysis.firstLastOrderBy`, by default), in the field's own type or null. Derived metrics and HAVING cannot reference it. |
-| sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | Numeric metric over an expression.                                                                                                           |
-| percentile(expression, alias, { percentile, filter? })                    | Percentile strictly within (0, 100).                                                                                                             |
-| derived(d => …, alias), derived(expression, alias)                        | Metric computed from earlier metrics by alias; the callback builds the arithmetic from `d.ref`, `d.constant`, `d.add`/`subtract`/`multiply`/`divide`. |
-| having.eq/ne/gt/gte/lt/lte(metric, value), having.between(metric, lower, upper), having.isIn(metric, values), having.isNull/isNotNull(metric), having.and/or(operands) | The `having` of a query, on metric aliases. Non-finite numbers, bounds out of order and empty lists throw Wow's message. |
-| query(query)                                                              | Checks the assembled query against the rules Wow enforces (limits, alias collisions, sort and `having` references) and returns a copy.          |
+A query has these parts, each covered below in the order you usually write them:
 
-Every group and metric takes its target first, its alias second, and any further options as a trailing object.
+| Part       | Answers                                   | Built with                                   |
+| ---------- | ----------------------------------------- | -------------------------------------------- |
+| `filter`   | Which records take part                   | `filter.*`                                   |
+| `elements` | Which nested elements are the records     | `aggregation.element`                        |
+| `groupBy`  | How rows are formed                       | `terms`, `histogram`, `dateHistogram`, `datePart` |
+| `metrics`  | What each row measures (at least one)     | `count`, `sum` … `percentile`, `any`, `first`, `last`, `derived` |
+| `having`   | Which rows are kept                       | `aggregation.having.*`                       |
+| `sort`, `limit` | Row order and count                  | `asc`, `desc`, a number                      |
 
-Query fields are filter, elements, groupBy, metrics (nonempty tuple), sort, limit, having. Root filter selects source documents; elements describes nested element traversal/filtering, and group/metric fields refer to that aggregation scope. Output stays flat; elements does not mean a nested output response. Sort fields refer to output aliases. Omitted filter/groupBy/sort/limit are left undefined; there is no hidden client limit or grouping.
+Every group and metric takes its target first, its alias second, and any further options as a trailing object. A part you leave out stays `undefined`: the client adds no hidden limit, grouping or sort.
 
-Field syntax is validated by the same logical-field validator as filter. Aliases must be one valid segment, cannot contain dots or begin `__wow`. Invalid aliases, nonfinite constants and invalid histogram options throw TypeError. These checks do not guarantee fields exist, are numeric, or that a backend supports the query; service errors still reject. Builders perform no I/O or cleanup. Streaming readers must be cancelled and released when abandoned.
+## Group and measure
 
-## Complete example
+Revenue per SKU over paid orders, highest first:
 
 ```ts
-import { aggregation, filter, desc } from '@ahoo-wang/wow-client';
-import type { AggregationQuery } from '@ahoo-wang/wow-client';
-export const revenue: AggregationQuery = {
-  filter: filter.eq('state.status', 'PAID'),
-  elements: [aggregation.element('state.lines', filter.gt('quantity', 0))],
-  groupBy: [aggregation.terms('sku', 'sku')],
-  metrics: [
-    aggregation.sum(
-      aggregation.multiply(
-        aggregation.field('price'),
-        aggregation.field('quantity'),
-      ),
-      'revenue',
-    ),
-    aggregation.count('rows'),
-  ],
-  sort: [desc('revenue')],
-  limit: 20,
-};
+import {
+  aggregation,
+  desc,
+  filter,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
+
+interface Order {
+  status: string;
+}
+
+export function revenueBySku(orders: SnapshotQueryClient<Order>) {
+  return orders.aggregate<{ sku: string; revenue: number; rows: number }>(
+    aggregation.query({
+      filter: filter.eq('state.status', 'PAID'),
+      elements: [aggregation.element('state.lines', filter.gt('quantity', 0))],
+      groupBy: [aggregation.terms('sku', 'sku')],
+      metrics: [
+        aggregation.sum(
+          aggregation.multiply(
+            aggregation.field('price'),
+            aggregation.field('quantity'),
+          ),
+          'revenue',
+        ),
+        aggregation.count('rows'),
+      ],
+      sort: [desc('revenue')],
+      limit: 20,
+    }),
+  );
+}
 ```
 
-## Extended aggregation protocol
+The output stays flat whatever the parts: one object per row, keyed by the group and metric aliases.
 
-Existing builder calls keep their JSON shape; optional metric filters, `missingKey`, and `dense` are omitted unless supplied.
+## Choose the records
 
-- `aggregation.distinctCount(expression, alias, { filter? })` counts distinct non-null contributions; `aggregation.percentile(expression, alias, { percentile, filter? })` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
-- Non-derived metrics accept an optional `{ filter }` option, a `FilterExpression` in the current aggregation scope. It affects only that metric. The backend validates scalar fields and rejects unsupported filter operators.
-- `aggregation.derived(d => …, alias)` builds a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`) with the `DerivedExpressionDsl` it hands the callback, which mirrors Kotlin's `DerivedExpressionDsl`: `d.ref(metric)`, `d.constant(value)` (finite), `d.add`, `d.subtract`, `d.multiply`, `d.divide`. `aggregation.derived(tree, alias)` still takes a tree built by hand. References must name earlier metrics and cannot reference `ANY`, `FIRST` or `LAST`. Derived metrics have no record filter; filter the referenced metrics instead. Null operands or division by zero produce null.
-- `having?: HavingExpression` supports `CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, and `OR`, using metric aliases, not field paths. `ComparisonOperator` contains `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`. HAVING requires grouping and cannot reference `ANY`, `FIRST` or `LAST`; it runs before sorting and limit. Build it with `aggregation.having` (`HavingDsl`, after Kotlin's `HavingDsl`): `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`, `isNull`, `isNotNull`, `and([…])`, `or([…])`. Each builder refuses non-finite numbers, `lower > upper` and empty lists with Wow's message; `aggregation.query()` checks the references, the grouping and the depth, and the server checks all of it again.
-- `terms(field, alias, { missingKey })` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, alias, { unit, timeZone?, dense: true })` fills interior date gaps; it requires the only group dimension. No rows means no generated date range. `datePart(field, alias, { part, timeZone?, dense: true })` returns every key of the part's fixed domain (1–7, 1–31, 0–23 or 1–12), the empty ones filled in; it too requires the only group dimension. Several `datePart` groups combine, such as weekday by hour.
+- `filter` selects source documents at the root, with the same `filter.*` builders as a list query.
+- `elements` turns a nested array into the records: `aggregation.element(path, predicate?)` steps into the element path, and its optional predicate filters elements relative to it. Root-only filters (metadata, search, deletion) are rejected inside the predicate. After `elements`, group and metric fields are read relative to the element, as `sku` and `price` are above.
 
-Backend requirements still apply (MongoDB 5.1+ for dense groups, 7.0+ for percentiles); the client performs no backend capability probing. Raw typed expression objects are not runtime validators.
+## Form the rows
+
+| Builder                                                   | Rows                                                                                                                                                                                                 |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `terms(field \| expression, alias, { missingKey? })`      | One per distinct value. An expression in place of the field needs Wow 9.2 and is expensive. `missingKey` collects missing and null values under a non-blank string key; it needs a field, and the backend checks the field is a string. |
+| `histogram(field \| expression, alias, { interval })`     | One per bucket of a finite `interval` greater than 0; an expression may replace the field (Wow 9.2).                                                                                                  |
+| `dateHistogram(field, alias, { unit, timeZone?, dense? })` | One per calendar `unit` (`AggregationDateUnit`, `YEAR` to `SECOND`) in `timeZone`, UTC by default.                                                                                                 |
+| `datePart(field, alias, { part, timeZone?, dense? })`     | One per value of a date part (`AggregationDatePart`): integer keys, `DAY_OF_WEEK` ISO (1 Monday to 7 Sunday), `DAY_OF_MONTH` 1–31, `HOUR_OF_DAY` 0–23 on the zone's wall clock, `MONTH_OF_YEAR` 1–12. |
+
+An empty time zone or an unknown enum value throws.
+
+`dense: true` fills the gaps, and needs the group to be the only one. For `dateHistogram` it fills interior date gaps; with no rows there is no range to fill. For `datePart` it returns every key of the part's fixed domain, the empty ones filled in. Several `datePart` groups combine, such as weekday by hour:
+
+```ts
+import {
+  AggregationDatePart,
+  aggregation,
+  type AggregationQuery,
+} from '@ahoo-wang/wow-client';
+
+export const ordersByWeekdayAndHour: AggregationQuery = aggregation.query({
+  groupBy: [
+    aggregation.datePart('state.createTime', 'weekday', {
+      part: AggregationDatePart.DAY_OF_WEEK,
+      timeZone: 'Asia/Shanghai',
+    }),
+    aggregation.datePart('state.createTime', 'hour', {
+      part: AggregationDatePart.HOUR_OF_DAY,
+      timeZone: 'Asia/Shanghai',
+    }),
+  ],
+  metrics: [aggregation.count('orders')],
+});
+```
+
+## Measure each row
+
+| Builder                                                                     | Value                                                                                                                                                                             |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `count(alias, { filter? })`                                                 | The number of records; takes no field.                                                                                                                                            |
+| `sum`, `avg`, `min`, `max`, `stddev`, `variance` `(expression, alias, { filter? })` | A numeric function of an expression. `stddev` and `variance` are population statistics.                                                                                  |
+| `distinctCount(expression, alias, { filter? })`                             | The number of distinct non-null values: exact on MongoDB, possibly approximate on Elasticsearch.                                                                                  |
+| `percentile(expression, alias, { percentile, filter? })`                    | A percentile strictly between 0 and 100 (50 for the median); approximate on both backends.                                                                                       |
+| `any(field, alias, { filter? })`                                            | A value the backend picks from the group; not a deterministic first row.                                                                                                         |
+| `first(field, alias, { orderBy?, filter? })`, `last(…)`                     | The field's value on the group's earliest or latest record by `orderBy` (by default the model's event time, the descriptor's `analysis.firstLastOrderBy`), in the field's own type or null. |
+
+The numeric metrics take an expression, built from:
+
+- `aggregation.field(path)` and `aggregation.constant(number)` (finite);
+- `add`, `subtract`, `multiply`, `divide(left, right)`, evaluated by the backend, division included;
+- `dateDiff(from, to, unit)`: `to − from` in a `DateDiffUnit` (`SECOND`, `MINUTE`, `HOUR`, `DAY`, a `DAY` being exactly 24 h), a signed decimal, with no value when either instant is absent (Wow 9.2).
+
+Every metric except `derived` takes `{ filter }`, a `FilterExpression` in the current aggregation scope that limits the records that metric counts, and only that metric. The backend validates scalar fields and rejects filter operators it does not support.
 
 ```ts
 import {
@@ -75,7 +127,7 @@ import {
   type AggregationQuery,
 } from '@ahoo-wang/wow-client';
 
-const query: AggregationQuery = {
+export const refundsByStatus: AggregationQuery = aggregation.query({
   groupBy: [
     aggregation.terms('state.status', 'status', { missingKey: 'Unknown' }),
   ],
@@ -84,18 +136,63 @@ const query: AggregationQuery = {
     aggregation.count('refunded', {
       filter: filter.eq('state.refunded', true),
     }),
-    aggregation.sum(aggregation.field('state.amount'), 'revenue'),
     aggregation.percentile(aggregation.field('state.amount'), 'p95Amount', {
       percentile: 95,
     }),
+  ],
+});
+```
+
+## Derive a metric from others
+
+`aggregation.derived(d => …, alias)` computes a metric from earlier metrics by alias. The callback receives a `DerivedExpressionDsl` (after Kotlin's): `d.ref(metric)`, `d.constant(value)` (finite), `d.add`, `d.subtract`, `d.multiply` and `d.divide`; it builds a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`). `aggregation.derived(tree, alias)` still takes a tree built by hand.
+
+A derived metric references only metrics before it, never `any`, `first` or `last`, and takes no record filter: filter the metrics it references. A null operand or a division by zero gives null.
+
+## Keep only some rows
+
+`having` filters the rows after grouping, on metric aliases rather than field paths. Build it with `aggregation.having` (`HavingDsl`, after Kotlin's): `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`, `isNull`, `isNotNull`, `and([…])`, `or([…])`. It produces a `HavingExpression` (`CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, `OR`; comparisons use `ComparisonOperator` `EQ` … `LTE`).
+
+`having` needs a `groupBy`, cannot reference `any`, `first` or `last`, and runs before `sort` and `limit`. Each builder throws Wow's message for a non-finite number, `lower > upper` or an empty list.
+
+```ts
+import {
+  aggregation,
+  type AggregationQuery,
+} from '@ahoo-wang/wow-client';
+
+export const bigSpenders: AggregationQuery = aggregation.query({
+  groupBy: [aggregation.terms('state.customerId', 'customer')],
+  metrics: [
+    aggregation.count('orders'),
+    aggregation.sum(aggregation.field('state.amount'), 'revenue'),
     aggregation.derived(
       d => d.divide(d.ref('revenue'), d.ref('orders')),
       'averageOrderValue',
     ),
   ],
-  having: aggregation.having.gte('averageOrderValue', 100),
-};
+  having: aggregation.having.and([
+    aggregation.having.gte('orders', 3),
+    aggregation.having.gte('averageOrderValue', 100),
+  ]),
+});
 ```
+
+## Order and cap the rows
+
+`sort` names output aliases, not field paths: `asc('revenue')`, `desc('revenue')`. `limit` caps the row count; without one the server returns `AGGREGATION_LIMITS.DEFAULT_LIMIT` (100) rows, and no query may ask for more than `MAX_LIMIT` (10,000).
+
+## Check before sending
+
+`aggregation.query(query)` checks the assembled query against the rules Wow enforces and returns a copy: the `AGGREGATION_LIMITS` sizes, alias collisions, and what `sort`, `having` and derived metrics reference, including their grouping and depth. Each builder already checks its own arguments:
+
+- An alias is one valid segment: no dots, and not starting with `__wow`.
+- Field paths go through the same logical-field validator as `filter`.
+- An invalid alias, a non-finite constant or an invalid histogram option throws a `TypeError`.
+
+These checks do not prove that a field exists or is numeric, or that the backend supports the query; the server checks everything again and a call it rejects still rejects. Backend requirements apply on top: MongoDB 5.1 or later for `dense` groups and 7.0 or later for percentiles; the client does not probe backend capabilities. Builders do no I/O, and an expression object you write by hand is not validated at run time.
+
+Optional parts keep the wire shape small: a metric `filter`, `missingKey` or `dense` is sent only when you supply it, so earlier builder calls produce the same JSON as before.
 
 ## Public signatures and types
 
