@@ -29,7 +29,7 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 - **数据集措辞覆盖的存储**（[D86](decisions.md)）：覆盖的形状与套用已有（`DatasetCatalog.overrides`），存在哪里还没有。判据：视图存储里存一份数据集的覆盖、由管理员编辑，宿主的 `overrides` 读它。落点：[host-integration.md 3.2](host-integration.md)、`src/runtime/define/defineDataset.ts`、`src/runtime/datasetResources.ts`、`view-store`。
 - **搜索在真服务端上命中**：示例服务端的快照在 MongoDB 上，没有全文能力，端到端只验证了 `SEARCH` 被拒且如实报出。判据：契约作业有了 Elasticsearch 快照后，搜索用例改为断言命中。落点：Wow 仓端到端的 `view-engine/recordView` 用例（`typescript/integration-test/`）。
 - **「指定日期」切换时自动打开日历；看板筛选条吸顶**（R2-41 余项）：#3849 已做「指定日期」预填当前生效日、选一天即关上日历并把焦点交回日期按钮。没做的两点按 #3849 的理由：预填之后看板不再等日期，自动打开不再必要；吸顶是超出本项的布局改动。判据：真人走查（D73）或宿主反馈仍有「多一步」「选完看不到筛选条」时再做；做时切到「指定日期」即打开日历，筛选条滚动时吸顶，在 390 宽与键盘下不遮住面板与焦点。落点：[ui/dashboard.md](ui/dashboard.md)、`src/ui/dashboard/FilterBar.tsx`、`src/ui/filter/inputs/date.tsx`。
-- **视觉的 P3**（R2-101，外观问题，不影响读数）：图表卡顶部留白、轴标题方向不一致；无数据或无迷你图的指标卡留大块空白；单数值分析视图偏左；雷达等极坐标图在 390 宽截断轴名；演示应用两种涨跌色约定并存；打印保留了交互控件。判据：逐条修掉，截图基线随之更新。落点：`src/ui/charts/`、`src/ui/dashboard/`、[ui/theme.md](ui/theme.md#打印与强制颜色)、Storybook 演示应用。
+- **视觉的 P3**（R2-101，外观问题，不影响读数）：图表卡顶部留白、轴标题方向不一致；无数据或无迷你图的指标卡留大块空白；雷达等极坐标图在 390 宽截断轴名；演示应用两种涨跌色约定并存。已修、已删去：单数值分析视图已居中（复核 2026-10-11）；打印不再带只能用手点的控件（`styles.css` 的 `@media print`）。判据：逐条修掉，截图基线随之更新。落点：`src/ui/charts/`、`src/ui/dashboard/`、[ui/theme.md](ui/theme.md#打印与强制颜色)、Storybook 演示应用。
 
 ### Wow 服务端（Kotlin）
 

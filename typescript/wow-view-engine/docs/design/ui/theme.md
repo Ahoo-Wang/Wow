@@ -170,7 +170,7 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 
 ## 打印与强制颜色
 
-- **打印**：暗色的变体与暗色 token 块包在 `@media not print` 里，纸上读当前预设的亮色一半，每套预设天然有一份打印样子，不需要打印预设；`@media print` 把三级阴影、卡片的浮起、钉住列的边影与行悬停色设成透明，把 `--fve-chart-patterns` 设成 `on`（黑白打印时系列只能靠花纹区分；这是 `styles.css` 唯一有意写公开前缀的地方），图表、徽章与变化徽标 `print-color-adjust: exact`。
+- **打印**：暗色的变体与暗色 token 块包在 `@media not print` 里，纸上读当前预设的亮色一半，每套预设天然有一份打印样子，不需要打印预设；`@media print` 把三级阴影、卡片的浮起、钉住列的边影与行悬停色设成透明，把 `--fve-chart-patterns` 设成 `on`（黑白打印时系列只能靠花纹区分；这是 `styles.css` 唯一有意写公开前缀的地方），图表、徽章与变化徽标 `print-color-adjust: exact`；只能用手点的控件不印（R2-101）——视图侧栏、保存与「更多」、刷新与自动刷新、铺满、面板的菜单、结果上的表格／图表切换、可视化与导出、分页、「分析」开关、没输入的搜索框；标题、条件、结果的读法、图例、筛选的值与列名照印（浏览器故事「分析工作台/回归」的 `PrintsWithoutControls`）。
 - **强制颜色**（`forced-colors: active`）：vendored 控件的焦点（叠在 `outline-none` 上的阴影）与获焦行的光晕会被丢掉、选中行的底被重画成页底。`@media (forced-colors: active)` 给 `:focus-visible` 画 2px `CanvasText` 的轮廓，选中行与按下的分析分组画 2px `Highlight` 的内框（系统色，浏览器不重画；不用 `Highlight` 填满——那要让格子退出重画，里面的复选框与徽章就留着为主题挑的颜色），说自己被选中的控件也一样：侧栏与板上标签的当前项（`aria-current`）、按下的开关（`aria-pressed`，图例除外：按下即系列在画，隐藏的那条有删除线）、选中的标签页（D73）；焦点的轮廓压过这些框。菜单、选择框与组合框里键盘所在的那一项画 2px `Highlight` 的内框（与屏幕上那道 `ring` 走同一条路），其余项不画——registry 的 `outline-hidden` 在这个模式里会给每一项画同一个框；弹层（菜单、子菜单、选择框、组合框、浮层）画 1px `CanvasText` 的边，因为屏幕上它的边是 `ring` 阴影，会被丢掉（第二轮审查）。
 - （见浏览器故事 `PaperAndContrast.test.stories.tsx`「ForcedColors」「Print」）
 

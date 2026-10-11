@@ -30,6 +30,7 @@ import {
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { ANALYSIS_GOLDEN } from './retail/goldens.js';
 import { BATH_TOWEL_TITLE } from './retail/views.js';
+import { underMedia } from './media.js';
 import { matchScreenshot } from './screenshot.js';
 
 /**
@@ -1290,5 +1291,45 @@ export const PanelScrollsItsColumn: Story = {
         panel.getBoundingClientRect().top + 3,
       ),
     );
+  },
+};
+
+/**
+ * 打印时纸上只留读得到的东西（R2-101「打印保留了交互控件」）：视图列表、保存、
+ * 刷新、铺满、表格／图表切换、可视化、导出、没输入的搜索框都不印；标题、条件、
+ * 结果的读法与图例照印。
+ */
+export const PrintsWithoutControls: Story = {
+  ...DisplayOrderAnalysis,
+  name: '打印时不带只能用手点的控件（R2-101）',
+  play: async ({ canvasElement }) => {
+    await openAnalysis(canvasElement, '月 GMV 与客单价');
+    const shown = (selector: string) =>
+      [...canvasElement.querySelectorAll<HTMLElement>(selector)].filter(
+        element => getComputedStyle(element).display !== 'none',
+      );
+    const controls = [
+      '[data-slot="view-sidebar"]',
+      '[data-slot="save-actions"] button',
+      '[data-slot="refresh-now"]',
+      '[data-slot="view-expand"]',
+      '[data-slot="result-toolbar"] button',
+      '[data-slot="view-search"]',
+    ];
+    // On screen every one of them is there.
+    for (const selector of controls)
+      await expect(shown(selector).length, selector).toBeGreaterThan(0);
+    const ran = await underMedia({ media: 'print' }, 'print', async () => {
+      for (const selector of controls)
+        await expect(shown(selector), selector).toEqual([]);
+      for (const kept of [
+        '[data-slot="view-title"]',
+        '[data-slot="analysis-reading"]',
+        '[data-slot="chart"]',
+      ])
+        await expect(shown(kept).length, kept).toBeGreaterThan(0);
+    });
+    // Chromium emulates print; another browser asserts what it could.
+    if (/Chrome\//.test(navigator.userAgent)) await expect(ran).toBe(true);
   },
 };

@@ -3048,6 +3048,31 @@
   .fve-tokens :is([data-slot='chart'], [data-slot='badge'], [data-change]) {
     print-color-adjust: exact;
   }
+
+  /*
+   * What only a hand can use stays off the paper (R2-101): the view list
+   * and its buttons, save and the view's other actions, refresh and its
+   * cadence, fill the screen, a panel's menu, a result's table/chart
+   * switch, visualise and export, the pager, and a search box nobody typed
+   * in. What the page says stays: the title, the conditions, the reading of
+   * a result, a legend, a filter's value, a column's name.
+   */
+  .fve-root
+    :is(
+      [data-slot='view-sidebar'],
+      [data-slot='view-exit'],
+      [data-slot='view-expand'],
+      [data-slot='refresh-now'],
+      [data-slot='refresh-interval'],
+      [data-slot='panel-menu'],
+      [data-slot='pagination'],
+      [data-slot='save-actions'] button,
+      [data-slot='result-toolbar'] button,
+      [data-slot='view-header'] [data-slot='collapsible-trigger'],
+      [data-slot='view-search']:has(input:placeholder-shown)
+    ) {
+    display: none;
+  }
 }
 
 /*
