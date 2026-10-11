@@ -52,7 +52,7 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 | `RequestTimeout` | 408 | 等待的阶段没在 `timeoutMs` 内到达 | 服务端已收到命令，它仍可能完成；读取状态，不要重发 |
 | `DuplicateRequestId` | 400 | 同一个请求 ID 发送了两次 | 第一次请求已经到达服务端；不要重发 |
 | `EventVersionConflict`、`CommandExpectVersionConflict` | 409 | 另一次写入抢先了 | 重新加载状态后再决定 |
-| `QuerySchemaValidation`：`Field [state.items.productId] requires its declared element scope` | 400 | 直接过滤了数组元素里的字段 | 用 `filter.elementMatch('state.items', filter.eq('productId', …))` 匹配 |
+| `QuerySchemaValidation`：`Field [state.items.productId] requires its declared element scope` | 400 | 直接过滤、分组或计量了数组元素里的字段 | 过滤时用 `filter.elementMatch('state.items', filter.eq('productId', …))` 匹配；聚合时先用 `elements: [aggregation.element('state.items')]` 展开数组，再按相对它的名字（`productId`）引用 |
 | 关于字段名的 `QuerySchemaValidation` | 400 | 该字段在这个聚合上不可查询 | 使用生成的字段名；服务变化后重新生成 |
 | `QuerySchemaUnavailable`：`No query backend is configured for aggregate` | 503 | 服务没有供查询的快照存储（例如内存配置） | 配置服务的查询后端 |
 | Wow 8.11 及以后的服务端对带 `raw()` 的 `/legacy` 查询应答 `400` | 400 | `raw()` 只对 Wow 8.10 有效 | 用 `filter.*` 改写查询 |
