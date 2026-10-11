@@ -28,7 +28,7 @@ Wow keeps each kind of documentation in one place, chosen by who reads it. This 
 | Diagram sources Mermaid cannot express | Maintainers | `documentation/diagrams/` (created with its first file) |
 | Design records spanning JVM modules or the repository | Maintainers | `documentation/designs/` |
 | Design of one TypeScript package or application | Maintainers of that package | `<package>/docs/design/` |
-| Ledgers of decided work | Maintainers | `docs/compat-debt.md` (compatibility kept until v10), `docs/todo.md` (JVM), `typescript/wow-view-engine/docs/design/todo.md` (view engine), `typescript/MIGRATION.md` (packages moved from fetcher) |
+| Ledgers of decided work | Maintainers | `docs/compat-debt.md` (compatibility kept until v10), `docs/todo.md` (JVM), `typescript/TODO.md` (wow-client, wow-react, wow-generator), `typescript/wow-view-engine/docs/design/todo.md` (view engine and view store), `typescript/MIGRATION.md` (packages moved from fetcher) |
 | Release runbooks | Release maintainers | `AGENTS.md` (versioning, compatibility, CI), `typescript/RELEASING.md`, `typescript/RELEASE_NOTES_TEMPLATE.md` |
 | Reproducible performance evidence | Maintainers | `wow-benchmarks/results/` |
 | Agent capabilities | Coding agents | `skills/`; vendored third-party skills in `.claude/skills/` |
@@ -104,9 +104,9 @@ Today the site still publishes V6-to-V8 and provides a query-specific V8-to-V9 m
 
 ## Cleanup Status
 
-The legacy `document/` tree and the tracked `docs/superpowers/` files have been removed; their unique knowledge had already moved to site pages, design records or `wow-benchmarks/results/`.
+The legacy `document/` tree, the tracked `docs/superpowers/` files, the implemented query step plans and the tracked review notes have been removed. Their unique knowledge had already moved to site pages, design records or `wow-benchmarks/results/`, or now lives in a ledger: open review findings were rechecked against `main` and moved to `typescript/TODO.md`, `docs/todo.md` and the view-engine TODO.
 
-Remaining cleanup follows the same procedure, one reviewable pull request per batch:
+Future cleanup follows the same procedure, one reviewable pull request per batch:
 
 1. inventory tracked documentation, assets, links, and owners;
 2. classify each item as keep, migrate, relocate, or delete;
@@ -115,8 +115,6 @@ Remaining cleanup follows the same procedure, one reviewable pull request per ba
 5. remove stale links, navigation entries, duplicate assets, and expired migration pages;
 6. list migrated and deleted paths in the pull request body instead of committing another cleanup report;
 7. build and review each batch before starting the next.
-
-Known candidates: the tracked review notes under `typescript/docs/` and `typescript/storybook/docs/` (move their open findings into the view-engine or JVM ledger, then delete them), and implemented step plans in `documentation/designs/` (delete once the tests that cite them point at the design record instead).
 
 ## Planned Enforcement
 
