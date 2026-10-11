@@ -33,6 +33,8 @@ on:
       - 'compensation/wow-compensation-domain/**'
       - 'compensation/wow-compensation-server/**'
       - 'view-store/**'
+      - 'dataset-registry/**'
+      - 'analytics/**'
   pull_request:
     paths:
       - '.github/workflows/local-test.yml'
@@ -51,6 +53,8 @@ on:
       - 'compensation/wow-compensation-domain/**'
       - 'compensation/wow-compensation-server/**'
       - 'view-store/**'
+      - 'dataset-registry/**'
+      - 'analytics/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

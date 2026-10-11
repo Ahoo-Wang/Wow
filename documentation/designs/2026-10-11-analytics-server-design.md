@@ -1,6 +1,6 @@
 # 开箱即用的分析服务（数据集平台 R5）
 
-日期：2026-10-11。状态：设计稿。§8 的决定待用户确认；未决前按推荐推进 R5a，其余阶段等确认。R5a 已实施（`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）。
+日期：2026-10-11。状态：§8 的 A1～A5 已由用户按推荐确认（2026-10-11）。R5a 已实施（Ahoo-Wang/Wow#4177，`CoSecAbacQueryPolicy`，`wow.cosec.abac.*`）；R5b 已实施（部署物与端到端测试，见 §4.3）。
 
 基线：`main` `8a447298e9`。本文是[数据集平台化设计](2026-10-11-dataset-platform-design.md)的 R5（其 §7 与 §11 的 T2、T3、T5），建立在 R1～R4 之上：数据集注册表（`wow-dataset-registry-*`）、ClickHouse 数据集查询与命名数据源、view-engine 的数据集派生与登记（D84～D86），以及聚合窗口（R4，view-engine D87）。
 
@@ -61,6 +61,18 @@ CoSec 的主体（`me.ahoo.cosec.api.principal.CoSecPrincipal`）带 `attributes
 
 默认策略写在发行包的 CoSec 策略文件里，企业按自己的角色名改。
 
+### 4.3 实施（R5b）
+
+服务前面没有网关，所以网关在部署里承担的事由服务自己做：
+
+- **验签**：请求的 JWT 用服务的 `cosec.jwt.secret` 校验（CoSec 的 `TokenVerifier` 组成的 `SecurityContextParser`）。CoSec 的注入模式只解码不验签，那是给网关后面用的，这里替换掉。CoSec 自己的策略鉴权（`cosec.authorization.enabled`）缺省关闭，企业有它的策略库时可以打开。
+- **路由守卫**（`AnalyticsAccessFilter`）：健康探针、控制台静态文件和 API 文档公开；其余一律要已认证的主体（401）；注册表的命令要 `wow.analytics.admin-role`（403）。
+- **视图存储的网关规则**（`ViewStoreAccess`）：视图存储信任路径里的租户与所有者（视图存储指南「安全模型」），服务照那张规则表执行——路径的租户是令牌的租户、所有者是令牌的 `sub`；共享视图本租户可读，写与认领、分享要 `wow.analytics.shared-view-role`；系统视图只给平台租户里有 `wow.analytics.system-view-role` 的主体写；其余视图存储路径一律拒绝。`CoSec-App-Id` 由服务设成 `wow.analytics.app-id`，请求带什么都不算。
+- **数据集的租户**（`CoSecDatasetQueryRequestScope`）：取 CoSec 认证的租户，作为已认证范围；请求路径或头里自报的租户不起作用。
+- **ABAC**：发行配置打开 `wow.cosec.abac.enabled` 与 `wow.query.abac.require-principal-tags`（A3）。
+
+端到端测试（`AnalyticsServerTest`，MongoDB 与 ClickHouse 容器）：管理员起草、修订（声明租户列与标签列）、审核、发布一个数据集；分析师按 CoSec 认证的租户与 `abac.region` 读到对应的行，路径自报别的租户无效，没有标签被拒，坏令牌 401；分析师只能列出自己的与本租户共享的视图。
+
 ## 5. 控制台
 
 新建 Vite + React 应用（目录 `analytics/console`，加入 pnpm workspace），依赖 `wow-client`、`wow-react`、`wow-view-engine`、`wow-view-store` 与 `@ahoo-wang/fetcher-cosec`：
@@ -88,7 +100,7 @@ CoSec 的主体（`me.ahoo.cosec.api.principal.CoSecPrincipal`）带 `attributes
 | **R5c** | 控制台：登录、导航、视图与看板、数据集管理 | 单测与 Playwright 冒烟 |
 | **R5d** | 注册表模块发布、Docker 镜像、部署文档与 skill | CI 发布演练 |
 
-## 8. 决定（待用户确认）
+## 8. 决定（用户已确认，2026-10-11）
 
 | # | 问题 | 推荐 |
 |---|---|---|

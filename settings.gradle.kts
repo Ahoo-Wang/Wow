@@ -105,3 +105,8 @@ project(":wow-dataset-registry-domain").projectDir = file("dataset-registry/wow-
 include(":wow-dataset-registry-starter")
 project(":wow-dataset-registry-starter").projectDir = file("dataset-registry/wow-dataset-registry-starter")
 //endregion
+
+//region analytics
+include(":wow-analytics-server")
+project(":wow-analytics-server").projectDir = file("analytics/wow-analytics-server")
+//endregion
