@@ -126,6 +126,12 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `analysis.sort.too-many` | A result sorts by at most {max} dimensions and metrics. |
 | `analysis.sort.unknown-alias` | The sort orders by {alias}, which this result does not have. |
 | `analysis.split.whole-failed` | Could not fold the smaller series into “Other”, so colours repeat: {reason} |
+| `analysis.top.count-out-of-range` | The number of groups kept within each value must be a whole number from 1 to {max}. |
+| `analysis.top.malformed` | This top N has no usable shape. |
+| `analysis.top.requires-groups` | Keeping the first groups within a dimension needs at least two dimensions. |
+| `analysis.top.unknown-metric` | The first groups are ranked by {metric}, which is not a metric that can rank them. |
+| `analysis.top.unknown-within` | The first groups are kept within {within}, which is not one of the dimensions. |
+| `analysis.top.unsupported` | This dataset cannot keep the first groups within each value of a dimension. |
 
 ### `binding.*` {#issues-binding}
 

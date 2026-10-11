@@ -1037,6 +1037,22 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.analysis.having-unreadable':
     '这个视图用这里编辑不了的规则只保留了部分组。',
   'label.analysis.clear-having': '清空',
+  'label.analysis.top-first': '每组只留前几个…',
+  'label.analysis.top-title': '每组只留前几个',
+  'label.analysis.top-each': '每个',
+  'label.analysis.top-within': '在哪个维度里排',
+  'label.analysis.top-keep': '只留前',
+  'label.analysis.top-count': '留几个',
+  'label.analysis.top-by': '个，按',
+  'label.analysis.top-metric': '按哪个指标排',
+  'label.analysis.top-direction': '排的次序',
+  'label.analysis.top-direction.DESC': '从高到低',
+  'label.analysis.top-direction.ASC': '从低到高',
+  'label.analysis.top-invalid': '须为 1～{max} 的整数。',
+  'label.analysis.remove-top': '每组不再只留前几个',
+  'label.analysis.top-note': '并列的组名次相同，都会留下。',
+  'label.analysis.reading-top':
+    '{reading} · 每个{within}只留{metric}{order}前 {count} 个',
   'label.having.op.GT': '大于',
   'label.having.op.GTE': '不小于',
   'label.having.op.LT': '小于',
@@ -1562,6 +1578,14 @@ export const zhCN: Readonly<Record<string, string>> = {
   'analysis.having.metric-unsupported': '数据源不能按「{metric}」保留分组。',
   'analysis.having.unknown-metric':
     '筛选引用了「{metric}」，它不是可用的指标。',
+  'analysis.top.unsupported': '这份数据不能在每个维度值里只留前几个。',
+  'analysis.top.requires-groups': '每个维度值里只留前几个，至少需要两个维度。',
+  'analysis.top.unknown-within':
+    '「{within}」不是这里的维度，不能在它里面只留前几个。',
+  'analysis.top.unknown-metric': '「{metric}」不是能排名次的指标。',
+  'analysis.top.count-out-of-range':
+    '每个维度值里留下的个数须为 1～{max} 的整数。',
+  'analysis.top.malformed': '这个「只留前几个」没有可用的结构。',
   'analysis.limit.out-of-range': '前 N 组须为 1～{max} 的整数。',
   'analysis.metric.type-unknown': '指标类型 {type} 不可用。',
   'analysis.metricFilter.empty': '这组条件是空的，所以指标覆盖全部记录。',

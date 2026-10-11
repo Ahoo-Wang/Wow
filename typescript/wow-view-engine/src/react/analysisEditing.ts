@@ -36,6 +36,7 @@ import {
   type AnalysisDateDiffUnit,
   type AnalysisGroup,
   type AnalysisHavingExpression,
+  type AnalysisTop,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type FilterTree,
@@ -377,6 +378,8 @@ export function questionEditing({
     },
     setHaving: (having: AnalysisHavingExpression | undefined) =>
       edit(having === undefined ? { having: undefined } : { having }),
+    setTop: (top: AnalysisTop | undefined) =>
+      edit(top === undefined ? { top: undefined } : { top }),
   };
 }
 

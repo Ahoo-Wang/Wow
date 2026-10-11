@@ -14,7 +14,10 @@
 import type { RefObject } from 'react';
 import { Settings2Icon, TableIcon } from 'lucide-react';
 import { havingRows, type AnalysisColumnView } from '../../analysis/index.js';
-import type { AnalysisHavingExpression } from '../../model/index.js';
+import type {
+  AnalysisHavingExpression,
+  AnalysisTop,
+} from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
@@ -104,12 +107,17 @@ export function AnalysisToolbar({
     capture: exporting ? (image ?? null) : null,
   });
   const { locale } = useSurfaceDisplay();
-  const reading = withKept(
-    analysisReading(columns, messages),
-    analysis.ranHaving,
+  const reading = withTop(
+    withKept(
+      analysisReading(columns, messages),
+      analysis.ranHaving,
+      columns,
+      messages,
+      locale,
+    ),
+    analysis.ranTop,
     columns,
     messages,
-    locale,
   );
   const ChartIcon = CHART_ICON[glyphType(analysis.chart.type)];
   // The export's window is drawn beside the bar, not inside it; see
@@ -303,5 +311,32 @@ function withKept(
   return messages.label('label.analysis.reading-kept', {
     reading,
     conditions,
+  });
+}
+
+/**
+ * The reading with the per-group top N that ran said last (D89), for the
+ * reason 「只保留」 is: the rows hold the first few of each value, and the
+ * totals row every record.
+ */
+function withTop(
+  reading: string,
+  top: AnalysisTop | undefined,
+  columns: readonly AnalysisColumnView[],
+  messages: MessageFormatters,
+): string {
+  if (top === undefined) return reading;
+  const title = (alias: string) => {
+    const column = columns.find(entry => entry.alias === alias);
+    return column ? columnTitle(column, messages) : alias;
+  };
+  return messages.label('label.analysis.reading-top', {
+    reading,
+    within: title(top.within),
+    metric: title(top.metric),
+    count: top.count,
+    order: messages.label(
+      `label.analysis.top-direction.${top.direction ?? 'DESC'}`,
+    ),
   });
 }

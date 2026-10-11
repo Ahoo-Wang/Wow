@@ -245,6 +245,7 @@ export interface AnalysisEditorController extends QuestionEditing {
     optionSource?(remote: string): OptionSource | null;
     pending: boolean;
     ranHaving: AnalysisHavingExpression | undefined;
+    ranTop: AnalysisTop | undefined;
     // (undocumented)
     setChartType(type: ChartType): void;
     setElementFilter(index: number, filter: FilterTree | undefined): void;
@@ -261,6 +262,8 @@ export interface AnalysisEditorController extends QuestionEditing {
     stale: boolean;
     // (undocumented)
     submit(): void;
+    top: AnalysisTop | undefined;
+    topAllowed: boolean;
     // (undocumented)
     totals: boolean;
     undoDrop(): void;
@@ -526,6 +529,18 @@ interface AnalysisTableSpec {
 }
 
 // @public
+interface AnalysisTop {
+    // (undocumented)
+    count: number;
+    // (undocumented)
+    direction?: SortDirection;
+    // (undocumented)
+    metric: string;
+    // (undocumented)
+    within: string;
+}
+
+// @public
 interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     chart: ChartSpec;
@@ -547,6 +562,8 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     sort: AnalysisSort[];
     // (undocumented)
     table: AnalysisTableSpec;
+    // (undocumented)
+    top?: AnalysisTop;
 }
 
 // @public
@@ -2814,6 +2831,7 @@ function questionEditing(input: QuestionEditingInput): {
     groupByDuration: (index: number) => void;
     addDerived: () => void;
     setHaving: (having: AnalysisHavingExpression | undefined) => void;
+    setTop: (top: AnalysisTop | undefined) => void;
 };
 
 // @public (undocumented)

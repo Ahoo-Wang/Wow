@@ -330,6 +330,7 @@ describe('configs stay plain JSON', () => {
       'groups',
       'metrics',
       'having',
+      'top',
       'sort',
       'limit',
       'table',
@@ -352,6 +353,7 @@ describe('configs stay plain JSON', () => {
           operator: 'GT',
           value: 1,
         },
+        top: { within: 'warehouse', metric: 'orders', count: 3 },
       }),
     );
     for (const member of autoRunMembers('analysis'))

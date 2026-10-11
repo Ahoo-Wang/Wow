@@ -376,6 +376,18 @@ interface AnalysisTableSpec {
 }
 
 // @public
+interface AnalysisTop {
+    // (undocumented)
+    count: number;
+    // (undocumented)
+    direction?: SortDirection;
+    // (undocumented)
+    metric: string;
+    // (undocumented)
+    within: string;
+}
+
+// @public
 interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     chart: ChartSpec;
@@ -397,6 +409,8 @@ interface AnalysisViewConfig extends DataViewConfigBase {
     sort: AnalysisSort[];
     // (undocumented)
     table: AnalysisTableSpec;
+    // (undocumented)
+    top?: AnalysisTop;
 }
 
 // @public

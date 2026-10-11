@@ -270,6 +270,14 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
   groups: AnalysisGroup[];
   metrics: [AnalysisMetric, ...AnalysisMetric[]];
   having?: AnalysisHavingExpression; // 与 Wow HavingExpression 同构，枚举为字面量；只引用指标别名与数字
+  // 组内 TopN（D89）：每个 within（维度别名）里按 metric（指标别名）只留前 count 个，
+  // direction 缺省从高到低。编译成隐藏的 RANK 派生指标与「名次 ≤ count」，与 having 同时成立。
+  top?: {
+    within: string;
+    metric: string;
+    count: number;
+    direction?: 'ASC' | 'DESC';
+  };
   sort: { alias: string; direction: 'ASC' | 'DESC' }[];
   limit: number;
   layout: 'table' | 'chart'; // 当前呈现；切换只改此字段

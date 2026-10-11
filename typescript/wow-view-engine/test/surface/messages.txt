@@ -1,4 +1,4 @@
-# Message keys — 2144.
+# Message keys — 2165.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -78,6 +78,12 @@ analysis.sort.requires-group
 analysis.sort.too-many
 analysis.sort.unknown-alias
 analysis.split.whole-failed
+analysis.top.count-out-of-range
+analysis.top.malformed
+analysis.top.requires-groups
+analysis.top.unknown-metric
+analysis.top.unknown-within
+analysis.top.unsupported
 binding.definition.unknown
 capability.analysis.count
 capability.analysis.dense
@@ -529,12 +535,14 @@ label.analysis.reading-flat
 label.analysis.reading-kept
 label.analysis.reading-kept-custom
 label.analysis.reading-kept-row
+label.analysis.reading-top
 label.analysis.records
 label.analysis.remove-cascade
 label.analysis.remove-group
 label.analysis.remove-having
 label.analysis.remove-last
 label.analysis.remove-metric
+label.analysis.remove-top
 label.analysis.rename
 label.analysis.row-count
 label.analysis.row-limit
@@ -551,6 +559,19 @@ label.analysis.tip.elements
 label.analysis.tip.metrics
 label.analysis.tip.range
 label.analysis.tip.result
+label.analysis.top-by
+label.analysis.top-count
+label.analysis.top-direction
+label.analysis.top-direction.ASC
+label.analysis.top-direction.DESC
+label.analysis.top-each
+label.analysis.top-first
+label.analysis.top-invalid
+label.analysis.top-keep
+label.analysis.top-metric
+label.analysis.top-note
+label.analysis.top-title
+label.analysis.top-within
 label.analysis.totals
 label.analysis.totals-hidden.cut
 label.analysis.totals-hidden.kept

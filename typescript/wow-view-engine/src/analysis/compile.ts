@@ -63,6 +63,7 @@ import { companionMetrics, currencyCompanions } from './currency.js';
 import { limitBounds } from './limitBounds.js';
 import { movingWindow } from './derived.js';
 import { serverLineMetrics } from './serverLines.js';
+import { topRankMetric, withTopHaving } from './top.js';
 
 /**
  * Compilation is a mapping, not a translation: the configuration is
@@ -86,6 +87,10 @@ export function compileAnalysis(
     config,
     line => movingWindow(config, line),
   );
+  // The per-group top N's rank (D89), kept by the having beside 「只保留」.
+  const top = config.top;
+  if (top) lines.push(topRankMetric(config, top));
+  const having = config.having ? compileHaving(config.having) : undefined;
   return {
     ...query,
     ...(lines.length > 0
@@ -98,7 +103,11 @@ export function compileAnalysis(
           ),
         }
       : {}),
-    ...(config.having ? { having: compileHaving(config.having) } : {}),
+    ...(top
+      ? { having: withTopHaving(config, top, having) }
+      : having
+        ? { having }
+        : {}),
     ...(config.sort.length > 0 ? { sort: compileSort(config) } : {}),
     limit: analysisProbeLimit(definition, config, limits),
   };

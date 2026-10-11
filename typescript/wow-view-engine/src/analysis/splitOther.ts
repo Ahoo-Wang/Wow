@@ -23,6 +23,7 @@ import type { CartesianData } from './cartesian.js';
 import { num, OTHER_SERIES_KEY, seriesKey } from './chartRows.js';
 import { limitBounds } from './limitBounds.js';
 import { isAdditiveMetric } from './additive.js';
+import { narrowsGroups } from './top.js';
 
 /**
  * A split into more series than the palette has colours (D33 Q56, which
@@ -59,7 +60,7 @@ export function splitFoldable(config: AnalysisViewConfig): boolean {
     spec.series.length !== 1
   )
     return false;
-  if (config.having !== undefined) return false;
+  if (narrowsGroups(config)) return false;
   return isAdditiveMetric(config.metrics.find(one => one.alias === metric));
 }
 

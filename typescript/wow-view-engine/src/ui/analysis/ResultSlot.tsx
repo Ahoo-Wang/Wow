@@ -29,6 +29,7 @@ import { EditorSlot } from '../kit/variants.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { groupReference, metricReference } from './editing.js';
 import { AddHaving, HavingRows, useHaving } from './HavingRows.js';
+import { AddTop, TopRow, useTop } from './TopRow.js';
 import { TermTip } from './TermTip.js';
 
 /**
@@ -65,6 +66,7 @@ export function ResultSlot({
 }) {
   const messages = useViewMessages();
   const having = useHaving(analysis);
+  const top = useTop(analysis);
   if (analysis.groups.length === 0) return null;
   const title = messages.label('label.analysis.slot.result');
   return (
@@ -79,6 +81,7 @@ export function ResultSlot({
       }
     >
       <HavingRows having={having} disabled={disabled} />
+      <TopRow top={top} disabled={disabled} />
       <div
         data-slot="analysis-order"
         className="fve:flex fve:flex-wrap fve:items-center fve:gap-x-6 fve:gap-y-2"
@@ -86,6 +89,7 @@ export function ResultSlot({
         <SortField analysis={analysis} />
         <LimitField analysis={analysis} disabled={disabled} />
         <AddHaving having={having} disabled={disabled} />
+        <AddTop top={top} disabled={disabled} />
       </div>
     </EditorSlot>
   );

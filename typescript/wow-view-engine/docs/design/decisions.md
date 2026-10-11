@@ -1000,9 +1000,9 @@
   - **配置**：`AnalysisViewConfig.top?: { within: string; metric: string; count: number; direction?: 'DESC' | 'ASC' }`——每个 `within`（外层的维度别名）里，按 `metric` 从高到低（`ASC` 时从低到高）只留前 `count` 个。
   - **编译**：查询多一个隐藏的派生指标 `<指标>__rank` = `RANK(metric, within: [within], direction)`，`having` 变成「原来的只保留 且 名次 ≤ count」。名次并列者同名次（dense rank），所以并列第三的都留下。
   - **准入**：要两个及以上维度、`within` 是其中之一、`metric` 是非派生的数值指标、`count` 是 1～`limit` 的整数，且数据源的能力列出 `RANK`；否则报 `analysis.top.*`，编辑器不给这一项。
-  - **编辑器**：结果区「只保留」旁多一行「每个〈维度〉只留前〈N〉个，按〈指标〉」，一个开关打开它。
+  - **编辑器**：结果区「只保留…」旁多一颗「每组只留前几个…」（与「只保留…」同一种打开方式），按下成为一张卡片，读作一句话「每个〈维度〉只留前〈N〉个，按〈指标〉〈从高到低〉」，卡片上的 × 关掉它；新开的取第一个维度、第一个能排名次的指标、前 3 个。结果的读法那一行在「只保留」之后说出跑过的那一份。
   - **它在「只保留」之后、行数上限之前**：与 Wow 的求值次序一致（窗口 → having → 排序 → 上限）。合计行仍是全部记录（与「只保留」一样）。
-- **落点**：`src/model/analysis.ts`（`top`）、`src/analysis/compile.ts`、`src/analysis/validateTop.ts`、`src/ui/analysis/ResultSlot.tsx`、措辞与发现码；[kernels.md](kernels.md)、[model.md](model.md)、[ui/analysis.md](ui/analysis.md)。
+- **落点**：`src/model/analysis.ts`（`top`）、`src/analysis/top.ts`（编译与 `narrowsGroups`）、`src/analysis/compile.ts`、`src/analysis/validateTop.ts`、`src/react/useReshape.ts`（跟着走）、`src/ui/analysis/TopRow.tsx` 与 `ResultSlot.tsx`、措辞与发现码；[kernels.md](kernels.md)、[model.md](model.md)、[ui/analysis.md](ui/analysis.md)。
 
 ## 搁置待议
 

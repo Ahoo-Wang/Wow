@@ -26,6 +26,7 @@ import type {
   AnalysisElement,
   AnalysisGroup,
   AnalysisHavingExpression,
+  AnalysisTop,
   AnalysisMetric,
   AnalysisSort,
   AnalysisViewConfig,
@@ -161,6 +162,18 @@ export interface AnalysisEditorController extends QuestionEditing {
   stale: boolean;
   /** Whether 「只保留」 exists here: the capability declares `having`. */
   havingAllowed: boolean;
+  /**
+   * Whether 「每个〈维度〉只留前 N 个」 (D89) exists here: the source ranks
+   * (`windows` lists `RANK`) and keeps groups (`having`).
+   */
+  topAllowed: boolean;
+  /** The per-group top N the draft keeps, if any. */
+  top: AnalysisTop | undefined;
+  /**
+   * The per-group top N the rows on screen ran under, read like
+   * `ranHaving`: groups it left out are not groups without data.
+   */
+  ranTop: AnalysisTop | undefined;
   /** Whether a formula or a derived metric may be written: `expressions`. */
   expressionsAllowed: boolean;
   /**
@@ -494,6 +507,14 @@ export function useAnalysisEditor(
     windows: capability?.windows ?? NO_WINDOWS,
     stale: state ? autoApplyDue(state) || answeringAnew(state) : false,
     havingAllowed: capability?.having === true,
+    topAllowed:
+      capability?.having === true &&
+      (capability.windows ?? []).includes('RANK'),
+    top: config?.top,
+    ranTop:
+      state?.result?.config.kind === 'analysis'
+        ? state.result.config.top
+        : undefined,
     expressionsAllowed: capability?.expressions === true,
     havingMetrics: capability?.havingMetrics ?? null,
     firstLastOrderBy: capability?.firstLastOrderBy ?? null,

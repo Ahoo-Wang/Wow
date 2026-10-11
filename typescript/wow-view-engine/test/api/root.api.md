@@ -151,7 +151,7 @@ export function aliasOf(field: string, suffix: string): string;
 export const ALWAYS_VISIBLE: VisibilitySource;
 
 // @public
-export const ANALYSIS_AUTO_RUN_MEMBERS: readonly ["elements", "groups", "metrics", "having", "sort", "limit", "table"];
+export const ANALYSIS_AUTO_RUN_MEMBERS: readonly ["elements", "groups", "metrics", "having", "top", "sort", "limit", "table"];
 
 // @public
 export const ANALYSIS_DATE_DIFF_UNITS: readonly ["HOUR", "DAY", "MINUTE", "SECOND"];
@@ -469,6 +469,18 @@ export interface AnalysisTableSpec {
 }
 
 // @public
+export interface AnalysisTop {
+    // (undocumented)
+    count: number;
+    // (undocumented)
+    direction?: SortDirection;
+    // (undocumented)
+    metric: string;
+    // (undocumented)
+    within: string;
+}
+
+// @public
 export interface AnalysisViewConfig extends DataViewConfigBase {
     // (undocumented)
     chart: ChartSpec;
@@ -490,6 +502,8 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
     sort: AnalysisSort[];
     // (undocumented)
     table: AnalysisTableSpec;
+    // (undocumented)
+    top?: AnalysisTop;
 }
 
 // @public
