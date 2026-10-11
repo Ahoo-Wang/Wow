@@ -515,7 +515,12 @@ describe('DataWorkbench', () => {
           ],
         }),
       ),
-      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+      // Asked after October ended: the bucket reads as a month, not one
+      // still under way (`AnalysisColumnView.ongoing`).
+      environment: defaultRuntimeEnvironment({
+        timeZone: ZONE,
+        now: () => new Date('2026-12-01T00:00:00Z'),
+      }),
     });
 
     render(
