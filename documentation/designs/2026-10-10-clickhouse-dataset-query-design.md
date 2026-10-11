@@ -1,6 +1,6 @@
 # 数据集查询与 ClickHouse 后端设计
 
-日期：2026-10-10。状态：提议，§9 的决定已由用户确认（2026-10-10）；S0 原型已完成（2026-10-10，结论见 §11），S1 起未实施。
+日期：2026-10-10。状态：提议，§9 的决定已由用户确认（2026-10-10），Q5 于 S1 修订；S0 原型已完成（§11）；S1 实施中（Ahoo-Wang/Wow#4116）。
 
 基线：`main` `d48d915e5`。本文建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)（下称“查询架构”）之上，沿用它的原理编号 P1～P9 与设计名；wow-bi 的布局见 [wow-bi 重构设计](2026-10-09-wow-bi-refactor-design.md)。
 
@@ -37,7 +37,7 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 | 查询 AST（`AggregationQuery` 等） | TERMS、HISTOGRAM、DATE_HISTOGRAM、DATE_PART、dense、having、表达式、DERIVED、FIRST/LAST、PERCENTILE、DISTINCT_COUNT | 不变 |
 | `QueryModel` | 开放的值类型，代码已预留“没有 profile 的自定义模型” | 新增 `DATASET` |
 | `QueryModelProfile` | Snapshot 与 EventStream 两份，封闭 | 数据集的身份、时间与范围字段来自声明（§4.3） |
-| Catalog 的键 | `(NamedAggregate, QueryModel)` | **泛化为 `QueryTarget`**，唯一侵入核心的改动（§4.1） |
+| Catalog 的键 | `(NamedAggregate, QueryModel)` | 不变：数据集占用命名槽位，以 `DATASET` 模型区分（§4.1）；侵入核心的是 profile 随 schema 而定 |
 | `QueryBackend` 四个原语 | `stream`、`page`、`count`、`aggregate`，与存储无关 | ClickHouse 实现 |
 | `QueryStorageFacts` | `bindings`、`capabilities`、`approximateMetrics`、`StorageSupport` | ClickHouse 适配器从 `system.columns` 与声明推导 |
 | 准入、预算、脱敏、描述、错误目录 | 已有 | 不变 |
@@ -50,40 +50,36 @@ wow-bi 已经把每个聚合的命令、状态同步到 ClickHouse，数据分�
 
 ### 4.1 查询目标
 
-```kotlin
-sealed interface QueryTarget {
-    data class Aggregate(val namedAggregate: NamedAggregate, val model: QueryModel) : QueryTarget
-    data class Dataset(val name: String) : QueryTarget
-}
-```
+数据集与聚合一样**在限界上下文内命名**，并占用聚合的命名槽位：一个数据集由（上下文名, 数据集名）标识，复用 `NamedAggregate`，以新的 `QueryModel.DATASET` 与聚合的两个读模型区分（Q5，S1 修订）。
 
-- `QuerySchemaCatalog`、`QueryStorageLocator`、`QuerySchemaContext`、`AdmittedQuery` 改以 `QueryTarget` 为键。它们是 `@WowSpi` 或内部 API，改动在 `x.Y.0` 发布，不保留旧签名（`AGENTS.md`「Binary Compatibility」）。
-- `QueryGateway` 的十个冻结方法不变；新增 `DatasetQueryGateway`，方法与它对齐，以数据集名定位目标。
-- `QueryBackendProvider` 新增 `dataset: DatasetQueryBackendFactory?`，与 `snapshot`、`eventStream` 并列，按数据集名创建 `QueryBackendBinding`。
+- 网关、`QueryPolicy` 与 `QueryFilter` 读到的 `QueryContext.namedAggregate`、观测指标的标签、审计、游标令牌、Catalog 的键 `(NamedAggregate, QueryModel)` 都不变。这些是应用实现策略与观测时写的面，换成新的目标类型会让它们在源码上破坏。
+- **命名不冲突**：同一上下文里数据集不能与聚合同名，Catalog 构造时拒绝这一对。因此按聚合名生效的策略（例如 `ViewStoreQueryPolicy`）天然不作用于数据集。
+- `QueryGateway` 的十个冻结方法不变；新增 `DatasetQueryGateway`，记录是 `ObjectNode`，类型化方法与动态方法返回同样的记录。
+- `QueryBackendProvider` 新增 `dataset: DatasetQueryBackendFactory?`，工厂接收整个 `QueryDataset`，从它的 `storage` 读取存储绑定。
 - Catalog 的定期重校验（查询架构 §5.2）同样覆盖数据集：宽表由分析师在部署之外修改，正是需要重校验的典型。
 
 ### 4.2 声明：契约是代码，存储事实只做校验
 
-宽表由分析师掌控，对外契约必须随应用发布，与 view-engine“定义是代码”一致。声明文件放在 `META-INF/wow/dataset/{name}.json` 或 `config/wow/dataset/{name}.json`，与查询 schema 声明文件的位置约定相同：
+宽表由分析师掌控，对外契约必须随应用发布，与 view-engine“定义是代码”一致。声明文件放在 `META-INF/wow/dataset/{context}.{dataset}.json`，工作目录的 `config/wow/dataset/{context}.{dataset}.json` 整体替换它，与查询 schema 声明文件的位置约定相同。资源只能按名查找、不能扫描，所以服务提供哪些数据集由配置列出（S3）：
 
 ```json
 {
   "title": "订单宽表",
-  "table": "bi_db.order_customer_wide",
-  "deduplicate": "FINAL",
   "identity": "order_id",
   "eventTime": "updated_at",
   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
+  "storage": { "table": "bi_db.order_customer_wide", "deduplicate": "FINAL" },
   "fields": {
     "order_id": { "title": "订单号" },
     "status": { "enum": [{ "value": "PAID", "description": "已支付" }] },
     "amount": { "semantic": { "type": "MONEY", "currency": "CNY" } },
-    "customer_phone": { "sensitive": { "level": "CONFIDENTIAL" } }
+    "customer_phone": { "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 } }
   }
 }
 ```
 
-- `fields` 复用 `QueryFieldDeclaration` 的词汇；字段名就是列名，第一期只支持平铺列。
+- `fields` 复用 `QueryFieldDeclaration` 的词汇，另加只有数据集能写的 `sensitive`；字段名就是列名，第一期只支持平铺列。
+- `storage` 是查询后端自己的绑定（ClickHouse 的表与去重方式），核心不解释，原样交给后端。
 - **存储事实**由 `system.columns` 与 `system.tables` 读取：列类型、是否 `Nullable`、是否 `LowCardinality`、表引擎。
 - **一致性检查在编译时进行，失败即关闭**：声明的列不存在、类型族不符、`scope` 列不存在或可为 null、`identity` 可为 null、`deduplicate: FINAL` 用在不支持 `FINAL` 的引擎上，都会让编译失败；已发布的版本保留并告警（查询架构 §5.2）。
 - 没有在 `fields` 中出现的列**不暴露**。宽表新增列不会悄悄变成可查询字段。
@@ -102,7 +98,7 @@ sealed interface QueryTarget {
 ### 4.4 治理
 
 - **范围**：`scope.tenant` 必填，它就是 `requiredScope`。调用方范围（`QueryRequestScope`、CoSec）在准入第 2 步强制追加到这些列上，与 Snapshot 相同。“范围缺失时拒绝”开关对数据集同样生效。
-- **ABAC**：资源标签只存在于 Snapshot 的 `tags` 系统字段。宽表要参与 ABAC，必须在声明里把标签列绑定到 `scope.tags`（`Map(String, Array(String))`）；没有绑定、而主体又有标签时，按“资源缺少标签键”的现有语义处理，并由同一个开关收紧。
+- **ABAC**：资源标签只存在于 Snapshot 的 `tags` 系统字段，`AbacQueryPolicy` 只作用于 Snapshot，数据集与 EventStream 一样不受它限制（S1 的现状）。宽表要参与 ABAC，需要在声明里把标签列绑定到 `scope.tags`（`Map(String, Array(String))`），留待后续阶段。
 - **敏感等级**：这是对查询架构 §6.4“敏感等级只能以字段注解声明”的**显式例外**。宽表的列没有类型，也就没有注解可以继承，声明是唯一的来源，所以数据集声明可以写 `sensitive`（等级与遮挡方式）。由 wow-bi 展开计划生成的数据集（§7）自动继承源字段的等级，声明只能更严、不能更宽。
 - **注入**：标识符只来自编译后的绑定，加反引号引用；取值一律用 ClickHouse 服务端参数（`{p0:String}`）传入，不拼接。
 - **纵深防御**：使用只读账号（`readonly=2`，只允许改设置）。行策略可选，不作为安全边界，安全边界在准入。
@@ -205,7 +201,7 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 | Q2 | 数据集声明放在哪里 | 随应用发布的声明文件；不支持运行时登记（用户 2026-10-10 确认） |
 | Q3 | 数据集声明能否写敏感等级 | 能，作为查询架构 §6.4 的显式例外；由 BI 生成的数据集自动继承，且只能更严（用户 2026-10-10 确认） |
 | Q4 | DISTINCT_COUNT 与 PERCENTILE 用精确还是近似 | 规范不变：DISTINCT_COUNT 是精确的去重个数，用 `uniqExact`；PERCENTILE 近似，用 `quantileTDigest`，经已有的 `approximateMetrics` 写进描述，与 MongoDB（`$percentile` 的 approximate 方法）和 Elasticsearch（TDigest）一致 |
-| Q5 | 核心改动方式 | 引入 `QueryTarget`，不用“伪聚合”冒充数据集；伪聚合只用于不合并的原型（§10 S0） |
+| Q5 | 核心改动方式 | **修订（用户 2026-10-10 确认）**：数据集按（上下文名, 数据集名）复用 `NamedAggregate` 槽位，以 `QueryModel.DATASET` 与每个数据集自己的 profile 区分，与聚合同名时启动失败（§4.1）。原决定是引入 `QueryTarget` 取代 `NamedAggregate`；S1 发现 `QueryContext.namedAggregate` 是应用策略读取的面，替换会造成源码破坏、改动面翻倍。原先反对“伪聚合”的理由（默认 aggregate_id 范围、profile 查找、路由）由独立的模型与 profile 解决 |
 
 ## 10. 实施阶段
 
@@ -214,7 +210,7 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 | 阶段 | 内容 | 证明 |
 |---|---|---|
 | **S0 原型**（已完成） | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张宽表上翻译过滤、聚合与分页，并生成能力描述 | §11；不合并 |
-| **S1 核心** | `QueryTarget`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；数据集 profile；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
+| **S1 核心**（实施中） | `QueryModel.DATASET` 与数据集 profile；`QueryModelSchema.profile`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
 | **S2 后端** | `wow-clickhouse`：存储适配器、四个原语、预算映射、取消 | TCK `contractTest` + Testcontainers `integrationTest` |
 | **S3 接入** | starter `clickhouse-support`；HTTP 路由与 describe；OpenAPI；wow-client `DatasetQueryApi`；view-engine 示例；中英文用户文档 | 路由契约测试（入口为 `HTTP`）、OpenAPI 快照、typescript-contract |
 | **S4 BI 联动** | 由 wow-bi 展开计划生成数据集声明，继承敏感等级 | wow-bi golden + 集成测试 |
