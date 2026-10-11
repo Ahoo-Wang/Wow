@@ -12,12 +12,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  CheckIcon,
-  CopyIcon,
-  RotateCcwIcon,
-  SaveIcon,
-} from 'lucide-react';
+import { CheckIcon, CopyIcon, RotateCcwIcon, SaveIcon } from 'lucide-react';
 import type { SaveCommands } from '../../react/index.js';
 import { unsettled } from '../../react/writes.js';
 import { cn } from 'cn';
