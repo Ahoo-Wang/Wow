@@ -121,16 +121,16 @@ class LogicalQuerySchema(
 
     fun value(path: QueryPathTemplate): QueryValueSchema? = values[path] ?: mergeQueryValues(root.lookup(path))
 
-    /**
-     * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
-     * starts with (`state.oldName.city` → `state.newName.city`).
-     */
     /** The canonical form of [field], which is relative to [parent] (an absolute canonical field) when given. */
     internal fun canonical(field: QueryField, parent: QueryField?): QueryField {
         if (parent == null) return canonical(field)
         return canonical(parent.append(field)).relativeTo(parent) ?: field
     }
 
+    /**
+     * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
+     * starts with (`state.oldName.city` → `state.newName.city`).
+     */
     fun canonical(field: QueryField): QueryField {
         if (aliases.isEmpty()) return field
         aliases[field]?.let { return it }

@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.query
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.filter.QueryType
+import reactor.core.Exceptions
 
 interface QueryObserver {
     fun onComplete(namedAggregate: NamedAggregate, queryType: QueryType) = Unit
@@ -27,4 +29,21 @@ interface QueryObserver {
 
     /** One [QueryAudit] per subscription, at its terminal signal. */
     fun onAudit(audit: QueryAudit) = Unit
+}
+
+private val log = KotlinLogging.logger { }
+
+/**
+ * Runs [callback] on this observer so that its failure, any non-fatal [Throwable] (an [AssertionError] or a Kotlin
+ * [NotImplementedError] included), is logged and goes no further: an observer never fails the query or stops another
+ * observer.
+ */
+@Suppress("TooGenericExceptionCaught")
+internal fun QueryObserver.isolated(callback: QueryObserver.() -> Unit) {
+    try {
+        callback()
+    } catch (failure: Throwable) {
+        Exceptions.throwIfFatal(failure)
+        log.error(failure) { "Query observer [${javaClass.name}] failed." }
+    }
 }

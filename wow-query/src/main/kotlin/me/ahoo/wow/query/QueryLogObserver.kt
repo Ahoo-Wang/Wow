@@ -13,13 +13,15 @@
 package me.ahoo.wow.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
 /**
  * Logs every failed query by who must act on it:
- * - a rejection the caller can fix (an error-catalog violation, a missing authenticated scope) at DEBUG, by its
+ * - a rejection the caller can fix (an error-catalog violation, a missing caller scope) at DEBUG, by its
  *   message alone: it is the client's error, answered 4xx, and logging it louder lets callers flood the log;
  * - a server fault the core states ([QueryExecutionException]) at ERROR, by its message and its cause chain with
  *   every message redacted: a cause can hold record values (a failing mask strategy sees the raw value, a storage
@@ -32,11 +34,11 @@ class QueryLogObserver : QueryObserver {
     }
 
     override fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) {
-        when (error) {
-            is QuerySchemaValidationException, is QueryRequestException, is QueryScopeRequiredException ->
+        when {
+            error is QuerySchemaValidationException || error is QueryRequestException || error.isMissingScope() ->
                 log.debug { "Query [$namedAggregate/$queryType] rejected: ${error.message}" }
 
-            is QueryExecutionException -> {
+            error is QueryExecutionException -> {
                 val cause = error.cause
                 if (cause == null) log.error { error.message } else log.error(cause.redacted()) { error.message }
             }
@@ -44,6 +46,13 @@ class QueryLogObserver : QueryObserver {
         }
     }
 }
+
+/**
+ * A missing caller scope, whichever component rejected it ([QueryScopeRequiredException], an ABAC policy that requires
+ * principal tags): answered 403, so it is the caller's to fix.
+ */
+private fun Throwable.isMissingScope(): Boolean =
+    this is ErrorInfo && errorCode == ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE
 
 /** A message-free copy of a cause: its class name and stack trace, the same for its own causes. */
 internal fun Throwable.redacted(depth: Int = 0): Throwable = RedactedCause(javaClass.name).also { copy ->

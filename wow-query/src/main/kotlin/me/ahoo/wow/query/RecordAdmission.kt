@@ -43,10 +43,9 @@ import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
-import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.query.schema.jsonValue
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
-import tools.jackson.databind.node.POJONode
 import java.math.BigDecimal
 
 /** Masks [record], a record of this schema's model, by the schema's response masks, in place. */
@@ -109,11 +108,11 @@ internal class RecordFilter(private val filter: FilterExpression) {
 
     /** The comparisons of a field's values with operands. */
     private fun FilterExpression.admitsByValue(record: ObjectNode): Boolean? = when (this) {
-        is EqualFilter -> record.values(field).any { it.matches(value.canonical()) }
-        is NotEqualFilter -> record.values(field).none { it.matches(value.canonical()) }
-        is InFilter -> values.map { it.canonical() }
+        is EqualFilter -> record.values(field).any { it.matches(value.jsonValue()) }
+        is NotEqualFilter -> record.values(field).none { it.matches(value.jsonValue()) }
+        is InFilter -> values.map { it.jsonValue() }
             .let { operands -> record.values(field).any { it.matchesAny(operands) } }
-        is NotInFilter -> values.map { it.canonical() }
+        is NotInFilter -> values.map { it.jsonValue() }
             .let { operands -> record.values(field).none { it.matchesAny(operands) } }
         else -> null
     }
@@ -145,9 +144,6 @@ internal class RecordFilter(private val filter: FilterExpression) {
     /** The exact value of a number; `null` for a non-finite floating-point value. */
     private fun JsonNode.decimalOrNull(): BigDecimal? =
         if (isFloatingPointNumber && !doubleValue().isFinite()) null else decimalValue()
-
-    /** A value a caller wrapped as a Java object (an enum, a value class), as the JSON it serializes to. */
-    private fun JsonNode.canonical(): JsonNode = if (this is POJONode) JsonSerializer.valueToTree(pojo) else this
 
     private fun ObjectNode.text(name: String): String? = get(name)?.takeIf { it.isString }?.stringValue()
 

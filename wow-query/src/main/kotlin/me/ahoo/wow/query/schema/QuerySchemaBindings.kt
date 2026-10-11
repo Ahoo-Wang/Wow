@@ -14,7 +14,6 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCapability
 
 /** Indexed native facts; a named key is more specific than a map default. */
 internal class QueryBindingIndex(bindings: Map<QueryPathTemplate, QueryValueBindings>) {
@@ -73,27 +72,5 @@ internal class QueryBindingIndex(bindings: Map<QueryPathTemplate, QueryValueBind
 
 fun absoluteLogicalField(field: QueryField, parent: QueryField?): QueryField = parent?.append(field) ?: field
 
-/**
- * The physical field [field] is bound to for [capability], for tests that inspect a schema. Backends never call this:
- * admission resolves every reference once and hands them [me.ahoo.wow.query.ResolvedField]s.
- */
-internal fun QueryModelSchema.physicalField(
-    field: QueryField,
-    capability: QueryCapability,
-    logicalParent: QueryField? = null,
-): QueryField {
-    val logical = absoluteLogicalField(field, logicalParent)
-    val definition = this.field(logical) ?: throw QueryViolation.UnknownField(logical).rejection()
-    val ancestors = definition.elementAncestors
-    requireValid(ancestors != null && ancestors == requiredElementAncestors(logicalParent)) {
-        QueryViolation.ElementScopeRequired(logical)
-    }
-    return definition.binding(capability)?.physicalField
-        ?: throw QueryViolation.UnsupportedCapability(logical, setOf(capability)).rejection()
-}
-
 fun QueryModelSchema.projectionField(field: QueryField): QueryField =
     this.field(field)?.projectionField ?: throw QueryViolation.NotProjectable(field).rejection()
-
-private fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
-    if (parent == null) emptyList() else field(parent)?.elementAncestors?.plus(parent)
