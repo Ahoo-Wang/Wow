@@ -20,5 +20,9 @@ export type { GeneratorErrorKind } from './api/errors';
 export { EXIT_CODES, GeneratorError } from './api/errors';
 export type { ConsoleLoggerOptions, LogLevel, Logger } from './api/logger';
 export { ConsoleLogger, SilentLogger } from './api/logger';
-export type { GenerationResult, GeneratorOptions } from './api/options';
+export type {
+  GenerationResult,
+  GeneratorOptions,
+  SchemaDocs,
+} from './api/options';
 export { CodeGenerator } from './pipeline/codeGenerator';
