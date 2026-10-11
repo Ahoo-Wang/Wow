@@ -32,7 +32,6 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 - **「指定日期」切换时自动打开日历；看板筛选条吸顶**（R2-41 余项）：#3849 已做「指定日期」预填当前生效日、选一天即关上日历并把焦点交回日期按钮。没做的两点按 #3849 的理由：预填之后看板不再等日期，自动打开不再必要；吸顶是超出本项的布局改动。判据：真人走查（D73）或宿主反馈仍有「多一步」「选完看不到筛选条」时再做；做时切到「指定日期」即打开日历，筛选条滚动时吸顶，在 390 宽与键盘下不遮住面板与焦点。落点：[ui/dashboard.md](ui/dashboard.md)、`src/ui/dashboard/FilterBar.tsx`、`src/ui/filter/inputs/date.tsx`。
 - **工作台的「放进仪表盘…」「设为共享」「复制链接」；看板的日期与筛选进地址**（R2-98）：「更多视图操作」只有「另存为」，分析师要绕到看板编辑态再找视图；看板筛选在 history state（`src/ui/workbench/address.ts`），运营不能把某一天的日报作为链接发出去。推迟：P3，有替代路径。判据：标题栏菜单有这三项；宿主选项打开时看板的筛选序列化进查询串，链接打开得到同一份筛选。落点：`src/ui/workbench/`、[host-integration.md](host-integration.md) 4.2。
 - **视觉的 P3**（R2-101，外观问题，不影响读数）：图表卡顶部留白、轴标题方向不一致；无数据或无迷你图的指标卡留大块空白；单数值分析视图偏左；雷达等极坐标图在 390 宽截断轴名；演示应用两种涨跌色约定并存；打印保留了交互控件。判据：逐条修掉，截图基线随之更新。落点：`src/ui/charts/`、`src/ui/dashboard/`、[ui/theme.md](ui/theme.md#打印与强制颜色)、Storybook 演示应用。
-- **测试覆盖的缺口**（R2-103，不是已知错误，是回归的探测缺口；地址的失败分支、控制台覆盖率阈值与 Playwright 重试、日期编辑器的偏移时刻与时区计算的收拢已补）：conformance 未覆盖的端口行为；控制台 e2e 不触发存储失败与 409。判据：各缺口有用例。落点：`test/conformance/viewStoreConformance.ts`、`compensation/dashboard/e2e/support/viewStoreService.ts`。
 
 ### Wow 服务端（Kotlin）
 
