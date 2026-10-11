@@ -1,6 +1,6 @@
 # 数据集查询与 ClickHouse 后端设计
 
-日期：2026-10-10。状态：提议，§9 的决定已由用户确认（2026-10-10），未实施。
+日期：2026-10-10。状态：提议，§9 的决定已由用户确认（2026-10-10）；S0 原型已完成（2026-10-10，结论见 §11），S1 起未实施。
 
 基线：`main` `d48d915e5`。本文建立在[查询子系统目标架构](2026-09-24-query-target-architecture-design.md)（下称“查询架构”）之上，沿用它的原理编号 P1～P9 与设计名；wow-bi 的布局见 [wow-bi 重构设计](2026-10-09-wow-bi-refactor-design.md)。
 
@@ -128,7 +128,7 @@ sealed interface QueryTarget {
 | `Nullable(T)` | 同 T | 另授予 PRESENCE |
 | `Array(T)` | T，`MANY` | 第一期只授予 EXACT_MATCH（`has`）；ELEMENT_SCOPE 不授予 |
 
-- **null 与缺省值**：非 `Nullable` 的列用类型缺省值代替 null，无法区分“缺失”与“空值”，所以不授予 PRESENCE，EQ/NE 取 null 时由准入拒绝（查询架构 §5.2“随取值变化的能力”）。不采用 `AbsentValues.AS_MISSING`：那会把 `0` 与 `''` 当作缺失，结果是错的。
+- **null 与缺省值**：非 `Nullable` 的列用类型缺省值代替 null，无法区分“缺失”与“空值”，所以不授予 PRESENCE，EQ/NE 取 null 时由准入拒绝（查询架构 §5.2“随取值变化的能力”），绝不把 `0` 与 `''` 当作缺失。`Nullable` 列上 NULL 是表里唯一的“缺失”，所以声明 `AbsentValues.AS_MISSING`：EXISTS 即 `isNotNull`，NOT_EXISTS 即 `isNull`。
 - **CURSOR_SORT**：只授予非 `Nullable` 的单值列。
 - **全文检索**：不授予 FULL_TEXT_*，描述里没有 search 字段。
 - `approximateMetrics = {PERCENTILE}`，DISTINCT_COUNT 精确计算（§5.3）。
@@ -144,7 +144,7 @@ sealed interface QueryTarget {
 | DATE_HISTOGRAM | `toStartOfInterval(toTimeZone(t, tz), INTERVAL 1 unit)`；WEEK 按 ISO 周一 |
 | DATE_PART | `toDayOfWeek`、`toDayOfMonth`、`toHour`、`toMonth`（先 `toTimeZone`） |
 | dense | `ORDER BY … WITH FILL FROM … TO … STEP …`，窗口为首个实际桶到末个实际桶，与规范一致 |
-| COUNT / NUMERIC | `count()`；`sum`、`avg`、`min`、`max`、`stddevPop`、`varPop`，空集返回 null 时用 `*OrNull` 组合子 |
+| COUNT / NUMERIC | `count()`；`sum`、`avg`、`min`、`max`、`stddevPop`、`varPop`，空集返回 null 时用 `*OrNull` 组合子。单个标量 FIELD 按原生类型聚合（`Decimal` 求和不丢精度，规范要求），其他表达式按 `Float64` 计算 |
 | DISTINCT_COUNT | `uniqExact`，空集为 0 |
 | PERCENTILE | `quantileTDigest(p)`，列入 `approximateMetrics` |
 | ANY | `any` |
@@ -156,6 +156,10 @@ sealed interface QueryTarget {
 | 去重 | `deduplicate: FINAL` 时加 `FINAL`，描述中标明最终一致 |
 
 规范与 ClickHouse 不一致的地方，由翻译负责对齐，不改规范：除零为 null（`nullIf`）、派生指标的 null 传播、`having` 的 null 判假、IEEE double 比较。
+
+**别名隔离**：ClickHouse 先解析别名、再解析列名，指标别名与列同名（`sum(amount) AS amount`）时会劫持 `WHERE` 与其他指标中的同名列。聚合因此分两层：内层用内部别名（`__g0`、`__m0`）分组与聚合，外层改名为调用方别名、计算派生指标、排序与 limit。
+
+**NE 与 NOT_IN 遇到 NULL**：规范把 null 语义交给后端原生行为（`filter-expression.md`）。ClickHouse 后端与 MongoDB 一致，NE、NOT_IN 也匹配 NULL；S2 的 TCK 把这一选择固定下来。
 
 ### 5.4 执行合同
 
@@ -209,9 +213,38 @@ wow-bi 的状态展开计划已经知道每个展开列的来源路径、类型�
 
 | 阶段 | 内容 | 证明 |
 |---|---|---|
-| **S0 原型** | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张真实宽表上翻译过滤与聚合，用 view-engine Analysis 端到端跑通 | 价值、延迟、语义差异清单；不合并 |
+| **S0 原型**（已完成） | 用伪聚合（`contextName = "bi"`、`aggregateName = <dataset>`，`QueryModel("DATASET")`）在一张宽表上翻译过滤、聚合与分页，并生成能力描述 | §11；不合并 |
 | **S1 核心** | `QueryTarget`；`DatasetQueryGateway`；`QueryBackendProvider.dataset`；声明格式与加载；数据集 profile；敏感等级例外 | wow-query 单测；ABI dump 的 `-` 行进 `x.Y.0` 的 `## Breaking` |
 | **S2 后端** | `wow-clickhouse`：存储适配器、四个原语、预算映射、取消 | TCK `contractTest` + Testcontainers `integrationTest` |
 | **S3 接入** | starter `clickhouse-support`；HTTP 路由与 describe；OpenAPI；wow-client `DatasetQueryApi`；view-engine 示例；中英文用户文档 | 路由契约测试（入口为 `HTTP`）、OpenAPI 快照、typescript-contract |
 | **S4 BI 联动** | 由 wow-bi 展开计划生成数据集声明，继承敏感等级 | wow-bi golden + 集成测试 |
 | 后续 | 协议演进：同比、环比、占比、累计、组内 TopN | 规范定义一次；各后端经 `StorageSupport` 声明 NATIVE、RESIDUAL 或 NONE，ClickHouse 先做 NATIVE |
+
+## 11. S0 原型结论
+
+代码在分支 `claude/clickhouse-dataset-spike`（`6891d8f22`），不合并：`wow-clickhouse` 模块与集成测试 `ClickHouseDatasetQueryIntegrationTest`（Testcontainers `clickhouse-server:24.8.14.39-alpine`），用一张订单 × 客户宽表（13 列，`MergeTree`）经未改动的准入（`QueryAdmission.Trusted`）、残余算子与能力描述执行查询，并与手写 SQL 逐项比对。
+
+**能做到的**，7 项测试全部通过：
+
+- 聚合：TERMS、DATE_HISTOGRAM（`Asia/Shanghai` 按当地月初取键）、DATE_PART、COUNT、SUM、AVG、DISTINCT_COUNT、PERCENTILE、DERIVED、ANY、FIRST、指标过滤，结果与手写 SQL 一致；
+- HAVING 与 dense 声明为 RESIDUAL，由核心计算，后端不需要实现；
+- 空输入的汇总行符合规范的空集语义（COUNT、DISTINCT_COUNT 为 0，其余为 null）；
+- 分页：过滤、忽略大小写的 STARTS_WITH、投影、排序、总数；
+- 非 `Nullable` 列上的 IS_NULL 在任何 I/O 之前被准入以 `does not support [PRESENCE]` 拒绝；
+- 能力描述可以生成，字段、算子、分组与指标能力随列类型变化，PERCENTILE 列为 `approximate`。
+
+**延迟**：本地 Docker 单节点，每项取 10 次的中位数，只作量级参考，不是基准结论。
+
+| 查询 | 100 万行：Wow / 手写 SQL | 1000 万行：Wow / 手写 SQL |
+|---|---|---|
+| TERMS + COUNT/SUM/DISTINCT/P95/DERIVED，top 3 | 23 ms / 23 ms | 259 ms / 369 ms |
+| 按月 DATE_HISTOGRAM + 指标过滤 | 15 ms / 16 ms | 176 ms / 191 ms |
+
+Wow 路径（准入、翻译、JSON 解码、核心校验）的额外开销落在测量噪声内，成本由 ClickHouse 的扫描决定。
+
+**对后续阶段的影响**：
+
+1. **核心只有两处假设挡住自定义模型**，都在 S1 的范围内：`SystemQuerySchemaSource` 对没有 profile 的模型直接拒绝；`QuerySchemaMerger` 要求扩展字段位于 `state.` 或 `body.` 之下。原型各用一行绕过，`:wow-query:test` 的 7408 项测试中只有断言“拒绝自定义模型”的那一项失败。S1 让数据集 profile 提供系统字段与字段根。
+2. **能力描述的 `record.identity` 为空字符串**：view-engine 的 Record 以 `rowKey` 为每行身份，所以数据集要用于明细视图就必须声明 `identity`（§4.3），describe 也要输出它。
+3. 翻译规则补进 §5.2、§5.3：数值字段原生聚合、别名隔离、`Nullable` 列的 `AS_MISSING`、NE/NOT_IN 遇到 NULL 的行为。
+4. **未覆盖**：HTTP 路由与 view-engine 的端到端（S3）、游标分页（需要 `identity`）、取消与预算设置的验证（S2）、`FINAL` 去重（S2）。
