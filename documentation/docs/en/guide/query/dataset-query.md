@@ -154,7 +154,26 @@ async function registerDataset(
 }
 ```
 
-A host reads the `GET /dataset` directory and registers each dataset. Registering one again replaces it whole; views already open keep the definition they opened on until reopened. Opening a saved view of a dataset not registered yet reports the definition as not found.
+Registering a dataset again replaces it whole; views already open keep the definition they opened on until reopened, and `engine.unregister(id)` removes one. Opening a saved view of a dataset not registered yet reports the definition as not found.
+
+`DatasetResources` does this for a host: it reads the directory (`DatasetDirectoryClient`), registers, registers again and removes by version, and answers the datasets served. The host binds a route to each, so they appear in its navigation, and opening one is how a reader starts analysing it:
+
+```typescript
+import { DatasetDirectoryClient, DatasetQueryClient } from '@ahoo-wang/wow-client';
+import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { bind, type ViewBinding } from '@ahoo-wang/wow-view-engine/ui';
+
+async function datasetBindings(engine: ViewEngine): Promise<ViewBinding[]> {
+  const directory = new DatasetDirectoryClient();
+  const datasets = new DatasetResources(engine, {
+    list: () => directory.list(),
+    source: entry =>
+      new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  });
+  const served = await datasets.refresh();
+  return served.map(({ id }) => bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }));
+}
+```
 
 ## In-Process Queries
 

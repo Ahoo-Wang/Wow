@@ -294,6 +294,7 @@ src/
     cache.ts                  — `DescriptorCache`: one descriptor per source, read once and waited for, checked again past `DESCRIPTOR_MAX_AGE_MS` with the version held, one read in flight per source
     index.ts                  — The capabilities layer
   runtime/                    — Stateful layer; never imports react or ui
+    datasetResources.ts       — `DatasetResources` (D85): an engine's datasets kept in step with a service's directory — registered, registered again on a new version, removed when no longer listed
     dashboardRuntime.ts       — `DashboardViewRuntime`: the parts in `dashboard/` assembled over one `RuntimeStore` and one clock — admission, the state and the timer wired, and `sync`, which lines the references, the child runtimes and what the filters hold up with the config; only the tab on screen runs (`showTab`)
     definitions.ts            — The definition registry: judged once, refused at the point of use
     capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source; who runs on a source, told when its descriptor changes (`watch`)

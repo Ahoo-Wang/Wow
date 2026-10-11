@@ -238,7 +238,7 @@ export class ViewEngine extends EngineResources {
       (found, resource) => this.report(found, resource),
     );
     this.registered = this.registry.definitions;
-    this.keepDefinitionsIn(definition => this.registry.register(definition));
+    this.keepDefinitionsIn(this.registry);
     this.writes = new InstanceWrites({
       locate: (id, action) => this.locate(id, action),
       store: this.store,

@@ -13,3 +13,4 @@
 
 export * from './datasetQueryApi.js';
 export * from './datasetQueryClient.js';
+export * from './datasetDirectoryClient.js';

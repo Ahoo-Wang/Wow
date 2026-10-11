@@ -154,7 +154,26 @@ async function registerDataset(
 }
 ```
 
-宿主读 `GET /dataset` 目录，逐个登记即可；同一个数据集再登记一次会整份替换，已经打开的视图用旧定义直到重开。已存的视图引用一个还没登记的数据集时，打开会报「定义不存在」。
+同一个数据集再登记一次会整份替换，已经打开的视图用旧定义直到重开；`engine.unregister(id)` 移除一个。已存的视图引用一个还没登记的数据集时，打开会报「定义不存在」。
+
+`DatasetResources` 替宿主做完这些：它读目录（`DatasetDirectoryClient`），按版本登记、再登记、移除，并答出当前提供着的数据集。宿主为每个生成一个绑定，导航里就出现它们，打开一个就是开始分析它：
+
+```typescript
+import { DatasetDirectoryClient, DatasetQueryClient } from '@ahoo-wang/wow-client';
+import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { bind, type ViewBinding } from '@ahoo-wang/wow-view-engine/ui';
+
+async function datasetBindings(engine: ViewEngine): Promise<ViewBinding[]> {
+  const directory = new DatasetDirectoryClient();
+  const datasets = new DatasetResources(engine, {
+    list: () => directory.list(),
+    source: entry =>
+      new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  });
+  const served = await datasets.refresh();
+  return served.map(({ id }) => bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }));
+}
+```
 
 ## 进程内查询
 

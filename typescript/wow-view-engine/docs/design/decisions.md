@@ -947,6 +947,16 @@
   - **不在这一批**：措辞覆盖（存视图存储，只能收窄与改词）、选数据集新建视图的入口（宿主的数据集选择器）、下线的数据集从引擎移除。
 - **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/definitions.ts`（`DefinitionRegistry.register`）、`src/runtime/resources.ts`（`EngineResources.register`，`ViewEngine` 继承）、`src/runtime/capabilities.ts`（收窄缓存认定义对象）；[host-integration.md 3.2](host-integration.md)。
 
+## D85 数据集跟着目录登记与移除；选数据集就是打开它（2026-10-11）
+
+- **来由**：D84 让宿主能在运行时登记数据集，但每个宿主都要自己读目录、比版本、登记、移除，还要另做一个选数据集新建视图的入口。
+- **裁定**（用户 2026-10-11 授权按推荐推进）：
+  - **`engine.unregister(id)`**：移除一份资源；它的数据源只在没有别的定义再读时一并移除。已经打开的视图照常，再打开报 `view.definition.not-found`。
+  - **`DatasetResources(engine, catalog, onError?)`**：`catalog` 是 `{ list, source }`——目录（wow-client 的 `DatasetDirectoryClient`）与每个数据集的数据源（`DatasetQueryClient`）。`refresh` 按目录的 `version` 登记、再登记、移除；描述不出来的数据集交给 `onError`，保持原样；宿主在代码里或自己登记过同 id 的定义，它不碰。
+  - **不另做选择器**：绑定本来就是宿主给的数组，宿主为 `refresh` 答出的每个数据集生成 `bind(id, { route })`，导航（`useViewNavigation`）就列出它们；打开一个数据集落在它的缺省视图上，读者从那里另存、建分析。这比在引擎里加一种「按模式绑定」少一个概念。
+  - **什么时候 `refresh` 由宿主定**：启动时一次、之后定时或在导航打开时；引擎不自己轮询。
+- **落点**：`src/runtime/resources.ts`（`unregister`）、`src/runtime/definitions.ts`、`src/runtime/datasetResources.ts`；wow-client `DatasetDirectoryClient`；[host-integration.md 3.2](host-integration.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
