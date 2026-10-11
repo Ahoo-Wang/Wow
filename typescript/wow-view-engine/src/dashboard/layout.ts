@@ -100,7 +100,7 @@ export function inRows(
       panels.push({
         ...panel,
         layout: { x, y, ...panel.layout },
-      } as DashboardPanel);
+      });
       x += panel.layout.w;
       height = Math.max(height, panel.layout.h);
     }
