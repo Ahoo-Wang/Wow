@@ -225,6 +225,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'API Client', link: 'command/api-client'},
                 {text: 'Completion Semantics', link: 'command/completion'},
                 {text: 'Failures and Idempotency', link: 'command/reliability'},
+                {text: 'Prepare Key', link: 'advanced/prepare-key'},
                 {
                     text: 'How It Works',
                     collapsed: true,
@@ -300,7 +301,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Test Suite', link: 'test-suite'},
                 {text: 'Application Testing', link: 'application-testing'},
-                {text: 'Framework Tests and Benchmarks', link: 'test-runtime'},
             ],
         },
         {
@@ -312,6 +312,8 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'BI Deployment and Recovery', link: 'bi-operations'},
                 {text: 'Production Best Practices', link: 'best-practices'},
                 {text: 'Backup, Restore, and Replay', link: 'recovery'},
+                {text: 'Observability', link: 'advanced/observability'},
+                {text: 'Metrics', link: 'advanced/metrics'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {
                     text: 'Migration Guide',
@@ -320,6 +322,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                     items: [
                         {text: 'Traditional Architecture', link: 'migration/traditional-architecture'},
                         {text: 'Migrate Wow v6 to v8', link: 'migration/v6-to-v8'},
+                        {text: 'V9 Query Migration', link: 'query/v9-query-migration'},
                         {text: 'Runtime Orchestration', link: 'migration/runtime-orchestration'},
                         {text: 'TypeScript Packages from Fetcher', link: 'typescript/migration'},
                     ],
@@ -355,14 +358,21 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Serialization', link: 'serialization'},
                 {text: 'Data Flow', link: 'data-flow'},
                 {text: 'Module Dependencies', link: 'module-dependencies'},
-                {text: 'Documentation Governance', link: 'documentation-governance'},
                 {text: 'ID Generator', link: 'id-generator'},
                 {text: 'Compiler', link: 'compiler'},
-                {text: 'Prepare Key', link: 'prepare-key'},
                 {text: 'JSON Schema', link: 'schema'},
-                {text: 'Metrics', link: 'metrics'},
-                {text: 'Observability', link: 'observability'},
                 {text: 'Keyed Executor', link: 'keyed-executor'},
+            ],
+        },
+        {
+            // Pages for people who change Wow itself, not for applications built on it.
+            base: '/guide/',
+            text: 'Contributing to Wow',
+            collapsed: true,
+            items: [
+                {text: 'Contributor Guide', link: '/onboarding/contributor-guide'},
+                {text: 'Framework Tests and Benchmarks', link: 'test-runtime'},
+                {text: 'Documentation Governance', link: 'advanced/documentation-governance'},
             ],
         },
     ],

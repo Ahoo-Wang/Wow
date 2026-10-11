@@ -19,11 +19,14 @@ A green local build can close the source gate. It does not close the other four.
 
 ## Choose a Migration Path
 
+<!-- One row per "Upgrading from x.y" section below: add it with the section. -->
 | Current system | Primary path | Why |
 |---|---|---|
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow 9.7.x | [Upgrading from 9.7 to 9.8.0](#upgrading-from-9-7-to-9-8-0) | Recompile: classes move out of `wow-core`'s `messaging` package into their domain packages, `infra.batch` becomes `me.ahoo.wow.batch`, and the metric decorators move to `me.ahoo.wow.metrics.decorator`; integrations that build `QuerySchemaCatalog` or subclass `QueryGatewayRegistrar` themselves need changes |
+| Wow 9.6.x | [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0) | Only code that uses `wow-webflux` internals or the removed deprecated helpers needs changes; routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes share one cluster |
 | Wow 9.5.x | [Upgrading from 9.5 to 9.6.0](#upgrading-from-9-5-to-9-6-0) | `wow-openapi` route contracts become pure data: the OpenAPI document is unchanged; recompile, and update custom `RouteContributor`s and callers of `mergeOpenAPIFromCatalog` |
 | Wow 9.4.x | [Upgrading from 9.4 to 9.5.0](#upgrading-from-9-4-to-9-5-0) | `wow-schema` is refactored: generated schemas are unchanged; recompile, move `OpenAPISchemaBuilder` imports to `me.ahoo.wow.openapi.schema` (in `wow-openapi`), drop the removed `SchemaGeneratorBuilder` members, and replace any use of the now-internal schema providers and checks |
 | Wow 9.3.x | [Upgrading from 9.3 to 9.4.0](#upgrading-from-9-3-to-9-4-0) | Only `wow-bi` changes: rebuild each BI deployment once with a confirmed `RESET`, and move Kotlin callers of the removed `wow-bi` API to `BiScriptService` or `generate(prepare(…))`; REST, storage and wire formats of everything else are unchanged |
