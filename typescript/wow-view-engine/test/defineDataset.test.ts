@@ -107,4 +107,34 @@ describe('defineDataset', () => {
     expect(definition.record?.paging).toBe('cursor');
     expect(definition.recordNoun).toBeUndefined();
   });
+
+  it("takes the host's words over the fields: labels, order, narrowing and hiding, never a column it lacks", () => {
+    const definition = defineDataset(dataset(), {
+      id: 'analytics.order_wide',
+      source: 'analytics.order_wide',
+      title: 'Orders',
+      fields: {
+        amount: 'Revenue',
+        city: { sortable: false },
+        phone: false,
+        dropped: 'A column the dataset no longer has',
+      },
+    });
+    expect(definition.fields.map(field => field.name)).toEqual([
+      'amount',
+      'city',
+      'order_id',
+      'tenant_id',
+      'updated_at',
+      'depts',
+    ]);
+    const label = (name: string) =>
+      definition.fields.find(field => field.name === name)?.label;
+    expect(label('amount')).toBe('Revenue');
+    // A narrowing without a label keeps the derived one.
+    expect(label('city')).toBe('City');
+    expect(
+      definition.described?.findings.filter(f => f.severity === 'error'),
+    ).toEqual([]);
+  });
 });

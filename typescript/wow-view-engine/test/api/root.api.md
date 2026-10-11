@@ -1417,8 +1417,12 @@ export interface DataPanelSource {
 // @public
 export interface DatasetCatalog {
     list(): Promise<readonly DatasetDirectoryEntry[]>;
+    overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
     source(entry: DatasetDirectoryEntry): ViewSource;
 }
+
+// @public
+export type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
 
 // @public
 export interface DatasetRegistrar {
@@ -1594,6 +1598,7 @@ export function defineDataset(descriptor: QueryModelDescriptor, spec: DefineData
 
 // @public
 export interface DefineDatasetSpec {
+    fields?: Readonly<Record<string, FieldSpec | string | false>>;
     // (undocumented)
     id: string;
     // (undocumented)

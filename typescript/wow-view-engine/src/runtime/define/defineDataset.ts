@@ -14,6 +14,7 @@
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import type { DataViewDefinition } from '../../model/index.js';
 import { defineView, type DefineViewOptions } from './defineView.js';
+import type { FieldSpec } from './spec.js';
 
 /** What a host says of a dataset beyond its descriptor. */
 export interface DefineDatasetSpec {
@@ -23,6 +24,15 @@ export interface DefineDatasetSpec {
   /** The dataset's title, such as the dataset directory's. */
   title: string;
   recordNoun?: string;
+  /**
+   * The host's words over the derived fields, which only narrow and name
+   * (D86): a string is a field's label, a `FieldSpec` narrows it as in
+   * **defineView**, `false` hides it. The fields named come first, in the
+   * order named; the rest follow in the descriptor's order. A path the
+   * descriptor no longer lists is ignored, so an override outlives a
+   * column the dataset dropped.
+   */
+  fields?: Readonly<Record<string, FieldSpec | string | false>>;
 }
 
 /**
@@ -43,10 +53,22 @@ export function defineDataset(
   spec: DefineDatasetSpec,
   options: DefineViewOptions = {},
 ): DataViewDefinition {
-  const fields: Record<string, string> = {};
+  const derived = new Map<string, string>();
   for (const field of descriptor.fields)
     if (field.scope === undefined)
-      fields[field.path] = field.description ?? field.path;
+      derived.set(field.path, field.description ?? field.path);
+  const fields: Record<string, FieldSpec | string> = {};
+  for (const [path, override] of Object.entries(spec.fields ?? {})) {
+    const label = derived.get(path);
+    if (label === undefined) continue;
+    derived.delete(path);
+    if (override === false) continue;
+    fields[path] =
+      typeof override === 'string'
+        ? override
+        : { ...override, label: override.label ?? label };
+  }
+  for (const [path, label] of derived) fields[path] = label;
   return defineView(
     descriptor,
     {

@@ -12,7 +12,10 @@
  */
 
 import type { DatasetDirectoryEntry } from '@ahoo-wang/wow-client';
-import { defineDataset } from './define/defineDataset.js';
+import {
+  defineDataset,
+  type DefineDatasetSpec,
+} from './define/defineDataset.js';
 import type { ViewSource } from './source.js';
 
 /** What `DatasetResources` reads: the dataset directory, and each dataset's source. */
@@ -21,7 +24,17 @@ export interface DatasetCatalog {
   list(): Promise<readonly DatasetDirectoryEntry[]>;
   /** The source of one, such as wow-client's `DatasetQueryClient`; it must describe itself. */
   source(entry: DatasetDirectoryEntry): ViewSource;
+  /**
+   * The host's words over one dataset (D86): its title, its noun, and its
+   * fields' labels, order and narrowing (`DefineDatasetSpec.fields`).
+   */
+  overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
 }
+
+/** What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. */
+export type DatasetOverrides = Partial<
+  Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>
+>;
 
 /** The part of an engine `DatasetResources` drives (`ViewEngine` is one). */
 export interface DatasetRegistrar {
@@ -54,6 +67,8 @@ export interface DatasetResource {
  */
 export class DatasetResources {
   private readonly held = new Map<string, DatasetResource>();
+  /** The overrides each dataset was registered with, as JSON: new words register it again. */
+  private readonly worded = new Map<string, string>();
 
   constructor(
     private readonly engine: DatasetRegistrar,
@@ -80,6 +95,7 @@ export class DatasetResources {
       if (!servable.has(id)) {
         this.engine.unregister(id);
         this.held.delete(id);
+        this.worded.delete(id);
       }
     await Promise.all(
       [...servable].map(([id, entry]) => this.serve(id, entry)),
@@ -92,7 +108,10 @@ export class DatasetResources {
 
   private async serve(id: string, entry: DatasetDirectoryEntry): Promise<void> {
     const held = this.held.get(id);
-    if (held?.entry.version === entry.version) return;
+    const overrides = this.catalog.overrides?.(entry);
+    const words = JSON.stringify(overrides ?? null);
+    if (held?.entry.version === entry.version && this.worded.get(id) === words)
+      return;
     if (!held && this.engine.definitions.has(id)) return;
     try {
       const source = this.catalog.source(entry);
@@ -103,9 +122,11 @@ export class DatasetResources {
         id,
         source: id,
         title: entry.title ?? entry.name,
+        ...overrides,
       });
       this.engine.register({ definition, source });
       this.held.set(id, { id, entry });
+      this.worded.set(id, words);
     } catch (error) {
       this.onError(entry, error);
     }

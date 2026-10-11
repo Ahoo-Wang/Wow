@@ -920,6 +920,7 @@ export {
 } from './runtime/define/defineDataset.js';
 export {
   type DatasetCatalog,
+  type DatasetOverrides,
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,
