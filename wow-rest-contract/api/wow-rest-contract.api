@@ -50,6 +50,7 @@ public final class me/ahoo/wow/rest/RoutePaths {
 	public static final field COMMAND_SEND Ljava/lang/String;
 	public static final field COMMAND_WAIT Ljava/lang/String;
 	public static final field DATASET Ljava/lang/String;
+	public static final field DATASETS Ljava/lang/String;
 	public static final field DATASET_AGGREGATION Ljava/lang/String;
 	public static final field DATASET_COUNT Ljava/lang/String;
 	public static final field DATASET_CURSOR Ljava/lang/String;

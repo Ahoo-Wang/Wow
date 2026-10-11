@@ -24,7 +24,9 @@ object RoutePaths {
     const val BI_SCRIPT = "/${Wow.WOW}/bi/script"
 
     /** A dataset, named by its bounded context and its name; the query operations follow it. */
-    const val DATASET = "/dataset/{${RouteVariables.CONTEXT}}/{${RouteVariables.DATASET}}"
+    /** The dataset directory: every dataset this instance serves. */
+    const val DATASETS = "/dataset"
+    const val DATASET = "$DATASETS/{${RouteVariables.CONTEXT}}/{${RouteVariables.DATASET}}"
     const val DATASET_SCHEMA = "$DATASET/schema"
     const val DATASET_COUNT = "$DATASET/count"
     const val DATASET_AGGREGATION = "$DATASET/aggregation"

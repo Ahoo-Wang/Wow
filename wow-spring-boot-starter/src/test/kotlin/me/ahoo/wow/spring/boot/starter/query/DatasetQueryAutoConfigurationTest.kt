@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys.Dataset
@@ -32,9 +33,11 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.schema.QueryDataset
 import me.ahoo.wow.query.schema.QueryDatasets
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryStorageAdapter
@@ -43,13 +46,19 @@ import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.rest.CommandHeaders
 import me.ahoo.wow.serialization.toObjectNode
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.dataset.DatasetDirectoryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.dataset.DatasetQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.dataset.DatasetQueryOperation
+import me.ahoo.wow.webflux.route.dataset.DatasetQueryRequestScope
 import me.ahoo.wow.webflux.route.dataset.DefaultDatasetQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.ScopeContributor
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -139,6 +148,134 @@ class DatasetQueryAutoConfigurationTest {
             }
     }
 
+    @Test
+    fun `datasets join, change and leave at run time, and the routes and the directory follow`() {
+        val backend = RecordingBackend()
+        val broken = QueryStorageAdapter { Mono.error(IllegalStateException("The table is missing.")) }
+        runner()
+            .withBean(
+                DatasetQueryBackendFactory::class.java,
+                {
+                    DatasetQueryBackendFactory { dataset ->
+                        QueryBackendBinding(backend, if (dataset.title == "broken") broken else ADAPTER)
+                    }
+                },
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                val datasets = context.getBean(QueryDatasets::class.java)
+                val client = client(context.getBean(DatasetQueryGateways::class.java))
+                client.get().uri("/dataset/analytics/customers/schema").exchange().expectStatus().isNotFound
+
+                datasets.add(dataset("customers", "name"))
+                client.get().uri("/dataset").exchange()
+                    .expectStatus().isOk
+                    .expectBody()
+                    .jsonPath("$.length()").isEqualTo(2)
+                    .jsonPath("$[0].name").isEqualTo("customers")
+                    .jsonPath("$[0].title").isEqualTo("customers")
+                    .jsonPath("$[0].version").isNotEmpty
+                    .jsonPath("$[1].name").isEqualTo("orders")
+                client.get().uri("/dataset/analytics/customers/schema").exchange()
+                    .expectStatus().isOk.expectBody().jsonPath("$.fields[?(@.path == 'name')]").exists()
+
+                // The orders' first schema is compiled and cached before the change.
+                client.get().uri("/dataset/analytics/orders/schema").exchange()
+                    .expectBody().jsonPath("$.fields[?(@.path == 'city')]").exists()
+                datasets.replace(dataset("orders", "region"))
+                client.get().uri("/dataset/analytics/orders/schema").exchange()
+                    .expectStatus().isOk.expectBody()
+                    .jsonPath("$.fields[?(@.path == 'region')]").exists()
+                    .jsonPath("$.fields[?(@.path == 'city')]").doesNotExist()
+
+                datasets.add(dataset("returns", "reason").copy(title = "broken"))
+                client.get().uri("/dataset").exchange()
+                    .expectBody().jsonPath("$[2].name").isEqualTo("returns").jsonPath("$[2].version").doesNotExist()
+                datasets.remove(MaterializedNamedAggregate("analytics", "returns"))
+
+                datasets.remove(MaterializedNamedAggregate("analytics", "customers")).assert().isTrue()
+                client.get().uri("/dataset/analytics/customers/schema").exchange().expectStatus().isNotFound
+                client.get().uri("/dataset").exchange()
+                    .expectBody().jsonPath("$.length()").isEqualTo(1).jsonPath("$[0].name").isEqualTo("orders")
+            }
+    }
+
+    @Test
+    fun `the dataset routes are registered when a dataset backend serves datasets`() {
+        val backend = RecordingBackend()
+        val regionScope = object : ScopeContributor {
+            override fun contribute(
+                aggregateMetadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<*, *>,
+                request: org.springframework.web.reactive.function.server.ServerRequest,
+            ): QueryScope = QueryScope.NONE
+        }
+        ApplicationContextRunner().enableWow()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    QuerySchemaAutoConfiguration::class.java,
+                    QueryAutoConfiguration::class.java,
+                    DatasetQueryRouteAutoConfiguration::class.java,
+                ),
+            )
+            .withBean(
+                DatasetQueryBackendFactory::class.java,
+                { DatasetQueryBackendFactory { QueryBackendBinding(backend, ADAPTER) } }
+            )
+            .withBean(RequestExceptionHandler::class.java, { WebFluxRequestExceptionHandler() })
+            .withBean(HttpQueryGuard::class.java, { HttpQueryGuard() })
+            .withBean(ScopeContributor::class.java, { regionScope })
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBeansOfType(HttpRouteHandlerFunctionFactory::class.java).values
+                    .map { it.handlerKey }.assert()
+                    .contains(Dataset.DIRECTORY, Dataset.SCHEMA, Dataset.LIST_QUERY, Dataset.SINGLE)
+                context.getBean(DatasetQueryRequestScope::class.java)
+                    .assert().isSameAs(DefaultDatasetQueryRequestScope.INSTANCE)
+                context.getBeansOfType(
+                    RouteContributor::class.java
+                ).values.assert().contains(DatasetQueryRouteContributor)
+            }
+        ApplicationContextRunner().enableWow()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    QuerySchemaAutoConfiguration::class.java,
+                    QueryAutoConfiguration::class.java,
+                    DatasetQueryRouteAutoConfiguration::class.java,
+                ),
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBeansOfType(RouteContributor::class.java).values
+                    .assert().doesNotContain(DatasetQueryRouteContributor)
+            }
+    }
+
+    @Test
+    fun `a dataset joining an instance without a dataset backend is refused`() {
+        ApplicationContextRunner().enableWow()
+            .withUserConfiguration(QuerySchemaAutoConfiguration::class.java, QueryAutoConfiguration::class.java)
+            .run { context ->
+                val datasets = context.getBean(QueryDatasets::class.java)
+                assertThrows<IllegalArgumentException> { datasets.add(dataset("customers", "name")) }
+                    .message.assert().contains("no dataset query backend")
+                datasets.all.assert().isEmpty()
+                context.getBean(DatasetQueryGateways::class.java).all.assert().isEmpty()
+            }
+    }
+
+    private fun dataset(name: String, field: String): QueryDataset =
+        QueryDataset.of(MaterializedNamedAggregate("analytics", name)) {
+            title(name)
+            tenant("tenant_id")
+            identity("id")
+            listOf("id", "tenant_id", field).forEach {
+                field(it) {
+                    types(QueryValueType.STRING)
+                    nullable(false)
+                }
+            }
+        }
+
     private fun runner(): ApplicationContextRunner = ApplicationContextRunner().enableWow()
         .withPropertyValues("wow.query.datasets=analytics.orders")
         .withUserConfiguration(QuerySchemaAutoConfiguration::class.java, QueryAutoConfiguration::class.java)
@@ -148,14 +285,18 @@ class DatasetQueryAutoConfigurationTest {
         DatasetQueryRouteContributor.contributeGlobal(
             MaterializedNamedAggregate("analytics", "orders")
         ).forEach { contract ->
-            val factory = DatasetQueryHandlerFunctionFactory(
-                contract.handlerKey,
-                OPERATIONS.getValue(contract.handlerKey),
-                gateways,
-                DefaultDatasetQueryRequestScope.INSTANCE,
-                WebFluxRequestExceptionHandler(),
-                HttpQueryGuard(),
-            )
+            val factory = if (contract.handlerKey == Dataset.DIRECTORY) {
+                DatasetDirectoryHandlerFunctionFactory(contract.handlerKey, gateways, WebFluxRequestExceptionHandler())
+            } else {
+                DatasetQueryHandlerFunctionFactory(
+                    contract.handlerKey,
+                    OPERATIONS.getValue(contract.handlerKey),
+                    gateways,
+                    DefaultDatasetQueryRequestScope.INSTANCE,
+                    WebFluxRequestExceptionHandler(),
+                    HttpQueryGuard(),
+                )
+            }
             router.route(
                 org.springframework.web.reactive.function.server.RequestPredicates.method(
                     org.springframework.http.HttpMethod.valueOf(contract.method),

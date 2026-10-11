@@ -130,7 +130,7 @@ class QueryAutoConfiguration {
             },
             aggregates = MetadataSearcher.namedAggregateType.keys,
             meterRegistry = meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() },
-            datasets = datasets.all.map { it.namedAggregate },
+            datasets = datasets,
         )
     }
 
@@ -140,8 +140,9 @@ class QueryAutoConfiguration {
         queryObserver(meterRegistry, environment)
 
     /**
-     * One gateway per dataset of `wow.query.datasets`, admitted like an aggregate's: the same filters, policies and
-     * entry policy, the Catalog's schema and the dataset backend's storage.
+     * One gateway per served dataset (`wow.query.datasets`, and any that joins later), admitted like an aggregate's:
+     * the same filters, policies and entry policy, the Catalog's schema and the dataset backend's storage. Built after
+     * the Catalog, so a dataset that changes is recompiled before its new gateway reads its schema.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -156,24 +157,28 @@ class QueryAutoConfiguration {
         entryPolicy: QueryEntryPolicy,
     ): DatasetQueryGateways {
         val datasets = queryDatasets.getIfAvailable { QueryDatasets.NONE }
-        if (datasets.all.isEmpty()) return DatasetQueryGateways.NONE
-        val factory = requireNotNull(datasetQueryBackendFactory.getIfAvailable()) {
-            "wow.query.datasets names datasets, but no dataset query backend is configured " +
-                "(enable one, such as wow.query.clickhouse)."
-        }
-        return DatasetQueryGateways(
-            datasets.all.map { dataset ->
-                DefaultDatasetQueryGateway(
-                    dataset = dataset,
-                    backend = factory.create(dataset).backend,
-                    schemaProvider = catalog.provider(dataset.namedAggregate, QueryModel.DATASET),
-                    filters = filters.orderedStream().toList(),
-                    policies = policies.orderedStream().toList(),
-                    observer = observer,
-                    entryPolicy = entryPolicy,
-                )
+        val factory = datasetQueryBackendFactory.getIfAvailable()
+        val queryFilters = filters.orderedStream().toList()
+        val queryPolicies = policies.orderedStream().toList()
+        return DatasetQueryGateways.of(
+            datasets,
+            requireServable = { dataset ->
+                requireNotNull(factory) {
+                    "Dataset [${dataset.namedAggregate}] has no dataset query backend to serve it " +
+                        "(enable one, such as wow.query.clickhouse)."
+                }
             },
-        )
+        ) { dataset ->
+            DefaultDatasetQueryGateway(
+                dataset = dataset,
+                backend = checkNotNull(factory).create(dataset).backend,
+                schemaProvider = catalog.provider(dataset.namedAggregate, QueryModel.DATASET),
+                filters = queryFilters,
+                policies = queryPolicies,
+                observer = observer,
+                entryPolicy = entryPolicy,
+            )
+        }
     }
 
     @Bean

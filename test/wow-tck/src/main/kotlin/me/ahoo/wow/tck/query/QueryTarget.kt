@@ -68,7 +68,7 @@ fun DatasetQueryBackendFactory.target(dataset: QueryDataset): QueryTarget<Datase
         QuerySchemaCatalog(
             QueryBackendStorages(datasetFactory = this, datasets = datasets),
             compiler = QueryModelCompiler.of(datasets = datasets),
-            datasets = listOf(dataset.namedAggregate),
+            datasets = datasets,
         ).provider(dataset.namedAggregate, QueryModel.DATASET),
     )
 }

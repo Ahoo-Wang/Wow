@@ -595,9 +595,14 @@ public final class me/ahoo/wow/query/dataset/DatasetQueryGateways {
 	public fun <init> (Ljava/util/Collection;)V
 	public final fun get (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/dataset/DatasetQueryGateway;
 	public final fun getAll ()Ljava/util/Collection;
+	public static final fun of (Lme/ahoo/wow/query/schema/QueryDatasets;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public static final fun of (Lme/ahoo/wow/query/schema/QueryDatasets;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 }
 
 public final class me/ahoo/wow/query/dataset/DatasetQueryGateways$Companion {
+	public final fun of (Lme/ahoo/wow/query/schema/QueryDatasets;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public final fun of (Lme/ahoo/wow/query/schema/QueryDatasets;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/DatasetQueryGateways$Companion;Lme/ahoo/wow/query/schema/QueryDatasets;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 }
 
 public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/ahoo/wow/query/AbstractQueryGateway, me/ahoo/wow/query/dataset/DatasetQueryGateway {
@@ -1348,6 +1353,45 @@ public final class me/ahoo/wow/query/schema/QueryDatasetBuilder {
 	public final fun title (Ljava/lang/String;)V
 }
 
+public abstract interface class me/ahoo/wow/query/schema/QueryDatasetChange {
+	public abstract fun getDataset ()Lme/ahoo/wow/query/schema/QueryDataset;
+}
+
+public final class me/ahoo/wow/query/schema/QueryDatasetChange$Added : me/ahoo/wow/query/schema/QueryDatasetChange {
+	public fun <init> (Lme/ahoo/wow/query/schema/QueryDataset;)V
+	public final fun component1 ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public final fun copy (Lme/ahoo/wow/query/schema/QueryDataset;)Lme/ahoo/wow/query/schema/QueryDatasetChange$Added;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryDatasetChange$Added;Lme/ahoo/wow/query/schema/QueryDataset;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryDatasetChange$Added;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getDataset ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/schema/QueryDatasetChange$Removed : me/ahoo/wow/query/schema/QueryDatasetChange {
+	public fun <init> (Lme/ahoo/wow/query/schema/QueryDataset;)V
+	public final fun component1 ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public final fun copy (Lme/ahoo/wow/query/schema/QueryDataset;)Lme/ahoo/wow/query/schema/QueryDatasetChange$Removed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryDatasetChange$Removed;Lme/ahoo/wow/query/schema/QueryDataset;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryDatasetChange$Removed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getDataset ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/schema/QueryDatasetChange$Replaced : me/ahoo/wow/query/schema/QueryDatasetChange {
+	public fun <init> (Lme/ahoo/wow/query/schema/QueryDataset;Lme/ahoo/wow/query/schema/QueryDataset;)V
+	public final fun component1 ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public final fun component2 ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public final fun copy (Lme/ahoo/wow/query/schema/QueryDataset;Lme/ahoo/wow/query/schema/QueryDataset;)Lme/ahoo/wow/query/schema/QueryDatasetChange$Replaced;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryDatasetChange$Replaced;Lme/ahoo/wow/query/schema/QueryDataset;Lme/ahoo/wow/query/schema/QueryDataset;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryDatasetChange$Replaced;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getDataset ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public final fun getPrevious ()Lme/ahoo/wow/query/schema/QueryDataset;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/schema/QueryDatasetFiles {
 	public static final field Companion Lme/ahoo/wow/query/schema/QueryDatasetFiles$Companion;
 	public static final field DATASET_FEATURE Ljava/lang/String;
@@ -1359,6 +1403,15 @@ public final class me/ahoo/wow/query/schema/QueryDatasetFiles {
 }
 
 public final class me/ahoo/wow/query/schema/QueryDatasetFiles$Companion {
+}
+
+public abstract interface class me/ahoo/wow/query/schema/QueryDatasetListener {
+	public abstract fun apply (Lme/ahoo/wow/query/schema/QueryDatasetChange;)V
+	public fun validate (Lme/ahoo/wow/query/schema/QueryDatasetChange;)V
+}
+
+public final class me/ahoo/wow/query/schema/QueryDatasetListener$DefaultImpls {
+	public static fun validate (Lme/ahoo/wow/query/schema/QueryDatasetListener;Lme/ahoo/wow/query/schema/QueryDatasetChange;)V
 }
 
 public final class me/ahoo/wow/query/schema/QueryDatasetProperties {
@@ -1400,11 +1453,17 @@ public final class me/ahoo/wow/query/schema/QueryDatasetScope {
 public final class me/ahoo/wow/query/schema/QueryDatasets {
 	public static final field Companion Lme/ahoo/wow/query/schema/QueryDatasets$Companion;
 	public static final field NONE Lme/ahoo/wow/query/schema/QueryDatasets;
+	public fun <init> ()V
 	public fun <init> (Ljava/util/Collection;)V
+	public synthetic fun <init> (Ljava/util/Collection;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun add (Lme/ahoo/wow/query/schema/QueryDataset;)V
 	public final fun get (Lme/ahoo/wow/api/modeling/NamedAggregate;)Lme/ahoo/wow/query/schema/QueryDataset;
 	public final fun getAll ()Ljava/util/Collection;
 	public final fun getSchemaSource ()Lme/ahoo/wow/query/schema/QuerySchemaSource;
+	public final fun listen (Lme/ahoo/wow/query/schema/QueryDatasetListener;)V
 	public final fun profile (Lme/ahoo/wow/query/schema/QuerySchemaContext;)Lme/ahoo/wow/query/schema/QueryModelProfile;
+	public final fun remove (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+	public final fun replace (Lme/ahoo/wow/query/schema/QueryDataset;)V
 }
 
 public final class me/ahoo/wow/query/schema/QueryDatasets$Companion {
@@ -1635,8 +1694,8 @@ public final class me/ahoo/wow/query/schema/QuerySchemaCatalog {
 	public static final field SCHEMA_REFRESH Ljava/lang/String;
 	public static final field SCHEMA_VERSION_CHANGES Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/query/schema/QueryStorageLocator;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;Ljava/util/Collection;)V
-	public synthetic fun <init> (Lme/ahoo/wow/query/schema/QueryStorageLocator;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;Ljava/util/Collection;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/query/schema/QueryStorageLocator;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;Lme/ahoo/wow/query/schema/QueryDatasets;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/schema/QueryStorageLocator;Lme/ahoo/wow/query/schema/QueryModelCompiler;Ljava/util/Collection;Lio/micrometer/core/instrument/MeterRegistry;Lme/ahoo/wow/query/schema/QueryDatasets;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun provider (Lme/ahoo/wow/api/modeling/NamedAggregate;Lme/ahoo/wow/api/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;
 	public final fun revalidate (Ljava/lang/String;Lme/ahoo/wow/api/query/schema/QueryModel;)Lreactor/core/publisher/Flux;
 	public static synthetic fun revalidate$default (Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Ljava/lang/String;Lme/ahoo/wow/api/query/schema/QueryModel;ILjava/lang/Object;)Lreactor/core/publisher/Flux;

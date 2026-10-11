@@ -16,33 +16,38 @@ package me.ahoo.wow.spring.boot.starter.query
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys.Dataset
 import me.ahoo.wow.openapi.contributor.global.DatasetQueryRouteContributor
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.ConditionalOnWebfluxEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.dataset.CompositeDatasetQueryRequestScope
+import me.ahoo.wow.webflux.route.dataset.DatasetDirectoryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.dataset.DatasetQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.dataset.DatasetQueryOperation
 import me.ahoo.wow.webflux.route.dataset.DatasetQueryRequestScope
 import me.ahoo.wow.webflux.route.dataset.DefaultDatasetQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.ScopeContributor
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * The dataset query routes, when `wow.query.datasets` names a dataset: their contracts join the route catalog (and so
- * the router and the OpenAPI document) as a [RouteContributor] bean, and their handlers as
+ * The dataset query routes and the dataset directory, when a dataset query backend serves datasets (such as
+ * `wow.query.clickhouse`), whether they are named in `wow.query.datasets` or join at run time: their contracts join
+ * the route catalog (and so the router and the OpenAPI document) as a [RouteContributor] bean, and their handlers as
  * [HttpRouteHandlerFunctionFactory] beans, as the BI script route does.
  */
 @AutoConfiguration(after = [WebFluxAutoConfiguration::class, QueryAutoConfiguration::class])
 @ConditionalOnWowEnabled
-@ConditionalOnProperty(prefix = QueryProperties.PREFIX, name = ["datasets[0]"])
+@ConditionalOnBean(DatasetQueryBackendFactory::class)
 class DatasetQueryRouteAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = ["me.ahoo.wow.openapi.RouterSpecs"])
@@ -60,6 +65,16 @@ class DatasetQueryRouteAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         fun datasetQueryRequestScope(): DatasetQueryRequestScope = DefaultDatasetQueryRequestScope.INSTANCE
+
+        @Bean
+        fun datasetDirectoryHandlerFunctionFactory(
+            gateways: DatasetQueryGateways,
+            exceptionHandler: RequestExceptionHandler,
+        ): HttpRouteHandlerFunctionFactory = DatasetDirectoryHandlerFunctionFactory(
+            Dataset.DIRECTORY,
+            gateways,
+            exceptionHandler,
+        )
 
         @Bean
         fun datasetSchemaHandlerFunctionFactory(handlers: Handlers): HttpRouteHandlerFunctionFactory =
@@ -93,9 +108,16 @@ class DatasetQueryRouteAutoConfiguration {
         fun datasetQueryHandlers(
             gateways: DatasetQueryGateways,
             requestScope: DatasetQueryRequestScope,
+            scopeContributors: ObjectProvider<ScopeContributor>,
             exceptionHandler: RequestExceptionHandler,
             guard: HttpQueryGuard,
-        ): Handlers = Handlers(gateways, requestScope, exceptionHandler, guard)
+        ): Handlers = Handlers(
+            gateways,
+            // Each contributor decides whether it restricts datasets (ScopeContributor.contribute(dataset, …)).
+            CompositeDatasetQueryRequestScope.of(requestScope, scopeContributors.orderedStream().toList()),
+            exceptionHandler,
+            guard,
+        )
     }
 
     /** What every dataset route handler shares. */

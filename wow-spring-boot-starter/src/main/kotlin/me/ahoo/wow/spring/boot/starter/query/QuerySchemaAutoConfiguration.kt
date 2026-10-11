@@ -56,15 +56,14 @@ class QuerySchemaAutoConfiguration {
     @Bean
     fun classpathQuerySchemaSource(): ClasspathQuerySchemaSource = ClasspathQuerySchemaSource()
 
-    /** The datasets of `wow.query.datasets`, read from their declaration files. */
+    /**
+     * The datasets this instance serves: those of `wow.query.datasets`, read from their declaration files at startup,
+     * and any a registry adds at run time.
+     */
     @Bean
     @ConditionalOnMissingBean
     fun queryDatasets(queryProperties: QueryProperties): QueryDatasets =
-        if (queryProperties.datasets.isEmpty()) {
-            QueryDatasets.NONE
-        } else {
-            QueryDatasetFiles().loadAll(queryProperties.datasets.map(::datasetName))
-        }
+        QueryDatasetFiles().loadAll(queryProperties.datasets.map(::datasetName))
 
     @Bean
     fun beanQuerySchemaSource(
