@@ -728,6 +728,8 @@ export function afterSaleDefinition(
       paging: 'paged',
       layouts: ['table', 'card'],
       maxWindow: 10_000,
+      // 宿主的「催处理」只对还在处理中的单开放，所以每一行都要带上状态。
+      rowFields: ['state.status'],
     },
     analysis: {
       count: true,
