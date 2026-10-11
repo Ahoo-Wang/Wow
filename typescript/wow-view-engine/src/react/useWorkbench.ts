@@ -551,7 +551,20 @@ export function useWorkbench(
       : null,
     // Leaving settles the outcome first, because the runtime it belongs to
     // is about to go.
-    { onLeave: () => commands.abandon(), guardUnload },
+    {
+      onLeave: () => commands.abandon(),
+      guardUnload,
+      // Saved in place, then left (R2-100): a personal view saved before,
+      // that may be saved in place and has nothing in the way of a new
+      // write. A shared one is not: its save asks first, since it changes
+      // what everyone sees, and a way around that question is no answer.
+      ...(state?.saved &&
+        !held &&
+        commands.can.save &&
+        commands.state.audience === 'personal' &&
+        !commands.state.hasErrors &&
+        state.write === null && { save: commands.save }),
+    },
   );
   useReleaseDeleted(openId, chosen, byId, setChosen);
 

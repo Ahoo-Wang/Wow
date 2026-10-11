@@ -849,6 +849,56 @@ describe('useLeaveGuard', () => {
     expect(where()).toBe('gone');
   });
 
+  it('offers to save and leave where a save in place is offered, and leaves once it lands (R2-100)', async () => {
+    let land: (saved: unknown) => void = () => {};
+    const save = vi.fn(() => new Promise(resolve => (land = resolve)));
+    render(<Guarded state={{ dirty: true, write: null }} options={{ save }} />);
+
+    leave();
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Save and leave' }),
+    );
+    expect(save).toHaveBeenCalledTimes(1);
+    // While it is on its way, every answer waits for it.
+    for (const name of ['Stay', 'Save and leave', 'Leave'])
+      expect(
+        within(dialog).getByRole('button', { name }).hasAttribute('disabled'),
+      ).toBe(true);
+    expect(where()).toBe('here');
+
+    await act(async () => land({ id: 'orders-1' }));
+    expect(where()).toBe('gone');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  });
+
+  it('stays with the outcome on screen when the save did not land', async () => {
+    const save = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new Error('boom'));
+    render(<Guarded state={{ dirty: true, write: null }} options={{ save }} />);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      leave();
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Save and leave' }),
+      );
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(where()).toBe('here');
+    }
+  });
+
+  it('offers no save where none is on offer', async () => {
+    render(<Guarded state={{ dirty: true, write: null }} />);
+    leave();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).queryByRole('button', { name: 'Save and leave' }),
+    ).toBeNull();
+  });
+
   it('stays put when that is the answer', async () => {
     render(<Guarded state={{ dirty: true, write: null }} />);
 

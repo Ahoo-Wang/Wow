@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/alert-dialog.js';
+import { Button } from '../components/button.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { AlertDialogContent } from '../kit/popups.js';
 import { DestructiveAction } from '../kit/variants.js';
@@ -56,7 +57,8 @@ export function LeaveDialog({ leave, messages: wording }: LeaveDialogProps) {
   return (
     <AlertDialog
       open={leave.asking}
-      onOpenChange={open => !open && leave.cancel()}
+      // Not while a save-and-leave is on its way: its answer is still to come.
+      onOpenChange={open => !open && !leave.saving && leave.cancel()}
     >
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -68,10 +70,25 @@ export function LeaveDialog({ leave, messages: wording }: LeaveDialogProps) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>
+          <AlertDialogCancel disabled={leave.saving}>
             {messages.label('label.leave.stay')}
           </AlertDialogCancel>
-          <DestructiveAction onClick={() => leave.confirm()}>
+          {/* The way out that loses nothing, where there is one (R2-100):
+              between staying and losing the edits. */}
+          {leave.saveAndLeave && (
+            <Button
+              variant="outline"
+              data-slot="leave-save"
+              disabled={leave.saving}
+              onClick={() => leave.saveAndLeave?.()}
+            >
+              {messages.label('label.leave.save')}
+            </Button>
+          )}
+          <DestructiveAction
+            disabled={leave.saving}
+            onClick={() => leave.confirm()}
+          >
             {messages.label('label.leave.leave')}
           </DestructiveAction>
         </AlertDialogFooter>

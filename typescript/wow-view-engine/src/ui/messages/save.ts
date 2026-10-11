@@ -107,6 +107,8 @@ export const saveMessages = {
   'label.leave.consequence': 'Unsaved changes will be lost.',
   'label.leave.stay': 'Stay',
   'label.leave.leave': 'Leave',
+  // Where the view can be saved in place: the edits kept, then the switch.
+  'label.leave.save': 'Save and leave',
 
   // Reverting loses exactly what leaving loses, so it is asked in the same
   // words: a question naming what goes back, one sentence for the cost, the

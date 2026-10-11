@@ -434,6 +434,74 @@ describe('the view switcher', () => {
   });
 });
 
+describe('saving on the way out (R2-100)', () => {
+  async function editAndSwitch(instanceId: string) {
+    const store = new MemoryViewStore({
+      instances: instances(),
+      permissions: permitting(),
+    });
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store,
+    });
+    const user = await open(engine, instanceId);
+    await user.click(
+      screen.getByRole('button', {
+        name: new RegExp(defaultMessages['label.filter.panel']),
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: defaultMessages['label.filter.add'] }),
+    );
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('checkbox', {
+        name: 'Warehouse',
+      }),
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.filter.pick-done'],
+      }),
+    );
+    await user.type(screen.getByLabelText('Warehouse value'), 'north');
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: COLLAPSE }));
+    await user.click(screen.getByRole('button', { name: SWITCH }));
+    const other = instanceId === 'mine' ? /Ours/ : /Mine/;
+    await user.click(await screen.findByRole('menuitemradio', { name: other }));
+    return { user, store, dialog: await screen.findByRole('alertdialog') };
+  }
+
+  it('saves a personal view and then opens the next one', async () => {
+    const { user, store, dialog } = await editAndSwitch('mine');
+
+    await user.click(
+      within(dialog).getByRole('button', {
+        name: defaultMessages['label.leave.save'],
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    const saved = await store.get('mine');
+    expect(JSON.stringify(saved.config)).toContain('north');
+    // The view the switch was asked for is open now.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: SWITCH }).getAttribute('aria-label'),
+      ).toMatch(/^Ours/),
+    );
+  });
+
+  it('does not offer it on a shared view, whose save asks first', async () => {
+    const { dialog } = await editAndSwitch('ours');
+    expect(
+      within(dialog).queryByRole('button', {
+        name: defaultMessages['label.leave.save'],
+      }),
+    ).toBeNull();
+  });
+});
+
 describe('the view manager behind two entries', () => {
   it('opens the one dialog from the sidebar and from the switcher', async () => {
     const user = await open(engineWith());
