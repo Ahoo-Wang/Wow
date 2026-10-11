@@ -79,7 +79,12 @@ binary after a new storage-format write is not a rollback.
 | `QueryGatewayRegistrar` is `sealed`; `registerQueryGateway(Map.Entry, BeanDefinitionRegistry)`, its no-arg constructor and the `appContext` accessors are removed | Integrations that subclass `QueryGatewayRegistrar` to register their own query gateway | Stop subclassing; register your gateway bean under `snapshotQueryGatewayBeanName()` / `eventStreamQueryGatewayBeanName()`, which the registrars leave untouched |
 | `PrepareKeyFactoryBean.setApplicationContext(ApplicationContext)` becomes `setBeanFactory(BeanFactory)` | Code that calls it directly; beans registered through `PrepareKeyAutoRegistrar` are unaffected | Call `setBeanFactory` |
 
-Behaviour change: `SpringServiceProvider.getService(name)` returns `null` for an unknown name instead of throwing, as the `ServiceProvider` lookup contract says. Callers that relied on the exception check for `null` or use `getRequiredService`.
+Behaviour changes (no code change needed, but callers or operations that relied on the old behaviour may notice):
+
+- `SpringServiceProvider.getService(name)` returns `null` for an unknown name instead of throwing, as the `ServiceProvider` lookup contract says. Callers that relied on the exception check for `null` or use `getRequiredService`.
+- A backend that answers a negative count fails the query with `500` (`Backend count must be greater than or equal to 0.`). Before, the negative number reached the caller.
+- A query rejected because the principal has no ABAC tags (`403 IllegalAccessQueryScope`) is logged at DEBUG instead of at ERROR with a stack trace, so alerts on ERROR logs no longer fire for it.
+- `RetryableFilter` now always wraps the projection and stateless saga function filters, whatever the registration order. Applications on the starter already had this order; applications that assemble their own filter chains and register the function filter first start retrying recoverable failures in-process.
 
 ## Upgrading from 9.6 to 9.7.0
 

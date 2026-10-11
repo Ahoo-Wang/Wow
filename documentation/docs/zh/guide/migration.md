@@ -77,7 +77,12 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `QueryGatewayRegistrar` 改为 `sealed`，删除 `registerQueryGateway(Map.Entry, BeanDefinitionRegistry)`、无参构造函数与 `appContext` 访问器 | 继承 `QueryGatewayRegistrar` 注册自定义查询网关的集成 | 不再继承；以 `snapshotQueryGatewayBeanName()` / `eventStreamQueryGatewayBeanName()` 为名注册自己的网关 bean，注册器会保留已存在的同名 bean |
 | `PrepareKeyFactoryBean.setApplicationContext(ApplicationContext)` 改为 `setBeanFactory(BeanFactory)` | 直接调用该方法的代码；经 `PrepareKeyAutoRegistrar` 注册的 bean 不受影响 | 改为调用 `setBeanFactory` |
 
-行为变化：`SpringServiceProvider.getService(name)` 遇到未知名称时返回 `null`，不再抛出异常，与 `ServiceProvider` 的查找契约一致。依赖该异常的调用方改为检查 `null`，或改用 `getRequiredService`。
+行为变化（不需要修改代码，但可能影响依赖旧行为的调用方或运维配置）：
+
+- `SpringServiceProvider.getService(name)` 遇到未知名称时返回 `null`，不再抛出异常，与 `ServiceProvider` 的查找契约一致。依赖该异常的调用方改为检查 `null`，或改用 `getRequiredService`。
+- 后端返回负数的 count 时，查询失败并返回 `500`（`Backend count must be greater than or equal to 0.`）；此前负数会原样返回给调用方。
+- 主体缺少 ABAC 标签而被拒绝的查询（`403 IllegalAccessQueryScope`）改为记录 DEBUG 日志，不再记录带堆栈的 ERROR 日志；按 ERROR 日志告警的运维规则不会再因这类请求触发。
+- `RetryableFilter` 现在总是包住 Projection 与 Stateless Saga 的函数 Filter，不再取决于 Filter 的注册顺序。使用 starter 的应用此前已是如此；自行组装 Filter 链、且函数 Filter 先注册的应用，可恢复异常会开始被即时重试。
 
 ## 从 9.6 升级到 9.7.0
 
