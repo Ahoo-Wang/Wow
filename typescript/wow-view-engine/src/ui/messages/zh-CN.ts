@@ -711,7 +711,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '没能加载数据：{reason}',
   'runtime.query.unreachable': '没能加载数据：无法连接服务端。',
-  'runtime.query.forbidden': '无权限查看这些数据。',
+  'runtime.query.forbidden': '无权限查看这些数据，请联系管理员开通。',
   'runtime.query.failed.invalid_json':
     '服务端读不懂这个视图发出的查询：{reason}',
   'runtime.query.failed.body_not_object':

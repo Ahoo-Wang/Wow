@@ -540,7 +540,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.unknown_value` | The service does not know a value this view sent: {reason} |
 | `runtime.query.failed.unsupported_capability` | {field} cannot be used this way on this data: {reason} |
 | `runtime.query.failed.value_mismatch` | A value is not one {field} can hold. |
-| `runtime.query.forbidden` | You do not have permission to view this data. |
+| `runtime.query.forbidden` | You do not have permission to view this data. Ask an administrator for access. |
 | `runtime.query.queue-full` | Too many queries at once; try again in a moment. |
 | `runtime.query.too-many-nodes` | These conditions make a query of {count} parts; the source takes at most {max}. Remove some conditions. |
 | `runtime.query.too-many-values` | One condition lists {count} values; the source takes at most {max} in one condition. |

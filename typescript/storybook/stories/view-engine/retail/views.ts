@@ -948,7 +948,8 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
     }),
   ),
   // A-11：各活动的客单价与优惠力度（优惠占原价的比例）。不在活动期的单是空值
-  // 那一组「（空）」。
+  // 那一组，叫它「非活动期」：它是一段时间，不是缺了一个值（「（空）」读起来
+  // 像数据坏了，Storybook 审查 P2）。
   shared(
     ANALYSTS,
     'a11-activities',
@@ -957,7 +958,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       groups: [
         {
           ...byTerms('state.promotion.activityId', 'activity'),
-          missingKey: DEFAULT_MISSING_KEY,
+          missingKey: '非活动期',
         } as AnalysisGroup,
       ],
       metrics: [
