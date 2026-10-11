@@ -16,6 +16,7 @@ package me.ahoo.wow.tck.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -63,19 +64,46 @@ internal object FilterSemanticsMatrix {
     fun tests(
         divergences: Set<String>,
         list: (ListQuery) -> Flux<ObjectNode>,
-    ): List<DynamicTest> = FilterSemantics.CASES.map { case ->
-        DynamicTest.dynamicTest(case.id) { run(case, divergences, list) }
+    ): List<DynamicTest> = tests(
+        divergences = divergences,
+        shapes = FIELDS.keys,
+        field = { QueryField("state.${FIELDS.getValue(it)}") },
+        ids = ::AggregateIdsFilter,
+        idOf = { it.path("aggregateId").asString() },
+        list = list,
+    )
+
+    /**
+     * The cases of [shapes], each run on [field] of its shape over the probes selected by [ids]; [idOf] reads a
+     * returned record's probe id. A model other than Snapshot names its own fields and identity this way.
+     */
+    fun tests(
+        divergences: Set<String>,
+        shapes: Set<SemanticShape>,
+        field: (SemanticShape) -> QueryField,
+        ids: (List<String>) -> FilterExpression,
+        idOf: (ObjectNode) -> String,
+        list: (ListQuery) -> Flux<ObjectNode>,
+    ): List<DynamicTest> = FilterSemantics.CASES.filter { it.shape in shapes }.map { case ->
+        DynamicTest.dynamicTest(case.id) { run(case, divergences, field(case.shape), ids, idOf, list) }
     }
 
-    private fun run(case: SemanticCase, divergences: Set<String>, list: (ListQuery) -> Flux<ObjectNode>) {
+    @Suppress("LongParameterList")
+    private fun run(
+        case: SemanticCase,
+        divergences: Set<String>,
+        field: QueryField,
+        ids: (List<String>) -> FilterExpression,
+        idOf: (ObjectNode) -> String,
+        list: (ListQuery) -> Flux<ObjectNode>,
+    ) {
         Assumptions.assumeFalse(case.id in divergences) {
             "Known divergence from the canonical semantics: ${case.id}."
         }
         val probes = checkNotNull(SemanticProbe.ALL[case.shape])
-        val field = QueryField("state.${FIELDS[case.shape]}")
-        val filter = AndFilter(listOf(AggregateIdsFilter(probes.map(::probeId)), case.filter(field)))
+        val filter = AndFilter(listOf(ids(probes.map(::probeId)), case.filter(field)))
         val selected = list(ListQuery(filter, limit = probes.size + 1))
-            .map { it.path("aggregateId").asString() }
+            .map(idOf)
             .collectList()
             .block()
             .orEmpty()
