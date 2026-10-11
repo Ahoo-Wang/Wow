@@ -65,6 +65,7 @@ That path proves the domain test, generated route, command pipeline, event sourc
 | Generated HTTP command and state routes | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
 | Optional storage, messaging, security, and telemetry integrations | [wow-spring-boot-starter feature capabilities](wow-spring-boot-starter/build.gradle.kts) |
 | Compensation and recovery operations | [Compensation domain](compensation) and [control plane](documentation/docs/en/reference/example/compensation.md#compensation-control-plane) |
+| TypeScript client, React bindings, code generator, and view engine (npm `@ahoo-wang/wow-*`) | [typescript](typescript) and the [TypeScript guide](documentation/docs/en/guide/typescript/index.md) |
 
 ## Features
 
