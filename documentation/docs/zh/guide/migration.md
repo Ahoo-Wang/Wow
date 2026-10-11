@@ -64,7 +64,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.7 升级到 9.8.0
 
-9.8.0 把 `wow-core` 通用 `messaging` 包里的类移到各自所属的领域包，并把存储批处理包移出 `infra`，使 `messaging` 不再导入命令、事件与事件溯源包，`infra` 不再导入指标包。这些都属于内部实现（见 `docs/compat-debt.md` 的范围说明）：只有包名变化，类名、构造函数、行为、配置、请求头键与线格式都不变，9.7.x 与 9.8.0 节点可以共处一个集群。只使用 starter 与公开入口 API 的应用无需改动；导入了这些类的代码改用新的导入即可重新编译。
+9.8.0 把 `wow-core` 通用 `messaging` 包里的类移到各自所属的领域包，把存储批处理包移出 `infra`，并把指标装饰器移出指标端口包，使 `messaging` 不再导入命令、事件与事件溯源包，`infra` 不再导入指标包，指标端口不再导入任何领域包；`wow-spring` 的查询网关注册收敛为一个模板。这些都属于内部实现（见 `docs/compat-debt.md` 的范围说明），没有弃用周期。配置、请求头键、指标名与标签、REST 与线格式都不变，9.7.x 与 9.8.0 节点可以共处一个集群。只使用 starter 与公开入口 API 的应用无需改动；导入了下表中类的代码按表修改后重新编译。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
@@ -72,6 +72,11 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | `EventCompensator` 与 `EventCompensateSupporter` 从 `me.ahoo.wow.messaging.compensation` 移到 `me.ahoo.wow.event.compensation`；`CompensationMatcher` 与 `CompensationTarget` 不动 | 自行补偿事件的代码 | 修改导入 |
 | `CommandOperatorMessagePropagator` 与 `WaitPlanMessagePropagator` 从 `me.ahoo.wow.messaging.propagation` 移到 `me.ahoo.wow.command.propagation`；`MessagePropagator`、`MessagePropagators` 与其他传播器不动 | 手工组装 `MessagePropagators` 列表、或在 `META-INF/services` 文件中列出这些类的代码 | 修改导入与服务文件条目 |
 | `me.ahoo.wow.infra.batch`（`BatchOptions`、`BatchCoordinator`、`BatchWriter`、`BatchItemResult` 与批处理异常）移到 `me.ahoo.wow.batch` | 用 `BatchOptions` 构建 MongoDB 或 Elasticsearch 存储、或直接使用批处理协调器的代码 | 修改导入 |
+| `MetricDecoratorFactory` 与 `metered(...)` 扩展函数从 `me.ahoo.wow.metrics` 移到 `me.ahoo.wow.metrics.decorator`；`WowMetrics`、`MetricDescriptor` 等指标端口不动 | 不经 starter、自行为组件装饰指标的集成 | 改为导入 `me.ahoo.wow.metrics.decorator.MetricDecoratorFactory` 与 `me.ahoo.wow.metrics.decorator.metered` |
+| `QueryGatewayRegistrar` 改为 `sealed`，删除 `registerQueryGateway(Map.Entry, BeanDefinitionRegistry)`、无参构造函数与 `appContext` 访问器 | 继承 `QueryGatewayRegistrar` 注册自定义查询网关的集成 | 不再继承；以 `snapshotQueryGatewayBeanName()` / `eventStreamQueryGatewayBeanName()` 为名注册自己的网关 bean，注册器会保留已存在的同名 bean |
+| `PrepareKeyFactoryBean.setApplicationContext(ApplicationContext)` 改为 `setBeanFactory(BeanFactory)` | 直接调用该方法的代码；经 `PrepareKeyAutoRegistrar` 注册的 bean 不受影响 | 改为调用 `setBeanFactory` |
+
+行为变化：`SpringServiceProvider.getService(name)` 遇到未知名称时返回 `null`，不再抛出异常，与 `ServiceProvider` 的查找契约一致。依赖该异常的调用方改为检查 `null`，或改用 `getRequiredService`。
 
 ## 从 9.6 升级到 9.7.0
 

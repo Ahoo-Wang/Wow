@@ -66,7 +66,7 @@ binary after a new storage-format write is not a rollback.
 
 ## Upgrading from 9.7 to 9.8.0
 
-9.8.0 moves classes out of `wow-core`'s generic `messaging` package into the domain package each belongs to, and moves the storage batching package out of `infra`, so `messaging` imports no command, event or event-sourcing package and `infra` imports no metrics. These are internal implementation (see the scope in `docs/compat-debt.md`): only the package changes; class names, constructors, behaviour, configuration, header keys and wire formats are unchanged, so 9.7.x and 9.8.0 nodes can share one cluster. Applications that use only the starter and the public entry APIs need no change; code that imports these classes recompiles with the new imports.
+9.8.0 moves classes out of `wow-core`'s generic `messaging` package into the domain package each belongs to, moves the storage batching package out of `infra`, and moves the metric decorators out of the metrics port package, so `messaging` imports no command, event or event-sourcing package, `infra` imports no metrics, and the metrics port imports no domain package. `wow-spring`'s query gateway registration becomes one template. All of this is internal implementation (see the scope in `docs/compat-debt.md`), so there is no deprecation cycle. Configuration, header keys, metric names and tags, REST and wire formats are unchanged, so 9.7.x and 9.8.0 nodes can share one cluster. Applications that use only the starter and the public entry APIs need no change; code that uses the classes below changes as the table says and recompiles.
 
 | Change | Who is affected | What to do |
 |---|---|---|
@@ -74,6 +74,11 @@ binary after a new storage-format write is not a rollback.
 | `EventCompensator` and `EventCompensateSupporter` move from `me.ahoo.wow.messaging.compensation` to `me.ahoo.wow.event.compensation`. `CompensationMatcher` and `CompensationTarget` stay | Code that compensates events itself | Change the imports |
 | `CommandOperatorMessagePropagator` and `WaitPlanMessagePropagator` move from `me.ahoo.wow.messaging.propagation` to `me.ahoo.wow.command.propagation`. `MessagePropagator`, `MessagePropagators` and the other propagators stay | Code that builds a `MessagePropagators` list by hand, or lists these classes in a `META-INF/services` file | Change the imports and the service file entries |
 | `me.ahoo.wow.infra.batch` (`BatchOptions`, `BatchCoordinator`, `BatchWriter`, `BatchItemResult`, the batch exceptions) moves to `me.ahoo.wow.batch` | Code that builds MongoDB or Elasticsearch stores with `BatchOptions`, or uses the batch coordinator | Change the imports |
+| `MetricDecoratorFactory` and the `metered(...)` extensions move from `me.ahoo.wow.metrics` to `me.ahoo.wow.metrics.decorator`. `WowMetrics`, `MetricDescriptor` and the rest of the metrics port stay | Integrations that decorate components with metrics themselves, without the starter | Import `me.ahoo.wow.metrics.decorator.MetricDecoratorFactory` and `me.ahoo.wow.metrics.decorator.metered` |
+| `QueryGatewayRegistrar` is `sealed`; `registerQueryGateway(Map.Entry, BeanDefinitionRegistry)`, its no-arg constructor and the `appContext` accessors are removed | Integrations that subclass `QueryGatewayRegistrar` to register their own query gateway | Stop subclassing; register your gateway bean under `snapshotQueryGatewayBeanName()` / `eventStreamQueryGatewayBeanName()`, which the registrars leave untouched |
+| `PrepareKeyFactoryBean.setApplicationContext(ApplicationContext)` becomes `setBeanFactory(BeanFactory)` | Code that calls it directly; beans registered through `PrepareKeyAutoRegistrar` are unaffected | Call `setBeanFactory` |
+
+Behaviour change: `SpringServiceProvider.getService(name)` returns `null` for an unknown name instead of throwing, as the `ServiceProvider` lookup contract says. Callers that relied on the exception check for `null` or use `getRequiredService`.
 
 ## Upgrading from 9.6 to 9.7.0
 
