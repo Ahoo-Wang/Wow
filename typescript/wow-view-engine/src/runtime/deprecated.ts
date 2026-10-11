@@ -62,8 +62,10 @@ function namedFields(config: DataViewConfig): string[] {
         .filter(column => !columnHidden(column.hidden))
         .map(column => column.field),
     );
-    if (config.layout === 'card')
+    if (config.layout === 'card' || config.layout === 'kanban')
       names.push(config.card.title, ...config.card.fields);
+    if (config.layout === 'kanban' && config.kanban)
+      names.push(config.kanban.lane);
     names.push(...(config.summaries ?? []).map(summary => summary.field));
     return names;
   }

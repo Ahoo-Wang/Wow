@@ -33,6 +33,7 @@ import {
   walkFilter,
   type FieldKindRegistry,
 } from '../filter/index.js';
+import { kanbanShapeIssues, validateKanban } from './kanban.js';
 
 export interface ValidateRecordOptions {
   limits?: RuntimeLimits;
@@ -84,6 +85,7 @@ export function validateRecord(
   issues.push(...validateColumns(config, byName));
   issues.push(...validateCard(config, byName));
   issues.push(...validateSummaries(config, byName));
+  issues.push(...validateKanban(definition, config));
   // A source that counts only what a condition narrows (its descriptor's
   // `COUNT_REQUIRES_FILTER`, Q3) refuses a page of every record. Not a
   // mistake to fix but a question not yet asked, and said so (「先添加一个
@@ -171,6 +173,7 @@ function validateShape(config: RecordViewConfig): Issue[] {
       'record.summaries.invalid',
       entry => namesField(entry) && typeof entry.fn === 'string',
     );
+  issues.push(...kanbanShapeIssues(config));
   return issues;
 }
 

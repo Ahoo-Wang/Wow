@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 116 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 118 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -68,6 +68,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 116 — with its kind 
 | `RecordExportScope` | type | The two readings of "export": what is picked, and what the conditions match. | — |
 | `RecordExportScopes` | interface | — | — |
 | `RecordGlobalActionContext` | interface | — | — |
+| `RecordKanbanController` | interface | A kanban as its lanes render it (D83), beside the table controller: the cards, rows, status, detail and row actions are that controller's, and this is only what lanes add. | — |
 | `RecordRowActionContext` | interface | — | — |
 | `RecordTableController` | interface | — | — |
 | `RecoveredWrite` | interface | What replaying a write answered: whether it landed, and what it made. | — |
@@ -119,6 +120,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 116 — with its kind 
 | `useRecordActions` | function | — | [React Hooks](./react#api-useRecordActions) |
 | `useRecordDetail` | function | One record's detail (production review A2): what an operator opens to read a failure whole — the message a column clipped, the stack trace no column holds. | — |
 | `useRecordExport` | function | Exporting the result: the rows that are picked, or everything the applied conditions match. | — |
+| `useRecordKanban` | function | — | — |
 | `useRecordTable` | function | A record view as a table renders it, with no vendor types in sight. | [React Hooks](./react#api-useRecordTable) |
 | `useRefreshCountdown` | function | Whole seconds until the next automatic refresh, redrawn once a second. | — |
 | `useReleaseDeleted` | function | Lets the pinned view go once it is gone. | — |

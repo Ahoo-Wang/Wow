@@ -25,6 +25,7 @@ export {
   type ExportColumn,
   type ExportFormat,
 } from './export.js';
+export * from './kanban.js';
 export * from './paging.js';
 export * from './project.js';
 export * from './summaryAlias.js';

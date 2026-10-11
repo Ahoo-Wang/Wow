@@ -96,10 +96,23 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.card.per-row': '每行几张',
   'label.card.per-row-option': '每行 {count} 张',
   'label.layout.cards': '卡片',
+  'label.layout.kanban': '看板视图',
+  'label.kanban.title': '看板视图设置',
+  'label.kanban.hint': '栏取自一个字段的选项；卡片的标题、正文与图片在这里设。',
+  'label.kanban.lane-field': '分栏字段',
+  'label.kanban.lanes': '显示的栏',
+  'label.kanban.lanes-max': '一次最多显示 {max} 栏。',
+  'label.kanban.other': '其他',
+  'label.kanban.load-more': '加载更多',
+  'label.kanban.empty-lane': '没有记录',
+  'label.kanban.lane': '{lane}，{count} 条',
+  'label.kanban.lane-loaded': '{lane}，已显示 {count} 条',
+  'label.kanban.more': '{count}+',
   'label.toolbar.title': '结果工具栏',
   'label.toolbar.layout': '布局',
   'label.toolbar.columns': '列设置',
   'label.toolbar.card': '卡片设置',
+  'label.toolbar.kanban': '看板视图设置',
   'label.toolbar.refresh': '刷新',
   'label.toolbar.arrange': '表格设置',
   'label.toolbar.freshness': '数据新鲜度',
@@ -303,6 +316,11 @@ export const zhCN: Readonly<Record<string, string>> = {
     '「{field}」是搜索或元数据句柄，不是一行里的内容。',
   'record.field.unknown': '列「{field}」已不存在。',
   'record.layout.unsupported': '这里没有「{layout}」布局。',
+  'record.kanban.invalid': '看板视图的设置读不出来。',
+  'record.kanban.missing': '看板视图还没有分栏字段。',
+  'record.kanban.lane-not-enum': '「{field}」没有选项，不能用来分栏。',
+  'record.kanban.too-many-lanes':
+    '看板视图显示了 {count} 栏，最多 {max} 栏，请收起几栏。',
   'record.filter.required': '这个数据源只在有条件时列出记录：先添加一个条件。',
   'record.pageSize.not-positive': '每页条数必须是正数。',
   'record.pageSize.too-large': '每页条数不能超过 {max}。',
@@ -762,6 +780,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'runtime.query.too-many-values':
     '有一个条件列了 {count} 个值，数据源一个条件最多收 {max} 个。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',
+  'runtime.kanban.counts-unavailable':
+    '各栏的条数没取到，栏头只写已载入的张数。',
   'view.abandon.failed': '无法放弃那次写入。',
   'view.change.notify-failed':
     '视图变化的订阅者出错：{reason}。列表可能慢一拍。',
@@ -2204,6 +2224,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'definition.field.name-invalid': '{field} 不是可用的字段名。',
   'definition.id.separator': '定义 id 不能带 {separator}。',
   'definition.record.layouts-empty': '记录能力没有给出布局。',
+  'definition.record.kanban-no-lane': '看板视图要一个带选项的枚举字段来分栏。',
   'definition.record.max-window-invalid':
     '分页窗口必须是大于零的整数行数，而不是 {value}。',
   'definition.record.max-sort-fields-invalid':

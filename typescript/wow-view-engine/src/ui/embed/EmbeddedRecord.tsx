@@ -17,6 +17,7 @@ import { hasAsked, type RecordViewRuntime } from '../../runtime/index.js';
 import {
   useFilterEditor,
   useRecordDetail,
+  useRecordKanban,
   useRecordTable,
   useSearchBox,
   useViewRuntime,
@@ -26,6 +27,7 @@ import { AppliedBar } from '../filter/AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
 import { ExportButton } from '../kit/ExportDialog.js';
 import { RecordCards } from '../record/RecordCards.js';
+import { RecordKanban } from '../record/RecordKanban.js';
 import { RecordPagination } from '../record/RecordPagination.js';
 import { RecordTable } from '../record/RecordTable.js';
 import { useExportOffer } from '../record/exportOffer.js';
@@ -76,6 +78,7 @@ export function EmbeddedRecord({
 }) {
   const state = useViewRuntime(runtime);
   const table = useRecordTable(runtime);
+  const kanban = useRecordKanban(runtime);
   const filter = useFilterEditor(runtime);
   const messages = useViewMessages();
   const searchBox = useSearchBox(runtime);
@@ -154,7 +157,15 @@ export function EmbeddedRecord({
           conditionsChanged={table.conditionsChanged}
           onRetry={retry}
         />
-        {table.layout === 'card' ? (
+        {table.layout === 'kanban' ? (
+          <RecordKanban
+            table={table}
+            kanban={kanban}
+            rowActions={rowActions}
+            onOpen={onOpen}
+            emptyDescription={emptyDescription}
+          />
+        ) : table.layout === 'card' ? (
           <RecordCards
             table={table}
             rowActions={rowActions}
@@ -173,7 +184,9 @@ export function EmbeddedRecord({
             {...(state?.title ? { name: state.title } : {})}
           />
         )}
-        {interactive && <RecordPagination table={table} />}
+        {interactive && table.layout !== 'kanban' && (
+          <RecordPagination table={table} />
+        )}
       </>
     );
 

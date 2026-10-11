@@ -1536,10 +1536,16 @@ interface RecordColumn {
 type RecordData = Record<string, unknown>;
 
 // @public
+interface RecordKanbanSpec {
+    hidden?: (string | number)[];
+    lane: string;
+}
+
+// @public
 type RecordKey = string | number;
 
-// @public (undocumented)
-type RecordLayout = 'table' | 'card';
+// @public
+type RecordLayout = 'table' | 'card' | 'kanban';
 
 // @public (undocumented)
 interface RecordRow {
@@ -1574,6 +1580,7 @@ interface RecordTableSpec {
 interface RecordViewConfig extends DataViewConfigBase {
     // (undocumented)
     card: RecordCardSpec;
+    kanban?: RecordKanbanSpec;
     // (undocumented)
     kind: 'record';
     // (undocumented)

@@ -24,6 +24,7 @@ import type { MessageFormatters } from '../kit/MessagesProvider.js';
 export const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
   table: 'label.layout.table',
   card: 'label.layout.cards',
+  kanban: 'label.layout.kanban',
 };
 
 /** The families whose findings a record view shows. */
@@ -91,7 +92,7 @@ export function recordIssueNamer(
     if (operator !== undefined)
       say('operator', labelled(`label.operator.${operator}`, operator));
     const layout = text('layout');
-    if (layout === 'table' || layout === 'card')
+    if (layout === 'table' || layout === 'card' || layout === 'kanban')
       say('layout', messages.label(LAYOUT_LABEL[layout]));
     return named ? { ...found, params } : found;
   };

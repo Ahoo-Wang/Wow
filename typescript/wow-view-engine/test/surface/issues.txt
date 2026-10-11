@@ -1,4 +1,4 @@
-# Issue codes — 502.
+# Issue codes — 508.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -301,6 +301,7 @@ definition.fieldGroup.field-unknown
 definition.fieldGroup.invalid
 definition.id.separator
 definition.option.undescribed
+definition.record.kanban-no-lane
 definition.record.layouts-empty
 definition.record.max-sort-fields-invalid
 definition.record.max-window-cursor
@@ -374,6 +375,10 @@ record.detail.forbidden
 record.field.not-a-column
 record.field.unknown
 record.filter.required
+record.kanban.invalid
+record.kanban.lane-not-enum
+record.kanban.missing
+record.kanban.too-many-lanes
 record.layout.unsupported
 record.pageSize.not-positive
 record.pageSize.too-large
@@ -387,6 +392,7 @@ record.summaries.invalid
 record.summary.duplicate
 record.summary.unsupported
 record.table.invalid
+runtime.kanban.counts-unavailable
 runtime.kind.not-declared
 runtime.options.unresolved
 runtime.query.failed

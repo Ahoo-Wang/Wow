@@ -14,7 +14,10 @@
 import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client';
 import {
   FIRST_PAGE,
+  OTHER_LANE_ID,
   compileRecord,
+  kanbanLanes,
+  laneConfig,
   compileSummaries,
   projectRecord,
   projectSummaries,
@@ -53,6 +56,7 @@ import { isCalledOff, type QueryFailureReporter } from './failure/failures.js';
 import { resultIssues, type ProjectedView, type ViewSource } from './source.js';
 import { sourceReason } from './failure/sourceReason.js';
 import { deprecatedUses } from './deprecated.js';
+import { executeKanban } from './kanban.js';
 import {
   aggregationWeight,
   queryWeight,
@@ -148,7 +152,13 @@ function recordWeight(
 ): QueryWeight {
   const page = firstPageOf(definition);
   if (!page) return { nodes: 0, values: 0 };
-  const query = compileRecord(definition, config, kinds, at, page);
+  // A kanban's heaviest question is its「其他」lane, whose `NOT_IN` carries
+  // every option (D83); its counts ask the same tree with the shown ones.
+  const other = kanbanLanes(definition, config).find(
+    lane => lane.id === OTHER_LANE_ID,
+  );
+  const asked = other ? laneConfig(definition, config, other) : config;
+  const query = compileRecord(definition, asked, kinds, at, page);
   return queryWeight([query.filter]);
 }
 
@@ -191,6 +201,8 @@ async function executeRecord(
   filterContext: FilterCompileContext,
   controller: AbortController,
 ): Promise<ProjectedView> {
+  if (config.layout === 'kanban')
+    return executeKanban(context, config, filterContext, controller);
   const { definition, kinds, source } = context;
   // `validateRecord` rejects a record config whose definition declares no
   // record capability, so the paging mode is known by the time we execute.

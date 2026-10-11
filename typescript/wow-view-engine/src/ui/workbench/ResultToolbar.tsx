@@ -17,10 +17,13 @@ import type {
   FieldGroupDefinition,
   RecordLayout,
 } from '../../model/index.js';
-import type { RecordTableController } from '../../react/index.js';
+import type {
+  RecordKanbanController,
+  RecordTableController,
+} from '../../react/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import { ButtonGroup } from '../components/button-group.js';
-import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
+import { KanbanIcon, LayoutGridIcon, Rows3Icon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from '../kit/popups.js';
@@ -94,11 +97,18 @@ export interface ResultToolbarProps {
    * whose actions are commands against the view they act in.
    */
   runtime: RecordViewRuntime;
+  /**
+   * The kanban's lanes (`useRecordKanban`, D83): under the kanban the
+   * arrangement button sets them beside the cards. Left out, it sets the
+   * cards alone.
+   */
+  kanban?: RecordKanbanController;
 }
 
 const LAYOUT_ICON: Record<RecordLayout, typeof Rows3Icon> = {
   table: Rows3Icon,
   card: LayoutGridIcon,
+  kanban: KanbanIcon,
 };
 
 /**
@@ -154,6 +164,7 @@ export function ResultToolbar({
   exporter,
   features,
   runtime,
+  kanban,
 }: ResultToolbarProps) {
   const messages = useViewMessages();
   const selected = table.selection.length > 0;
@@ -276,11 +287,12 @@ export function ResultToolbar({
           {(shown.columns || shown.sort) && (
             <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
               {shown.columns &&
-                (table.layout === 'card' ? (
+                (table.layout !== 'table' ? (
                   <CardSettings
                     table={table}
                     fields={fields}
                     detached={{ handle: arrange, part: 'trigger' }}
+                    {...(table.layout === 'kanban' && kanban ? { kanban } : {})}
                   />
                 ) : (
                   <ColumnSettings
@@ -322,11 +334,12 @@ export function ResultToolbar({
         the controls in them (`DetachedPopover`, `DetachedDialog`). A popup
         renders nothing here until it opens, and then into a portal. */}
       {shown.columns &&
-        (table.layout === 'card' ? (
+        (table.layout !== 'table' ? (
           <CardSettings
             table={table}
             fields={fields}
             detached={{ handle: arrange, part: 'popup' }}
+            {...(table.layout === 'kanban' && kanban ? { kanban } : {})}
           />
         ) : (
           <ColumnSettings

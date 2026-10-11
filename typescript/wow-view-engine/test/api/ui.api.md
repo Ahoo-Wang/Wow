@@ -1949,6 +1949,7 @@ export const en: {
     readonly 'definition.field.name-invalid': "{field} is not a usable field name.";
     readonly 'definition.id.separator': "A definition id cannot contain {separator}.";
     readonly 'definition.record.layouts-empty': "The record capability offers no layout.";
+    readonly 'definition.record.kanban-no-lane': "The kanban layout needs an enum field with options to lay lanes out by.";
     readonly 'definition.record.max-window-invalid': "The paging window must be a whole number of rows above zero, not {value}.";
     readonly 'definition.record.max-sort-fields-invalid': "The sort bound must be a whole number of fields, not {value}.";
     readonly 'definition.record.max-window-cursor': "A paging window bounds pages, and this source pages by cursor.";
@@ -3301,6 +3302,7 @@ export const en: {
     readonly 'runtime.query.too-many-nodes': "These conditions make a query of {count} parts; the source takes at most {max}. Remove some conditions.";
     readonly 'runtime.query.too-many-values': "One condition lists {count} values; the source takes at most {max} in one condition.";
     readonly 'runtime.summary.page-only': "The totals query failed, so the summary adds up only the rows on this page.";
+    readonly 'runtime.kanban.counts-unavailable': "The lane counts could not be fetched, so each lane shows only the cards loaded.";
     readonly 'view.abandon.failed': "That write could not be set aside.";
     readonly 'view.change.notify-failed': "A listener on view changes failed: {reason}. The list may be a revision behind.";
     readonly 'view.config.invalid': "Fix what this view reports before saving it.";
@@ -3695,6 +3697,7 @@ export const en: {
     readonly 'label.layout.table': "Table";
     readonly 'label.layout.chart': "Chart";
     readonly 'label.layout.cards': "Cards";
+    readonly 'label.layout.kanban': "Kanban";
     readonly 'label.card.title': "Card settings";
     readonly 'label.card.hint': "Cards take their title, body and image from here.";
     readonly 'label.card.title-field': "Title";
@@ -3703,10 +3706,22 @@ export const en: {
     readonly 'label.card.fields': "Body";
     readonly 'label.card.per-row': "Cards per row";
     readonly 'label.card.per-row-option': "{count} per row";
+    readonly 'label.kanban.title': "Kanban settings";
+    readonly 'label.kanban.hint': "Lanes come from a field's options; cards take their title, body and image from here.";
+    readonly 'label.kanban.lane-field': "Lanes by";
+    readonly 'label.kanban.lanes': "Lanes shown";
+    readonly 'label.kanban.lanes-max': "At most {max} lanes at a time.";
+    readonly 'label.kanban.other': "Other";
+    readonly 'label.kanban.load-more': "Load more";
+    readonly 'label.kanban.empty-lane': "No records";
+    readonly 'label.kanban.lane': "{lane}, {count} records";
+    readonly 'label.kanban.lane-loaded': "{lane}, {count} shown";
+    readonly 'label.kanban.more': "{count}+";
     readonly 'label.toolbar.title': "Result toolbar";
     readonly 'label.toolbar.layout': "Layout";
     readonly 'label.toolbar.columns': "Columns";
     readonly 'label.toolbar.card': "Card settings";
+    readonly 'label.toolbar.kanban': "Kanban settings";
     readonly 'label.toolbar.refresh': "Refresh";
     readonly 'label.toolbar.arrange': "Table settings";
     readonly 'label.toolbar.freshness': "Freshness";
@@ -3847,6 +3862,10 @@ export const en: {
     readonly 'record.field.not-a-column': "{field} is a search or metadata handle, not something a row holds.";
     readonly 'record.field.unknown': "The column {field} no longer exists.";
     readonly 'record.layout.unsupported': "The {layout} layout is not available here.";
+    readonly 'record.kanban.invalid': "The kanban settings could not be read.";
+    readonly 'record.kanban.missing': "The kanban has no lane field yet.";
+    readonly 'record.kanban.lane-not-enum': "{field} has no options to lay lanes out by.";
+    readonly 'record.kanban.too-many-lanes': "The kanban shows {count} lanes; it shows at most {max}. Fold some away.";
     readonly 'record.filter.required': "This data source lists records only under a condition: add one first.";
     readonly 'record.pageSize.not-positive': "The page size must be a positive number.";
     readonly 'record.pageSize.too-large': "The page size cannot exceed {max}.";
@@ -5720,10 +5739,57 @@ interface RecordGlobalActionContext {
 }
 
 // @public
-type RecordKey = string | number;
+export function RecordKanban(input: RecordKanbanProps): React_2.JSX.Element | null;
+
+// @public
+interface RecordKanbanController {
+    laneFields: readonly FieldDefinition[];
+    laneOptions: readonly FieldOption[];
+    lanes: readonly RecordLaneView[];
+    loadingLane: string | null;
+    loadLane(laneId: string): void;
+    maxLanes: number;
+    setKanban(patch: Partial<RecordKanbanSpec>): void;
+    spec: RecordKanbanSpec | null;
+}
 
 // @public (undocumented)
-type RecordLayout = 'table' | 'card';
+export interface RecordKanbanProps {
+    // (undocumented)
+    emptyDescription?: string;
+    emptyTitle?: string;
+    emptyWayOut?: EmptyWayOut;
+    kanban: RecordKanbanController;
+    onEmptyAction?(): void;
+    onOpen?(row: RecordRow): void;
+    renderCell?(cell: RecordCell): React_2.ReactNode;
+    rowActions?(row: RecordRow): React_2.ReactNode;
+    table: RecordTableController;
+}
+
+// @public
+interface RecordKanbanSpec {
+    hidden?: (string | number)[];
+    lane: string;
+}
+
+// @public
+type RecordKey = string | number;
+
+// @public
+interface RecordLaneView {
+    id: string;
+    label: string;
+    next: RecordPageTarget | null;
+    rows: RecordRow[];
+    summaries: SummaryRow | null;
+    tone?: FieldTone;
+    total: number | null;
+    value: string | number | null;
+}
+
+// @public
+type RecordLayout = 'table' | 'card' | 'kanban';
 
 // @public
 type RecordPageTarget<P extends PagingMode = PagingMode> = P extends 'paged' ? {
@@ -5775,9 +5841,8 @@ interface RecordProjection {
     card: RecordCardView;
     // (undocumented)
     columns: RecordColumnView[];
-    // (undocumented)
+    lanes?: RecordLaneView[];
     paging: RecordPaging;
-    // (undocumented)
     rows: RecordRow[];
 }
 
@@ -5916,6 +5981,7 @@ interface RecordTableSpec {
 interface RecordViewConfig extends DataViewConfigBase {
     // (undocumented)
     card: RecordCardSpec;
+    kanban?: RecordKanbanSpec;
     // (undocumented)
     kind: 'record';
     // (undocumented)
@@ -5948,6 +6014,7 @@ export interface RecordViewProps {
 interface RecordViewRuntime<P extends PagingMode = PagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
     fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
     // (undocumented)
@@ -6108,6 +6175,7 @@ export interface ResultToolbarProps {
     features?: WorkbenchFeatures;
     fieldGroups?: readonly FieldGroupDefinition[];
     fields: readonly FieldDefinition[];
+    kanban?: RecordKanbanController;
     released?: ReleasedPins;
     rowKey?: string;
     runtime: RecordViewRuntime;

@@ -210,6 +210,9 @@ export const viewMessages = {
   // it was asked for. The row says which scope it is; this says why.
   'runtime.summary.page-only':
     'The totals query failed, so the summary adds up only the rows on this page.',
+  // The same for a kanban's lanes (D83): the cards stay, the counts go.
+  'runtime.kanban.counts-unavailable':
+    'The lane counts could not be fetched, so each lane shows only the cards loaded.',
   'view.abandon.failed': 'That write could not be set aside.',
   'view.change.notify-failed':
     'A listener on view changes failed: {reason}. The list may be a revision behind.',

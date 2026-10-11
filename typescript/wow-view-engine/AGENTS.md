@@ -181,13 +181,14 @@ src/
     compile.ts                — compileRecord → FilterPagedQuery / CursorQuery, carrying `recordProjection` (the fields a page asks for: what the view shows, plus `rowFields`), and compileSummaries → AggregationQuery; `FIRST_PAGE`
     defaults.ts               — defaultRecordConfig — a complete starting config, since `create` takes one rather than inventing it; `recordCapabilityOf`
     detail.ts                 — `detailSections`: a record's detail laid out by the definition's field groups, the ungrouped fields after, value-less kinds left out
+    kanban.ts                 — The kanban (D83): its lanes (`kanbanLanes`, an enum's options less the folded, then「其他」), a lane's question (`laneConfig`), the lanes' counts and summaries as one aggregation (`compileKanbanCounts`), the lanes projected together (`projectKanban`) and one lane's next page put after it (`appendLane`); its admission (`validateKanban`, `kanbanShapeIssues`) and default (`defaultKanbanSpec`)
     export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way; `writeCsv`, the one writer every export goes through, formulas neutralized unless `neutralizeFormulas: false` (D37)
     path.ts                   — `readPath`: the value at a dot path in a row, how a row's key is read
     paging.ts                 — What the pager reads, from what ran: `pagedPaging` (the size that ran, the pages reachable inside the source's `maxWindow`, `hasNext`, `reachable` when the window cuts the total short), `cursorPaging`, `lastPageInWindow`, `clampPage`
     summaryAlias.ts           — `summaryAlias`: the alias a summary cell is asked and read back by; a leaf both the compiler and `summaryCurrency` read
     summaryCurrency.ts        — `summaryCurrency`: what a total of money in each record's own currency asks beside itself to tell one currency from several
-    project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging
-    validate.ts               — validateRecord — columns, sort, card and summaries against the definition
+    project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging, a kanban's lanes (`RecordLaneView`)
+    validate.ts               — validateRecord — columns, sort, card, summaries and the kanban against the definition
     index.ts                  — The record kernel: a definition and a config in, a Wow query or a rendered view out
   analysis/                   — Analysis kernel — imports model and filter
     budget.ts                 — Depth and node budgets of a walked tree
@@ -303,6 +304,7 @@ src/
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
     commandChecks.ts          — `requireTitle`, `requireSavable`: what a command refuses of its own input before anything is sent (internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
+    kanban.ts                 — A kanban's execution (D83): every lane's first page and the lane aggregation in one slot (`executeKanban`), and one lane's next page put after it (`executeLanePage`, `loadLane`)
     fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     navigation.ts             — `ViewNavigation`: where a way off a board or an embed goes, for the host's route; `HandOver`, the two parts a view takes off a board (what the page holds as its scope, the reader's values as its own conditions) and the board to go back to (`BoardOrigin`); `GroupNaming`; `withHandedFilter`
@@ -408,6 +410,8 @@ src/
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
     useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then; which record is open held by the host (`RecordDetailControl`: `open` / `onOpenChange`, a key off the page included), `reload` after a failed read, 401/403 read as `record.detail.forbidden`
     useRecordTable.ts         — Record controller
+    recordLayout.ts           — `switchLayout`: a layout switch with the page size moved to the new ladder (`ladderOf`), run when it crosses into or out of the kanban, the kanban's default written in; `setLayout` hands it on
+    useRecordKanban.ts        — `RecordKanbanController`: the kanban's lanes beside the table controller (D83) — the lanes that ran, the one loading more, `loadLane`, the kanban half and `setKanban`, the lane fields and options
     useSaveCommands.ts        — Save, save-as, revert, rename, delete
     useValueCandidates.ts     — A condition's values offered from the data: asked when the list opens, a typed fragment once typing pauses, aborted on change and on close; loading, the source's reason on failure, retry
     useViewEngine.ts          — Creates and disposes one engine
@@ -772,8 +776,10 @@ src/
       sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; `LeftPin` carries the offset chain and `RightPin` is the one column against the edge itself (A9, D19); the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
       useOffscreenColumns.ts  — `useOffscreenColumns`: one `IntersectionObserver` rooted at the box that scrolls the table sideways, inset by the held columns — which summarised columns are out of view; `revealCell` scrolls one in between the held columns
-      CardSettings.tsx        — The card layout's settings behind the column settings' button (D18 VI)
+      CardSettings.tsx        — The card layout's settings behind the column settings' button (D18 VI); under the kanban its lane field and lanes on top, no cards per row (D83)
+      RecordCard.tsx          — One record as a card — title in two lines, body as `Item`s, image, actions at its foot — which the cards' grid and the kanban's lanes both draw
       RecordCards.tsx         — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
+      RecordKanban.tsx        — The result as lanes, one per stage (D83): each a named region with its badge, count, summaries, cards and「加载更多」; one row that scrolls sideways, read-only
       RecordPagination.tsx    — How many rows there are and how to reach the next of them; on a dashboard's record panel the pages alone, or the count alone where the board has no controls (`controls`, D39)
       RecordTable.tsx         — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
       RowActions.tsx          — The wrapper a host's per-row actions land in

@@ -76,6 +76,8 @@ export const definitionMessages = {
   'definition.field.name-invalid': '{field} is not a usable field name.',
   'definition.id.separator': 'A definition id cannot contain {separator}.',
   'definition.record.layouts-empty': 'The record capability offers no layout.',
+  'definition.record.kanban-no-lane':
+    'The kanban layout needs an enum field with options to lay lanes out by.',
   'definition.record.max-window-invalid':
     'The paging window must be a whole number of rows above zero, not {value}.',
   'definition.record.max-sort-fields-invalid':

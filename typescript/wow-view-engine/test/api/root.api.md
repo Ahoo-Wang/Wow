@@ -482,6 +482,9 @@ export interface AnalysisViewConfig extends DataViewConfigBase {
 export type AnyViewRuntime = RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
 
 // @public
+export function appendLane(definition: DataViewDefinition, config: RecordViewConfig, view: RecordProjection, id: string, page: LanePage['page'], index: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
+
+// @public
 export function approximateMetrics(capability: Pick<AnalysisCapability, 'approximate'> | undefined): readonly AnalysisMetric['type'][];
 
 // @public
@@ -1003,6 +1006,9 @@ export function compileAnalysisTotals(definition: DataViewDefinition, config: An
 
 // @public
 export function compileFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, context: FilterCompileContext): FilterExpression;
+
+// @public
+export function compileKanbanCounts(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext): AggregationQuery | null;
 
 // @public (undocumented)
 export function compilePresence(field: string, operator: FilterOperatorName): FilterExpression | null;
@@ -1528,6 +1534,9 @@ export function defaultAnalysisConfig(definition: DataViewDefinition, limits?: R
 
 // @public
 export function defaultFilters(config: DashboardViewConfig): DashboardFilters;
+
+// @public
+export function defaultKanbanSpec(definition: DataViewDefinition): RecordKanbanSpec | undefined;
 
 // @public
 export function defaultPanelSize(panel: Pick<NewPanel, 'kind'> & {
@@ -2851,6 +2860,31 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | {
 };
 
 // @public
+export interface KanbanLane {
+    id: string;
+    option?: FieldOption;
+    value: string | number | null;
+}
+
+// @public
+export function kanbanLanes(definition: DataViewDefinition, config: RecordViewConfig): KanbanLane[];
+
+// @public
+export function laneConfig(definition: DataViewDefinition, config: RecordViewConfig, lane: KanbanLane): RecordViewConfig;
+
+// @public
+export function laneFields(definition: DataViewDefinition): readonly FieldDefinition[];
+
+// @public
+export interface LanePage {
+    index: number;
+    // (undocumented)
+    lane: KanbanLane;
+    // (undocumented)
+    page: PagedList<RecordData> | CursorPage<RecordData>;
+}
+
+// @public
 export function lastPageInWindow(size: number, maxWindow?: number): number | undefined;
 
 // @public
@@ -2956,6 +2990,9 @@ export const MAX_DERIVED_DECIMALS = 6;
 
 // @public
 export const MAX_HEADING_LENGTH = 200;
+
+// @public
+export const MAX_KANBAN_LANES = 12;
 
 // @public
 export const MAX_MARKDOWN_LENGTH = 20000;
@@ -3360,6 +3397,9 @@ export function optionTabs(picked: Picked): readonly OptionsTab[];
 export type OrderStep = 'up' | 'down';
 
 // @public
+export const OTHER_LANE_ID = "other";
+
+// @public
 export function outOfScopeNames(scope: AnalysisScope, domain: ReadonlyMap<string, FieldDefinition>): Set<string>;
 
 // @public
@@ -3677,6 +3717,9 @@ export interface ProjectedRecord extends ProjectedBase {
 export type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
 // @public
+export function projectKanban(definition: DataViewDefinition, config: RecordViewConfig, pages: readonly LanePage[], counts: readonly RecordData[] | null, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
+
+// @public
 export function projectRecord(definition: DataViewDefinition, config: RecordViewConfig, page: PagedList<RecordData> | CursorPage<RecordData>, pageIndex?: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
 
 // @public
@@ -3849,10 +3892,28 @@ export interface RecordColumnView {
 export type RecordData = Record<string, unknown>;
 
 // @public
+export interface RecordKanbanSpec {
+    hidden?: (string | number)[];
+    lane: string;
+}
+
+// @public
 export type RecordKey = string | number;
 
-// @public (undocumented)
-export type RecordLayout = 'table' | 'card';
+// @public
+export interface RecordLaneView {
+    id: string;
+    label: string;
+    next: RecordPageTarget | null;
+    rows: RecordRow[];
+    summaries: SummaryRow | null;
+    tone?: FieldTone;
+    total: number | null;
+    value: string | number | null;
+}
+
+// @public
+export type RecordLayout = 'table' | 'card' | 'kanban';
 
 // @public
 export type RecordPageTarget<P extends PagingMode = PagingMode> = P extends 'paged' ? {
@@ -3869,9 +3930,8 @@ export interface RecordProjection {
     card: RecordCardView;
     // (undocumented)
     columns: RecordColumnView[];
-    // (undocumented)
+    lanes?: RecordLaneView[];
     paging: RecordPaging;
-    // (undocumented)
     rows: RecordRow[];
 }
 
@@ -3914,6 +3974,7 @@ export function recordValue(data: RecordData, field: string): unknown;
 export interface RecordViewConfig extends DataViewConfigBase {
     // (undocumented)
     card: RecordCardSpec;
+    kanban?: RecordKanbanSpec;
     // (undocumented)
     kind: 'record';
     // (undocumented)
@@ -3932,6 +3993,7 @@ export interface RecordViewConfig extends DataViewConfigBase {
 export interface RecordViewRuntime<P extends PagingMode = PagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
     fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
     // (undocumented)

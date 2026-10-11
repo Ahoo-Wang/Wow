@@ -23,7 +23,7 @@ import type { Issue } from '../../model/index.js';
  * - `layout` — a layout the definition no longer offers: one press switches
  *   to one it does;
  * - `sort` — the sort settings;
- * - `card` — the card settings;
+ * - `card` — the card settings, which under a kanban hold its lanes too;
  * - `columns` — the column settings, which hold the columns and their
  *   summaries.
  */
@@ -34,6 +34,8 @@ const BY_PART: Readonly<Record<string, ConfigRemedy>> = {
   layout: 'layout',
   sort: 'sort',
   card: 'card',
+  // The kanban's lanes are set beside its cards (D83).
+  kanban: 'card',
   table: 'columns',
   summaries: 'columns',
 };

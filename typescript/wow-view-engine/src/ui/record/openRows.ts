@@ -39,7 +39,7 @@ interface OpenRows {
   row(row: RecordRow): OpenRowProps;
 }
 
-interface OpenRowProps {
+export interface OpenRowProps {
   'data-openable'?: '';
   /**
    * The row's key, as text: where the detail hands focus back when it

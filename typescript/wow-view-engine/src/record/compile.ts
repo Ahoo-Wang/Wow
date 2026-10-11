@@ -86,10 +86,11 @@ function compileSort(config: RecordViewConfig, rowKey: string): FieldSort[] {
  * - the row key, which is what a row *is* — selection, the row's React key
  *   and every action read it;
  * - the table's visible columns, and the card's title, image and body when
- *   the definition offers cards. Both layouts, whichever is current: table
- *   or cards is a presentation member (`RECORD_PRESENTATION_MEMBERS`), so
- *   switching draws the same rows from the same query at once, and a card
- *   switched to must not come up blank waiting for a second one;
+ *   the definition offers cards or a kanban, whose lanes hold the same
+ *   cards. Both, whichever layout is current: table or cards is a
+ *   presentation member (`RECORD_PRESENTATION_MEMBERS`), so switching draws
+ *   the same rows from the same query at once, and a card switched to must
+ *   not come up blank waiting for a second one;
  * - the sort, so a source that works the next cursor out of the last row
  *   finds its values there — Wow's own backend adds them itself, but
  *   `ViewSource` is a port anyone implements;
@@ -144,7 +145,11 @@ export function recordProjection(
   const asked: string[] = [capability.rowKey];
   for (const column of config.table.columns)
     if (!columnHidden(column.hidden)) asked.push(shown(column.field));
-  if (capability.layouts.includes('card')) {
+  // A kanban's lanes are the very cards (D83), so it asks for them too.
+  if (
+    capability.layouts.includes('card') ||
+    capability.layouts.includes('kanban')
+  ) {
     asked.push(shown(config.card.title));
     if (config.card.image !== undefined) asked.push(config.card.image);
     asked.push(...config.card.fields.map(shown));
@@ -259,7 +264,25 @@ export function compileSummaries(
 ): AggregationQuery | null {
   const summaries = config.summaries ?? [];
   if (summaries.length === 0) return null;
+  return {
+    filter: compileFilter(definition.fields, config.filter, kinds, context),
+    metrics: summaryMetrics(definition, config) as [
+      AggregationMetric,
+      ...AggregationMetric[],
+    ],
+  };
+}
 
+/**
+ * The metrics a config's summaries ask an aggregation for, each under the
+ * alias the projection reads it back by — over the whole range
+ * (`compileSummaries`) or per kanban lane (`compileKanbanCounts`).
+ */
+export function summaryMetrics(
+  definition: DataViewDefinition,
+  config: RecordViewConfig,
+): AggregationMetric[] {
+  const summaries = config.summaries ?? [];
   const metrics = summaries.map(summary =>
     SUMMARY_METRIC[summary.fn](
       summary.field,
@@ -280,8 +303,5 @@ export function compileSummaries(
       aggregation.any(currency.field, currency.code),
     );
   }
-  return {
-    filter: compileFilter(definition.fields, config.filter, kinds, context),
-    metrics: metrics as [AggregationMetric, ...AggregationMetric[]],
-  };
+  return metrics;
 }

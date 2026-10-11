@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 863 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -272,6 +272,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `IssuePath` | type | — | [Issue Codes](./issues#api-Issue) |
 | `IssueSeverity` | type | `error` blocks apply and save; `warning` is reported without blocking — something is wrong, or the answer could be misread; `note` is something true about the answer a reader should know, and nothing is wrong: the groups a view's own limit left out, when every row shown is whole. | [Issue Codes](./issues#api-Issue) |
 | `JsonValue` | type | Any value a saved configuration may hold: configs are plain JSON. | — |
+| `KanbanLane` | interface | One lane a kanban asks for: an option of the lane field, or「其他」. | — |
+| `LanePage` | interface | One lane's page, as the source answered it. | — |
 | `LiteralEnums` | type | Replaces enum members with their string values and leaves everything else untouched, so a Wow protocol type can be reused in a configuration without dragging its enums into stored data. | — |
 | `LocalStorageSnapshotOptions` | interface | Where a `localStorageSnapshot` reads and writes. | — |
 | `MAX_CHART_LEVELS` | const | The most levels a hierarchy or a flow draws: past four, rings and columns are slivers. | — |
@@ -279,6 +281,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `MAX_DASHBOARD_TABS` | const | Tabs one dashboard may hold. | — |
 | `MAX_DERIVED_DECIMALS` | const | The most digits after the point a derived number is written with. | — |
 | `MAX_HEADING_LENGTH` | const | Characters one heading panel may hold: a section title, one line. | — |
+| `MAX_KANBAN_LANES` | const | The most lanes a kanban draws at once, the「其他」lane not counted. | — |
 | `MAX_MARKDOWN_LENGTH` | const | Characters one markdown panel may hold; a config arrives from a store. | — |
 | `MAX_MOVING_WINDOW` | const | The widest window a moving average takes: a year of days. | — |
 | `MAX_NUMERIC_SCALE` | const | The most fraction digits Intl writes, which `scale` is held under. | — |
@@ -322,6 +325,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `NumberRange` | type | Inclusive bounds of a `BETWEEN`. | — |
 | `ONE_DAY_PRESETS` | const | The named periods a one-day filter (`DashboardField.oneDay`) offers: the days that have come, by name. | — |
 | `OPERATOR_SIGN` | const | The sign an operator prints as, in every language. | — |
+| `OTHER_LANE_ID` | const | The id of the lane of every record whose value is none of the options. | — |
 | `OpenCapabilities` | interface | What a `defineView` definition leaves to its source; see `DefinitionDescribed.open`. | — |
 | `OpenOptions` | interface | How `ViewEngine.open` opens a view, beyond which one. | [Engine and Resources](./engine#api-OpenOptions) |
 | `OptionSource` | interface | Remote candidates of a `reference` field: a paged search, and a lookup by id for the values a saved config already holds. | — |
@@ -374,8 +378,10 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `RecordColumn` | interface | One column of the table layout. | — |
 | `RecordColumnView` | interface | A column as the table should render it, with its semantics resolved. | — |
 | `RecordData` | type | One row as returned by the business query source. | — |
+| `RecordKanbanSpec` | interface | The kanban half of a record view (D83): which field's stages the lanes are, and which of them the reader folded away. | — |
 | `RecordKey` | type | The value of a row's `rowKey` field. | — |
-| `RecordLayout` | type | — | — |
+| `RecordLaneView` | interface | One lane of a kanban result (D83): one option of the lane field, or the 「其他」lane of every record whose value is none of them. | — |
+| `RecordLayout` | type | How a record view draws its rows: a table, a grid of cards, or the cards laid out in one lane per stage (`kanban`, D83). | — |
 | `RecordPageTarget` | type | Where to read from. | — |
 | `RecordPaging` | type | — | — |
 | `RecordProjection` | interface | — | — |
@@ -383,7 +389,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `RecordSort` | interface | — | — |
 | `RecordSummary` | interface | — | — |
 | `RecordTableSpec` | interface | — | — |
-| `RecordViewConfig` | interface | Both layouts are stored together, so switching between table and card keeps the other one's settings; `layout` only records the current choice. | — |
+| `RecordViewConfig` | interface | Every layout's settings are stored together, so switching between them keeps the others'; `layout` only records the current choice. | — |
 | `RecordViewRuntime` | interface | Paging and selection belong to Record alone. | — |
 | `ReferenceBand` | interface | A stretch of one value axis, `from` below `to`, shaded behind the marks. | — |
 | `ReferenceFilterValue` | interface | — | — |
@@ -510,6 +516,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `aliasOf` | function | Alias derived from a field path, kept to the single segment Wow allows. | — |
 | `analysisProbeLimit` | function | The row count the grouped query asks for: one more than the configured limit (D20 Ⅷ). | — |
 | `analysisScope` | function | — | — |
+| `appendLane` | function | The next page of one lane put after the rows it already has (「加载更多」); every other lane as it was. | — |
 | `approximateMetrics` | function | The metric types a capability says its source estimates. | — |
 | `arrangePanel` | function | Where one keyboard command puts the panel, as the layout to hand `place`, or `null` when it would change nothing the reader could see. | — |
 | `arrayFieldKind` | const | A field holding several values at once: tags, categories, labels. | — |
@@ -548,6 +555,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `compileAnalysis` | function | Compilation is a mapping, not a translation: the configuration is isomorphic to the Wow aggregation protocol and differs only in storing enum values as literals and filters as trees. | — |
 | `compileAnalysisTotals` | function | Totals run their own ungrouped query. | — |
 | `compileFilter` | function | Compiles an admitted tree into a Wow filter expression. | — |
+| `compileKanbanCounts` | function | Every shown option lane's count and summaries, as one aggregation: the view's conditions and `IN` the shown values, grouped by the lane field,`COUNT` and the config's summaries. | — |
 | `compilePresence` | function | — | — |
 | `compileRecord` | function | Compiles the applied config into the query its source understands. | — |
 | `compileSummaries` | function | Totals over the whole filtered range, as one ungrouped aggregation. | — |
@@ -566,6 +574,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `dateTimeFieldKind` | const | An instant, with a time of day. | — |
 | `defaultAnalysisConfig` | function | A complete starting config. | — |
 | `defaultFilters` | function | What a board's filters hold before anyone set them: every default, and the time grouping's default unit. | — |
+| `defaultKanbanSpec` | function | A new view's kanban half: the first lane field, its first`MAX_KANBAN_LANES` options shown and the rest folded away. | — |
 | `defaultPanelSize` | function | How big a new panel starts, in cells of the 24-column grid (D22 A): a metric card a quarter, a chart half, a table the full width; a heading a full-width line, a note or a picture beside a chart. | — |
 | `defaultRecordConfig` | function | A complete starting config, because `create` takes a config rather than inventing one: a definition that `validateDefinition` accepted always has a layout and a row key to build from. | — |
 | `defaultRuntimeEnvironment` | function | The default host: the ambient clock and timers, the ambient zone, and a page that is always visible. | — |
@@ -683,6 +692,9 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `isViewStoreError` | function | Structural, so an error raised by a second copy of this package, or by a store that builds the shape itself, is still recognised: an `Error` named`ViewStoreError` with one of the port's codes. | [Persistence Port](./store#api-ViewStoreError) |
 | `isViewWriteError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
 | `issue` | function | — | — |
+| `kanbanLanes` | function | The lanes a kanban asks for, in the order it draws them: the lane field's options as the definition lists them, less the folded ones, then the 「其他」lane. | — |
+| `laneConfig` | function | One lane's question: the view's conditions and the lane's, the rest of the config as it is. | — |
+| `laneFields` | function | The fields a kanban can be laid out by, in the definition's order. | — |
 | `lastPageInWindow` | function | The last page a source with this window serves at this size: the page `p` with `p × size` still inside it. | — |
 | `leadMetric` | function | The metric a chart is about: the one its first mark measures. | — |
 | `levelLabel` | function | What the level at `index` is called: its array's label, else its path. | — |
@@ -740,6 +752,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 850 — with its kind and th
 | `presentationMembersOf` | function | The members a data panel's override of how it looks sets (D22 D), read as untrusted: none for a content panel, an override that is no object, or one that names only what no view has. | — |
 | `pressableGroups` | function | The dimensions of a view a press can name: an analysis's groups, read as untrusted; none for a record view, and none for an analysis over expanded elements — its groups are an element's, which no root condition selects. | — |
 | `projectAnalysis` | function | Turns aggregation rows into table columns plus whatever the chart family needs. | — |
+| `projectKanban` | function | A kanban's result: every lane projected under the same config and put together, the rows in lane order, each lane with its count, summaries and the page it moves on to. | — |
 | `projectRecord` | function | Turns a page of rows into what a table or a card list renders. | — |
 | `projectSummaries` | function | Page summaries are derived from the rows on screen; range summaries are read back from the aggregation by alias. | — |
 | `qualify` | function | An element field's full path, from the scope it sits in and its own name. | — |

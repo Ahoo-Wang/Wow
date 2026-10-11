@@ -22,6 +22,7 @@ import {
   nearestPageSize,
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
+import { defaultKanbanSpec } from './kanban.js';
 
 export function recordCapabilityOf(
   definition: ViewDefinition,
@@ -82,5 +83,17 @@ export function defaultRecordConfig(
         .filter(name => name !== capability.rowKey)
         .slice(0, limits.defaultCardFields),
     },
+    // Only where the definition offers a kanban, like every half written
+    // here: a view without one has nothing to say about lanes.
+    ...kanbanPart(definition, defaults),
   };
+}
+
+function kanbanPart(
+  definition: DataViewDefinition,
+  defaults: Partial<RecordViewConfig>,
+): Pick<RecordViewConfig, 'kanban'> {
+  if (!definition.record?.layouts.includes('kanban')) return {};
+  const kanban = defaults.kanban ?? defaultKanbanSpec(definition);
+  return kanban ? { kanban } : {};
 }

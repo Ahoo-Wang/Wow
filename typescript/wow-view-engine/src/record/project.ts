@@ -26,11 +26,13 @@ import {
   type FieldDefinition,
   type FieldNumeric,
   type FieldOption,
+  type FieldTone,
   type NumberFormat,
   type RecordCardSpec,
   type RecordColumn,
   type RecordData,
   type RecordKey,
+  type RecordPageTarget,
   type RecordViewConfig,
   DEFAULT_RUNTIME_LIMITS,
   type RuntimeLimits,
@@ -215,12 +217,46 @@ export interface RecordCardView {
   perRow?: 1 | 2 | 3 | 4;
 }
 
+/**
+ * One lane of a kanban result (D83): one option of the lane field, or the
+ * 「其他」lane of every record whose value is none of them.
+ */
+export interface RecordLaneView {
+  /**
+   * Which lane this is, for `loadLane`: `option:` and the option's value as
+   * JSON (so `1` and `'1'` are two lanes), or `other`.
+   */
+  id: string;
+  /** The option's value; `null` for the「其他」lane. */
+  value: string | number | null;
+  /** The option's label; empty for the「其他」lane, which the screen words. */
+  label: string;
+  /** How the option's badge reads, when the definition says. */
+  tone?: FieldTone;
+  /** The lane's rows so far — the same objects `RecordProjection.rows` holds. */
+  rows: RecordRow[];
+  /**
+   * Every record the lane holds: the lane aggregation's count, or a paged
+   * source's total for the lane. `null` when neither says — the「其他」lane
+   * of a cursor source, or any lane of one whose aggregation failed.
+   */
+  total: number | null;
+  /** The page「加载更多」asks for next; `null` when the lane is all here. */
+  next: RecordPageTarget | null;
+  /** The lane's summaries, when the config asks for any and they came back. */
+  summaries: SummaryRow | null;
+}
+
 export interface RecordProjection {
   columns: RecordColumnView[];
   /** The same result's card layout; both halves are saved side by side. */
   card: RecordCardView;
+  /** Every row on screen; under a kanban, the lanes' rows in lane order. */
   rows: RecordRow[];
+  /** Under a kanban, the first lane's: the lanes page on their own. */
   paging: RecordPaging;
+  /** The lanes, when the result is a kanban's (`projectKanban`). */
+  lanes?: RecordLaneView[];
 }
 
 /**

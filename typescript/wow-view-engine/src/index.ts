@@ -271,11 +271,13 @@ export {
   nearestPageSize,
 } from './model/limits.js';
 export {
+  MAX_KANBAN_LANES,
   type PagingMode,
   RECORD_PRESENTATION_MEMBERS,
   type RecordCardSpec,
   type RecordColumn,
   type RecordData,
+  type RecordKanbanSpec,
   type RecordKey,
   type RecordLayout,
   type RecordPageTarget,
@@ -467,6 +469,18 @@ export {
   serializeCsv,
 } from './record/export.js';
 export {
+  type KanbanLane,
+  type LanePage,
+  OTHER_LANE_ID,
+  appendLane,
+  compileKanbanCounts,
+  defaultKanbanSpec,
+  kanbanLanes,
+  laneConfig,
+  laneFields,
+  projectKanban,
+} from './record/kanban.js';
+export {
   type CursorPaging,
   type PagedPaging,
   type RecordPaging,
@@ -483,6 +497,7 @@ export {
   type RecordCardField,
   type RecordCardView,
   type RecordColumnView,
+  type RecordLaneView,
   type RecordRow,
   type RecordProjection,
   type SummaryCell,

@@ -919,6 +919,21 @@
 - **裁定**（用户 2026-10-02）：首发（9.2.0-rc.0）之前改名，不留别名：`ExportCancelledError`、`ActionRefusedError`，`.name` 与类名一致；判定函数 `isExportCancelled` 随类改为 `isExportCancelledError`（与 `isViewWriteError`、`isViewCommandError` 同形）。失败类的文件归位（`runtime/failure/`）不在此列，留在 [todo.md](todo.md)。
 - **落点**：`src/runtime/exportRows.ts`、`src/runtime/actions.ts`、三个入口；`test/surface/root.txt`、`testing.txt`，`test/api/root.api.md`、`testing.api.md`；`.github/scripts/package-check.mjs` 的 `/testing` 冒烟。
 
+## D83 记录视图的第三种布局：看板视图（2026-10-10）
+
+- **来由**：商机阶段、需求处理阶段这类「一条记录依次走过几个阶段」的数据，读者要按阶段分栏看：每个阶段有几条、各是哪些、卡在哪一栏。表格按阶段排序看得到顺序，看不到分布；卡片布局把各阶段混在一张网格里。
+- **裁定**（用户 2026-10-10）：
+  - **是记录视图的一种布局，不是第四种视图种类**：`layout: 'kanban'`，配置多一个可选成员 `kanban: { lane, hidden? }`。卡片沿用 `card` 那一半（标题、正文、图片；每行几张 `perRow` 在看板视图里不读）——同一条记录，在卡片布局与看板视图里是同一张卡。定义在 `RecordCapability.layouts` 里写上 `'kanban'` 才提供它。
+  - **分栏字段只能是声明了 `options` 的 `enum` 字段**：栏的顺序、名字与徽章语气就是选项的，`hidden` 按选项的值记下读者收起的栏，新加的选项因此自己出现。另有一栏「其他」：值不在选项里的记录（含没有值的），条件是 `NOT_IN` 全部选项——它总要问，只在有卡片时才画。`boolean`、`reference` 不做分栏字段：前者两栏说不出阶段，后者的栏要远程解析且没有上限。
+  - **一栏一条查询**：每栏是视图的条件 AND 这一栏的 `IN [值]`，按定义声明的分页方式取第一页，每栏 `pageSize` 条；栏底「加载更多」只取这一栏的下一页接在后面。**看板视图推荐定义声明 `paging: 'cursor'`**：栏是往下接的，游标不数总数、不怕一张卡在两页之间换了栏、也撞不上 `maxWindow`；分页源照样能用（按页码接），只是深页更贵。不为看板另开一种分页：排序能力与准入都按定义的 `paging` 判，看板视图若改走另一种，同一份排序就要判两遍。
+  - **各栏的条数与汇总一条聚合取齐**：按分栏字段 `terms` 分组，`COUNT` 加配置里的汇总，条件是视图的条件 AND `IN [显示的各栏值]`，与栏的查询同一个时隙发出。失败只丢条数与汇总，卡片照画，并报 warning `runtime.kanban.counts-unavailable`（与汇总行降级同一条路）；分页源此时退回每栏自己那一页的总数。「其他」栏没有聚合出来的条数（`terms` 不数没有值的记录）：分页源用这一栏的总数，游标源写已载入的张数，还有下一页时写「N+」。
+  - **最多 `MAX_KANBAN_LANES`（12）栏可见**：一栏一条查询，栏数就是请求数。多了是 error `record.kanban.too-many-lanes`，出口是在看板视图设置里收起几栏；默认配置只显示前 12 栏。
+  - **首版只读**：不拖动换栏（换阶段是一次写，要宿主给出命令与回滚，另记一条 todo），不勾选、不批量；卡片照样点开详情、照样带行动作。
+  - **刷新从每栏的第一页重来**：手动与自动刷新、应用都重问每一栏的第一页，「加载更多」接上的卡片收回——刷新要的是现在的分布，不是把旧的几页逐一再问一遍。
+  - **切进、切出看板视图要跑查询**：表格与卡片画的是同一次查询，所以互相切换不跑；看板视图问的是另一组问题，所以 `layout` 在 `kanban` 与其余两种之间变化、或看板视图里分栏字段与收起的栏变化，都是问题变了（`restyledOnly` 读 `kanbanQuestion`）。`layout` 仍是展示成员：只改了它，标题栏照旧说「只改了展示」。
+  - **中文叫「看板视图」**：本包的中文里「看板」已经指仪表盘（看板筛选条、共享看板），所以布局开关、设置与消息里一律写全「看板视图」，不单写「看板」；代码与英文写 `kanban`。
+- **落点**：`src/model/record.ts`（`RecordKanbanSpec`、`MAX_KANBAN_LANES`）、`src/record/kanban.ts`（栏、栏的条件、条数聚合、投影）、`src/record/validate.ts`、`src/runtime/kanban.ts`（执行与加载更多）、`src/react/useRecordKanban.ts`、`src/ui/record/{RecordKanban,RecordCard,KanbanSettings}.tsx`；[model.md](model.md)、[kernels.md](kernels.md#看板视图一栏一条查询)、[runtime.md](runtime.md)、[react.md](react.md#userecordkanban)、[ui/record.md](ui/record.md#看板视图按阶段分栏)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

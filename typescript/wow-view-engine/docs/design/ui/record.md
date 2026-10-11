@@ -103,6 +103,22 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 文件：`ui/record/RecordTable.tsx` 只留行与三层；`ui/record/` 下 `EmptyResult.tsx`、`SkeletonRows.tsx`、`cells.tsx`（表格卡片共用）、`SortableHeader.tsx`、`SummaryRows.tsx`、`Filler.tsx`、`columns.ts`（冻结列与表头／数字类名）（test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）。
 
+## 看板视图：按阶段分栏
+
+看板视图（`ui/record/RecordKanban.tsx`，[D83](../decisions.md#d83-记录视图的第三种布局看板视图2026-10-10)）把同一个视图的记录按分栏字段的选项排成一行栏，一栏一个阶段，栏里是卡片。模型、查询与条数见 [kernels.md「看板视图：一栏一条查询」](../kernels.md#看板视图一栏一条查询)。
+
+- **卡片就是卡片布局那一张**：`ui/record/RecordCard.tsx` 是两种布局共用的一张卡（标题两行、正文一列 `Item`、图片、行动作在卡脚），`RecordCards` 把它排成网格，`RecordKanban` 把它排进栏；`renderCell` 同一个签名。
+- **栏是一个有名字的区域**：`section`（`data-slot="kanban-lane"`、`data-lane` 为栏的 id），名字是「{栏名}，{条数} 条」（条数不知道时「{栏名}，已显示 {张数} 条」）；栏头是这一选项的徽章（`tone` 照定义，与这个字段在表格里的徽章同一个），旁边是条数——不知道全部时写已载入的张数，还有下一页时加「+」。配置了汇总时栏头下一行是这一栏的汇总（`SummaryValue`，与汇总行同一个读法）。
+- **栏宽固定、栏一行排开**：每栏 `w-72`，整行横向滚动（`data-slot="record-kanban"`），栏内纵向排卡；窄屏同样横向滚动，不折行——折了行，一行里的第一栏就不再挨着上一阶段。
+- **空栏照画、写「没有记录」**：空着的阶段也是读数（这一阶段没有卡）；「其他」栏只在有卡片时画——它不是一个阶段。
+- **栏底「加载更多」**：这一栏还有下一页时才有；按下只问这一栏（`loadLane`），按钮在等待时转圈并停用，其余栏不动。新接上的卡片接在这一栏末尾，焦点留在按钮上。
+- **三道门与卡片布局一样**：没有结果也不在跑时不画；首次加载画骨架卡片；跑完全部栏都没有卡片时是同一个 `EmptyResult` 与它的一个出口。
+- **只读**（首版）：没有勾选框、没有批量，不拖动换栏；卡片点开详情（`useOpenRows`，每栏是一组，↑／↓ 在栏内走，Enter／Space 打开）、带行动作。
+- **设置复用卡片设置那颗按钮**：`ResultToolbar` 在看板视图下照旧画 `CardSettings`（同一个 `data-control="columns"`），名字换成「看板视图设置」，上面多两项——分栏字段（`Select`，只列带选项的 `enum` 字段）与显示的栏（每个选项一个复选框，勾满 `MAX_KANBAN_LANES` 栏后其余停用并说明）——下面仍是卡片的标题、正文与图片，「每行几张」不画；全走 `setKanban`／`setCard`。
+- **没有分页条**：看板视图的分页是每栏自己的「加载更多」，每栏一次取视图的 `pageSize` 张；分页条与它的每页条数选择器在看板视图下不画。
+
+文件：`ui/record/RecordKanban.tsx`、`ui/record/RecordCard.tsx`、`ui/record/CardSettings.tsx`（见 test/recordKanban.test.tsx、test/cardSettings.test.tsx；故事「布局/看板视图」的 `KanbanByStage`、`RequirementStates`，回归 `LanesLoadMore`、`OtherLane`）。
+
 ## 勾选：Shift 连选一段
 
 - **Shift 勾选是连选**：从**锚点**（上一次不带 Shift 的勾选）到这一行，两头都算、按结果顺序，整段跟着这一行走（原本没选就整段选中，选着就整段取消）；段外不动。**连选不挪锚点**；没有锚点时就是一次平点并落锚（test/rangeSelection.test.tsx「selects every row from the anchor down to the pressed one」「selects upwards just as it does downwards」「keeps the anchor through a range, so a second range re-draws from it」「clears the range when the pressed row is being cleared」「is a plain toggle with nothing to extend from, and sets the anchor」）；

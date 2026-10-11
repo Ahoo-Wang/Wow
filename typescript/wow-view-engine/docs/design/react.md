@@ -108,7 +108,7 @@ useRecordTable(runtime): RecordTableController
 改动配置的命令一律是一次 `edit` 加至多一次 `apply`，与 `setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。**只在草稿里没有别的待应用修改时当场 `apply`**——排序（`toggleSort(field, { exclusive })`，默认追加，`exclusive` 时这一列就是整份排序——表头平击走它，Shift 追加走默认；`setSort`）、每页条数、列的显示／顺序／冻结／宽度、汇总、卡片设置、以及顺带换每页条数的换布局，全是这一条：范围里还有没应用的条件（或别的待应用修改）时只写进草稿、并进待应用，「应用」一起跑——跑就替用户应用了那条修改，那不是这一个手势的事。「别的」由 `runtime/pending.ts` 的 `pendingBesides(state, patch)` 判：把这次写入（连同 `repairing` 顺带的修复）同时放到草稿与已应用两边再 `comparePending`，所以先前被拦下、还没跑的排序不拦下一次——这一下正是替换它。与分析表头的 `sortNow` 同一条规矩，两边都调 `pendingBesides`（见 test/recordTableCommands.test.tsx「a sort never applies what else waits」「no one-press command applies what else waits」）。`sort` 是草稿的排序（排序编辑器与下一次按表头从它算），`ranSort` 是**跑过的那份配置**的排序（表头的箭头与 `aria-sort` 读它，还没跑过时为空）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
 
 - `setColumnOrder(fields)`——按给定顺序重排草稿的列，**关掉的那些也在内**（它们有位置，正是这个位置让它们勾回来时回到原处，所以要整表重排就得连它们一起点名）。不是列的名字忽略，重复的名字只算一次（否则会落成同一字段的两列，`validateRecord` 随即拒绝），**没被点到名的列保留在末尾**：只了解表格一部分的控件（列设置的一个区域）不该因为没提到其余部分就把它们删掉；每一列按原样搬运，宽度与固定不会在下次保存时丢失；
-- `setLayout(layout)`——表格还是卡片。两种布局画的是同一份结果，所以平时只 `edit` 不 `apply`；但保存的布局已不在定义允许之列时，`apply` 在打开时就被拒、`refresh` 在有东西被准入之前是空操作，此时这个切换如果只 `edit`，屏幕修好了也还是空的——所以**什么都没跑过时**（`result === null` 且查询 `idle`）它顺带 `apply` 一次；
+- `setLayout(layout)`——表格、卡片还是看板视图。表格与卡片画的是同一份结果，所以两者之间平时只 `edit` 不 `apply`（切进切出看板视图见「useRecordKanban」）；但保存的布局已不在定义允许之列时，`apply` 在打开时就被拒、`refresh` 在有东西被准入之前是空操作，此时这个切换如果只 `edit`，屏幕修好了也还是空的——所以**什么都没跑过时**（`result === null` 且查询 `idle`）它顺带 `apply` 一次；
 - `cardSpec`／`setCard(patch)`——卡片那一半配置（草稿里的那份，与 `columnFields` 读草稿同理）与改它的命令：标题字段、正文字段、图片、每行几张，任一项都是一次 `edit` 加一次 `apply`，卡片按跑过的配置画（[ui/record.md](ui/record.md)）；
 - `setColumns(fields)`——表格显示哪几列。**配置已经认识的列是就地开关**（`hidden: true`／删掉这个键），不是加进列表或从列表里删掉：一列关掉之后仍留着自己的那一格，勾回来就回到原处而不是排到末尾（D17-8，见 [ui/record.md](ui/record.md)）。**因此它不管顺序**——顺序是 `setColumnOrder` 的事，而一个不在列表里的字段本来也没有顺序可给；配置还没提到过的字段接在末尾。**被关掉的列的汇总在同一次写入里一并删掉**：汇总属于列，留下的那条只会换来一次没处可画的聚合；留下的列照旧按原样搬运，宽度与固定关掉也不丢。**两种条目反而是删掉**：定义里已经没有的字段，以及同一列的第二条——它们没有可回来的位置，而且正是内核拒绝这份配置的理由（`record.field.unknown`／`record.column.duplicate`），留成隐藏等于让刚按下的那个控件把查询与保存继续挡着；
 - `hiddenOf(field)`——草稿里这一列是不是关着的。读的时候走 `columnHidden()`（只有 `true` 算关掉），所以旧配置与存进来的怪值都读作显示；
@@ -119,6 +119,22 @@ useRecordTable(runtime): RecordTableController
 - `card`——卡片布局与列一样由内核投影（`projectRecord` 的 `card`），控制器不再自己对着定义解析一遍字段；`rowKey`／`fieldGroups` 由控制器转交，列设置不直接读定义；
 - `maxSortFields`——这个视图一次最多按几个字段排序：游标源取 Wow 的上限减一（查询以行键收尾，占掉一格），分页源取定义里字段的个数。规则在内核（`record/maxSortFields`），控制器只转交，所以"控件停在哪"与"内核从哪开始拒绝"是同一个数；
 - `setSort(sort)`——整份排序按优先级顺序替换，跑不跑与 `toggleSort` 同一条规矩（上文）。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
+
+## useRecordKanban
+
+```ts
+useRecordKanban(runtime): RecordKanbanController
+```
+
+看板视图（D83）那一半，与 `useRecordTable` 并排用：卡片、行、状态、详情与行动作照旧读表格控制器，这里只有栏。分开是因为表格控制器是宿主可以手写的形状（`RecordTable` 收它），给它加必填成员就是破坏；看板视图是新的，它的控制器也是新的。
+
+- `lanes`——跑过的那份结果的栏（`RecordLaneView`：`id`、`value`、`label`、`tone`、`rows`、`total`、`hasNext`、`summaries`）；结果不是看板视图时为空数组。`rows` 是这一栏的行，按 `table.rows` 里的同一批对象，所以勾选、详情、行动作认的是同一行；
+- `loadingLane`——正在「加载更多」的那一栏的 id，没有为 `null`：`loadLane` 记下它，结果换了或查询不再是安静的那一次就清掉，所以栏底的按钮只在这一栏上转；
+- `loadLane(id)`——交给 `runtime.loadLane`；
+- `spec`／`setKanban(patch)`——草稿里看板视图那一半与改它的命令，一次 `edit` 加至多一次 `apply`，跑不跑与 `setCard` 同一条规矩（`pendingBesides`）；
+- `laneFields`——可作分栏字段的字段（带 `options` 的 `enum`），设置面板列它们；`laneOptions`——草稿分栏字段的全部选项（含收起的），设置面板逐栏开关它们；`maxLanes` 是 `MAX_KANBAN_LANES`。
+
+`useRecordTable().setLayout('kanban')` 在草稿没有 `kanban` 时顺带写上默认的那一份（第一个可作分栏字段的字段，前 `MAX_KANBAN_LANES` 栏），并且总是跑（切进看板视图是另一组问题）；它的每页条数梯子与表格同一套（`pageSizes`），每栏那么多张。（见 test/useRecordKanban.test.tsx）
 
 ## useRecordDetail
 

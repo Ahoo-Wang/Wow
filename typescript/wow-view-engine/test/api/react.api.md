@@ -3075,10 +3075,40 @@ export interface RecordGlobalActionContext {
 }
 
 // @public
+export interface RecordKanbanController {
+    laneFields: readonly FieldDefinition[];
+    laneOptions: readonly FieldOption[];
+    lanes: readonly RecordLaneView[];
+    loadingLane: string | null;
+    loadLane(laneId: string): void;
+    maxLanes: number;
+    setKanban(patch: Partial<RecordKanbanSpec>): void;
+    spec: RecordKanbanSpec | null;
+}
+
+// @public
+interface RecordKanbanSpec {
+    hidden?: (string | number)[];
+    lane: string;
+}
+
+// @public
 type RecordKey = string | number;
 
-// @public (undocumented)
-type RecordLayout = 'table' | 'card';
+// @public
+interface RecordLaneView {
+    id: string;
+    label: string;
+    next: RecordPageTarget | null;
+    rows: RecordRow[];
+    summaries: SummaryRow | null;
+    tone?: FieldTone;
+    total: number | null;
+    value: string | number | null;
+}
+
+// @public
+type RecordLayout = 'table' | 'card' | 'kanban';
 
 // @public
 type RecordPageTarget<P extends PagingMode = PagingMode> = P extends 'paged' ? {
@@ -3095,9 +3125,8 @@ interface RecordProjection {
     card: RecordCardView;
     // (undocumented)
     columns: RecordColumnView[];
-    // (undocumented)
+    lanes?: RecordLaneView[];
     paging: RecordPaging;
-    // (undocumented)
     rows: RecordRow[];
 }
 
@@ -3213,6 +3242,7 @@ interface RecordTableSpec {
 interface RecordViewConfig extends DataViewConfigBase {
     // (undocumented)
     card: RecordCardSpec;
+    kanban?: RecordKanbanSpec;
     // (undocumented)
     kind: 'record';
     // (undocumented)
@@ -3231,6 +3261,7 @@ interface RecordViewConfig extends DataViewConfigBase {
 interface RecordViewRuntime<P extends PagingMode = PagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
     fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
     // (undocumented)
@@ -3752,6 +3783,9 @@ export function useRecordDetail(runtime: RecordViewRuntime | null, control?: Rec
 
 // @public
 export function useRecordExport(runtime: RecordViewRuntime | null, table: RecordTableController, options: RecordExportOptions): RecordExportController;
+
+// @public (undocumented)
+export function useRecordKanban(runtime: RecordViewRuntime | null): RecordKanbanController;
 
 // @public
 export function useRecordTable(runtime: RecordViewRuntime | null): RecordTableController;

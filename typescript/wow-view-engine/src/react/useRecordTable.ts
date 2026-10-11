@@ -23,14 +23,8 @@ import type {
   RecordSummary,
   SortDirection,
   SummaryFunction,
-  RuntimeLimits,
 } from '../model/index.js';
-import {
-  columnHidden,
-  columnPinned,
-  isFieldlessKind,
-  nearestPageSize,
-} from '../model/index.js';
+import { columnHidden, columnPinned, isFieldlessKind } from '../model/index.js';
 import { recordColumns, recordSort, recordSummaries } from './recordDraft.js';
 import {
   reordered,
@@ -61,6 +55,7 @@ import {
 import { pendingBesides } from '../runtime/pending.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
+import { ladderOf, switchLayout } from './recordLayout.js';
 import {
   rowsOnScreen,
   standingAnchor,
@@ -557,38 +552,7 @@ export function useRecordTable(
     layouts: definition?.record?.layouts ?? NO_LAYOUTS,
     setLayout: useCallback(
       (layout: RecordLayout) => {
-        if (!runtime) return;
-        // The page size moves to the nearest rung of the new layout's
-        // ladder in the same edit: a page of cards is whole rows, a page of
-        // a table is the product's ladder, and the two meet at their nearest
-        // (20 rows come back as 24 cards and go back as 20). A size already
-        // on the ladder stays. A new size is a new query, so it runs.
-        const current = runtime.getSnapshot().draft.pageSize;
-        const size = nearestPageSize(
-          ladderOf(runtime.limits, layout).filter(
-            rung => rung <= runtime.limits.maxPageSize,
-          ),
-          current,
-        );
-        if (size !== current) {
-          editAndApply({ layout, pageSize: size });
-          return;
-        }
-        runtime.edit({ layout });
-        // Both layouts draw the same result, so switching normally needs
-        // no query. A view whose saved layout the definition no longer
-        // allows has no result at all, though: `apply` was refused on
-        // open, `refresh` is a no-op until something has been admitted,
-        // and the switch that repairs it would otherwise leave the screen
-        // as empty as it found it. Under the same rule as every other
-        // write here: not while another edit waits for Apply.
-        const state = runtime.getSnapshot();
-        if (
-          state.result === null &&
-          state.query.status === 'idle' &&
-          !pendingBesides(state, {})
-        )
-          runtime.apply();
+        if (runtime) switchLayout(runtime, layout, editAndApply);
       },
       [editAndApply, runtime],
     ),
@@ -779,13 +743,4 @@ export function useRecordTable(
     }, [runtime, paging]),
     refresh: useCallback(() => runtime?.refresh(), [runtime]),
   };
-}
-
-/** The page-size ladder a layout offers from (`RuntimeLimits`). */
-function ladderOf(
-  limits: RuntimeLimits | undefined,
-  layout: RecordLayout,
-): readonly number[] {
-  if (!limits) return [];
-  return layout === 'card' ? limits.cardPageSizes : limits.pageSizes;
 }

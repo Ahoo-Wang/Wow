@@ -226,6 +226,13 @@ export interface RecordViewRuntime<
    * `null` when it is no longer there.
    */
   fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+  /**
+   * A kanban lane's next page, put after the cards it has (「加载更多」, D83):
+   * asked quietly, so the board stays drawn, and only that lane moves. A
+   * no-op unless the result on screen is a settled kanban whose lane `laneId`
+   * has more to load. A refresh or an apply starts every lane over.
+   */
+  loadLane(laneId: string): void;
 }
 
 /** What opening an instance returns; narrow it by `runtime.kind`. */

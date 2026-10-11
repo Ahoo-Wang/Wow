@@ -24,7 +24,8 @@ import {
  *
  * - `drawn`: nothing the source is asked. A column made wider, moved or
  *   pinned, or a presentation member (`layout`) — the rows stay, and are
- *   drawn again under the new config.
+ *   drawn again under the new config. Not a switch into or out of the
+ *   kanban, nor its lanes changing: it asks one question per lane (D83).
  * - `summaries`: that, and the summary row. The aggregation is asked again
  *   and the page is not.
  * - `null`: anything else, and the whole query runs.
@@ -41,9 +42,19 @@ export function restyledOnly(
   next: RecordViewConfig,
 ): 'drawn' | 'summaries' | null {
   if (!dequal(question(ran), question(next))) return null;
-  return dequal(ran.summaries ?? [], next.summaries ?? [])
-    ? 'drawn'
-    : 'summaries';
+  if (dequal(ran.summaries ?? [], next.summaries ?? [])) return 'drawn';
+  // A kanban's summaries are per lane, asked in the aggregation that counts
+  // the lanes (D83): there is no summary row alone to ask again.
+  return next.layout === 'kanban' ? null : 'summaries';
+}
+
+/**
+ * What a kanban asks besides a page's question (D83): that it is one, and
+ * which lanes. Table and cards ask the same, so they compare equal here; the
+ * kanban half a table keeps stored asks nothing until it is the layout.
+ */
+function kanbanQuestion(config: RecordViewConfig): unknown {
+  return config.layout === 'kanban' ? (config.kanban ?? null) : null;
 }
 
 /** The members of a record config the page's query is compiled from. */
@@ -51,6 +62,7 @@ function question(config: RecordViewConfig): Record<string, unknown> {
   const rest: Record<string, unknown> = { ...config };
   for (const member of presentationMembers(config.kind)) delete rest[member];
   delete rest.summaries;
+  rest.kanban = kanbanQuestion(config);
   const { columns = [], ...table } = config.table ?? {};
   rest.table = {
     ...table,

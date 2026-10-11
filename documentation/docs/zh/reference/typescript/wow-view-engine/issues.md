@@ -379,6 +379,7 @@ export type IssuePath = (string | number)[];
 | `definition.fieldGroup.invalid` | 字段分组需要 id 和标签。 |
 | `definition.id.separator` | 定义 id 不能带 {separator}。 |
 | `definition.option.undescribed` | {value} 不是数据源为 {field} 列出的值。 |
+| `definition.record.kanban-no-lane` | 看板视图要一个带选项的枚举字段来分栏。 |
 | `definition.record.layouts-empty` | 记录能力没有给出布局。 |
 | `definition.record.max-sort-fields-invalid` | 排序字段上限必须是整数个字段，而不是 {value}。 |
 | `definition.record.max-window-cursor` | 分页窗口限制的是页码，而这个源按游标翻页。 |
@@ -467,6 +468,10 @@ export type IssuePath = (string | number)[];
 | `record.field.not-a-column` | 「{field}」是搜索或元数据句柄，不是一行里的内容。 |
 | `record.field.unknown` | 列「{field}」已不存在。 |
 | `record.filter.required` | 这个数据源只在有条件时列出记录：先添加一个条件。 |
+| `record.kanban.invalid` | 看板视图的设置读不出来。 |
+| `record.kanban.lane-not-enum` | 「{field}」没有选项，不能用来分栏。 |
+| `record.kanban.missing` | 看板视图还没有分栏字段。 |
+| `record.kanban.too-many-lanes` | 看板视图显示了 {count} 栏，最多 {max} 栏，请收起几栏。 |
 | `record.layout.unsupported` | 这里没有「{layout}」布局。 |
 | `record.pageSize.not-positive` | 每页条数必须是正数。 |
 | `record.pageSize.too-large` | 每页条数不能超过 {max}。 |
@@ -485,6 +490,7 @@ export type IssuePath = (string | number)[];
 
 | 代码 | 默认措辞 |
 |---|---|
+| `runtime.kanban.counts-unavailable` | 各栏的条数没取到，栏头只写已载入的张数。 |
 | `runtime.kind.not-declared` | {definition} 不提供 {kind} 视图。 |
 | `runtime.options.unresolved` | {source} 没有配置候选来源。 |
 | `runtime.query.failed` | 没能加载数据：{reason} |

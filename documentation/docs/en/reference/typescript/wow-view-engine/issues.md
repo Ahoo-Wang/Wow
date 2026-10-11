@@ -379,6 +379,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `definition.fieldGroup.invalid` | A field group needs an id and a label. |
 | `definition.id.separator` | A definition id cannot contain {separator}. |
 | `definition.option.undescribed` | {value} is not one of the values the source lists for {field}. |
+| `definition.record.kanban-no-lane` | The kanban layout needs an enum field with options to lay lanes out by. |
 | `definition.record.layouts-empty` | The record capability offers no layout. |
 | `definition.record.max-sort-fields-invalid` | The sort bound must be a whole number of fields, not {value}. |
 | `definition.record.max-window-cursor` | A paging window bounds pages, and this source pages by cursor. |
@@ -467,6 +468,10 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `record.field.not-a-column` | {field} is a search or metadata handle, not something a row holds. |
 | `record.field.unknown` | The column {field} no longer exists. |
 | `record.filter.required` | This data source lists records only under a condition: add one first. |
+| `record.kanban.invalid` | The kanban settings could not be read. |
+| `record.kanban.lane-not-enum` | {field} has no options to lay lanes out by. |
+| `record.kanban.missing` | The kanban has no lane field yet. |
+| `record.kanban.too-many-lanes` | The kanban shows {count} lanes; it shows at most {max}. Fold some away. |
 | `record.layout.unsupported` | The {layout} layout is not available here. |
 | `record.pageSize.not-positive` | The page size must be a positive number. |
 | `record.pageSize.too-large` | The page size cannot exceed {max}. |
@@ -485,6 +490,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 
 | Code | Default wording |
 |---|---|
+| `runtime.kanban.counts-unavailable` | The lane counts could not be fetched, so each lane shows only the cards loaded. |
 | `runtime.kind.not-declared` | {definition} does not offer a {kind} view. |
 | `runtime.options.unresolved` | No candidate source is configured for {source}. |
 | `runtime.query.failed` | Could not load the data: {reason} |
