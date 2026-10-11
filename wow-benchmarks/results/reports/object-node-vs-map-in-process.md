@@ -98,7 +98,7 @@ p95 的逐轮变化出现 `+501%` 等离群值，因此不用于结论。
 
 ```bash
 JMH_JAR=wow-benchmarks/build/libs/wow-benchmarks-8.16.3-jmh.jar
-ARTIFACT_DIR=docs/superpowers/benchmarks/2026-08-30-object-node-vs-map-in-process-artifacts
+ARTIFACT_DIR=wow-benchmarks/results/reports/object-node-vs-map-in-process-artifacts
 ```
 
 筛选命令：
@@ -145,10 +145,10 @@ java -jar "$JMH_JAR" \
 
 ## 原始结果
 
-- [screen.json](./2026-08-30-object-node-vs-map-in-process-artifacts/screen.json)
-- [confirm-ab1.json](./2026-08-30-object-node-vs-map-in-process-artifacts/confirm-ab1.json)
-- [confirm-ba.json](./2026-08-30-object-node-vs-map-in-process-artifacts/confirm-ba.json)
-- [confirm-ab2.json](./2026-08-30-object-node-vs-map-in-process-artifacts/confirm-ab2.json)
+- [screen.json](./object-node-vs-map-in-process-artifacts/screen.json)
+- [confirm-ab1.json](./object-node-vs-map-in-process-artifacts/confirm-ab1.json)
+- [confirm-ba.json](./object-node-vs-map-in-process-artifacts/confirm-ba.json)
+- [confirm-ab2.json](./object-node-vs-map-in-process-artifacts/confirm-ab2.json)
 
 默认注解配置仍与现有 QueryGateway 基准一致：`5 × 200ms` warmup、
 `10 × 200ms` measurement、3 forks；本报告使用上述命令行参数覆盖默认值。
