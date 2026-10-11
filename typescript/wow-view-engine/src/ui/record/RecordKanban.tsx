@@ -273,7 +273,7 @@ function KanbanLane({
       // not a fill: the cards stand on the canvas as they do in the card
       // layout, and a fill that was below them in light mode rose above
       // them in dark (0.35 against the cards' 0.29), sinking every card.
-      className="fve:border-border fve:flex fve:min-h-0 fve:w-72 fve:shrink-0 fve:snap-start fve:flex-col fve:gap-2 fve:rounded-lg fve:border fve:p-2 fve:transition-colors fve:data-[drop=open]:border-dashed fve:data-[drop=open]:border-ring fve:data-[drop=shut]:opacity-50 fve:data-[over]:border-solid fve:data-[over]:bg-accent"
+      className="fve:border-border fve:flex fve:min-h-0 fve:w-72 fve:shrink-0 fve:snap-start fve:flex-col fve:gap-2 fve:rounded-lg fve:border fve:p-2 fve:transition-colors fve:data-[drop=open]:border-dashed fve:data-[drop=open]:border-primary/50 fve:data-[drop=shut]:opacity-50 fve:data-[over]:border-solid fve:data-[over]:border-primary fve:data-[over]:bg-primary/5"
     >
       <div
         data-slot="kanban-lane-header"

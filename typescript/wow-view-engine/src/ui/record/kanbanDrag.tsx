@@ -140,8 +140,16 @@ function cardOf(
 
 /**
  * One card a pointer can pick up. Wrapped rather than handed a ref: the card
- * is the one the card layout draws too, and knows nothing of dragging. The
- * card being dragged says so (`data-dragging`).
+ * is the one the card layout draws too, and knows nothing of dragging.
+ *
+ * The library moves this very element under the pointer (`data-dnd-dragging`)
+ * and leaves a hidden copy in its place (`data-dnd-placeholder`). The card in
+ * hand stays opaque — a faded one let the cards under it read through — and
+ * is lifted: a tilt and a deep shadow, which the library's own `!important`
+ * translate and transform leave free, and an edge in the primary colour — a
+ * shadow alone all but vanishes on a dark surface, among cards its colour. Its place stays as a
+ * dashed slot of its size, drawn by the copy's `::before`, which can be
+ * visible inside a hidden parent: where it came from, and that it can go back.
  */
 export function DraggableCard({
   id,
@@ -158,7 +166,7 @@ export function DraggableCard({
       ref={ref}
       data-slot="kanban-card"
       data-dragging={isDragSource || undefined}
-      className="fve:data-[dragging]:opacity-60"
+      className="fve:relative fve:rounded-xl fve:data-[dnd-dragging]:rotate-2 fve:data-[dnd-dragging]:shadow-xl fve:data-[dnd-dragging]:ring-2 fve:data-[dnd-dragging]:ring-primary/30 fve:data-[dnd-placeholder]:before:visible fve:data-[dnd-placeholder]:before:absolute fve:data-[dnd-placeholder]:before:inset-0 fve:data-[dnd-placeholder]:before:rounded-xl fve:data-[dnd-placeholder]:before:border-2 fve:data-[dnd-placeholder]:before:border-dashed fve:data-[dnd-placeholder]:before:border-border fve:data-[dnd-placeholder]:before:bg-muted/50 fve:data-[dnd-placeholder]:before:content-['']"
     >
       {children}
     </div>
