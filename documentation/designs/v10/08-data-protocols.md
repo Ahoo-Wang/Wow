@@ -37,7 +37,7 @@ data class Command<C : Any>(
     val scope: Scope = Scope.NONE,    // 准入得到的调用方作用域（D49、D56）
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null, // 新增：因果链（§4）
-    val wait: WaitPlan = WaitPlan.COMMITTED, // 新增：等待计划（D15），默认 COMMITTED
+    val wait: WaitPlan = WaitPlan.COMMITTED, // 新增：等待计划（D15、D61～D64），默认 COMMITTED；只留在发起节点
 )
 ```
 
@@ -136,6 +136,7 @@ data class CommandResult(
     val duplicate: Boolean = false,  // 同一请求早已提交，这次没有再决定
     val error: ErrorInfo? = null,    // code、message、violations（REJECTED、FAILED）
     val results: Map<String, Any> = emptyMap(), // putResult（D51：只在首次提交时有）
+    val derived: List<String> = emptyList(), // Saga 跳：从这次提交派生的命令 ID（D62）
     val signalTime: Long,
 )
 ```
@@ -163,7 +164,7 @@ data class CommandResult(
 data class WaitSignal(val format: Int, val waitId: String, val result: CommandResult)
 ```
 
-去重键是（`waitId`，`result.hop`，来源）。来源指发信号的上下文与订阅（[04](04-subscriptions.md) §6.2）。
+去重键是（`waitId`，`result.hop`，来源）。来源指发信号的上下文与订阅（[04](04-subscriptions.md) §6.3）。
 
 **Kafka 信封**（D58）：
 
@@ -204,5 +205,4 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 
 ## 11. 待细化
 
-- `WaitPlan` 与 `WaitContext` 的具体字段（链的表示、超时），随 M4 的等待（路线图 4.7）定。
-- 集群通道消息的种类与字段（转发、信号中继、新条目推送）。
+- 集群通道消息的种类与字段（命令转发与结果回传、新条目推送）。
