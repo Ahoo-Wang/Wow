@@ -88,6 +88,9 @@
 | D56 | 作用域：`wow-api` 的值类型 `Scope(ownerId, spaceId)`，命令、事件流、快照、查询授权共用；事件流的 `scope` 是提交后聚合的归属，由内核随状态维护、只由生命周期命令改变；事件流另带 `causation`（根命令、直接上游）与准入白名单内的 `headers` | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D57 | 事件标识由（聚合引用，版本，事件序号）推导：`ref@version#index`，不另存 ID | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D58 | Kafka 信封：key = 聚合引用；value = `{format, kind, id, type, payload, transport}`；发布的是 `StateEvent`（默认总附状态，单个 Sink 可按聚合类型关闭）；载荷是嵌入的 JSON 对象，不是字符串；下游按 id 去重 | 2026-10-12，用户 | [08](08-data-protocols.md) |
+| D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
+| D67 | V10 注解集：约 15 个（见 01 §3），订阅处理函数统一为一个 `@OnEvent`、种类由所在类的 `@Projection` / `@Reactor` / `@Saga` 决定；KSP 只认 V10 注解，9.x 注解由迁移 Skill 映射 | 2026-10-12，用户 | [01](01-programming-model.md) |
+| D68 | 命令体不放身份：删除命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion`；身份在 `Command.ref`（路径或命令消息），作用域来自主体 | 2026-10-12，用户 | [01](01-programming-model.md) |
 | D61 | 等待阶段收敛为 `ACCEPTED`、`COMMITTED`、`HANDLED(订阅)` 三个；`SNAPSHOT` 是 `HANDLED(snapshot)` 的简写；修订 D15 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D62 | 等待链：多跳，只有 Saga 跳之后能接跳（作用于它派生的命令），最多 4 跳，准入按 Manifest 校验；Saga 信号带派生命令 ID，全部到达才完成，派生 0 条即完成；早到信号按 `waitId` 缓存；任一跳失败立即失败 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D63 | 重复请求的等待：本上下文订阅按检查点与台账补查；跨上下文的跳无从补查，结果停在 `COMMITTED` 并标 `duplicate` | 2026-10-12，用户 | [04](04-subscriptions.md) |

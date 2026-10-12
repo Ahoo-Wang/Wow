@@ -26,7 +26,7 @@
 
 | 层 | 模块 | 内容 | 取代 9.x 的 |
 |---|---|---|---|
-| 契约 | `wow-api` | 身份、消息、注解、Decider 接口、`Rejection`；无依赖 | wow-api（去掉查询协议） |
+| 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型，无依赖（§2.1，D66） | wow-api（重新设计，去掉查询协议） |
 | 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口 | wow-api 的 `api.query` 包 |
 | 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据 | wow-metadata |
 | 编译 | `wow-compiler` | KSP：绑定代码与 Manifest；只依赖 `wow-api` 与 `wow-manifest` | wow-compiler |
@@ -53,6 +53,31 @@
 平台模块（wow-ops、view-store、dataset-registry、analytics）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。
 
 9.x 中删除或并入上表的：wow-redis（D12）、wow-bi（D18）、wow-spring、wow-mock、wow-schema、wow-rest-contract、wow-metadata。去留未定的：wow-apiclient（Kotlin 客户端可能改由 Manifest 生成）、wow-cocache、wow-models，见 §6。
+
+### 2.1 `wow-api` 的内容（D66）
+
+`wow-api` 只放两类东西：领域代码会 import 的（注解、`Decision`、`DecideScope`、订阅处理函数拿到的 `StateEvent` 与上下文、`Scope`），以及对外线上契约的值类型（`Command`、`CommandResult`、`WaitPlan`、`Rejection`）。框架内部的接口不放进来。
+
+```text
+me.ahoo.wow.api
+├── aggregate   AggregateType、AggregateRef、Scope
+├── decide      Command、Causation、Decision、Rejection、DecideScope
+├── subscribe   StateEvent、ReactContext、SagaContext、ProjectContext（含 executionId）
+├── result      CommandResult、FunctionInfo、ErrorInfo、Violation、WaitPlan、Hop
+├── lifecycle   删除、恢复、转移所有者、转移空间、打标签：系统命令与系统事件
+└── annotation  V10 注解集（[01](01-programming-model.md) §3，D67）
+```
+
+9.x 的其余部分的去向：
+
+| 9.x 包 | 规模 | 去向 |
+|---|---|---|
+| `query/**` | 约 6,600 行 | 搬入 `wow-query-api`（M9，§4） |
+| `modeling`（`*Capable` 混入接口）、`naming`、`messaging`（`Header`、`Message`、`FunctionInfo*`） | 约 1,900 行 | 删除；`FunctionInfo` 的语义进 `CommandResult`（D60） |
+| `command`（`CommandMessage`、`CommandResultAccessor`…）、`event`（`DomainEvent`、`EventMessage`） | 约 850 行 | 删除，由 `Command`、`StateEvent` 取代 |
+| 生命周期事件、`exception/ErrorInfo`、`abac` | 约 1,100 行 | 按 V10 语义重做（`lifecycle`、`result`；标签进生命周期命令） |
+
+**时机**：`wow-api` 与 9.x 同名，只能原地演进（§4）；`v10` 上仍有 9.x 的 `wow-core` 及约 15 个模块依赖旧类型。所以 V10 的包现在就补齐、KSP 改为只认 V10 注解；9.x 的包在替换 `wow-core` 的里程碑里一并删除，`query` 在 M9 搬走。
 
 ## 3. 依赖方向
 
