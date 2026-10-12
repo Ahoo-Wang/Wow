@@ -36,6 +36,18 @@ class QueryAnnotationsTest {
     }
 
     @Test
+    fun `query index is retained on fields`() {
+        field("status").getAnnotation(QueryIndex::class.java).let {
+            it.name.assert().isEmpty()
+            it.with.toList().assert().containsExactly("state.createdAt", "state.amount")
+        }
+        field("buyer").getAnnotation(QueryIndex::class.java).let {
+            it.name.assert().isEqualTo("idx_order_buyer")
+            it.with.toList().assert().isEmpty()
+        }
+    }
+
+    @Test
     fun `sensitive annotation is retained on a value type`() {
         val sensitive = PhoneNumber::class.java.getAnnotation(Sensitive::class.java)
         sensitive.level.assert().isEqualTo(SensitivityLevel.DISPLAY)
@@ -50,6 +62,7 @@ class QueryAnnotationsTest {
 
     private data class Fixture(
         @field:QueryAlias("state.customer")
+        @field:QueryIndex(name = "idx_order_buyer")
         val buyer: String,
         @field:QueryDecimal(scale = 4)
         val ratio: Double,
@@ -59,5 +72,7 @@ class QueryAnnotationsTest {
         val timeout: Int,
         @field:QueryReference("member")
         val memberId: String,
+        @field:QueryIndex(with = ["state.createdAt", "state.amount"])
+        val status: String,
     )
 }

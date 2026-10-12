@@ -24,6 +24,11 @@ interface IPagedQuery : Queryable<IPagedQuery> {
      * The pagination settings for this query.
      */
     val pagination: Pagination
+
+    /**
+     * How the total of [PagedList] is counted.
+     */
+    val total: TotalMode
 }
 
 /**
@@ -36,6 +41,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * @property projection The field projection to control which fields are included in the results.
  * @property sort The sorting criteria to order the results.
  * @property pagination The pagination settings to control which page and how many items to return.
+ * @property total How the total is counted; [TotalMode.BOUNDED], the default, stops at the budget's count limit.
  *
  * ```
  * val query = PagedQuery(
@@ -50,7 +56,8 @@ data class PagedQuery(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    override val pagination: Pagination = Pagination.DEFAULT
+    override val pagination: Pagination = Pagination.DEFAULT,
+    override val total: TotalMode = TotalMode.BOUNDED,
 ) : IPagedQuery {
     /**
      * Creates a new PagedQuery with the specified filter.
