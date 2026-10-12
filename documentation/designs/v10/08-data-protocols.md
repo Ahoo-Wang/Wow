@@ -1,6 +1,6 @@
 # V10 数据协议
 
-日期：2026-10-12。基线：`v10` `4224` 之后。状态：草案（提案，待拍板 D55～D60）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51。
+日期：2026-10-12。基线：`v10` `4224` 之后。状态：草案（D55～D58、D60 已定，D59 待定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51。
 
 本文定义 V10 中跨越进程、存储或版本边界的数据结构：命令、事件流、`StateEvent`、快照、命令结果、等待信号、Kafka 信封。这些结构一旦落盘或上线，就只能按 §9 的规则演进，所以在 M4（运行时）与 M6（Kafka）之前定下。
 
@@ -34,16 +34,18 @@ data class Command<C : Any>(
     val ref: AggregateRef,
     val body: C,
     val expectedVersion: Int? = null,
-    val ownerId: String? = null,      // 准入得到的作用域（D49）
-    val spaceId: String? = null,
+    val scope: Scope = Scope.NONE,    // 准入得到的调用方作用域（D49、D56）
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null, // 新增：因果链（§4）
     val wait: WaitPlan = WaitPlan.COMMITTED, // 新增：等待计划（D15），默认 COMMITTED
 )
 ```
 
-- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, ownerId, spaceId, headers, causation }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
-- **指纹**（D46，修正，D55）：`SHA-256(类型名 + 规范化 JSON(body))`。规范化：键按码点排序，去掉值为 null 的键。现在的实现用 Java 类名，一改类名，同一请求的重试就会被判成「请求 ID 被占用」。剩余风险：部署前后给命令加了带默认值的字段，重试的规范化 JSON 会变。这种情况记为已知限制：跨部署的重试极少，被误判时得到明确的错误码，不会产生错误的事实。
+- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
+- **请求 ID 复用的识别只比命令类型名**（D46，按性能取舍修正，D55）：事件流记下产生它的命令类型名（§4 的 `commandType`），同一请求 ID 再来时，类型名不同就拒绝（`wow.command.request-id-reused`），相同就当作重试。
+  - 不再给命令体算哈希：命令体在写路径上本来不序列化，只为指纹序列化一次再哈希，是 H3 测出的主要成本之一；规范化 JSON 还有「跨部署加字段即误判」的问题。
+  - 已知限制：同一类型、不同内容的命令复用请求 ID 时，后者被当作重试，得到前者的结果。请求 ID 由调用方按「一次业务请求一个」生成，这是调用方的契约（文档与 `wow-client` 默认每次生成新 ID）。
+  - 类型名来自模型，不用 Java 类名：改类名不影响重试的识别。
 - **`headers` 只放准入允许的请求事实**（例如调用方应用）。准入按白名单从请求里取，取到的都会写进事件流（§4），所以追踪 ID 这类只为投递服务的东西不放这里，放传输段。
 
 ## 4. 事件流（事实）
@@ -54,20 +56,21 @@ data class EventStreamRecord(
     val version: Int,
     val commandId: String,
     val requestId: String,
-    val fingerprint: String,
+    val commandType: String,                // 取代 fingerprint：产生它的命令类型名（D55）
     val commitTime: Long,
     val events: List<EventRecord>,          // name、revision、payload
-    val scope: AggregateScope,              // 新增（D56）
+    val scope: Scope,                       // 新增：提交后聚合的作用域（D56）
     val causation: Causation? = null,       // 新增
     val headers: Map<String, String> = emptyMap(), // 新增：来自命令
 )
 
-data class AggregateScope(val ownerId: String?, val spaceId: String?) // 提交后聚合的所有者与空间
+data class Scope(val ownerId: String?, val spaceId: String?) // wow-api 的值类型：所有者与空间的组合
 data class Causation(val correlationId: String, val causationId: String)
 ```
 
-- **`scope` 是这次提交之后聚合的所有者与空间**，不是发命令的人（D56）：
-  - 创建时取自命令的 `ownerId`、`spaceId`。
+- **`Scope` 是一个值类型**（所有者与空间的组合），命令、事件流、快照、查询授权都用它，不再散放两个字段（D56）。位置决定语义：命令上的是准入得到的调用方作用域，事件流与快照上的是聚合的归属。
+- **事件流的 `scope` 是这次提交之后聚合的作用域**，不是发命令的人：
+  - 创建时取自命令的 `scope`。
   - 之后只由「转移所有者、转移空间」这两个生命周期命令改变（[01](01-programming-model.md) §6）。
   - 内核把它和状态一起维护：`CachedState` 增加 `scope`，快照加载时一并恢复。
   - 这样每条事实都自带作用域：投影、查询授权（ABAC）、快照订阅直接读取，不必回放历史。9.x 的 `DomainEventStream.ownerId` 也是这个语义。
@@ -97,19 +100,22 @@ data class StateEvent(
     val stream: EventStreamRecord,  // 事实
     val state: StateView,           // 提交后的状态视图
 )
-data class StateView(val version: Int, val schemaFingerprint: String, val json: String)
+data class StateView(val version: Int, val schemaFingerprint: String, val state: JsonNode)
 ```
 
 - **状态视图**：提交时把状态序列化一次（[01](01-programming-model.md) §2 的版本视图）。属主节点直接使用这个视图；重放和属主切换时，由快照加尾部演化得到。
 - **进程内**：处理函数拿到解码后的事件和状态的**副本**（由视图反序列化，不是活的实例）。
-- **Kafka 上**：`payload` 就是上面的结构（`state.json` 原样嵌入）。事件先升级到当前 revision 再发布（F10）。schema 是上下文的公开语言，登记在 Manifest 里。
-- **快照**就是最后一个 `StateEvent` 折叠成的视图加元数据（§6），两者字段同源：`state.json` 对应 `SnapshotRecord.state`，`stream.scope` 对应 `ownerId`、`spaceId`。
+- **Kafka 上发布的是 `StateEvent`，不是单纯的事件流**（D58）：消费端拿到提交后的聚合状态，不必再去请求上游服务。
+  - **默认总是附带状态。** 只有单个 Sink 可以为超大状态的聚合显式关闭（按聚合类型配置），关闭后 `state` 为 null。
+  - **载荷是嵌入的 JSON 对象，不是转义后的字符串**：事件的 `payload`、状态都原样嵌入，人可以直接读，下游可以直接按路径取值。
+  - 事件先升级到当前 revision 再发布（F10）。schema 是上下文的公开语言，登记在 Manifest 里。
+- **快照**就是最后一个 `StateEvent` 折叠成的视图加元数据（§6），两者字段同源：`state` 对应 `SnapshotRecord.state`，`stream.scope` 对应快照的作用域。
 
 ## 6. 快照
 
 `SnapshotRecord` 保持现状（[03](03-log-and-snapshot.md) §3）。有两点对齐：
 
-- `ownerId`、`spaceId` 取自最后一条事件流的 `scope`（D56），不再需要另外的来源。
+- `ownerId`、`spaceId` 合并为 `scope: Scope`，取自最后一条事件流的 `scope`（D56），不再需要另外的来源。
 - `schemaFingerprint` 与 `StateView.schemaFingerprint` 用同一种算法（由内核的 `EventCodec` 计算）。
 
 ## 7. 命令结果（对外，D60）
@@ -124,10 +130,11 @@ data class CommandResult(
     val correlationId: String,
     val ref: AggregateRef,
     val hop: Hop,                    // 这个结果对应等待链上的哪一跳：(context, stage, subscription?)
+    val function: FunctionInfo,      // 谁处理的：(kind, context, processor, name)
     val status: Status,              // SUCCEEDED / REJECTED / FAILED
     val version: Int? = null,        // 提交或未变化时的版本
     val duplicate: Boolean = false,  // 同一请求早已提交，这次没有再决定
-    val error: ErrorInfo? = null,    // code、message、details（REJECTED、FAILED）
+    val error: ErrorInfo? = null,    // code、message、violations（REJECTED、FAILED）
     val results: Map<String, Any> = emptyMap(), // putResult（D51：只在首次提交时有）
     val signalTime: Long,
 )
@@ -145,7 +152,8 @@ data class CommandResult(
 
 - **HTTP**：成功返回 200 与 `CommandResult`。拒绝和失败返回 `application/problem+json`（RFC 9457）：`type` 指向 Manifest 的错误码，扩展成员带上 `CommandResult` 的字段，客户端只需一种解析方式。
 - **SSE**：等待链上每一跳到达时推送一个 `CommandResult`，最后一跳之后关闭。
-- 与 9.x 相比，去掉了 `function`（处理函数信息）和 `bindingErrors`（改由准入的校验错误进 `error.details`）。
+- **`function` 保留**：SSE 流式推送每一跳的结果时，客户端要知道是谁处理的（命令函数、哪个投影器、哪个 Saga 函数）。`kind` 取 COMMAND、PROJECT、REACT、SAGA、SNAPSHOT；订阅由 `处理器.函数` 编成（[04](04-subscriptions.md) §1），所以 `processor` 与 `name` 直接来自订阅定义。
+- **`bindingErrors` 改名保留**：字段级校验错误是 `error.violations: List<FieldViolation(path, code, message)>`，客户端表单直接使用；HTTP 上作为 problem+json 的扩展成员 `violations` 输出。
 
 ## 8. 等待信号与 Kafka 信封
 
@@ -182,13 +190,13 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 
 ## 10. 对现有代码的改动
 
-D55～D60 拍板后，由一个工作包一次改完。M3 的三个后端都还没有生产数据，现在改成本最低。
+D59 拍板后，由一个工作包一次改完。M3 的三个后端都还没有生产数据，现在改成本最低。
 
 | 改动 | 位置 |
 |---|---|
-| 命令类型名与指纹（类型名加规范化 JSON） | `wow-kernel`（模型、`EventCodec`）、`wow-compiler` 生成代码 |
-| `Command` 增加 `causation`、`wait` | `wow-api` |
-| `EventStreamRecord` 增加 `scope`、`causation`、`headers` | `wow-spi`、内存、PostgreSQL、MongoDB 日志、`EventLogSpec` |
+| 命令类型名；事件流以 `commandType` 取代 `fingerprint`，内核不再给命令体算哈希 | `wow-kernel`（模型、`EventCodec`）、`wow-compiler` 生成代码 |
+| `Command` 以 `scope: Scope` 取代 `ownerId`、`spaceId`，增加 `causation`、`wait` | `wow-api` |
+| `EventStreamRecord` 增加 `scope`、`causation`、`headers`；`SnapshotRecord` 以 `scope` 取代两个字段 | `wow-spi`、内存、PostgreSQL、MongoDB 日志、`EventLogSpec` |
 | `LogEntry.transport`、`append(stream, transport)` | 同上；D50 的预留确认依赖它 |
 | 内核维护 `scope`，生命周期命令改变 `scope` | `wow-kernel`（`CachedState`、生命周期，路线图 2.4） |
 | `StateEvent`、`StateView` | `wow-kernel`（提交时序列化），订阅运行时使用 |
@@ -198,4 +206,3 @@ D55～D60 拍板后，由一个工作包一次改完。M3 的三个后端都还�
 
 - `WaitPlan` 与 `WaitContext` 的具体字段（链的表示、超时），随 M4 的等待（路线图 4.7）定。
 - 集群通道消息的种类与字段（转发、信号中继、新条目推送）。
-- 大状态的 `StateView`：超过阈值时是否只发布事件、不附状态。
