@@ -35,6 +35,8 @@ internal class LruMap<K : Any, V : Any>(private val capacity: Int) {
         lock.withLock { entries[key] = value }
     }
 
+    fun remove(key: K): V? = lock.withLock { entries.remove(key) }
+
     /** Removes and returns the value of [key] when [predicate] holds for it. */
     fun removeIf(key: K, predicate: (V) -> Boolean): V? = lock.withLock {
         entries[key]?.takeIf(predicate)?.also { entries.remove(key) }

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.runtime
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -38,7 +40,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * returns when the commands already taken have finished.
  *
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
- * next command, while nothing can change the state (design 01 §2): the snapshot subscription writes from it.
+ * next command, while nothing can change the state (design 01 §2): the snapshot subscription writes from it. A
+ * view is only an optimisation, so failing to take one never fails the committed command: the failure is logged,
+ * the aggregate's view is dropped, and the subscription rebuilds the state instead.
  */
 class Executor(
     private val kernel: Kernel,
@@ -66,12 +70,25 @@ class Executor(
             return lane.lock.withLock {
                 kernel.execute(model, command, wait).also {
                     if (views != null && it is CommandOutcome.Committed) {
-                        views.record(model, it)
+                        recordView(views, model, it)
                     }
                 }
             }
         } finally {
             leave(command.ref)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Whatever fails, the command is committed; only cancellation propagates.
+    private fun recordView(views: StateViews, model: AggregateModel<*>, committed: CommandOutcome.Committed) {
+        try {
+            views.record(model, committed)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            val stream = committed.stream
+            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; dropping it." }
+            views.drop(stream.ref)
         }
     }
 
@@ -132,6 +149,7 @@ class Executor(
 
     private companion object {
         const val DEFAULT_LANE_CAPACITY = 1_024
+        val logger = KotlinLogging.logger {}
     }
 }
 

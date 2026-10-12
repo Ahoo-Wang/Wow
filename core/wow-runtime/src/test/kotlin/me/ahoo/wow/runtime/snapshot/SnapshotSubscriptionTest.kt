@@ -73,6 +73,15 @@ class SnapshotSubscriptionTest {
         var text = ""
     }
 
+    /** A state that cannot be serialized once its total reaches 2. */
+    class Fragile {
+        var total = 0
+
+        @Suppress("unused") // Read by Jackson.
+        val checked: Int
+            get() = total.also { check(it < 2) { "A fragile total of $it does not serialize." } }
+    }
+
     private val counter = aggregate<Counter>("shop", "counter") {
         initial { Counter() }
         decide<Add>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
@@ -84,6 +93,12 @@ class SnapshotSubscriptionTest {
         initial { Note() }
         decide<Write>(Creation.ALLOWED) { _, body -> Decision.events(Written(body.text)) }
         evolve<Written> { text = it.text }
+    }
+
+    private val fragile = aggregate<Fragile>("shop", "fragile") {
+        initial { Fragile() }
+        decide<Add>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
+        evolve<Added> { total += it.amount }
     }
 
     /** Records the first version of each read of an aggregate's streams (the tail is not recorded). */
@@ -295,6 +310,37 @@ class SnapshotSubscriptionTest {
         again.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         again.duplicate.assert().isTrue()
         again.hop.assert().isEqualTo(Hop.snapshot("shop"))
+    }
+
+    @Test
+    fun `a state view that fails to serialize never fails the committed command`(): Unit = runBlocking {
+        val subscription = SnapshotSubscription("shop", listOf(fragile), store, kernel, log, codec)
+        val executor = Executor(kernel, views = subscription.views)
+        val ref = fragile.type.ref("t", "f")
+        fun add() = sequence.incrementAndGet().let { Command("c-$it", "r-$it", ref, Add(), wait = WaitPlan.COMMITTED) }
+
+        executor.execute(fragile, add()).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        subscription.views.size.assert().isEqualTo(1)
+        // Version 2 cannot be serialized: still committed, and the stale view of version 1 is dropped.
+        val second = executor.execute(fragile, add()) as CommandOutcome.Committed
+        second.stream.version.assert().isEqualTo(2)
+        subscription.views.size.assert().isEqualTo(0)
+
+        val ledger = InMemoryFailureLedger()
+        val running = SubscriptionRuntime(
+            "shop",
+            log,
+            InMemoryCheckpointStore(),
+            ledger,
+            listOf(subscription.subscription),
+            testOptions(),
+        ).also { runtimes += it }
+        running.start(setOf(0))
+        // The subscription rebuilds the state instead; version 2 fails to serialize there too, so the aggregate
+        // parks: from version 2, or from 1 when both entries ran as one batch. Nothing past version 1 is written.
+        eventually { ledger.isParked(Hop.SNAPSHOT_SUBSCRIPTION, ref) }
+        (ledger.parked(Hop.SNAPSHOT_SUBSCRIPTION, ref)!!.fromVersion in 1..2).assert().isTrue()
+        (store.load(ref)?.version ?: 1).assert().isEqualTo(1)
     }
 
     @Test

@@ -48,6 +48,11 @@ class StateViews(
         }
     }
 
+    /** Removes the view of [ref], whatever its version. */
+    fun drop(ref: AggregateRef) {
+        views.remove(ref)
+    }
+
     /** Removes and returns the view of [ref] taken at [version], or null when there is none at that version. */
     fun take(ref: AggregateRef, version: Int): String? = views.removeIf(ref) { it.version == version }?.state
 
