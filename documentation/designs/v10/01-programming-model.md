@@ -13,7 +13,7 @@
 | Project | `(StateEvent[, ProjectContext]) -> Unit`，三种调用形态同 Decide | 允许，写入按版本守卫 | 同 React |
 
 - React、Saga、Project 的上下文提供确定性的 `executionId = (订阅, AggregateRef, 版本)`，用户拿它给外部调用做幂等键（KaeX mvp 的 `executionId` 做法）。
-- `Decision<E>` 只有 `Events(list)` 与 `NoOp`。拒绝用类型化的 `Rejection` 返回，不抛异常。
+- `Decision` 有三种：`Events(list)`、`NoOp` 与 `Rejected(Rejection)`。拒绝是一个值，不抛异常；一个返回类型表达全部结局（实现时由「`Decision` 加单独的 `Rejection` 返回」收敛而来）。
 - `@OnError` 删除：错误路径就是返回 `Rejection` 的分支；失败后的补偿动作写成 Saga。
 - 9.x 的证据：处理器运行时发现、参数无法解析时注入 `null`（B11、B15）；`@OnError` 在重试循环内执行（B4）。
 
