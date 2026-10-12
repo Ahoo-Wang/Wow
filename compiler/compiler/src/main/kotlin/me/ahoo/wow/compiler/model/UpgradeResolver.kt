@@ -109,11 +109,19 @@ internal object UpgradeResolver {
     /**
      * The problems of the upgrades of an event, [simpleName] at [revision], declared by [upgrades]: their signatures,
      * a revision out of range, two from one revision, and a revision with none. An event above revision 1 with no
-     * upgrade at all is not a problem here: the caller warns that `configure` must add them.
+     * upgrade at all is a problem like a gap: the log may hold its earlier revisions, and nothing would upgrade them.
      */
     fun chainProblems(simpleName: String, revision: Int, upgrades: List<UpgradeFunction>): List<String> {
         if (upgrades.isEmpty()) {
-            return emptyList()
+            return if (revision > 1) {
+                listOf(
+                    "event $simpleName is at revision $revision but has no @Upgrade: declare one from each of the " +
+                        "revisions ${(1 until revision).joinToString()}, as " +
+                        "@Upgrade(event = $simpleName::class, from = 1) on a function from JsonNode to JsonNode",
+                )
+            } else {
+                emptyList()
+            }
         }
         val range = if (revision > 1) "so its upgrades go from revision 1 to ${revision - 1}" else "which needs none"
         val outOfRange = upgrades.filter { it.from !in 1 until revision }.map {

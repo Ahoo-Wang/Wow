@@ -64,7 +64,9 @@ class ManifestFragmentTest {
         import me.ahoo.wow.api.annotation.Name
         import me.ahoo.wow.api.annotation.OnSourcing
         import me.ahoo.wow.api.annotation.Revision
+        import me.ahoo.wow.api.annotation.Upgrade
         import me.ahoo.wow.api.decide.Decision
+        import tools.jackson.databind.JsonNode
 
         @CreateAggregate
         data class CreateCart(val owner: String)
@@ -83,6 +85,8 @@ class ManifestFragmentTest {
         @Revision(2)
         @Alias("ItemAdded", "shop.basket.ItemAdded")
         data class ItemAdded(val productId: String, val quantity: Int)
+        @Upgrade(event = ItemAdded::class, from = 1)
+        fun itemAddedFrom1(node: JsonNode): JsonNode = node
         sealed interface CheckoutEvent
         data class CheckedOut(val total: Long) : CheckoutEvent
         data class CheckoutFailed(val reason: String) : CheckoutEvent
@@ -216,6 +220,13 @@ class ManifestFragmentTest {
                                     revision = 2,
                                     schema = schemaRef("sample.ItemAdded"),
                                 ),
+                            ),
+                            lifecycle = listOf(
+                                "wow.lifecycle.ApplyTags",
+                                "wow.lifecycle.DeleteAggregate",
+                                "wow.lifecycle.RestoreAggregate",
+                                "wow.lifecycle.TransferOwner",
+                                "wow.lifecycle.TransferSpace",
                             ),
                         ),
                     ),

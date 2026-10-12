@@ -15,6 +15,7 @@ package me.ahoo.wow.gradle
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.Creation
@@ -22,6 +23,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.tools.ManifestJson
+import me.ahoo.wow.spi.log.EventRecord
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -182,7 +184,9 @@ class WowPluginFunctionalTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Revision
+            import me.ahoo.wow.api.annotation.Upgrade
             import me.ahoo.wow.api.subscribe.StateEvent
+            import tools.jackson.databind.node.ObjectNode
 
             @BoundedContext(name = "shop", description = "The shop")
             object ShopContext
@@ -205,6 +209,16 @@ class WowPluginFunctionalTest {
             @Revision(2)
             @Alias("ItemAdded")
             data class ItemAdded(@JsonProperty("sku") val productId: String, val quantity: Int)
+
+            /** Revision 1 wrote the product as `productId` and could leave the quantity out, meaning one. */
+            @Upgrade(event = ItemAdded::class, from = 1)
+            fun itemAddedFrom1(node: ObjectNode): ObjectNode {
+                node.remove("productId")?.let { node.set("sku", it) }
+                if (!node.has("quantity")) {
+                    node.put("quantity", 1)
+                }
+                return node
+            }
 
             @AggregateRoot
             class Cart(private val state: CartState) {
@@ -285,6 +299,29 @@ class WowPluginFunctionalTest {
     }
 
     @Test
+    fun `the merged manifest should list every aggregate's lifecycle commands`() {
+        val lifecycle = Lifecycle.COMMANDS.keys.sorted()
+        manifest().contexts.flatMap { context -> context.aggregates.map { "${context.name}.${it.name}" to it.lifecycle } }
+            .assert().containsExactly("billing.account" to lifecycle, "shop.cart" to lifecycle)
+    }
+
+    @Test
+    fun `the generated model should upgrade a revision 1 payload with the fixture's @Upgrade`() {
+        val event = withShopClasses { loader ->
+            val model = loader.loadClass("sample.CartModelKt")
+                .getMethod("cartModel", String::class.java, Function1::class.java)
+                .invoke(null, "shop", { _: Any? -> }) as AggregateModel<*>
+            EventCodec().decode(model, EventRecord("shop.cart.ItemPut", 1, "{\"productId\":\"pen\"}"))
+        }
+        event.toString().assert().isEqualTo("ItemAdded(productId=pen, quantity=1)")
+    }
+
+    private fun <T> withShopClasses(block: (ClassLoader) -> T): T {
+        val classes = File(projectDir, "shop/build/classes/kotlin/main").toURI().toURL()
+        return URLClassLoader(arrayOf(classes), javaClass.classLoader).use(block)
+    }
+
+    @Test
     fun `schemas should follow Jackson, a renamed property included`() {
         val defs = manifest().defs
         val addItem = defs["sample.AddItem"] as Map<*, *>
@@ -301,8 +338,7 @@ class WowPluginFunctionalTest {
 
     @Test
     fun `the state fingerprint should be the kernel's for the compiled state class`() {
-        val classes = File(projectDir, "shop/build/classes/kotlin/main").toURI().toURL()
-        val fingerprint = URLClassLoader(arrayOf(classes), javaClass.classLoader).use { loader ->
+        val fingerprint = withShopClasses { loader ->
             @Suppress("UNCHECKED_CAST")
             val stateType = loader.loadClass("sample.CartState") as Class<Any>
             EventCodec().stateSchemaFingerprint(

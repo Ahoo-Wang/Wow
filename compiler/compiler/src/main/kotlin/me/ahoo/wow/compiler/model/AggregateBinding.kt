@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.compiler.model
 
+import me.ahoo.wow.api.lifecycle.Lifecycle
+
 /** What `ModelSymbolProcessor` found in one aggregate root, before generating its model. */
 internal data class AggregateBinding(
     val root: String,
@@ -36,7 +38,18 @@ internal data class AggregateBinding(
     val stateType: String,
     /** The root's `@Description`. */
     val description: String?,
-)
+    /**
+     * The system names of the lifecycle commands the model handles (design 01 §6). The annotations cannot narrow
+     * them, so it is every one, as the kernel enables by default; only `configure` can call `lifecycle(...)`, which
+     * the processor cannot see.
+     */
+    val lifecycle: List<String> = ALL_LIFECYCLE_COMMANDS,
+) {
+    companion object {
+        /** Every lifecycle command, by its system name, sorted. */
+        val ALL_LIFECYCLE_COMMANDS: List<String> = Lifecycle.COMMANDS.keys.sorted()
+    }
+}
 
 /** A dependency of the root's functions: a factory parameter [name] of [type]. */
 internal data class Dependency(val name: String, val type: String)
