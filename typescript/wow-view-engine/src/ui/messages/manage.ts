@@ -25,6 +25,21 @@ export const manageMessages = {
   'label.manage.description':
     'Rename, reorder and delete views, and choose which one opens first.',
   'label.manage.default': 'Default',
+  // The manager's two tabs where the dataset's wording may be edited (D90).
+  'label.manage.tab.views': 'Views',
+  'label.manage.tab.wording': 'Wording',
+  'label.wording.description':
+    "What readers call this dataset, its records and its fields. An empty box keeps the dataset's own word; a change reaches every reader, in views opened after it.",
+  'label.wording.title': 'Title',
+  'label.wording.noun': 'A record is called',
+  'label.wording.fields': 'Fields',
+  'label.wording.field.label': 'Name of {field}',
+  'label.wording.field.shown': 'Show {field}',
+  'label.wording.field.up': 'Move {field} up',
+  'label.wording.field.down': 'Move {field} down',
+  'label.wording.save': 'Save wording',
+  'label.wording.saved': 'Saved. Views opened from now on read the new words.',
+  'label.wording.failed': 'The wording could not be saved. Try again.',
   // What is to become of a view, as against where it sits in the list — the
   // latter is the handle a row is dragged by, which needs no group of its own.
   // Named after the view, as a panel's menu is: a manager is a list of these

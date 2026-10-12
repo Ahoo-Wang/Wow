@@ -16,6 +16,7 @@ import {
   defineDataset,
   type DefineDatasetSpec,
 } from './define/defineDataset.js';
+import type { WriteContext } from '../store/ViewStore.js';
 import type { ViewSource } from './source.js';
 
 /** What `DatasetResources` reads: the dataset directory, and each dataset's source. */
@@ -29,6 +30,56 @@ export interface DatasetCatalog {
    * fields' labels, order and narrowing (`DefineDatasetSpec.fields`).
    */
   overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
+  /**
+   * Where a tenant's administrators keep their wording over the datasets
+   * (D90), such as wow-view-store's `WowDatasetWordings`: read whole before
+   * each `refresh` registers, by definition id. A dataset's stored wording
+   * stands in place of `overrides`. Given, each dataset registers with an
+   * editor of its wording (`DatasetWordingEditor`).
+   */
+  wordings?: DatasetWordingStore;
+}
+
+/** A dataset's wording as stored, and the revision a write expects. */
+export interface StoredDatasetWording {
+  wording: DatasetOverrides;
+  /** `'0'` for wording never written. */
+  revision: string;
+}
+
+/** Where a dataset's wording is kept (D90); see `DatasetCatalog.wordings`. */
+export interface DatasetWordingStore {
+  /** Every dataset's stored wording, by definition id (`{context}.{dataset}`). */
+  list(
+    signal?: AbortSignal,
+  ): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+  /** Writes one whole at the expected revision; answers the new revision. */
+  set(
+    dataset: string,
+    wording: DatasetOverrides,
+    revision: string,
+    context: WriteContext,
+  ): Promise<string>;
+}
+
+/**
+ * What a dataset's wording editor reads and writes (D90): the fields the
+ * descriptor derives, the wording in force, and a save that stores it and
+ * registers the dataset again in the new words.
+ */
+export interface DatasetWordingEditor {
+  /** The definition id, and the dataset's key in the store. */
+  readonly dataset: string;
+  /** The title the directory gives, before any wording. */
+  readonly derivedTitle: string;
+  /** The descriptor's fields in its order, labelled as derived before any wording. */
+  readonly fields: readonly { name: string; label: string }[];
+  /** The wording in force: the stored one, else the host's `overrides`. */
+  readonly wording: DatasetOverrides;
+  /** The revision a save expects. */
+  readonly revision: string;
+  /** Stores `wording` whole and registers the dataset again in it. */
+  save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
 }
 
 /** What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. */
@@ -42,6 +93,7 @@ export interface DatasetRegistrar {
   register(resource: {
     definition: ReturnType<typeof defineDataset>;
     source: ViewSource;
+    wording?: DatasetWordingEditor;
   }): void;
   unregister(definitionId: string): boolean;
 }
@@ -69,6 +121,17 @@ export class DatasetResources {
   private readonly held = new Map<string, DatasetResource>();
   /** The overrides each dataset was registered with, as JSON: new words register it again. */
   private readonly worded = new Map<string, string>();
+  /** The wording stored when the store was last read (`DatasetCatalog.wordings`). */
+  private stored: ReadonlyMap<string, StoredDatasetWording> = new Map();
+  /** What each dataset was registered from, so a new wording needs no describe. */
+  private readonly derived = new Map<
+    string,
+    {
+      entry: DatasetDirectoryEntry;
+      source: ViewSource;
+      descriptor: Parameters<typeof defineDataset>[0];
+    }
+  >();
 
   constructor(
     private readonly engine: DatasetRegistrar,
@@ -78,6 +141,8 @@ export class DatasetResources {
       entry: DatasetDirectoryEntry,
       error: unknown,
     ) => void = () => undefined,
+    /** Told when the stored wording cannot be read; the wording read last stands. */
+    private readonly onWordingError: (error: unknown) => void = () => undefined,
   ) {}
 
   /** The datasets served, in the directory's order. */
@@ -86,6 +151,7 @@ export class DatasetResources {
   }
 
   async refresh(): Promise<readonly DatasetResource[]> {
+    await this.readWordings();
     const listed = await this.catalog.list();
     const servable = new Map<string, DatasetDirectoryEntry>();
     for (const entry of listed)
@@ -96,6 +162,7 @@ export class DatasetResources {
         this.engine.unregister(id);
         this.held.delete(id);
         this.worded.delete(id);
+        this.derived.delete(id);
       }
     await Promise.all(
       [...servable].map(([id, entry]) => this.serve(id, entry)),
@@ -106,10 +173,37 @@ export class DatasetResources {
       .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }
 
+  /**
+   * Reads the stored wording before a refresh registers; one that cannot be
+   * read leaves what was read last, and is told for no dataset in particular.
+   */
+  private async readWordings(): Promise<void> {
+    const store = this.catalog.wordings;
+    if (!store) return;
+    try {
+      this.stored = await store.list();
+    } catch (error) {
+      this.onWordingError(error);
+    }
+  }
+
+  /** The wording a dataset registers in: the stored one, else the host's. */
+  private wordingOf(
+    id: string,
+    entry: DatasetDirectoryEntry,
+  ): StoredDatasetWording {
+    return (
+      this.stored.get(id) ?? {
+        wording: this.catalog.overrides?.(entry) ?? {},
+        revision: '0',
+      }
+    );
+  }
+
   private async serve(id: string, entry: DatasetDirectoryEntry): Promise<void> {
     const held = this.held.get(id);
-    const overrides = this.catalog.overrides?.(entry);
-    const words = JSON.stringify(overrides ?? null);
+    const { wording } = this.wordingOf(id, entry);
+    const words = JSON.stringify(wording);
     if (held?.entry.version === entry.version && this.worded.get(id) === words)
       return;
     if (!held && this.engine.definitions.has(id)) return;
@@ -118,17 +212,70 @@ export class DatasetResources {
       const described = await source.describe?.();
       if (!described || described.notModified)
         throw new Error(`Dataset [${id}] does not describe itself.`);
-      const definition = defineDataset(described.descriptor, {
-        id,
-        source: id,
-        title: entry.title ?? entry.name,
-        ...overrides,
+      this.derived.set(id, {
+        entry,
+        source,
+        descriptor: described.descriptor,
       });
-      this.engine.register({ definition, source });
-      this.held.set(id, { id, entry });
-      this.worded.set(id, words);
+      this.registerWorded(id);
     } catch (error) {
       this.onError(entry, error);
     }
+  }
+
+  /** Registers dataset `id` from what it was derived from, in the wording in force. */
+  private registerWorded(id: string): void {
+    const derived = this.derived.get(id);
+    if (!derived) return;
+    const { entry, source, descriptor } = derived;
+    const current = this.wordingOf(id, entry);
+    const title = entry.title ?? entry.name;
+    const definition = defineDataset(descriptor, {
+      id,
+      source: id,
+      title,
+      ...current.wording,
+    });
+    this.engine.register({
+      definition,
+      source,
+      ...(this.catalog.wordings
+        ? { wording: this.editorOf(id, title, descriptor, current) }
+        : {}),
+    });
+    this.held.set(id, { id, entry });
+    this.worded.set(id, JSON.stringify(current.wording));
+  }
+
+  private editorOf(
+    id: string,
+    derivedTitle: string,
+    descriptor: Parameters<typeof defineDataset>[0],
+    current: StoredDatasetWording,
+  ): DatasetWordingEditor {
+    const plain = defineDataset(descriptor, {
+      id,
+      source: id,
+      title: derivedTitle,
+    });
+    return {
+      dataset: id,
+      derivedTitle,
+      fields: plain.fields.map(({ name, label }) => ({ name, label })),
+      wording: current.wording,
+      revision: current.revision,
+      save: async (wording, context) => {
+        const store = this.catalog.wordings;
+        if (!store) return;
+        const revision = await store.set(
+          id,
+          wording,
+          current.revision,
+          context,
+        );
+        this.stored = new Map(this.stored).set(id, { wording, revision });
+        this.registerWorded(id);
+      },
+    };
   }
 }

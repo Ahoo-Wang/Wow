@@ -20,6 +20,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DatasetResources,
   type DatasetOverrides,
+  type DatasetWordingStore,
+  type StoredDatasetWording,
   MemoryViewStore,
   ViewEngine,
   defaultRecordConfig,
@@ -256,5 +258,123 @@ describe('DatasetResources', () => {
       'Ship-to city',
       'order_id',
     ]);
+  });
+
+  describe('with a store of wording (D90)', () => {
+    function storeOf(initial: Record<string, StoredDatasetWording>) {
+      const stored = new Map(Object.entries(initial));
+      const store: DatasetWordingStore = {
+        list: vi.fn(() => Promise.resolve(new Map(stored))),
+        set: vi.fn(
+          (dataset: string, wording: DatasetOverrides, revision: string) => {
+            const next = String(Number(revision) + 1);
+            stored.set(dataset, { wording, revision: next });
+            return Promise.resolve(next);
+          },
+        ),
+      };
+      return store;
+    }
+
+    it("registers a dataset in its stored wording, over the host's", async () => {
+      const engine = engineOf();
+      const store = storeOf({
+        [ID]: {
+          wording: { title: 'Orders', fields: { city: 'City' } },
+          revision: '2',
+        },
+      });
+      const datasets = new DatasetResources(engine, {
+        list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+        source: () => sourceOf(descriptor('city', 'sha256:1')),
+        overrides: () => ({ title: 'From code' }),
+        wordings: store,
+      });
+      await datasets.refresh();
+
+      expect(engine.definitions.get(ID)?.title).toBe('Orders');
+      const editor = engine.wordingOf(ID)!;
+      expect(editor).toMatchObject({
+        dataset: ID,
+        derivedTitle: 'order_wide',
+        wording: { title: 'Orders', fields: { city: 'City' } },
+        revision: '2',
+      });
+      expect(editor.fields.map(field => field.name)).toEqual([
+        'order_id',
+        'city',
+      ]);
+    });
+
+    it('saves at the revision in force and registers again in the new words, without describing again', async () => {
+      const engine = engineOf();
+      const store = storeOf({});
+      const source = vi.fn(() => sourceOf(descriptor('city', 'sha256:1')));
+      const datasets = new DatasetResources(engine, {
+        list: () =>
+          Promise.resolve([entry('order_wide', 'sha256:1', 'Orders')]),
+        source,
+        wordings: store,
+      });
+      await datasets.refresh();
+      const editor = engine.wordingOf(ID)!;
+      expect(editor.revision).toBe('0');
+
+      await editor.save(
+        { title: '订单', fields: { city: '城市' } },
+        { requestId: 'r1' },
+      );
+
+      expect(store.set).toHaveBeenCalledWith(
+        ID,
+        { title: '订单', fields: { city: '城市' } },
+        '0',
+        { requestId: 'r1' },
+      );
+      expect(source).toHaveBeenCalledTimes(1);
+      const definition = engine.definitions.get(ID) as DataViewDefinition;
+      expect(definition.title).toBe('订单');
+      expect(definition.fields.map(field => field.label)).toContain('城市');
+      expect(engine.wordingOf(ID)?.revision).toBe('1');
+      // The next refresh reads it back and changes nothing.
+      await datasets.refresh();
+      expect(source).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the wording read last when the store cannot be read, and says so', async () => {
+      const engine = engineOf();
+      const store = storeOf({
+        [ID]: { wording: { title: 'Orders' }, revision: '1' },
+      });
+      const errors: unknown[] = [];
+      const datasets = new DatasetResources(
+        engine,
+        {
+          list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+          source: () => sourceOf(descriptor('city', 'sha256:1')),
+          wordings: store,
+        },
+        undefined,
+        error => errors.push(error),
+      );
+      await datasets.refresh();
+      vi.mocked(store.list).mockRejectedValueOnce(new Error('down'));
+      await datasets.refresh();
+
+      expect(errors).toHaveLength(1);
+      expect(engine.definitions.get(ID)?.title).toBe('Orders');
+    });
+
+    it('registers no editor where the catalog keeps no wording', async () => {
+      const engine = engineOf();
+      const datasets = new DatasetResources(engine, {
+        list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+        source: () => sourceOf(descriptor('city', 'sha256:1')),
+      });
+      await datasets.refresh();
+      expect(engine.wordingOf(ID)).toBeUndefined();
+      engine.unregister(ID);
+      expect(engine.wordingOf(ID)).toBeUndefined();
+    });
   });
 });

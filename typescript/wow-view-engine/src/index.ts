@@ -926,6 +926,9 @@ export {
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,
+  type DatasetWordingEditor,
+  type DatasetWordingStore,
+  type StoredDatasetWording,
 } from './runtime/datasetResources.js';
 export type {
   DefineViewSpec,

@@ -18,6 +18,7 @@ import {
   type ViewDefinition,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
+import type { DatasetWordingEditor } from './datasetResources.js';
 import { sayDefinition } from './definitions.js';
 import type { OptionSource, ViewSource } from './source.js';
 import { EngineText } from './text.js';
@@ -62,6 +63,8 @@ export abstract class EngineResources {
   /** The words the definitions' keys are checked against; see `EngineText`. */
   private readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
+  /** Each dataset's wording editor, by definition id (D90). */
+  private readonly wordings = new Map<string, DatasetWordingEditor>();
   /** What was told to lack words, by language, code and key; see `setText`. */
   private readonly lacking = new Set<string>();
   /** Where findings go: the host's `onIssue`, or the development default. */
@@ -195,11 +198,23 @@ export abstract class EngineResources {
   register(resource: {
     definition: ViewDefinition;
     source?: ViewSource;
+    /** A dataset's wording editor (D90), given by `DatasetResources` when its store keeps wording. */
+    wording?: DatasetWordingEditor;
   }): void {
-    const { definition, source } = resource;
+    const { definition, source, wording } = resource;
     if (source && definition.kind === 'data')
       this.sources.set(definition.source, source);
+    if (wording) this.wordings.set(definition.id, wording);
+    else this.wordings.delete(definition.id);
     this.keep?.register(definition);
+  }
+
+  /**
+   * The editor of a dataset's wording (D90), where its resource was
+   * registered with one: what the view manager's wording tab reads and saves.
+   */
+  wordingOf(definitionId: string): DatasetWordingEditor | undefined {
+    return this.wordings.get(definitionId);
   }
 
   /**
@@ -212,6 +227,7 @@ export abstract class EngineResources {
     const definition = this.registered.get(definitionId);
     if (!definition) return false;
     this.keep?.unregister(definitionId);
+    this.wordings.delete(definitionId);
     if (
       definition.kind === 'data' &&
       ![...this.registered.values()].some(
