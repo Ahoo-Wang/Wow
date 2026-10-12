@@ -173,7 +173,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ## 5. 当前进度与下一步（2026-10-12 交接）
 
-本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D85 全部已定）与 [08 数据协议](08-data-protocols.md)。
+本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D85 已定；D86 待定，最晚第一次前向合并之前）与 [08 数据协议](08-data-protocols.md)。
 
 **工作方式**：主会话只做协调与审查；实现交给隔离 worktree 里的子代理，子代理开 PR 到 `v10` 但不合并；主会话审查后在本地对合并结果做演练（完整验证命令全绿），再 `gh pr merge --squash --admin --match-head-commit <完整 SHA>`。子代理的说明里必须写明：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；改动公开面时更新 `wow-api`、`wow-mongo` 的 ABI 转储；先 `detekt --auto-correct`；不改设计文档（由主会话改）；互相并行的子代理不碰同一批文件。
 
@@ -195,6 +195,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 |---|---|---|
 | 2 | D85 模块拆分 | 把 `wow-api`、`wow-compiler`、`wow-mongo` 里的 V10 代码搬到新模块 `api/wow-api`、`compiler/wow-compiler`、`backends/wow-mongo`（项目名 `-v10` 后缀），9.x 部分原地不动、`v10` 不发布不校验 ABI；在 Manifest v0 合并后、没有子代理改这三个模块时做 |
 | 2 | CI 按目录分范围 | D85 搬迁之后：`v10` 上 V10 模块的改动只跑 V10 模块，9.x 模块只在前向合并改到它们时跑；先给出 `ci-scope.mjs` 的改法，用户确认后再改 CI |
+| 2 | 构建按范围加载 | D85 搬迁之后：settings 开关（如 `-Pwow.scope=v10`）只加载 V10 模块；聚合任务 `v10Check` 取代 §5 的长命令（含 `checkKotlinAbi`） |
+| 2 | 评估回主干（D86） | 以上三项完成后、第一次前向合并之前：整理前向合并的实际负担、main 的工具链改法与门禁影响，提交用户拍板 |
 | 2 | 注解集的后续 | `@Upgrade`（D82）；命令的 `@Alias` 绑定（内核 `CommandType` 增加旧名）；`@Alias` 值只有一个点时报错；订阅绑定代码的生成依赖运行时提供 `StateEvent` 解码与三种上下文的实现 |
 | 2 | 5a.1 Manifest v0 与 Jackson 内省 schema（D73、D74、D83、D84） | 进行中（子代理） |
 | 2 | H6（租约收敛实测） | 进行中（子代理）；在 PostgreSQL 与 MongoDB 上测属主收敛时间、迁移分区数、交接期间重复处理比例 |
