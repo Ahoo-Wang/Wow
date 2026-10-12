@@ -77,7 +77,7 @@ me.ahoo.wow.api
 | `command`（`CommandMessage`、`CommandResultAccessor`…）、`event`（`DomainEvent`、`EventMessage`） | 约 850 行 | 删除，由 `Command`、`StateEvent` 取代 |
 | 生命周期事件、`exception/ErrorInfo`、`abac` | 约 1,100 行 | 按 V10 语义重做（`lifecycle`、`result`；标签进生命周期命令） |
 
-**时机**：`wow-api` 与 9.x 同名，只能原地演进（§4）；`v10` 上仍有 9.x 的 `wow-core` 及约 15 个模块依赖旧类型。所以 V10 的包现在就补齐、KSP 改为只认 V10 注解；9.x 的包在替换 `wow-core` 的里程碑里一并删除，`query` 在 M9 搬走。
+**时机**：`wow-api` 与 9.x 同名，只能原地演进（§4）；`v10` 上仍有 9.x 的 `wow-core` 及约 15 个模块依赖旧类型。所以 V10 的包现在就补齐、KSP 改为只认 V10 注解（同名注解原地沿用，D79）；9.x 的包在替换 `wow-core` 的里程碑里一并删除，`query` 在 M9 搬走。
 
 ## 3. 依赖方向
 
