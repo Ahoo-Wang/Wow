@@ -143,7 +143,12 @@ class AggregateModel<S : Any>(
     private val eventTypes: List<EventType> = eventTypes + Lifecycle.EVENTS
         .filterValues { event -> eventTypes.none { it.type == event } }
         .map { (name, event) -> EventType(name, 1, event) }
-    private val commandTypes: List<CommandType> = commandTypes + lifecycle
+
+    /**
+     * The command types this model decides, each under its name and former names: those of its decide functions,
+     * then the lifecycle commands the kernel decides for it ([lifecycleCommands]) under their system names.
+     */
+    val commandTypes: List<CommandType> = commandTypes + lifecycle
         .filter { command -> commandTypes.none { it.type == command } }
         .map { CommandType(Lifecycle.nameOf(it)!!, it) }
     private val eventsByType: Map<Class<*>, EventType> = this.eventTypes.associateBy { it.type }
