@@ -81,3 +81,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | Manifest v0 合入（Ahoo-Wang/Wow#4259）：实现要点记入 05 §2；为让 Worker 侧代码计入覆盖率新增孵化模块 `wow-manifest-tools`（D83 的落地方式）；`codecov/project/wow-compiler` 的失败是基线漏计 `compiler/model` 文件所致，同口径覆盖率由 85.8% 升到 86.7% |
 | 2026-10-12 | 用户拍板 D87：V10 模块的项目名与目录不带 `wow-` 前缀，artifactId 与 jar 名仍是 `wow-<名字>`；取代 D85 的 `-v10` 后缀，随 D85 搬迁一起改名 |
 | 2026-10-12 | 快照订阅视图竞态修复合入（Ahoo-Wang/Wow#4263）。用户确认 CI 调整方案（`v10.yml` 与 `v10-gate`、9.x 工作流收窄、Codecov 分开），并授权 `v10-gate` 跑通后用 `gh` 改 `v10` 的分支保护 |
+| 2026-10-12 | 用户拍板 D88、D89：V10 模块到 `10.0.0-beta` 才开始 ABI 转储与校验；4.2b 的集群通道与信号入口放在宿主独立内部端口的 h2c 服务上，客户端用 JDK `HttpClient` |
