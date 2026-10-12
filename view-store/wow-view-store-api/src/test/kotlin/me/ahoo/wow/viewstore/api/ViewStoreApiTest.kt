@@ -19,7 +19,10 @@ import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesView
 import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
+import me.ahoo.wow.viewstore.api.wording.DatasetWordingInput
+import me.ahoo.wow.viewstore.api.wording.SetDatasetWording
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 
@@ -88,5 +91,15 @@ class ViewStoreApiTest {
         mapper.readValue<ViewPreferencesInput>("{}").toCommand("orders").assert().isEqualTo(
             SetViewPreferences(definitionId = "orders", order = emptyList()),
         )
+    }
+
+    @Test
+    fun `the wording body becomes the command of the path's dataset`() {
+        val fields = mapper.readValue<ObjectNode>("""{"buyer":"买家","discount":false}""")
+        DatasetWordingInput(title = "订单", recordNoun = "单", fields = fields)
+            .toCommand("analytics.orders").assert()
+            .isEqualTo(SetDatasetWording("analytics.orders", "订单", "单", fields))
+        mapper.readValue<DatasetWordingInput>("{}").toCommand("analytics.orders").assert()
+            .isEqualTo(SetDatasetWording(dataset = "analytics.orders"))
     }
 }
