@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregation,
   AggregationExpressionOperator,
+  AggregationGroupScope,
   asc,
   cursorQuery,
   filter,
@@ -283,6 +284,29 @@ const RULES: ConformanceRule[] = [
     source: 'wow-api AggregationQuery.kt AggregationGroup.Terms.init',
     violate: () =>
       aggregation.terms(aggregation.field('a'), 'g', { missingKey: 'NONE' }),
+  },
+  {
+    wow: '$type with a ROOT scope requires a field input.',
+    source: 'wow-api AggregationQuery.kt requireGroupScope',
+    violate: () =>
+      aggregation.terms(aggregation.field('a'), 'g', {
+        scope: AggregationGroupScope.ROOT,
+      }),
+    throws: 'TERMS with a ROOT scope requires a field input.',
+  },
+  {
+    wow: 'groups with a ROOT scope must sort before the element groups.',
+    source:
+      'wow-api AggregationQuery.kt AggregationQuery.requireRootGroupsFirst',
+    violate: () =>
+      aggregation.query({
+        elements: [aggregation.element('items')],
+        groupBy: [
+          aggregation.terms('sku', 'sku'),
+          aggregation.terms('id', 'id', { scope: AggregationGroupScope.ROOT }),
+        ],
+        metrics: anyMetrics(count('m')),
+      }),
   },
   {
     wow: 'EXPRESSION value must be finite.',

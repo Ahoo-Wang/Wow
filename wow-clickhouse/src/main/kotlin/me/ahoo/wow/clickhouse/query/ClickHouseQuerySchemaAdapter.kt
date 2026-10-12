@@ -145,6 +145,8 @@ class ClickHouseQuerySchemaAdapter(
                     WindowFunction.RANK to SupportMode.NATIVE,
                     WindowFunction.PREVIOUS to SupportMode.RESIDUAL,
                 ),
+                // A dataset's rows have no elements to expand.
+                rootGroups = SupportMode.NONE,
             ),
             parallelArraySort = SupportMode.NONE,
             absentValues = AbsentValues.AS_MISSING,

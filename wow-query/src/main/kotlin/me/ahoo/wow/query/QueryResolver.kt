@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
@@ -198,7 +199,8 @@ internal class QueryResolver(
         val aggregation = query.copy(
             filter = filter,
             elements = elements,
-            groupBy = query.groupBy.map { group(it, inner) },
+            // A ROOT group reads its field on the record the elements belong to (AggregationGroup.scope).
+            groupBy = query.groupBy.map { group(it, if (it.scope == AggregationGroupScope.ROOT) ROOT else inner) },
             metrics = query.metrics.map { metric(it, inner) },
         )
         PreviousStep.of(aggregation).forEach { step ->

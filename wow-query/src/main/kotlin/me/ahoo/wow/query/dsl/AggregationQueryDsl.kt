@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ComparisonOperator
@@ -57,12 +58,13 @@ class AggregationQueryDsl {
         AggregationElement(QueryField(path), me.ahoo.wow.query.dsl.filter(block)),
     )
 
-    fun terms(field: String, alias: String, missingKey: String? = null) {
-        groups += AggregationGroup.Terms(QueryField(field), alias, missingKey)
+    /** [scope] `ROOT` groups the expanded elements by a field of their root record ([AggregationGroup.scope]). */
+    fun terms(field: String, alias: String, missingKey: String? = null, scope: AggregationGroupScope? = null) {
+        groups += AggregationGroup.Terms(QueryField(field), alias, missingKey, scope = scope)
     }
 
-    fun histogram(field: String, interval: Double, alias: String) {
-        groups += AggregationGroup.Histogram(QueryField(field), alias, interval)
+    fun histogram(field: String, interval: Double, alias: String, scope: AggregationGroupScope? = null) {
+        groups += AggregationGroup.Histogram(QueryField(field), alias, interval, scope = scope)
     }
 
     fun dateHistogram(
@@ -71,8 +73,9 @@ class AggregationQueryDsl {
         alias: String,
         timeZone: ZoneId = ZoneOffset.UTC,
         dense: Boolean = false,
+        scope: AggregationGroupScope? = null,
     ) {
-        groups += AggregationGroup.DateHistogram(QueryField(field), alias, unit, timeZone.id, dense)
+        groups += AggregationGroup.DateHistogram(QueryField(field), alias, unit, timeZone.id, dense, scope)
     }
 
     fun datePart(
@@ -81,8 +84,9 @@ class AggregationQueryDsl {
         alias: String,
         timeZone: ZoneId = ZoneOffset.UTC,
         dense: Boolean = false,
+        scope: AggregationGroupScope? = null,
     ) {
-        groups += AggregationGroup.DatePart(QueryField(field), alias, part, timeZone.id, dense)
+        groups += AggregationGroup.DatePart(QueryField(field), alias, part, timeZone.id, dense, scope)
     }
 
     fun count(alias: String) {

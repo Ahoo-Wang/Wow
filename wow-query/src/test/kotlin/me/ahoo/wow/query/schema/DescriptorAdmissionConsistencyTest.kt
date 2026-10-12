@@ -17,9 +17,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ComparisonOperator
@@ -36,6 +38,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.descriptor.FieldDescriptor
+import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -107,7 +110,7 @@ class DescriptorAdmissionConsistencyTest {
         "exact match and presence only" to compiled(
             boundSchemaFixture(root, fieldCapabilities = setOf(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH)),
         ),
-        "storage without keyset, HAVING, top-N, dense fill, PERCENTILE, DISTINCT_COUNT or FIRST/LAST" to compiled(
+        "storage without keyset, HAVING, top-N, dense fill, PERCENTILE, DISTINCT_COUNT, FIRST/LAST or root groups" to compiled(
             boundSchemaFixture(root),
             StorageSupport(
                 paging = PagingSupport(keyset = SupportMode.NONE),
@@ -118,6 +121,7 @@ class DescriptorAdmissionConsistencyTest {
                     percentile = SupportMode.NONE,
                     distinctCount = SupportMode.NONE,
                     firstLast = SupportMode.NONE,
+                    rootGroups = SupportMode.NONE,
                 ),
             ),
         ),
@@ -302,10 +306,21 @@ class DescriptorAdmissionConsistencyTest {
                         dated,
                         admits(AggregationQuery(groupBy = listOf(day), metrics = listOf(count))),
                     ),
+                    Case("ROOT group", analysis.rootGroups, grouped && items(descriptor), admits(rootGroupQuery)),
                 )
                 (metrics + features).filter { it.applies }.map { test("$schemaName, $budgetName", it) }
             }
         }
+
+    /** The elements of `state.items` counted by a field of their root record (`AggregationGroup.scope`). */
+    private val rootGroupQuery = AggregationQuery(
+        elements = listOf(AggregationElement(QueryField("state.items"))),
+        groupBy = listOf(AggregationGroup.Terms(QueryField("state.name"), "name", scope = AggregationGroupScope.ROOT)),
+        metrics = listOf(AggregationMetric.Count("count")),
+    )
+
+    /** Whether `state.items` may be expanded, which the ROOT group case needs. */
+    private fun items(descriptor: QueryModelDescriptor): Boolean = descriptor.elements.any { it.path == "state.items" }
 
     private fun aggregate(query: AggregationQuery, schema: QueryModelSchema, budget: QueryBudget): Any {
         budget.check(query)

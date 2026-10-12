@@ -390,6 +390,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             firstLastOrderBy = schema.profile?.eventTimeField?.path?.takeIf { firstLast },
             // A window is a derived metric, an expensive one.
             windows = WindowFunction.entries.filter { allowExpensive && support.window(it) != SupportMode.NONE },
+            // Expanding elements is itself expensive (the budget refuses it otherwise).
+            rootGroups = allowExpensive && support.rootGroups != SupportMode.NONE,
         )
     }
 

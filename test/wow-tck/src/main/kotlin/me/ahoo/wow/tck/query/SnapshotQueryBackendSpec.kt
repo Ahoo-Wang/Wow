@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
@@ -748,6 +749,43 @@ abstract class SnapshotQueryBackendSpec {
                         "minimum" to 0.0,
                         "maximum" to 240.0,
                     ),
+                )
+            }.verifyComplete()
+    }
+
+    /**
+     * Whether this storage groups the elements of an expanded query by a field of their root record
+     * (`AggregationGroup.scope` ROOT). One that cannot must not grant it: admission rejects the group instead.
+     */
+    protected open val elementRootGroups: Boolean = true
+
+    @Test
+    fun `aggregation should group the elements by a field of their root record`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val query = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+            terms("status", "status")
+            count("orders")
+            sort { "aggregate".asc() }
+        }
+        if (!elementRootGroups) {
+            queryBackendBinding.aggregate(query, false).test().expectErrorSatisfies { error ->
+                (error as QuerySchemaValidationException).violation.assert()
+                    .isInstanceOf(QueryViolation.StorageUnsupported::class.java)
+            }.verify()
+            return
+        }
+        queryBackendBinding.aggregate(query, false).collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map {
+                    Triple(it.path("aggregate").asString(), it.path("status").asString(), it.path("orders").asLong())
+                }.assert().containsExactly(
+                    Triple("aggregation-a", "CANCELLED", 1L),
+                    Triple("aggregation-a", "PAID", 1L),
+                    Triple("aggregation-b", "PAID", 1L),
                 )
             }.verifyComplete()
     }

@@ -630,10 +630,10 @@ public final class me/ahoo/wow/query/dsl/AggregationQueryDsl {
 	public final fun constant (D)Lme/ahoo/wow/api/query/AggregationExpression;
 	public final fun count (Ljava/lang/String;)V
 	public final fun count (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
-	public final fun dateHistogram (Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;Ljava/time/ZoneId;Z)V
-	public static synthetic fun dateHistogram$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;Ljava/time/ZoneId;ZILjava/lang/Object;)V
-	public final fun datePart (Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDatePart;Ljava/lang/String;Ljava/time/ZoneId;Z)V
-	public static synthetic fun datePart$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDatePart;Ljava/lang/String;Ljava/time/ZoneId;ZILjava/lang/Object;)V
+	public final fun dateHistogram (Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;Ljava/time/ZoneId;ZLme/ahoo/wow/api/query/AggregationGroupScope;)V
+	public static synthetic fun dateHistogram$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;Ljava/time/ZoneId;ZLme/ahoo/wow/api/query/AggregationGroupScope;ILjava/lang/Object;)V
+	public final fun datePart (Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDatePart;Ljava/lang/String;Ljava/time/ZoneId;ZLme/ahoo/wow/api/query/AggregationGroupScope;)V
+	public static synthetic fun datePart$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationDatePart;Ljava/lang/String;Ljava/time/ZoneId;ZLme/ahoo/wow/api/query/AggregationGroupScope;ILjava/lang/Object;)V
 	public final fun derived (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun derived (Ljava/lang/String;Lme/ahoo/wow/api/query/DerivedExpression;)V
 	public final fun distinctCount (Ljava/lang/String;Ljava/lang/String;)V
@@ -651,7 +651,8 @@ public final class me/ahoo/wow/query/dsl/AggregationQueryDsl {
 	public static synthetic fun first$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)V
 	public static synthetic fun first$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun having (Lkotlin/jvm/functions/Function1;)V
-	public final fun histogram (Ljava/lang/String;DLjava/lang/String;)V
+	public final fun histogram (Ljava/lang/String;DLjava/lang/String;Lme/ahoo/wow/api/query/AggregationGroupScope;)V
+	public static synthetic fun histogram$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;DLjava/lang/String;Lme/ahoo/wow/api/query/AggregationGroupScope;ILjava/lang/Object;)V
 	public final fun last (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public final fun last (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun last$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)V
@@ -685,8 +686,8 @@ public final class me/ahoo/wow/query/dsl/AggregationQueryDsl {
 	public final fun sum (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun sum (Lme/ahoo/wow/api/query/AggregationExpression;Ljava/lang/String;)V
 	public final fun sum (Lme/ahoo/wow/api/query/AggregationExpression;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
-	public final fun terms (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public static synthetic fun terms$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)V
+	public final fun terms (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationGroupScope;)V
+	public static synthetic fun terms$default (Lme/ahoo/wow/query/dsl/AggregationQueryDsl;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationGroupScope;ILjava/lang/Object;)V
 	public final fun times (Lme/ahoo/wow/api/query/AggregationExpression;Lme/ahoo/wow/api/query/AggregationExpression;)Lme/ahoo/wow/api/query/AggregationExpression;
 	public final fun variance (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun variance (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
@@ -1151,8 +1152,8 @@ public final class me/ahoo/wow/query/schema/AggregationSupport {
 	public static final field Companion Lme/ahoo/wow/query/schema/AggregationSupport$Companion;
 	public static final field RESIDUAL_WINDOWS Ljava/util/Map;
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;)V
-	public synthetic fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component2 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component3 ()Lme/ahoo/wow/query/schema/SupportMode;
@@ -1160,14 +1161,16 @@ public final class me/ahoo/wow/query/schema/AggregationSupport {
 	public final fun component5 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component6 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component7 ()Ljava/util/Map;
-	public final fun copy (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;)Lme/ahoo/wow/query/schema/AggregationSupport;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/AggregationSupport;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/AggregationSupport;
+	public final fun component8 ()Lme/ahoo/wow/query/schema/SupportMode;
+	public final fun copy (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;)Lme/ahoo/wow/query/schema/AggregationSupport;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/AggregationSupport;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/AggregationSupport;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDenseFill ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getDistinctCount ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getFirstLast ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getHaving ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getPercentile ()Lme/ahoo/wow/query/schema/SupportMode;
+	public final fun getRootGroups ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getTopN ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getWindows ()Ljava/util/Map;
 	public fun hashCode ()I

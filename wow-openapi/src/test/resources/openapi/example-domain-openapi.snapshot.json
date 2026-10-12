@@ -4829,6 +4829,13 @@
           "field" : {
             "$ref" : "#/components/schemas/wow.api.query.QueryField"
           },
+          "scope" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationGroupScope"
+            } ]
+          },
           "timeZone" : {
             "type" : "string"
           },
@@ -4855,6 +4862,13 @@
           },
           "part" : {
             "$ref" : "#/components/schemas/wow.api.query.AggregationDatePart"
+          },
+          "scope" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationGroupScope"
+            } ]
           },
           "timeZone" : {
             "type" : "string"
@@ -4890,6 +4904,13 @@
             "format" : "double",
             "type" : "number"
           },
+          "scope" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationGroupScope"
+            } ]
+          },
           "type" : {
             "const" : "HISTOGRAM"
           }
@@ -4923,12 +4944,23 @@
               "type" : "string"
             } ]
           },
+          "scope" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationGroupScope"
+            } ]
+          },
           "type" : {
             "const" : "TERMS"
           }
         },
         "required" : [ "alias", "type" ],
         "type" : "object"
+      },
+      "wow.api.query.AggregationGroupScope" : {
+        "enum" : [ "ELEMENT", "ROOT" ],
+        "type" : "string"
       },
       "wow.api.query.AggregationLimitsDescriptor" : {
         "properties" : {
@@ -5273,6 +5305,9 @@
               "type" : "string"
             },
             "type" : "array"
+          },
+          "rootGroups" : {
+            "type" : "boolean"
           },
           "sort" : {
             "$ref" : "#/components/schemas/wow.api.query.AnalysisSortDescriptor"

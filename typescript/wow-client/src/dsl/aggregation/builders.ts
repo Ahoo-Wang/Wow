@@ -28,6 +28,7 @@ import {
   AggregationExpressionOperator,
   AggregationExpressionType,
   AggregationFunction,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   type AggregationElement,
@@ -131,6 +132,22 @@ function groupInput<FIELDS extends string>(
   }
   requireValidExpressionTrees([input]);
   return { expression: input };
+}
+
+/** A group's `scope`, sent only when given; `ROOT` needs a field input. */
+function groupScope(
+  scope: AggregationGroupScope | undefined,
+  type: string,
+  source: { expression?: unknown },
+): { scope?: AggregationGroupScope } {
+  if (scope === undefined) return {};
+  if (!Object.values(AggregationGroupScope).includes(scope)) {
+    throw new TypeError(`${type} group scope is invalid.`);
+  }
+  if (scope === AggregationGroupScope.ROOT && source.expression) {
+    throw new TypeError(`${type} with a ROOT scope requires a field input.`);
+  }
+  return { scope };
 }
 
 /**
@@ -264,6 +281,9 @@ export const aggregation = {
    * @param alias - The name of the group column in the result rows.
    * @param options.missingKey - The key of the rows without a value; only
    *   with a field.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
    * @throws TypeError when `input` or `alias` is invalid, `missingKey` is
    *   blank, or `missingKey` is given with an expression.
    * @example
@@ -278,7 +298,7 @@ export const aggregation = {
   terms<FIELDS extends string>(
     input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
-    { missingKey }: TermsAggregationOptions = {},
+    { missingKey, scope }: TermsAggregationOptions = {},
   ): TermsAggregationGroup<FIELDS> {
     if (
       missingKey !== undefined &&
@@ -294,6 +314,7 @@ export const aggregation = {
       type: AggregationGroupType.TERMS,
       ...(missingKey === undefined ? {} : { missingKey }),
       ...source,
+      ...groupScope(scope, 'TERMS', source),
       alias: aggregationAlias(alias),
     };
   },
@@ -305,6 +326,9 @@ export const aggregation = {
    *   place (Wow 9.2 and later, an expensive computation).
    * @param alias - The name of the bucket column in the result rows.
    * @param options.interval - The bucket width.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
    * @throws TypeError when `interval` is not finite and greater than 0, or
    *   `field` or `alias` is invalid.
    * @example
@@ -315,16 +339,18 @@ export const aggregation = {
   histogram<FIELDS extends string>(
     input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
-    { interval }: HistogramAggregationOptions,
+    { interval, scope }: HistogramAggregationOptions,
   ): HistogramAggregationGroup<FIELDS> {
     if (!Number.isFinite(interval) || interval <= 0) {
       throw new TypeError(
         'histogram interval must be finite and greater than 0.',
       );
     }
+    const source = groupInput(input, 'HISTOGRAM');
     return {
       type: AggregationGroupType.HISTOGRAM,
-      ...groupInput(input, 'HISTOGRAM'),
+      ...source,
+      ...groupScope(scope, 'HISTOGRAM', source),
       interval,
       alias: aggregationAlias(alias),
     };
@@ -339,6 +365,9 @@ export const aggregation = {
    * @param options.timeZone - The zone buckets are cut in. Defaults to `UTC`.
    * @param options.dense - Whether the empty buckets of the range are filled
    *   in.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
    * @throws TypeError when `unit` is not an `AggregationDateUnit`,
    *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
    *   invalid.
@@ -353,7 +382,7 @@ export const aggregation = {
   dateHistogram<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    { unit, timeZone = 'UTC', dense }: DateHistogramAggregationOptions,
+    { unit, timeZone = 'UTC', dense, scope }: DateHistogramAggregationOptions,
   ): DateHistogramAggregationGroup<FIELDS> {
     if (dense !== undefined && typeof dense !== 'boolean') {
       throw new TypeError('date histogram dense must be boolean.');
@@ -368,6 +397,7 @@ export const aggregation = {
       type: AggregationGroupType.DATE_HISTOGRAM,
       ...(dense === undefined ? {} : { dense }),
       field: aggregationField(field),
+      ...groupScope(scope, 'DATE_HISTOGRAM', {}),
       unit,
       alias: aggregationAlias(alias),
       timeZone,
@@ -392,6 +422,9 @@ export const aggregation = {
    *   `UTC`.
    * @param options.dense - Whether every key of the part's domain is
    *   returned.
+   * @param options.scope - What the field is relative to when the query
+   *   expands elements: `ROOT` groups the elements by a field of their root
+   *   record. Wow 9.9 and later.
    * @throws TypeError when `part` is not an `AggregationDatePart`,
    *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
    *   invalid.
@@ -406,7 +439,7 @@ export const aggregation = {
   datePart<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    { part, timeZone = 'UTC', dense }: DatePartAggregationOptions,
+    { part, timeZone = 'UTC', dense, scope }: DatePartAggregationOptions,
   ): DatePartAggregationGroup<FIELDS> {
     if (dense !== undefined && typeof dense !== 'boolean') {
       throw new TypeError('date part dense must be boolean.');
@@ -421,6 +454,7 @@ export const aggregation = {
       type: AggregationGroupType.DATE_PART,
       ...(dense === undefined ? {} : { dense }),
       field: aggregationField(field),
+      ...groupScope(scope, 'DATE_PART', {}),
       part,
       alias: aggregationAlias(alias),
       timeZone,
