@@ -71,6 +71,9 @@ class ShopClusterTest {
             "wow.cluster.heartbeat-interval" to "2s",
             "wow.cluster.reconcile-interval" to "200ms",
             "wow.cluster.route-refresh-interval" to "200ms",
+            // A first forward to a cold node may take more than the default second on a busy runner; past it, the
+            // sender runs the command itself (D71), which this test tells apart.
+            "wow.cluster.forward-timeout" to "10s",
             "wow.subscription.checkpoint-interval" to "100ms",
             "spring.datasource.url" to postgres.jdbcUrl,
             "spring.datasource.username" to postgres.username,
