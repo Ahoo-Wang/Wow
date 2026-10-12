@@ -60,6 +60,7 @@ val benchmarksProject = project(":wow-benchmarks")
 val v10Projects = listOf(
     "wow-manifest", "wow-query-api", "wow-spi", "wow-kernel", "wow-runtime", "wow-reactor",
     "wow-postgres", "wow-http", "wow-spring-boot", "wow-migrate-data", "wow-architecture", "wow-kernel-benchmarks",
+    "wow-gradle-plugin", "wow-manifest-tools",
     "wow-routing-spike",
 ).map { project(":$it") }.toSet()
 // Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform

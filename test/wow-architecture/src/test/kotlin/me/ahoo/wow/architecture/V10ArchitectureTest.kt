@@ -112,6 +112,25 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `manifest and schema rules should catch a JSON library and the schema generator`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.MANIFEST.dir,
+            "me/ahoo/wow/manifest/Bad.kt",
+            """
+            package me.ahoo.wow.manifest
+
+            import com.github.victools.jsonschema.generator.SchemaGenerator
+            import tools.jackson.databind.JsonNode
+            """.trimIndent(),
+        )
+        val bad = "${V10Rules.MANIFEST.dir}/src/main/kotlin/me/ahoo/wow/manifest/Bad.kt"
+        V10Rules.MANIFEST_IS_PLAIN_DATA.violations(root).assert()
+            .containsExactly("$bad:4: tools.jackson.databind.JsonNode")
+        V10Rules.SCHEMA_GENERATION_AT_BUILD_TIME.violations(root).assert()
+            .containsExactly("$bad:3: com.github.victools.jsonschema.generator.SchemaGenerator")
+    }
+
+    @Test
     fun `module graph should read the project dependencies of a build script`(@TempDir root: File) {
         File(root, V10Rules.KERNEL.dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
             """
