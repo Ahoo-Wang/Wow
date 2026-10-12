@@ -20,16 +20,24 @@ import me.ahoo.wow.api.decide.Decision
 import tools.jackson.databind.JsonNode
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
+inline fun <reified S : Any> aggregate(
+    context: String,
+    name: String,
+    noinline block: AggregateModelBuilder<S>.() -> Unit,
+): AggregateModel<S> = aggregate(S::class.java, context, name, block)
+
+/** Builds an [AggregateModel] of state [stateType] for the aggregate [name] of bounded context [context]. */
 fun <S : Any> aggregate(
+    stateType: Class<S>,
     context: String,
     name: String,
     block: AggregateModelBuilder<S>.() -> Unit,
-): AggregateModel<S> = AggregateModelBuilder<S>(AggregateType(context, name)).apply(block).build()
+): AggregateModel<S> = AggregateModelBuilder(AggregateType(context, name), stateType).apply(block).build()
 
 /**
  * The Kotlin DSL of an aggregate model. Event types are named `context.aggregate.EventName` unless a name is given.
  */
-class AggregateModelBuilder<S : Any>(val type: AggregateType) {
+class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Class<S>) {
     private var initial: ((AggregateRef) -> S)? = null
     private val deciders = LinkedHashMap<Class<*>, DecideFunction<S>>()
     private val afterFunctions = ArrayList<AfterFunction<S>>()
@@ -147,6 +155,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType) {
 
     fun build(): AggregateModel<S> = AggregateModel(
         type = type,
+        stateType = stateType,
         initial = requireNotNull(initial) { "$type needs an initial state." },
         deciders = deciders.toMap(),
         evolvers = evolvers.toMap(),

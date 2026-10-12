@@ -26,6 +26,9 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
+import tools.jackson.core.JacksonException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -49,7 +52,9 @@ import kotlin.time.Duration.Companion.seconds
  * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log (F4). The
  * test DSL turns it on; it costs two serializations of the state per command.
  *
- * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped.
+ * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped. On a miss, the state
+ * comes from the aggregate's snapshot in [snapshots] and the log's tail after it when the snapshot fits the model's
+ * state schema (03-log-and-snapshot.md §3), else from replaying the whole log.
  *
  * [reservations] backs [DecideScope.reserve]; a pending reservation lives for [reservationTtl] unless the append
  * confirms it first.
@@ -63,6 +68,7 @@ class Kernel(
     private val reservations: ReservationStore? = null,
     private val reservationTtl: Duration = DEFAULT_RESERVATION_TTL,
     private val states: StateCache = StateCache.None,
+    private val snapshots: SnapshotStore? = null,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -188,12 +194,49 @@ class Kernel(
             @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the cached state is this model's.
             return cached.state as S to cached.version
         }
-        val streams = log.read(command.ref).toList()
-        var state = model.initialState(command.ref)
+        snapshots?.load(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it } }
+        return replay(model, model.initialState(command.ref), log.read(command.ref).toList(), 0)
+    }
+
+    /**
+     * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
+     * for another state schema, not decodable, or newer than the log. The tail is read from the snapshot's own
+     * version, so the same read proves the log holds that version; that stream is already folded and is skipped.
+     */
+    private suspend fun <S : Any> fromSnapshot(model: AggregateModel<S>, snapshot: SnapshotRecord): Pair<S, Int>? {
+        if (snapshot.schemaFingerprint != codec.stateSchemaFingerprint(model)) {
+            logger.debug { "The snapshot of ${snapshot.ref} has another state schema; replaying its log." }
+            return null
+        }
+        val state = try {
+            codec.decodeState(model, snapshot.state)
+        } catch (failure: JacksonException) {
+            logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode; replaying its log." }
+            return null
+        } catch (failure: IllegalArgumentException) {
+            logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode whole; replaying its log." }
+            return null
+        }
+        val streams = log.read(snapshot.ref, snapshot.version).toList()
+        if (streams.firstOrNull()?.version != snapshot.version) {
+            logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
+            return null
+        }
+        return replay(model, state, streams.subList(1, streams.size), snapshot.version)
+    }
+
+    /** Evolves [initial], at [version], with the events of [streams]. */
+    private fun <S : Any> replay(
+        model: AggregateModel<S>,
+        initial: S,
+        streams: List<EventStreamRecord>,
+        version: Int,
+    ): Pair<S, Int> {
+        var state = initial
         streams.forEach { stream ->
             stream.events.forEach { record -> state = model.evolve(state, codec.decode(model, record)) }
         }
-        return state to (streams.lastOrNull()?.version ?: 0)
+        return state to (streams.lastOrNull()?.version ?: version)
     }
 
     private fun admissible(decider: DecideFunction<*>, command: Command<*>, version: Int): CommandOutcome? = when {
@@ -294,7 +337,7 @@ class Kernel(
                 try {
                     compensation()
                 } catch (failure: Throwable) {
-                    cause?.addSuppressed(failure) ?: log.warn(failure) { "A compensation failed." }
+                    cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
                 }
             }
         }
@@ -305,7 +348,7 @@ class Kernel(
                 try {
                     action()
                 } catch (failure: Throwable) {
-                    log.warn(failure) { "An after-append action failed; the events are committed." }
+                    logger.warn(failure) { "An after-append action failed; the events are committed." }
                 }
             }
         }
@@ -314,6 +357,6 @@ class Kernel(
     private companion object {
         const val DEFAULT_MAX_ATTEMPTS = 3
         val DEFAULT_RESERVATION_TTL = 30.seconds
-        val log = KotlinLogging.logger {}
+        val logger = KotlinLogging.logger {}
     }
 }
