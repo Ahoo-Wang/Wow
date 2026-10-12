@@ -26,8 +26,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
@@ -44,6 +48,10 @@ import kotlin.coroutines.CoroutineContext
  *
  * Duplicates are possible above a checkpoint (an entry handled but not yet saved when the node stopped or crashed),
  * never below it, so handlers are idempotent by (`ref`, `version`).
+ *
+ * It takes part in waits (design 04 §6): a subscription signals, through [signals], the wait an entry carries when
+ * the wait's next hop is that subscription; and as the [SubscriptionDirectory] of its group it tells a wait which
+ * subscriptions there are, of what kind, and whether one has handled a stream.
  */
 class SubscriptionRuntime(
     val group: String,
@@ -54,9 +62,13 @@ class SubscriptionRuntime(
     private val options: SubscriptionOptions = SubscriptionOptions(),
     private val clock: Clock = Clock.systemUTC(),
     private val context: CoroutineContext = Dispatchers.Default,
-) {
+    private val signals: SignalSender = SignalSender.NONE,
+) : SubscriptionDirectory {
     private val lifecycle = Mutex()
     private val subscriptions = LinkedHashMap<String, Subscription>()
+
+    /** The registered subscriptions by name, read by waits from any thread. */
+    private val directory = ConcurrentHashMap<String, Subscription>()
 
     @Volatile
     private var running: Running? = null
@@ -70,6 +82,7 @@ class SubscriptionRuntime(
         require(subscriptions.putIfAbsent(subscription.name, subscription) == null) {
             "Subscription ${subscription.name} is already registered in group $group."
         }
+        directory[subscription.name] = subscription
     }
 
     /** Whether the runtime is running. */
@@ -163,6 +176,25 @@ class SubscriptionRuntime(
         return worker.skip(ref)
     }
 
+    override fun kindOf(context: String, subscription: String): FunctionKind? =
+        directory[subscription]?.takeIf { it.filter.context == context }?.kind
+
+    /**
+     * Whether [subscription] is past [stream] for good (decision D63): its progress in the stream's partition (the
+     * running worker's watermark, else the saved checkpoint) is at or past the stream's position, and the stream's
+     * aggregate is not parked.
+     */
+    override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean {
+        if (kindOf(stream.ref.type.context, subscription) == null) {
+            return false
+        }
+        val position = log.positionOf(stream.ref, stream.version) ?: return false
+        val progress = running?.workers?.get(subscription to position.partition)?.watermark
+            ?: checkpoints.load(group, subscription, position.partition)
+            ?: 0L
+        return progress >= position.sequence && !ledger.isParked(subscription, stream.ref)
+    }
+
     private fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? =
         running?.workers?.get(subscription to Partitioner.partitionOf(ref, log.partitions))
 
@@ -191,6 +223,7 @@ class SubscriptionRuntime(
             options = options,
             clock = clock,
             lanes = run.lanes,
+            signals = signals,
             checkpoint = checkpoint,
             parked = parked[partition].orEmpty(),
         ).also { run.workers[subscription.name to partition] = it }

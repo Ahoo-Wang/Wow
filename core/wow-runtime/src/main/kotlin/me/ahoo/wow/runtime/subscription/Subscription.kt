@@ -15,39 +15,104 @@ package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.result.FunctionInfo
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 
 /**
- * A subscription (design 04 §1): a [name], a [filter] and exactly one [handler]. The checkpoint belongs to the
+ * A subscription (design 04 §1): a [name], a [filter] and exactly one handler. The checkpoint belongs to the
  * name, so one handler never shares a checkpoint with another; a replay or a blue-green rebuild is a new name
  * starting from the beginning (04 §3).
  *
  * [startFrom] applies only when the subscription has no checkpoint yet in a partition. [decoder] turns a committed
- * stream into what [handler] receives.
+ * stream into what the handler receives.
  *
  * When [models] are given, the filter's event names are resolved through them ([SubscriptionFilter.resolve]): an
  * event listed under its current name also matches the streams that stored it under a former one, and the other
  * way round.
+ *
+ * [kind] says what the handler is (design 08 §7): it is reported as the [function] that handled a commit, and a wait
+ * chain may continue only after a saga's hop (decision D62). A saga reports the commands it derived from each entry,
+ * so it is made with [saga]; the constructor makes every other kind.
  */
-class Subscription(
+class Subscription private constructor(
     val name: String,
     filter: SubscriptionFilter,
-    val startFrom: StartFrom = StartFrom.BEGINNING,
-    val decoder: EntryDecoder = EntryDecoder.RECORDS,
-    models: Collection<AggregateModel<*>> = emptyList(),
-    val handler: suspend (SubscribedEntry) -> Unit,
+    val startFrom: StartFrom,
+    val decoder: EntryDecoder,
+    models: Collection<AggregateModel<*>>,
+    val kind: FunctionKind,
+    private val handler: EntryHandler,
 ) {
+    constructor(
+        name: String,
+        filter: SubscriptionFilter,
+        startFrom: StartFrom = StartFrom.BEGINNING,
+        decoder: EntryDecoder = EntryDecoder.RECORDS,
+        models: Collection<AggregateModel<*>> = emptyList(),
+        kind: FunctionKind = FunctionKind.PROJECT,
+        handler: suspend (SubscribedEntry) -> Unit,
+    ) : this(
+        name,
+        filter,
+        startFrom,
+        decoder,
+        models,
+        kind.also { require(it != FunctionKind.SAGA) { "A saga reports what it derived: make it with saga()." } },
+        EntryHandler { entry ->
+            handler(entry)
+            emptyList()
+        },
+    )
+
     val filter: SubscriptionFilter = filter.resolve(models)
+
+    /** The function a result names when this subscription handled a commit. */
+    val function: FunctionInfo = subscriptionFunction(kind, filter.context, name)
 
     init {
         require(name.isNotBlank()) { "A subscription needs a name." }
+        require(kind != FunctionKind.COMMAND) { "A subscription handles commits, not commands." }
     }
 
+    /** Handles [entry]; returns the ids of the commands it derived, a saga's only. */
+    internal suspend fun handle(entry: SubscribedEntry): List<String> = handler.handle(entry)
+
     override fun toString(): String = "Subscription($name)"
+
+    companion object {
+        /**
+         * A saga: [handler] returns the ids of the commands it derived from the entry (decision D62). A wait whose
+         * chain continues after this saga's hop then waits for each of them; the saga passes the entry's wait context
+         * on to them ([me.ahoo.wow.spi.wait.WaitContext.derived]) when it executes them.
+         */
+        fun saga(
+            name: String,
+            filter: SubscriptionFilter,
+            startFrom: StartFrom = StartFrom.BEGINNING,
+            decoder: EntryDecoder = EntryDecoder.RECORDS,
+            models: Collection<AggregateModel<*>> = emptyList(),
+            handler: suspend (SubscribedEntry) -> List<String>,
+        ): Subscription = Subscription(
+            name,
+            filter,
+            startFrom,
+            decoder,
+            models,
+            FunctionKind.SAGA,
+            EntryHandler { handler(it) },
+        )
+    }
+}
+
+/** What a subscription runs for an entry: it returns the ids of the commands it derived. */
+internal fun interface EntryHandler {
+    suspend fun handle(entry: SubscribedEntry): List<String>
 }
 
 /** Where a subscription without a checkpoint starts. */

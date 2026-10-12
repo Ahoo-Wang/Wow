@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.wait.WaitContext
 
 /**
  * One event as the log stores it: its type [name] (`context.aggregate.event`, not a class name), the [revision] of
@@ -79,15 +80,14 @@ data class LogEntry(val position: LogPosition, val stream: EventStreamRecord, va
  * What an append carries for delivery, not as fact (design 08 §1, §4; decision D25): domain code and queries never
  * see it, and a migration or a replay drops it. A backend stores it apart from the stream (its own column or field).
  *
- * - [wait] is the wait context of a command whose caller waits beyond COMMITTED (D15). Waits are a later work
- *   package (roadmap 4.7): until then it is an opaque string map the log only stores and gives back, and it will be
- *   replaced by the `WaitContext` type without changing where it is kept.
+ * - [wait] is the wait context of a command whose caller waits beyond COMMITTED (D25, D69): the subscription named
+ *   by its next hop signals the waiting node once it has handled the entry.
  * - [reservations] are the keys this attempt reserved pending (D50): the `reservation` subscription confirms them
  *   from the log, so a key is confirmed even when the after-append fast path never ran.
  * - [trace] is tracing context such as the W3C `traceparent`.
  */
 data class Transport(
-    val wait: Map<String, String>? = null,
+    val wait: WaitContext? = null,
     val reservations: List<ReservationKey> = emptyList(),
     val trace: Map<String, String> = emptyMap(),
 )

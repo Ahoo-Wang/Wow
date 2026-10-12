@@ -21,6 +21,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -53,10 +54,11 @@ class Executor(
     /** The aggregates with commands in flight. */
     val activeLanes: Int get() = lanes.size
 
-    suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandOutcome {
+    /** Runs [command] through the kernel in its aggregate's lane; [wait] is passed on to [Kernel.execute]. */
+    suspend fun execute(model: AggregateModel<*>, command: Command<*>, wait: WaitContext? = null): CommandOutcome {
         val lane = enter(command.ref)
         try {
-            return lane.lock.withLock { kernel.execute(model, command) }
+            return lane.lock.withLock { kernel.execute(model, command, wait) }
         } finally {
             leave(command.ref)
         }

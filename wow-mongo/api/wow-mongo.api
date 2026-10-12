@@ -147,6 +147,7 @@ public final class me/ahoo/wow/mongo/log/MongoEventLog : me/ahoo/wow/spi/log/Eve
 	public fun findByRequestId (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getPartitions ()I
 	public fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun positionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun read (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
 	public fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
 }

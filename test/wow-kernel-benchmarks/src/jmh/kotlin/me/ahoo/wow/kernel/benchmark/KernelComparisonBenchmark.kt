@@ -135,6 +135,8 @@ open class KernelComparisonBenchmark {
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = emptyFlow()
 
+        override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = null
+
         override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? = null
 
         override fun tail(partition: Int, after: Long?): Flow<LogEntry> = emptyFlow()

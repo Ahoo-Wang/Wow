@@ -25,7 +25,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
@@ -130,7 +133,16 @@ abstract class EventLogSpec {
     fun `transport is given back by tail only`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
         val transport = Transport(
-            wait = mapOf("waitId" to "w-1", "stage" to "PROJECTED"),
+            wait = WaitContext(
+                waitId = "w-1",
+                origin = Origin("node-1", "10.0.0.7:8081", "order-service"),
+                remaining = listOf(
+                    Hop.handled("payment-saga", "payment"),
+                    Hop.committed("inventory"),
+                    Hop.snapshot(),
+                ),
+                deadline = 1_700_000_010_000L,
+            ),
             reservations = listOf(ReservationKey("user-name", "ahoo"), ReservationKey("email", "a@b.c ü")),
             trace = mapOf("traceparent" to "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
         )
@@ -146,6 +158,18 @@ abstract class EventLogSpec {
         // read and findByRequestId return facts only: an EventStreamRecord has no place for the transport.
         log.read(carried.ref, 1, 1).toList().single().assertSameAs(carried)
         checkNotNull(log.findByRequestId("tenant", carried.requestId)).assertSameAs(carried)
+    }
+
+    @Test
+    fun `positionOf finds where a version of an aggregate was committed`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val first = (log.append(stream("a", 1)) as AppendOutcome.Committed).position
+        log.append(stream("b", 1))
+        val second = (log.append(stream("a", 2)) as AppendOutcome.Committed).position
+        log.positionOf(type.ref("tenant", "a"), 1).assert().isEqualTo(first)
+        log.positionOf(type.ref("tenant", "a"), 2).assert().isEqualTo(second)
+        log.positionOf(type.ref("tenant", "a"), 3).assert().isNull()
+        log.positionOf(type.ref("other", "a"), 1).assert().isNull()
     }
 
     @Test

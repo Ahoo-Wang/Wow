@@ -22,6 +22,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -31,9 +33,13 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.postgresql.util.PSQLException
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
+import tools.jackson.databind.node.ObjectNode
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -168,6 +174,20 @@ class PostgresEventLog(
         streams.forEach { emit(it) }
     }
 
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(tables.position).use { query ->
+                query.setString(1, ref.id)
+                query.setString(2, ref.tenantId)
+                query.setString(3, ref.type.name)
+                query.setInt(4, version)
+                query.executeQuery().use { rows ->
+                    if (rows.next()) LogPosition(rows.getInt("partition"), rows.getLong("sequence")) else null
+                }
+            }
+        }
+    }
+
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         withContext(dispatcher) {
             dataSource.connection.use { connection -> findByRequestIdIn(connection, tenantId, requestId) }
@@ -283,7 +303,7 @@ class PostgresEventLog(
         /** A transport as one JSON object; an absent wait is left out. */
         fun encodeTransport(transport: Transport): String {
             val node = json.createObjectNode()
-            transport.wait?.let { wait -> node.set(WAIT, json.valueToTree(wait)) }
+            transport.wait?.let { wait -> encodeWait(node.putObject(WAIT), wait) }
             val reservations = node.putArray(RESERVATIONS)
             transport.reservations.forEach { reservations.addObject().put(NAMESPACE, it.namespace).put(KEY, it.key) }
             node.set(TRACE, json.valueToTree(transport.trace))
@@ -298,9 +318,47 @@ class PostgresEventLog(
                 reservations += ReservationKey(reservation.get(NAMESPACE).asString(), reservation.get(KEY).asString())
             }
             return Transport(
-                wait = node.get(WAIT)?.let { decodeStrings(json.writeValueAsString(it)) },
+                wait = node.get(WAIT)?.let(::decodeWait),
                 reservations = reservations,
                 trace = decodeStrings(json.writeValueAsString(node.get(TRACE))),
+            )
+        }
+
+        /** A wait context's fields into [node]; a hop leaves out its absent context and subscription. */
+        fun encodeWait(node: ObjectNode, wait: WaitContext) {
+            node.put(WAIT_ID, wait.waitId).put(DEADLINE, wait.deadline)
+            node.putObject(ORIGIN)
+                .put(NODE, wait.origin.node)
+                .put(ADDRESS, wait.origin.address)
+                .put(SERVICE, wait.origin.service)
+            val remaining = node.putArray(REMAINING)
+            wait.remaining.forEach { hop ->
+                val encoded = remaining.addObject().put(STAGE, hop.stage.name)
+                hop.context?.let { encoded.put(CONTEXT, it) }
+                hop.subscription?.let { encoded.put(SUBSCRIPTION, it) }
+            }
+        }
+
+        fun decodeWait(node: JsonNode): WaitContext {
+            val origin = node.get(ORIGIN)
+            val remaining = ArrayList<Hop>()
+            // ArrayNode has a map member of its own, so iterate rather than map.
+            for (hop in node.get(REMAINING)) {
+                remaining += Hop(
+                    Stage.valueOf(hop.get(STAGE).asString()),
+                    hop.get(CONTEXT)?.asString(),
+                    hop.get(SUBSCRIPTION)?.asString(),
+                )
+            }
+            return WaitContext(
+                waitId = node.get(WAIT_ID).asString(),
+                origin = Origin(
+                    origin.get(NODE).asString(),
+                    origin.get(ADDRESS).asString(),
+                    origin.get(SERVICE).asString(),
+                ),
+                remaining = remaining,
+                deadline = node.get(DEADLINE).asLong(),
             )
         }
 
@@ -312,6 +370,16 @@ class PostgresEventLog(
         }
 
         const val WAIT = "wait"
+        const val WAIT_ID = "wait_id"
+        const val ORIGIN = "origin"
+        const val NODE = "node"
+        const val ADDRESS = "address"
+        const val SERVICE = "service"
+        const val REMAINING = "remaining"
+        const val STAGE = "stage"
+        const val CONTEXT = "context"
+        const val SUBSCRIPTION = "subscription"
+        const val DEADLINE = "deadline"
         const val RESERVATIONS = "reservations"
         const val NAMESPACE = "namespace"
         const val KEY = "key"

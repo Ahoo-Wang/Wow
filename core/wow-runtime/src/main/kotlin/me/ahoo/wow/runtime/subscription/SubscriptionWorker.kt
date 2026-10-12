@@ -26,6 +26,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
@@ -50,6 +55,10 @@ import java.time.Clock
  * entry arrives and removed when it runs empty.
  *
  * State touched from several coroutines is guarded by this object's monitor; the sections under it never suspend.
+ *
+ * When an entry carries a wait context whose next hop is this subscription, the worker signals the waiting node
+ * once the entry is done with (design 04 §6.3): handled, or passed over by the filter, SUCCEEDED; parked, FAILED. The
+ * signal is a side path: it never fails the entry nor holds the checkpoint.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -61,6 +70,7 @@ internal class SubscriptionWorker(
     private val options: SubscriptionOptions,
     private val clock: Clock,
     private val lanes: CoroutineScope,
+    private val signals: SignalSender,
     checkpoint: Long,
     parked: Map<AggregateRef, Int>,
 ) {
@@ -117,6 +127,10 @@ internal class SubscriptionWorker(
         outstanding.value = pending.size
         if (!subscription.filter.matches(stream) || skippedOnAdmit(stream)) {
             complete(slot)
+            if (waitsHere(entry)) {
+                val parked = parkedAt(stream)
+                lanes.launch { signal(entry, Result.success(emptyList()), parked) }
+            }
         } else {
             enqueue(stream.ref, Item.Live(entry, slot), first = false)
         }
@@ -125,11 +139,58 @@ internal class SubscriptionWorker(
     /** A parked aggregate's entries from its parked version on, and copies of what a resume handled, are skipped. */
     private fun skippedOnAdmit(stream: EventStreamRecord): Boolean {
         val state = parkStates[stream.ref]
-        if (state is ParkState.Parked && stream.version >= state.fromVersion) {
+        if (parkedAt(stream)) {
             return true
         }
         val resumed = resumedThrough[stream.ref]
         return state == null && resumed != null && stream.version <= resumed
+    }
+
+    /** Called under the monitor: whether [stream]'s aggregate is parked at or before its version. */
+    private fun parkedAt(stream: EventStreamRecord): Boolean {
+        val state = parkStates[stream.ref]
+        return state is ParkState.Parked && stream.version >= state.fromVersion
+    }
+
+    /** Whether a wait on [entry] waits for this subscription next. */
+    private fun waitsHere(entry: LogEntry): Boolean {
+        val hop = entry.transport?.wait?.nextHandled ?: return false
+        return hop.subscription == subscription.name && (hop.context ?: subscription.filter.context) ==
+            subscription.filter.context
+    }
+
+    /**
+     * Signals the wait on [entry], if it waits for this subscription next and is not over: SUCCEEDED with the
+     * commands [handled] derived, or FAILED when it failed or the aggregate is [parked].
+     */
+    @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
+    private suspend fun signal(entry: LogEntry, handled: Result<List<String>>, parked: Boolean = false) {
+        if (!waitsHere(entry)) {
+            return
+        }
+        val wait = checkNotNull(entry.transport?.wait)
+        val now = clock.millis()
+        if (wait.expiredAt(now)) {
+            return
+        }
+        val failure = handled.exceptionOrNull()
+        val error = when {
+            failure != null -> ErrorInfo(ResultCodes.SUBSCRIPTION_PARKED, reason(failure))
+            parked -> ErrorInfo(
+                ResultCodes.SUBSCRIPTION_PARKED,
+                "${entry.stream.ref} is parked by ${subscription.name}."
+            )
+            else -> null
+        }
+        val hop = checkNotNull(wait.nextHandled)
+        val result = handledResult(entry.stream, hop, subscription.function, now, handled.getOrNull().orEmpty(), error)
+        try {
+            signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Failed to signal wait ${wait.waitId} from ${subscription.name}." }
+        }
     }
 
     /** Called under the monitor. */
@@ -167,15 +228,13 @@ internal class SubscriptionWorker(
     }
 
     private suspend fun runLive(item: Item.Live) {
-        val stream = item.entry.stream
-        val skipped = synchronized(this) { skippedInLane(stream) }
-        if (!skipped) {
-            val failure = handle(stream, item.entry.position, item.entry.transport)
-            if (failure != null) {
-                park(stream, failure)
-            }
-        }
+        val entry = item.entry
+        val stream = entry.stream
+        val (skipped, parked) = synchronized(this) { skippedInLane(stream) to parkedAt(stream) }
+        val handled = if (skipped) Result.success(emptyList()) else handle(stream, entry.position, entry.transport)
+        handled.exceptionOrNull()?.let { park(stream, it as Exception) }
         synchronized(this) { complete(item.slot) }
+        signal(entry, handled, skipped && parked)
     }
 
     /** Called under the monitor. Within a lane, entries arrive in version order. */
@@ -193,20 +252,26 @@ internal class SubscriptionWorker(
         return false
     }
 
-    /** Runs the handler with retries; returns the last failure once they are spent, or null on success. */
+    /**
+     * Runs the handler with retries; returns the ids of the commands it derived, or the last failure once the
+     * retries are spent.
+     */
     @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
-    private suspend fun handle(stream: EventStreamRecord, position: LogPosition?, transport: Transport?): Exception? {
+    private suspend fun handle(
+        stream: EventStreamRecord,
+        position: LogPosition?,
+        transport: Transport?,
+    ): Result<List<String>> {
         var failures = 0
         while (true) {
             try {
-                subscription.handler(subscription.decoder.decode(stream, position, transport))
-                return null
+                return Result.success(subscription.handle(subscription.decoder.decode(stream, position, transport)))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
                 failures++
                 if (failures >= options.retry.maxAttempts) {
-                    return failure
+                    return Result.failure(failure)
                 }
                 delay(options.retry.backoff(failures))
             }
@@ -272,7 +337,11 @@ internal class SubscriptionWorker(
             ledger.parked(subscription.name, ref)?.let { from = minOf(from, it.fromVersion) }
             var last: Int? = null
             for (stream in log.read(ref, from).toList()) {
-                val failure = if (subscription.filter.matches(stream)) handle(stream, null, null) else null
+                val failure = if (subscription.filter.matches(stream)) {
+                    handle(stream, null, null).exceptionOrNull() as Exception?
+                } else {
+                    null
+                }
                 if (failure != null) {
                     // Still failing: the streams before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
@@ -362,7 +431,7 @@ internal class SubscriptionWorker(
         active.clear()
     }
 
-    private fun reason(failure: Exception): String = "${failure.javaClass.name}: ${failure.message}"
+    private fun reason(failure: Throwable): String = "${failure.javaClass.name}: ${failure.message}"
 
     private class Slot(val sequence: Long) {
         var done = false

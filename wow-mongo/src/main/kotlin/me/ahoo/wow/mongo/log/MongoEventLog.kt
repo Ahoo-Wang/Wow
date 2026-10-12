@@ -39,6 +39,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
@@ -51,6 +53,8 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.bson.json.JsonMode
@@ -255,6 +259,13 @@ class MongoEventLog(
         streams.forEach { emit(it) }
     }
 
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
+        log.find(Filters.and(refFilter(ref), Filters.eq(VERSION, version)))
+            .projection(Projections.include(PARTITION, SEQUENCE))
+            .firstOrNull()
+            ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
+    }
+
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         withContext(dispatcher) { findByRequestIdNow(tenantId, requestId) }
 
@@ -335,17 +346,44 @@ class MongoEventLog(
         .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
 
     private fun transportDocument(transport: Transport) = Document()
-        .apply { transport.wait?.let { append(WAIT, Document(it)) } }
+        .apply { transport.wait?.let { append(WAIT, waitDocument(it)) } }
         .append(RESERVATIONS, transport.reservations.map { Document(NAMESPACE, it.namespace).append(KEY, it.key) })
         .append(TRACE, Document(transport.trace))
 
     private fun transportOf(document: Document) = Transport(
-        wait = document.get(WAIT, Document::class.java)?.let(::strings),
+        wait = document.get(WAIT, Document::class.java)?.let(::waitOf),
         reservations = document.getList(RESERVATIONS, Document::class.java).map {
             ReservationKey(it.getString(NAMESPACE), it.getString(KEY))
         },
         trace = strings(document.get(TRACE, Document::class.java)),
     )
+
+    private fun waitDocument(wait: WaitContext) = Document(WAIT_ID, wait.waitId)
+        .append(
+            ORIGIN,
+            Document(NODE, wait.origin.node).append(ADDRESS, wait.origin.address).append(SERVICE, wait.origin.service),
+        )
+        .append(
+            REMAINING,
+            wait.remaining.map { hop ->
+                Document(STAGE, hop.stage.name)
+                    .apply { hop.context?.let { append(CONTEXT, it) } }
+                    .apply { hop.subscription?.let { append(SUBSCRIPTION, it) } }
+            },
+        )
+        .append(DEADLINE, wait.deadline)
+
+    private fun waitOf(document: Document): WaitContext {
+        val origin = document.get(ORIGIN, Document::class.java)
+        return WaitContext(
+            waitId = document.getString(WAIT_ID),
+            origin = Origin(origin.getString(NODE), origin.getString(ADDRESS), origin.getString(SERVICE)),
+            remaining = document.getList(REMAINING, Document::class.java).map {
+                Hop(Stage.valueOf(it.getString(STAGE)), it.getString(CONTEXT), it.getString(SUBSCRIPTION))
+            },
+            deadline = document.getLong(DEADLINE),
+        )
+    }
 
     private fun strings(document: Document): Map<String, String> = document.keys.associateWith {
         document.getString(
@@ -395,6 +433,16 @@ class MongoEventLog(
         const val HEADERS = "headers"
         const val TRANSPORT = "transport"
         const val WAIT = "wait"
+        const val WAIT_ID = "wait_id"
+        const val ORIGIN = "origin"
+        const val NODE = "node"
+        const val ADDRESS = "address"
+        const val SERVICE = "service"
+        const val REMAINING = "remaining"
+        const val STAGE = "stage"
+        const val CONTEXT = "context"
+        const val SUBSCRIPTION = "subscription"
+        const val DEADLINE = "deadline"
         const val RESERVATIONS = "reservations"
         const val NAMESPACE = "namespace"
         const val KEY = "key"
