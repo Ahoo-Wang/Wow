@@ -83,11 +83,25 @@ dataset in its stored words, and gives the view manager its wording tab
 where the host grants `editDatasetWording`:
 
 ```ts
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  DatasetDirectoryClient,
+  DatasetQueryClient,
+} from '@ahoo-wang/wow-client';
+import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
+
+declare const engine: ViewEngine;
+declare const fetcher: Fetcher;
+
+const directory = new DatasetDirectoryClient();
 const datasets = new DatasetResources(engine, {
   list: () => directory.list(),
-  source: entry => directory.source(entry),
+  source: entry =>
+    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
   wordings: new WowDatasetWordings({ fetcher }),
 });
+await datasets.refresh();
 ```
 
 `set(dataset, wording, revision, { requestId })` writes one whole at the

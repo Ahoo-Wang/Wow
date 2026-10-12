@@ -65,11 +65,25 @@ const engine = new ViewEngine({
 每次刷新前读它，按存着的措辞登记每个数据集，并在宿主给了 `editDatasetWording` 时给视图管理器一个「措辞」页签：
 
 ```ts
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  DatasetDirectoryClient,
+  DatasetQueryClient,
+} from '@ahoo-wang/wow-client';
+import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
+
+declare const engine: ViewEngine;
+declare const fetcher: Fetcher;
+
+const directory = new DatasetDirectoryClient();
 const datasets = new DatasetResources(engine, {
   list: () => directory.list(),
-  source: entry => directory.source(entry),
+  source: entry =>
+    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
   wordings: new WowDatasetWordings({ fetcher }),
 });
+await datasets.refresh();
 ```
 
 `set(dataset, wording, revision, { requestId })` 按期望版本整份写入（从没写过的是 `'0'`），`clear` 清掉；谁能写由网关
