@@ -427,7 +427,9 @@ class ManifestFragmentTest {
         val (compilation, result) = compileModel("generate", context, another, cart)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         fragments(compilation).assert().isEmpty()
-        result.messages.assert().contains("No Manifest fragment: the module declares 2 @BoundedContext")
+        result.messages.assert().contains(
+            "No Manifest fragment and no model provider: the module declares 2 @BoundedContext"
+        )
     }
 
     @Test
@@ -462,7 +464,9 @@ class ManifestFragmentTest {
         val (compilation, result) = compileModel("generate", cart)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         fragments(compilation).assert().isEmpty()
-        result.messages.assert().contains("No Manifest fragment: the module declares 0 @BoundedContext")
+        result.messages.assert().contains(
+            "No Manifest fragment and no model provider: the module declares 0 @BoundedContext"
+        )
     }
 
     @Test
