@@ -88,6 +88,10 @@
 | D56 | 作用域：`wow-api` 的值类型 `Scope(ownerId, spaceId)`，命令、事件流、快照、查询授权共用；事件流的 `scope` 是提交后聚合的归属，由内核随状态维护、只由生命周期命令改变；事件流另带 `causation`（根命令、直接上游）与准入白名单内的 `headers` | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D57 | 事件标识由（聚合引用，版本，事件序号）推导：`ref@version#index`，不另存 ID | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D58 | Kafka 信封：key = 聚合引用；value = `{format, kind, id, type, payload, transport}`；发布的是 `StateEvent`（默认总附状态，单个 Sink 可按聚合类型关闭）；载荷是嵌入的 JSON 对象，不是字符串；下游按 id 去重 | 2026-10-12，用户 | [08](08-data-protocols.md) |
+| D73 | Manifest 的 schema 按 Jackson 的实际行为生成：KSP 产出结构与类型清单，构建期 Gradle 任务用 Jackson 序列化器内省出 JSON Schema 2020-12；状态 schema 指纹也由它计算；运行时不反射 | 2026-10-12，用户 | [05](05-read-and-contract.md) |
+| D74 | Manifest 组装与发布：模块片段在 `META-INF/wow/manifest/`，运行时合并、冲突拒绝启动；Gradle 合并出服务级 `manifest.json`；公开端口 `GET /wow/manifest`，按普通 API 鉴权；跨上下文下游据此生成类型化消费代码 | 2026-10-12，用户 | [05](05-read-and-contract.md) |
+| D75 | 数据集不并入 Manifest：运行时注册的数据集作为查询侧目录单独提供，view-engine 两者都读 | 2026-10-12，用户 | [05](05-read-and-contract.md) |
+| D76 | Manifest 兼容性门禁：CI 比较本次与上一个已发布版本，主版本内的破坏性差异（删除、新增必填、schema 变化未升 revision）使构建失败；线上契约兼容由它守 | 2026-10-12，用户 | [05](05-read-and-contract.md) |
 | D70 | 分区分配：HRW（最高随机权重哈希），各节点从成员列表独立算出同一目标分配，无主对账（每秒、成员变化时立即）；租约仲裁短暂分歧 | 2026-10-12，用户 | [02](02-write-path.md) |
 | D71 | 交接与属主故障期间，命令降级为 Local 执行，不等新属主；以少量冲突换取命令可用性不依赖租约 TTL；主动交接按停收 → 执行完在途 → 存检查点 → 释放 | 2026-10-12，用户 | [02](02-write-path.md) |
 | D72 | 租约组为（服务，上下文）；`Member` 增加节点内部地址；租约 TTL 10 秒、续约 3 秒、成员心跳 TTL 10 秒 | 2026-10-12，用户 | [02](02-write-path.md)、[04](04-subscriptions.md) |

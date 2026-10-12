@@ -23,6 +23,43 @@
                                        └▶ Agent Skills
 ```
 
+**读者**：运行时（命令按类型名解码、HTTP 路由、等待链校验、错误码、查询能力）、OpenAPI / TS 生成器 / view-engine、其他上下文（发布的 `StateEvent` 是公开语言，D23、D58）、迁移工具与 Skill（事件名、revision、别名）、兼容性门禁。
+
+**结构**（草案，随 5a.1 定稿）：
+
+```text
+{
+  "format": 1,
+  "service": { "name", "version" },
+  "contexts": [{
+    "name", "description",
+    "aggregates": [{
+      "name", "description",
+      "state":    { "schema": "#/$defs/…", "fingerprint" },
+      "snapshot": { "enabled" },
+      "commands": [{ "name", "aliases", "schema", "creation",
+                     "produces": [事件名…], "errors": [错误码…],
+                     "route": { "method", "path" } }],
+      "events":   [{ "name", "aliases", "revision", "schema" }],
+      "lifecycle":[启用的系统命令]
+    }],
+    "subscriptions": [{ "name", "kind": "PROJECTION | REACTOR | SAGA",
+                        "source": { "context", "aggregates", "events" },
+                        "function": FunctionInfo, "derives": [命令名…] }],
+    "published": [{ "topic", "aggregates", "includeState" }],
+    "queries":   [{ "model": "snapshot | 投影名 | events", "capabilities" }],
+    "errors":    [{ "code", "status", "description" }]
+  }],
+  "$defs": { JSON Schema 2020-12 }
+}
+```
+
+- **schema 按 Jackson 的实际行为生成**（D73）：KSP 产出结构与类型清单（片段）；构建期的 Gradle 任务加载编译后的类，用 Jackson 自己的序列化器内省出 JSON Schema。schema 因此就是线上的真实形状（命名策略、`@JsonProperty`、自定义序列化器、Kotlin 默认值都由 Jackson 决定，不在 KSP 里重新实现）；状态 schema 指纹（快照，[03](03-log-and-snapshot.md) §3）也由它计算。内省只在构建期，运行时仍不反射（D37）。
+- **组装与发布**（D74）：每个模块的片段放在 `META-INF/wow/manifest/<模块>.json`，运行时启动时合并，名字冲突拒绝启动；Gradle 任务同时合并出服务的 `manifest.json` 供离线工具使用。服务在公开端口发布 `GET /wow/manifest`，按普通 API 鉴权；跨上下文的下游从上游的构建产物或该端点取得，构建期生成类型化的消费代码。
+- **数据集不并入**（D75）：数据集由 dataset-registry 在运行时注册，作为查询侧的运行时目录单独提供；Manifest 只描述编译期的代码契约，view-engine 两者都读。
+- **兼容性门禁**（D76）：CI 比较本次构建与上一个已发布版本的 Manifest，把差异分为加法（新增可选字段、新增命令）与破坏（删除命令或事件、新增必填字段、事件 schema 变化却没有升 revision 或没有升级函数）。主版本内出现破坏即失败（D48、D59、R5-1）；线上契约的兼容性由它守，不靠 ABI 转储。
+
+
 ## 3. REST（D16）
 
 - **身份来自主体，不来自路径**：租户、所有者、空间取自认证主体的作用域；管理员跨作用域时用唯一的作用域请求头。9.x 按租户、所有者变体复制的路由不再复制。
@@ -40,7 +77,7 @@
 
 ## 5. 待细化
 
-- Manifest 的 schema、版本与组装方式（编译期产物与运行时数据集注册如何合并）。
+- Manifest 字段的定稿（5a.1）与 JSON Schema 内省对 Kotlin 特性（值类、sealed 层级、默认值）的覆盖。
 - 主体作用域模型与 CoSec 的对接。
 - OpenAPI 投影的保真度（是否保留 `x-wow-*` 供第三方工具）。
 - view-engine 的哪些能力描述改由 Manifest 承担。
