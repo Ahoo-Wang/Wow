@@ -31,17 +31,25 @@ object ExactJson {
         """"nested":{"rate":0.10,"untyped":{"list":[1.0,2,{"deep":-0.000001}]}}}"""
 
     /** A value of [text] that equals another's exactly when both hold the same JSON, numbers as written. */
-    fun of(text: String): Any? = of(WowJson.mapper.readTree(text))
+    fun of(text: String): Any? = of(WowJson.mapper.readTree(text), exact = true)
 
-    private fun of(node: JsonNode): Any? = when {
-        node.isObject -> node.properties().associate { (name, value) -> name to of(value) }
+    /**
+     * A value of [text] that equals another's when both hold the same JSON whatever form their numbers are written
+     * in: `1.0E10` is `10000000000` and `2.50` is `2.5`, as the kernel compares a snapshot's state with what it writes
+     * back. A backend may give a number back in another form (PostgreSQL JSONB writes no exponent) but with its value.
+     */
+    fun valueOf(text: String): Any? = of(WowJson.mapper.readTree(text), exact = false)
+
+    private fun of(node: JsonNode, exact: Boolean): Any? = when {
+        node.isObject -> node.properties().associate { (name, value) -> name to of(value, exact) }
         node.isArray -> buildList {
             // ArrayNode has a map member of its own, so iterate rather than map.
             for (element in node) {
-                add(of(element))
+                add(of(element, exact))
             }
         }
 
+        node.isNumber && !exact -> node.decimalValue().stripTrailingZeros()
         node.isNumber -> Number(node.isIntegralNumber, node.decimalValue())
         node.isString -> node.stringValue()
         node.isBoolean -> node.booleanValue()
