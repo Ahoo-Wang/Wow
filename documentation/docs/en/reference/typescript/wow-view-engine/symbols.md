@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 877 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -300,6 +300,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and th
 | `MAX_VIEW_TITLE_LENGTH` | const | The longest title a saved view may have, counted in UTF-16 code units after trimming. | — |
 | `METADATA_FIELD_KINDS` | const | — | — |
 | `METADATA_FIELD_KIND_IDS` | const | — | — |
+| `METRIC_AGAINST` | const | The two periods a trend card's last period is measured against, the default first. | — |
 | `METRIC_HEADLINES` | const | The two readings of a trend card's headline, the default first. | — |
 | `MalformedVisit` | interface | A place in the tree holding something that is not a node: `null`, a number, an object with neither `children` nor `field`. | — |
 | `MapData` | interface | — | — |
@@ -311,6 +312,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and th
 | `MemoryViewStore` | class | The one implementation this package ships: a synchronous map behind the port, for tests, examples and query-only use. | [Persistence Port](./store#api-MemoryViewStore) |
 | `MemoryViewStoreOptions` | interface | — | [Persistence Port](./store#api-MemoryViewStore) |
 | `MetadataFieldKindId` | type | Kinds backed by Wow's metadata filters rather than by a document field. | — |
+| `MetricAgainst` | type | — | — |
 | `MetricCardData` | interface | — | — |
 | `MetricCardSpec` | interface | — | — |
 | `MetricCondition` | interface | What a metric's own condition (D20 屏 H, 「只算满足条件的记录」) does to the way the metric reads. | — |

@@ -15,6 +15,7 @@ import { useId, type ReactNode } from 'react';
 import type { FiveNumbers } from '../../analysis/boxplot.js';
 import type { Ohlc } from '../../analysis/candlestick.js';
 import type { ChartData, DerivedGap } from '../../analysis/index.js';
+import type { YearAgoGap } from '../../analysis/serverLines.js';
 import type {
   ChartSpec,
   DerivedSeries,
@@ -112,6 +113,12 @@ export interface OptionsPageProps {
   ) => { gap: DerivedGap; limit?: number } | undefined;
   /** The window a moving average runs over when none is typed. */
   defaultWindow?: number;
+  /**
+   * Why a metric card's last period cannot be measured against the same
+   * period a year earlier (`yearAgoGap`, D90); `undefined` when it can.
+   * Left out, nothing is known of the source and the choice is not offered.
+   */
+  yearAgoGapOf?: (metric: string) => YearAgoGap | undefined;
 }
 
 /** A slot of the chart, filled from one list of aliases. */

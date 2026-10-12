@@ -3194,7 +3194,13 @@ export type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'o
 | 'deletion';
 
 // @public
+export const METRIC_AGAINST: readonly ["previous", "previous-year"];
+
+// @public
 export const METRIC_HEADLINES: readonly ["last", "whole"];
+
+// @public (undocumented)
+export type MetricAgainst = 'previous' | 'previous-year';
 
 // @public (undocumented)
 export interface MetricCardData {
@@ -3300,6 +3306,7 @@ export function metricOfSummary(facts: Pick<MetricFacts, 'field'>, choice: Summa
 
 // @public
 export interface MetricPeriod {
+    against?: 'previous-year';
     at: unknown;
     change?: {
         delta: number;
@@ -3325,6 +3332,7 @@ export function metricReferenceText(fn: MetricFunction, label: string, condition
 
 // @public
 export interface MetricTrend {
+    against?: MetricAgainst;
     headline?: MetricHeadline;
     x: string;
 }

@@ -39,7 +39,9 @@ import {
   drillSpan,
   drilledFields,
 } from '../analysis/drill.js';
+import { movingWindow } from '../analysis/derived.js';
 import { valueOrderOf } from '../analysis/project.js';
+import { hiddenMetrics } from '../analysis/serverLines.js';
 import { foldsSplit } from '../analysis/splitOther.js';
 import { describeFilter, type FilterSummaryItem } from '../filter/index.js';
 import type {
@@ -371,9 +373,19 @@ export function useAnalysisResult(
     drawable &&
     !foldsSplit(ran, view.rows) &&
     foldsSplit({ ...ran, chart }, view.rows);
+  // And so does a chart that asks the source for a hidden metric the rows
+  // that ran lack — a line Wow computes (D87–D88), a card's same period a
+  // year earlier (D90): a chart edit never asks the source, and without the
+  // run the line or the change would say the source cannot, when it was
+  // only never asked.
+  const wantsHidden =
+    ran !== undefined &&
+    analysis.layout === 'chart' &&
+    drawable &&
+    asksMore(analysis.windows, ran, { ...ran, chart }, analysis.moments);
   useEffect(() => {
-    if ((wantsWhole || wantsSplitWhole) && !pending) submit();
-  }, [wantsWhole, wantsSplitWhole, pending, submit]);
+    if ((wantsWhole || wantsSplitWhole || wantsHidden) && !pending) submit();
+  }, [wantsWhole, wantsSplitWhole, wantsHidden, pending, submit]);
 
   const choose = (next: Picked) => {
     // Nothing asked — a saved chart refused, so nothing ran — is a repair.
@@ -644,4 +656,27 @@ function stepsOf(
       .filter(group => declared.has(group.field ?? ''))
       .map(group => group.alias),
   );
+}
+
+/**
+ * Whether `next` asks the source for a hidden metric `ran` did not: one
+ * the chart reads (`hiddenMetrics`) that the rows on screen were never
+ * asked for.
+ */
+function asksMore(
+  windows: readonly string[],
+  ran: AnalysisViewConfig,
+  next: AnalysisViewConfig,
+  moments: ReadonlySet<string>,
+): boolean {
+  if (windows.length === 0) return false;
+  const aliases = (config: AnalysisViewConfig) =>
+    hiddenMetrics(
+      windows,
+      config,
+      line => movingWindow(config, line),
+      moments,
+    ).map(metric => metric.alias);
+  const asked = new Set(aliases(ran));
+  return aliases(next).some(alias => !asked.has(alias));
 }

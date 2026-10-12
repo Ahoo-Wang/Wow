@@ -409,6 +409,19 @@ export const analysisMessages = {
   // What a trend card's big number is: the last period that has ended, or
   // every record in the range. Each hint says what the comparison with
   // another metric and the target are measured over in that reading.
+  'label.chart.against': 'Compare with',
+  'label.chart.against.previous': 'Period before',
+  'label.chart.against.previous-year': 'Same period last year',
+  'label.chart.against.previous.hint':
+    'The last period against the one right before it.',
+  'label.chart.against.previous-year.hint':
+    'The last period against the same days a year earlier.',
+  'label.chart.against.gap.unsupported':
+    'This source cannot read the same period last year.',
+  'label.chart.against.gap.week':
+    'Weeks have no same week last year; group by day or month to compare with last year.',
+  'label.chart.against.gap.not-measured':
+    'Only a count or a summary of a field can be compared with last year.',
   'label.chart.headline': 'Big number',
   'label.chart.headline.last': 'Last period',
   'label.chart.headline.whole': 'All',
@@ -844,6 +857,7 @@ export const analysisMessages = {
   'label.chart.change.against.HOUR': 'vs the hour before',
   'label.chart.change.against.MINUTE': 'vs the minute before',
   'label.chart.change.against.SECOND': 'vs the second before',
+  'label.chart.change.against.previous-year': 'vs the same period last year',
   // A metric card's comparison, against the metric it is compared with.
   'label.chart.compare.against': 'vs {metric}',
   'label.chart.compare.unmatched':
@@ -851,6 +865,10 @@ export const analysisMessages = {
   // A change of a percentage, in percentage points.
   'label.chart.change.points': '{amount} pp',
   'label.chart.change.none': 'No previous period to compare with',
+  'label.chart.change.none.previous-year':
+    'No same period last year to compare with',
+  'label.chart.change.unknown.previous-year':
+    'No number in the same period last year to compare with',
   'label.chart.change.unknown':
     'No number in the previous period to compare with',
   'label.chart.change.unmatched':

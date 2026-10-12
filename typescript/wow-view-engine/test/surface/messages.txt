@@ -1,4 +1,4 @@
-# Message keys — 2165.
+# Message keys — 2176.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -624,6 +624,14 @@ label.card.title-field
 label.chart.add-reference-band
 label.chart.add-reference-line
 label.chart.add-series
+label.chart.against
+label.chart.against.gap.not-measured
+label.chart.against.gap.unsupported
+label.chart.against.gap.week
+label.chart.against.previous
+label.chart.against.previous-year
+label.chart.against.previous-year.hint
+label.chart.against.previous.hint
 label.chart.axis-max
 label.chart.axis-min
 label.chart.axis-of
@@ -659,9 +667,12 @@ label.chart.change.against.QUARTER
 label.chart.change.against.SECOND
 label.chart.change.against.WEEK
 label.chart.change.against.YEAR
+label.chart.change.against.previous-year
 label.chart.change.none
+label.chart.change.none.previous-year
 label.chart.change.points
 label.chart.change.unknown
+label.chart.change.unknown.previous-year
 label.chart.change.unmatched
 label.chart.column.category
 label.chart.column.change

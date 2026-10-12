@@ -1350,6 +1350,9 @@ type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId'
 | 'deletion';
 
 // @public (undocumented)
+type MetricAgainst = 'previous' | 'previous-year';
+
+// @public (undocumented)
 interface MetricCardSpec {
     compare?: {
         metric: string;
@@ -1368,6 +1371,7 @@ type MetricHeadline = 'last' | 'whole';
 
 // @public
 interface MetricTrend {
+    against?: MetricAgainst;
     headline?: MetricHeadline;
     x: string;
 }

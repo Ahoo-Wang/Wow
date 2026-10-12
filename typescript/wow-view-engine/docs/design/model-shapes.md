@@ -155,6 +155,9 @@ export interface MetricTrend {
   // 'last'（缺省）—— 提问时已经结束的最后一期，旁边写较上一期的变化（差值与百分比、方向与语义色）；还没结束的当前一期不计入，卡上写明
   // 'whole' —— 范围内全部记录，取另问的无分组查询（asksForWhole），无合计行时按分桶求和
   headline?: 'last' | 'whole';
+  // 最后一期较什么（D90）：'previous'（缺省）—— 紧挨着的上一期，读结果里的上一桶；
+  // 'previous-year' —— 一年前的同一段，数据源列出 PREVIOUS 时由 Wow 算（隐藏指标 <指标>__previousYear）
+  against?: 'previous' | 'previous-year';
 }
 ```
 
