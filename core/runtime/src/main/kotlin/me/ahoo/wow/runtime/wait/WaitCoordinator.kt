@@ -15,19 +15,24 @@ package me.ahoo.wow.runtime.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.ExecutorBusyException
+import me.ahoo.wow.runtime.ExecutorClosedException
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -92,7 +97,7 @@ class WaitCoordinator(
     private val registry: WaitRegistry,
     private val directory: SubscriptionDirectory,
     private val signals: SignalSender,
-    private val options: WaitOptions,
+    val options: WaitOptions,
     private val clock: () -> Long = System::currentTimeMillis,
     private val waitIds: () -> String = { UUID.randomUUID().toString() },
     private val router: CommandRouter = CommandRouter.LOCAL,
@@ -110,6 +115,8 @@ class WaitCoordinator(
      *   derived nothing, the first failure or rejection of any command on the chain (emitted at once, with nothing
      *   after it), a duplicate stopped at its last known hop, or a timeout ([ResultCodes.WAIT_TIMEOUT], at the last
      *   hop completed). A plan rejected at admission emits only that rejection, at ACCEPTED.
+     * - A plan whose only hop is ACCEPTED still runs the command before the flow completes; [accept] answers it at
+     *   once instead (decision D100).
      * - Outcomes are results, never errors: the flow fails only when the execution itself throws, and is cancelled
      *   with its collector. Either way the wait is unregistered, and later signals for it are dropped.
      */
@@ -144,6 +151,37 @@ class WaitCoordinator(
         }
     }
 
+    /**
+     * Accepts [command], whose wait plan has only an ACCEPTED hop ([isAcceptedOnly]), and returns at once (decision
+     * D100): its result at ACCEPTED, or the rejection of a plan the runtime cannot follow. The command is routed and
+     * executed in [scope], apart from the caller, with no wait context, so nothing is signalled about it; its outcome
+     * is only logged. Not durable (D15): a node that stops before running it loses it.
+     */
+    fun accept(model: AggregateModel<*>, command: Command<*>, scope: CoroutineScope): CommandResult {
+        val function = commandFunction(model, command)
+        val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops)
+        if (checked is WaitChain.Invalid) {
+            return admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock())
+        }
+        scope.launch { runDetached(model, command) }
+        return reachedResult(command, function, Hop.accepted(command.ref.type.context), clock())
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Nobody waits for a detached command: whatever fails is logged.
+    private suspend fun runDetached(model: AggregateModel<*>, command: Command<*>) {
+        try {
+            val settlement = router.route(model, command, null) { executeHere(model, command, null) }
+            val committed = settlement.committed
+            if (committed.status != CommandResult.Status.SUCCEEDED) {
+                logger.info { "Detached command ${command.id} on ${command.ref} ended ${committed.status}: ${committed.error}" }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Detached command ${command.id} on ${command.ref} failed." }
+        }
+    }
+
     /** Emits the wait's hop results until it ends, ending it with a timeout at [deadline]. */
     private suspend fun FlowCollector<CommandResult>.drain(waiting: Waiting, deadline: Long) {
         while (true) {
@@ -174,11 +212,23 @@ class WaitCoordinator(
      * command that changed nothing appended no entry to handle; a duplicate whose subscription is past it, decision
      * D63). The node a command arrived at runs it so when its router chooses this node, and the owner of its
      * partition runs it so for a forward.
+     *
+     * A command the executor does not take is settled FAILED at COMMITTED, not thrown (decision D115): its aggregate's
+     * lane is full ([ResultCodes.BUSY]), or the executor is closed ([ResultCodes.NODE_CLOSING]).
      */
     suspend fun executeHere(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
         val function = commandFunction(model, command)
-        val outcome = executor.execute(model, command, wait)
-        val committed = outcome.toResult(command, function, Hop.committed(command.ref.type.context), clock())
+        val hop = Hop.committed(command.ref.type.context)
+        val outcome = try {
+            executor.execute(model, command, wait)
+        } catch (busy: ExecutorBusyException) {
+            return Settlement(reachedResult(command, function, hop, clock()).failed(ResultCodes.BUSY, busy.message!!))
+        } catch (closed: ExecutorClosedException) {
+            return Settlement(
+                reachedResult(command, function, hop, clock()).failed(ResultCodes.NODE_CLOSING, closed.message!!),
+            )
+        }
+        val committed = outcome.toResult(command, function, hop, clock())
         val after = wait?.afterCommitted()?.remaining.orEmpty()
         val reached = when (outcome) {
             is CommandOutcome.Unchanged -> after.firstOrNull()?.let { committed.copy(hop = it, signalTime = clock()) }
@@ -275,6 +325,9 @@ class WaitCoordinator(
         val logger = KotlinLogging.logger {}
     }
 }
+
+/** Whether this plan's only hop is ACCEPTED: the caller is answered at admission (decision D100). */
+val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().stage == Stage.ACCEPTED
 
 /**
  * What executing a command reached at once: its [committed] result (design 08 §7), at its COMMITTED hop, then the

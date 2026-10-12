@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.wait
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -39,6 +40,12 @@ object ResultCodes {
 
     /** A subscription on the chain parked the aggregate: the hop will not be reached until it is resumed. */
     const val SUBSCRIPTION_PARKED = "wow.subscription.parked"
+
+    /** The aggregate's lane on the executor is full, so the command was not taken; it may be retried (D115). */
+    const val BUSY = "wow.command.busy"
+
+    /** The node is shutting down, so the command was not taken; another node may take it (D115). */
+    const val NODE_CLOSING = "wow.node.closing"
 }
 
 /** The function of [command]'s decide function on [model]: the aggregate and the command's model name. */
@@ -161,14 +168,36 @@ internal fun admissionRejected(
     code: String,
     message: String,
     now: Long,
-) = CommandResult(
+) = admissionRejected(
     commandId = command.id,
     requestId = command.requestId,
     correlationId = command.correlationId,
     ref = command.ref,
-    hop = Hop.accepted(command.ref.type.context),
+    function = function,
+    error = ErrorInfo(code, message),
+    now = now,
+)
+
+/**
+ * The result of a command refused at admission with [error], at ACCEPTED of its context, before anything was reached:
+ * for a request refused before its [Command] could be built, from the facts admission had decided by then.
+ */
+internal fun admissionRejected(
+    commandId: String,
+    requestId: String,
+    correlationId: String,
+    ref: AggregateRef,
+    function: FunctionInfo,
+    error: ErrorInfo,
+    now: Long,
+) = CommandResult(
+    commandId = commandId,
+    requestId = requestId,
+    correlationId = correlationId,
+    ref = ref,
+    hop = Hop.accepted(ref.type.context),
     function = function,
     status = CommandResult.Status.REJECTED,
-    error = ErrorInfo(code, message),
+    error = error,
     signalTime = now,
 )
