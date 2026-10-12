@@ -139,18 +139,19 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 规模 | 出口 |
 |---|---|---|---|
 | 6.00 | `:query`（`query/query`）、`:kafka`、`:clickhouse`、`:example-e2e` 的骨架；settings；`V10Rules`（允许的依赖、`REPLACED_9X`）；`build.gradle.kts` 的 `v10Projects` 与 `v10IntegrationTestProjects`；`ci-scope.mjs`；三个空的自动配置类（Query、Kafka、ClickHouse），已列入 `AutoConfiguration.imports` | S | `v10Check` 与架构测试通过 |
-| 6.0a | M6 的全部 Manifest 字段与编译器写入：`queries`（D128）、`published`、`derives`、跨上下文的 `SubscriptionSource`（D138）、`@OnRejected` 订阅（D136）；`FrameworkErrors` 的查询错误码（D130） | M | Manifest 快照测试；依赖 6.00 |
+| 6.0a | M6 的全部 Manifest 字段与编译器写入：`queries`（D128）、`published`、`derives`、跨上下文的 `SubscriptionSource`（D138）、`@OnRejected` 订阅（D136）；`FrameworkErrors` 的查询错误码（D130，含 D150 的 `wow.query.timeout`） | M | Manifest 快照测试；依赖 6.00 |
 
 **Q 路**（查询模块、`edge/http`、`QueryAutoConfiguration`）：
 
 | WP | 内容 | 规模 | 依赖 | 出口 |
 |---|---|---|---|---|
-| 6.1a | `:query-api`：9.x `api.query` 的纯数据移植，去掉 `Condition`（D125） | L（机械） | 6.00 | 9.x 编解码的金样测试 |
-| 6.1b | `:query` 引擎核心、`QueryJson`、`QueryBackendSpec` TCK、内存后端（D126） | L | 6.1a | 查询 TCK |
+| 6.1a | `:query-api`：9.x `api.query` 的纯数据移植，去掉 `Condition`（D125）；补丁：`@QueryIndex`（D151） | L（机械） | 6.00 | 9.x 编解码的金样测试 |
+| 6.1b | `:query` 引擎核心、`QueryJson`、`QueryBackendSpec` TCK、内存后端（D126）；有界计数、分页 `total` 与执行超时（D150） | L | 6.1a | 查询 TCK |
 | 6.1c | 由 Manifest 得到 schema、敏感字段与脱敏、能力描述、作用域与 ABAC 策略（D129） | L | 6.1b、6.1e | 作用域与 ABAC 测试 |
 | 6.1d | 数据集模型（目录、网关、动态注册） | M | 6.1b | 数据集测试 |
-| 6.2a | PostgreSQL 快照查询（D131） | L | 6.1b | `QueryBackendSpec` 全绿 |
+| 6.2a | PostgreSQL 快照查询（D131）；固定部分索引与 `x-wow-index` 表达式索引（D151） | L | 6.1b | `QueryBackendSpec` 全绿 |
 | 6.2c | HTTP 查询路由（D127）、`events` 模型、宿主装配、shop 端到端 | M | 6.1c、6.2a | shop 的查询契约测试 |
+| 6.2d | 计数缓存：以快照写入检查点为校验值，结合查询指纹与调用方作用域（D152） | S | 6.2c | 重复计数命中缓存、写入后失效 |
 
 **K 路**（运行时、`:spi`、`:kafka`、编译器绑定、示例、`KafkaAutoConfiguration`）：
 
@@ -170,8 +171,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 | WP | 内容 | 规模 | 依赖 | 出口 |
 |---|---|---|---|---|
-| 6.1e | `manifest-tools` 写出查询的 `x-wow-*` 关键字 | M | 6.0a | schema 快照测试 |
-| 6.2b | MongoDB 快照查询（D131） | L | 6.1b | `QueryBackendSpec` 全绿 |
+| 6.1e | `manifest-tools` 写出查询的 `x-wow-*` 关键字（含 `x-wow-index`，D151） | M | 6.0a | schema 快照测试 |
+| 6.2b | MongoDB 快照查询（D131）；固定复合索引与 `x-wow-index` 索引（D151） | L | 6.1b | `QueryBackendSpec` 全绿 |
 | 6.4a | ClickHouse 数据集后端（从 9.x 移植） | M | 6.1d | 数据集查询的集成测试 |
 | 6.4b | ClickHouse Sink：DDL 与展平视图（D142） | M | 6.0b、6.3a | Sink 的集成测试 |
 | 6.4c | 全 V10 的分析端到端（D145）：shop → Sink → 展平表 → 文件里声明的数据集 → V10 数据集查询路由；analytics 服务的端到端移到 7.2 | S | 6.4a、6.4b | `:example-e2e` 通过 |
