@@ -29,6 +29,7 @@ object V10Rules {
     val RUNTIME = V10Module("runtime", "core/runtime")
     val REACTOR = V10Module("reactor", "core/reactor")
     val POSTGRES = V10Module("postgres", "backends/postgres")
+    val MONGO = V10Module("mongo", "backends/mongo")
     val HTTP = V10Module("http", "edge/http")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
@@ -37,8 +38,8 @@ object V10Rules {
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
     val MODULES = listOf(
-        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA, COMPILER,
-        GRADLE_PLUGIN, MANIFEST_TOOLS,
+        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, SPRING_BOOT, MIGRATE_DATA,
+        COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
 
     /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
@@ -56,6 +57,7 @@ object V10Rules {
         RUNTIME to setOf("kernel"),
         REACTOR to setOf("runtime"),
         POSTGRES to setOf("spi", "wow-query"),
+        MONGO to setOf("spi"),
         HTTP to setOf("runtime", "wow-query"),
         SPRING_BOOT to setOf("runtime", "http"),
         MIGRATE_DATA to setOf("kernel"),
@@ -173,6 +175,7 @@ object V10Rules {
      */
     val REPLACED_9X: Map<String, String> = mapOf(
         "compiler" to "wow-compiler",
+        "mongo" to "wow-mongo",
     )
 
     /** Projects allowed to reach both sides of [REPLACED_9X] (decision D90). */
@@ -223,6 +226,29 @@ object V10Rules {
                 val reached = reachable(graph, project)
                 REPLACED_9X.filter { (v10, nineX) -> v10 in reached && nineX in reached }
                     .map { (v10, nineX) -> "$project reaches both :$v10 and :$nineX" }
+            }
+    }
+
+    private val V10_REGION = Regex("""(?ms)^//region v10\b(.*?)^//endregion""")
+
+    /** The projects `settings.gradle.kts` includes in its `//region v10`: the V10 modules, spikes and tests. */
+    fun v10SettingsProjects(repositoryRoot: File): Set<String> {
+        val settings = File(repositoryRoot, "settings.gradle.kts").readText()
+        val region = requireNotNull(V10_REGION.find(settings)) { "settings.gradle.kts has no //region v10." }
+        return SETTINGS_INCLUDE.findAll(region.groupValues[1]).map { it.groupValues[2] }.toSet()
+    }
+
+    /**
+     * No 9.x project depends on a V10 project (decision D85), directly or transitively: 9.x builds, tests and
+     * publishes as it does on main, and V10 can change without touching it.
+     */
+    fun nineXOnV10Violations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        val v10 = v10SettingsProjects(repositoryRoot)
+        return graph.keys.sorted()
+            .filterNot { it in v10 }
+            .flatMap { project ->
+                reachable(graph, project).filter { it in v10 }.sorted().map { "$project reaches :$it" }
             }
     }
 

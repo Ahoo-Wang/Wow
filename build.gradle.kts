@@ -59,7 +59,7 @@ val benchmarksProject = project(":wow-benchmarks")
 // :routing-spike (spike H2) are never published.
 val v10Projects = listOf(
     "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
-    "postgres", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
+    "postgres", "mongo", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
     "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike",
 ).map { project(":$it") }.toSet()
@@ -134,6 +134,7 @@ val integrationTestProjects = setOf(
     project(":wow-view-store-starter"),
     project(":wow-dataset-registry-starter"),
     project(":postgres"),
+    project(":mongo"),
     project(":routing-spike"),
 )
 

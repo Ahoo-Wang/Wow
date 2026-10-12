@@ -65,6 +65,11 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `no 9x project should depend on a V10 project`() {
+        V10Rules.nineXOnV10Violations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
     fun `V10 production sources should carry no compatibility code`() {
         V10Rules.compatibilityMarkers(repositoryRoot).assert().isEmpty()
     }
@@ -187,6 +192,22 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `9x rule should catch a 9x project reaching a V10 project transitively`(@TempDir root: File) {
+        root.writeBuild(
+            mapOf(
+                "wow-mongo" to "wow-mongo",
+                "wow-it" to "test/wow-it",
+                "spi" to "core/spi",
+                "mongo" to "backends/mongo",
+            ),
+            mapOf("wow-it" to listOf("wow-mongo"), "wow-mongo" to listOf("spi"), "mongo" to listOf("spi")),
+            v10 = setOf("spi", "mongo"),
+        )
+        V10Rules.v10SettingsProjects(root).assert().containsExactlyInAnyOrder("spi", "mongo")
+        V10Rules.nineXOnV10Violations(root).assert().containsExactly("wow-it reaches :spi", "wow-mongo reaches :spi")
+    }
+
+    @Test
     fun `compatibility check should catch a deprecation and a compat marker`(@TempDir root: File) {
         root.writeSource(
             V10Rules.RUNTIME.dir,
@@ -201,12 +222,20 @@ class V10ArchitectureTest {
         V10Rules.compatibilityMarkers(root).assert().hasSize(2)
     }
 
-    /** Writes a settings script including [projects] (name to directory) and a build script per project. */
-    private fun File.writeBuild(projects: Map<String, String>, dependencies: Map<String, List<String>>) {
+    /**
+     * Writes a settings script including [projects] (name to directory), the [v10] ones in its `//region v10`, and a
+     * build script per project.
+     */
+    private fun File.writeBuild(
+        projects: Map<String, String>,
+        dependencies: Map<String, List<String>>,
+        v10: Set<String> = emptySet(),
+    ) {
+        fun includes(names: Collection<String>) = names.joinToString("\n") { name ->
+            "include(\":$name\")\nproject(\":$name\").projectDir = file(\"${projects.getValue(name)}\")"
+        }
         File(this, "settings.gradle.kts").writeText(
-            projects.entries.joinToString("\n") { (name, dir) ->
-                "include(\":$name\")\nproject(\":$name\").projectDir = file(\"$dir\")"
-            },
+            includes(projects.keys - v10) + "\n\n//region v10\n" + includes(v10) + "\n//endregion\n",
         )
         projects.forEach { (name, dir) ->
             File(this, dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
