@@ -79,7 +79,7 @@ me.ahoo.wow.api
 | `command`（`CommandMessage`、`CommandResultAccessor`…）、`event`（`DomainEvent`、`EventMessage`） | 约 850 行 | 删除，由 `Command`、`StateEvent` 取代 |
 | 生命周期事件、`exception/ErrorInfo`、`abac` | 约 1,100 行 | 按 V10 语义重做（`lifecycle`、`result`；标签进生命周期命令） |
 
-**时机**：V10 的 `wow-api` 是新目录 `api/wow-api` 里的新模块（Gradle 项目 `:wow-api-v10`，artifactId `wow-api`，D85），只放上表的包；9.x 的 `wow-api` 原地不动，供 `wow-core` 等 9.x 模块使用，M9 随 9.x 一起删除，`query` 在 M9 搬入 `wow-query-api`。
+**时机**：V10 的 `wow-api` 是新目录 `api/api` 里的新模块（Gradle 项目 `:api`，artifactId `wow-api`，D85、D87），只放上表的包；9.x 的 `wow-api` 原地不动，供 `wow-core` 等 9.x 模块使用，M9 随 9.x 一起删除，`query` 在 M9 搬入 `wow-query-api`。
 
 ## 3. 依赖方向
 
@@ -115,7 +115,7 @@ flowchart BT
 
 ## 4. 目录结构（D41）
 
-9.x 有 20 多个 `wow-*` 平铺在根目录，测试、补偿、示例又各自成组，结构不一致。V10 按 §2 的层分目录；Gradle 项目名仍是 `:wow-xxx`，用 `projectDir` 指向子目录（9.x 的 `test/`、`compensation/` 已经这样做）：
+9.x 有 20 多个 `wow-*` 平铺在根目录，测试、补偿、示例又各自成组，结构不一致。V10 按 §2 的层分目录；V10 模块的 Gradle 项目名与目录不带 `wow-` 前缀，artifactId 与 jar 名由根构建统一设为 `wow-<名字>`（D87）；下表列的是 artifactId，目录名去掉前缀即是（如 `wow-kernel` 在 `core/kernel`）：
 
 ```text
 api/            wow-api  wow-query-api  wow-manifest
@@ -137,7 +137,7 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 **搬迁时机**：`v10` 分支每周合入 main（[路线图](roadmap.md) §1）。main 上仍在活跃变化的目录（`typescript/`、`view-store/`、`dataset-registry/`、`analytics/`、`compensation/dashboard/`、`documentation/`）若在分支上提早搬家，每次前向合并都会冲突。所以：
 
 - V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。它们在孵化中：照常构建与测试，不发布、不做 ABI 校验，用 JDK 21（D29）。
-- 与 9.x **同名**的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）**不原地演进**（D85）：V10 重写时在新目录另起模块，只放 V10 代码，Gradle 项目名临时加后缀 `-v10`，artifactId 用最终名；9.x 模块的项目名与目录不动，前向合并照常，`v10` 不发布、不校验它们的 ABI；架构测试禁止同时依赖新旧两边；M9 删除 9.x 时去掉后缀。项目名与 artifactId 可以不同，所以同名不妨碍新旧并存。
+- 与 9.x **同名**的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）**不原地演进**（D85）：V10 重写时在新目录另起模块，只放 V10 代码，项目名不带前缀（D87），artifactId 是 `wow-<名字>`；9.x 模块的项目名与目录不动，前向合并照常，`v10` 不发布、不校验它们的 ABI；架构测试禁止同时依赖新旧两边。项目名与 artifactId 可以不同，所以同名的 artifact 不妨碍新旧模块并存。
 - 被整体替换的 9.x 模块（`wow-core`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux`、`wow-rest-contract`、`wow-redis`、`wow-bi`、`wow-schema`、`wow-metadata`、`wow-mock`）留在原地，在替换它的里程碑里删除。
 - 平台目录在 M9 合入 main 之前，用一个只做搬迁的提交移到 `platform/`；CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 在同一个提交里更新。
 
