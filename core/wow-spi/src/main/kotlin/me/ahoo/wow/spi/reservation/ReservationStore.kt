@@ -80,3 +80,11 @@ data class Reservation(
     /** Whether the reservation still holds its key at [now] (epoch milliseconds). */
     fun isLive(now: Long): Boolean = expiresAt == null || now < expiresAt
 }
+
+/** A reserved [key] in [namespace], without its owner or expiry: what an append records as reserved (decision D50). */
+data class ReservationKey(val namespace: String, val key: String) {
+    init {
+        require(namespace.isNotBlank()) { "A reservation needs a namespace." }
+        require(key.isNotEmpty()) { "A reservation needs a key." }
+    }
+}

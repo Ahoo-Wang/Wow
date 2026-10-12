@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 
@@ -169,7 +170,7 @@ internal class SubscriptionWorker(
         val stream = item.entry.stream
         val skipped = synchronized(this) { skippedInLane(stream) }
         if (!skipped) {
-            val failure = handle(stream, item.entry.position)
+            val failure = handle(stream, item.entry.position, item.entry.transport)
             if (failure != null) {
                 park(stream, failure)
             }
@@ -194,11 +195,11 @@ internal class SubscriptionWorker(
 
     /** Runs the handler with retries; returns the last failure once they are spent, or null on success. */
     @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
-    private suspend fun handle(stream: EventStreamRecord, position: LogPosition?): Exception? {
+    private suspend fun handle(stream: EventStreamRecord, position: LogPosition?, transport: Transport?): Exception? {
         var failures = 0
         while (true) {
             try {
-                subscription.handler(subscription.decoder.decode(stream, position))
+                subscription.handler(subscription.decoder.decode(stream, position, transport))
                 return null
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -271,8 +272,16 @@ internal class SubscriptionWorker(
             ledger.parked(subscription.name, ref)?.let { from = minOf(from, it.fromVersion) }
             var last: Int? = null
             for (stream in log.read(ref, from).toList()) {
-                if (subscription.filter.matches(stream) && handle(stream, null) != null) {
-                    // Still failing: the ledger keeps its entry from the earlier version, so nothing is lost.
+                val failure = if (subscription.filter.matches(stream)) handle(stream, null, null) else null
+                if (failure != null) {
+                    // Still failing: the streams before this one are handled, so the aggregate stays parked from
+                    // this one, with the new reason; a resolve that raced it leaves nothing to update.
+                    from = stream.version
+                    repark(stream, failure)
+                    if (last != null) {
+                        // Copies of the streams handled here that the tail delivers later are skipped.
+                        synchronized(this) { resumedThrough[ref] = last }
+                    }
                     restoreParked(ref, item, from)
                     item.result.complete(false)
                     return
@@ -295,6 +304,15 @@ internal class SubscriptionWorker(
             restoreParked(ref, item, from)
             item.result.completeExceptionally(failure)
         }
+    }
+
+    /** Records in the ledger that a resume failed again at [stream], from where the aggregate is now parked. */
+    private suspend fun repark(stream: EventStreamRecord, failure: Exception) {
+        val entry = ParkedAggregate(subscription.name, stream.ref, stream.version, reason(failure), clock.millis())
+        logger.warn(failure) {
+            "Subscription ${subscription.name} keeps ${stream.ref} parked, now from version ${stream.version}."
+        }
+        retryForever(options.readRetry, { "repark ${stream.ref} for ${subscription.name}" }) { ledger.repark(entry) }
     }
 
     private fun restoreParked(ref: AggregateRef, item: Item.Resume, from: Int) = synchronized(this) {

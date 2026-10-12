@@ -30,6 +30,14 @@ class PostgresEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `a log recorded in another format version is refused`() {
+        val context = PostgresFixture.newContext()
+        PostgresFixture.log(4, context)
+        PostgresFixture.bumpFormat("wow_log_" + context.replace('-', '_'))
+        assertThrownBy<IllegalStateException> { PostgresFixture.log(4, context) }
+    }
+
+    @Test
     fun `a different partition count is refused`() {
         val context = PostgresFixture.newContext()
         PostgresFixture.log(4, context)

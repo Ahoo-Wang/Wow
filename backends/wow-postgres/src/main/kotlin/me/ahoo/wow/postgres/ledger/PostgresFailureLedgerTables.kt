@@ -48,6 +48,9 @@ internal class PostgresFailureLedgerTables(name: String) {
         RETURNING from_version
     """.trimIndent()
 
+    /** Replaces the parked entry's from version, reason and time, only when there is one. */
+    val repark = "UPDATE $table SET from_version = ?, reason = ?, failed_at = ? WHERE $MATCH"
+
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
     val listFirst = "SELECT * FROM $table WHERE subscription = ? ORDER BY $ORDER LIMIT ?"

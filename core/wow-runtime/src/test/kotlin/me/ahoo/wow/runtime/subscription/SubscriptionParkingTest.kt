@@ -40,12 +40,13 @@ class SubscriptionParkingTest {
     private val failing = AtomicBoolean(true)
     private val attempts = AtomicInteger()
     private val handlerDelay = AtomicInteger()
+    private val failAt = AtomicInteger(2)
 
-    /** Fails x's version 2 while [failing]; records only what it handled successfully. */
+    /** Fails x's version [failAt] while [failing]; records only what it handled successfully. */
     private val subscription = Subscription("parking", SubscriptionFilter("shop")) { entry ->
-        if (entry.ref.id == "x" && entry.version == 2) {
+        if (entry.ref.id == "x" && entry.version == failAt.get()) {
             attempts.incrementAndGet()
-            if (failing.get()) error("x-2 is broken")
+            if (failing.get()) error("x-${entry.version} is broken")
         }
         if (entry.ref.id == "x") delay(handlerDelay.get().toLong())
         handled.record(entry)
@@ -141,6 +142,28 @@ class SubscriptionParkingTest {
         handled.versionsOf("x").assert().isEqualTo(listOf(1))
         runtime.stop()
     }
+
+    @Test
+    fun `a resume that fails further on keeps the aggregate parked from there, with the new reason`(): Unit =
+        runBlocking {
+            val runtime = runtime()
+            parkX(runtime)
+            failAt.set(3)
+            runtime.resume("parking", cart("x")).assert().isFalse()
+            val parked = ledger.parked("parking", cart("x"))!!
+            parked.fromVersion.assert().isEqualTo(3)
+            parked.reason.assert().contains("x-3 is broken")
+            handled.versionsOf("x").assert().isEqualTo(listOf(1, 2))
+
+            // A new entry of x is skipped while it is parked; the next resume starts at version 3, not 2.
+            appender.append("x")
+            appender.append("y")
+            eventually { handled.versionsOf("y").size == 4 }
+            failing.set(false)
+            runtime.resume("parking", cart("x")).assert().isTrue()
+            handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4, 5))
+            runtime.stop()
+        }
 
     @Test
     fun `skip resolves the aggregate without handling what was skipped`(): Unit = runBlocking {

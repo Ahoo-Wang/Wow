@@ -35,11 +35,13 @@ fun <S : Any> aggregate(
 ): AggregateModel<S> = AggregateModelBuilder(AggregateType(context, name), stateType).apply(block).build()
 
 /**
- * The Kotlin DSL of an aggregate model. Event types are named `context.aggregate.EventName` unless a name is given.
+ * The Kotlin DSL of an aggregate model. Command and event types are named `context.aggregate.Name` after their class's
+ * simple name unless a name is given (decision D55).
  */
 class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Class<S>) {
     private var initial: ((AggregateRef) -> S)? = null
     private val deciders = LinkedHashMap<Class<*>, DecideFunction<S>>()
+    private val commandNames = LinkedHashMap<Class<*>, String>()
     private val afterFunctions = ArrayList<AfterFunction<S>>()
     private val evolvers = LinkedHashMap<Class<*>, (S, Any) -> S>()
     private val eventNames = LinkedHashMap<Class<*>, Pair<String, Int>>()
@@ -51,23 +53,26 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         initial = factory
     }
 
-    /** Decides commands of type [C] with a plain function: the fast path (D36). */
+    /** Decides commands of type [C], named [name], with a plain function: the fast path (D36). */
     inline fun <reified C : Any> decide(
         creation: Creation = Creation.NONE,
+        name: String = defaultName(C::class.java),
         noinline decide: DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
-        addDecider(C::class.java, DecideFunction.Sync(creation, decide as DecideScope.(S, Any) -> Decision))
+        addDecider(C::class.java, name, DecideFunction.Sync(creation, decide as DecideScope.(S, Any) -> Decision))
     }
 
-    /** Decides commands of type [C] with a suspending function, for decisions that read other systems. */
+    /** Decides commands of type [C], named [name], with a suspending function, for decisions that read other systems. */
     inline fun <reified C : Any> decideSuspending(
         creation: Creation = Creation.NONE,
+        name: String = defaultName(C::class.java),
         noinline decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
             C::class.java,
+            name,
             DecideFunction.Suspending(creation, decide as suspend DecideScope.(S, Any) -> Decision)
         )
     }
@@ -95,7 +100,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
 
     /** Evolves the state by changing it in place: the default, concise form (D7). */
     inline fun <reified E : Any> evolve(
-        name: String = defaultEventName(E::class.java),
+        name: String = defaultName(E::class.java),
         revision: Int = 1,
         noinline evolve: S.(E) -> Unit,
     ) {
@@ -109,7 +114,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
 
     /** Evolves the state by returning a new one, for immutable states. */
     inline fun <reified E : Any> evolveTo(
-        name: String = defaultEventName(E::class.java),
+        name: String = defaultName(E::class.java),
         revision: Int = 1,
         noinline evolve: (S, E) -> S,
     ) {
@@ -127,13 +132,14 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         addAlias(E::class.java, former)
     }
 
-    /** The log name of an event type declared without one. */
-    fun defaultEventName(eventClass: Class<*>): String = "$type.${eventClass.simpleName}"
+    /** The name of a command or event type declared without one: `context.aggregate.SimpleName`. */
+    fun defaultName(typeClass: Class<*>): String = "$type.${typeClass.simpleName}"
 
-    fun addDecider(commandType: Class<*>, decider: DecideFunction<S>) {
+    fun addDecider(commandType: Class<*>, name: String, decider: DecideFunction<S>) {
         require(deciders.putIfAbsent(commandType, decider) == null) {
             "$type declares two decide functions for ${commandType.name}."
         }
+        commandNames[commandType] = name
     }
 
     fun addEvolver(eventClass: Class<*>, name: String, revision: Int, evolver: (S, Any) -> S) {
@@ -168,6 +174,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
                 aliases = aliases[eventClass].orEmpty().toSet(),
             )
         },
+        commandTypes = commandNames.map { (commandClass, name) -> CommandType(name, commandClass) },
         afterFunctions = afterFunctions.toList(),
     )
 

@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -27,12 +29,16 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.reservation.ReservationKey
 import org.postgresql.util.PSQLException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
 import java.sql.Connection
+import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
+import java.sql.Types
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -44,7 +50,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * (see [PostgresEventLogTables.append]): it bumps its partition's counter, which locks the row until the statement
  * commits, and inserts the stream at that sequence only if the aggregate is exactly one version behind. Because the
  * lock is held until commit, the sequence order is the order commits become visible, so [tail] never skips an entry;
- * a failed append rolls its sequence back too, so there are no gaps.
+ * a failed append rolls its sequence back too, so there are no gaps. The transport is stored in its own column and
+ * read back only by [tail].
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -62,9 +69,13 @@ class PostgresEventLog(
         require(partitions >= 1) { "There is at least one partition." }
     }
 
-    /** Creates the tables and the partition counters when missing; refuses a different partition count. */
+    /**
+     * Creates the tables and the partition counters when missing; refuses a different partition count, and a log
+     * recorded in another format version ([PostgresFormat]).
+     */
     fun createSchema() {
         dataSource.connection.use { connection ->
+            PostgresFormat.claim(connection, tables.base, PostgresEventLogTables.FORMAT)
             connection.createStatement().use { statement ->
                 tables.ddl().forEach { statement.execute(it) }
                 statement.execute(tables.initializePartitions(partitions))
@@ -82,17 +93,23 @@ class PostgresEventLog(
         }
     }
 
-    override suspend fun append(stream: EventStreamRecord): AppendOutcome = withContext(dispatcher) {
-        require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
-        val partition = Partitioner.partitionOf(stream.ref, partitions)
-        try {
-            dataSource.connection.use { connection -> appendIn(connection, partition, stream) }
-        } catch (failure: SQLException) {
-            AppendOutcome.Unknown(failure)
+    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        withContext(dispatcher) {
+            require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
+            val partition = Partitioner.partitionOf(stream.ref, partitions)
+            try {
+                dataSource.connection.use { connection -> appendIn(connection, partition, stream, transport) }
+            } catch (failure: SQLException) {
+                AppendOutcome.Unknown(failure)
+            }
         }
-    }
 
-    private fun appendIn(connection: Connection, partition: Int, stream: EventStreamRecord): AppendOutcome {
+    private fun appendIn(
+        connection: Connection,
+        partition: Int,
+        stream: EventStreamRecord,
+        transport: Transport?,
+    ): AppendOutcome {
         try {
             val sequence = connection.prepareStatement(tables.append).use { append ->
                 append.setString(1, stream.ref.id)
@@ -107,9 +124,15 @@ class PostgresEventLog(
                 append.setInt(10, stream.version)
                 append.setString(11, stream.commandId)
                 append.setString(12, stream.requestId)
-                append.setString(13, stream.fingerprint)
+                append.setString(13, stream.commandType)
                 append.setLong(14, stream.commitTime)
                 append.setString(15, encodeEvents(stream.events))
+                append.setNullableString(16, stream.scope.ownerId)
+                append.setNullableString(17, stream.scope.spaceId)
+                append.setNullableString(18, stream.causation?.correlationId)
+                append.setNullableString(19, stream.causation?.causationId)
+                append.setString(20, json.writeValueAsString(stream.headers))
+                append.setNullableString(21, transport?.let { encodeTransport(it) })
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
@@ -161,7 +184,13 @@ class PostgresEventLog(
                         query.setLong(2, last)
                         query.setInt(3, tailBatch)
                         query.executeQuery().use { rows ->
-                            rows.map { LogEntry(LogPosition(partition, it.getLong("sequence")), streamOf(it)) }
+                            rows.map {
+                                LogEntry(
+                                    LogPosition(partition, it.getLong("sequence")),
+                                    streamOf(it),
+                                    it.getString("transport")?.let(::decodeTransport),
+                                )
+                            }
                         }
                     }
                 }
@@ -172,6 +201,18 @@ class PostgresEventLog(
             }
             if (batch.size < tailBatch) {
                 delay(pollInterval)
+            }
+        }
+    }
+
+    override suspend fun head(partition: Int): Long? {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return withContext(dispatcher) {
+            dataSource.connection.use { connection ->
+                connection.prepareStatement(tables.head).use { query ->
+                    query.setInt(1, partition)
+                    query.executeQuery().use { rows -> if (rows.next()) rows.getLong(1).takeIf { it > 0 } else null }
+                }
             }
         }
     }
@@ -202,10 +243,17 @@ class PostgresEventLog(
         version = row.getInt("version"),
         commandId = row.getString("command_id"),
         requestId = row.getString("request_id"),
-        fingerprint = row.getString("fingerprint"),
+        commandType = row.getString("command_type"),
         commitTime = row.getLong("commit_time"),
         events = decodeEvents(row.getString("events")),
+        scope = Scope(row.getString("owner_id"), row.getString("space_id")),
+        causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
+        headers = decodeStrings(row.getString("headers")),
     )
+
+    private fun PreparedStatement.setNullableString(index: Int, value: String?) {
+        if (value == null) setNull(index, Types.VARCHAR) else setString(index, value)
+    }
 
     private fun <T> ResultSet.map(row: (ResultSet) -> T): List<T> {
         val values = ArrayList<T>()
@@ -231,6 +279,43 @@ class PostgresEventLog(
             }
             return json.writeValueAsString(array)
         }
+
+        /** A transport as one JSON object; an absent wait is left out. */
+        fun encodeTransport(transport: Transport): String {
+            val node = json.createObjectNode()
+            transport.wait?.let { wait -> node.set(WAIT, json.valueToTree(wait)) }
+            val reservations = node.putArray(RESERVATIONS)
+            transport.reservations.forEach { reservations.addObject().put(NAMESPACE, it.namespace).put(KEY, it.key) }
+            node.set(TRACE, json.valueToTree(transport.trace))
+            return json.writeValueAsString(node)
+        }
+
+        fun decodeTransport(text: String): Transport {
+            val node = json.readTree(text)
+            val reservations = ArrayList<ReservationKey>()
+            // ArrayNode has a map member of its own, so iterate rather than map.
+            for (reservation in node.get(RESERVATIONS)) {
+                reservations += ReservationKey(reservation.get(NAMESPACE).asString(), reservation.get(KEY).asString())
+            }
+            return Transport(
+                wait = node.get(WAIT)?.let { decodeStrings(json.writeValueAsString(it)) },
+                reservations = reservations,
+                trace = decodeStrings(json.writeValueAsString(node.get(TRACE))),
+            )
+        }
+
+        /** A JSON object of strings, such as the headers. */
+        fun decodeStrings(text: String): Map<String, String> = buildMap {
+            for ((name, value) in json.readTree(text).properties()) {
+                put(name, value.asString())
+            }
+        }
+
+        const val WAIT = "wait"
+        const val RESERVATIONS = "reservations"
+        const val NAMESPACE = "namespace"
+        const val KEY = "key"
+        const val TRACE = "trace"
 
         fun decodeEvents(text: String): List<EventRecord> = buildList {
             // ArrayNode has a map member of its own, so iterate rather than map.

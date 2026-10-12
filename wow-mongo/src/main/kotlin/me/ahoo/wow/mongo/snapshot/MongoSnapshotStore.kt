@@ -24,6 +24,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -50,11 +52,13 @@ class MongoSnapshotStore(
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : SnapshotStore {
-    private val snapshots: MongoCollection<Document> = client.getDatabase(databaseName)
-        .getCollection("wow_snapshot_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_"))
+    private val database = client.getDatabase(databaseName)
+    private val name = "wow_snapshot_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
+    private val snapshots: MongoCollection<Document> = database.getCollection(name)
 
-    /** Creates the key index when missing. */
+    /** Creates the key index when missing; refuses snapshots recorded in another format version ([MongoFormat]). */
     fun createSchema() {
+        MongoFormat.claim(database, name, FORMAT)
         snapshots.createIndex(
             Indexes.ascending(TENANT_ID, AGGREGATE_NAME, AGGREGATE_ID),
             IndexOptions().unique(true).name(SNAPSHOT_KEY),
@@ -68,8 +72,8 @@ class MongoSnapshotStore(
             Updates.set(VERSION, snapshot.version),
             Updates.set(SCHEMA_FINGERPRINT, snapshot.schemaFingerprint),
             Updates.set(STATE, Document.parse(snapshot.state)),
-            Updates.set(OWNER_ID, snapshot.ownerId),
-            Updates.set(SPACE_ID, snapshot.spaceId),
+            Updates.set(OWNER_ID, snapshot.scope.ownerId),
+            Updates.set(SPACE_ID, snapshot.scope.spaceId),
             Updates.set(DELETED, snapshot.deleted),
             Updates.set(FIRST_EVENT_TIME, snapshot.firstEventTime),
             Updates.set(LAST_EVENT_TIME, snapshot.lastEventTime),
@@ -100,8 +104,7 @@ class MongoSnapshotStore(
             version = document.getInteger(VERSION),
             schemaFingerprint = document.getString(SCHEMA_FINGERPRINT),
             state = document.get(STATE, Document::class.java).toJson(JSON),
-            ownerId = document.getString(OWNER_ID),
-            spaceId = document.getString(SPACE_ID),
+            scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
             deleted = document.getBoolean(DELETED),
             firstEventTime = document.getLong(FIRST_EVENT_TIME),
             lastEventTime = document.getLong(LAST_EVENT_TIME),
@@ -111,6 +114,9 @@ class MongoSnapshotStore(
 
     private companion object {
         val JSON: JsonWriterSettings = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build()
+
+        /** The version of this layout (decision D59). */
+        const val FORMAT = 1
 
         const val SNAPSHOT_KEY = "snapshot_key"
         const val TENANT_ID = "tenant_id"

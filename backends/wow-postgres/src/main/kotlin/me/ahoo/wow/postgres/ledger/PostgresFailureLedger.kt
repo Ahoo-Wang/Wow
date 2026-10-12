@@ -30,8 +30,8 @@ import javax.sql.DataSource
  * service's own database: one row per parked (subscription, aggregate).
  *
  * Every write is one autocommitted statement. A park is an upsert that replaces the row only with an earlier from
- * version, so concurrent or replayed parks converge on the earliest (decision D45) without a transaction; a resolve is
- * one delete returning the removed row. Key columns use the "C" collation, so [list] orders by code point on every
+ * version, so concurrent or replayed parks converge on the earliest (decision D45) without a transaction; a repark is
+ * one update of an existing row; a resolve is one delete returning the removed row. Key columns use the "C" collation, so [list] orders by code point on every
  * database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
@@ -57,6 +57,16 @@ class PostgresFailureLedger(
             park.setString(KEY_COLUMNS + 2, entry.reason)
             park.setLong(KEY_COLUMNS + 3, entry.failedAt)
             park.executeQuery().use { rows -> rows.next() }
+        }
+    }
+
+    override suspend fun repark(entry: ParkedAggregate): Boolean = jdbc { connection ->
+        connection.prepareStatement(tables.repark).use { repark ->
+            repark.setInt(1, entry.fromVersion)
+            repark.setString(2, entry.reason)
+            repark.setLong(3, entry.failedAt)
+            repark.setKey(entry.subscription, entry.ref, first = REPARK_VALUES + 1)
+            repark.executeUpdate() > 0
         }
     }
 
@@ -103,14 +113,18 @@ class PostgresFailureLedger(
     private companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"
         const val KEY_COLUMNS = 5
+        const val REPARK_VALUES = 3
 
-        /** Binds the key (subscription, context, aggregate name, tenant, id) to parameters 1 to [KEY_COLUMNS]. */
-        fun PreparedStatement.setKey(subscription: String, ref: AggregateRef) {
-            setString(1, subscription)
-            setString(2, ref.type.context)
-            setString(3, ref.type.name)
-            setString(4, ref.tenantId)
-            setString(5, ref.id)
+        /**
+         * Binds the key (subscription, context, aggregate name, tenant, id) to the [KEY_COLUMNS] parameters from
+         * [first].
+         */
+        fun PreparedStatement.setKey(subscription: String, ref: AggregateRef, first: Int = 1) {
+            setString(first, subscription)
+            setString(first + 1, ref.type.context)
+            setString(first + 2, ref.type.name)
+            setString(first + 3, ref.tenantId)
+            setString(first + 4, ref.id)
         }
 
         fun entryOf(row: ResultSet) = ParkedAggregate(

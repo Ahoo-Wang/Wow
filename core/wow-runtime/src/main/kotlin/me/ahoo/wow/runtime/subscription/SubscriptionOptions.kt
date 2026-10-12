@@ -58,7 +58,6 @@ data class RetryPolicy(
  * - [checkpointInterval]: how often each subscription saves its checkpoint; [SubscriptionRuntime.stop] saves too.
  * - [stopTimeout]: how long a stop waits for the handlers in flight before abandoning them; an abandoned entry is
  *   above the saved checkpoint, so it is handled again after the restart.
- * - [endProbe]: how long the log's tail must stay quiet to count as the end of a partition, for [StartFrom.END].
  * - [readRetry]: the backoff of a log read or a store write that failed; they are retried until the runtime stops
  *   (its [RetryPolicy.maxAttempts] is not used).
  */
@@ -67,7 +66,6 @@ data class SubscriptionOptions(
     val retry: RetryPolicy = RetryPolicy(),
     val checkpointInterval: Duration = 1.seconds,
     val stopTimeout: Duration = 10.seconds,
-    val endProbe: Duration = 200.milliseconds,
     val readRetry: RetryPolicy = RetryPolicy(
         maxAttempts = 1,
         initialBackoff = 100.milliseconds,
@@ -78,7 +76,6 @@ data class SubscriptionOptions(
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }
         require(checkpointInterval.isPositive()) { "The checkpoint interval is positive." }
         require(!stopTimeout.isNegative()) { "The stop timeout is never negative." }
-        require(endProbe.isPositive()) { "The end probe is positive." }
     }
 }
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 
 /**
  * An admitted command: who it targets and what it asks, with every fact decided once at admission and read-only
@@ -22,9 +23,13 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  * [requestId] makes the command idempotent within its tenant: a second command with the same request id is never
  * decided again. [expectedVersion], when set, is the version the caller believes the aggregate is at.
  *
- * [ownerId], [spaceId] and [headers] are what admission learned about the request: the caller's owner and space scope
- * (from the principal, design 05 §1) and the request facts it chose to carry, such as the calling application. A
- * decide function reads them through [DecideScope.command]; they are not part of the command's fingerprint.
+ * [scope] and [headers] are what admission learned about the request: the caller's owner and space (from the
+ * principal, design 05 §1; decision D56) and the request facts it chose to carry, such as the calling application. A
+ * decide function reads them through [DecideScope.command]. The headers are written into the committed event stream,
+ * so admission carries only request facts here; what serves only delivery, such as a trace id, travels as transport
+ * metadata instead (design 08 §3).
+ *
+ * [causation] links the command to the chain it belongs to; a command a user sends directly has none.
  */
 data class Command<C : Any>(
     val id: String,
@@ -32,9 +37,9 @@ data class Command<C : Any>(
     val ref: AggregateRef,
     val body: C,
     val expectedVersion: Int? = null,
-    val ownerId: String? = null,
-    val spaceId: String? = null,
+    val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
+    val causation: Causation? = null,
 ) {
     init {
         require(id.isNotBlank()) { "A command needs an id." }

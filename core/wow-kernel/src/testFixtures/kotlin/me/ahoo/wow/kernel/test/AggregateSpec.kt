@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel.test
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
@@ -58,33 +59,39 @@ class AggregateSpec<S : Any>(private val model: AggregateModel<S>, val ref: Aggr
     private val kernel = Kernel(log, codec, verifyDecidePurity = true, reservations = InMemoryReservationStore())
     private var sequence = 0
 
-    /** Commits [events] as one stream, as if an earlier command had produced them. */
-    fun given(vararg events: Any) {
+    /**
+     * Commits [events] as one stream, as if an earlier command had produced them, leaving the aggregate in [scope]
+     * (by default the scope it already has).
+     */
+    fun given(vararg events: Any, scope: Scope? = null) {
         require(events.isNotEmpty()) { "given needs at least one event." }
         runBlocking {
-            val version = log.read(ref).toList().size + 1
+            val committed = log.read(ref).toList()
+            val version = committed.size + 1
             val stream = EventStreamRecord(
                 ref = ref,
                 version = version,
                 commandId = "given-$version",
                 requestId = "given-$version",
-                fingerprint = "given",
+                commandType = "${model.type}.Given",
                 commitTime = 0,
                 events = events.map { codec.encode(model, it) },
+                scope = scope ?: committed.lastOrNull()?.scope ?: Scope.NONE,
             )
             check(log.append(stream) is AppendOutcome.Committed) { "Could not commit the given events." }
         }
     }
 
-    /** Sends [command] through the kernel and checks its outcome in [expect]. */
+    /** Sends [command], from a caller in [scope], through the kernel and checks its outcome in [expect]. */
     fun whenCommand(
         command: Any,
         requestId: String = "request-${++sequence}",
         expectedVersion: Int? = null,
+        scope: Scope = Scope.NONE,
         expect: Expectations<S>.() -> Unit,
     ) {
         val outcome = runBlocking {
-            kernel.execute(model, Command("command-${++sequence}", requestId, ref, command, expectedVersion))
+            kernel.execute(model, Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope))
         }
         Expectations(model, codec, outcome).expect()
     }
@@ -121,6 +128,14 @@ class Expectations<S : Any>(
         val rejected = outcome as? CommandOutcome.Rejected ?: throw AssertionError("Expected a rejection but got $outcome.")
         if (rejected.rejection.code != code) {
             throw AssertionError("Expected rejection $code but got ${rejected.rejection}.")
+        }
+    }
+
+    /** The committed stream leaves the aggregate in [scope]. */
+    fun expectScope(scope: Scope) {
+        val committed = committed().stream.scope
+        if (committed != scope) {
+            throw AssertionError("Expected scope $scope but got $committed.")
         }
     }
 

@@ -17,12 +17,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 
 class KernelTest {
@@ -147,12 +150,69 @@ class KernelTest {
     }
 
     @Test
-    fun `a request id reused by another command is rejected`() = runTest {
+    fun `a request id reused by a command of another type is rejected`(): Unit = runTest {
         val kernel = Kernel(InMemoryEventLog())
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         kernel.execute(cartModel, command(AddItem("apple", 1), requestId = "same"))
-        val outcome = kernel.execute(cartModel, command(AddItem("pear", 1), requestId = "same"))
+        val outcome = kernel.execute(cartModel, command(ClearCart("reused"), requestId = "same"))
         (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.REQUEST_ID_REUSED)
+    }
+
+    @Test
+    fun `a request id reused by a command of the same type is taken for a retry`(): Unit = runTest {
+        // Only the type name is compared (D55): the caller's contract is one request id per business request.
+        val kernel = Kernel(InMemoryEventLog())
+        kernel.execute(cartModel, command(CreateCart("ahoo")))
+        val first = kernel.execute(
+            cartModel,
+            command(AddItem("apple", 1), requestId = "same")
+        ) as CommandOutcome.Committed
+        kernel.execute(cartModel, command(AddItem("pear", 1), requestId = "same"))
+            .assert().isEqualTo(CommandOutcome.AlreadyCommitted(first.stream))
+    }
+
+    @Test
+    fun `the stream records the command's model name, causation and headers`(): Unit = runTest {
+        val kernel = Kernel(InMemoryEventLog())
+        val causation = Causation("root-command", "example.cart/tenant/other@2")
+        val created = kernel.execute(
+            cartModel,
+            Command("c-1", "r-1", ref, CreateCart("ahoo"), headers = mapOf("app" to "console"), causation = causation),
+        ) as CommandOutcome.Committed
+        created.stream.commandType.assert().isEqualTo("example.cart.CreateCart")
+        created.stream.causation.assert().isEqualTo(causation)
+        created.stream.headers.assert().isEqualTo(mapOf("app" to "console"))
+        val added = kernel.execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Committed
+        added.stream.causation.assert().isNull()
+        added.stream.headers.assert().isEmpty()
+    }
+
+    @Test
+    fun `a command named by the model keeps its name when its class is renamed`(): Unit = runTest {
+        val named = aggregate<CartState>("example", "cart") {
+            initial { CartState(it.id) }
+            decide<AddItem>(Creation.ALLOWED, name = "example.cart.PutItem") { _, command ->
+                Decision.events(ItemAdded(command.productId, 1))
+            }
+            evolve<ItemAdded> { items[it.productId] = (items[it.productId] ?: 0) + it.quantity }
+        }
+        named.commandType(AddItem::class.java).name.assert().isEqualTo("example.cart.PutItem")
+        val outcome = Kernel(
+            InMemoryEventLog()
+        ).execute(named, command(AddItem("apple", 1))) as CommandOutcome.Committed
+        outcome.stream.commandType.assert().isEqualTo("example.cart.PutItem")
+    }
+
+    @Test
+    fun `two command types of one aggregate cannot share a name`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregate<CartState>("example", "cart") {
+                initial { CartState(it.id) }
+                decide<AddItem>(name = "example.cart.Put") { _, _ -> Decision.NoOp }
+                decide<ClearCart>(name = "example.cart.Put") { _, _ -> Decision.NoOp }
+            }
+        }
+        assertThrownBy<IllegalArgumentException> { cartModel.commandType(String::class.java) }
     }
 
     @Test
@@ -200,19 +260,19 @@ class KernelTest {
     ) : EventLog by log {
         private var raced = false
 
-        override suspend fun append(stream: EventStreamRecord): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
             if (every || !raced) {
                 raced = true
                 race()
             }
-            return log.append(stream)
+            return log.append(stream, transport)
         }
     }
 
     /** Reports every append as unknown, after committing it when [commit]. */
     private class UnknownLog(private val log: EventLog, private val commit: Boolean) : EventLog by log {
-        override suspend fun append(stream: EventStreamRecord): AppendOutcome {
-            if (commit) log.append(stream)
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            if (commit) log.append(stream, transport)
             return AppendOutcome.Unknown(IllegalStateException("timeout"))
         }
 

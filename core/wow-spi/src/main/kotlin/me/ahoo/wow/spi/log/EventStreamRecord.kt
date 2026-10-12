@@ -14,6 +14,9 @@
 package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.reservation.ReservationKey
 
 /**
  * One event as the log stores it: its type [name] (`context.aggregate.event`, not a class name), the [revision] of
@@ -27,23 +30,32 @@ data class EventRecord(val name: String, val revision: Int, val payload: String)
 }
 
 /**
- * The events one command produced, committed together by one append: the unit of fact.
+ * The events one command produced, committed together by one append: the unit of fact
+ * (documentation/designs/v10/08-data-protocols.md §4).
  *
- * [version] is the aggregate's version after this stream; the first stream of an aggregate is version 1 and each
- * next one is exactly one more. [fingerprint] identifies the command (its type and a hash of its body), so that a
- * request id reused by a different command is told apart from a retry of the same one.
+ * - [version] is the aggregate's version after this stream; the first stream of an aggregate is version 1 and each
+ *   next one is exactly one more.
+ * - [commandType] is the model's name of the command that produced it (`context.aggregate.Command`, not a class
+ *   name, decision D55): a request id reused by a command of another type is told apart from a retry by it.
+ * - [scope] is the aggregate's owner and space **after** this commit, not the caller's (D56): every fact carries it,
+ *   so projections and query authorization read it without replaying history.
+ * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  */
 data class EventStreamRecord(
     val ref: AggregateRef,
     val version: Int,
     val commandId: String,
     val requestId: String,
-    val fingerprint: String,
+    val commandType: String,
     val commitTime: Long,
     val events: List<EventRecord>,
+    val scope: Scope,
+    val causation: Causation? = null,
+    val headers: Map<String, String> = emptyMap(),
 ) {
     init {
         require(version >= 1) { "An event stream's version starts at 1." }
+        require(commandType.isNotBlank()) { "An event stream names the type of its command." }
         require(events.isNotEmpty()) { "An event stream holds at least one event." }
     }
 }
@@ -56,5 +68,26 @@ data class LogPosition(val partition: Int, val sequence: Long) {
     }
 }
 
-/** A committed event stream at its [position] in the log. */
-data class LogEntry(val position: LogPosition, val stream: EventStreamRecord)
+/**
+ * A committed event stream at its [position] in the log, with the [transport] metadata appended with it, if any.
+ * Only [EventLog.tail] returns entries: the transport serves the subscriptions and signals that read the log, never
+ * the domain.
+ */
+data class LogEntry(val position: LogPosition, val stream: EventStreamRecord, val transport: Transport? = null)
+
+/**
+ * What an append carries for delivery, not as fact (design 08 §1, §4; decision D25): domain code and queries never
+ * see it, and a migration or a replay drops it. A backend stores it apart from the stream (its own column or field).
+ *
+ * - [wait] is the wait context of a command whose caller waits beyond COMMITTED (D15). Waits are a later work
+ *   package (roadmap 4.7): until then it is an opaque string map the log only stores and gives back, and it will be
+ *   replaced by the `WaitContext` type without changing where it is kept.
+ * - [reservations] are the keys this attempt reserved pending (D50): the `reservation` subscription confirms them
+ *   from the log, so a key is confirmed even when the after-append fast path never ran.
+ * - [trace] is tracing context such as the W3C `traceparent`.
+ */
+data class Transport(
+    val wait: Map<String, String>? = null,
+    val reservations: List<ReservationKey> = emptyList(),
+    val trace: Map<String, String> = emptyMap(),
+)

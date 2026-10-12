@@ -23,6 +23,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.reservation.ReservationKey
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
@@ -46,19 +49,31 @@ abstract class EventLogSpec {
         version: Int,
         requestId: String = "$id-$version-${UUID.randomUUID()}",
         tenant: String = "tenant",
-        fingerprint: String = "fingerprint",
+        commandType: String = "$context.aggregate.Act",
+        scope: Scope = Scope("owner", "space"),
+        causation: Causation? = null,
+        headers: Map<String, String> = emptyMap(),
     ) = EventStreamRecord(
         ref = type.ref(tenant, id),
         version = version,
         commandId = "command-$requestId",
         requestId = requestId,
-        fingerprint = fingerprint,
+        commandType = commandType,
         commitTime = 1_700_000_000_000L + version,
         events = listOf(
             EventRecord("$context.aggregate.Happened", 1, """{"version":$version,"text":"ü \" é"}"""),
             EventRecord("$context.aggregate.Noted", 2, """{"note":"second"}"""),
         ),
+        scope = scope,
+        causation = causation,
+        headers = headers,
     )
+
+    /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
+    private fun EventStreamRecord.assertSameAs(expected: EventStreamRecord) {
+        events.map { json.readTree(it.payload) }.assert().isEqualTo(expected.events.map { json.readTree(it.payload) })
+        copy(events = expected.events).assert().isEqualTo(expected)
+    }
 
     @Test
     fun `an aggregate's first stream is version 1 and each next one exactly one more`(): Unit = runBlocking {
@@ -76,19 +91,85 @@ abstract class EventLogSpec {
         val appended = stream("a", 1)
         log.append(appended)
         val read = log.read(type.ref("tenant", "a")).toList().single()
-        read.ref.assert().isEqualTo(appended.ref)
-        read.version.assert().isEqualTo(1)
-        read.commandId.assert().isEqualTo(appended.commandId)
-        read.requestId.assert().isEqualTo(appended.requestId)
-        read.fingerprint.assert().isEqualTo(appended.fingerprint)
-        read.commitTime.assert().isEqualTo(appended.commitTime)
+        read.assertSameAs(appended)
         read.events.map { it.name to it.revision }.assert().containsExactly(
             "$context.aggregate.Happened" to 1,
             "$context.aggregate.Noted" to 2,
         )
-        // A backend may store the payload as JSON and give it back reformatted: compare it as JSON.
-        read.events.map { json.readTree(it.payload) }.assert()
-            .isEqualTo(appended.events.map { json.readTree(it.payload) })
+    }
+
+    @Test
+    fun `scope, causation and headers read back as appended, absent ones too`(): Unit = runBlocking {
+        val log = createLog()
+        val full = stream(
+            "a",
+            1,
+            scope = Scope("owner ü", "space"),
+            causation = Causation("root", "$context.aggregate/tenant/b@3"),
+            headers = mapOf("app" to "console", "quote" to "\" é"),
+        )
+        val ownerOnly = stream("b", 1, scope = Scope(ownerId = "owner"))
+        val spaceOnly = stream("c", 1, scope = Scope(spaceId = "space"))
+        val none = stream("d", 1, scope = Scope.NONE)
+        listOf(full, ownerOnly, spaceOnly, none).forEach { log.append(it) }
+        listOf(full, ownerOnly, spaceOnly, none).forEach { appended ->
+            log.read(appended.ref).toList().single().assertSameAs(appended)
+            checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+        }
+    }
+
+    @Test
+    fun `a request id reused by another command type finds the stream committed for it`(): Unit = runBlocking {
+        val log = createLog()
+        log.append(stream("a", 1, requestId = "request", commandType = "$context.aggregate.Open"))
+        val again = log.append(stream("b", 1, requestId = "request", commandType = "$context.aggregate.Close"))
+        (again as AppendOutcome.AlreadyCommitted).existing.commandType.assert().isEqualTo("$context.aggregate.Open")
+    }
+
+    @Test
+    fun `transport is given back by tail only`(): Unit = runBlocking {
+        val log = createLog(partitions = 1)
+        val transport = Transport(
+            wait = mapOf("waitId" to "w-1", "stage" to "PROJECTED"),
+            reservations = listOf(ReservationKey("user-name", "ahoo"), ReservationKey("email", "a@b.c ü")),
+            trace = mapOf("traceparent" to "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+        )
+        val carried = stream("a", 1)
+        log.append(carried, transport)
+        log.append(stream("a", 2))
+        log.append(stream("a", 3), Transport(trace = mapOf("traceparent" to "t")))
+        val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
+        entries[0].transport.assert().isEqualTo(transport)
+        entries[0].stream.assertSameAs(carried)
+        entries[1].transport.assert().isNull()
+        entries[2].transport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
+        // read and findByRequestId return facts only: an EventStreamRecord has no place for the transport.
+        log.read(carried.ref, 1, 1).toList().single().assertSameAs(carried)
+        checkNotNull(log.findByRequestId("tenant", carried.requestId)).assertSameAs(carried)
+    }
+
+    @Test
+    fun `appendAll keeps each stream's transport`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (first, second) = idsInPartitionZero(2, 4)
+        val transport = Transport(reservations = listOf(ReservationKey("ns", "k")))
+        log.appendAll(listOf(stream(first, 1) to transport, stream(second, 1) to null))
+            .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        entries.associate { it.stream.ref.id to it.transport }
+            .assert().isEqualTo(mapOf(first to transport, second to null))
+    }
+
+    @Test
+    fun `head is the last committed sequence of a partition, null when it is empty`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        (0 until 4).forEach { log.head(it).assert().isNull() }
+        val ids = idsInPartitionZero(3, 4)
+        ids.forEach { log.append(stream(it, 1)) }
+        log.append(stream(ids.first(), 2))
+        log.head(0).assert().isEqualTo(4L)
+        log.append(stream(ids.first(), 2)).assert().isEqualTo(AppendOutcome.Conflict(2))
+        log.head(0).assert().isEqualTo(4L)
     }
 
     @Test
@@ -177,15 +258,17 @@ abstract class EventLogSpec {
         log.append(stream(duplicate, 1, requestId = "taken"))
         val outcomes = log.appendAll(
             listOf(
-                stream(fits, 1),
-                stream(behind, 1),
-                stream(ahead, 3),
+                stream(fits, 1) to null,
+                stream(behind, 1) to null,
+                stream(ahead, 3) to null,
             ),
         )
         outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(1))
         outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(0))
-        val withDuplicate = log.appendAll(listOf(stream(ahead, 1), stream(duplicate, 2, requestId = "taken")))
+        val withDuplicate = log.appendAll(
+            listOf(stream(ahead, 1) to null, stream(duplicate, 2, requestId = "taken") to null),
+        )
         withDuplicate[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (withDuplicate[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(duplicate)
     }
@@ -194,9 +277,9 @@ abstract class EventLogSpec {
     fun `appendAll sequences a group without gaps`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val ids = idsInPartitionZero(10, 4)
-        val outcomes = log.appendAll(ids.map { stream(it, 1) })
+        val outcomes = log.appendAll(ids.map { stream(it, 1) to null })
         outcomes.map { (it as AppendOutcome.Committed).position.sequence }.assert().isEqualTo((1L..10L).toList())
-        val more = log.appendAll(ids.take(3).map { stream(it, 2) })
+        val more = log.appendAll(ids.take(3).map { stream(it, 2) to null })
         more.map { (it as AppendOutcome.Committed).position.sequence }.assert().isEqualTo((11L..13L).toList())
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(13).toList() }.map { it.position.sequence }
             .assert().isEqualTo((1L..13L).toList())

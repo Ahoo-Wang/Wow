@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
@@ -43,6 +44,19 @@ class CartSpec {
     fun `clearing an empty cart changes nothing`() = aggregateSpec(cartModel) {
         given(CartCreated("ahoo"))
         whenCommand(ClearCart("tidy")) { expectUnchanged() }
+    }
+
+    @Test
+    fun `the cart keeps the scope it was created in`() = aggregateSpec(cartModel) {
+        whenCommand(CreateCart("ahoo"), scope = Scope("ahoo", "home")) { expectScope(Scope("ahoo", "home")) }
+        whenCommand(AddItem("apple", 1), scope = Scope("bob", null)) { expectScope(Scope("ahoo", "home")) }
+    }
+
+    @Test
+    fun `given events keep the aggregate's scope unless they set one`() = aggregateSpec(cartModel) {
+        given(CartCreated("ahoo"), scope = Scope("ahoo", null))
+        given(ItemAdded("a", 1))
+        whenCommand(AddItem("b", 1)) { expectScope(Scope("ahoo", null)) }
     }
 
     @Test

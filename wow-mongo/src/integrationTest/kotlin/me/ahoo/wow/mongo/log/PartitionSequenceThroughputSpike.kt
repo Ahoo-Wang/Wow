@@ -24,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -104,9 +105,10 @@ class PartitionSequenceThroughputSpike {
                     version = 1,
                     commandId = "c-$index",
                     requestId = "r-$index",
-                    fingerprint = "f",
+                    commandType = "$type.Act",
                     commitTime = System.currentTimeMillis(),
                     events = listOf(EventRecord("$type.Happened", 1, payload)),
+                    scope = Scope.NONE,
                 )
                 val started = System.nanoTime()
                 val outcome = if (committer != null) {
@@ -154,7 +156,7 @@ class PartitionSequenceThroughputSpike {
                         .append("version", stream.version)
                         .append("command_id", stream.commandId)
                         .append("request_id", stream.requestId)
-                        .append("fingerprint", stream.fingerprint)
+                        .append("command_type", stream.commandType)
                         .append("commit_time", stream.commitTime)
                         .append("events", listOf<org.bson.Document>()),
                 )
@@ -183,7 +185,7 @@ class PartitionSequenceThroughputSpike {
                         while (batch.size < maxBatch) {
                             batch += queue.tryReceive().getOrNull() ?: break
                         }
-                        val outcomes = log.appendAll(batch.map { it.first })
+                        val outcomes = log.appendAll(batch.map { it.first to null })
                         batch.zip(outcomes).forEach { (pending, outcome) -> pending.second.complete(outcome) }
                     }
                 }

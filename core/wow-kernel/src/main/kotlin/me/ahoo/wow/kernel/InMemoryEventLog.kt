@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.Transport
 
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
@@ -43,7 +44,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
         require(partitions >= 1) { "There is at least one partition." }
     }
 
-    override suspend fun append(stream: EventStreamRecord): AppendOutcome = lock.withLock {
+    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = lock.withLock {
         requests[stream.ref.tenantId to stream.requestId]?.let { return AppendOutcome.AlreadyCommitted(it) }
         val aggregate = streams.getOrPut(stream.ref) { ArrayList() }
         val current = aggregate.size
@@ -55,7 +56,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val log = entries[partition]
         val position = LogPosition(partition, log.size + 1L)
-        log += LogEntry(position, stream)
+        log += LogEntry(position, stream, transport)
         appended[partition].value = position.sequence
         AppendOutcome.Committed(position)
     }
@@ -67,6 +68,11 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
 
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         lock.withLock { requests[tenantId to requestId] }
+
+    override suspend fun head(partition: Int): Long? {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return lock.withLock { entries[partition].size.toLong().takeIf { it > 0 } }
+    }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }

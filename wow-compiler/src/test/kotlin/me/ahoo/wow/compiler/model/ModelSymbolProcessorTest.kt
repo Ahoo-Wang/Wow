@@ -52,6 +52,7 @@ class ModelSymbolProcessorTest {
         @CreateAggregate
         data class CreateCart(val owner: String)
         data class AddItem(val productId: String, val quantity: Int)
+        @Name("PutItems")
         data class AddItems(val productIds: List<String>)
         data class Inspect(val note: String)
 
@@ -119,7 +120,8 @@ class ModelSymbolProcessorTest {
             )
             outcomes.joinToString(" | ") { outcome ->
                 when (outcome) {
-                    is CommandOutcome.Committed -> outcome.stream.events.joinToString(",") { it.name } +
+                    is CommandOutcome.Committed -> outcome.stream.commandType + ">" +
+                        outcome.stream.events.joinToString(",") { it.name } +
                         "@" + (outcome.state as CartState).let { it.items.toString() + "/" + it.audits }
                     is CommandOutcome.Rejected -> "rejected:" + outcome.rejection.code
                     else -> outcome.toString()
@@ -135,11 +137,11 @@ class ModelSymbolProcessorTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val run = result.classLoader.loadClass("sample.ScenarioKt").getMethod("run")
         run.invoke(null).assert().isEqualTo(
-            "shop.cart.CartCreated@{}/0 | " +
-                "shop.cart.ItemPut,shop.cart.Audited@{apple=2}/1 | " +
-                "shop.cart.ItemPut,shop.cart.Audited@{apple=2, pear=1}/2 | " +
+            "shop.cart.CreateCart>shop.cart.CartCreated@{}/0 | " +
+                "shop.cart.AddItem>shop.cart.ItemPut,shop.cart.Audited@{apple=2}/1 | " +
+                "shop.cart.PutItems>shop.cart.ItemPut,shop.cart.Audited@{apple=2, pear=1}/2 | " +
                 "rejected:cart.full | " +
-                "shop.cart.Audited@{apple=2, pear=1}/3",
+                "shop.cart.Inspect>shop.cart.Audited@{apple=2, pear=1}/3",
         )
         compilation.workingDir.walkTopDown().any { it.name == "CartModel.kt" }.assert().isTrue()
     }

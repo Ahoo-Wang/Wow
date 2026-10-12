@@ -19,6 +19,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.Transport
 
 /**
  * A subscription (design 04 §1): a [name], a [filter] and exactly one [handler]. The checkpoint belongs to the
@@ -27,14 +28,21 @@ import me.ahoo.wow.spi.log.LogPosition
  *
  * [startFrom] applies only when the subscription has no checkpoint yet in a partition. [decoder] turns a committed
  * stream into what [handler] receives.
+ *
+ * When [models] are given, the filter's event names are resolved through them ([SubscriptionFilter.resolve]): an
+ * event listed under its current name also matches the streams that stored it under a former one, and the other
+ * way round.
  */
 class Subscription(
     val name: String,
-    val filter: SubscriptionFilter,
+    filter: SubscriptionFilter,
     val startFrom: StartFrom = StartFrom.BEGINNING,
     val decoder: EntryDecoder = EntryDecoder.RECORDS,
+    models: Collection<AggregateModel<*>> = emptyList(),
     val handler: suspend (SubscribedEntry) -> Unit,
 ) {
+    val filter: SubscriptionFilter = filter.resolve(models)
+
     init {
         require(name.isNotBlank()) { "A subscription needs a name." }
     }
@@ -47,15 +55,16 @@ enum class StartFrom {
     /** From the first entry of the partition: a new projection, or a replay under a new name. */
     BEGINNING,
 
-    /** After the entries already committed when the subscription first starts in the partition. */
+    /** After the entries already committed when the subscription first starts in the partition (its log head). */
     END,
 }
 
 /**
  * The streams a subscription handles: those of one bounded [context], of the [aggregates] named (every aggregate of
  * the context when empty), holding at least one event whose stored name is in [events] (any event when empty).
- * Event names are the names the log stores (`context.aggregate.Event`); a renamed event is listed under its former
- * names too. An entry outside the filter still moves the checkpoint.
+ * Event names are the names the log stores (`context.aggregate.Event`). Without models a renamed event must be listed
+ * under its former names too; [resolve] adds them from the models. An entry outside the filter still moves the
+ * checkpoint.
  */
 data class SubscriptionFilter(
     val context: String,
@@ -72,17 +81,44 @@ data class SubscriptionFilter(
             (aggregates.isEmpty() || type.name in aggregates) &&
             (events.isEmpty() || stream.events.any { it.name in events })
     }
+
+    /**
+     * This filter with each listed event name widened to every name its event type has among [models] of the
+     * filter's context: the current name and the former ones (aliases), so a rename on either side keeps matching.
+     * A name no model knows stays as it is.
+     */
+    fun resolve(models: Collection<AggregateModel<*>>): SubscriptionFilter {
+        if (events.isEmpty()) {
+            return this
+        }
+        val inContext = models.filter {
+            it.type.context == context && (aggregates.isEmpty() || it.type.name in aggregates)
+        }
+        if (inContext.isEmpty()) {
+            return this
+        }
+        val resolved = events.flatMapTo(LinkedHashSet()) { name ->
+            val types = inContext.mapNotNull { it.findEventType(name) }
+            listOf(name) + types.flatMap { it.aliases + it.name }
+        }
+        return copy(events = resolved)
+    }
 }
 
 /**
- * What a handler receives: one committed [stream] (its ref, version and events), at its log [position], with its
- * [events] as the subscription's [EntryDecoder] read them.
+ * What a handler receives: one committed [stream] (its ref, version, scope and events), at its log [position], with
+ * its [events] as the subscription's [EntryDecoder] read them and the [transport] metadata appended with it.
  *
- * [position] is null when the stream is handled again by [SubscriptionRuntime.resume]: resuming reads the
- * aggregate's streams by version, and the log does not return their positions there. A handler that needs an
+ * [position] and [transport] are null when the stream is handled again by [SubscriptionRuntime.resume]: resuming
+ * reads the aggregate's streams by version, and the log returns facts only there. A handler that needs an
  * idempotency key uses (`ref`, `version`), which is stable across both paths.
  */
-data class SubscribedEntry(val stream: EventStreamRecord, val position: LogPosition?, val events: List<Any>) {
+data class SubscribedEntry(
+    val stream: EventStreamRecord,
+    val position: LogPosition?,
+    val events: List<Any>,
+    val transport: Transport? = null,
+) {
     val ref: AggregateRef get() = stream.ref
     val version: Int get() = stream.version
 }
@@ -95,12 +131,13 @@ data class SubscribedEntry(val stream: EventStreamRecord, val position: LogPosit
  * the aggregate's state at the stream's version (snapshot plus tail) hands it to the handler with the events.
  */
 fun interface EntryDecoder {
-    suspend fun decode(stream: EventStreamRecord, position: LogPosition?): SubscribedEntry
+    suspend fun decode(stream: EventStreamRecord, position: LogPosition?, transport: Transport?): SubscribedEntry
 
     companion object {
         /** Hands over the stored [me.ahoo.wow.spi.log.EventRecord]s as they are, for sinks and generic handlers. */
-        val RECORDS: EntryDecoder =
-            EntryDecoder { stream, position -> SubscribedEntry(stream, position, stream.events) }
+        val RECORDS: EntryDecoder = EntryDecoder { stream, position, transport ->
+            SubscribedEntry(stream, position, stream.events, transport)
+        }
 
         /**
          * Decodes each event into its class through [codec] and the model of the stream's aggregate among
@@ -108,9 +145,9 @@ fun interface EntryDecoder {
          */
         fun models(models: Collection<AggregateModel<*>>, codec: EventCodec = EventCodec()): EntryDecoder {
             val byType: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
-            return EntryDecoder { stream, position ->
+            return EntryDecoder { stream, position, transport ->
                 val model = checkNotNull(byType[stream.ref.type]) { "No model of ${stream.ref.type} to decode with." }
-                SubscribedEntry(stream, position, stream.events.map { codec.decode(model, it) })
+                SubscribedEntry(stream, position, stream.events.map { codec.decode(model, it) }, transport)
             }
         }
     }

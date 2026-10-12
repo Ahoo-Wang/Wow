@@ -39,7 +39,7 @@ import org.bson.conversions.Bson
  *
  * Every write is one single-document operation. A park is a conditional upsert (see [conditionalUpsert]) whose filter
  * admits only a later stored from version, so concurrent or replayed parks converge on the earliest (decision D45)
- * without a transaction; a resolve is one `findOneAndDelete`. No collation is set: MongoDB then compares strings by
+ * without a transaction; a repark is one `updateOne` without upsert; a resolve is one `findOneAndDelete`. No collation is set: MongoDB then compares strings by
  * their UTF-8 bytes, which is code point order, so [list] pages in the order the contract asks for.
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
@@ -71,6 +71,15 @@ class MongoFailureLedger(
             val result = ledger.updateOne(earlier, update, UpdateOptions().upsert(upsert))
             result.matchedCount > 0 || result.upsertedId != null
         }
+    }
+
+    override suspend fun repark(entry: ParkedAggregate): Boolean = withContext(dispatcher) {
+        val update = Updates.combine(
+            Updates.set(FROM_VERSION, entry.fromVersion),
+            Updates.set(REASON, entry.reason),
+            Updates.set(FAILED_AT, entry.failedAt),
+        )
+        ledger.updateOne(keyFilter(entry.subscription, entry.ref), update).matchedCount > 0
     }
 
     override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = withContext(dispatcher) {

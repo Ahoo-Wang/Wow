@@ -37,6 +37,14 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
+    fun `snapshots recorded in another format version are refused`() {
+        val context = MongoLogFixture.newContext()
+        store(context)
+        MongoLogFixture.bumpFormat("wow_snapshot_" + context.replace('-', '_'))
+        assertThrownBy<IllegalStateException> { store(context) }
+    }
+
+    @Test
     fun `a snapshot of another context is refused`(): Unit = runBlocking {
         val store = store()
         val foreign = snapshot("a", 1).copy(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))

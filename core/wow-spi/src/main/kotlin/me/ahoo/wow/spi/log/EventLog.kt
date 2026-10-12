@@ -30,26 +30,36 @@ interface EventLog {
     /** The number of partitions, fixed for the context's lifetime. */
     val partitions: Int
 
-    /** Appends [stream] atomically. */
-    suspend fun append(stream: EventStreamRecord): AppendOutcome
+    /**
+     * Appends [stream] atomically, with [transport] stored beside it (decision D25): [tail] gives the transport
+     * back, [read] and [findByRequestId] never do.
+     */
+    suspend fun append(stream: EventStreamRecord, transport: Transport? = null): AppendOutcome
 
     /**
-     * Appends [streams] of one partition, each atomically, and returns their outcomes in the same order. A partition's
-     * owner calls it with the appends it has queued (group commit, finding F1): a backend may commit them together to
-     * share the round trips, as long as every outcome is what [append] would have returned. The streams target
-     * distinct aggregates. By default they are appended one by one.
+     * Appends [streams] of one partition, each atomically with its transport, and returns their outcomes in the same
+     * order. A partition's owner calls it with the appends it has queued (group commit, finding F1): a backend may
+     * commit them together to share the round trips, as long as every outcome is what [append] would have returned.
+     * The streams target distinct aggregates. By default they are appended one by one.
      */
-    suspend fun appendAll(streams: List<EventStreamRecord>): List<AppendOutcome> = streams.map { append(it) }
+    suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
+        streams.map { (stream, transport) -> append(stream, transport) }
 
-    /** The streams of [ref] with versions in [fromVersion]..[toVersion], in version order. */
+    /** The streams of [ref] with versions in [fromVersion]..[toVersion], in version order: facts only. */
     fun read(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<EventStreamRecord>
 
-    /** The stream committed for [requestId] within [tenantId], if any. */
+    /** The stream committed for [requestId] within [tenantId], if any: facts only. */
     suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?
 
     /**
-     * The entries of [partition] after [after] (exclusive; null from the start), in sequence order. The flow does
-     * not complete: after the committed entries it waits for new ones.
+     * The entries of [partition] after [after] (exclusive; null from the start), in sequence order, each with its
+     * transport. The flow does not complete: after the committed entries it waits for new ones.
      */
     fun tail(partition: Int, after: Long? = null): Flow<LogEntry>
+
+    /**
+     * The sequence of the last entry committed in [partition], or null when the partition is empty. A subscription
+     * that starts from the end starts after it.
+     */
+    suspend fun head(partition: Int): Long?
 }
