@@ -30,6 +30,7 @@ import me.ahoo.wow.kernel.InMemoryLeaseStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -45,6 +46,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.wait.Origin
@@ -89,8 +91,14 @@ fun fastOptions(
  *
  * [events] records, in order, the commits to the log (`append <aggregate id>`), the checkpoint saves
  * (`checkpoint <partition> <position>`) and the lease releases (`release <partition> <node>`).
+ *
+ * With [snapshots], every node also runs the built-in snapshot subscription, writing to that shared store.
  */
-class TestCluster(val partitions: Int = 16, val options: ClusterOptions = fastOptions()) : AutoCloseable {
+class TestCluster(
+    val partitions: Int = 16,
+    val options: ClusterOptions = fastOptions(),
+    val snapshots: SnapshotStore? = null,
+) : AutoCloseable {
     val events = CopyOnWriteArrayList<String>()
     val log = RecordingLog(InMemoryEventLog(partitions), events)
     val leases = RecordingLeases(InMemoryLeaseStore(), events)
@@ -171,13 +179,21 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         cluster.nodes[origin.node]?.registry?.signal(signal)
     }
 
+    private val kernel = Kernel(cluster.log, snapshots = cluster.snapshots)
+
+    /** The built-in snapshot subscription, when the cluster has a snapshot store. */
+    val snapshotting = cluster.snapshots?.let { SnapshotSubscription(CONTEXT, listOf(model), it, kernel, cluster.log) }
+
     /** Checkpoints are saved only when a partition stops, so a save shows the hand-off. */
     val subscriptions = SubscriptionRuntime(
         cluster.group.name,
         cluster.log,
         cluster.checkpoints,
         cluster.ledger,
-        listOf(Subscription(PROJECTOR, SubscriptionFilter(CONTEXT)) { projected += it.ref.id to it.version }),
+        listOfNotNull(
+            Subscription(PROJECTOR, SubscriptionFilter(CONTEXT)) { projected += it.ref.id to it.version },
+            snapshotting?.subscription,
+        ),
         testOptions(checkpointInterval = 1.hours),
         signals = signals,
     )
@@ -192,7 +208,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
     )
     val router = PartitionedRouter(listOf(ownership), cluster.channel, cluster.options)
     val coordinator = WaitCoordinator(
-        Executor(Kernel(cluster.log)),
+        Executor(kernel, views = snapshotting?.views),
         registry,
         subscriptions,
         signals,

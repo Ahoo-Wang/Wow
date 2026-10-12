@@ -221,7 +221,7 @@ internal class SubscriptionWorker(
                 }
             } ?: return
             when (item) {
-                is Item.Live -> runLive(item)
+                is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
                 is Item.Resume -> runResume(ref, item)
             }
         }
@@ -236,6 +236,39 @@ internal class SubscriptionWorker(
         synchronized(this) { complete(item.slot) }
         signal(entry, handled, skipped && parked)
     }
+
+    /**
+     * Runs [first] and the live entries queued behind it in its [lane] as one batch, for a subscription that
+     * [Subscription.coalesces]: the handler gets only the latest entry it does not skip. When it fails, the aggregate
+     * is parked from the earliest such entry, since none of them is reflected. Then every entry of the batch
+     * completes and is signalled.
+     */
+    private suspend fun runBatch(first: Item.Live, lane: Lane) {
+        val batch = synchronized(this) {
+            val items = arrayListOf(first)
+            while (lane.items.firstOrNull() is Item.Live) {
+                items += lane.items.removeFirst() as Item.Live
+            }
+            // In version order, as skippedInLane expects.
+            items.map { Batched(it, skippedInLane(it.entry.stream), parkedAt(it.entry.stream)) }
+        }
+        val handled = batch.filterNot { it.skipped }
+        val result = handled.lastOrNull()?.let { latest ->
+            val entry = latest.item.entry
+            handle(entry.stream, entry.position, entry.transport)
+        } ?: Result.success(emptyList())
+        result.exceptionOrNull()?.let { park(handled.first().item.entry.stream, it as Exception) }
+        synchronized(this) { batch.forEach { complete(it.item.slot) } }
+        batch.forEach {
+            if (it.skipped) {
+                signal(it.item.entry, Result.success(emptyList()), it.parked)
+            } else {
+                signal(it.item.entry, result)
+            }
+        }
+    }
+
+    private class Batched(val item: Item.Live, val skipped: Boolean, val parked: Boolean)
 
     /** Called under the monitor. Within a lane, entries arrive in version order. */
     private fun skippedInLane(stream: EventStreamRecord): Boolean {

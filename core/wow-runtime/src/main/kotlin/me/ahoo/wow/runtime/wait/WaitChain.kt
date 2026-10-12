@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.wait
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -22,8 +23,8 @@ import me.ahoo.wow.api.result.WaitPlan
 internal sealed interface CheckedPlan
 
 /**
- * A wait plan checked and made concrete for a command of [context] (design 04 §6.1, decision D62): every hop names
- * its context, a null one being [context].
+ * A wait plan checked and made concrete for a command of an aggregate type (design 04 §6.1, decision D62): every hop
+ * names its context, a null one being the type's context.
  */
 internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan {
     /** A plan that is not a chain the runtime can follow, and why. */
@@ -38,14 +39,14 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
          * - every HANDLED hop names a subscription [directory] knows, and only a saga's may be followed by more hops,
          *   which apply to the commands it derived.
          *
-         * The default plan, [WaitPlan.SNAPSHOT], waits for COMMITTED instead when [directory] knows no snapshot
-         * subscription in [context]: its aggregates have no snapshot to wait for (decision D69).
+         * The default plan, [WaitPlan.SNAPSHOT], waits for COMMITTED instead when the snapshot subscription of
+         * [type]'s context does not cover [type] ([SubscriptionDirectory.covers]), or there is none: the aggregate
+         * has its snapshots disabled, so there is no snapshot to wait for (decision D69).
          */
-        fun of(plan: WaitPlan, context: String, directory: SubscriptionDirectory, maxHops: Int): CheckedPlan {
+        fun of(plan: WaitPlan, type: AggregateType, directory: SubscriptionDirectory, maxHops: Int): CheckedPlan {
+            val context = type.context
             var hops = plan.hops.map { if (it.context == null) it.copy(context = context) else it }
-            if (plan.hops == WaitPlan.SNAPSHOT.hops &&
-                directory.kindOf(context, Hop.SNAPSHOT_SUBSCRIPTION) == null
-            ) {
+            if (plan.hops == WaitPlan.SNAPSHOT.hops && !directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, type)) {
                 hops = listOf(Hop.committed(context))
             }
             if (hops.size > maxHops) {

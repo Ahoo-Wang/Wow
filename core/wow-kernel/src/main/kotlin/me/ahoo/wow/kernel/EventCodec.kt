@@ -94,13 +94,29 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         scope: Scope,
         firstEventTime: Long,
         lastEventTime: Long,
+    ): SnapshotRecord = snapshotOf(model, ref, stateText(state), version, scope, firstEventTime, lastEventTime)
+
+    /**
+     * The snapshot of a state this codec already serialized as [stateText]: the state view taken
+     * when the stream at [version] committed (design 01 §2), so it is not serialized again. The rest is as for the
+     * snapshot of a state object.
+     */
+    @Suppress("LongParameterList")
+    fun snapshotOf(
+        model: AggregateModel<*>,
+        ref: AggregateRef,
+        stateText: String,
+        version: Int,
+        scope: Scope,
+        firstEventTime: Long,
+        lastEventTime: Long,
     ): SnapshotRecord {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         return SnapshotRecord(
             ref = ref,
             version = version,
             schemaFingerprint = stateSchemaFingerprint(model),
-            state = stateText(state),
+            state = stateText,
             scope = scope,
             firstEventTime = firstEventTime,
             lastEventTime = lastEventTime,

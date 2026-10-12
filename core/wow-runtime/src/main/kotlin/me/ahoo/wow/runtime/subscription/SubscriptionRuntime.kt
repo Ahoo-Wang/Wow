@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -220,6 +221,12 @@ class SubscriptionRuntime(
 
     override fun kindOf(context: String, subscription: String): FunctionKind? =
         directory[subscription]?.takeIf { it.filter.context == context }?.kind
+
+    /** Whether [subscription]'s filter takes streams of [type]: its context, and its aggregates when it names any. */
+    override fun covers(subscription: String, type: AggregateType): Boolean {
+        val filter = directory[subscription]?.filter ?: return false
+        return filter.context == type.context && (filter.aggregates.isEmpty() || type.name in filter.aggregates)
+    }
 
     /**
      * Whether [subscription] is past [stream] for good (decision D63): its progress in the stream's partition (the
