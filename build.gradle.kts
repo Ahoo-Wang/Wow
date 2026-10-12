@@ -132,6 +132,7 @@ val v10IntegrationTestProjects = includedProjects(
     ":spring-boot",
     ":routing-spike",
     ":lease-spike",
+    ":shop-server",
 )
 val integrationTestProjects = includedProjects(
     ":wow-bi",
