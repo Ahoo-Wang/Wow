@@ -163,6 +163,32 @@ wow-api -> wow-metadata -> wow-core -> wow-spring -> wow-spring-boot-starter
 
 `wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, `cosec-support`, `bi-support` (`wow-bi`; the BI script route exists only when `wow-bi` is on the classpath), and `clickhouse-support` (`wow-clickhouse`; datasets are served from ClickHouse when `wow.query.clickhouse.enabled=true`).
 
+V10 modules (`v10` branch only; [modules design](documentation/designs/v10/06-modules.md) §4), incubating beside the 9.x ones:
+
+```text
+api/api/                    :api            V10 programming model: annotations, Decision, DecideScope, StateEvent, Scope
+api/manifest/               :manifest       The Manifest every projection reads; plain data
+api/query-api/              :query-api      Query protocol: filters, aggregation, windows
+compiler/compiler/          :compiler       KSP: aggregate models and Manifest fragments from the V10 annotations
+compiler/gradle-plugin/     :gradle-plugin  Gradle plugin `me.ahoo.wow`: applies KSP and the compiler, assembles the Manifest
+compiler/manifest-tools/    :manifest-tools Completes Manifest fragments with schemas and merges them
+core/spi/                   :spi            Ports a backend implements: log, snapshots, checkpoints, leases, ledger
+core/kernel/                :kernel         Aggregate model and the decide, evolve, append loop
+core/runtime/               :runtime        Gateway, router, cluster channel, executor, subscriptions, waits
+core/reactor/               :reactor        Reactor adapters for the programming model
+backends/postgres/          :postgres       SPI on PostgreSQL
+backends/mongo/             :mongo          SPI on MongoDB
+edge/http/                  :http           Routes from the Manifest, problem+json, SSE
+host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiring only
+migration/migrate-data/     :migrate-data   Imports 9.x event streams into the V10 log
+test/architecture/          :architecture   V10 module graph and dependency rules
+test/kernel-benchmarks/     :kernel-benchmarks, test/routing-spike/ :routing-spike, test/lease-spike/ :lease-spike: spikes H3, H2, H6
+```
+
+- V10 Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). A V10 module that replaces a 9.x one (`:api`, `:compiler`, `:mongo`) lives in its own directory; the 9.x module keeps its name and directory, and no module may depend on both (D85; `:kernel-benchmarks` is exempt, D90).
+- V10 modules are not published and have no ABI dump before `10.0.0-beta` (D88). On `v10` the 9.x modules keep `checkKotlinAbi`, but their publish tasks are disabled: main publishes them (D90).
+- Building them requires JDK 21 (D29).
+
 
 ## Code Style
 

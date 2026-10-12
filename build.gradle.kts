@@ -411,6 +411,13 @@ configure(publishProjects) {
     }
 }
 
+// D90: v10 does not publish the 9.x modules; main does. A 10.0 pre-release from v10 would otherwise publish them as
+// 10.x. Their publications are still built (and signed), and their ABI is still checked below.
+configure(publishProjects - v10Projects) {
+    tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }
+    tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
+}
+
 // The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
 // against it, so a 9.x patch cannot change a public signature unnoticed. `./gradlew updateKotlinAbi` rewrites
 // the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed.

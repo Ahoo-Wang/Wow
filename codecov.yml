@@ -175,6 +175,68 @@ component_management:
       name: wow-dataset-registry-starter
       paths:
         - dataset-registry/wow-dataset-registry-starter/src/main/**
+    # V10 modules (documentation/designs/v10/06-modules.md §4), incubating on the v10 branch. Their artifactIds
+    # (wow-api, wow-compiler, wow-mongo) collide with 9.x components, so every V10 component is v10-<name>.
+    - component_id: v10-api
+      name: v10-api
+      paths:
+        - api/api/src/main/**
+    - component_id: v10-manifest
+      name: v10-manifest
+      paths:
+        - api/manifest/src/main/**
+    - component_id: v10-query-api
+      name: v10-query-api
+      paths:
+        - api/query-api/src/main/**
+    - component_id: v10-compiler
+      name: v10-compiler
+      paths:
+        - compiler/compiler/src/main/**
+    - component_id: v10-gradle-plugin
+      name: v10-gradle-plugin
+      paths:
+        - compiler/gradle-plugin/src/main/**
+    - component_id: v10-manifest-tools
+      name: v10-manifest-tools
+      paths:
+        - compiler/manifest-tools/src/main/**
+    - component_id: v10-spi
+      name: v10-spi
+      paths:
+        - core/spi/src/main/**
+    - component_id: v10-kernel
+      name: v10-kernel
+      paths:
+        - core/kernel/src/main/**
+    - component_id: v10-runtime
+      name: v10-runtime
+      paths:
+        - core/runtime/src/main/**
+    - component_id: v10-reactor
+      name: v10-reactor
+      paths:
+        - core/reactor/src/main/**
+    - component_id: v10-postgres
+      name: v10-postgres
+      paths:
+        - backends/postgres/src/main/**
+    - component_id: v10-mongo
+      name: v10-mongo
+      paths:
+        - backends/mongo/src/main/**
+    - component_id: v10-http
+      name: v10-http
+      paths:
+        - edge/http/src/main/**
+    - component_id: v10-spring-boot
+      name: v10-spring-boot
+      paths:
+        - host/spring-boot/src/main/**
+    - component_id: v10-migrate-data
+      name: v10-migrate-data
+      paths:
+        - migration/migrate-data/src/main/**
     - component_id: wow-client
       name: wow-client
       paths:
