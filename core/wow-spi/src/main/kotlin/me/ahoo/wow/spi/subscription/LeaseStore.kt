@@ -1,0 +1,82 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.spi.subscription
+
+import kotlin.time.Duration
+
+/**
+ * [owner] holds [partition] for subscription group [group] until [expiresAt] (epoch milliseconds, exclusive).
+ *
+ * [epoch] counts the acquisitions of the partition: each time it changes hands, or its owner takes it back after it
+ * expired or was released, the epoch is one more. V10 does not fence on it (decision D45); it shows handovers in
+ * metrics and tests.
+ */
+data class Lease(
+    val group: String,
+    val partition: Int,
+    val owner: String,
+    val epoch: Long,
+    val expiresAt: Long,
+)
+
+/** [node] is a live member of subscription group [group] until [expiresAt] (epoch milliseconds, exclusive). */
+data class Member(
+    val group: String,
+    val node: String,
+    val expiresAt: Long,
+)
+
+/**
+ * Partition ownership within a subscription group, the deployment unit whose nodes share the partitions of a log
+ * (documentation/designs/v10/04-subscriptions.md §1, 02-write-path.md §3, decision D24). Leases live in storage: no
+ * ZooKeeper, consumer group or registry.
+ *
+ * A lease is live while the store's clock is before its expiry. At most one node holds a live lease of a partition;
+ * an expired or released one can be acquired by any node. Each operation is atomic, so concurrent acquisitions of a
+ * free partition have exactly one winner.
+ *
+ * Membership is separate from ownership because rebalancing needs it: a node that just joined holds no lease, so the
+ * owners would never learn they must give partitions up. Each node [heartbeat]s its membership; the runtime derives a
+ * node's fair share from the live [members], releases surplus leases and acquires free ones.
+ *
+ * The store's clock decides liveness. A backend that takes the time from each node, not from the database, relies on
+ * the nodes' clock skew being small against the TTL. Since V10 does not fence (D45), a short overlap of two owners
+ * during a handover is only duplicate work, never a wrong result.
+ */
+interface LeaseStore {
+    /**
+     * Acquires [partition] of [group] for [owner] for [ttl]: the lease is free, expired or released, or [owner]
+     * already holds it (then it is extended and keeps its epoch, so a retried acquisition is harmless). Returns the
+     * lease, or null when another node holds it.
+     */
+    suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease?
+
+    /** Extends the live lease [owner] holds on [partition] to [ttl] from now; null when [owner] no longer holds it. */
+    suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease?
+
+    /** Releases the live lease [owner] holds on [partition], so another node can acquire it at once. */
+    suspend fun release(group: String, partition: Int, owner: String): Boolean
+
+    /** The live leases of [group], in partition order. */
+    suspend fun owners(group: String): List<Lease>
+
+    /** Registers [node] as a member of [group], or keeps it one, for [ttl] from now. */
+    suspend fun heartbeat(group: String, node: String, ttl: Duration): Member
+
+    /** The live members of [group], in node order. */
+    suspend fun members(group: String): List<Member>
+
+    /** Removes [node] from [group] at once, for a graceful shutdown; it keeps the leases it has not released. */
+    suspend fun leave(group: String, node: String)
+}
