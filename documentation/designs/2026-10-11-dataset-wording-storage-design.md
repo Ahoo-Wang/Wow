@@ -24,14 +24,16 @@ data class DatasetWordingState(
     val id: String,          // 服务端按 租户 × 应用 × 数据集 算出
     val dataset: String,     // 目录里的名字，{context}.{dataset}
     val appId: String,       // 创建时的 CoSec-App-Id
-    /** D86 的 DatasetOverrides：title、recordNoun、fields，整份 JSON，服务端不解释其语义。 */
-    val wording: ObjectNode,
+    val title: String?,      // 去空白后 1～120 字
+    val recordNoun: String?, // 去空白后 1～40 字
+    /** D86 的 DefineDatasetSpec.fields，整份 JSON，不超过 64 KB，服务端不解释其语义。 */
+    val fields: ObjectNode?,
 )
 ```
 
 | 命令                                                         | 事件                     | 规则                                                                                                                                                                                         |
 | ------------------------------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SetDatasetWording** `{dataset, wording}`（允许创建）        | **DatasetWordingSet**    | 期望版本（0 即从没写过）；`wording` 只做形状与大小的检查：是对象，只有 `title`（≤ 120 字）、`recordNoun`（≤ 40 字）、`fields`（对象）三个键，整份不超过 64 KB；应用与状态不符读作不存在 |
+| **SetDatasetWording** `{dataset, title?, recordNoun?, fields?}`（允许创建） | **DatasetWordingSet** | 期望版本（0 即从没写过）；只检查形状与大小：标题 1～120 字、名词 1～40 字、`fields` 是对象且不超过 64 KB；应用与状态不符读作不存在 |
 | **ClearDatasetWording**                                      | **DatasetWordingCleared** | 期望版本；删除聚合，之后读作没有覆盖                                                                                                                                                         |
 
 服务端不校验字段路径：数据集删了列，覆盖照旧存着，引擎套用时忽略没有的路径（D86）。
@@ -42,9 +44,10 @@ data class DatasetWordingState(
 
 | 方法与路径                           | 说明                                                                                     |
 | ------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `GET /dataset-wordings`              | 本租户、本应用（按请求的 `CoSec-App-Id` 过滤）所有数据集的措辞与版本，一次读完           |
 | `PUT /datasets/{dataset}/wording`    | SetDatasetWording，带 `Command-Aggregate-Version` 与 `Command-Request-Id`               |
 | `DELETE /datasets/{dataset}/wording` | ClearDatasetWording，同上                                                                |
+
+读不另开路由：用 Wow 给 `dataset_wording` 生成的快照查询（`POST …/owner/(shared)/dataset_wording/snapshot/list`），查询策略照例按请求的应用追加过滤，一次读完本应用的全部措辞与版本。
 
 **谁能写由 CoSec 决定**，与写共享视图分开：`PUT`／`DELETE …/wording` 要「管理数据集措辞」的角色；`GET` 与读视图同样放行。服务端照旧不做鉴权（view-store-backend.md 4.1）。
 
@@ -54,7 +57,7 @@ data class DatasetWordingState(
 
 ```ts
 interface DatasetWordings {
-  /** GET /dataset-wordings：每个数据集的覆盖与版本。 */
+  /** dataset_wording 的快照列表：每个数据集的覆盖与版本。 */
   list(): Promise<ReadonlyMap<string, { wording: DatasetOverrides; revision: string }>>;
   set(dataset: string, wording: DatasetOverrides, revision: string): Promise<string>;
   clear(dataset: string, revision: string): Promise<void>;
@@ -85,7 +88,7 @@ W3 是这三批里最大的一块，可以晚于 W1、W2：在它之前，管理
 
 | 批 | 内容                                                                                                 | 验证                                                                                       |
 | -- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| W1 | 聚合、命令、路由、`GET /dataset-wordings`、OpenAPI；生成的客户端更新                                 | 领域单测（形状、大小、版本、应用隔离）；契约测试跑真服务端                                 |
+| W1 | 聚合、命令、`PUT`／`DELETE` 路由、OpenAPI、Elasticsearch 索引定义；生成的客户端更新                                 | 领域单测（形状、大小、版本、应用隔离）；契约测试跑真服务端                                 |
 | W2 | `@ahoo-wang/wow-view-store` 的 `DatasetWordings` 与 `load`／`of`；文档（指南 en/zh、host-integration 3.2） | 单测；集成测试：写一份措辞、`refresh` 后定义的标题与字段口径变了                           |
 | W3 | 管理器的「措辞」页签、`editDatasetWording` 许可                                                      | 组件测试与浏览器故事                                                                       |
 
