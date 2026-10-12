@@ -388,6 +388,32 @@ class SnapshotSubscriptionTest {
     }
 
     @Test
+    fun `a state view a new subscription has not written before keeps the view's metadata`(): Unit = runBlocking {
+        runtime.start(setOf(0))
+        coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
+        runtime.stop()
+        val tags = mapOf("tier" to listOf("gold"))
+        Executor(kernel).execute(counter, command("a", ApplyTags(tags)))
+        // A subscription that has written nothing yet, as after a restart: its views are recorded before it runs.
+        val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
+        val deleted = Executor(kernel, views = other.views)
+            .execute(counter, command("a", DeleteAggregate)) as CommandOutcome.Committed
+        log.reads.clear()
+
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 2) }, other)
+        resumed.start(setOf(0))
+        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
+        // The first event time comes from the stored snapshot and the rest from the view: the log is not read.
+        log.reads.assert().isEmpty()
+        other.views.size.assert().isEqualTo(0)
+        val snapshot = store.load(ref("a"))!!
+        snapshot.version.assert().isEqualTo(3)
+        snapshot.deleted.assert().isTrue()
+        snapshot.tags.assert().isEqualTo(tags)
+        snapshot.firstEventTime.assert().isEqualTo(log.read(ref("a"), 1, 1).toList().single().commitTime)
+    }
+
+    @Test
     fun `the snapshot holds the scope and the tags the lifecycle commands gave`(): Unit = runBlocking {
         runtime.start(setOf(0))
         coordinator.execute(counter, add("a").copy(scope = Scope("alice", "space-a")))
