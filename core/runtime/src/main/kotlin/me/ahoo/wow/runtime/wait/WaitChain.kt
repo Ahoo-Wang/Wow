@@ -37,17 +37,24 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
          * - at most [maxHops] hops;
          * - within one command the stages come in order, each at most once: ACCEPTED, COMMITTED, then HANDLED;
          * - every HANDLED hop names a subscription [directory] knows, and only a saga's may be followed by more hops,
-         *   which apply to the commands it derived.
+         *   which apply to the commands it derived;
+         * - a snapshot hop of the command itself (its first HANDLED hop) is one [type] has: the snapshot subscription
+         *   of [type]'s context covers [type] ([SubscriptionDirectory.covers]).
          *
-         * The default plan, [WaitPlan.SNAPSHOT], waits for COMMITTED instead when the snapshot subscription of
-         * [type]'s context does not cover [type] ([SubscriptionDirectory.covers]), or there is none: the aggregate
-         * has its snapshots disabled, so there is no snapshot to wait for (decision D69).
+         * Only the default plan ([WaitPlan.isDefault]) waits for COMMITTED instead where [type] has no snapshot to
+         * wait for: the aggregate has its snapshots disabled, or its context has no snapshot subscription (decision
+         * D69). A plan that asks for that snapshot explicitly is rejected, rather than left to time out.
          */
         fun of(plan: WaitPlan, type: AggregateType, directory: SubscriptionDirectory, maxHops: Int): CheckedPlan {
             val context = type.context
-            var hops = plan.hops.map { if (it.context == null) it.copy(context = context) else it }
-            if (plan.hops == WaitPlan.SNAPSHOT.hops && !directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, type)) {
-                hops = listOf(Hop.committed(context))
+            val snapshots = directory.covers(Hop.SNAPSHOT_SUBSCRIPTION, type)
+            if (plan.isDefault && !snapshots) {
+                return WaitChain(listOf(Hop.committed(context)))
+            }
+            val hops = plan.hops.map { if (it.context == null) it.copy(context = context) else it }
+            val own = hops.firstOrNull { it.stage == Stage.HANDLED }
+            if (!snapshots && own == Hop.snapshot(context)) {
+                return Invalid("Hop $own waits for a snapshot, but $type has no snapshot subscription.")
             }
             if (hops.size > maxHops) {
                 return Invalid("A wait chain has at most $maxHops hops, not ${hops.size}.")

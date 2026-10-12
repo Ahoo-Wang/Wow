@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
@@ -41,6 +42,7 @@ import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.runtime.wait.correlationId
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -68,6 +70,7 @@ class Account {
 const val SERVICE = "bank-service"
 const val CONTEXT = "bank"
 const val PROJECTOR = "bank.projector"
+const val SAGA = "bank.saga"
 
 /** Cluster timings short enough for tests, keeping the ratios of the defaults. */
 fun fastOptions(
@@ -93,12 +96,18 @@ fun fastOptions(
  * (`checkpoint <partition> <position>`) and the lease releases (`release <partition> <node>`).
  *
  * With [snapshots], every node also runs the built-in snapshot subscription, writing to that shared store.
+ *
+ * With [saga], every node also runs the saga [SAGA]: for a deposit into an account listed in [derives], it deposits
+ * into that many other accounts (`<id>-d-<n>`), executed where the saga runs, passing the wait context on.
  */
 class TestCluster(
     val partitions: Int = 16,
     val options: ClusterOptions = fastOptions(),
     val snapshots: SnapshotStore? = null,
+    val saga: Boolean = false,
 ) : AutoCloseable {
+    /** How many deposits the saga derives from a deposit into each account; none for an account not listed. */
+    val derives = ConcurrentHashMap<String, Int>()
     val events = CopyOnWriteArrayList<String>()
     val log = RecordingLog(InMemoryEventLog(partitions), events)
     val leases = RecordingLeases(InMemoryLeaseStore(), events)
@@ -184,6 +193,23 @@ class TestNode(val name: String, private val cluster: TestCluster) {
     /** The built-in snapshot subscription, when the cluster has a snapshot store. */
     val snapshotting = cluster.snapshots?.let { SnapshotSubscription(CONTEXT, listOf(model), it, kernel, cluster.log) }
 
+    /** The saga of [TestCluster.saga]: the derived deposits run on this node, carrying the entry's wait context on. */
+    private fun saga(): Subscription = Subscription.saga(SAGA, SubscriptionFilter(CONTEXT)) { entry ->
+        val wait = entry.transport?.wait?.derived()
+        val commands = (1..(cluster.derives[entry.ref.id] ?: 0)).map { n ->
+            val id = "${entry.stream.commandId}-d-$n"
+            Command(
+                id,
+                "r-$id",
+                ref("${entry.ref.id}-d-$n"),
+                Deposit(),
+                causation = Causation(entry.stream.correlationId, "${entry.ref}@${entry.version}"),
+            )
+        }
+        commands.forEach { coordinator.forward(model, it, wait) }
+        commands.map { it.id }
+    }
+
     /** Checkpoints are saved only when a partition stops, so a save shows the hand-off. */
     val subscriptions = SubscriptionRuntime(
         cluster.group.name,
@@ -193,6 +219,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         listOfNotNull(
             Subscription(PROJECTOR, SubscriptionFilter(CONTEXT)) { projected += it.ref.id to it.version },
             snapshotting?.subscription,
+            if (cluster.saga) saga() else null,
         ),
         testOptions(checkpointInterval = 1.hours),
         signals = signals,

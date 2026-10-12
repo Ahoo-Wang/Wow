@@ -74,6 +74,9 @@ data class WaitOptions(
  *   request's wait. A HANDLED hop of this context that ends the chain is checked from the subscription's checkpoint
  *   and the failure ledger ([SubscriptionDirectory.hasHandled]); otherwise the wait stops at COMMITTED, `duplicate`.
  * - On timeout the answer is FAILED with [ResultCodes.WAIT_TIMEOUT] at the last hop reached.
+ * - A plan the runtime cannot follow is rejected before the command runs ([ResultCodes.WAIT_INVALID]), including an
+ *   explicit snapshot hop for an aggregate without a snapshot subscription; only the default plan
+ *   ([me.ahoo.wow.api.result.WaitPlan.DEFAULT]) waits for COMMITTED there instead (decision D69).
  *
  * [forward] runs a command derived on the way, such as by a saga, with the wait context it inherited: it sends the
  * command's own results to the waiting node through [signals] instead of answering them.
@@ -98,9 +101,17 @@ class WaitCoordinator(
     suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = stream(model, command).last()
 
     /**
-     * Executes [command] on [model]'s aggregate and emits the result of each hop of its wait plan as it is reached;
-     * the last one emitted is the final result: the last hop, a failure, or a timeout. The command is executed when
+     * Executes [command] on [model]'s aggregate and emits a result for each hop of its wait plan as it is reached, one
+     * per command: a hop after a saga's emits one result for each command the saga derived, as each one reaches it,
+     * in the order they arrive, and is complete with the last of them (decision D62). The command is executed when
      * the flow is collected.
+     *
+     * - The flow completes after the final result, the last one emitted: the last hop's last command, a saga hop that
+     *   derived nothing, the first failure or rejection of any command on the chain (emitted at once, with nothing
+     *   after it), a duplicate stopped at its last known hop, or a timeout ([ResultCodes.WAIT_TIMEOUT], at the last
+     *   hop completed). A plan rejected at admission emits only that rejection, at ACCEPTED.
+     * - Outcomes are results, never errors: the flow fails only when the execution itself throws, and is cancelled
+     *   with its collector. Either way the wait is unregistered, and later signals for it are dropped.
      */
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
         val function = commandFunction(model, command)

@@ -60,7 +60,7 @@ class WaitCoordinatorTest {
     data class Place(val items: Int = 1, val reject: Boolean = false)
     data class Touch(val note: String = "")
     data class Placed(val items: Int)
-    data class Reserve(val order: String)
+    data class Reserve(val order: String, val reject: Boolean = false)
     data class Reserved(val order: String)
 
     class Order(val id: String) {
@@ -81,7 +81,16 @@ class WaitCoordinatorTest {
     }
     private val stock = aggregate<Stock>("shop", "stock") {
         initial { Stock(it.id) }
-        decide<Reserve>(Creation.ALLOWED) { _, body -> Decision.events(Reserved(body.order)) }
+        decide<Reserve>(Creation.ALLOWED) { _, body ->
+            if (body.reject) {
+                Decision.reject(
+                    "shop.stock.out",
+                    "Out of stock."
+                )
+            } else {
+                Decision.events(Reserved(body.order))
+            }
+        }
         evolve<Reserved> { reserved++ }
     }
 
@@ -115,7 +124,7 @@ class WaitCoordinatorTest {
                 id = "${entry.stream.commandId}-reserve-$item",
                 requestId = "${entry.stream.requestId}-reserve-$item",
                 ref = stock.type.ref("t", "${entry.ref.id}-$item"),
-                body = Reserve(entry.ref.id),
+                body = Reserve(entry.ref.id, reject = item == rejectedItem),
                 causation = Causation(entry.stream.correlationId, "${entry.ref}@${entry.version}"),
             )
         }
@@ -141,6 +150,10 @@ class WaitCoordinatorTest {
 
     private val itemsByOrder = HashMap<String, Int>()
 
+    /** The item whose reservation the stock rejects, when not null. */
+    @Volatile
+    private var rejectedItem: Int? = null
+
     private fun itemsOf(orderId: String): Int = synchronized(itemsByOrder) { itemsByOrder[orderId] ?: 0 }
 
     private val runtime = SubscriptionRuntime(
@@ -162,7 +175,7 @@ class WaitCoordinatorTest {
 
     private fun place(
         id: String = "o-${sequence.incrementAndGet()}",
-        wait: WaitPlan = WaitPlan.SNAPSHOT,
+        wait: WaitPlan = WaitPlan.DEFAULT,
         items: Int = 0,
         reject: Boolean = false,
         requestId: String = "r-$id",
@@ -230,6 +243,38 @@ class WaitCoordinatorTest {
     }
 
     @Test
+    fun `an explicit snapshot wait without a snapshot subscription is rejected without executing`(): Unit =
+        runBlocking {
+            val coordinator = coordinator(WaitOptions(origin), SubscriptionDirectory.NONE)
+            listOf(WaitPlan.SNAPSHOT, WaitPlan.of(Hop.committed(), Hop.snapshot("shop"))).forEach { wait ->
+                val command = place(wait = wait)
+                val result = coordinator.execute(order, command)
+                result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+                result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+                result.error!!.message.assert().contains("shop.order has no snapshot subscription")
+                result.hop.assert().isEqualTo(Hop.accepted("shop"))
+                log.findByRequestId("t", command.requestId).assert().isNull()
+            }
+            registry.size.assert().isEqualTo(0)
+        }
+
+    @Test
+    fun `an explicit snapshot wait is rejected for an aggregate whose snapshots are disabled`(): Unit = runBlocking {
+        started()
+        val ordersUnsnapshotted = object : SubscriptionDirectory by runtime {
+            override fun covers(subscription: String, type: me.ahoo.wow.api.aggregate.AggregateType): Boolean =
+                type != order.type && runtime.covers(subscription, type)
+        }
+        val coordinator = coordinator(WaitOptions(origin), ordersUnsnapshotted)
+        val explicit = place(wait = WaitPlan.SNAPSHOT.within(5.seconds))
+        coordinator.execute(order, explicit).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+        log.findByRequestId("t", explicit.requestId).assert().isNull()
+        val byDefault = coordinator.execute(order, place(wait = WaitPlan.DEFAULT.within(5.seconds)))
+        byDefault.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        byDefault.hop.assert().isEqualTo(Hop.committed("shop"))
+    }
+
+    @Test
     fun `a rejection fails the wait at once`(): Unit = runBlocking {
         started()
         snapshotGate = CompletableDeferred()
@@ -246,23 +291,92 @@ class WaitCoordinatorTest {
         val command = place(items = 2, wait = WaitPlan.of(Hop.handled("order.saga"), Hop.committed()))
         val emitted = CopyOnWriteArrayList<CommandResult>()
         val done = background.async { coordinator.stream(order, command).collect { emitted += it } }
-        // The first derived command commits before the saga's own signal arrives: it is buffered until then.
-        eventually { emitted.size == 1 }
-        val sagaHop = emitted.single()
+        // The first derived command commits before the saga's own signal arrives: it is buffered until then, and
+        // emitted right after the saga's hop.
+        eventually { emitted.size == 2 }
+        val sagaHop = emitted.first()
         sagaHop.hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
         sagaHop.function.kind.assert().isEqualTo(FunctionKind.SAGA)
         sagaHop.derived.assert().containsExactly("${command.id}-reserve-1", "${command.id}-reserve-2")
+        emitted[1].commandId.assert().isEqualTo("${command.id}-reserve-1")
+        emitted[1].hop.assert().isEqualTo(Hop.committed("shop"))
         delay(100)
         done.isCompleted.assert().isFalse()
         gate.complete(Unit)
         withTimeout(5.seconds) { done.await() }
-        emitted.size.assert().isEqualTo(2)
+        emitted.size.assert().isEqualTo(3)
         val last = emitted.last()
         last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         last.hop.assert().isEqualTo(Hop.committed("shop"))
         last.commandId.assert().isEqualTo("${command.id}-reserve-2")
         last.correlationId.assert().isEqualTo(command.id)
         last.ref.type.assert().isEqualTo(stock.type)
+    }
+
+    @Test
+    fun `the stream emits one result per derived command at each hop after the saga`(): Unit = runBlocking {
+        started()
+        val command = place(items = 3, wait = WaitPlan.of(Hop.handled("order.saga"), Hop.snapshot()))
+        val emitted = withTimeout(5.seconds) { coordinator.stream(order, command).toList() }
+        emitted.size.assert().isEqualTo(4)
+        emitted.first().hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
+        val derived = (1..3).map { "${command.id}-reserve-$it" }
+        emitted.first().derived.assert().containsExactly(*derived.toTypedArray())
+        emitted.drop(1).forEach {
+            it.hop.assert().isEqualTo(Hop.snapshot("shop"))
+            it.function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+            it.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        }
+        emitted.drop(1).map { it.commandId }.assert().containsExactlyInAnyOrder(*derived.toTypedArray())
+        // The answer without streaming is the last command to settle.
+        val answered = coordinator.execute(
+            order,
+            place(items = 2, wait = WaitPlan.of(Hop.handled("order.saga"), Hop.snapshot()))
+        )
+        answered.hop.assert().isEqualTo(Hop.snapshot("shop"))
+        answered.ref.type.assert().isEqualTo(stock.type)
+        registry.size.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a derived command's rejection ends the stream at once, as its last result`(): Unit = runBlocking {
+        started()
+        rejectedItem = 2
+        val command = place(items = 3, wait = WaitPlan.of(Hop.handled("order.saga"), Hop.committed()))
+        val emitted = withTimeout(5.seconds) { coordinator.stream(order, command).toList() }
+        // The saga forwards its commands in order, so their results arrive in order and the third is never applied.
+        emitted.map { it.commandId }.assert().containsExactly(
+            command.id,
+            "${command.id}-reserve-1",
+            "${command.id}-reserve-2",
+        )
+        val last = emitted.last()
+        last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        last.error!!.code.assert().isEqualTo("shop.stock.out")
+        last.hop.assert().isEqualTo(Hop.committed("shop"))
+        registry.size.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a timeout while derived commands settle ends the stream at the saga hop`(): Unit = runBlocking {
+        started()
+        sagaGate = CompletableDeferred()
+        val command = place(
+            items = 2,
+            wait = WaitPlan.of(Hop.handled("order.saga"), Hop.committed()).within(500.milliseconds),
+        )
+        val emitted = withTimeout(5.seconds) { coordinator.stream(order, command).toList() }
+        emitted.map { it.commandId }.assert().containsExactly(
+            command.id,
+            "${command.id}-reserve-1",
+            command.id,
+        )
+        val last = emitted.last()
+        last.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        last.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        last.hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
+        last.derived.assert().containsExactly("${command.id}-reserve-1", "${command.id}-reserve-2")
+        registry.size.assert().isEqualTo(0)
     }
 
     @Test

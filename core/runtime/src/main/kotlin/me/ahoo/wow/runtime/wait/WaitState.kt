@@ -27,6 +27,9 @@ import me.ahoo.wow.api.result.Stage
  * generation (`derived`), and an empty one completes the chain at once. A failure of any command of the current
  * generation fails the wait at once.
  *
+ * Each command's result at the hop its generation waits for is emitted as it applies, so a hop of N commands emits N
+ * results, the last of them completing it; the stream of a chain shows each derived command as it settles.
+ *
  * A result that cannot be applied yet, because its command belongs to a generation not known yet or its hop comes
  * later in the current generation, is buffered and applied again, in arrival order, whenever the chain moves. Results
  * are deduplicated by (hop, command, function).
@@ -49,9 +52,9 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         private set
 
     /**
-     * Applies [result] and whatever it lets the buffered results apply; returns the results of the hops it
-     * completed, in order, ending with the final one when the wait ended. Null when [result] is a duplicate or the
-     * wait already ended.
+     * Applies [result] and whatever it lets the buffered results apply; returns the results that reached the hop
+     * their generation waits for, one per command, in order, ending with the final one when the wait ended. Null
+     * when [result] is a duplicate or the wait already ended.
      */
     fun offer(result: CommandResult): List<CommandResult>? {
         if (outcome != null || !seen.add(Triple(result.hop, result.commandId, result.function))) {
@@ -95,9 +98,11 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         val target = hops[index]
         return when {
             result.hop == target -> {
-                reached[id] = result
+                if (reached.put(id, result) == null) {
+                    completed += result
+                }
                 if (reached.keys.containsAll(generation)) {
-                    complete(completed)
+                    complete()
                     true
                 } else {
                     false
@@ -134,12 +139,15 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     /** A HANDLED hop followed by more hops: a saga's, whose results name the next generation. */
     private fun isSaga(at: Int): Boolean = hops[at].stage == Stage.HANDLED && at < hops.lastIndex
 
-    private fun complete(completed: MutableList<CommandResult>) {
+    /**
+     * Completes the current hop, whose results were already emitted one per command: the next generation is what the
+     * saga hop's results derived together, and the hop as a whole, with all of them, is what a timeout reports.
+     */
+    private fun complete() {
         val results = reached.values.toList()
         val saga = isSaga(index)
         val derived = if (saga) results.flatMapTo(LinkedHashSet()) { it.derived } else emptySet()
         val result = results.last().let { if (saga) it.copy(derived = derived.toList()) else it }
-        completed += result
         lastReached = result
         hopCompleted = true
         reached.clear()
