@@ -25,12 +25,14 @@ object Manifests {
                 schema = Manifest.schemaRef("sample.CreateCart"),
                 creation = Creation.REQUIRED,
                 produces = listOf("CartCreated"),
+                routes = CommandRoutes.of(context, aggregate, "CreateCart", Creation.REQUIRED),
             ),
             CommandManifest(
                 name = "PutItem",
                 aliases = listOf("AddItem"),
                 schema = Manifest.schemaRef("sample.AddItem"),
                 produces = null,
+                routes = CommandRoutes.of(context, aggregate, "PutItem", Creation.NONE),
             ),
         ),
         events = listOf(
@@ -66,6 +68,7 @@ object Manifests {
                         function = FunctionManifest(FunctionKind.PROJECT, context, "CartSummary", "onEvent"),
                     ),
                 ),
+                errors = listOf(ErrorManifest("cart.empty", 422, "The cart has no items")),
             ),
         ),
         defs = defs,

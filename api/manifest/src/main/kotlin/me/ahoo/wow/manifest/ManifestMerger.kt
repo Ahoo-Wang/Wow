@@ -25,9 +25,15 @@ package me.ahoo.wow.manifest
  * - a subscription name is declared once within its context;
  * - an aggregate's lifecycle commands are not names it declares: every aggregate may list the same system commands,
  *   and an aggregate keeps its list as its one fragment declares it;
- * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules).
+ * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules);
+ * - a route, a method and a path, belongs to one command only;
+ * - no context takes the name of the framework's endpoints, and no command route ends in a segment the framework
+ *   keeps for itself ([CommandRoutes]);
+ * - a context documents an error code once, and not a framework (`wow.*`) one; a fragment's top-level errors, if
+ *   any, are the framework's as [FrameworkErrors] defines them.
  *
- * The result lists contexts by name and `$defs` by key, so the same fragments always give the same Manifest.
+ * Every problem is reported, not just the first. The result lists contexts by name and `$defs` by key, so the same
+ * fragments always give the same Manifest, and carries the framework's error table ([FrameworkErrors.ALL]).
  */
 object ManifestMerger {
     fun merge(fragments: List<ManifestFragment>, service: ServiceInfo? = null): Manifest {
@@ -41,6 +47,8 @@ object ManifestMerger {
         contexts.forEach { (source, context) -> conflicts += conflictsWithin(source, context) }
         conflicts += typeNameConflicts(contexts, "command") { aggregate -> aggregate.commands.map { it.name to it.aliases } }
         conflicts += typeNameConflicts(contexts, "event") { aggregate -> aggregate.events.map { it.name to it.aliases } }
+        conflicts += routeConflicts(contexts)
+        conflicts += fragments.flatMap(::frameworkErrorConflicts)
 
         val defs = sortedMapOf<String, Any?>()
         val defSources = mutableMapOf<String, String>()
@@ -60,16 +68,56 @@ object ManifestMerger {
         return Manifest(
             service = service,
             contexts = contexts.map { it.second }.sortedBy { it.name },
+            errors = FrameworkErrors.ALL,
             defs = defs,
         )
     }
 
-    /** Aggregates and subscriptions declared twice within one context. */
-    private fun conflictsWithin(source: String, context: ContextManifest): List<String> =
-        context.aggregates.groupBy { it.name }.filterValues { it.size > 1 }.keys.map {
-            "aggregate ${context.name}.$it is declared twice in $source"
-        } + context.subscriptions.groupBy { it.name }.filterValues { it.size > 1 }.keys.map {
-            "subscription $it of context ${context.name} is declared twice in $source"
+    /**
+     * Within one context: a reserved name, aggregates, subscriptions and error codes declared twice, and error codes
+     * that take the framework's prefix.
+     */
+    private fun conflictsWithin(source: String, context: ContextManifest): List<String> = buildList {
+        if (context.name == CommandRoutes.RESERVED_CONTEXT) {
+            add("context ${context.name} of $source takes a name the framework reserves")
+        }
+        context.aggregates.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
+            add("aggregate ${context.name}.$it is declared twice in $source")
+        }
+        context.subscriptions.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
+            add("subscription $it of context ${context.name} is declared twice in $source")
+        }
+        context.errors.groupBy { it.code }.filterValues { it.size > 1 }.keys.forEach {
+            add("error $it of context ${context.name} is declared twice in $source")
+        }
+        context.errors.filter { it.code.startsWith(FrameworkErrors.PREFIX) }.forEach {
+            add("error ${it.code} of context ${context.name} in $source takes the framework's prefix")
+        }
+    }
+
+    /** Routes that more than one command declares, and command routes that end in a reserved segment. */
+    private fun routeConflicts(contexts: List<Pair<String, ContextManifest>>): List<String> {
+        val routes = contexts.flatMap { (source, context) ->
+            context.aggregates.flatMap { aggregate ->
+                aggregate.commands.flatMap { command ->
+                    command.routes.map { it to "${context.name}.${aggregate.name}.${command.name} ($source)" }
+                }
+            }
+        }
+        val reserved = routes.filter { (route, _) -> CommandRoutes.isReserved(route.path.substringAfterLast('/')) }
+            .map { (route, owner) ->
+                "route ${route.method} ${route.path} of $owner ends in a segment the framework reserves"
+            }
+        val shared = routes.groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }.map { (route, owners) ->
+            "route ${route.method} ${route.path} is declared by ${owners.joinToString(" and ")}"
+        }
+        return reserved + shared
+    }
+
+    /** A fragment's top-level errors that are not the framework's as [FrameworkErrors] defines them. */
+    private fun frameworkErrorConflicts(fragment: ManifestFragment): List<String> =
+        fragment.manifest.errors.filter { FrameworkErrors.BY_CODE[it.code] != it }.map {
+            "error ${it.code} of ${fragment.source} is not the framework's; a context lists its domain's errors"
         }
 
     /** Full type names, names and former names, that more than one command (or event) declares. */

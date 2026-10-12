@@ -21,7 +21,10 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 class ManifestTreeTest {
     private val mapper = jacksonObjectMapper()
 
-    private val manifest = Manifests.fragment().copy(service = ServiceInfo("shop-service", "1.0.0"))
+    private val manifest = Manifests.fragment().copy(
+        service = ServiceInfo("shop-service", "1.0.0"),
+        errors = FrameworkErrors.ALL,
+    )
 
     @Test
     fun `a manifest should come back the same through its JSON text`() {
@@ -35,9 +38,13 @@ class ManifestTreeTest {
             contexts = Manifests.fragment().contexts.map { it.copy(description = null) },
         )
         val tree = ManifestTree.write(fragment)
-        tree.keys.assert().containsExactly("format", "contexts", "\$defs")
+        tree.keys.assert().containsExactly("format", "contexts", "errors", "\$defs")
+        tree["errors"].assert().isEqualTo(emptyList<Any>())
         val context = (tree["contexts"] as List<*>).single() as Map<*, *>
-        context.keys.assert().containsExactly("name", "aggregates", "subscriptions")
+        context.keys.assert().containsExactly("name", "aggregates", "subscriptions", "errors")
+        context["errors"].assert().isEqualTo(
+            listOf(mapOf("code" to "cart.empty", "status" to 422, "description" to "The cart has no items")),
+        )
         val aggregate = (context["aggregates"] as List<*>).single() as Map<*, *>
         aggregate.keys.assert().containsExactly(
             "name",
@@ -52,8 +59,21 @@ class ManifestTreeTest {
         aggregate["state"].assert().isEqualTo(mapOf("schema" to "#/\$defs/sample.CartState", "fingerprint" to "abc123"))
         val commands = aggregate["commands"] as List<*>
         (commands[0] as Map<*, *>)["produces"].assert().isEqualTo(listOf("CartCreated"))
+        (commands[0] as Map<*, *>)["routes"].assert().isEqualTo(
+            listOf(
+                mapOf("method" to "POST", "path" to "/shop/cart/{id}/create-cart"),
+                mapOf("method" to "POST", "path" to "/shop/cart/create-cart"),
+            ),
+        )
         (commands[1] as Map<*, *>).containsKey("produces").assert().isFalse()
         (commands[1] as Map<*, *>)["creation"].assert().isEqualTo("NONE")
+    }
+
+    @Test
+    fun `an error without a description should leave it out`() {
+        val tree = ManifestTree.write(Manifest(errors = listOf(ErrorManifest("wow.x", 400))))
+        tree["errors"].assert().isEqualTo(listOf(mapOf("code" to "wow.x", "status" to 400)))
+        ManifestTree.read(tree).errors.single().description.assert().isNull()
     }
 
     @Test
@@ -95,9 +115,11 @@ class ManifestTreeTest {
         )
         ManifestTree.read(tree).assert().isEqualTo(expected)
         expected.service.assert().isNull()
+        expected.errors.assert().isEmpty()
         expected.contexts.single().let { context ->
             context.description.assert().isNull()
             context.subscriptions.assert().isEmpty()
+            context.errors.assert().isEmpty()
             context.aggregates.single().let { aggregate ->
                 aggregate.description.assert().isNull()
                 aggregate.snapshot.enabled.assert().isTrue()
@@ -113,6 +135,7 @@ class ManifestTreeTest {
             it.aliases.assert().isEmpty()
             it.creation.assert().isEqualTo(Creation.NONE)
             it.produces.assert().isNull()
+            it.routes.assert().isEmpty()
         }
         EventManifest("Added", schema = "#/\$defs/a").revision.assert().isEqualTo(1)
         SubscriptionSource().let {
@@ -135,6 +158,16 @@ class ManifestTreeTest {
             )
         assertThrows<IllegalArgumentException> { ManifestTree.read(badAlias) }
             .message.assert().isEqualTo("manifest.contexts[0].aggregates[0].commands[0].aliases[0] is not a string: 1")
+        val badRoute = tree + (
+            "contexts" to listOf(
+                context + ("aggregates" to listOf(aggregate + ("commands" to listOf(command + ("routes" to listOf(mapOf("method" to "POST"))))))),
+            )
+            )
+        assertThrows<IllegalArgumentException> { ManifestTree.read(badRoute) }
+            .message.assert().isEqualTo("manifest.contexts[0].aggregates[0].commands[0].routes[0].path is missing.")
+        val badError = tree + ("errors" to listOf(mapOf("code" to "wow.x", "status" to "400")))
+        assertThrows<IllegalArgumentException> { ManifestTree.read(badError) }
+            .message.assert().isEqualTo("manifest.errors[0].status is not a number: 400")
         val badContext = tree + ("contexts" to listOf("shop"))
         assertThrows<IllegalArgumentException> { ManifestTree.read(badContext) }
             .message.assert().isEqualTo("manifest.contexts[0] is not an object: shop")

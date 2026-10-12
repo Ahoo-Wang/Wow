@@ -31,6 +31,117 @@ class ManifestMergerTest {
         merged.service.assert().isEqualTo(service)
         merged.contexts.map { it.name }.assert().containsExactly("billing", "shop")
         merged.defs.keys.assert().containsExactly("a", "b", "sample.Money")
+        merged.errors.assert().isEqualTo(FrameworkErrors.ALL)
+        merged.contexts.first().errors.map { it.code }.assert().containsExactly("cart.empty")
+        merged.contexts.flatMap { context -> context.aggregates.flatMap { it.commands.flatMap { it.routes } } }
+            .map { it.path }.assert().containsExactly(
+                "/billing/cart/{id}/create-cart",
+                "/billing/cart/create-cart",
+                "/billing/cart/{id}/put-item",
+                "/shop/cart/{id}/create-cart",
+                "/shop/cart/create-cart",
+                "/shop/cart/{id}/put-item",
+            )
+    }
+
+    @Test
+    fun `a merged manifest should merge again into itself`() {
+        val merged = ManifestMerger.merge(listOf(ManifestFragment("shop.json", Manifests.fragment())))
+        ManifestMerger.merge(listOf(ManifestFragment("manifest.json", merged))).assert().isEqualTo(merged)
+    }
+
+    @Test
+    fun `a route declared by two commands should conflict`() {
+        val cart = Manifests.cart()
+        val addItem = CommandManifest(
+            name = "Put_Item",
+            schema = Manifest.schemaRef("sample.PutItem2"),
+            routes = CommandRoutes.of("shop", "cart", "Put_Item", Creation.NONE),
+        )
+        val shop = ManifestFragment(
+            "shop.json",
+            Manifests.fragment(aggregates = listOf(cart.copy(commands = cart.commands + addItem))),
+        )
+        // A hand-written fragment of another context claiming a path of shop.
+        val billing = Manifests.fragment("billing").let { fragment ->
+            val context = fragment.contexts.single()
+            val account = context.aggregates.single().let { aggregate ->
+                aggregate.copy(
+                    commands = aggregate.commands.map {
+                        if (it.name == "CreateCart") it.copy(routes = cart.commands[0].routes.take(1)) else it
+                    },
+                )
+            }
+            fragment.copy(contexts = listOf(context.copy(aggregates = listOf(account))))
+        }
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(shop, ManifestFragment("billing.json", billing)))
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "route POST /shop/cart/{id}/create-cart is declared by shop.cart.CreateCart (shop.json) and " +
+                "billing.cart.CreateCart (billing.json)",
+            "route POST /shop/cart/{id}/put-item is declared by shop.cart.PutItem (shop.json) and " +
+                "shop.cart.Put_Item (shop.json)",
+        )
+    }
+
+    @Test
+    fun `reserved names should be refused, every one at once`() {
+        val cart = Manifests.cart(context = "wow")
+        val reserved = listOf("Query", "State", "wow.lifecycle.RestoreAggregate").map { name ->
+            CommandManifest(
+                name = name,
+                schema = Manifest.schemaRef("sample.$name"),
+                creation = Creation.ALLOWED,
+                routes = CommandRoutes.of("wow", "cart", name, Creation.ALLOWED),
+            )
+        }
+        val fragment = Manifests.fragment("wow", listOf(cart.copy(commands = cart.commands + reserved)))
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "context wow of a.json takes a name the framework reserves",
+            "route POST /wow/cart/{id}/query of wow.cart.Query (a.json) ends in a segment the framework reserves",
+            "route POST /wow/cart/query of wow.cart.Query (a.json) ends in a segment the framework reserves",
+            "route POST /wow/cart/{id}/state of wow.cart.State (a.json) ends in a segment the framework reserves",
+            "route POST /wow/cart/state of wow.cart.State (a.json) ends in a segment the framework reserves",
+            "route POST /wow/cart/{id}/wow.lifecycle.restore-aggregate of wow.cart.wow.lifecycle.RestoreAggregate " +
+                "(a.json) ends in a segment the framework reserves",
+            "route POST /wow/cart/wow.lifecycle.restore-aggregate of wow.cart.wow.lifecycle.RestoreAggregate " +
+                "(a.json) ends in a segment the framework reserves",
+        )
+    }
+
+    @Test
+    fun `a context's errors should be its own and declared once`() {
+        val fragment = Manifests.fragment().let { fragment ->
+            val context = fragment.contexts.single()
+            val errors = context.errors + context.errors + ErrorManifest(FrameworkErrors.COMMAND_BUSY, 429)
+            fragment.copy(contexts = listOf(context.copy(errors = errors)))
+        }
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "error cart.empty of context shop is declared twice in a.json",
+            "error wow.command.busy of context shop in a.json takes the framework's prefix",
+        )
+    }
+
+    @Test
+    fun `a fragment's top-level errors should be the framework's`() {
+        val fragment = Manifests.fragment().copy(
+            errors = FrameworkErrors.ALL.take(1) + ErrorManifest("cart.empty", 422) +
+                ErrorManifest(FrameworkErrors.COMMAND_BUSY, 503),
+        )
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "error cart.empty of a.json is not the framework's; a context lists its domain's errors",
+            "error wow.command.busy of a.json is not the framework's; a context lists its domain's errors",
+        )
     }
 
     @Test
@@ -86,7 +197,8 @@ class ManifestMergerTest {
     @Test
     fun `a command name taken by another command's alias should conflict`() {
         val cart = Manifests.cart()
-        val clash = cart.copy(commands = cart.commands + cart.commands[0].copy(name = "AddItem", aliases = emptyList()))
+        val addItem = cart.commands[0].copy(name = "AddItem", aliases = emptyList(), routes = emptyList())
+        val clash = cart.copy(commands = cart.commands + addItem)
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", Manifests.fragment(aggregates = listOf(clash)))))
         }.conflicts

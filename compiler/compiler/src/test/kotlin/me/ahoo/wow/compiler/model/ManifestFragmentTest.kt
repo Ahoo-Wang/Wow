@@ -26,6 +26,7 @@ import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
@@ -185,28 +186,40 @@ class ManifestFragmentTest {
                                     schema = schemaRef("sample.Checkout"),
                                     creation = Creation.ALLOWED,
                                     produces = listOf("Audited", "CheckedOut", "CheckoutFailed"),
+                                    routes = listOf(
+                                        RouteManifest("POST", "/shop/cart/{id}/checkout"),
+                                        RouteManifest("POST", "/shop/cart/checkout"),
+                                    ),
                                 ),
                                 CommandManifest(
                                     name = "Clear",
                                     schema = schemaRef("sample.Commands\$Clear"),
                                     produces = listOf("ItemPut"),
+                                    routes = listOf(RouteManifest("POST", "/shop/cart/{id}/clear")),
                                 ),
                                 CommandManifest(
                                     name = "CreateCart",
                                     schema = schemaRef("sample.CreateCart"),
                                     creation = Creation.REQUIRED,
                                     produces = listOf("CartCreated"),
+                                    routes = listOf(
+                                        RouteManifest("POST", "/shop/cart/{id}/create-cart"),
+                                        RouteManifest("POST", "/shop/cart/create-cart"),
+                                    ),
                                 ),
                                 CommandManifest(
                                     name = "Inspect",
                                     schema = schemaRef("sample.Inspect"),
                                     produces = listOf("Audited"),
+                                    routes = listOf(RouteManifest("POST", "/shop/cart/{id}/inspect")),
                                 ),
                                 CommandManifest(
                                     name = "PutItem",
                                     aliases = listOf("AddItem"),
                                     schema = schemaRef("sample.AddItem"),
                                     produces = null,
+                                    // Named by its @Name, not its class.
+                                    routes = listOf(RouteManifest("POST", "/shop/cart/{id}/put-item")),
                                 ),
                             ),
                             events = listOf(
@@ -323,7 +336,7 @@ class ManifestFragmentTest {
     )
 
     @Test
-    fun `produces should follow containers, sealed types and excluded hooks, and be unknown otherwise`() {
+    fun `produces should follow containers, sealed types and excluded hooks, and routes the creation of each command`() {
         val (compilation, result) = compileModel("generate", order)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val context = read(fragments(compilation).single()).contexts.single()
@@ -337,6 +350,16 @@ class ManifestFragmentTest {
                 "Ship" to listOf("Noted", "ShipFailed", "ShippedByAir", "ShippedBySea"),
             ),
         )
+        context.aggregates.single().commands.associate { it.name to it.routes.map { route -> route.path } }
+            .assert().isEqualTo(
+                mapOf(
+                    "Archive" to listOf("/orders/order/{id}/archive"),
+                    "Audit" to listOf("/orders/order/{id}/audit"),
+                    "PlaceOrder" to listOf("/orders/order/{id}/place-order", "/orders/order/place-order"),
+                    "Rename" to listOf("/orders/order/{id}/rename"),
+                    "Ship" to listOf("/orders/order/{id}/ship"),
+                ),
+            )
         context.subscriptions.single().let {
             it.kind.assert().isEqualTo(SubscriptionKind.REACTOR)
             it.function.kind.assert().isEqualTo(FunctionKind.REACT)

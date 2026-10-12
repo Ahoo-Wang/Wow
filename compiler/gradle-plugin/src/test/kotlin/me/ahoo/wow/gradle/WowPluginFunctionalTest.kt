@@ -19,7 +19,9 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.Creation
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.tools.ManifestJson
@@ -296,6 +298,22 @@ class WowPluginFunctionalTest {
             it.source.aggregates.assert().containsExactly("cart")
         }
         manifest.contexts.single { it.name == "billing" }.aggregates.single().name.assert().isEqualTo("account")
+    }
+
+    @Test
+    fun `the merged manifest should hold the command routes and the framework's errors`() {
+        val manifest = manifest()
+        manifest.contexts.flatMap { context ->
+            context.aggregates.flatMap { aggregate -> aggregate.commands.flatMap { it.routes } }
+        }.assert().containsExactly(
+            RouteManifest("POST", "/billing/account/{id}/open-account"),
+            RouteManifest("POST", "/billing/account/open-account"),
+            RouteManifest("POST", "/shop/cart/{id}/create-cart"),
+            RouteManifest("POST", "/shop/cart/create-cart"),
+            RouteManifest("POST", "/shop/cart/{id}/put-item"),
+        )
+        manifest.errors.assert().isEqualTo(FrameworkErrors.ALL)
+        manifest.contexts.forEach { it.errors.assert().isEmpty() }
     }
 
     @Test
