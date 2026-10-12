@@ -1,0 +1,85 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.postgres.subscription
+
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import me.ahoo.wow.spi.subscription.CheckpointStore
+import javax.sql.DataSource
+
+/**
+ * The [CheckpointStore] on PostgreSQL: one row per (group, subscription, partition) in `wow_checkpoint`.
+ *
+ * A save is one autocommitted upsert whose update applies only when the new position is higher, so concurrent saves
+ * leave the highest and a lower one changes nothing (decision D45). JDBC calls run on [dispatcher], virtual threads by
+ * default (decision D29).
+ */
+class PostgresCheckpointStore(
+    private val dataSource: DataSource,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+) : CheckpointStore {
+    /** Creates the table when missing. */
+    fun createSchema() {
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute(DDL) }
+        }
+    }
+
+    override suspend fun load(group: String, subscription: String, partition: Int): Long? = withContext(dispatcher) {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(LOAD).use { query ->
+                query.setString(1, group)
+                query.setString(2, subscription)
+                query.setInt(3, partition)
+                query.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
+            }
+        }
+    }
+
+    override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
+        withContext(dispatcher) {
+            dataSource.connection.use { connection ->
+                connection.prepareStatement(SAVE).use { save ->
+                    save.setString(1, group)
+                    save.setString(2, subscription)
+                    save.setInt(3, partition)
+                    save.setLong(4, position)
+                    save.executeUpdate()
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val TABLE = "wow_checkpoint"
+
+        val DDL = """
+            CREATE TABLE IF NOT EXISTS $TABLE (
+                subscription_group text NOT NULL,
+                subscription text NOT NULL,
+                partition integer NOT NULL,
+                position bigint NOT NULL,
+                PRIMARY KEY (subscription_group, subscription, partition)
+            )
+        """.trimIndent()
+
+        const val LOAD = "SELECT position FROM $TABLE WHERE subscription_group = ? AND subscription = ? AND partition = ?"
+
+        val SAVE = """
+            INSERT INTO $TABLE AS c (subscription_group, subscription, partition, position) VALUES (?, ?, ?, ?)
+            ON CONFLICT (subscription_group, subscription, partition) DO UPDATE SET position = excluded.position
+            WHERE c.position < excluded.position
+        """.trimIndent()
+    }
+}
