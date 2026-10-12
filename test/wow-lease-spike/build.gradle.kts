@@ -18,4 +18,7 @@ tasks.named<Test>("integrationTest") {
         systemProperty(it, providers.systemProperty(it).orElse("").get())
     }
     maxHeapSize = "4g"
+    // The repository's test logging is DEBUG (config/logback.xml); the MongoDB driver then formats every command,
+    // which costs more than what the spike measures. Its own configuration logs warnings only.
+    jvmArgs = listOf("-Dlogback.configurationFile=${projectDir}/src/integrationTest/resources/logback-test.xml")
 }
