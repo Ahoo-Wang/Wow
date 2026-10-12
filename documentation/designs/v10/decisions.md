@@ -47,7 +47,7 @@
 | D13 | Elasticsearch 的定位：不作为日志后端；作为快照、查询与全文检索后端 | 2026-10-11，用户授权按推荐 | [03](03-log-and-snapshot.md) |
 | D14 | 失败处理与补偿：停放聚合 + 失败台账；台账写在出错服务自己的存储里，wow-ops 经 Kafka 汇总并把重试、跳过作为命令发回；compensation 改为 wow-ops | 2026-10-11，用户 | [04](04-subscriptions.md) |
 | D15 | 等待阶段：ACCEPTED / COMMITTED / SNAPSHOT（默认，D69） / HANDLED(订阅)；ACCEPTED 只在 Kafka 路由下表示持久 | 2026-10-11，用户授权按推荐；阶段集合由 D61 修订 | [04](04-subscriptions.md) |
-| D16 | REST 形状：身份来自主体，删除租户与所有者的路由变体；problem+json；`Prefer` 头表达等待 | 2026-10-11，用户 | [05](05-read-and-contract.md) |
+| D16 | REST 形状：身份来自主体，删除租户与所有者的路由变体；problem+json；`Prefer` 头表达等待 | 2026-10-11，用户；等待请求头由 D98 修订为 `Wow-Wait` | [05](05-read-and-contract.md) |
 | D17 | 契约来源：Manifest 为唯一来源；生成器、OpenAPI、view-engine 都读它 | 2026-10-11，用户授权按推荐 | [05](05-read-and-contract.md) |
 | D18 | wow-bi：由 ClickHouse Sink 取代，删除 | 2026-10-11，用户 | [04](04-subscriptions.md) |
 | D19 | 9.x 维护期限：V10 GA 后 `release-9.x` 只收安全补丁，为期 12 个月 | 2026-10-11，用户 | [roadmap](roadmap.md) |
@@ -109,6 +109,34 @@
 | D88 | V10 模块到 `10.0.0-beta`（API 冻结）才开始 ABI 转储与校验，之前一律不做；线上契约由 Manifest 兼容性门禁（D76）守；与 D85（`v10` 不校验 9.x 模块）合起来，`v10` 在 beta 之前没有 ABI 检查。代价：beta 前公开签名的变化只靠评审 | 2026-10-12，用户 | [06](06-modules.md) |
 | D89 | 集群通道的真实传输（4.2b）：宿主 `wow-spring-boot` 在独立的内部端口上另起 Reactor Netty 的 HTTP/2（h2c）服务，`wow-http` 提供路由，跨服务的等待信号入口也在这个端口；公开 REST 仍走主端口，内部端口不经网关（D35，对抗验证 F6）；客户端用 JDK 的 `HttpClient`，不引入新依赖 | 2026-10-12，用户 | [02](02-write-path.md)、[04](04-subscriptions.md) |
 | D90 | D85 的执行细则：`v10` 上保留 9.x 模块的 ABI 校验（拆分后转储与 main 一致，防止误改 9.x 签名、保持前向合并干净），只关闭 9.x 模块的发布（否则从 `v10` 发 10.0 预发布会把它们当 10.x 发出）；H3 的 `:kernel-benchmarks` 需要在同一 JVM 跑新旧两个内核，在「不得同时依赖新旧两边」的架构规则里具名豁免；搬迁分 3 个 PR（改名；拆 compiler、mongo、api；CI 路径、关发布与 AGENTS.md），各自 squash 合并 | 2026-10-12，用户 | [06](06-modules.md) |
+| D91 | 注解写法用 `@AggregateRoot(lifecycle = [...])` 收窄启用的生命周期命令，KSP 传给 DSL 的 `lifecycle(...)` 并写进 Manifest | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md) |
+| D92 | 准入在 `runtime`（`me.ahoo.wow.runtime.admission`）：`CommandGateway` 收 `CommandRequest`，返回 `Flow<CommandResult>`。顺序：解析命令类型 → 身份（每个事实一条规则，冲突即拒）→ 动作级授权（解码之前）→ 解码 → 改写（不得改身份、ID、等待）→ 校验 → 构造 `Command` → 等待链检查 → 路由；去重留在内核。修订 02 §1 的顺序 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [02](02-write-path.md) |
+| D93 | 运行时的 `Caller`（租户、作用域、主体、`crossScope`、属性）；`CallerResolver` 在 `http`；CoSec 只在新的 V10 模块 `:cosec`（`edge/cosec`，artifact `wow-cosec`），其 WebFilter 按路径与方法授权 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D94 | 内核作用域守卫：已有聚合的所有者或空间与命令不符即拒绝，码 `wow.aggregate.forbidden`（HTTP 403）；命令作用域为空的字段不检查 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [02](02-write-path.md) |
+| D95 | 跨作用域请求头 `Wow-Scope`（RFC 8941 字典：tenant、owner、space）；无权限者携带即 403 `wow.auth.forbidden`，不静默忽略 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D96 | 空间取自主体；`Wow-Space` 在主体所属的空间中选择，由解析器校验成员关系 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D97 | 无租户的主体用 `wow.tenant.default = "(0)"`；默认解析器为匿名（默认租户、`Scope.NONE`），启动时告警 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D98 | 等待用 `Wow-Wait` 与 `Wow-Wait-Timeout`，不用 `Prefer`（修订 D16）；请求 ID 用 `Wow-Request-Id`；期望版本用 `If-Match`，读响应带 `ETag` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D99 | `Wow-Wait` 语法：`plan := hop (">" hop)*`，`hop := accepted | committed["(" ctx ")"] | snapshot["(" ctx ")"] | handled(["ctx/"]订阅)`；`Hop.toString` 同形；超时写 `500ms`、`10s` 或 ISO-8601 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [04](04-subscriptions.md) |
+| D100 | 非 Kafka 路由上的 `accepted`：准入后回 202，命令在节点的受监管作用域里脱离请求执行，不持久（D15） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [04](04-subscriptions.md) |
+| D101 | problem+json：`type=urn:wow:error:<码>`、`code`、`violations`，完整的 `CommandResult` 嵌在 `result` 下（修订 08 §7 的展平，避免 `status` 与 RFC 9457 冲突）；有聚合引用之前的错误不带 `result`；SSE 先看第一个元素，准入拒绝走 problem+json | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [08](08-data-protocols.md) |
+| D102 | `wow.*` 错误码的 HTTP 状态表（见 05 §3）；领域拒绝默认 422，可按码配置；框架码在 Manifest 顶层 `errors`，各上下文的 `errors` 可选 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D103 | 新增框架码：`wow.command.malformed`、`wow.command.invalid`、`wow.auth.unauthenticated`、`wow.auth.forbidden`、`wow.aggregate.forbidden`、`wow.command.busy`、`wow.node.closing` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [08](08-data-protocols.md) |
+| D104 | 命令路由：`POST /{ctx}/{agg}/{id}/{命令 kebab}`；创建命令另有不带 ID 的路由，由服务端生成 ID；编译器写入 `CommandManifest.routes`（列表）；合并时拒绝路由冲突与保留名（上下文 `wow`，命令段 `query`、`state`） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D105 | HTTP 解码、`EventCodec` 与集群编解码共用一个 Wow 自有的、只带 Kotlin 模块的 `JsonMapper`，不用 Spring 的 `ObjectMapper` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [08](08-data-protocols.md) |
+| D106 | `CommandValidator` 端口在 `runtime`；Jakarta 适配器在 `http`（`compileOnly`），由宿主启用；违例为 `wow.command.invalid`（400） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [02](02-write-path.md) |
+| D107 | 绑定索引：KSP 为每个模块生成 `ModelProvider` 并经 `ServiceLoader` 登记，带片段路径；内核的 `Dependencies` 端口在启动时解析工厂参数 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D108 | 与宿主无关的 `ServiceNode` 组装器在 `runtime`：每个上下文一套（追加队列、内核、执行器、订阅、属主、等待协调器、转发端点），每个节点一份（等待登记、信号、路由、网关、模型登记）；启动与停机顺序见 06（细化 D71 到整个节点），即路线图 4.8 的组装部分 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [06](06-modules.md) |
+| D109 | 内部端口路由 `POST /wow/internal/forward` 与 `/wow/internal/signals`；客户端在 `http`；服务端同时接受 HTTP/1.1 与 h2c（JDK 客户端从 HTTP/1.1 升级）；信号发送对每个发起节点有界排队，溢出即丢 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [02](02-write-path.md) |
+| D110 | 宿主配置命名空间 `wow.*`（`service`、`node.*`、`internal.port` 9090、`backend` 按类路径自动选择、`log.partitions`、`log.append-queue.*` 按后端预设、`cluster.*`、`wait.*`、`tenant.default`、`http.*`），不沿用 9.x 的键 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [06](06-modules.md) |
+| D111 | V10 示例为 `example/shop/{shop-api, shop-domain, shop-server}`（`:shop-*`），9.x 示例到 M9 前不动；一个上下文 `example`，`cart` 与 `order` 两个聚合，Saga 待订阅绑定 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [roadmap](roadmap.md) |
+| D112 | M5 的读路由只有 `GET …/{id}/state` 与 `?version=`；`?at=`、`/state/trace` 与查询路由随 4.6 第二部分与 M6 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D113 | 生命周期的 REST：`DELETE …/{id}` 与 `POST …/{id}/wow.lifecycle.<kebab>`；只为 Manifest `lifecycle` 列出的命令生成 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D114 | `IdGenerator` 端口，默认 UUIDv7；宿主在有 CosId 时用 CosId | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [02](02-write-path.md) |
+| D115 | 执行器满与停机在运行时内转为 FAILED 的 `CommandResult`（`wow.command.busy`、`wow.node.closing`），不再以异常逸出 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [02](02-write-path.md) |
+| D116 | 按聚合类型固定租户（取代 9.x 的 `@StaticTenantId`）是宿主配置 `wow.aggregates.<ctx.agg>.tenant`，不是注解（规划者建议由用户确认；按授权先采纳，用户可改） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D117 | Manifest 格式 1 不带身份规则字段（删去 05 §2 的「身份规则」）：身份规则统一 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
+| D118 | 架构规则：`http` 只依赖 `runtime`（V10 `:query` 出现前）；`:cosec` 依赖 `http` 并列入替换对；`:shop-*` 只能依赖 V10 模块 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [06](06-modules.md) |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
 | D67 | V10 注解集：约 15 个（见 01 §3），订阅处理函数统一为一个 `@OnEvent`、种类由所在类的 `@Projection` / `@Reactor` / `@Saga` 决定；KSP 只认 V10 注解，9.x 注解由迁移 Skill 映射 | 2026-10-12，用户 | [01](01-programming-model.md) |

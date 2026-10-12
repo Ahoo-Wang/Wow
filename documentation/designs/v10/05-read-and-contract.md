@@ -13,7 +13,7 @@
 
 ## 2. Manifest
 
-`wow-compiler` 在编译期生成 Manifest，服务端在运行时发布同一份（D17）。一个服务的领域往往分散在多个 Gradle 模块与 jar 里，KSP 只能看到当前模块（R6）：所以每个模块产出一个 Manifest **片段**与绑定索引，放在固定的资源路径下；运行时启动时汇总全部片段，同一上下文、聚合、命令或事件类型名重复声明即启动失败。内容：限界上下文、聚合、命令与事件的 schema 及 revision、每个命令可能产出的事件类型（由签名推出，编译期校验 decide 只产出声明过的事件）、身份规则、路由、错误码、查询能力、订阅与等待阶段、发布的事件流。
+`wow-compiler` 在编译期生成 Manifest，服务端在运行时发布同一份（D17）。一个服务的领域往往分散在多个 Gradle 模块与 jar 里，KSP 只能看到当前模块（R6）：所以每个模块产出一个 Manifest **片段**与绑定索引，放在固定的资源路径下；运行时启动时汇总全部片段，同一上下文、聚合、命令或事件类型名重复声明即启动失败。内容：限界上下文、聚合、命令与事件的 schema 及 revision、每个命令可能产出的事件类型（由签名推出，编译期校验 decide 只产出声明过的事件）、路由、错误码、查询能力、订阅与等待阶段、发布的事件流。
 
 ```text
 注解 / DSL ─▶ wow-compiler ─▶ Manifest ─┬▶ HTTP 路由（运行时）
@@ -68,6 +68,8 @@
 
 ## 3. REST（D16）
 
+M5 的定稿（D92～D118）：准入顺序与扩展点（D92）、`Caller` 与 CoSec（D93、D95～D97）、`Wow-Wait` 语法与 `accepted`（D98～D100）、problem+json 与状态表（D101～D103）、路由（D104、D112、D113）。状态表：`wow.auth.unauthenticated` 401；`wow.auth.forbidden`、`wow.aggregate.forbidden` 403；`wow.command.malformed`、`wow.command.invalid`、`wow.wait.invalid`、`wow.command.unhandled` 400；`wow.aggregate.not-found` 404；`wow.aggregate.exists`、`wow.aggregate.version-mismatch`（带 `If-Match` 时 412）、`wow.command.request-id-reused`、`wow.command.contended` 409；`wow.aggregate.deleted` 410；`wow.command.busy` 429；`wow.command.unknown`、`wow.node.closing` 503；`wow.subscription.parked` 500；`wow.wait.timeout` 504；领域拒绝默认 422。
+
 - **身份来自主体，不来自路径**：租户、所有者、空间取自认证主体的作用域；管理员跨作用域时用唯一的作用域请求头。9.x 按租户、所有者变体复制的路由不再复制。
 - 命令：`POST /{context}/{aggregate}/{id}/{command}`；创建：`POST /{context}/{aggregate}/{command}`。
 - 等待：`Wow-Wait` 与 `Wow-Wait-Timeout` 请求头，默认 `snapshot`（D69）；链的写法与流式等待（SSE）见 [04](04-subscriptions.md) §6.1。
@@ -84,6 +86,5 @@
 ## 5. 待细化
 
 - Manifest 字段的定稿（5a.1）与 JSON Schema 内省对 Kotlin 特性（值类、sealed 层级、默认值）的覆盖。
-- 主体作用域模型与 CoSec 的对接。
 - OpenAPI 投影的保真度（是否保留 `x-wow-*` 供第三方工具）。
 - view-engine 的哪些能力描述改由 Manifest 承担。
