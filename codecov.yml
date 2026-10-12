@@ -259,6 +259,12 @@ component_management:
         - edge/http/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-cosec
+      name: v10-cosec
+      paths:
+        - edge/cosec/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-spring-boot
       name: v10-spring-boot
       paths:
