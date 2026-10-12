@@ -61,6 +61,26 @@ class WaitStateTest {
     }
 
     @Test
+    fun `a later hop carries the results its command answered at COMMITTED, even when it came first`() {
+        val state = WaitState(listOf(snapshot), "root")
+        val done = result("root", snapshot, snapshotFunction)
+        // The snapshot's signal ends the wait before the commit's own result is offered, as a fast subscription may.
+        state.offer(done)!!.assert().containsExactly(done)
+        state.offer(result("root", committed).copy(results = mapOf("price" to 5)))
+        state.carry(done).results.assert().isEqualTo(mapOf("price" to 5))
+        // Its own results, a result at COMMITTED, and another command's are left as they are.
+        val own = done.copy(results = mapOf("price" to 6))
+        state.carry(own).assert().isSameAs(own)
+        val atCommitted = result("root", committed)
+        state.carry(atCommitted).assert().isSameAs(atCommitted)
+        val other = result("other", snapshot, snapshotFunction)
+        state.carry(other).assert().isSameAs(other)
+        // A later result at COMMITTED with none, such as a duplicate's, does not replace them.
+        state.offer(result("root", committed, snapshotFunction))
+        state.carry(done).results.assert().isEqualTo(mapOf("price" to 5))
+    }
+
+    @Test
     fun `a saga hop waits for every derived command, whatever order their signals come in`() {
         val state = WaitState(listOf(committed, saga, committed), "root")
         // The derived commands commit before the saga's own signal arrives: they are buffered.

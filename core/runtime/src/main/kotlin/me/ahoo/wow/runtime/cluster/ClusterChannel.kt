@@ -28,9 +28,21 @@ import java.util.concurrent.ConcurrentHashMap
  * [forward] sends a command to its partition's owner and returns the owner's reply. It throws a
  * [ClusterChannelException] when the peer cannot be reached; it does not time out by itself: the caller bounds it,
  * and a cancelled call leaves the peer's execution running, as a dropped connection would.
+ *
+ * [connect] makes the channel ready to forward to a peer: a transport whose first message to a peer pays for setting
+ * up a connection opens it there, so that cost is not counted against a forward's own timeout (decision D80). A node
+ * connects to each peer as soon as its routes learn the peer's address, and [PartitionedRouter] once more before
+ * each forward, which costs nothing once connected.
  */
 fun interface ClusterChannel {
     suspend fun forward(address: String, request: ForwardCommand): ForwardReply
+
+    /**
+     * Opens what a forward to [address] needs, and returns once it is open; at once when it already is. It throws a
+     * [ClusterChannelException] when the peer cannot be reached, and bounds itself; a cancelled call leaves the
+     * connection opening for the next one. The default needs nothing.
+     */
+    suspend fun connect(address: String) {}
 }
 
 /** What a node serves on the cluster channel: the forwarded commands it executes. */

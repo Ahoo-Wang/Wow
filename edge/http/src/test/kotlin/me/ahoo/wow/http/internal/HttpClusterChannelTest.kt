@@ -14,6 +14,8 @@
 package me.ahoo.wow.http.internal
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
@@ -79,6 +81,39 @@ class HttpClusterChannelTest {
 
         channel.forward(server.address, forwardCommand("c-2")).result!!.commandId.assert().isEqualTo("c-2")
         server.versions.assert().containsOnly("HTTP/2.0")
+    }
+
+    @Test
+    fun `connect opens the HTTP2 connection a forward then uses, once for any number of callers`(): Unit =
+        runBlocking {
+            coroutineScope { repeat(4) { launch { channel.connect(server.address) } } }
+            channel.connect(server.address)
+            // One request opened and upgraded the connection; the forward is the next one on it.
+            server.versions.assert().hasSize(1)
+            received.assert().isEmpty()
+            channel.forward(server.address, forwardCommand()).result!!.commandId.assert().isEqualTo("c-1")
+            server.versions.assert().hasSize(2)
+            server.versions.last().assert().isEqualTo("HTTP/2.0")
+        }
+
+    @Test
+    fun `once connected, a forward does not depend on the server taking a body on an upgrade request`(): Unit =
+        runBlocking {
+            InternalServer(internalRoutes(bank, {}), upgradeBody = 0).use { strict ->
+                channel.connect(strict.address)
+                channel.forward(strict.address, forwardCommand()).result!!.commandId.assert().isEqualTo("c-1")
+            }
+        }
+
+    @Test
+    fun `a peer that cannot be connected to fails, and the next connect tries again`(): Unit = runBlocking {
+        val port = ServerSocket(0).use { it.localPort }
+        val address = "127.0.0.1:$port"
+        failsWith<ClusterChannelException> { channel.connect(address) }.message.assert().contains(address)
+        InternalServer(internalRoutes(bank, {}), port = port).use { started ->
+            channel.connect(started.address)
+            started.versions.assert().hasSize(1)
+        }
     }
 
     @Test

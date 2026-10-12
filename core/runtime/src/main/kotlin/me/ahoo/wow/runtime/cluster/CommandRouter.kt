@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.subscription.Member
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -56,10 +57,12 @@ fun interface CommandRouter {
  * - A command of a context this node has no lease group for in [groups] (keyed by context) runs locally.
  * - A command for a partition this node holds and accepts runs here, counted for the partition's hand-off.
  * - Otherwise it is forwarded over [channel] to [PartitionOwnership.forwardTarget], waiting for the reply at most
- *   [ClusterOptions.forwardTimeout], capped by the command's own wait deadline (decision D80).
+ *   [ClusterOptions.forwardTimeout], capped by the command's own wait deadline (decision D80). The timeout is the
+ *   request's: the channel [connects][ClusterChannel.connect] to the peer first, within the wait's deadline, so the
+ *   first forward to a peer that started a moment ago does not spend its second opening a connection.
  * - Every failure of a forward degrades to running locally, without retrying it (D71): no known owner, the peer's
- *   [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable, no reply in time, or a refusal. A failed
- *   forward also refreshes the routes.
+ *   [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the wait's deadline, no
+ *   reply in time, or a refusal. A failed forward also refreshes the routes.
  *
  * Degrading is safe without fencing: the kernel deduplicates by request id, so a command the owner did commit before
  * its reply was lost settles here as a duplicate, and version-unique keys turn concurrent writers into conflicts that
@@ -107,6 +110,9 @@ class PartitionedRouter(
             return null
         }
         try {
+            val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
+            withTimeoutOrNull(waitLeft) { channel.connect(peer.address) }
+                ?: return failed(ownership, command, peer, "not connected by the wait's deadline")
             val now = clock()
             val deadline = minOf(now + options.forwardTimeout.inWholeMilliseconds, wait?.deadline ?: Long.MAX_VALUE)
             val request = ForwardCommand(

@@ -63,6 +63,8 @@ class OrderEndToEndTest {
         created.status.assert().isEqualTo(200)
         created.json["status"].asString().assert().isEqualTo("SUCCEEDED")
         created.json["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
+        // The total the decide function put (D49) comes with the commit; the default wait answers it at the snapshot.
+        created.json["results"][Order.TOTAL_AMOUNT_RESULT].decimalValue().assert().isEqualByComparingTo(TOTAL)
         val id = created.json["ref"]["id"].asString()
         id.assert().isNotBlank()
 
@@ -160,7 +162,7 @@ class OrderEndToEndTest {
         val results = events.map { json.readTree(it.data()) }
         results.map { it["status"].asString() }.assert().containsExactly("SUCCEEDED", "SUCCEEDED")
         results.last()["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
-        results.first()["results"][Order.TOTAL_AMOUNT_RESULT].decimalValue().assert().isEqualByComparingTo(TOTAL)
+        results.forEach { it["results"][Order.TOTAL_AMOUNT_RESULT].decimalValue().assert().isEqualByComparingTo(TOTAL) }
     }
 
     @Test
@@ -202,6 +204,9 @@ class OrderEndToEndTest {
         retry.status.assert().isEqualTo(200)
         retry.json["duplicate"].asBoolean().assert().isTrue()
         retry.json["version"].asInt().assert().isEqualTo(1)
+        // The results are not persisted (D49): only the first commit answered them.
+        first.json["results"][Order.TOTAL_AMOUNT_RESULT].decimalValue().assert().isEqualByComparingTo(TOTAL)
+        retry.json["results"].isEmpty.assert().isTrue()
         shop.post(
             "/example/order/$id/pay-order",
             """{"paymentId":"p","amount":1}""",

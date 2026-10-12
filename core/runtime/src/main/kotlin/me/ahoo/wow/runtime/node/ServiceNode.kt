@@ -133,7 +133,7 @@ class ServiceNode(
     models: Collection<AggregateModel<*>>,
     val manifest: Manifest,
     backends: BackendFactory,
-    channel: ClusterChannel,
+    private val channel: ClusterChannel,
     /** Sends signals to the other nodes of the service; a single node needs none. */
     remoteSignals: SignalSender = SignalSender.NONE,
     val options: ServiceNodeOptions = ServiceNodeOptions(),
@@ -363,6 +363,8 @@ class ServiceNode(
             backends.leases,
             options.cluster,
             subscriptions,
+            // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
+            peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
         )
         val executor = Executor(kernel, options.laneCapacity, snapshots?.views)
         return Parts(context, models, group, log, kernel, executor, snapshots, reservations, subscriptions, ownership)

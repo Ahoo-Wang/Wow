@@ -33,6 +33,12 @@ import me.ahoo.wow.api.result.Stage
  * A result that cannot be applied yet, because its command belongs to a generation not known yet or its hop comes
  * later in the current generation, is buffered and applied again, in arrival order, whenever the chain moves. Results
  * are deduplicated by (hop, command, function).
+ *
+ * The results a command's decide function put ([me.ahoo.wow.api.decide.DecideScope.putResult], decision D49) are
+ * answered with its commit only, at COMMITTED, and are not persisted, so a subscription that handles the commit
+ * cannot know them. The state keeps each command's from its result at COMMITTED, whenever that arrives, even after
+ * the wait ended, and [carry] puts them on its results at the later hops: the default wait, which ends at the
+ * snapshot, answers them too. A duplicate request was not decided again, so it has none to carry.
  */
 internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     private var index = 0
@@ -41,6 +47,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     private val reached = LinkedHashMap<String, CommandResult>()
     private val buffered = ArrayList<CommandResult>()
     private val seen = HashSet<Triple<Hop, String, FunctionInfo>>()
+    private val committedResults = HashMap<String, Map<String, Any>>()
     private var hopCompleted = false
 
     /** The last hop reached: the last completed hop, or before one, the root command's furthest stage. */
@@ -57,6 +64,9 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
      * when [result] is a duplicate or the wait already ended.
      */
     fun offer(result: CommandResult): List<CommandResult>? {
+        if (result.hop.stage == Stage.COMMITTED && result.results.isNotEmpty()) {
+            committedResults.putIfAbsent(result.commandId, result.results)
+        }
         if (outcome != null || !seen.add(Triple(result.hop, result.commandId, result.function))) {
             return null
         }
@@ -69,6 +79,17 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
             pending.forEach { moved = apply(it, completed) || moved }
         }
         return completed
+    }
+
+    /**
+     * [result] with the results its command answered at COMMITTED, when it is a result at a later hop that has none
+     * of its own; [result] itself otherwise.
+     */
+    fun carry(result: CommandResult): CommandResult {
+        if (result.hop.stage != Stage.HANDLED || result.results.isNotEmpty()) {
+            return result
+        }
+        return committedResults[result.commandId]?.let { result.copy(results = it) } ?: result
     }
 
     /** Ends the wait with [result], unless it already ended; returns it as the final result. */

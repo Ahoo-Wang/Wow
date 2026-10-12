@@ -79,6 +79,9 @@ const val CONTEXT = "bank"
 const val PROJECTOR = "bank.projector"
 const val SAGA = "bank.saga"
 
+/** The result a deposit's decide function puts (decision D49): the node that decided it. */
+const val DECIDED_BY = "decidedBy"
+
 /** Cluster timings short enough for tests, keeping the ratios of the defaults. */
 fun fastOptions(
     forwardTimeout: Duration = 1.seconds,
@@ -149,7 +152,30 @@ class TestCluster(
     val group = LeaseGroup(SERVICE, CONTEXT)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val latencies = ConcurrentHashMap<String, Duration>()
-    val channel = LoopbackClusterChannel(scope) { address -> latencies[address]?.let { delay(it) } }
+    val loopback = LoopbackClusterChannel(scope) { address -> latencies[address]?.let { delay(it) } }
+
+    /** How long each [ClusterChannel.connect] to an address takes, when listed. */
+    val connectLatencies = ConcurrentHashMap<String, Duration>()
+
+    /** The addresses each [ClusterChannel.connect] was asked for, in order. */
+    val connects = CopyOnWriteArrayList<String>()
+
+    /** The addresses whose connections fail. */
+    val unreachable: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    /** The [loopback] channel, connecting to an address in its [connectLatencies], or failing when [unreachable]. */
+    val channel = object : ClusterChannel {
+        override suspend fun forward(address: String, request: ForwardCommand): ForwardReply =
+            loopback.forward(address, request)
+
+        override suspend fun connect(address: String) {
+            connects += address
+            connectLatencies[address]?.let { delay(it) }
+            if (address in unreachable) {
+                throw ClusterChannelException("Connection refused: $address")
+            }
+        }
+    }
     val nodes = ConcurrentHashMap<String, TestNode>()
     private val sequence = AtomicInteger()
 
@@ -212,6 +238,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
             decided += command.id
             hold?.await()
+            putResult(DECIDED_BY, name)
             Decision.events(Deposited(body.amount))
         }
         evolve<Deposited> { balance += it.amount }
@@ -267,19 +294,19 @@ class TestNode(val name: String, private val cluster: TestCluster) {
     val coordinator: WaitCoordinator get() = service.context(CONTEXT).coordinator
 
     suspend fun start() {
-        cluster.channel.bind(address, service.forwardHandler)
+        cluster.loopback.bind(address, service.forwardHandler)
         service.start()
     }
 
     /** Leaves gracefully (the node's whole stop), then stops serving the cluster channel. */
     suspend fun leave() {
         service.stop()
-        cluster.channel.unbind(address)
+        cluster.loopback.unbind(address)
     }
 
     /** Dies at once: unreachable, and its membership and leases left to expire. */
     suspend fun kill() {
-        cluster.channel.unbind(address)
+        cluster.loopback.unbind(address)
         ownership.abort()
     }
 

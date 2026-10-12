@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.wait
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
@@ -56,8 +57,8 @@ class WaitRegistry {
 internal class Waiting(private val state: WaitState) {
     val results = Channel<CommandResult>(Channel.UNLIMITED)
 
-    /** The last hop reached so far. */
-    val lastReached: CommandResult? get() = synchronized(this) { state.lastReached }
+    /** Completed once the wait's deadline has passed ([expire]), whether or not the wait had ended. */
+    val deadlinePassed = CompletableDeferred<Unit>()
 
     /** Whether the wait ended. */
     val ended: Boolean get() = synchronized(this) { state.outcome != null }
@@ -65,6 +66,24 @@ internal class Waiting(private val state: WaitState) {
     fun offer(result: CommandResult): Boolean = synchronized(this) { publish(state.offer(result)) }
 
     fun finish(result: CommandResult): Boolean = synchronized(this) { publish(state.finish(result)) }
+
+    /**
+     * The deadline passed (decision D64): ends the wait, unless it already ended, FAILED with [ResultCodes.WAIT_TIMEOUT]
+     * at the last hop it reached, its [message] about that hop, at [now]; then completes [deadlinePassed]. Never runs
+     * the waiter: it resumes in its own context.
+     */
+    fun expire(now: Long, message: (Hop) -> String) {
+        synchronized(this) {
+            if (state.outcome == null) {
+                val last = checkNotNull(state.lastReached) { "A registered wait has reached ACCEPTED." }
+                publish(state.finish(last.failed(ResultCodes.WAIT_TIMEOUT, message(last.hop)).copy(signalTime = now)))
+            }
+        }
+        deadlinePassed.complete(Unit)
+    }
+
+    /** [result] with the results its command answered at COMMITTED ([WaitState.carry]), as known now. */
+    fun carry(result: CommandResult): CommandResult = synchronized(this) { state.carry(result) }
 
     fun close() {
         results.close()

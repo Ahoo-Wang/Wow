@@ -89,7 +89,11 @@ class PostgresClusterTest {
 
     @Test
     fun `a command sent to one node should run on the owner and its wait end on the sender`() {
-        val id = idOwnedBySecond()
+        val (warmUp, id) = idsOwnedBySecond(2)
+        // The forward timeout (one second, D80) is for an owner that is warm; this JVM, both hosts in it, has decided
+        // no command yet. One decided on its owner first, so the forward below is not its first decision. The
+        // connection to the owner was opened when the first node's routes learned it (ClusterChannel.connect).
+        second.post("/bank/account/$warmUp/open-account", """{"owner":"oleg"}""").status.assert().isEqualTo(200)
         val opened = first.post("/bank/account/$id/open-account", """{"owner":"olga"}""")
         opened.status.assert().isEqualTo(200)
         opened.body!!["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
@@ -116,19 +120,19 @@ class PostgresClusterTest {
         response.statusCode().assert().isEqualTo(400)
     }
 
-    /** An aggregate id whose partition the second node owns and the first forwards to it, once they agree. */
-    private fun idOwnedBySecond(): String {
+    /** [count] aggregate ids whose partitions the second node owns and the first forwards to it, once they agree. */
+    private fun idsOwnedBySecond(count: Int): List<String> {
         val type = AggregateType(BANK, "account")
         val deadline = System.currentTimeMillis() + OWNERSHIP_TIMEOUT
         while (System.currentTimeMillis() < deadline) {
             val owned = second.node.context(BANK).ownership.owned
             val routes = first.node.context(BANK).ownership
-            val id = (0 until CANDIDATES).map { "acc-$it" }.firstOrNull { candidate ->
+            val ids = (0 until CANDIDATES).map { "acc-$it" }.filter { candidate ->
                 val partition = Partitioner.partitionOf(type.ref(Caller.DEFAULT_TENANT, candidate), PARTITIONS)
                 partition in owned && routes.forwardTarget(partition)?.node == "node-b"
             }
-            if (id != null && first.node.context(BANK).ownership.owned.isNotEmpty()) {
-                return id
+            if (ids.size >= count && first.node.context(BANK).ownership.owned.isNotEmpty()) {
+                return ids.take(count)
             }
             Thread.sleep(POLL)
         }
