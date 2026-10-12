@@ -56,6 +56,12 @@
 
 - **schema 按 Jackson 的实际行为生成**（D73）：KSP 产出结构与类型清单（片段）；构建期的 Gradle 任务加载编译后的类，用 Jackson 自己的序列化器内省出 JSON Schema。schema 因此就是线上的真实形状（命名策略、`@JsonProperty`、自定义序列化器、Kotlin 默认值都由 Jackson 决定，不在 KSP 里重新实现）；状态 schema 指纹（快照，[03](03-log-and-snapshot.md) §3）也由它计算。任务由 `wow-gradle-plugin` 提供（D83），生成器用 victools 加其 Jackson 模块，自定义序列化器由显式覆盖配置补上（D84）。内省只在构建期，运行时仍不反射（D37）。
 - **组装与发布**（D74）：每个模块的片段放在 `META-INF/wow/manifest/<模块>.json`，运行时启动时合并，名字冲突拒绝启动；Gradle 任务同时合并出服务的 `manifest.json` 供离线工具使用。服务在公开端口发布 `GET /wow/manifest`，按普通 API 鉴权；跨上下文的下游从上游的构建产物或该端点取得，构建期生成类型化的消费代码。
+- **v0 的实现要点**（Ahoo-Wang/Wow#4259）：
+  - `wow-manifest` 是不带依赖的纯数据模型，合并函数一次报出全部冲突：同一上下文出现在两个片段、聚合重复、命令或事件全名重复（别名也算）、订阅名重复、同一 `$defs` 键的 schema 不同、片段格式不同。
+  - KSP 在 `META-INF/wow/manifest/<模块>.json` 写出片段，schema 先以类的二进制名占位。上下文由 KSP 选项 `wow.context` 指定，缺省取模块里唯一的 `@BoundedContext`，都没有时只告警、不写片段。签名推不出产出哪些事件时（如 `Decision`、`Any`）省略 `produces`。
+  - 插件 `me.ahoo.wow` 提供两个任务：`generateWowManifestFragment` 补全片段 schema，`mergeWowManifest` 合并出 `build/wow/manifest.json`（暂不挂到 `assemble`）。内省代码在 `wow-manifest-tools`，由用户项目里的 `wowManifestTools` 配置解析，只进隔离 Worker 的类路径，不进构建脚本的类路径（D83）。
+  - Jackson 写出来不是对象的类型（自定义序列化器、`@JsonValue`），要在 `schemaOverrides` 显式给出 schema，否则任务失败，不猜（D84）。`$defs` 的键是类的二进制名，只引用一次的类型内联。
+  - 状态 schema 指纹调用内核的 `EventCodec.stateSchemaFingerprint`，与运行时一致。限制：运行时若定制了 ObjectMapper，构建期的值会不同。
 - **数据集不并入**（D75）：数据集由 dataset-registry 在运行时注册，作为查询侧的运行时目录单独提供；Manifest 只描述编译期的代码契约，view-engine 两者都读。
 - **兼容性门禁**（D76）：CI 比较本次构建与上一个已发布版本的 Manifest，把差异分为加法（新增可选字段、新增命令）与破坏（删除命令或事件、新增必填字段、事件 schema 变化却没有升 revision 或没有升级函数）。主版本内出现破坏即失败（D48、D59、R5-1）；线上契约的兼容性由它守，不靠 ABI 转储。
 

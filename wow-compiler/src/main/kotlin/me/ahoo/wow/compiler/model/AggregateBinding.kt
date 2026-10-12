@@ -30,6 +30,10 @@ internal data class AggregateBinding(
     val sourcing: List<SourcingBinding>,
     val afters: List<AfterBinding>,
     val problems: List<String>,
+    /** The state's JVM binary name, which keys its schema in the Manifest fragment. */
+    val stateType: String,
+    /** The root's `@Description`. */
+    val description: String?,
 )
 
 /** A dependency of the root's functions: a factory parameter [name] of [type]. */
@@ -51,6 +55,10 @@ internal data class CommandBinding(
     val reactor: Boolean,
     /** `NONE`, `REQUIRED` (`@CreateAggregate`) or `ALLOWED` (`@AllowCreate`). */
     val creation: String,
+    /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
+    val type: String,
+    /** The classes the function's return type yields as events ([EventYield]); null when it does not say. */
+    val yields: List<String>?,
 )
 
 internal data class SourcingBinding(
@@ -63,6 +71,8 @@ internal data class SourcingBinding(
     val function: String,
     /** Whether the function returns the new state (immutable form) rather than changing it in place. */
     val returnsState: Boolean,
+    /** The event's JVM binary name, which keys its schema in the Manifest fragment. */
+    val type: String,
 )
 
 internal data class AfterBinding(
@@ -73,4 +83,9 @@ internal data class AfterBinding(
     val include: List<String>,
     val exclude: List<String>,
     val suspending: Boolean,
-)
+    /** The classes the hook's return type yields as events ([EventYield]); null when it does not say. */
+    val yields: List<String>?,
+) {
+    /** Whether the hook runs after [command], a command type as [CommandBinding.command] renders it. */
+    fun appliesTo(command: String): Boolean = (include.isEmpty() || command in include) && command !in exclude
+}

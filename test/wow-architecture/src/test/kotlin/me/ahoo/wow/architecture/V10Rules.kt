@@ -32,10 +32,16 @@ object V10Rules {
     val HTTP = V10Module("wow-http", "edge/wow-http")
     val SPRING_BOOT = V10Module("wow-spring-boot", "host/wow-spring-boot")
     val MIGRATE_DATA = V10Module("wow-migrate-data", "migration/wow-migrate-data")
+    val GRADLE_PLUGIN = V10Module("wow-gradle-plugin", "compiler/wow-gradle-plugin")
+    val MANIFEST_TOOLS = V10Module("wow-manifest-tools", "compiler/wow-manifest-tools")
 
     val MODULES = listOf(
-        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA,
+        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA, GRADLE_PLUGIN,
+        MANIFEST_TOOLS,
     )
+
+    /** The modules an application runs with; the Gradle plugin and its tools run in the build only. */
+    val RUNTIME_MODULES = MODULES - GRADLE_PLUGIN - MANIFEST_TOOLS
 
     /**
      * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-api, is a
@@ -52,6 +58,10 @@ object V10Rules {
         HTTP to setOf("wow-runtime", "wow-query"),
         SPRING_BOOT to setOf("wow-runtime", "wow-http"),
         MIGRATE_DATA to setOf("wow-kernel"),
+        // wow-compiler, wow-kernel, wow-manifest-tools and wow-dependencies only for the TestKit fixture and tests.
+        GRADLE_PLUGIN to setOf("wow-manifest", "wow-manifest-tools", "wow-kernel", "wow-compiler", "wow-dependencies"),
+        // wow-kernel for the state fingerprint.
+        MANIFEST_TOOLS to setOf("wow-manifest", "wow-kernel"),
     )
 
     private val SPRING = listOf("org.springframework")
@@ -99,6 +109,20 @@ object V10Rules {
         forbidden = listOf("org.springframework.boot"),
     )
 
+    /** The Manifest is plain data (06 §3): JSON libraries read and write its tree, it imports none. */
+    val MANIFEST_IS_PLAIN_DATA = DependencyRule(
+        name = "wow-manifest imports no JSON library and no coroutines",
+        modules = listOf(MANIFEST.dir),
+        forbidden = listOf("tools.jackson", "com.fasterxml", "kotlinx"),
+    )
+
+    /** Schemas are introspected at build time only (decision D73): no runtime module generates one. */
+    val SCHEMA_GENERATION_AT_BUILD_TIME = DependencyRule(
+        name = "only wow-manifest-tools imports the JSON Schema generator",
+        modules = RUNTIME_MODULES.map { it.dir },
+        forbidden = listOf("com.github.victools"),
+    )
+
     /** The directory of wow-api, a 9.x module that V10 rewrites in place (06 §2.1, decision D66). */
     const val API_DIR = "wow-api"
 
@@ -127,6 +151,8 @@ object V10Rules {
         CORE_IS_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
         ONLY_HOST_USES_SPRING_BOOT,
+        MANIFEST_IS_PLAIN_DATA,
+        SCHEMA_GENERATION_AT_BUILD_TIME,
         V10_API_STANDS_ALONE,
     )
 

@@ -120,7 +120,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 | WP | 内容 | 出口 |
 |---|---|---|
-| 5a.1 | Manifest 完整版（路由、错误码、查询能力、订阅、发布流）；Jackson 内省生成 schema 的 Gradle 任务（D73）；服务级合并与 `GET /wow/manifest`（D74） | schema 评审；进行中：v0（模型、片段与合并、`wow-gradle-plugin`、victools 生成 schema，D83、D84） |
+| 5a.1 | Manifest 完整版（路由、错误码、查询能力、订阅、发布流）；Jackson 内省生成 schema 的 Gradle 任务（D73）；服务级合并与 `GET /wow/manifest`（D74） | schema 评审；v0 完成（Ahoo-Wang/Wow#4259：模型、片段与合并、`wow-gradle-plugin` 与 `wow-manifest-tools`、victools 生成 schema，D83、D84）；路由、错误码、查询能力、发布流与 `GET /wow/manifest` 待做 |
 | 5a.4 | Manifest 兼容性门禁（D76）：与上一个已发布版本比较，主版本内的破坏性差异使 CI 失败 | 加法与破坏的分类测试；在 example 服务上演示 |
 | 5a.2 | `wow-openapi`：Manifest → OpenAPI | 快照测试 |
 | 5a.3 | `wow-generator` 读 Manifest；`wow-client` V10 | 对 Manifest 快照的生成测试（对真实服务的契约测试在 5b.2） |
@@ -173,30 +173,33 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ## 5. 当前进度与下一步（2026-10-12 交接）
 
-本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D85 全部已定）与 [08 数据协议](08-data-protocols.md)。
+本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D85 已定；D86 待定，最晚第一次前向合并之前）与 [08 数据协议](08-data-protocols.md)。
 
 **工作方式**：主会话只做协调与审查；实现交给隔离 worktree 里的子代理，子代理开 PR 到 `v10` 但不合并；主会话审查后在本地对合并结果做演练（完整验证命令全绿），再 `gh pr merge --squash --admin --match-head-commit <完整 SHA>`。子代理的说明里必须写明：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；改动公开面时更新 `wow-api`、`wow-mongo` 的 ABI 转储；先 `detekt --auto-correct`；不改设计文档（由主会话改）；互相并行的子代理不碰同一批文件。
 
 完整验证命令：
 
 ```text
-./gradlew :wow-api:check :wow-spi:check :wow-kernel:check :wow-runtime:check :wow-reactor:check :wow-compiler:test :wow-postgres:check :wow-postgres:integrationTest :wow-mongo:check :wow-mongo:integrationTest :wow-kernel-benchmarks:compileJmhKotlin :wow-architecture:test detekt
+./gradlew checkKotlinAbi :wow-api:check :wow-spi:check :wow-kernel:check :wow-runtime:check :wow-reactor:check :wow-compiler:check :wow-postgres:check :wow-postgres:integrationTest :wow-mongo:check :wow-mongo:integrationTest :wow-kernel-benchmarks:compileJmhKotlin :wow-architecture:test detekt
 ```
 
-**已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）；内置快照订阅（4.6 第一部分，Ahoo-Wang/Wow#4256：按聚合保留最新快照、同批合并、默认 `SNAPSHOT` 等待由它完成、关闭快照的类型退回 `COMMITTED`；状态视图由 `Executor` 在提交后记录，读不到时由快照加尾部兜底）；集群通道 4.2a（Ahoo-Wang/Wow#4251：HRW 无主对账、主动交接、`Partitioned` 路由与降级 Local、`Member` 内部地址、同步命令转发与进程内回环传输）；V10 注解集与 `wow-api` 的 `subscribe` 包（Ahoo-Wang/Wow#4250：KSP 只认 V10 注解，删除的注解与命令字段上的身份注解报编译错误，事件的 `@Name` / `@Revision` / `@Alias` 进入模型，订阅类的形状校验）。H1、H2 阶段 1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
+**已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）；内置快照订阅（4.6 第一部分，Ahoo-Wang/Wow#4256：按聚合保留最新快照、同批合并、默认 `SNAPSHOT` 等待由它完成、关闭快照的类型退回 `COMMITTED`；状态视图由 `Executor` 在提交后记录，读不到时由快照加尾部兜底）；Manifest v0（5a.1 第一部分，Ahoo-Wang/Wow#4259：`wow-manifest` 模型与合并、KSP 片段、`wow-gradle-plugin` 与隔离的 `wow-manifest-tools`）；预留确认订阅（D50，Ahoo-Wang/Wow#4260：按日志条目的传输段确认预留，`EventLog.readEntries` 读回位置与传输段，恢复停放的聚合也走它；种类 `FunctionKind.RESERVATION`；`confirm` 返回 false 时记日志跳过；过期清理未定，未做）；集群通道 4.2a（Ahoo-Wang/Wow#4251：HRW 无主对账、主动交接、`Partitioned` 路由与降级 Local、`Member` 内部地址、同步命令转发与进程内回环传输）；V10 注解集与 `wow-api` 的 `subscribe` 包（Ahoo-Wang/Wow#4250：KSP 只认 V10 注解，删除的注解与命令字段上的身份注解报编译错误，事件的 `@Name` / `@Revision` / `@Alias` 进入模型，订阅类的形状校验）。H1、H2 阶段 1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
 
-**进行中**：Manifest v0（5a.1 的第一部分，子代理实现）；恢复 `v10` 的 Local Test CI（子代理：自 H4 起 `:wow-compiler:checkKotlinAbi` 失败，CI 停在第一步，`allLocalTest` 此后没在 `v10` 上跑过）。**合并前先看 `gh pr checks`**：`--admin` 会绕过红色检查。
+**进行中**（子代理）：快照订阅的视图竞态与 `ExecutorTest` 的不稳定（重放时从残留视图多写一次；一个聚合等 I/O 时偶发挡住另一个），修复并让测试确定；H6 租约收敛实测（新测试模块 `test/wow-lease-spike`）；2.4 生命周期命令与事件。
+
+**合并门禁**：`--admin` 会绕过红色检查，合并前必须看 `gh pr checks`，失败要逐项说明与本 PR 无关才能合并；本地演练的命令包含 `checkKotlinAbi`。`v10` 的 Local Test 自 H4 起因 `wow-compiler` 的 ABI 转储失败，Ahoo-Wang/Wow#4261 修复（模型处理器的类改为 `internal`）；`allLocalTest` 恢复运行后暴露的 9.x 不稳定测试（`wow-core` 的 `LocalFirstDistributedCopiesTest`、view-store 的超时）在 main 上修。
 
 **下一步队列**（按依赖排序；同一行内的可并行）：
 
 | 顺序 | 工作包 | 依赖与要点 |
 |---|---|---|
 | 2 | D85 模块拆分 | 把 `wow-api`、`wow-compiler`、`wow-mongo` 里的 V10 代码搬到新模块 `api/wow-api`、`compiler/wow-compiler`、`backends/wow-mongo`（项目名 `-v10` 后缀），9.x 部分原地不动、`v10` 不发布不校验 ABI；在 Manifest v0 合并后、没有子代理改这三个模块时做 |
-| 2 | D50 预留确认订阅 | 按日志条目传输段确认待确认预留；恢复路径需要一条带传输段的读取 |
+| 2 | CI 按目录分范围 | D85 搬迁之后：`v10` 上 V10 模块的改动只跑 V10 模块，9.x 模块只在前向合并改到它们时跑；先给出 `ci-scope.mjs` 的改法，用户确认后再改 CI |
+| 2 | 构建按范围加载 | D85 搬迁之后：settings 开关（如 `-Pwow.scope=v10`）只加载 V10 模块；聚合任务 `v10Check` 取代 §5 的长命令（含 `checkKotlinAbi`） |
+| 2 | 评估回主干（D86） | 以上三项完成后、第一次前向合并之前：整理前向合并的实际负担、main 的工具链改法与门禁影响，提交用户拍板 |
 | 2 | 注解集的后续 | `@Upgrade`（D82）；命令的 `@Alias` 绑定（内核 `CommandType` 增加旧名）；`@Alias` 值只有一个点时报错；订阅绑定代码的生成依赖运行时提供 `StateEvent` 解码与三种上下文的实现 |
-| 2 | 5a.1 Manifest v0 与 Jackson 内省 schema（D73、D74、D83、D84） | 进行中（子代理） |
-| 2 | H6（租约收敛实测） | 4.2a 已合入，依赖已满足；在 PostgreSQL 与 MongoDB 上测属主收敛时间、迁移分区数、交接期间重复处理比例 |
-| 3 | 2.4 生命周期命令与事件 | 删除、恢复、转移所有者 / 空间（在 `Kernel.scopeAfter` 接入）、标签 |
+| 2 | H6（租约收敛实测） | 进行中（子代理）；在 PostgreSQL 与 MongoDB 上测属主收敛时间、迁移分区数、交接期间重复处理比例 |
+| 2 | 2.4 生命周期命令与事件 | 删除、恢复、转移所有者 / 空间（在 `Kernel.scopeAfter` 接入）、标签；进行中（子代理） |
 | 3 | 等待的后续 | 流式结果改为每条派生命令推一个；只有默认计划可退回 `COMMITTED`，显式要求快照而无快照订阅时拒绝；`WaitPlan` 提供 `java.time.Duration` 重载 |
 | 4 | 4.2b 真实传输、H2 阶段 2 | 依赖宿主的 HTTP/2 栈（`wow-http` / `wow-spring-boot`） |
 
