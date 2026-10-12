@@ -1,0 +1,82 @@
+{
+  "title": "零售订单明细",
+  "identity": "id",
+  "eventTime": "order_time",
+  "scope": {
+    "tenant": "tenant_id",
+    "tags": { "region": "region" }
+  },
+  "storage": { "table": "retail.order_lines" },
+  "fields": {
+    "id": { "types": ["STRING"], "nullable": false, "description": "明细号" },
+    "tenant_id": { "types": ["STRING"], "nullable": false, "description": "租户" },
+    "order_id": { "types": ["STRING"], "nullable": false, "description": "订单号" },
+    "order_date": {
+      "types": ["STRING"],
+      "nullable": false,
+      "semantic": { "type": "TEMPORAL_DATE" },
+      "description": "下单日期"
+    },
+    "order_time": {
+      "types": ["STRING"],
+      "nullable": false,
+      "semantic": { "type": "TEMPORAL_DATE" },
+      "description": "下单时间"
+    },
+    "region": {
+      "types": ["STRING"],
+      "nullable": false,
+      "description": "大区",
+      "enum": [
+        { "value": "east", "description": "华东" },
+        { "value": "north", "description": "华北" },
+        { "value": "south", "description": "华南" },
+        { "value": "west", "description": "西部" }
+      ]
+    },
+    "province": { "types": ["STRING"], "nullable": false, "description": "省份" },
+    "city": { "types": ["STRING"], "nullable": false, "description": "城市" },
+    "channel": {
+      "types": ["STRING"],
+      "nullable": false,
+      "description": "渠道",
+      "enum": [
+        { "value": "online", "description": "线上商城" },
+        { "value": "store", "description": "门店" },
+        { "value": "mini_program", "description": "小程序" }
+      ]
+    },
+    "category": { "types": ["STRING"], "nullable": false, "description": "品类" },
+    "brand": { "types": ["STRING"], "nullable": false, "description": "品牌" },
+    "customer_type": {
+      "types": ["STRING"],
+      "nullable": false,
+      "description": "客户类型",
+      "enum": [
+        { "value": "new", "description": "新客" },
+        { "value": "returning", "description": "老客" }
+      ]
+    },
+    "member_phone": { "types": ["STRING"], "nullable": false, "description": "会员手机号" },
+    "quantity": { "types": ["INTEGER"], "nullable": false, "description": "件数" },
+    "gmv": {
+      "types": ["DECIMAL"],
+      "nullable": false,
+      "semantic": { "type": "MONEY", "currency": "CNY" },
+      "description": "GMV"
+    },
+    "cost": {
+      "types": ["DECIMAL"],
+      "nullable": false,
+      "semantic": { "type": "MONEY", "currency": "CNY" },
+      "description": "成本"
+    },
+    "discount": {
+      "types": ["DECIMAL"],
+      "nullable": false,
+      "semantic": { "type": "MONEY", "currency": "CNY" },
+      "description": "优惠"
+    },
+    "refunded": { "types": ["BOOLEAN"], "nullable": false, "description": "已退款" }
+  }
+}

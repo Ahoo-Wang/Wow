@@ -14,7 +14,10 @@ body {
 }
 .shell {
   display: flex;
-  min-height: 100vh;
+  /* Exactly the viewport: a workbench fills the height it is given (h-full),
+     and a page taller than that scrolls inside main. */
+  height: 100vh;
+  height: 100dvh;
   flex-direction: column;
 }
 .shell > header {
@@ -55,6 +58,10 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: auto;
+}
+.shell > main > * {
+  flex: 1 0 auto;
 }
 .home,
 .admin {
@@ -125,3 +132,44 @@ button.link {
   border-radius: 12px;
   box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
 }
+
+/* The engine follows the reader's colour mode and marks the page `.dark`
+   (ViewHost); the console's chrome follows it too, rather than a white bar
+   over a dark workbench. */
+:root.dark {
+  color-scheme: dark;
+  color: #e5e7eb;
+  background: #18181b;
+}
+.dark .shell > header {
+  background: #1f1f23;
+  border-bottom-color: #2e2e33;
+}
+.dark .shell > header nav a {
+  color: #a1a1aa;
+}
+.dark .shell > header nav a.active {
+  color: #93c5fd;
+  background: #1e293b;
+}
+.dark .shell > header .user,
+.dark .muted {
+  color: #a1a1aa;
+}
+.dark .cards > li,
+.dark .admin table,
+.dark .login form {
+  background: #1f1f23;
+  border-color: #2e2e33;
+}
+.dark .admin th,
+.dark .admin td {
+  border-bottom-color: #2e2e33;
+}
+.dark button.link {
+  color: #93c5fd;
+}
+.dark .error {
+  color: #fca5a5;
+}
+

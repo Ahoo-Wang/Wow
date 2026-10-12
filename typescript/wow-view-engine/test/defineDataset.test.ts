@@ -16,10 +16,12 @@ import {
   QueryModels,
   QueryValueKind,
   SensitivityLevel,
+  TimeUnit,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
-import { defineDataset } from '../src/index.js';
+import { builtinFieldKinds, defineDataset } from '../src/index.js';
+import { narrowDefinition } from '../src/capabilities/index.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
 
 /** A wide table as a dataset's descriptor says it: root columns only. */
@@ -136,5 +138,51 @@ describe('defineDataset', () => {
     expect(
       definition.described?.findings.filter(f => f.severity === 'error'),
     ).toEqual([]);
+  });
+
+  /**
+   * A column the descriptor keeps as a date string is a field that writes
+   * its conditions as one, so the capability check the engine runs on open
+   * admits it. It used to be read as epoch milliseconds: every dataset with
+   * a date column was refused with `capability.field.temporal-mismatch`
+   * (found by the analytics demo, analytics/demo).
+   */
+  it('keeps a date column as the descriptor keeps it, and one in epoch seconds in its unit', () => {
+    const descriptor = dataset({
+      fields: [
+        describedField('order_id'),
+        describedField('updated_at', { semantic: { type: 'TEMPORAL_DATE' } }),
+        describedField('created_at', {
+          types: ['INTEGER'],
+          semantic: { type: 'TEMPORAL_EPOCH', timeUnit: TimeUnit.SECONDS },
+        }),
+        describedField('paid_at', {
+          types: ['INTEGER'],
+          semantic: { type: 'TEMPORAL_EPOCH' },
+        }),
+      ],
+    } as Partial<QueryModelDescriptor>);
+    const definition = defineDataset(descriptor, {
+      id: 'a.b',
+      source: 'a.b',
+      title: 'B',
+    });
+    const field = (name: string) =>
+      definition.fields.find(entry => entry.name === name);
+    expect(field('updated_at')).toMatchObject({
+      kind: 'date',
+      temporal: { type: 'date' },
+    });
+    expect(field('created_at')).toMatchObject({
+      kind: 'datetime',
+      temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+    });
+    // Milliseconds is the field's own default, left unsaid.
+    expect(field('paid_at')?.temporal).toBeUndefined();
+    expect(
+      narrowDefinition(definition, descriptor, builtinFieldKinds).findings.map(
+        found => found.code,
+      ),
+    ).not.toContain('capability.field.temporal-mismatch');
   });
 });

@@ -10,7 +10,8 @@ The design is [the analytics server design](../documentation/designs/2026-10-11-
 | Path | Contents |
 | --- | --- |
 | `wow-analytics-server` | The Spring Boot service, its distribution (`config/application.yaml`, `ui/`) and Docker image |
-| `console` | The console host (R5c, not yet in the tree), built into the distribution's `ui/` |
+| `console` | The console host (R5c), built into the distribution's `ui/` |
+| `demo` | The service end to end on one machine: a retailer's wide table, published and analysed ([demo/README.md](demo/README.md)) |
 
 ## Security
 
