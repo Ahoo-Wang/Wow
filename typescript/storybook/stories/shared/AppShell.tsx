@@ -469,8 +469,21 @@ export function AppShell({
   const live = 'host' in service;
   const serviceLabel = live ? service.host : service.fixture;
   const ServiceIcon = live ? ServerIcon : DatabaseIcon;
+  // The demo is a Chinese retail app, and reads every change as its market
+  // does: rising red, falling green (R2-101: a K-line page red-up beside
+  // cards coloured by good and bad was two conventions in one app). The
+  // toolbar's pick, on `<html>` where a host puts it, still wins.
+  const changeColors = document.documentElement.hasAttribute(
+    'data-fve-change-colors',
+  )
+    ? undefined
+    : 'red-up';
   return (
-    <div className="fve-tokens story-app" data-folded={folded || undefined}>
+    <div
+      className="fve-tokens story-app"
+      data-folded={folded || undefined}
+      data-fve-change-colors={changeColors}
+    >
       {/* The first stop of the page, shown once the keyboard is on it: past
           the bar and the navigation, to what the page is for (WCAG 2.4.1;
           Storybook review P2). */}
