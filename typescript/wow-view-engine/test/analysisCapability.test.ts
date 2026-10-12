@@ -34,6 +34,7 @@ import {
   type AnalysisViewConfig,
   type FilterTree,
 } from '../src/index.js';
+import { fieldOptions } from '../src/react/analysisFields.js';
 import {
   analysisCapability as capability,
   analysisContext as context,
@@ -681,6 +682,23 @@ describe('element scope', () => {
         withRoot,
       ),
     ).toEqual(['analysis.field.outside-scope']);
+    // The editor offers the root field as a dimension, never as a metric.
+    const options = fieldOptions(
+      analysisScope(withRoot, withRoot.analysis!, byWarehouse()),
+      builtinFieldKinds,
+    );
+    expect(options.find(option => option.field === 'warehouse')).toMatchObject({
+      groups: ['TERMS'],
+      functions: [],
+      expressionInput: false,
+    });
+    expect(options.map(option => option.field)).toContain('items.sku');
+    expect(
+      fieldOptions(
+        analysisScope(withElements, withElements.analysis!, byWarehouse()),
+        builtinFieldKinds,
+      ).map(option => option.field),
+    ).toEqual(['items.sku']);
     // Without the offer, a server before 9.9, the dimension stands outside.
     expect(
       codes(validateAnalysis(withElements, byWarehouse(), builtinFieldKinds)),

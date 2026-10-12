@@ -1045,7 +1045,8 @@
 - **裁定**：
   - **能力随描述符**：`AnalysisCapability.rootGroups?` 与 `AnalysisSpec.rootGroups?`，与 `windows` 同样由描述符给出；宿主写 `false` 可以关掉；9.9 之前的服务端不给，照旧报 `analysis.field.outside-scope`。
   - **只放开维度**：作用域多一份 `rootAggregations`（根字段的聚合能力，仅在展开元素且能力给出时非空）。维度名不在最内层元素里、却在它里面时，按根字段的能力校验，编译时带 `scope: 'ROOT'`，字段写绝对路径。指标、表达式、指标条件仍只读最内层元素：根上的值会随它的元素被数多次。
+  - **编辑器**：字段选择器在能力给出时把根字段列为只能做维度的选项（没有任何指标能力，也不能进公式）。
   - **根维度排在前**（用户 2026-10-11 确认，各后端统一）：编译时根维度放在 `groupBy` 最前；显式排序把元素维度排在根维度之前时报 `analysis.sort.root-group-first`。
   - **内存源同样支持**：`@ahoo-wang/wow-view-engine/testing` 的 `memorySource` 展开时记住每个元素所属的根记录，`ROOT` 分组按根记录取键。
 - **控制台**：「补偿活动」板上方四张结局卡换成一张「每天的结局」折线图：展开 `body` 只留四种结局事件，按天（根上的 `createTime`）× 事件类型计数，按类型分线；`limit` 用分析的行数上限 1000，按天倒序，超出时丢的是最早的日子。描述符快照（`e2e/support/descriptors/`）按本地 9.9 服务端重新核对。
-- **落点**：`src/analysis/capability.ts`（`rootAggregations`、`isRootGroup`）、`validateGroups.ts`、`compile.ts`、`src/capabilities/analysis.ts`、`open.ts`、`src/testing/aggregate.ts`；控制台 `src/views/activityAnalyses.ts`、`overview.ts`。
+- **落点**：`src/analysis/capability.ts`（`rootAggregations`、`isRootGroup`）、`validateGroups.ts`、`compile.ts`、`src/react/analysisFields.ts`、`src/capabilities/analysis.ts`、`open.ts`、`src/testing/aggregate.ts`；控制台 `src/views/activityAnalyses.ts`、`overview.ts`。
