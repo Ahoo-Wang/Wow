@@ -18,6 +18,8 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.spi.log.EventRecord
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
+import java.math.BigInteger
 
 class EventUpgradeTest {
     /** Revision 3 of an event that began as `{"name": "..."}` and then split the name and added a source. */
@@ -37,6 +39,50 @@ class EventUpgradeTest {
         upgrade<Renamed>(from = 2) { payload -> (payload as ObjectNode).put("source", "unknown") }
     }
     private val codec = EventCodec()
+
+    /** Revision 2 of an event that began as `{"amount": ...}` and then named its currency. */
+    data class Priced(
+        val amount: BigDecimal,
+        val currency: String,
+        val count: BigInteger,
+        val ratio: Double,
+        val extra: Map<String, Any?>,
+    )
+
+    private val priced = aggregate<Person>("test", "priced") {
+        initial { Person(it.id) }
+        evolve<Priced>(revision = 2) { }
+        upgrade<Priced>(from = 1) { payload -> (payload as ObjectNode).put("currency", "CNY") }
+    }
+
+    private fun pricedPayload(amount: String, count: String, ratio: String, extra: String = "{}") =
+        """{"amount":$amount,"count":$count,"ratio":$ratio,"extra":$extra}"""
+
+    private fun decodePriced(revision: Int, payload: String) =
+        codec.decode(priced, EventRecord("test.priced.Priced", revision, payload)) as Priced
+
+    @Test
+    fun `an upgrade keeps the scale and every digit of a decimal`() {
+        val longDecimal = "123456789012345678901234567890.123456789012345678901234567890"
+        val bigInteger = "123456789012345678901234567890123456789"
+        val upgraded = decodePriced(1, pricedPayload("2.50", bigInteger, "0.1"))
+        upgraded.amount.assert().isEqualTo(BigDecimal("2.50"))
+        upgraded.amount.scale().assert().isEqualTo(2)
+        upgraded.count.assert().isEqualTo(BigInteger(bigInteger))
+        upgraded.ratio.assert().isEqualTo(0.1)
+        upgraded.currency.assert().isEqualTo("CNY")
+
+        val longAmount = decodePriced(1, pricedPayload(longDecimal, "1", "1e-3"))
+        longAmount.amount.assert().isEqualTo(BigDecimal(longDecimal))
+        longAmount.ratio.assert().isEqualTo(0.001)
+    }
+
+    @Test
+    fun `an upgraded payload binds as a current one does`() {
+        val extra = """{"price":2.50,"long":123456789012345678901234567890.5,"count":12345678901234567890123}"""
+        val payload = pricedPayload("2.50", "7", "0.25", extra)
+        decodePriced(1, payload).assert().isEqualTo(decodePriced(2, """{"currency":"CNY",""" + payload.drop(1)))
+    }
 
     @Test
     fun `an old revision is upgraded one revision at a time`() {
