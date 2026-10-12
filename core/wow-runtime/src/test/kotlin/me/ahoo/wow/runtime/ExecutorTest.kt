@@ -29,6 +29,7 @@ import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import org.junit.jupiter.api.Test
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 class ExecutorTest {
@@ -41,6 +42,9 @@ class ExecutorTest {
     }
 
     private val gates = HashMap<String, CompletableDeferred<Unit>>()
+
+    /** Completed once a [Hold] command is deciding, suspended on its gate inside its aggregate's lane. */
+    private val holding = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
     private val inside = AtomicInteger()
     private val overlaps = AtomicInteger()
 
@@ -55,6 +59,7 @@ class ExecutorTest {
             Decision.events(Added(body.amount))
         }
         decideSuspending<Hold>(Creation.ALLOWED) { _, body ->
+            holding.computeIfAbsent(body.gate) { CompletableDeferred() }.complete(Unit)
             gates.getValue(body.gate).await()
             Decision.events(Added(0))
         }
@@ -82,8 +87,13 @@ class ExecutorTest {
 
     @Test
     fun `an aggregate waiting on I-O does not hold up another`(): Unit = runBlocking {
+        // The first command of the JVM pays its warm-up (codec, reflection): not inside the window measured below.
+        executor.execute(model, command("warm", Add(1))).assert().isInstanceOf(CommandOutcome.Committed::class.java)
         val gate = CompletableDeferred<Unit>().also { gates["g"] = it }
         val held = async(Dispatchers.Default) { executor.execute(model, command("slow", Hold("g"))) }
+        // "slow" holds its lane, suspended on the gate, before "fast" starts: the overlap is certain, not raced.
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("g") { CompletableDeferred() }.await() }
+        // Never completes while "fast" waits on "slow": the timeout only turns that hang into a failure.
         withTimeout(TIMEOUT_MS) { executor.execute(model, command("fast", Add(1))) }
             .assert().isInstanceOf(CommandOutcome.Committed::class.java)
         gate.complete(Unit)

@@ -46,8 +46,10 @@ import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -101,9 +103,18 @@ class SnapshotSubscriptionTest {
         evolve<Added> { total += it.amount }
     }
 
-    /** Records the first version of each read of an aggregate's streams (the tail is not recorded). */
+    /**
+     * Records the first version of each read of an aggregate's streams (the tail is not recorded); while [afterAppend]
+     * is set, an append returns only once it has run on the committed stream.
+     */
     private class RecordingLog(private val delegate: EventLog) : EventLog by delegate {
         val reads = CopyOnWriteArrayList<Int>()
+
+        @Volatile
+        var afterAppend: (suspend (EventStreamRecord) -> Unit)? = null
+
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            delegate.append(stream, transport).also { afterAppend?.invoke(stream) }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
             reads += fromVersion
@@ -255,6 +266,29 @@ class SnapshotSubscriptionTest {
         store.load(ref("a"))!!.version.assert().isEqualTo(3)
         // No state was rebuilt from the log.
         log.reads.assert().isEmpty()
+    }
+
+    @Test
+    fun `a state view recorded after its entry was written is never written again`(): Unit = runBlocking {
+        runtime.start(setOf(0))
+        repeat(2) { coordinator.execute(counter, add("a")) }
+        // Version 3's append returns only once the subscription has written it without a view: the executor records
+        // the view of version 3 afterwards, as when the subscription wins the race to the entry.
+        log.afterAppend = { stream -> eventually { store.load(stream.ref)?.version == stream.version } }
+        val third = executor.execute(counter, add("a", WaitPlan.COMMITTED)) as CommandOutcome.Committed
+        log.afterAppend = null
+        third.stream.version.assert().isEqualTo(3)
+        snapshots.views.size.assert().isEqualTo(1)
+        runtime.stop()
+        val saved = store.saves.size
+
+        // A replay finds the late view of a version the store already holds: dropped, never saved again.
+        val replay = runtime(InMemoryCheckpointStore())
+        replay.start(setOf(0))
+        eventually { replay.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, third.stream) }
+        store.saves.size.assert().isEqualTo(saved)
+        snapshots.views.size.assert().isEqualTo(0)
+        store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":3}""")
     }
 
     @Test
