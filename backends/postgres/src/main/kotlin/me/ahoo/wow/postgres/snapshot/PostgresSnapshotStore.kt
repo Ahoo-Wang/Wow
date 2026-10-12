@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import tools.jackson.databind.json.JsonMapper
@@ -104,7 +105,7 @@ class PostgresSnapshotStore(
     }
 
     private companion object {
-        val json: JsonMapper = JsonMapper.builder().build()
+        val json: JsonMapper = WowJson.mapper
 
         fun decodeTags(text: String): Map<String, List<String>> = buildMap {
             for ((name, values) in json.readTree(text).properties()) {

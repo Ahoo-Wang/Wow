@@ -41,6 +41,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
@@ -57,8 +58,6 @@ import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.bson.json.JsonMode
-import org.bson.json.JsonWriterSettings
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -73,7 +72,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * abort-and-retry is why appends to one partition should come from its owner, serialized (finding F1).
  *
  * A stream's facts are fields of its document; the transport is a field of its own, `transport` (decision D25),
- * which only [tail] and [readEntries] read: [read] and [findByRequestId] leave it out of their projection.
+ * which only [tail] and [readEntries] read: [read] and [findByRequestId] leave it out of their projection. Each event's
+ * payload is a BSON document whose decimals are `Decimal128`, exact ([ExactBson]); an append whose payload holds a
+ * number MongoDB cannot store exactly is refused with an [IllegalArgumentException].
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -337,7 +338,7 @@ class MongoEventLog(
         .append(
             EVENTS,
             stream.events.map {
-                Document(NAME, it.name).append(REVISION, it.revision).append(PAYLOAD, Document.parse(it.payload))
+                Document(NAME, it.name).append(REVISION, it.revision).append(PAYLOAD, ExactBson.document(it.payload))
             },
         )
         .append(OWNER_ID, stream.scope.ownerId)
@@ -410,7 +411,11 @@ class MongoEventLog(
         commandType = document.getString(COMMAND_TYPE),
         commitTime = document.getLong(COMMIT_TIME),
         events = document.getList(EVENTS, Document::class.java).map {
-            EventRecord(it.getString(NAME), it.getInteger(REVISION), it.get(PAYLOAD, Document::class.java).toJson(JSON))
+            EventRecord(
+                it.getString(NAME),
+                it.getInteger(REVISION),
+                ExactBson.json(it.get(PAYLOAD, Document::class.java)),
+            )
         },
         scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
         causation = document.get(CAUSATION, Document::class.java)?.let {
@@ -422,7 +427,6 @@ class MongoEventLog(
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         const val DEFAULT_TAIL_BATCH = 500
-        val JSON: JsonWriterSettings = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build()
 
         const val ID = "_id"
         const val PARTITION = "partition"

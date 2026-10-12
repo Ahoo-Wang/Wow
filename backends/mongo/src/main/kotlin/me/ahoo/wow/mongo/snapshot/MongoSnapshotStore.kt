@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
@@ -32,14 +33,13 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.bson.json.JsonMode
-import org.bson.json.JsonWriterSettings
 
 /**
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/v10/03-log-and-snapshot.md §3).
  *
  * One collection holds one document per aggregate, keyed by a unique index on (tenant, aggregate name, aggregate id).
- * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model.
+ * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model; the
+ * state's decimals are `Decimal128`, exact ([ExactBson]).
  * A save is one conditional upsert whose filter carries the version guard (`version < new`): no transaction, and
  * concurrent saves leave the highest version (see [conditionalUpsert]).
  *
@@ -71,7 +71,7 @@ class MongoSnapshotStore(
         val update = Updates.combine(
             Updates.set(VERSION, snapshot.version),
             Updates.set(SCHEMA_FINGERPRINT, snapshot.schemaFingerprint),
-            Updates.set(STATE, Document.parse(snapshot.state)),
+            Updates.set(STATE, ExactBson.document(snapshot.state)),
             Updates.set(OWNER_ID, snapshot.scope.ownerId),
             Updates.set(SPACE_ID, snapshot.scope.spaceId),
             Updates.set(DELETED, snapshot.deleted),
@@ -103,7 +103,7 @@ class MongoSnapshotStore(
                 .ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
             version = document.getInteger(VERSION),
             schemaFingerprint = document.getString(SCHEMA_FINGERPRINT),
-            state = document.get(STATE, Document::class.java).toJson(JSON),
+            state = ExactBson.json(document.get(STATE, Document::class.java)),
             scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
             deleted = document.getBoolean(DELETED),
             firstEventTime = document.getLong(FIRST_EVENT_TIME),
@@ -113,8 +113,6 @@ class MongoSnapshotStore(
     }
 
     private companion object {
-        val JSON: JsonWriterSettings = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build()
-
         /** The version of this layout (decision D59). */
         const val FORMAT = 1
 

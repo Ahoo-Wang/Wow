@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.snapshot
 
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -20,6 +22,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
+import org.bson.Document
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test
 
 class MongoSnapshotStoreTest : SnapshotStoreSpec() {
@@ -49,6 +53,44 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.createUnrecorded("wow_snapshot_" + context.replace('-', '_'))
         assertThrownBy<IllegalStateException> { store(context) }
+    }
+
+    @Test
+    fun `a state decimal beyond 34 digits is refused at save, never rounded`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val store = store(context)
+        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        val tooPrecise = saved.copy(state = """{"items":[{"price":1.2345678901234567890123456789012345}]}""")
+        assertThrownBy<IllegalArgumentException> { runBlocking { store.save(tooPrecise) } }
+        store.load(saved.ref).assert().isNull()
+        // So is an exponent Decimal128 cannot hold, or holds only by changing the scale.
+        listOf("1E-6200", "1E+6120").forEach { number ->
+            assertThrownBy<IllegalArgumentException> { runBlocking { store.save(saved.copy(state = """{"n":$number}""")) } }
+        }
+        store.save(saved).assert().isTrue()
+    }
+
+    @Test
+    fun `a state stored as BSON reads back as JSON, a double stored before decimals were exact too`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val store = store(context)
+            val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+            store.save(saved).assert().isTrue()
+            val snapshots = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                .getCollection("wow_snapshot_" + context.replace('-', '_'))
+            snapshots.updateOne(Filters.eq("aggregate_id", "a"), Updates.set("state", Document("price", 2.5)))
+            store.load(saved.ref)!!.state.assert().isEqualTo("""{"price":2.5}""")
+            // A BSON value JSON has no counterpart for is not a state Wow wrote.
+            snapshots.updateOne(Filters.eq("aggregate_id", "a"), Updates.set("state", Document("id", ObjectId())))
+            assertThrownBy<IllegalStateException> { runBlocking { store.load(saved.ref) } }
+        }
+
+    @Test
+    fun `a state that is not a JSON object is refused`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        assertThrownBy<IllegalArgumentException> { runBlocking { store(context).save(saved.copy(state = "[1]")) } }
     }
 
     @Test
