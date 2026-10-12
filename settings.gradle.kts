@@ -138,4 +138,6 @@ include(":wow-kernel-benchmarks")
 project(":wow-kernel-benchmarks").projectDir = file("test/wow-kernel-benchmarks")
 include(":wow-gradle-plugin")
 project(":wow-gradle-plugin").projectDir = file("compiler/wow-gradle-plugin")
+include(":wow-routing-spike")
+project(":wow-routing-spike").projectDir = file("test/wow-routing-spike")
 //endregion

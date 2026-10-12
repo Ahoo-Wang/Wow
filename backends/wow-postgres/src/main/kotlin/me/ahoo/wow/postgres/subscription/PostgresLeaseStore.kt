@@ -27,8 +27,8 @@ import javax.sql.DataSource
 import kotlin.time.Duration
 
 /**
- * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (group, node) in
- * `wow_lease_member`.
+ * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (group, node), with the
+ * node's internal address, in `wow_lease_member`.
  *
  * Every operation is one autocommitted statement. An acquisition is an upsert whose update applies only when the
  * stored lease has expired or belongs to the acquiring node; PostgreSQL re-checks that condition against the latest
@@ -87,14 +87,15 @@ class PostgresLeaseStore(
         executeQuery().use { rows -> rows.map(::leaseOf) }
     }
 
-    override suspend fun heartbeat(group: String, node: String, ttl: Duration): Member {
+    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
         val expiresAt = clock.millis() + ttl.inWholeMilliseconds
         return execute(HEARTBEAT) {
             setString(1, group)
             setString(2, node)
-            setLong(3, expiresAt)
+            setString(3, address)
+            setLong(4, expiresAt)
             executeUpdate()
-            Member(group, node, expiresAt)
+            Member(group, node, address, expiresAt)
         }
     }
 
@@ -133,6 +134,7 @@ class PostgresLeaseStore(
     private fun memberOf(row: ResultSet) = Member(
         group = row.getString("subscription_group"),
         node = row.getString("node"),
+        address = row.getString("address"),
         expiresAt = row.getLong("expires_at"),
     )
 
@@ -164,6 +166,7 @@ class PostgresLeaseStore(
             CREATE TABLE IF NOT EXISTS $MEMBERS_TABLE (
                 subscription_group text NOT NULL,
                 node text NOT NULL,
+                address text NOT NULL,
                 expires_at bigint NOT NULL,
                 PRIMARY KEY (subscription_group, node)
             )
@@ -196,10 +199,11 @@ class PostgresLeaseStore(
         const val OWNERS = "SELECT $LEASE_COLUMNS FROM $LEASES " +
             "WHERE subscription_group = ? AND expires_at > ? ORDER BY partition"
 
-        const val HEARTBEAT = "INSERT INTO $MEMBERS_TABLE (subscription_group, node, expires_at) VALUES (?, ?, ?) " +
-            "ON CONFLICT (subscription_group, node) DO UPDATE SET expires_at = excluded.expires_at"
+        const val HEARTBEAT = "INSERT INTO $MEMBERS_TABLE (subscription_group, node, address, expires_at) " +
+            "VALUES (?, ?, ?, ?) ON CONFLICT (subscription_group, node) " +
+            "DO UPDATE SET address = excluded.address, expires_at = excluded.expires_at"
 
-        const val MEMBERS = "SELECT subscription_group, node, expires_at FROM $MEMBERS_TABLE " +
+        const val MEMBERS = "SELECT subscription_group, node, address, expires_at FROM $MEMBERS_TABLE " +
             "WHERE subscription_group = ? AND expires_at > ? ORDER BY node COLLATE \"C\""
 
         const val LEAVE = "DELETE FROM $MEMBERS_TABLE WHERE subscription_group = ? AND node = ?"

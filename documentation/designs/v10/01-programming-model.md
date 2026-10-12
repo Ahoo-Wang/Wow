@@ -87,7 +87,7 @@ class CartState(val id: String) {
 | `@Description`、`@Summary` | 写进 Manifest 的说明 | 同名 |
 | `@WowSpi` | 标注可替换的端口 | 同名 |
 
-V10 注解与 9.x 同在 `me.ahoo.wow.api.annotation`（D79）：同名的原地沿用，V10 处理器忽略 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`），这些属性在删除 `wow-core` 时裁掉；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
+V10 注解在 V10 的 `wow-api` 模块里按上表原样定义（D85 修订 D79）：包名与 9.x 相同（`me.ahoo.wow.api.annotation`），所以同名注解的全名不变、迁移只需换依赖，但不再带 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`）；没有模块同时依赖新旧两边，类路径上不会冲突；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
 
 实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数也可按约定名 `onEvent` 找到；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId` 与调用顺序生成确定的命令 ID 与请求 ID，并带上因果；生成的工厂函数最后一个参数 `configure` 是通用扩展口。
 

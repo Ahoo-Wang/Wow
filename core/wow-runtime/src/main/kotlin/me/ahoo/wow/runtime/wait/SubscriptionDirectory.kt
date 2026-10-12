@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.wait
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.spi.log.EventStreamRecord
 
@@ -26,6 +27,12 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 interface SubscriptionDirectory {
     /** The kind of [subscription] in [context], or null when it is not known. */
     fun kindOf(context: String, subscription: String): FunctionKind?
+
+    /**
+     * Whether [subscription] of [type]'s context handles the streams of [type]. By default, whether the subscription
+     * is known in that context at all; a directory that knows the subscriptions' filters answers per aggregate type.
+     */
+    fun covers(subscription: String, type: AggregateType): Boolean = kindOf(type.context, subscription) != null
 
     /**
      * Whether [subscription] has handled [stream] for good: its checkpoint is past the stream's position and its

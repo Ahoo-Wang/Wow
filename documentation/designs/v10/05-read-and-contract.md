@@ -54,7 +54,7 @@
 }
 ```
 
-- **schema 按 Jackson 的实际行为生成**（D73）：KSP 产出结构与类型清单（片段）；构建期的 Gradle 任务加载编译后的类，用 Jackson 自己的序列化器内省出 JSON Schema。schema 因此就是线上的真实形状（命名策略、`@JsonProperty`、自定义序列化器、Kotlin 默认值都由 Jackson 决定，不在 KSP 里重新实现）；状态 schema 指纹（快照，[03](03-log-and-snapshot.md) §3）也由它计算。内省只在构建期，运行时仍不反射（D37）。
+- **schema 按 Jackson 的实际行为生成**（D73）：KSP 产出结构与类型清单（片段）；构建期的 Gradle 任务加载编译后的类，用 Jackson 自己的序列化器内省出 JSON Schema。schema 因此就是线上的真实形状（命名策略、`@JsonProperty`、自定义序列化器、Kotlin 默认值都由 Jackson 决定，不在 KSP 里重新实现）；状态 schema 指纹（快照，[03](03-log-and-snapshot.md) §3）也由它计算。任务由 `wow-gradle-plugin` 提供（D83），生成器用 victools 加其 Jackson 模块，自定义序列化器由显式覆盖配置补上（D84）。内省只在构建期，运行时仍不反射（D37）。
 - **组装与发布**（D74）：每个模块的片段放在 `META-INF/wow/manifest/<模块>.json`，运行时启动时合并，名字冲突拒绝启动；Gradle 任务同时合并出服务的 `manifest.json` 供离线工具使用。服务在公开端口发布 `GET /wow/manifest`，按普通 API 鉴权；跨上下文的下游从上游的构建产物或该端点取得，构建期生成类型化的消费代码。
 - **数据集不并入**（D75）：数据集由 dataset-registry 在运行时注册，作为查询侧的运行时目录单独提供；Manifest 只描述编译期的代码契约，view-engine 两者都读。
 - **兼容性门禁**（D76）：CI 比较本次构建与上一个已发布版本的 Manifest，把差异分为加法（新增可选字段、新增命令）与破坏（删除命令或事件、新增必填字段、事件 schema 变化却没有升 revision 或没有升级函数）。主版本内出现破坏即失败（D48、D59、R5-1）；线上契约的兼容性由它守，不靠 ABI 转储。

@@ -197,6 +197,8 @@ class KernelTest {
             evolve<ItemAdded> { items[it.productId] = (items[it.productId] ?: 0) + it.quantity }
         }
         named.commandType(AddItem::class.java).name.assert().isEqualTo("example.cart.PutItem")
+        named.findCommandType("example.cart.PutItem")?.type.assert().isEqualTo(AddItem::class.java)
+        named.findCommandType("example.cart.AddItem").assert().isNull()
         val outcome = Kernel(
             InMemoryEventLog()
         ).execute(named, command(AddItem("apple", 1))) as CommandOutcome.Committed

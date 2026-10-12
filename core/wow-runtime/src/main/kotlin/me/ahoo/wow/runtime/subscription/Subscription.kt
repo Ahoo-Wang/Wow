@@ -39,6 +39,11 @@ import me.ahoo.wow.spi.log.Transport
  * [kind] says what the handler is (design 08 §7): it is reported as the [function] that handled a commit, and a wait
  * chain may continue only after a saga's hop (decision D62). A saga reports the commands it derived from each entry,
  * so it is made with [saga]; the constructor makes every other kind.
+ *
+ * A subscription that [coalesces] is handed only the latest of an aggregate's entries that wait together in its lane
+ * (a batch): it keeps the latest of something per aggregate, so the earlier ones add nothing. Every entry of the
+ * batch completes, and is signalled, only once the latest is handled, so a wait on an earlier version reaches its
+ * hop when what holds the later one is written (design 03 §3: the snapshot subscription's merged writes).
  */
 class Subscription private constructor(
     val name: String,
@@ -48,6 +53,7 @@ class Subscription private constructor(
     models: Collection<AggregateModel<*>>,
     val kind: FunctionKind,
     private val handler: EntryHandler,
+    internal val coalesces: Boolean = false,
 ) {
     constructor(
         name: String,
@@ -106,6 +112,26 @@ class Subscription private constructor(
             models,
             FunctionKind.SAGA,
             EntryHandler { handler(it) },
+        )
+
+        /** A subscription that [coalesces]: [handler] gets the latest entry of each aggregate's batch only. */
+        internal fun coalescing(
+            name: String,
+            filter: SubscriptionFilter,
+            kind: FunctionKind,
+            handler: suspend (SubscribedEntry) -> Unit,
+        ): Subscription = Subscription(
+            name,
+            filter,
+            StartFrom.BEGINNING,
+            EntryDecoder.RECORDS,
+            emptyList(),
+            kind,
+            EntryHandler { entry ->
+                handler(entry)
+                emptyList()
+            },
+            coalesces = true,
         )
     }
 }

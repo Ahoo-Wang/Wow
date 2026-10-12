@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.wait
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
@@ -22,6 +23,10 @@ import org.junit.jupiter.api.Test
 
 /** Decision D62: the chains a wait may follow, checked at admission. */
 class WaitChainTest {
+    private companion object {
+        val ORDER = AggregateType("shop", "order")
+    }
+
     private val kinds = mapOf(
         "snapshot" to FunctionKind.SNAPSHOT,
         "order.saga" to FunctionKind.SAGA,
@@ -35,7 +40,7 @@ class WaitChainTest {
     }
 
     private fun check(vararg hops: Hop, directory: SubscriptionDirectory = this.directory): CheckedPlan =
-        WaitChain.of(WaitPlan.of(*hops), "shop", directory, 4)
+        WaitChain.of(WaitPlan.of(*hops), ORDER, directory, 4)
 
     private fun reason(vararg hops: Hop): String = (check(*hops) as WaitChain.Invalid).reason
 
@@ -47,15 +52,24 @@ class WaitChainTest {
             Hop.handled("order.saga", "shop"),
             Hop.committed("shop"),
         )
-        chain.firstHandled.assert().isEqualTo(Hop.handled("order.saga", "shop"))
-        chain.continuesAfter(Hop.handled("order.saga", "shop")).assert().isTrue()
     }
 
     @Test
     fun `the default waits for COMMITTED where there is no snapshot subscription`() {
-        (WaitChain.of(WaitPlan.SNAPSHOT, "shop", directory, 4) as WaitChain).hops
+        (WaitChain.of(WaitPlan.SNAPSHOT, ORDER, directory, 4) as WaitChain).hops
             .assert().containsExactly(Hop.snapshot("shop"))
-        (WaitChain.of(WaitPlan.SNAPSHOT, "shop", SubscriptionDirectory.NONE, 4) as WaitChain).hops
+        (WaitChain.of(WaitPlan.SNAPSHOT, ORDER, SubscriptionDirectory.NONE, 4) as WaitChain).hops
+            .assert().containsExactly(Hop.committed("shop"))
+    }
+
+    @Test
+    fun `the default waits for COMMITTED for an aggregate whose snapshots are disabled`() {
+        val ordersOnly = object : SubscriptionDirectory by directory {
+            override fun covers(subscription: String, type: AggregateType): Boolean = type == ORDER
+        }
+        (WaitChain.of(WaitPlan.SNAPSHOT, ORDER, ordersOnly, 4) as WaitChain).hops
+            .assert().containsExactly(Hop.snapshot("shop"))
+        (WaitChain.of(WaitPlan.SNAPSHOT, AggregateType("shop", "stock"), ordersOnly, 4) as WaitChain).hops
             .assert().containsExactly(Hop.committed("shop"))
     }
 

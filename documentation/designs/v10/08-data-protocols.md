@@ -205,6 +205,12 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 | `StateEventRecord`、`StateView` | `wow-kernel`（提交时序列化），订阅运行时使用；类型化的 `StateEvent<S>` 在 `wow-api`（已合入） |
 | 对外 `CommandResult`、`WaitSignal` | `wow-api`（M4 的等待与 `wow-http` 使用） |
 
+**集群通道的命令转发**（D78，Ahoo-Wang/Wow#4251，格式 1）：
+
+- 请求：`{v, command: {type, id, requestId, ref, body, expectedVersion, scope, headers, causation}, wait: {waitId, origin, remaining, deadline}, deadline}`；`wait` 只在有等待时出现，`origin` 始终是发起节点。
+- 响应：`{v, result, reached, refused}`。`reached` 是属主当场就能定下的后续跳（命令无变化时空转的 `HANDLED`、重复请求按检查点补查到的结果，D63），否则发起方分不清无变化与已提交；`refused` 为 `not-owner`、`expired`、`unknown-type` 之一，发起方据此在本地执行。
+- 编解码器的 Jackson 模块集合固定（只有 Kotlin 模块），不从类路径自动发现，保证不同宿主的线上形式一致（D48）。
+
 ## 11. 待细化
 
-- 集群通道转发消息的字段名（种类已由 D78 定为同步的命令转发，随 4.2a 定稿）；新条目推送的消息随订阅侧定义。
+- 新条目推送的消息随订阅侧定义。
