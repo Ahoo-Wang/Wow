@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.InMemoryEventLog
+import me.ahoo.wow.kernel.InMemoryReservationStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -54,7 +55,7 @@ fun <S : Any> aggregateSpec(
 class AggregateSpec<S : Any>(private val model: AggregateModel<S>, val ref: AggregateRef) {
     private val codec = EventCodec()
     private val log = InMemoryEventLog(partitions = 1)
-    private val kernel = Kernel(log, codec, verifyDecidePurity = true)
+    private val kernel = Kernel(log, codec, verifyDecidePurity = true, reservations = InMemoryReservationStore())
     private var sequence = 0
 
     /** Commits [events] as one stream, as if an earlier command had produced them. */
