@@ -32,16 +32,17 @@ object V10Rules {
     val HTTP = V10Module("http", "edge/http")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
+    val COMPILER = V10Module("compiler", "compiler/compiler")
     val GRADLE_PLUGIN = V10Module("gradle-plugin", "compiler/gradle-plugin")
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
     val MODULES = listOf(
-        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA, GRADLE_PLUGIN,
-        MANIFEST_TOOLS,
+        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA, COMPILER,
+        GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
 
-    /** The modules an application runs with; the Gradle plugin and its tools run in the build only. */
-    val RUNTIME_MODULES = MODULES - GRADLE_PLUGIN - MANIFEST_TOOLS
+    /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
+    val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
 
     /**
      * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-api, is a
@@ -58,8 +59,10 @@ object V10Rules {
         HTTP to setOf("runtime", "wow-query"),
         SPRING_BOOT to setOf("runtime", "http"),
         MIGRATE_DATA to setOf("kernel"),
-        // wow-compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
-        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "wow-compiler", "wow-dependencies"),
+        // kernel and reactor only for the tests, which compile the generated models.
+        COMPILER to setOf("wow-api", "manifest", "kernel", "reactor"),
+        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
+        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
         MANIFEST_TOOLS to setOf("manifest", "kernel"),
     )
@@ -163,6 +166,65 @@ object V10Rules {
         PROJECT_DEPENDENCY.findAll(File(repositoryRoot, "${module.dir}/build.gradle.kts").readText())
             .map { it.groupValues[1] }
             .toSet()
+
+    /**
+     * The V10 modules that replace a 9.x module of the same artifact (decision D85): the V10 project and the 9.x one
+     * it replaces. Both define the same packages, so no project may reach both.
+     */
+    val REPLACED_9X: Map<String, String> = mapOf(
+        "compiler" to "wow-compiler",
+    )
+
+    /** Projects allowed to reach both sides of [REPLACED_9X] (decision D90). */
+    val BOTH_SIDES_EXEMPT: Set<String> = emptySet()
+
+    private val SETTINGS_INCLUDE = Regex("""include\(\s*"(:?)([\w-]+)"\s*\)""")
+    private val SETTINGS_PROJECT_DIR = Regex("""project\(":([\w-]+)"\)\.projectDir\s*=\s*file\("([^"]+)"\)""")
+
+    /** Every project `settings.gradle.kts` includes, with its directory relative to the repository root. */
+    fun settingsProjects(repositoryRoot: File): Map<String, String> {
+        val settings = File(repositoryRoot, "settings.gradle.kts").readText()
+        val dirs = SETTINGS_PROJECT_DIR.findAll(settings).associate { it.groupValues[1] to it.groupValues[2] }
+        return SETTINGS_INCLUDE.findAll(settings)
+            .map { it.groupValues[2] }
+            .associateWith { dirs[it] ?: it }
+    }
+
+    /** The project dependencies every project's build script declares, in any configuration. */
+    fun projectGraph(repositoryRoot: File): Map<String, Set<String>> =
+        settingsProjects(repositoryRoot).mapValues { (_, dir) ->
+            val buildScript = File(repositoryRoot, "$dir/build.gradle.kts")
+            if (buildScript.isFile) {
+                PROJECT_DEPENDENCY.findAll(buildScript.readText()).map { it.groupValues[1] }.toSet()
+            } else {
+                emptySet()
+            }
+        }
+
+    /** [project] and every project it reaches through [graph]. */
+    fun reachable(graph: Map<String, Set<String>>, project: String): Set<String> {
+        val reached = linkedSetOf(project)
+        val pending = ArrayDeque(listOf(project))
+        while (pending.isNotEmpty()) {
+            graph[pending.removeFirst()].orEmpty().filter { reached.add(it) }.forEach { pending.addLast(it) }
+        }
+        return reached
+    }
+
+    /**
+     * No project reaches both a V10 module and the 9.x module it replaces (decisions D85, D90), directly or
+     * transitively: their classes share names, so one would shadow the other. Only [BOTH_SIDES_EXEMPT] may.
+     */
+    fun bothSidesViolations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        return graph.keys.sorted()
+            .filterNot { it in BOTH_SIDES_EXEMPT }
+            .flatMap { project ->
+                val reached = reachable(graph, project)
+                REPLACED_9X.filter { (v10, nineX) -> v10 in reached && nineX in reached }
+                    .map { (v10, nineX) -> "$project reaches both :$v10 and :$nineX" }
+            }
+    }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")
 

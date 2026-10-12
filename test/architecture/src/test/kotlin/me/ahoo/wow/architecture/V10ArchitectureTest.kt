@@ -60,6 +60,11 @@ class V10ArchitectureTest {
         }
 
     @Test
+    fun `no project should reach both a V10 module and the 9x module it replaces`() {
+        V10Rules.bothSidesViolations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
     fun `V10 production sources should carry no compatibility code`() {
         V10Rules.compatibilityMarkers(repositoryRoot).assert().isEmpty()
     }
@@ -144,6 +149,44 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `module graph should read the projects and their directories from the settings`(@TempDir root: File) {
+        File(root, "settings.gradle.kts").writeText(
+            """
+            include(":wow-compiler")
+            include("example-domain")
+            include(":compiler")
+            project(":compiler").projectDir = file("compiler/compiler")
+            """.trimIndent(),
+        )
+        V10Rules.settingsProjects(root).assert().containsExactlyInAnyOrderEntriesOf(
+            mapOf(
+                "wow-compiler" to "wow-compiler",
+                "example-domain" to "example-domain",
+                "compiler" to "compiler/compiler",
+            ),
+        )
+    }
+
+    @Test
+    fun `both sides rule should catch a project reaching both sides transitively`(@TempDir root: File) {
+        root.writeBuild(
+            mapOf(
+                "compiler" to "compiler/compiler",
+                "wow-compiler" to "wow-compiler",
+                "nine-x" to "nine-x",
+                "app" to "app",
+                "v10-only" to "v10-only",
+            ),
+            mapOf(
+                "nine-x" to listOf("wow-compiler"),
+                "app" to listOf("compiler", "nine-x"),
+                "v10-only" to listOf("compiler"),
+            ),
+        )
+        V10Rules.bothSidesViolations(root).assert().containsExactly("app reaches both :compiler and :wow-compiler")
+    }
+
+    @Test
     fun `compatibility check should catch a deprecation and a compat marker`(@TempDir root: File) {
         root.writeSource(
             V10Rules.RUNTIME.dir,
@@ -156,6 +199,22 @@ class V10ArchitectureTest {
             """.trimIndent(),
         )
         V10Rules.compatibilityMarkers(root).assert().hasSize(2)
+    }
+
+    /** Writes a settings script including [projects] (name to directory) and a build script per project. */
+    private fun File.writeBuild(projects: Map<String, String>, dependencies: Map<String, List<String>>) {
+        File(this, "settings.gradle.kts").writeText(
+            projects.entries.joinToString("\n") { (name, dir) ->
+                "include(\":$name\")\nproject(\":$name\").projectDir = file(\"$dir\")"
+            },
+        )
+        projects.forEach { (name, dir) ->
+            File(this, dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
+                dependencies[name].orEmpty().joinToString("\n", "dependencies {\n", "\n}") {
+                    "    implementation(project(\":$it\"))"
+                },
+            )
+        }
     }
 
     private fun File.writeSource(moduleDir: String, path: String, content: String) {

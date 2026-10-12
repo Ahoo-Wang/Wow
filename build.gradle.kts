@@ -60,7 +60,7 @@ val benchmarksProject = project(":wow-benchmarks")
 val v10Projects = listOf(
     "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
     "postgres", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
-    "gradle-plugin", "manifest-tools",
+    "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike",
 ).map { project(":$it") }.toSet()
 
