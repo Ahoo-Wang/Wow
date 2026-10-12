@@ -98,6 +98,35 @@ public final class me/ahoo/wow/api/abac/TaggableKt {
 	public static final fun getWildcard (Ljava/util/List;)Z
 }
 
+public final class me/ahoo/wow/api/aggregate/AggregateRef {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/aggregate/AggregateType {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateType;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/aggregate/AggregateType;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun ref (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/AfterCommand : java/lang/annotation/Annotation {
 	public abstract fun exclude ()[Ljava/lang/Class;
 	public abstract fun include ()[Ljava/lang/Class;
@@ -431,6 +460,77 @@ public abstract interface class me/ahoo/wow/api/command/RequestId {
 
 public abstract interface class me/ahoo/wow/api/command/validation/CommandValidator {
 	public abstract fun validate ()V
+}
+
+public final class me/ahoo/wow/api/decide/Command {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component4 ()Ljava/lang/Object;
+	public final fun component5 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;)Lme/ahoo/wow/api/decide/Command;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBody ()Ljava/lang/Object;
+	public final fun getExpectedVersion ()Ljava/lang/Integer;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequestId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/api/decide/Decision {
+	public static final field Companion Lme/ahoo/wow/api/decide/Decision$Companion;
+}
+
+public final class me/ahoo/wow/api/decide/Decision$Companion {
+	public final fun events ([Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Decision;
+	public final fun reject (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/decide/Decision;
+}
+
+public final class me/ahoo/wow/api/decide/Decision$Events : me/ahoo/wow/api/decide/Decision {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lme/ahoo/wow/api/decide/Decision$Events;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/decide/Decision$Events;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Decision$Events;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEvents ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/decide/Decision$NoOp : me/ahoo/wow/api/decide/Decision {
+	public static final field INSTANCE Lme/ahoo/wow/api/decide/Decision$NoOp;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/decide/Decision$Rejected : me/ahoo/wow/api/decide/Decision {
+	public fun <init> (Lme/ahoo/wow/api/decide/Rejection;)V
+	public final fun component1 ()Lme/ahoo/wow/api/decide/Rejection;
+	public final fun copy (Lme/ahoo/wow/api/decide/Rejection;)Lme/ahoo/wow/api/decide/Decision$Rejected;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/decide/Decision$Rejected;Lme/ahoo/wow/api/decide/Rejection;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Decision$Rejected;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRejection ()Lme/ahoo/wow/api/decide/Rejection;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/decide/Rejection {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/decide/Rejection;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/decide/Rejection;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Rejection;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class me/ahoo/wow/api/event/AggregateDeleted {

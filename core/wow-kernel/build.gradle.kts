@@ -3,4 +3,7 @@ description = "Wow Kernel: the aggregate model and the decide, evolve, append lo
 dependencies {
     api(project(":wow-spi"))
     api(project(":wow-manifest"))
+    api("tools.jackson.core:jackson-databind")
+    implementation("tools.jackson.module:jackson-module-kotlin")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
