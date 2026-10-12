@@ -18,7 +18,7 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 // The end-to-end tests run against containers (MongoDB, ClickHouse), apart from `check`, as a library's

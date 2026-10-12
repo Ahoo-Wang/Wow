@@ -31,7 +31,7 @@ The current Wow documentation source is `9.8.0`, while the verified template pin
 
 ## Before You Start
 
-- JDK 17 or later
+- JDK 21 or later
 - Git
 - `curl`
 - the checked-in Gradle Wrapper; no global Gradle installation is required

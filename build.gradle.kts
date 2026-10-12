@@ -54,8 +54,8 @@ val exampleProjects =
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
-// The V10 modules (documentation/designs/v10/06-modules.md). They build on JDK 21 (decision D29) and stay incubating
-// until their API settles; wow-architecture (V10's dependency rules) and wow-kernel-benchmarks (spike H3) are never
+// The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
+// incubating until their API settles; wow-architecture (V10's dependency rules) and wow-kernel-benchmarks (spike H3) are never
 // published.
 val v10Projects = listOf(
     "wow-manifest", "wow-query-api", "wow-spi", "wow-kernel", "wow-runtime", "wow-reactor",
@@ -228,7 +228,7 @@ configure(libraryProjects) {
     }
     apply(plugin = "org.jetbrains.kotlin.jvm")
     configure<KotlinJvmProjectExtension> {
-        jvmToolchain(if (project in v10Projects) 21 else 17)
+        jvmToolchain(21)
     }
     tasks.withType<KotlinCompile> {
         compilerOptions {

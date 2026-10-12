@@ -18,7 +18,7 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 tasks.jar.configure {
     exclude("application.yaml", "bootstrap.yaml")

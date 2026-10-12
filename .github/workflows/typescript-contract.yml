@@ -89,7 +89,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v6
       - name: Build the example and view store servers
@@ -266,7 +266,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v6
       - name: Build the example and view store servers

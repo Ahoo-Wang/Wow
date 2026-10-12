@@ -31,7 +31,7 @@ outline: deep
 
 ## 开始前
 
-- JDK 17 或更高版本
+- JDK 21 或更高版本
 - Git
 - `curl`
 - 仓库中的 Gradle Wrapper；无需全局安装 Gradle
