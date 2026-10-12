@@ -1,6 +1,6 @@
 # V10 数据协议
 
-日期：2026-10-12。基线：`v10` `4224` 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51。
+日期：2026-10-12。基线：`v10` `4224` 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51、D132、D135、D136、D142。
 
 本文定义 V10 中跨越进程、存储或版本边界的数据结构：命令、事件流、`StateEventRecord`、快照、命令结果、等待信号、Kafka 信封。这些结构一旦落盘或上线，就只能按 §9 的规则演进，所以在 M4（运行时）与 M6（Kafka）之前定下。
 
@@ -41,7 +41,7 @@ data class Command<C : Any>(
 )
 ```
 
-- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
+- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation, replyTo }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。`replyTo: {context, subscription}` 可选，只在跨上下文命令上出现，告诉目标拒绝回执发往哪个上下文、交给哪个 Saga（D136，格式 1 内的加法）。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
 - **请求 ID 复用的识别只比命令类型名**（D46，按性能取舍修正，D55）：事件流记下产生它的命令类型名（§4 的 `commandType`），同一请求 ID 再来时，类型名不同就拒绝（`wow.command.request-id-reused`），相同就当作重试。
   - 不再给命令体算哈希：命令体在写路径上本来不序列化，只为指纹序列化一次再哈希，是 H3 测出的主要成本之一；规范化 JSON 还有「跨部署加字段即误判」的问题。
   - 已知限制：同一类型、不同内容的命令复用请求 ID 时，后者被当作重试，得到前者的结果。请求 ID 由调用方按「一次业务请求一个」生成，这是调用方的契约（文档与 `wow-client` 默认每次生成新 ID）。
@@ -94,7 +94,7 @@ data class Transport(
 
 ## 5. StateEventRecord（订阅与发布的单位）
 
-线上与存储形式叫 `StateEventRecord`，与 `EventStreamRecord`、`SnapshotRecord` 同一命名惯例；处理函数拿到的类型化形式是 `wow-api` 的 `StateEvent<S>`（D81）。
+线上与存储形式叫 `StateEventRecord`，与 `EventStreamRecord`、`SnapshotRecord` 同一命名惯例；处理函数拿到的类型化形式是 `wow-api` 的 `StateEvent<S>`（D81）。`StateEventRecord` 与 `StateView` 定义在 `wow-spi`（D132），因为 Sink 所在的后端只能依赖 `wow-spi`。
 
 ```kotlin
 data class StateEventRecord(
@@ -182,6 +182,17 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
   - `command`：`id` 是命令 ID，`payload` 是 §3 的线上形式。
   - `command-receipt`：`id` 是命令 ID，`payload` 是 `CommandResult`，即跨上下文命令的回执（D47、R7）。
 - 下游按 `id` 去重。`transport` 只放传输段（D25）。
+- **主题**（D135）：`state-event` 发往 `wow.<ctx>.<agg>.state`（每个聚合类型一个，即 Manifest `published[].topic`，可覆盖）；`command` 发往 `wow.<ctx>.commands`，分区数等于该上下文日志的分区数 P，生产者用日志的 `Partitioner` 选分区；`command-receipt` 发往 `wow.<replyTo.context>.receipts`（D136）。
+
+**ClickHouse Sink 的表**（D142）：每个聚合类型两张表，加一个生成的视图：
+
+| 表 | 引擎与键 | 内容 |
+|---|---|---|
+| `<ctx>_<agg>_state` | ReplacingMergeTree(version)，ORDER BY (tenant_id, aggregate_id) | 系统列加 JSON 字符串的 `state` |
+| `<ctx>_<agg>_events` | MergeTree | 每个事件一行 |
+| `<ctx>_<agg>_state_flat` | 视图 | Manifest 状态 schema 的顶层标量展开为类型化列，作为数据集源表；嵌套展开推迟 |
+
+插入以 `ref@version` 为去重令牌；`wow.clickhouse.sink.ddl`（`auto`、`validate`、`none`）决定建表还是校验。
 
 ## 9. 格式版本与演进（D59）
 
@@ -202,7 +213,7 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 | `EventStreamRecord` 增加 `scope`、`causation`、`headers`；`SnapshotRecord` 以 `scope` 取代两个字段 | `wow-spi`、内存、PostgreSQL、MongoDB 日志、`EventLogSpec` |
 | `LogEntry.transport`、`append(stream, transport)` | 同上；D50 的预留确认依赖它 |
 | 内核维护 `scope`，生命周期命令改变 `scope` | `wow-kernel`（`CachedState`、生命周期，路线图 2.4） |
-| `StateEventRecord`、`StateView` | `wow-kernel`（提交时序列化），订阅运行时使用；类型化的 `StateEvent<S>` 在 `wow-api`（已合入） |
+| `StateEventRecord`、`StateView` | `wow-spi`（D132，原写 `wow-kernel`；提交时由内核序列化），订阅运行时与 Sink 使用；类型化的 `StateEvent<S>` 在 `wow-api`（已合入） |
 | 对外 `CommandResult`、`WaitSignal` | `wow-api`（M4 的等待与 `wow-http` 使用） |
 
 **集群通道的命令转发**（D78，Ahoo-Wang/Wow#4251，格式 1）：

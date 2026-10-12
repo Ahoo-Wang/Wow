@@ -1,6 +1,6 @@
 # V10 模块与目录
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。上位文档：[00 目标架构](00-architecture.md)（A4、A5、A10）。相关决定：D9、D10、D27、D29、D30、D31、D41～D44。
+日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。上位文档：[00 目标架构](00-architecture.md)（A4、A5、A10）。相关决定：D9、D10、D27、D29、D30、D31、D41～D44、D125、D126、D132、D144、D146、D147。
 
 ## 1. 划分原则
 
@@ -27,21 +27,21 @@
 | 层 | 模块 | 内容 | 取代 9.x 的 |
 |---|---|---|---|
 | 契约 | `wow-api` | 领域代码会 import 的东西与对外线上契约的值类型，无依赖（§2.1，D66） | wow-api（重新设计，去掉查询协议） |
-| 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口 | wow-api 的 `api.query` 包 |
+| 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口；查询字段注解（`@Sensitive` 等）；纯数据，包名仍是 `me.ahoo.wow.api.query`（D125） | wow-api 的 `api.query` 包 |
 | 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据 | wow-metadata |
 | 编译 | `wow-compiler` | KSP：绑定代码与 Manifest；只依赖 `wow-api` 与 `wow-manifest` | wow-compiler |
 | 编译 | `wow-manifest-tools` | 构建期内省：victools 生成 schema、状态指纹、片段补全与合并；只在 `wow-gradle-plugin` 的隔离 Worker 里运行（D83） | — |
 | 编译 | `wow-gradle-plugin` | Gradle 插件 `me.ahoo.wow`：接好 KSP，构建期内省 schema、合并服务级 Manifest（D83） | wow-schema 的构建期部分 |
-| 内核 | `wow-spi` | 全部端口（日志、快照、检查点、租约、失败台账、预留键、Sink）与值类型，`@WowSpi` | wow-core 的 SPI |
+| 内核 | `wow-spi` | 全部端口（日志、快照、检查点、租约、失败台账、预留键、`Sink`、`TopicProducer`、`PartitionedSource`）与值类型（含 `StateEventRecord`、`StateView`、Kafka 信封与其编解码，D132），`@WowSpi` | wow-core 的 SPI |
 | 内核 | `wow-kernel` | `AggregateModel`、decide → evolve → append 循环、结局查明、事件编解码与 revision 升级、状态版本视图、内存日志 | wow-core 的内核 |
 | 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期 | wow-core 的其余部分 |
 | 内核 | `wow-reactor` | 用户编程模型的 Reactor 适配：返回 `Mono`/`Flux` 的处理函数、`ReactiveCommandGateway`、`ReactiveQueryGateway`（D9） | wow-core 的 Reactor 形态 |
-| 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；数据集 | wow-query |
+| 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；数据集；`QueryJson`；后端合同测试 `QueryBackendSpec`。9.x 的协程移植（D126） | wow-query |
 | 后端 | `wow-postgres` | 日志、快照、查询、检查点、租约、台账、预留键（D10、D27） | （新增） |
 | 后端 | `wow-mongo` | 同上，MongoDB（D11） | wow-mongo |
-| 后端 | `wow-elasticsearch` | 快照、查询、事件检索 Sink（D13） | wow-elasticsearch |
-| 后端 | `wow-clickhouse` | 查询、数仓 Sink（D18） | wow-clickhouse、wow-bi |
-| 后端 | `wow-kafka` | Kafka Router、Sink、Kafka 来源的订阅、跨上下文命令；直接基于 `kafka-clients`（D31、D33） | wow-kafka |
+| 后端 | `wow-elasticsearch` | 快照、查询、事件检索 Sink（D13）；M6 之后的 6.7（D131） | wow-elasticsearch |
+| 后端 | `wow-clickhouse` | 数据集查询后端、数仓 Sink（D18、D142） | wow-clickhouse、wow-bi |
+| 后端 | `wow-kafka` | Kafka Router、Sink、Kafka 来源的订阅、跨上下文命令的传输；只依赖 `wow-spi` 与 `kafka-clients`，语义在运行时（D31、D33、D132） | wow-kafka |
 | 边缘 | `wow-http` | 由 Manifest 物化路由、problem+json、SSE、信号入口（D30、D35） | wow-webflux、wow-rest-contract |
 | 边缘 | `wow-openapi` | Manifest → OpenAPI；swagger 依赖只在这里 | wow-openapi、wow-schema |
 | 集成 | `wow-cosec` | 准入与查询的授权策略（身份作用域、ABAC 标签） | wow-cosec |
@@ -52,7 +52,9 @@
 | 迁移 | `wow-migrate-data` | 数据迁移工具（[07](07-migration.md)） | （新增） |
 | 发布 | `wow-bom`、`wow-dependencies` | BOM 与依赖版本 | 同名 |
 
-平台模块（wow-ops、view-store、dataset-registry、analytics）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。
+平台模块（wow-ops、view-store、dataset-registry、analytics）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。M7 把它们作为新的 V10 项目建在 `platform/<名字>/`（D146）。
+
+示例：`:shop-*`（`example/shop`，D111）、`:inventory-*`（`example/inventory`）与只用于测试、不发布的 `:example-e2e`（`example/e2e`），都只能依赖 V10 模块（D118、D144）。
 
 9.x 中删除或并入上表的：wow-redis（D12）、wow-bi（D18）、wow-spring、wow-mock、wow-schema、wow-rest-contract、wow-metadata。去留未定的：wow-apiclient（Kotlin 客户端可能改由 Manifest 生成）、wow-cocache、wow-models，见 §6。
 
@@ -74,12 +76,12 @@ me.ahoo.wow.api
 
 | 9.x 包 | 规模 | 去向 |
 |---|---|---|
-| `query/**` | 约 6,600 行 | 搬入 `wow-query-api`（M9，§4） |
+| `query/**` | 约 6,600 行 | M6 移植为 V10 的 `:query-api`，去掉 `Condition`（6.1a，D125） |
 | `modeling`（`*Capable` 混入接口）、`naming`、`messaging`（`Header`、`Message`、`FunctionInfo*`） | 约 1,900 行 | 删除；`FunctionInfo` 的语义进 `CommandResult`（D60） |
 | `command`（`CommandMessage`、`CommandResultAccessor`…）、`event`（`DomainEvent`、`EventMessage`） | 约 850 行 | 删除，由 `Command`、`StateEvent` 取代 |
 | 生命周期事件、`exception/ErrorInfo`、`abac` | 约 1,100 行 | 按 V10 语义重做（`lifecycle`、`result`；标签进生命周期命令） |
 
-**时机**：V10 的 `wow-api` 是新目录 `api/api` 里的新模块（Gradle 项目 `:api`，artifactId `wow-api`，D85、D87），只放上表的包；9.x 的 `wow-api` 原地不动，供 `wow-core` 等 9.x 模块使用，M9 随 9.x 一起删除，`query` 在 M9 搬入 `wow-query-api`。
+**时机**：V10 的 `wow-api` 是新目录 `api/api` 里的新模块（Gradle 项目 `:api`，artifactId `wow-api`，D85、D87），只放上表的包；9.x 的 `wow-api` 原地不动，供 `wow-core` 等 9.x 模块使用，M9 随 9.x 一起删除。`query` 不等 M9：M6 在 `api/query-api` 另起 `:query-api`（D125），与 `:query`（D126）一起移植，`REPLACED_9X` 把它们分别与 `wow-api`、`wow-query` 配对；移植合入后，main 上的 9.x 查询代码只修缺陷（修订原先「`query` 在 M9 搬入」）。
 
 ## 3. 依赖方向
 
@@ -93,7 +95,7 @@ flowchart BT
     KER[wow-kernel] --> SPI & MAN
     RT[wow-runtime] --> KER
     RX[wow-reactor] --> RT
-    Q[wow-query] --> QAPI & SPI
+    Q[wow-query] --> QAPI & SPI & MAN
     BE[后端<br/>postgres · mongo · elasticsearch · clickhouse · kafka] --> SPI
     BE -. 实现查询后端时 .-> Q
     HTTP[wow-http] --> RT & Q
@@ -129,7 +131,7 @@ test/           wow-test  wow-tck  wow-it  wow-benchmarks
 migration/      wow-migrate-data
 bom/            wow-bom  wow-dependencies
 platform/       ops/  view-store/  dataset-registry/  analytics/
-example/        （同 9.x）
+example/        9.x 示例原地不动；V10 的 shop/  inventory/  e2e/
 typescript/     （同 9.x）
 documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 ```
@@ -139,7 +141,7 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 - V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。它们在孵化中：照常构建与测试，不发布、不做 ABI 校验，用 JDK 21（D29）。
 - 与 9.x **同名**的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）**不原地演进**（D85）：V10 重写时在新目录另起模块，只放 V10 代码，项目名不带前缀（D87），artifactId 是 `wow-<名字>`；9.x 模块的项目名与目录不动，前向合并照常，`v10` 不发布它们，但保留它们的 ABI 校验（D90）；架构测试禁止同时依赖新旧两边（H3 的 `:kernel-benchmarks` 具名豁免）。项目名与 artifactId 可以不同，所以同名的 artifact 不妨碍新旧模块并存。
 - 被整体替换的 9.x 模块（`wow-core`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux`、`wow-rest-contract`、`wow-redis`、`wow-bi`、`wow-schema`、`wow-metadata`、`wow-mock`）留在原地，在替换它的里程碑里删除。
-- 平台目录在 M9 合入 main 之前，用一个只做搬迁的提交移到 `platform/`；CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 在同一个提交里更新。
+- 平台模块不搬迁（D146，修订原先 M9 前「只做搬迁的提交」）：M7 在 `platform/<名字>/` 新建 V10 项目，9.x 的平台目录留在原地、移植后只修缺陷，M9 随 9.x 删除；新项目的 CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 随项目建立。
 
 ## 5. 平台基线
 
@@ -152,4 +154,4 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 
 - `wow-apiclient`、`wow-cocache`、`wow-models` 的去留与替代。
 - `wow-it` 的内容：端到端、多节点、迁移演练是否各成模块。
-- 发布模块清单（ABI 转储从 `10.0.0-beta` 开始，D88）。
+- 发布模块清单（ABI 转储从 M7 出口的 API 冻结开始，D88、D147）。
