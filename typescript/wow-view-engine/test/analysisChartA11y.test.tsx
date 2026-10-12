@@ -663,6 +663,28 @@ describe('the metric card still says its value out loud', () => {
     expect(words.textContent).toBe('Target 9,000');
   });
 
+  /**
+   * R2-101: a card with no trend under it stood at its panel's top over
+   * an empty panel; it stands in the middle of its height instead, and a
+   * card with a trend runs from top to foot as before.
+   */
+  it('centres a card with no trend in the height it is given', () => {
+    const card = (trend?: { x: number; value: number }[]) =>
+      draw(
+        { type: 'metric', value: 8201, ...(trend ? { trend } : {}) },
+        { type: 'metric', metric: { metric: 'orders' } },
+        columns,
+      ).container.querySelector('[data-slot="metric-card"]')!;
+
+    expect(card().className).toContain('fve:justify-center');
+    expect(
+      card([
+        { x: 1, value: 2 },
+        { x: 2, value: 3 },
+      ]).className,
+    ).not.toContain('fve:justify-center');
+  });
+
   /** Nothing to fall short of still has to be drawable. */
   it('draws a target of zero without dividing by it', () => {
     const { container } = draw(

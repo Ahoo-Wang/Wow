@@ -145,7 +145,7 @@ export function radarOption(
     animationDuration: 300,
     textStyle: chartText(theme),
     radar: {
-      radius: '66%',
+      radius: `${RADIUS_SHARE * 100}%`,
       center: ['50%', '52%'],
       splitNumber: 4,
       shape: 'polygon',
@@ -287,5 +287,55 @@ export function parallelOption(
         },
       },
     ],
+  };
+}
+
+/** The air between a radar's corner and the name written past it. */
+const NAME_GAP = 8;
+/** The air between a name and the plot's edge. */
+const EDGE = 4;
+/** The least a radar's radius is drawn at, however long its names. */
+const RADIUS_FLOOR = 40;
+/** The radius where the names leave it room: the library's 66%. */
+const RADIUS_SHARE = 0.66;
+/** The widest a name stands beside a radar before it wraps. */
+const NAME_SHARE = 0.3;
+
+/**
+ * How a radar fits the plot it has: the radius leaves its widest axis name
+ * room beside the corners and its tallest above and below them, and a name
+ * wider than three tenths of the plot wraps onto more lines rather than
+ * running off the edge. A fixed 66% cut 「直降占比」 at 390 wide, and any
+ * longer name anywhere narrower (R2-101).
+ */
+export function radarFit(
+  names: readonly string[],
+  width: number,
+  height: number,
+  measure: (text: string) => number,
+  lineHeight: number,
+): EChartsCoreOption {
+  const widest = Math.max(0, ...names.map(measure));
+  const room = Math.max(RADIUS_FLOOR, Math.floor(width * NAME_SHARE));
+  const beside = Math.min(widest, room);
+  const lines = beside > 0 ? Math.ceil(widest / beside) : 1;
+  const radius = Math.max(
+    RADIUS_FLOOR,
+    Math.floor(
+      Math.min(
+        // No larger than it ever was: two thirds of the shorter half.
+        (Math.min(width, height) / 2) * RADIUS_SHARE,
+        width / 2 - beside - NAME_GAP - EDGE,
+        height * 0.48 - lines * lineHeight - NAME_GAP - EDGE,
+      ),
+    ),
+  );
+  return {
+    radar: {
+      radius,
+      // The gap the radius left, not the library's own 15px.
+      axisNameGap: NAME_GAP,
+      axisName: { width: beside, overflow: 'break' },
+    },
   };
 }

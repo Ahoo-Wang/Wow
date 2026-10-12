@@ -22,7 +22,13 @@ import { EChart, type ChartClick } from './EChart.js';
 import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
 import { useChartMotion } from './motion.js';
-import { drawnProfiles, parallelOption, radarOption } from './profileOption.js';
+import {
+  drawnProfiles,
+  parallelOption,
+  radarFit,
+  radarOption,
+} from './profileOption.js';
+import { measureText } from './measure.js';
 import type { ChartTheme } from './theme.js';
 
 /**
@@ -62,6 +68,26 @@ export function Profiles({
         : parallelOption(data, context, theme);
     },
     [data, spec, label, column, seriesName, animate, pickable, highlight],
+  );
+  // A radar's radius leaves its axis names room at the size it is drawn at
+  // (`radarFit`); parallel axes name theirs along the top.
+  const adapt = useCallback(
+    (
+      width: number,
+      height: number,
+      _window: unknown,
+      text: ChartTheme['text'],
+    ) =>
+      data.type === 'radar'
+        ? radarFit(
+            data.metrics.map(metric => column(metric) ?? metric),
+            width,
+            height,
+            name => measureText(name, undefined, text.size),
+            Math.ceil(text.size * 1.4),
+          )
+        : undefined,
+    [data, column],
   );
   const drawn = useMemo(
     () => drawnProfiles(data, { spec, label, seriesName }),
@@ -116,6 +142,7 @@ export function Profiles({
       name={name}
       className={className}
       option={option}
+      adapt={adapt}
       onClick={onClick}
       chunk="statistics"
       legend={legend}
