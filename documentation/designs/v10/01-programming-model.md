@@ -86,6 +86,8 @@ class CartState(val id: String) {
 | `@Description`、`@Summary` | 写进 Manifest 的说明 | 同名 |
 | `@WowSpi` | 标注可替换的端口 | 同名 |
 
+V10 注解与 9.x 同在 `me.ahoo.wow.api.annotation`（D79）：同名的原地沿用，V10 处理器忽略 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`），这些属性在删除 `wow-core` 时裁掉；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
+
 删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Retry`（改为订阅配置）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
 
 **命令体里不放身份**（D68）：命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` 删除。聚合身份在 `Command.ref`，来自路径（HTTP）或命令消息本身（Kafka、Saga 派生），所有者与空间来自认证主体（[05](05-read-and-contract.md) §3）；命令体只放业务数据。创建命令要由客户端指定 ID 时用带 `{id}` 的路由，不带则由服务端生成。迁移 Skill 从 9.x 命令里删去这些字段，并把读取它们的代码改为读 `Command<X>.ref`。

@@ -105,8 +105,9 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 4.1 | Executor 与状态缓存 | 每聚合顺序测试；完成：每聚合一条公平车道（不同聚合互不阻塞、车道有上限、关闭即拒绝并等待在途命令），`StateCache` 取出放回语义与 `LruStateCache` |
-| 4.2 | 集群通道与租约：HRW 无主对账（D70）、主动交接、降级 Local（D71）、租约组与成员地址（D72） | 节点上下线时属主收敛；交接期间命令不中断（H6 的数据） |
-| 4.3 | Router：Partitioned、Local | 转发与降级测试 |
+| 4.2a | 集群通道（与传输无关，D77）：`ClusterChannel` 端口与转发消息（D78）、HRW 无主对账（D70）、主动交接、降级 Local（D71）、租约组与成员地址（D72）、进程内回环传输 | 单 JVM 多节点测试：属主收敛、交接顺序、属主被杀后降级、超时后去重 |
+| 4.2b | 集群通道的真实传输：宿主的 HTTP/2 栈（D26） | 3 个 JVM 互相转发；节点上下线时命令不中断（H6 的数据） |
+| 4.3 | Router：Partitioned、Local（随 4.2a 实现） | 转发与降级测试 |
 | 4.4 | 订阅运行时：共享尾随、追赶读、检查点、分区内并行 | 读压力不随订阅数增长 |
 | 4.5 | 失败停放与台账；重放与蓝绿重建 | 停放与恢复测试 |
 | 4.6 | 内置快照订阅；历史状态（按版本、按时间、追溯，D40） | 快照与日志一致；历史状态与重放一致 |
@@ -172,7 +173,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ## 5. 当前进度与下一步（2026-10-12 交接）
 
-本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D76 已定，只剩 D6 待 H2 证据）与 [08 数据协议](08-data-protocols.md)。
+本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D79 已定，只剩 D6 待 H2 证据）与 [08 数据协议](08-data-protocols.md)。
 
 **工作方式**：主会话只做协调与审查；实现交给隔离 worktree 里的子代理，子代理开 PR 到 `v10` 但不合并；主会话审查后在本地对合并结果做演练（完整验证命令全绿），再 `gh pr merge --squash --admin --match-head-commit <完整 SHA>`。子代理的说明里必须写明：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；改动公开面时更新 `wow-api`、`wow-mongo` 的 ABI 转储；先 `detekt --auto-correct`；不改设计文档（由主会话改）；互相并行的子代理不碰同一批文件。
 
@@ -184,18 +185,19 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 **已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4，仍绑定 9.x 注解）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）。H1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
 
-**进行中**：H2 阶段 1。进行中的代码与部分结果已推到远程分支 `claude/v10-spike-h2-wip`（测试模块 `test/wow-routing-spike`，部分结果在其 `wip-results/`，未审查，不能原样合并）；原子代理若完成，会推送 `claude/v10-spike-h2` 并开 PR。若已有 PR：审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6（中间数据明显偏向 Partitioned：Zipf 80% 负载 p99 Local 274 ms 对 Partitioned 3.7 ms），再合并。若没有 PR：派子代理从 `claude/v10-spike-h2-wip` 接手完成（删去 `wip-results/`），开 PR。
+**进行中**：H2 阶段 1，子代理已从 `claude/v10-spike-h2-wip` 接手，跑完实验矩阵后从 `origin/v10` 开分支 `claude/v10-spike-h2` 与 PR（不含 `wip-results/`）；主会话审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6，再合并。第 1 批的 4.2a 与注解集同时由子代理实现，两者文件不重叠（4.2a：`wow-spi`、`wow-kernel` 的租约、`wow-runtime`、`wow-postgres`、`wow-mongo`；注解集：`wow-api`、`wow-compiler`）。
 
 **下一步队列**（按依赖排序；同一行内的可并行）：
 
 | 顺序 | 工作包 | 依赖与要点 |
 |---|---|---|
-| 1 | 4.2 集群通道与再平衡（D70～D72） | HRW 无主对账、主动交接、转发失败降级 Local、`Member` 增加内部地址（SPI 与三套后端）、命令转发与结果回传（HTTP/2 + JSON，D26）、跨节点等待信号直达发起节点（D65） |
-| 1 | V10 注解集与 `wow-api` 新包（D66～D68） | 01 §3 的注解表、06 §2.1 的包结构；KSP 改为只认 V10 注解；命令与事件的 `@Alias`；`StateEvent` 与订阅上下文（`subscribe` 包）；命令体不放身份 |
+| 1 | 4.2a 集群通道与再平衡（D70～D72、D77、D78） | HRW 无主对账、主动交接、转发失败一律降级 Local、`Member` 增加内部地址（SPI 与三套后端）、同步命令转发（进程内回环传输）；进行中（子代理） |
+| 1 | V10 注解集与 `wow-api` 新包（D66～D68、D79） | 01 §3 的注解表、06 §2.1 的包结构；同名注解原地沿用；KSP 改为只认 V10 注解；命令与事件的 `@Alias`；`StateEvent` 与订阅上下文（`subscribe` 包）；命令体不放身份；进行中（子代理） |
 | 2 | 4.6 内置快照订阅 | 用 `EventCodec.snapshotOf`，作用域取自事件流的 `scope`；同批同聚合合并写入；等待的默认 `SNAPSHOT` 由它完成 |
 | 2 | D50 预留确认订阅 | 按日志条目传输段确认待确认预留；恢复路径需要一条带传输段的读取 |
 | 3 | 2.4 生命周期命令与事件 | 删除、恢复、转移所有者 / 空间（在 `Kernel.scopeAfter` 接入）、标签 |
 | 3 | 等待的后续 | 流式结果改为每条派生命令推一个；只有默认计划可退回 `COMMITTED`，显式要求快照而无快照订阅时拒绝；`WaitPlan` 提供 `java.time.Duration` 重载 |
-| 4 | H6（租约收敛实测）、H2 阶段 2 | 依赖 4.2 |
+| 4 | H6（租约收敛实测） | 依赖 4.2a |
+| 4 | 4.2b 真实传输、H2 阶段 2 | 依赖宿主的 HTTP/2 栈（`wow-http` / `wow-spring-boot`） |
 | 4 | 5a.1 Manifest v0 与 Jackson 内省 schema（D73～D74） | 依赖注解集 |
 
