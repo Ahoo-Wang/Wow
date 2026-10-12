@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -37,6 +38,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.core.JacksonException
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -285,6 +287,77 @@ class Kernel(
     }
 
     /**
+     * The committed state of [ref] as of [at], read-only (decision D40, design 03 §4): the state after the last stream
+     * committed at or before [at] by its commit time. Commit times are epoch milliseconds, so [at] counts to its
+     * millisecond. The log is read in version order and the first stream committed after [at] ends it: commit times
+     * are taken to rise with the versions, which only a clock stepping back between two owners of the aggregate
+     * breaks, and only by that step.
+     *
+     * [snapshot] serves as for a version (see the other [stateAt]) when its last stream committed at or before [at]:
+     * it is evolved with the tail up to [at], so the log is not replayed from version 1. A snapshot committed after
+     * [at], of another aggregate or not fitting is passed over. Every event is read as the model's current schema,
+     * upgraded from the revision it was written in (D82). The state cache is not touched.
+     *
+     * @return the state with the metadata the kernel keeps beside it (scope, deleted mark, tags); null when no stream
+     *   of [ref] had committed by [at].
+     */
+    suspend fun <S : Any> stateAt(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        at: Instant,
+        snapshot: SnapshotRecord? = null,
+    ): CachedState? {
+        require(ref.type == model.type) { "$ref is not a ${model.type}." }
+        val by = at.epochMillis()
+        if (snapshot != null && snapshot.ref == ref && snapshot.lastEventTime <= by) {
+            fromSnapshot(model, snapshot, committedBy = by)?.let { return it }
+        }
+        val streams = log.read(ref).takeWhile { it.commitTime <= by }.toList()
+        if (streams.isEmpty()) {
+            return null
+        }
+        return replay(model, CachedState(model.initialState(ref), 0), streams)
+    }
+
+    /**
+     * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit] of them, in version order,
+     * read-only (decision D40, design 03 §4): each stream with its events, read as the model's current schema (D82),
+     * and the state and metadata after it. The state before [fromVersion] is the one [stateAt] gives for its version,
+     * from [snapshot] and the tail when it fits, so the log is not replayed from version 1 then. The state cache is
+     * not touched.
+     *
+     * @return the commits, empty when the log holds no version from [fromVersion] up to [toVersion].
+     */
+    @Suppress("LongParameterList")
+    suspend fun <S : Any> trace(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        fromVersion: Int,
+        toVersion: Int,
+        limit: Int,
+        snapshot: SnapshotRecord? = null,
+    ): List<CommitTrace> {
+        require(ref.type == model.type) { "$ref is not a ${model.type}." }
+        require(fromVersion >= 1) { "A commit has a version from 1." }
+        require(toVersion >= fromVersion) { "A trace ends at or after its first version." }
+        require(limit >= 1) { "A trace holds at least one commit." }
+        var current = if (fromVersion == 1) {
+            CachedState(model.initialState(ref), 0)
+        } else {
+            stateAt(model, ref, fromVersion - 1, snapshot) ?: return emptyList()
+        }
+        val last = minOf(toVersion.toLong(), fromVersion.toLong() + limit - 1).toInt()
+        val traces = ArrayList<CommitTrace>()
+        log.read(ref, fromVersion, last).collect { stream ->
+            val events = ArrayList<Any>(stream.events.size)
+            current = evolve(model, current, stream, events)
+            // The state may be mutable and evolve further: the trace keeps a tree of it as it is now.
+            traces += CommitTrace(stream, events, codec.stateTree(current.state), current.deleted, current.tags)
+        }
+        return traces
+    }
+
+    /**
      * The snapshot of [ref], or null when there is none or the store fails: a snapshot is only a cache, so a failing
      * store costs a full replay, never the command. Cancellation still propagates.
      */
@@ -307,12 +380,14 @@ class Kernel(
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
      * for another state schema, not decodable, or newer than the log. The tail is read from the snapshot's own
      * version, so the same read proves the log holds that version; that stream is already folded and is skipped. The
-     * tail stops at [until].
+     * tail stops at [until], and before the first stream committed after [committedBy] (epoch milliseconds): a
+     * snapshot whose own stream committed after it does not fit either.
      */
     private suspend fun <S : Any> fromSnapshot(
         model: AggregateModel<S>,
         snapshot: SnapshotRecord,
         until: Int = Int.MAX_VALUE,
+        committedBy: Long = Long.MAX_VALUE,
     ): CachedState? {
         if (snapshot.schemaFingerprint != codec.stateSchemaFingerprint(model)) {
             logger.debug { "The snapshot of ${snapshot.ref} has another state schema; replaying its log." }
@@ -327,7 +402,11 @@ class Kernel(
             logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode whole; replaying its log." }
             return null
         }
-        val streams = log.read(snapshot.ref, snapshot.version, until).toList()
+        val streams = log.read(
+            snapshot.ref,
+            snapshot.version,
+            until
+        ).takeWhile { it.commitTime <= committedBy }.toList()
         if (streams.firstOrNull()?.version != snapshot.version) {
             logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
             return null
@@ -344,19 +423,29 @@ class Kernel(
         model: AggregateModel<S>,
         initial: CachedState,
         streams: List<EventStreamRecord>,
+    ): CachedState = streams.fold(initial) { current, stream -> evolve(model, current, stream) }
+
+    /**
+     * Evolves [current] with the events of [stream], adding each event, read as the model's current schema, to
+     * [events] when given: the state, and the deleted mark and tags by the lifecycle events; the version and the
+     * scope become the stream's.
+     */
+    private fun <S : Any> evolve(
+        model: AggregateModel<S>,
+        current: CachedState,
+        stream: EventStreamRecord,
+        events: MutableList<Any>? = null,
     ): CachedState {
-        @Suppress("UNCHECKED_CAST") // The initial state is built by this model, or read as its state type.
-        var state = initial.state as S
-        var metadata = initial.metadata
-        streams.forEach { stream ->
-            stream.events.forEach { record ->
-                val event = codec.decode(model, record)
-                state = model.evolve(state, event)
-                metadata = KernelLifecycle.evolve(metadata, event)
-            }
+        @Suppress("UNCHECKED_CAST") // The state is built by this model, or read as its state type.
+        var state = current.state as S
+        var metadata = current.metadata
+        stream.events.forEach { record ->
+            val event = codec.decode(model, record)
+            events?.add(event)
+            state = model.evolve(state, event)
+            metadata = KernelLifecycle.evolve(metadata, event)
         }
-        val last = streams.lastOrNull() ?: return initial.with(state, initial.version, metadata)
-        return initial.with(state, last.version, metadata.copy(scope = last.scope))
+        return current.with(state, stream.version, metadata.copy(scope = stream.scope))
     }
 
     /**
@@ -536,6 +625,13 @@ class Kernel(
 
     private companion object {
         const val DEFAULT_MAX_ATTEMPTS = 3
+
+        /** [this] in epoch milliseconds, the unit of commit times; an instant beyond them is the first or the last. */
+        fun Instant.epochMillis(): Long = try {
+            toEpochMilli()
+        } catch (_: ArithmeticException) {
+            if (isBefore(Instant.EPOCH)) Long.MIN_VALUE else Long.MAX_VALUE
+        }
         val DEFAULT_RESERVATION_TTL = 30.seconds
         val logger = KotlinLogging.logger {}
     }

@@ -73,6 +73,9 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     /** [state] as text, to tell whether something changed it, and as a snapshot holds it. */
     fun stateText(state: Any): String = mapper.writeValueAsString(state)
 
+    /** [state] as a tree of the JSON [stateText] writes: a copy, keeping every number exact (D122). */
+    fun stateTree(state: Any): JsonNode = mapper.valueToTree(state)
+
     /**
      * The state [text] of a snapshot, read as [model]'s state class: a Jackson exception when it does not parse, an
      * [IllegalArgumentException] when the state read does not write back as the same JSON. A state that silently

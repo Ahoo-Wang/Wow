@@ -26,6 +26,8 @@ import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
+import java.time.Instant
 
 /** [KernelStateReads] and [StateReads.NONE] for what they do not serve. */
 class KernelStateReadsTest {
@@ -44,6 +46,8 @@ class KernelStateReadsTest {
         listOf(otherContext, otherType).forEach { ref ->
             reads.latest(ref).assert().isNull()
             reads.at(ref, 1).assert().isNull()
+            reads.at(ref, Instant.MAX).assert().isNull()
+            reads.trace(ref, 1, 1, 1).assert().isEmpty()
         }
         // The context is served, the model is not: even with a snapshot of it.
         val partial = KernelStateReads(
@@ -53,6 +57,8 @@ class KernelStateReadsTest {
         snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart(), 1, Scope.NONE, 1L, 1L))
         partial.latest(cart).assert().isNull()
         partial.at(cart, 1).assert().isNull()
+        partial.at(cart, Instant.MAX).assert().isNull()
+        partial.trace(cart, 1, 1, 1).assert().isEmpty()
         reads.latest(cart)!!.version.assert().isEqualTo(1)
     }
 
@@ -66,5 +72,16 @@ class KernelStateReadsTest {
     fun `NONE reads nothing`(): Unit = runBlocking {
         StateReads.NONE.latest(cart).assert().isNull()
         StateReads.NONE.at(cart, 1).assert().isNull()
+        StateReads.NONE.at(cart, Instant.MAX).assert().isNull()
+        StateReads.NONE.trace(cart, 1, 1, 1).assert().isEmpty()
+    }
+
+    @Test
+    fun `the latest state keeps a decimal exact (D122)`(): Unit = runBlocking {
+        val snapshot = EventCodec().snapshotOf(cartModel, cart, Cart(), 1, Scope.NONE, 1L, 1L)
+        snapshots.save(snapshot.copy(state = """{"items":1,"price":2.50}"""))
+        val price = reads.latest(cart)!!.state["price"]
+        price.decimalValue().assert().isEqualTo(BigDecimal("2.50"))
+        price.decimalValue().scale().assert().isEqualTo(2)
     }
 }

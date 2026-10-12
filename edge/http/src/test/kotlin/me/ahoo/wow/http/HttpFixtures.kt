@@ -161,7 +161,10 @@ class HttpNode(
     defaultWaitTimeout: kotlin.time.Duration = WaitPlan.DEFAULT_TIMEOUT,
 ) {
     private val log = InMemoryEventLog(partitions = 2)
-    val kernel = Kernel(log)
+
+    /** The commit times of the kernel: the system clock unless a test sets it. */
+    var now: () -> Long = System::currentTimeMillis
+    val kernel = Kernel(log, clock = { now() })
     val snapshots = InMemorySnapshotStore()
     private val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
