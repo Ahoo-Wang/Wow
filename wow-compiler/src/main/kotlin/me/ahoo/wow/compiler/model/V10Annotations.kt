@@ -26,7 +26,7 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
  * skill, and the identity annotations on a command's fields are errors too (decision D68). Attributes of reused
  * annotations that only 9.x reads (such as `AggregateRoot.commands` or `OnEvent.value`) are ignored.
  */
-object V10Annotations {
+internal object V10Annotations {
     const val PACKAGE = "me.ahoo.wow.api.annotation"
 
     /** The V10 set, by simple name. */
