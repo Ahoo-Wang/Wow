@@ -120,6 +120,17 @@ public final class me/ahoo/wow/mongo/SnapshotSchemaInitializer {
 public final class me/ahoo/wow/mongo/SnapshotSchemaInitializer$Companion {
 }
 
+public final class me/ahoo/wow/mongo/ledger/MongoFailureLedger : me/ahoo/wow/spi/ledger/FailureLedger {
+	public fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun createSchema ()V
+	public fun isParked (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun list (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun park (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun parked (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun resolve (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class me/ahoo/wow/mongo/log/MongoEventLog : me/ahoo/wow/spi/log/EventLog {
 	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;ILkotlinx/coroutines/CoroutineDispatcher;JIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;ILkotlinx/coroutines/CoroutineDispatcher;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -224,5 +235,44 @@ public final class me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackend : 
 
 public final class me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackendFactory : me/ahoo/wow/query/snapshot/AbstractSnapshotQueryBackendFactory {
 	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+}
+
+public final class me/ahoo/wow/mongo/reservation/MongoReservationStore : me/ahoo/wow/spi/reservation/ReservationStore {
+	public fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;Ljava/time/Clock;Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;Ljava/time/Clock;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun confirm (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun createSchema ()V
+	public fun find (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun release (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun reserve-zkXUZaI (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/mongo/snapshot/MongoSnapshotStore : me/ahoo/wow/spi/snapshot/SnapshotStore {
+	public fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun createSchema ()V
+	public fun load (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/mongo/subscription/MongoCheckpointStore : me/ahoo/wow/spi/subscription/CheckpointStore {
+	public fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun createSchema ()V
+	public fun load (Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun save (Ljava/lang/String;Ljava/lang/String;IJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/mongo/subscription/MongoLeaseStore : me/ahoo/wow/spi/subscription/LeaseStore {
+	public fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/time/Clock;Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/time/Clock;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acquire-zkXUZaI (Ljava/lang/String;ILjava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun createSchema ()V
+	public fun heartbeat-exY8QGI (Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun leave (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun members (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun owners (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun release (Ljava/lang/String;ILjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun renew-zkXUZaI (Ljava/lang/String;ILjava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
