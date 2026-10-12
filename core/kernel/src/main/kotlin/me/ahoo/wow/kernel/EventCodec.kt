@@ -15,18 +15,16 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.BeanProperty
-import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.MapperFeature
-import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonStringFormatVisitor
-import tools.jackson.module.kotlin.KotlinModule
 import java.security.MessageDigest
 import java.util.TreeMap
 import java.util.TreeSet
@@ -35,16 +33,12 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Turns events into what the log stores, and back. Events are named by the model, never by class name, so renaming
  * or moving a class does not orphan its history. States go into and come out of snapshots the same way.
+ *
+ * The default mapper is Wow's ([WowJson], decision D122), which keeps every JSON number exact: an untyped value reads
+ * a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place.
  */
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
-
-    /**
-     * Reads a payload an upgrade rewrites as a tree that keeps every number as written: a decimal is a
-     * [java.math.BigDecimal] with its scale and all its digits, never a double, so `2.50` reaches the event as `2.50`;
-     * an integer beyond `long` is a [java.math.BigInteger].
-     */
-    private val upgradeReader: ObjectReader = mapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
 
     /** [event] as a record of [model]. */
     fun encode(model: AggregateModel<*>, event: Any): EventRecord {
@@ -65,12 +59,13 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         if (record.revision == type.revision) {
             return mapper.readValue(record.payload, type.type)
         }
-        var payload = upgradeReader.readTree(record.payload)
+        // A tree of the Wow mapper keeps every number as written (WowJson): `2.50` reaches the event as `2.50`.
+        var payload = mapper.readTree(record.payload)
         for (revision in record.revision until type.revision) {
             payload = type.upgrades.getValue(revision)(payload)
         }
         // Bound from its text, as a record of the current revision is, so the upgrade path reads every value the same
-        // way: a tree of exact numbers bound directly would give an untyped value a BigDecimal where text gives a Double.
+        // way, whatever nodes an upgrade put in the tree.
         return mapper.readValue(mapper.writeValueAsString(payload), type.type)
     }
 
@@ -233,8 +228,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     private companion object {
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
-        val DEFAULT_MAPPER: JsonMapper = JsonMapper.builder()
-            .addModule(KotlinModule.Builder().build())
+        val DEFAULT_MAPPER: JsonMapper = WowJson.builder()
             // A mutable state (D7) holds collections in read-only properties; reading a snapshot fills them in place.
             .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
             .build()

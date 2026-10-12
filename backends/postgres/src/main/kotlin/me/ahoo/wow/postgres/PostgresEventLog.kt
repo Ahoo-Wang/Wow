@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -302,7 +303,9 @@ class PostgresEventLog(
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         const val DEFAULT_TAIL_BATCH = 500
-        val json: JsonMapper = JsonMapper.builder().build()
+
+        /** Wow's mapper: its trees keep every number exact, as `jsonb` stores them (`numeric`), so `2.50` stays. */
+        val json: JsonMapper = WowJson.mapper
 
         /** Events as one JSON array; each payload is stored as JSON, so the log can be queried in place. */
         fun encodeEvents(events: List<EventRecord>): String {

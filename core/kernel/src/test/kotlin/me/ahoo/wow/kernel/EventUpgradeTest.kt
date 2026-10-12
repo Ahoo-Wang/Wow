@@ -81,7 +81,16 @@ class EventUpgradeTest {
     fun `an upgraded payload binds as a current one does`() {
         val extra = """{"price":2.50,"long":123456789012345678901234567890.5,"count":12345678901234567890123}"""
         val payload = pricedPayload("2.50", "7", "0.25", extra)
-        decodePriced(1, payload).assert().isEqualTo(decodePriced(2, """{"currency":"CNY",""" + payload.drop(1)))
+        val current = decodePriced(2, """{"currency":"CNY",""" + payload.drop(1))
+        decodePriced(1, payload).assert().isEqualTo(current)
+        // Both read an untyped decimal exactly, as Wow's mapper does (decision D122).
+        current.extra.assert().isEqualTo(
+            mapOf(
+                "price" to BigDecimal("2.50"),
+                "long" to BigDecimal("123456789012345678901234567890.5"),
+                "count" to BigInteger("12345678901234567890123"),
+            ),
+        )
     }
 
     @Test

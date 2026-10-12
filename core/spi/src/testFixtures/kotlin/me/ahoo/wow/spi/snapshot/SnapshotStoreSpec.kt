@@ -21,8 +21,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.spi.ExactJson
 import org.junit.jupiter.api.Test
-import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 
 /**
@@ -63,7 +63,7 @@ abstract class SnapshotStoreSpec {
         this.assert().isNotNull()
         val loaded = checkNotNull(this)
         // A backend may store the state as JSON and give it back reformatted: compare it as JSON.
-        json.readTree(loaded.state).assert().isEqualTo(json.readTree(expected.state))
+        ExactJson.of(loaded.state).assert().isEqualTo(ExactJson.of(expected.state))
         loaded.copy(state = expected.state).assert().isEqualTo(expected)
     }
 
@@ -71,6 +71,14 @@ abstract class SnapshotStoreSpec {
     fun `a snapshot loads back as saved`(): Unit = runBlocking {
         val store = createStore()
         val saved = snapshot("a", 3)
+        store.save(saved).assert().isTrue()
+        store.load(saved.ref).assertSameAs(saved)
+    }
+
+    @Test
+    fun `state numbers load back exactly as saved`(): Unit = runBlocking {
+        val store = createStore()
+        val saved = snapshot("a", 1).copy(state = ExactJson.NUMBERS)
         store.save(saved).assert().isTrue()
         store.load(saved.ref).assertSameAs(saved)
     }
@@ -138,7 +146,6 @@ abstract class SnapshotStoreSpec {
     }
 
     protected companion object {
-        private val json = JsonMapper.builder().build()
         const val CONTEXT_SUFFIX = 12
         const val CONCURRENT_VERSIONS = 32
         const val FIRST_EVENT_TIME = 1_700_000_000_000L

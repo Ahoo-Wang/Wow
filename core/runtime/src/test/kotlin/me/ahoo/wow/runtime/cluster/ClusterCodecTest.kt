@@ -35,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 import tools.jackson.databind.ser.std.ToStringSerializer
 import tools.jackson.module.kotlin.KotlinModule
+import java.math.BigDecimal
 
 /** Turns [ClusterCodecTest.Deposit] into its `toString`; registered for discovery by `ServiceLoader` in tests. */
 class DiscoverableModule : SimpleModule("discoverable") {
@@ -49,6 +50,7 @@ class DiscoverableModule : SimpleModule("discoverable") {
 class ClusterCodecTest {
     data class Deposit(val amount: Int, val memo: String? = null)
     data class Deposited(val amount: Int)
+    data class Pay(val amount: BigDecimal, val extra: Map<String, Any?> = emptyMap())
     class Account {
         var balance = 0
     }
@@ -56,6 +58,7 @@ class ClusterCodecTest {
     private val model = aggregate<Account>("bank", "account") {
         initial { Account() }
         decide<Deposit>(Creation.ALLOWED) { _, body -> Decision.events(Deposited(body.amount)) }
+        decide<Pay>(Creation.ALLOWED) { _, _ -> Decision.events(Deposited(0)) }
         evolve<Deposited> { balance += it.amount }
     }
     private val ref = model.type.ref("t1", "acc-1")
@@ -111,6 +114,18 @@ class ClusterCodecTest {
         val body = ClusterCodec.wire(model, command).body
         body.isObject.assert().isTrue()
         body["amount"].asInt().assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `a forwarded command body keeps its numbers exact`() {
+        val pay = Command("c-2", "r-2", ref, Pay(BigDecimal("2.50"), mapOf("fee" to BigDecimal("0.10"))))
+        val request = ForwardCommand(command = ClusterCodec.wire(model, pay), deadline = 1L)
+        val bytes = ClusterCodec.encode(request)
+        bytes.decodeToString().assert().contains(""""amount":2.50""", """"fee":0.10""")
+        val read = ClusterCodec.decodeCommand(bytes)
+        read.command.body["amount"].decimalValue().assert().isEqualTo(BigDecimal("2.50"))
+        // The untyped extra reads its decimal back as a BigDecimal of the same scale, never a Double.
+        ClusterCodec.command(model, read.command).assert().isEqualTo(pay)
     }
 
     @Test

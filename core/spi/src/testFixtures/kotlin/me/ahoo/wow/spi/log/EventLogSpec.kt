@@ -26,11 +26,11 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.spi.ExactJson
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
-import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 
 /**
@@ -74,7 +74,7 @@ abstract class EventLogSpec {
 
     /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
     private fun EventStreamRecord.assertSameAs(expected: EventStreamRecord) {
-        events.map { json.readTree(it.payload) }.assert().isEqualTo(expected.events.map { json.readTree(it.payload) })
+        events.map { ExactJson.of(it.payload) }.assert().isEqualTo(expected.events.map { ExactJson.of(it.payload) })
         copy(events = expected.events).assert().isEqualTo(expected)
     }
 
@@ -99,6 +99,18 @@ abstract class EventLogSpec {
             "$context.aggregate.Happened" to 1,
             "$context.aggregate.Noted" to 2,
         )
+    }
+
+    @Test
+    fun `payload numbers read back exactly as appended`(): Unit = runBlocking {
+        val log = createLog(partitions = 1)
+        val appended = stream("a", 1).let {
+            it.copy(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
+        }
+        log.append(appended)
+        log.read(appended.ref).toList().single().assertSameAs(appended)
+        checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(1).toList() }.single().stream.assertSameAs(appended)
     }
 
     @Test
@@ -341,7 +353,6 @@ abstract class EventLogSpec {
     }
 
     protected companion object {
-        private val json = JsonMapper.builder().build()
         const val DEFAULT_PARTITIONS = 8
         const val CONTEXT_SUFFIX = 12
         const val TAIL_TIMEOUT_MS = 30_000L

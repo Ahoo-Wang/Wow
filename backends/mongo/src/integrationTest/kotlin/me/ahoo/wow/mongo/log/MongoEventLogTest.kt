@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.mongo.log
 
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventLogSpec
+import me.ahoo.wow.spi.log.EventRecord
 import org.junit.jupiter.api.Test
 
 class MongoEventLogTest : EventLogSpec() {
@@ -42,6 +46,24 @@ class MongoEventLogTest : EventLogSpec() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.createUnrecorded("wow_log_" + context.replace('-', '_'))
         assertThrownBy<IllegalStateException> { MongoLogFixture.log(4, context) }
+    }
+
+    @Test
+    fun `a payload decimal beyond 34 digits is refused at append, never rounded`(): Unit = runBlocking {
+        val valid = stream("a", 1)
+        val log = createLog(valid.ref.type.context, 1)
+        val tooPrecise = valid.copy(
+            events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.2345678901234567890123456789012345}""")),
+        )
+        assertThrownBy<IllegalArgumentException> { runBlocking { log.append(tooPrecise) } }
+        log.head(0).assert().isNull()
+        log.read(tooPrecise.ref).toList().assert().isEmpty()
+        // An integer of 35 digits has no exact Decimal128 of scale 0 either.
+        val tooLarge = tooPrecise.copy(
+            events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":12345678901234567890123456789012345}""")),
+        )
+        assertThrownBy<IllegalArgumentException> { runBlocking { log.append(tooLarge) } }
+        log.append(valid).assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }
 
     @Test
