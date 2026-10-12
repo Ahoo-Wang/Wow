@@ -16,6 +16,7 @@ on:
   push:
     branches:
       - main
+      - v10
     paths:
       - '.github/workflows/local-test.yml'
       - 'build.gradle.kts'
