@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
@@ -209,6 +210,7 @@ class CommandGatewayTest {
         gateway.execute(request(headers = mapOf("wow.owner" to "bob"))).assertRefused(FrameworkCodes.MALFORMED)
         gateway.execute(request(requestId = " ")).assertRefused(FrameworkCodes.MALFORMED)
         gateway.execute(request(aggregateId = " ")).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request().copy(expectedVersion = -1)).assertRefused(FrameworkCodes.MALFORMED)
         val missing = gateway.execute(request(command = "Checkout", body = "{}", aggregateId = null))
         missing.assertRefused(FrameworkCodes.MALFORMED)
         missing.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
@@ -259,6 +261,11 @@ class CommandGatewayTest {
         unknown.assertRefused(FrameworkCodes.UNHANDLED)
         unknown.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
         unknown.function.name.assert().isEqualTo("AddItem")
+        gateway.execute(request(command = "Remove.")).function.name.assert().isEqualTo("Remove.")
+        // The full model name resolves as well as the short one.
+        gateway.execute(
+            request(command = "shop.cart.AddItem")
+        ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
     @Test
@@ -304,6 +311,7 @@ class CommandGatewayTest {
             { copy(requestId = "forged") },
             { copy(wait = WaitPlan.ACCEPTED) },
             { copy(expectedVersion = 3) },
+            { copy(causation = Causation("root", "upstream")) },
             { copy(body = Checkout()) },
             { copy(headers = mapOf("Wow-Scope" to "owner=\"bob\"")) },
         )
@@ -365,11 +373,67 @@ class CommandGatewayTest {
     }
 
     @Test
-    fun `an accepted-only plan the runtime cannot follow is still rejected`(): Unit = runBlocking {
+    fun `a plan the runtime cannot follow is still rejected`(): Unit = runBlocking {
         val gateway = gateway()
         val result = gateway.execute(request(wait = WaitPlan.of(Hop.accepted(), Hop.accepted())))
         result.assertRefused(FrameworkCodes.WAIT_INVALID)
         decided.assert().isEmpty()
+    }
+
+    @Test
+    fun `a detached command's outcome is only logged`(): Unit = runBlocking {
+        val gateway = gateway()
+        // Rejected by the kernel: the cart does not exist.
+        val missing = gateway.execute(request(command = "Checkout", body = "{}", wait = WaitPlan.ACCEPTED))
+        missing.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        // A route that fails: nobody waits, so the failure is logged and the scope goes on.
+        val failing = WaitCoordinator(
+            executor,
+            registry,
+            SubscriptionDirectory.NONE,
+            LocalSignalSender(origin.node, registry),
+            WaitOptions(origin),
+            router = { _, _, _, _ -> error("unreachable") },
+        )
+        val throwing = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to failing))
+        throwing.execute(request(wait = WaitPlan.ACCEPTED)).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        throwing.close()
+        gateway.close()
+        decided.assert().isEmpty()
+        runCatching { failing.accept(model, Command("c", "r", model.type.ref(TENANT, "x"), Checkout()), this) }
+            .exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `admission values check their facts`() {
+        listOf(
+            { CommandRequest(" ", "cart", "AddItem", CommandBody.of("{}")) },
+            { CommandRequest(CONTEXT, " ", "AddItem", CommandBody.of("{}")) },
+            { CommandRequest(CONTEXT, "cart", " ", CommandBody.of("{}")) },
+            { Caller(" ") },
+            { Caller(subject = " ") },
+            { TargetScope(" ") },
+            { Authorization.Denied("No.", " ") },
+        ).forEach { make ->
+            runCatching { make() }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
+        }
+        CommandBody.of("{}").toString().assert().isEqualTo("Bytes(2)")
+        Caller.ANONYMOUS.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
+    }
+
+    @Test
+    fun `the framework codes are listed once each, in the wow namespace`() {
+        FrameworkCodes.ALL.size.assert().isEqualTo(18)
+        FrameworkCodes.ALL.forEach { it.assert().startsWith("wow.") }
+        FrameworkCodes.ALL.assert().contains(
+            FrameworkCodes.MALFORMED,
+            FrameworkCodes.INVALID,
+            FrameworkCodes.UNAUTHENTICATED,
+            FrameworkCodes.AUTH_FORBIDDEN,
+            FrameworkCodes.AGGREGATE_FORBIDDEN,
+            FrameworkCodes.BUSY,
+            FrameworkCodes.NODE_CLOSING,
+        )
     }
 
     @Test

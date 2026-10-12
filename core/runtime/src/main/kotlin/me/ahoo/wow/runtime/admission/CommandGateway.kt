@@ -142,11 +142,11 @@ class CommandGateway(
         // 1. The command type.
         val model = registry.find(facts.type)
             ?: return facts.refuse(FrameworkCodes.UNHANDLED, "No aggregate ${facts.type} is served here.")
-        val commandType = model.findCommandType(request.command) ?: model.findCommandType("${facts.type}.${request.command}")
-        val decider = commandType?.let { model.decider(it.type) }
-        if (commandType == null || decider == null) {
-            return facts.refuse(FrameworkCodes.UNHANDLED, "${facts.type} has no command ${request.command}.")
-        }
+        val unhandled = "${facts.type} has no command ${request.command}."
+        val commandType = model.findCommandType(request.command)
+            ?: model.findCommandType("${facts.type}.${request.command}")
+            ?: return facts.refuse(FrameworkCodes.UNHANDLED, unhandled)
+        val decider = model.decider(commandType.type) ?: return facts.refuse(FrameworkCodes.UNHANDLED, unhandled)
         facts.function = FunctionInfo(FunctionKind.COMMAND, facts.type.context, facts.type.name, commandType.shortName)
         // 2. The identity.
         identityConflict(request, decider.creation)?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }

@@ -152,19 +152,15 @@ class WaitCoordinator(
     }
 
     /**
-     * Accepts [command], whose wait plan has only an ACCEPTED hop ([isAcceptedOnly]), and returns at once (decision
-     * D100): its result at ACCEPTED, or the rejection of a plan the runtime cannot follow. The command is routed and
-     * executed in [scope], apart from the caller, with no wait context, so nothing is signalled about it; its outcome
-     * is only logged. Not durable (D15): a node that stops before running it loses it.
+     * Accepts [command], whose wait plan has only an ACCEPTED hop ([isAcceptedOnly], a chain that is always valid),
+     * and returns its result at ACCEPTED at once (decision D100). The command is routed and executed in [scope], apart
+     * from the caller, with no wait context, so nothing is signalled about it; its outcome is only logged. Not durable
+     * (D15): a node that stops before running it loses it.
      */
     fun accept(model: AggregateModel<*>, command: Command<*>, scope: CoroutineScope): CommandResult {
-        val function = commandFunction(model, command)
-        val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops)
-        if (checked is WaitChain.Invalid) {
-            return admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock())
-        }
+        require(command.wait.isAcceptedOnly) { "Only a plan whose only hop is ACCEPTED is answered at once." }
         scope.launch { runDetached(model, command) }
-        return reachedResult(command, function, Hop.accepted(command.ref.type.context), clock())
+        return reachedResult(command, commandFunction(model, command), Hop.accepted(command.ref.type.context), clock())
     }
 
     @Suppress("TooGenericExceptionCaught") // Nobody waits for a detached command: whatever fails is logged.
