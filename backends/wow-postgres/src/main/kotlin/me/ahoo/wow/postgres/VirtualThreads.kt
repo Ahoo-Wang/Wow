@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.postgres.subscription
+package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.util.concurrent.Executors
 
-/** The default dispatcher of the subscription stores' JDBC calls: a virtual thread per call (decision D29). */
+/** The default dispatcher of every JDBC call in this module: a virtual thread per call (decisions D27, D29). */
 internal object VirtualThreads {
     val dispatcher: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
 }

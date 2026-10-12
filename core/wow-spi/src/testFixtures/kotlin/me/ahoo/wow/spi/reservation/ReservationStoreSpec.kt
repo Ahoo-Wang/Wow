@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.reservation
 
+import me.ahoo.wow.spi.MutableClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -33,7 +34,7 @@ abstract class ReservationStoreSpec {
     /** A store judging expiry by [clock]. Stores may share storage: each test uses namespaces of its own. */
     protected abstract fun createStore(clock: Clock): ReservationStore
 
-    protected val clock = ManualClock()
+    protected val clock = MutableClock()
 
     private val namespace = "ns-" + UUID.randomUUID()
     private val other = "$namespace-other"

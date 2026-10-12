@@ -22,7 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  * [requestId] makes the command idempotent within its tenant: a second command with the same request id is never
  * decided again. [expectedVersion], when set, is the version the caller believes the aggregate is at.
  *
- * [owner], [space] and [headers] are what admission learned about the request: the caller's owner and space scope
+ * [ownerId], [spaceId] and [headers] are what admission learned about the request: the caller's owner and space scope
  * (from the principal, design 05 §1) and the request facts it chose to carry, such as the calling application. A
  * decide function reads them through [DecideScope.command]; they are not part of the command's fingerprint.
  */
@@ -32,8 +32,8 @@ data class Command<C : Any>(
     val ref: AggregateRef,
     val body: C,
     val expectedVersion: Int? = null,
-    val owner: String? = null,
-    val space: String? = null,
+    val ownerId: String? = null,
+    val spaceId: String? = null,
     val headers: Map<String, String> = emptyMap(),
 ) {
     init {

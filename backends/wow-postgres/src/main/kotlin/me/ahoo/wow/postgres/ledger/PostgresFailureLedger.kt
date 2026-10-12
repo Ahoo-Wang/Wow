@@ -14,16 +14,15 @@
 package me.ahoo.wow.postgres.ledger
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
-import java.util.concurrent.Executors
 import javax.sql.DataSource
 
 /**
@@ -40,7 +39,7 @@ import javax.sql.DataSource
 class PostgresFailureLedger(
     private val dataSource: DataSource,
     table: String = DEFAULT_TABLE,
-    private val dispatcher: CoroutineDispatcher = VIRTUAL_THREADS,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : FailureLedger {
     private val tables = PostgresFailureLedgerTables(table)
 
@@ -104,7 +103,6 @@ class PostgresFailureLedger(
     private companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"
         const val KEY_COLUMNS = 5
-        val VIRTUAL_THREADS: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
 
         /** Binds the key (subscription, context, aggregate name, tenant, id) to parameters 1 to [KEY_COLUMNS]. */
         fun PreparedStatement.setKey(subscription: String, ref: AggregateRef) {

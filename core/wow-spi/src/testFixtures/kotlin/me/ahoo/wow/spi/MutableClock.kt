@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spi.reservation
+package me.ahoo.wow.spi
 
 import java.time.Clock
 import java.time.Instant
@@ -20,13 +20,12 @@ import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 
-/** A clock that stands still until a test moves it, so a test decides when a reservation expires. */
-class ManualClock(startMillis: Long = 1_700_000_000_000L) : Clock() {
+/** A clock that stands still until a test moves it, so a test decides when leases and reservations expire. */
+class MutableClock(startMillis: Long = START) : Clock() {
     private val millis = AtomicLong(startMillis)
 
-    /** Moves the clock forward by [duration]. */
-    fun advance(duration: Duration) {
-        millis.addAndGet(duration.inWholeMilliseconds)
+    fun advance(by: Duration) {
+        millis.addAndGet(by.inWholeMilliseconds)
     }
 
     override fun millis(): Long = millis.get()
@@ -35,5 +34,9 @@ class ManualClock(startMillis: Long = 1_700_000_000_000L) : Clock() {
 
     override fun getZone(): ZoneId = ZoneOffset.UTC
 
-    override fun withZone(zone: ZoneId?): Clock = this
+    override fun withZone(zone: ZoneId): Clock = this
+
+    private companion object {
+        const val START = 1_700_000_000_000L
+    }
 }
