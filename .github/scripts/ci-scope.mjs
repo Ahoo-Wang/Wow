@@ -45,6 +45,13 @@ const PACKAGE = 'package';
 // from this commit on one Kafka and MongoDB, each processing what the other
 // sends (test/wow-it MixedVersionClusterTest). Not a TypeScript scope.
 const MIXED_VERSION = 'mixedVersion';
+// v10.yml (v10 branch): `-Pwow.scope=v10 v10Check` and the V10 integration
+// tests. Not a TypeScript scope. Decided apart from RULES, by V10_PATH: the
+// V10 modules, their tests and spikes, the platform they import, and the root
+// build and Gradle configuration every module reads.
+const V10 = 'v10';
+const V10_PATH =
+  /^(?:(?:api|compiler|core|backends|edge|host|migration|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike)|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -270,6 +277,7 @@ export function scopes(paths) {
     COMPAT_DEBT,
     PACKAGE,
     MIXED_VERSION,
+    V10,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -295,6 +303,9 @@ export function scopes(paths) {
   result[PACKAGE] =
     result[SDK] ||
     paths.some(path => PUBLISHED.some(dir => path.startsWith(`${dir}/`)));
+  // Also apart from RULES: a V10 path keeps its scopes, and an unknown path
+  // has already returned every scope above.
+  result[V10] = paths.some(path => V10_PATH.test(path));
   return result;
 }
 

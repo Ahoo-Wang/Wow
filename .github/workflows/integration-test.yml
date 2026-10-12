@@ -37,21 +37,14 @@ on:
       - 'test/wow-tck/**'
       - 'test/wow-test/**'
       - 'test/wow-it/**'
-      # V10 modules with integration tests (backends/, the H2 and H6 spikes) and the modules they build on.
-      - 'api/api/**'
-      - 'api/manifest/**'
-      - 'core/spi/**'
-      - 'core/kernel/**'
-      - 'core/runtime/**'
-      - 'backends/**'
-      - 'test/routing-spike/**'
-      - 'test/lease-spike/**'
       - 'view-store/**'
       - 'dataset-registry/**'
       - 'analytics/**'
       # The console is TypeScript; analytics-console-test.yml checks it.
       - '!analytics/console/**'
       - 'wow-cosec/**'
+  # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

@@ -33,27 +33,24 @@ plugins {
     jacoco
 }
 
+// settings.gradle.kts includes the 9.x projects and :kernel-benchmarks only in the full build (`wow.scope` is `all`,
+// the default); `-Pwow.scope=v10` leaves them out. Every list below names its projects through `includedProjects`,
+// which skips the ones the scope left out, so the same lists serve both scopes.
+fun includedProjects(vararg paths: String): Set<Project> = paths.mapNotNull { findProject(it) }.toSet()
+
 val dependenciesProject = project(":wow-dependencies")
-val bomProjects = setOf(
-    project(":wow-bom"),
-    dependenciesProject,
-)
+val bomProjects = includedProjects(":wow-bom") + dependenciesProject
 
-val exampleDomainProject = project(":example-domain")
-val exampleLibraries = setOf(
-    project(":example-api"), exampleDomainProject,
-    project(":example-transfer-api"),
-    project(":example-transfer-domain")
-)
-val viewStoreServerProject = project(":wow-view-store-server")
-val analyticsServerProject = project(":wow-analytics-server")
+val exampleLibraries =
+    includedProjects(":example-api", ":example-domain", ":example-transfer-api", ":example-transfer-domain")
+val viewStoreServerProject = includedProjects(":wow-view-store-server")
+val analyticsServerProject = findProject(":wow-analytics-server")
 val exampleProjects =
-    exampleLibraries + project(":example-server") + project(":example-transfer-server") + project(":wow-compensation-server") +
-        viewStoreServerProject + analyticsServerProject
+    exampleLibraries + includedProjects(":example-server", ":example-transfer-server", ":wow-compensation-server") +
+        viewStoreServerProject + listOfNotNull(analyticsServerProject)
 
-val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
-val benchmarksProject = project(":wow-benchmarks")
+val benchmarksProject = includedProjects(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3) and
 // :routing-spike (spike H2) and :lease-spike (spike H6) are never published.
@@ -62,7 +59,7 @@ val v10Projects = listOf(
     "postgres", "mongo", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
     "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
-).map { project(":$it") }.toSet()
+).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
 // Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
@@ -82,17 +79,17 @@ val bomConstrainedProjects = publishProjects - bomProjects
 // and its Kafka and Redis implementations, the command aggregate SPI in wow-core and the aggregate test DSL that drives
 // it). Every other module's main code opts in where
 // it uses one (`@OptIn(WowSpi::class)`) and otherwise gets the compiler's warning, as an application would.
-val wowSpiProjects = setOf(
-    project(":wow-core"),
-    project(":wow-test"),
-    project(":wow-query"),
-    project(":wow-clickhouse"),
-    project(":wow-mongo"),
-    project(":wow-elasticsearch"),
-    project(":wow-kafka"),
-    project(":wow-redis"),
-    project(":wow-tck"),
-    project(":wow-spring-boot-starter"),
+val wowSpiProjects = includedProjects(
+    ":wow-core",
+    ":wow-test",
+    ":wow-query",
+    ":wow-clickhouse",
+    ":wow-mongo",
+    ":wow-elasticsearch",
+    ":wow-kafka",
+    ":wow-redis",
+    ":wow-tck",
+    ":wow-spring-boot-starter",
 )
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
@@ -117,31 +114,36 @@ enum class WowTestLayer(
 
 val localTestProjects = libraryProjects - benchmarksProject
 val localTestTaskProjects =
-    localTestProjects + project(":wow-compensation-server") + viewStoreServerProject + analyticsServerProject
-val localContractTestProjects = setOf(
-    project(":wow-core"),
-    project(":wow-opentelemetry"),
-    project(":wow-mock"),
+    localTestProjects + includedProjects(":wow-compensation-server") + viewStoreServerProject +
+        listOfNotNull(analyticsServerProject)
+val localContractTestProjects = includedProjects(
+    ":wow-core",
+    ":wow-opentelemetry",
+    ":wow-mock",
 )
-val integrationTestProjects = setOf(
-    project(":wow-bi"),
-    project(":wow-clickhouse"),
-    project(":wow-mongo"),
-    project(":wow-redis"),
-    project(":wow-kafka"),
-    project(":wow-elasticsearch"),
-    project(":wow-it"),
-    project(":wow-view-store-starter"),
-    project(":wow-dataset-registry-starter"),
-    project(":postgres"),
-    project(":mongo"),
-    project(":routing-spike"),
-    project(":lease-spike"),
+val v10IntegrationTestProjects = includedProjects(
+    ":postgres",
+    ":mongo",
+    ":routing-spike",
+    ":lease-spike",
 )
+val integrationTestProjects = includedProjects(
+    ":wow-bi",
+    ":wow-clickhouse",
+    ":wow-mongo",
+    ":wow-redis",
+    ":wow-kafka",
+    ":wow-elasticsearch",
+    ":wow-it",
+    ":wow-view-store-starter",
+    ":wow-dataset-registry-starter",
+) + v10IntegrationTestProjects
 
 ext.set("localTestProjects", localTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
+ext.set("v10Projects", v10Projects)
+ext.set("v10IntegrationTestProjects", v10IntegrationTestProjects)
 
 fun Project.registerJvmTestLayer(
     layer: WowTestLayer,
@@ -321,13 +323,32 @@ tasks.register("allIntegrationTest") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(integrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
     // The analytics server registers its own layer (an application's Java plugin comes from its own build script).
-    dependsOn("${analyticsServerProject.path}:${WowTestLayer.INTEGRATION.taskName}")
+    analyticsServerProject?.let { dependsOn("${it.path}:${WowTestLayer.INTEGRATION.taskName}") }
 }
 
 tasks.register("benchmarkSmoke") {
     description = "Runs the PR-safe JMH smoke benchmark set."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(benchmarksProject.tasks.named("benchmarkSmoke"))
+    dependsOn(benchmarksProject.map { it.tasks.named("benchmarkSmoke") })
+}
+
+// The V10 checks (v10.yml), in either build scope; `-Pwow.scope=v10` configures no 9.x module. `check` of every V10
+// module compiles it and runs its unit tests (`:architecture:test` holds the V10 dependency rules); detekt covers
+// the same modules. V10 modules keep no ABI dump before 10.0.0-beta (D88), so no `checkKotlinAbi` runs here. The full
+// build also compiles the JMH sources of :kernel-benchmarks, which the v10 scope leaves out.
+tasks.register("v10Check") {
+    description = "Compiles, unit-tests and runs detekt over the V10 modules."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(v10Projects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
+    dependsOn(v10Projects.map { it.tasks.named("detekt") })
+    findProject(":kernel-benchmarks")?.let { dependsOn(it.tasks.named("compileJmhKotlin")) }
+}
+
+// Container-backed (Docker/Testcontainers). The spikes' suites skip themselves unless their flags are set.
+tasks.register("v10IntegrationTest") {
+    description = "Runs the container-backed integration tests of the V10 modules."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(v10IntegrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
 configure(publishProjects) {
