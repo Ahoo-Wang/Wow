@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
+import me.ahoo.wow.runtime.snapshot.StateViews
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -61,6 +62,9 @@ import kotlin.time.TimeSource
  * subscriptions when the context has their stores, the [subscriptions] runtime of its lease [group], this node's
  * [ownership] of the group's partitions, its wait [coordinator], and the [endpoint] that executes the commands other
  * nodes forward to it.
+ *
+ * The application's subscriptions read the context's [backends], the kernel's [codec], and the state [views] the
+ * executor takes of the aggregate types they asked for ([SubscriptionFactory.viewTypes]); null when none did.
  */
 class ContextNode internal constructor(
     val context: String,
@@ -75,6 +79,9 @@ class ContextNode internal constructor(
     val ownership: PartitionOwnership,
     val coordinator: WaitCoordinator,
     val endpoint: ForwardEndpoint,
+    val backends: ContextBackends,
+    val codec: EventCodec,
+    val views: StateViews?,
 )
 
 /**
@@ -179,7 +186,7 @@ class ServiceNode(
     )
 
     private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
-        assemble(context, contextModels, backends.backends(context), codec)
+        assemble(context, contextModels, backends.backends(context), codec, subscriptions)
     }
 
     /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
@@ -330,6 +337,7 @@ class ServiceNode(
         models: List<AggregateModel<*>>,
         backends: ContextBackends,
         codec: EventCodec,
+        application: SubscriptionFactory,
     ): Parts {
         val log = PartitionAppendQueue(backends.log, options.appendQueue)
         val states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None
@@ -366,8 +374,23 @@ class ServiceNode(
             // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
             peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
         )
-        val executor = Executor(kernel, options.laneCapacity, snapshots?.views)
-        return Parts(context, models, group, log, kernel, executor, snapshots, reservations, subscriptions, ownership)
+        val views = application.viewTypes(context, models).takeIf { it.isNotEmpty() }?.let { StateViews(codec, it) }
+        val executor = Executor(kernel, options.laneCapacity, snapshots?.views, views)
+        return Parts(
+            context,
+            models,
+            group,
+            log,
+            kernel,
+            executor,
+            snapshots,
+            reservations,
+            subscriptions,
+            ownership,
+            backends,
+            codec,
+            views,
+        )
     }
 
     private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
@@ -386,6 +409,9 @@ class ServiceNode(
         val reservations: ReservationSubscription?,
         val subscriptions: SubscriptionRuntime,
         val ownership: PartitionOwnership,
+        val backends: ContextBackends,
+        val codec: EventCodec,
+        val views: StateViews?,
     ) {
         fun complete(): ContextNode {
             val coordinator = WaitCoordinator(executor, waits, subscriptions, signals, waitOptions, router = router)
@@ -403,6 +429,9 @@ class ServiceNode(
                 ownership,
                 coordinator,
                 endpoint,
+                backends,
+                codec,
+                views,
             )
         }
     }

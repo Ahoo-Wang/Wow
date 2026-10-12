@@ -26,7 +26,19 @@ internal data class SubscriptionBinding(
     val kind: String?,
     val handlers: List<HandlerBinding>,
     val problems: List<String>,
-)
+    /** The processor's package, where its generated handlers go. */
+    val packageName: String = "",
+    /** The simple names of the processor's class and of the classes it is nested in, outermost first. */
+    val simpleNames: List<String> = emptyList(),
+    /** Whether the processor is an `object`: its handlers use the instance instead of constructing one. */
+    val isObject: Boolean = false,
+    /** The processor's constructor parameters, in order: domain services from the host's `Dependencies`. */
+    val dependencies: List<Dependency> = emptyList(),
+) {
+    /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
+    val factoryName: String
+        get() = simpleNames.joinToString("").replaceFirstChar { it.lowercase() } + "Handlers"
+}
 
 internal data class HandlerBinding(
     val function: String,
@@ -39,4 +51,6 @@ internal data class HandlerBinding(
     val suspending: Boolean,
     /** Whether it returns a Reactor publisher. */
     val reactor: Boolean,
+    /** Whether it is annotated `@Blocking`: the runtime calls it on virtual threads (design 01 §4). */
+    val blocking: Boolean = false,
 )

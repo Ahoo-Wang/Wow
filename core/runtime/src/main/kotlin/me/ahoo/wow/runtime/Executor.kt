@@ -42,13 +42,17 @@ import java.util.concurrent.atomic.AtomicInteger
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
  * next command, while nothing can change the state (design 01 §2): the snapshot subscription writes from it. A
  * view is only an optimisation, so failing to take one never fails the committed command: the failure is logged,
- * the aggregate's view is dropped, and the subscription rebuilds the state instead.
+ * the aggregate's view is dropped, and the subscription rebuilds the state instead. [sharedViews] are recorded the
+ * same way, for the subscriptions of annotated processors, which read them without taking them.
  */
 class Executor(
     private val kernel: Kernel,
     private val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
-    private val views: StateViews? = null,
+    views: StateViews? = null,
+    sharedViews: StateViews? = null,
 ) {
+    private val views: List<StateViews> = listOfNotNull(views, sharedViews)
+
     private val lanes = ConcurrentHashMap<AggregateRef, Lane>()
     private val inFlight = AtomicInteger()
 
@@ -68,9 +72,9 @@ class Executor(
         val lane = enter(command.ref)
         try {
             return lane.lock.withLock {
-                kernel.execute(model, command, wait).also {
-                    if (views != null && it is CommandOutcome.Committed) {
-                        recordView(views, model, it)
+                kernel.execute(model, command, wait).also { outcome ->
+                    if (outcome is CommandOutcome.Committed) {
+                        views.forEach { recordView(it, model, outcome) }
                     }
                 }
             }

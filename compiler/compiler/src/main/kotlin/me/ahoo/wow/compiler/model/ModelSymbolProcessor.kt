@@ -67,8 +67,10 @@ import tools.jackson.databind.json.JsonMapper
  * parameter, `configure`, runs on the model builder after the bindings, as a general extension point.
  *
  * Subscription processors (`@Projection`, `@Reactor`, `@Saga` with `@OnEvent` handlers) are checked by
- * [SubscriptionResolver]; their bindings are not generated yet, since the runtime has no annotation-facing
- * subscription API to bind them to.
+ * [SubscriptionResolver] and bound by [SubscriptionSource]: each gets `fun <processor>Handlers(dependencies)` in its
+ * package, one runtime handler per function, and the module a `SubscriptionProvider` beside its model provider,
+ * registered for `ServiceLoader` in `META-INF/services/me.ahoo.wow.runtime.binding.SubscriptionProvider`; the
+ * generated code builds on `wow-runtime`, so a module that declares processors depends on it.
  *
  * It recognizes these forms: a root built from its state (`ctor(state)`) or a root that is its own state, command
  * functions annotated `@OnCommand` or named `onCommand`, sourcing functions annotated `@OnSourcing` or named
@@ -230,17 +232,21 @@ internal class ModelSymbolProcessor(
             subscriptions += binding
             if (mode == Mode.GENERATE) {
                 if (binding.problems.isEmpty()) {
-                    logger.warn(
-                        "${binding.processor}: subscription bindings are not generated yet; its handlers " +
-                            binding.handlers.joinToString { it.subscription } + " are checked only",
-                        processor,
-                    )
+                    generate(binding, processor)
                 } else {
                     binding.problems.forEach { logger.error("${binding.processor}: $it", processor) }
                 }
             }
         }
         return deferred
+    }
+
+    private fun generate(binding: SubscriptionBinding, processor: KSClassDeclaration) {
+        codeGenerator.createNewFile(
+            Dependencies(aggregating = false, sources = listOfNotNull(processor.containingFile).toTypedArray()),
+            binding.packageName,
+            "${binding.simpleNames.joinToString("")}Subscriptions",
+        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding)) }
     }
 
     @OptIn(KspExperimental::class)
@@ -294,6 +300,29 @@ internal class ModelSymbolProcessor(
             "json",
         ).bufferedWriter().use { it.write(FRAGMENT_WRITER.writeValueAsString(ManifestTree.write(fragment))) }
         writeModelProvider(context, "${Manifest.FRAGMENT_DIRECTORY}/$module.json", module)
+        if (subscriptions.isNotEmpty()) {
+            writeSubscriptionProvider(context, module)
+        }
+    }
+
+    /**
+     * Writes the module's subscription binding index ([SubscriptionSource.renderProvider]) beside its model provider,
+     * and registers it for `ServiceLoader` in `META-INF/services/me.ahoo.wow.runtime.binding.SubscriptionProvider`.
+     */
+    private fun writeSubscriptionProvider(context: String, module: String) {
+        val packageName = ModelProviderSource.commonPackage(packages)
+        val className = SubscriptionSource.className(module)
+        val dependencies = Dependencies(aggregating = true, sources = sources.toTypedArray())
+        codeGenerator.createNewFile(dependencies, packageName, className).bufferedWriter().use {
+            it.write(SubscriptionSource.renderProvider(packageName, className, context, subscriptions))
+        }
+        codeGenerator.createNewFileByPath(
+            dependencies,
+            "META-INF/services/${SubscriptionSource.SUBSCRIPTION_PROVIDER}",
+            "",
+        ).bufferedWriter().use {
+            it.write((if (packageName.isEmpty()) className else "$packageName.$className") + "\n")
+        }
     }
 
     /**

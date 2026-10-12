@@ -341,12 +341,18 @@ class V10AnnotationSetTest {
     }
 
     @Test
-    fun `well-formed processors compile, and their bindings are not generated yet`() {
-        val (_, result) = compileModel("generate", processors)
+    fun `well-formed processors compile with their bindings`() {
+        val (compilation, result) = compileModel("generate", processors)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        result.messages.assert()
-            .contains("sample.SummaryProjection: subscription bindings are not generated yet")
-            .contains("summary.onEvent, summary.onAny")
+        val generated = compilation.workingDir.walkTopDown().filter { it.isFile }.map { it.name }.toSet()
+        generated.assert().contains(
+            "SummaryProjectionSubscriptions.kt",
+            "NotifierSubscriptions.kt",
+            "NotifyingSubscriptions.kt",
+        )
+        result.classLoader.loadClass("sample.SummaryProjectionSubscriptionsKt")
+            .getMethod("summaryProjectionHandlers", me.ahoo.wow.kernel.Dependencies::class.java)
+            .assert().isNotNull()
     }
 
     private val broken = SourceFile.kotlin(

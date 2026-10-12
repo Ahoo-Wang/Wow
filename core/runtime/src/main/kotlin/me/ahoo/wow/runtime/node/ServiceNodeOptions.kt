@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.runtime.node
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandRewriter
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -112,10 +114,30 @@ data class AdmissionPlugins(
  * The application's subscriptions of one bounded context (projections, reactors, sagas), beside the built-in
  * `snapshot` and `reservation` ones. Called once per context while the node is assembled, with the context's parts,
  * so a saga can [forward][me.ahoo.wow.runtime.wait.WaitCoordinator.forward] through its coordinator; the
- * subscriptions are registered when the node starts.
+ * subscriptions are registered when the node starts. The annotated processors' come from
+ * [me.ahoo.wow.runtime.binding.SubscriptionBindings].
  */
 fun interface SubscriptionFactory {
     fun subscriptions(context: ContextNode): List<Subscription>
+
+    /**
+     * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
+     * §1): the context's executor keeps their state views ([ContextNode.views]), asked before the context is
+     * assembled. None by default.
+     */
+    fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> = emptySet()
+
+    /** This factory's subscriptions, then [other]'s, with the state views either asks for. */
+    operator fun plus(other: SubscriptionFactory): SubscriptionFactory {
+        val first = this
+        return object : SubscriptionFactory {
+            override fun subscriptions(context: ContextNode): List<Subscription> =
+                first.subscriptions(context) + other.subscriptions(context)
+
+            override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
+                first.viewTypes(context, models) + other.viewTypes(context, models)
+        }
+    }
 
     companion object {
         val NONE: SubscriptionFactory = SubscriptionFactory { emptyList() }

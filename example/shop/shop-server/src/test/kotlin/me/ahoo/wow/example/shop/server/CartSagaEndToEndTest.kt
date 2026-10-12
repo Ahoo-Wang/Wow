@@ -1,0 +1,102 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.example.shop.server
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.http.WowHeaders
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import java.time.Duration
+
+/**
+ * The cart saga through the running shop server (memory backend): the host registers the subscription the compiler
+ * generated for `CartSaga`, and an order placed from the cart removes its products from the owner's cart. A wait
+ * chain follows the order's commit through the saga's hop (decision D62).
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class CartSagaEndToEndTest {
+    private val shop = startShop()
+
+    @AfterAll
+    fun close() {
+        shop.close()
+    }
+
+    private fun fill(user: String) {
+        listOf("apple", "pear", "durian").forEach { product ->
+            shop.post("/example/cart/$user/add-cart-item", """{"productId":"$product"}""", user)
+                .status.assert().isEqualTo(200)
+        }
+    }
+
+    private fun order(user: String, wait: String, fromCart: Boolean = true): Answer = shop.post(
+        "/example/order/create-order",
+        """{"items":$APPLE_AND_PEAR,"address":$ADDRESS,"fromCart":$fromCart}""",
+        user,
+        mapOf(WowHeaders.WAIT to wait),
+    )
+
+    private fun cartProducts(user: String): List<String> =
+        shop.get("/example/cart/$user/state", user).json["state"]["items"].values().map { it["productId"].asString() }
+
+    @Test
+    fun `an order from the cart should complete the wait at the saga's hop and empty the ordered products`() {
+        fill("grace")
+        val placed = order("grace", "committed > handled(example/$SAGA)")
+        placed.status.assert().isEqualTo(200)
+        placed.json["status"].asString().assert().isEqualTo("SUCCEEDED")
+        placed.json["hop"]["stage"].asString().assert().isEqualTo("HANDLED")
+        placed.json["hop"]["subscription"].asString().assert().isEqualTo(SAGA)
+        placed.json["function"]["kind"].asString().assert().isEqualTo("SAGA")
+        placed.json["derived"].values().toList().assert().hasSize(1)
+
+        // The saga's hop is answered once its command is committed: the snapshot follows.
+        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+        while (cartProducts("grace") != listOf("durian") && System.nanoTime() < deadline) {
+            Thread.sleep(POLL_MILLIS)
+        }
+        cartProducts("grace").assert().containsExactly("durian")
+    }
+
+    @Test
+    fun `a chain through the saga to the cart's snapshot should read the emptied cart at once`() {
+        fill("heidi")
+        val placed = order("heidi", "committed > handled(example/$SAGA) > snapshot")
+        placed.status.assert().isEqualTo(200)
+        placed.json["status"].asString().assert().isEqualTo("SUCCEEDED")
+        placed.json["ref"]["id"].asString().assert().isEqualTo("heidi")
+        placed.json["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
+        cartProducts("heidi").assert().containsExactly("durian")
+    }
+
+    @Test
+    fun `an order not placed from the cart should derive nothing and leave the cart as it is`() {
+        fill("ivan")
+        val placed = order("ivan", "committed > handled(example/$SAGA) > committed", fromCart = false)
+        placed.status.assert().isEqualTo(200)
+        placed.json["hop"]["subscription"].asString().assert().isEqualTo(SAGA)
+        placed.json["derived"].values().toList().assert().isEmpty()
+        cartProducts("ivan").assert().containsExactly("apple", "pear", "durian")
+    }
+
+    private companion object {
+        const val SAGA = "CartSaga.onOrderCreated"
+        const val POLL_MILLIS = 50L
+        const val APPLE_AND_PEAR =
+            """[{"productId":"apple","price":2.50,"quantity":1},{"productId":"pear","price":4.00,"quantity":1}]"""
+        const val ADDRESS =
+            """{"country":"China","province":"Shanghai","city":"Shanghai","district":"Pudong","detail":"1 Century Avenue"}"""
+    }
+}
