@@ -268,7 +268,7 @@ appendLane(def, cfg, view, laneId, page, limits): RecordProjection   // 「加�
 - `DATE_DIFF`（两个时刻之差，N3）要 `expressions`（`analysis.expressions.undeclared`）、单位在 `dateDiffUnitsOf` 里（`analysis.date-diff.unit-unsupported`）；两端都得是计数单位里声明了 `DATE_HISTOGRAM` 的字段（`analysis.date-diff.not-time`，Wow 就是凭这个认出一个字段存的是时刻），`expressionInput` 为假报 `analysis.expression.operand-unsupported`。它不是 `analysis.expression.date-operand` 说的那种算术：两个时刻相减的读法就是这里的时长，按单位读（`formulaFormat`：「12.5 小时」），箱线图的五个数、直方分组都能读它；
 - 按表达式分区间的 `HISTOGRAM`（没有 `field`，读 `expression`）照公式的规则准入表达式、照区间的规则准入宽度；它交不出下钻条件（`drillGroups` 返回 `null`：一个算出来的数，条件存不下），展开到别的计数单位时它读的字段都还在才留下（`groupFieldsOf`）；
 - **`elements` 是一条由外到内的链**（Wow 的口径，D20）：配置的第 i 层必须等于能力声明的第 i 层，可以只走链的前几层，链断在哪一层就从哪一层起不再往下判；能力从没声明过这个 path 报 `analysis.element.undeclared`，声明过但属于另一层（例如越过父数组直接展开 `lines`）报 `analysis.element.out-of-chain`；
-- **展开之后，计数单位是最内层元素**，维度、指标、数值表达式与指标条件的字段只能是那一层的；根字段或外层元素字段写在这些位置报 `analysis.field.outside-scope`（Wow 以「requires its declared element scope」拒绝，字段确实存在，所以不说「未知」）。根 `filter`（范围）反过来只认根字段——它在任何展开之前执行，要问元素里的事由 `elementMatch` 条件去问；第 i 层元素自己的 `filter` 只认该层持有的字段。（见 test/analysisCapability.test.ts「the expansion chain」「element scope」）
+- **展开之后，计数单位是最内层元素**，维度、指标、数值表达式与指标条件的字段只能是那一层的；根字段或外层元素字段写在这些位置报 `analysis.field.outside-scope`。例外是维度：描述符给出 `analysis.rootGroups`（Wow 9.9）时，维度可以是根字段，按元素所属的记录分组，编译时带 `scope: 'ROOT'` 并排在元素维度之前（D92）；指标、表达式与指标条件仍只认最内层（Wow 以「requires its declared element scope」拒绝，字段确实存在，所以不说「未知」）。根 `filter`（范围）反过来只认根字段——它在任何展开之前执行，要问元素里的事由 `elementMatch` 条件去问；第 i 层元素自己的 `filter` 只认该层持有的字段。（见 test/analysisCapability.test.ts「the expansion chain」「element scope」）
 - `any`、`distinctCount`、`percentile`、`expressions`、`having` 等未在能力中声明却被使用报 error；
 - 每个 group 的 `type` 必须在该字段的 `groups` 中，`DATE_HISTOGRAM.unit` 必须在其 `dateUnits` 中，`DATE_PART.part` 必须在 `datePartsOf` 给出的部件中（`analysis.group.part-unsupported`），`NUMERIC.function` 必须在该字段的 `functions` 中，能力未声明即报 error；
 - `limit` 必须是 1～`limitBounds(...).max` 的整数，出界一律是一条 `analysis.limit.out-of-range`（带 `max`）：从前 2.5 得到的是「必须是正数」——它是正数——而 -3 与 20000 犯的是同一条规矩却听到两句话；准入、默认配置与托盘的「前 N 组」读的是同一个 `limitBounds`，界面说出来的范围就是应用被拒的那个范围。`groups`、`metrics`、`elements`、`sort` 的数量与 `limit` 始终受 Wow `AGGREGATION_LIMITS` 约束，`AnalysisCapability.limits` 只能进一步收紧（取更小者）；
@@ -281,7 +281,7 @@ appendLane(def, cfg, view, laneId, page, limits): RecordProjection   // 「加�
 
 ### 展开链把问题重新划一遍范围：expand.ts
 
-D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 之后，一行是一个明细项，维度与指标只能指明细项的字段，而一个按订单仓库切的维度问的是另一件事——Wow 以「requires its declared element scope」拒绝它。所以进出这条链的每一步都要把配置重新划一遍范围，这就是 `withElements(config, elements, definition, capability)`：
+D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 之后，一行是一个明细项，维度与指标只能指明细项的字段，而一个按订单仓库切的维度问的是另一件事——Wow 以「requires its declared element scope」拒绝它（服务端提供 `analysis.rootGroups` 时，按根字段的维度改为以 `scope: 'ROOT'` 放行，见 D92）。所以进出这条链的每一步都要把配置重新划一遍范围，这就是 `withElements(config, elements, definition, capability)`：
 
 - **不再指向新单位字段的维度与指标离开**。`COUNT` 永远留下（能数记录就能数条目），`ANY` 看它那个字段，`FIRST`／`LAST` 看它的字段与 `orderBy`，其余看它表达式里的每个字段；
 - **指标自己的条件指着外面的字段时，条件离开而指标留下**：那句话问的是错的东西，但这个数本身还问得出来；
