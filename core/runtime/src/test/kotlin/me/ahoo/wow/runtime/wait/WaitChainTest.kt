@@ -20,6 +20,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 /** Decision D62: the chains a wait may follow, checked at admission. */
 class WaitChainTest {
@@ -56,9 +57,9 @@ class WaitChainTest {
 
     @Test
     fun `the default waits for COMMITTED where there is no snapshot subscription`() {
-        (WaitChain.of(WaitPlan.SNAPSHOT, ORDER, directory, 4) as WaitChain).hops
+        (WaitChain.of(WaitPlan.DEFAULT, ORDER, directory, 4) as WaitChain).hops
             .assert().containsExactly(Hop.snapshot("shop"))
-        (WaitChain.of(WaitPlan.SNAPSHOT, ORDER, SubscriptionDirectory.NONE, 4) as WaitChain).hops
+        (WaitChain.of(WaitPlan.DEFAULT, ORDER, SubscriptionDirectory.NONE, 4) as WaitChain).hops
             .assert().containsExactly(Hop.committed("shop"))
     }
 
@@ -67,10 +68,46 @@ class WaitChainTest {
         val ordersOnly = object : SubscriptionDirectory by directory {
             override fun covers(subscription: String, type: AggregateType): Boolean = type == ORDER
         }
+        (WaitChain.of(WaitPlan.DEFAULT, ORDER, ordersOnly, 4) as WaitChain).hops
+            .assert().containsExactly(Hop.snapshot("shop"))
+        (WaitChain.of(WaitPlan.DEFAULT, AggregateType("shop", "stock"), ordersOnly, 4) as WaitChain).hops
+            .assert().containsExactly(Hop.committed("shop"))
+    }
+
+    @Test
+    fun `an explicit snapshot hop of the command is rejected where its aggregate has no snapshot`() {
+        val ordersOnly = object : SubscriptionDirectory by directory {
+            override fun covers(subscription: String, type: AggregateType): Boolean = type == ORDER
+        }
+        val stock = AggregateType("shop", "stock")
         (WaitChain.of(WaitPlan.SNAPSHOT, ORDER, ordersOnly, 4) as WaitChain).hops
             .assert().containsExactly(Hop.snapshot("shop"))
-        (WaitChain.of(WaitPlan.SNAPSHOT, AggregateType("shop", "stock"), ordersOnly, 4) as WaitChain).hops
+        (WaitChain.of(WaitPlan.SNAPSHOT, stock, ordersOnly, 4) as WaitChain.Invalid).reason
+            .assert().isEqualTo(
+                "Hop handled(shop.snapshot) waits for a snapshot, but shop.stock has no snapshot subscription."
+            )
+        (WaitChain.of(WaitPlan.SNAPSHOT.within(1.seconds), ORDER, SubscriptionDirectory.NONE, 4) as WaitChain.Invalid)
+            .reason.assert().contains("shop.order has no snapshot subscription")
+        WaitChain.of(WaitPlan.of(Hop.committed(), Hop.snapshot()), stock, ordersOnly, 4)
+            .assert().isInstanceOf(WaitChain.Invalid::class.java)
+        // The default given a timeout of its own is still the default.
+        (WaitChain.of(WaitPlan.DEFAULT.within(1.seconds), stock, ordersOnly, 4) as WaitChain).hops
             .assert().containsExactly(Hop.committed("shop"))
+    }
+
+    @Test
+    fun `a snapshot hop of derived commands is checked only for its subscription`() {
+        // After a saga the derived commands' aggregate type is not known at admission.
+        val ordersOnly = object : SubscriptionDirectory by directory {
+            override fun covers(subscription: String, type: AggregateType): Boolean = type == ORDER
+        }
+        val chain = WaitChain.of(
+            WaitPlan.of(Hop.handled("order.saga"), Hop.snapshot()),
+            AggregateType("shop", "stock"),
+            ordersOnly,
+            4,
+        )
+        (chain as WaitChain).hops.assert().containsExactly(Hop.handled("order.saga", "shop"), Hop.snapshot("shop"))
     }
 
     @Test

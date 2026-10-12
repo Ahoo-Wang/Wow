@@ -44,7 +44,7 @@ data class Command<C : Any>(
     val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null,
-    val wait: WaitPlan = WaitPlan.SNAPSHOT,
+    val wait: WaitPlan = WaitPlan.DEFAULT,
 ) {
     init {
         require(id.isNotBlank()) { "A command needs an id." }

@@ -67,11 +67,56 @@ class WaitStateTest {
         state.offer(result("d-2", committed))!!.assert().isEmpty()
         state.offer(result("root", committed))!!.map { it.commandId }.assert().containsExactly("root")
         val handled = state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))!!
-        handled.single().derived.assert().containsExactly("d-1", "d-2")
+        // The saga's hop, then the buffered commit of d-2, which now belongs to the generation waited for.
+        handled.map { it.commandId }.assert().containsExactly("root", "d-2")
+        handled.first().derived.assert().containsExactly("d-1", "d-2")
         state.outcome.assert().isNull()
         val last = state.offer(result("d-1", committed))!!
         last.single().commandId.assert().isEqualTo("d-1")
         state.outcome!!.commandId.assert().isEqualTo("d-1")
+    }
+
+    @Test
+    fun `each derived command's result is emitted as it settles, the hop completing with the last`() {
+        val state = WaitState(listOf(saga, snapshot), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2", "d-3")))!!
+            .map { it.commandId }.assert().containsExactly("root")
+        state.offer(result("d-2", committed))!!.assert().isEmpty()
+        state.offer(result("d-2", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-2")
+        state.offer(result("d-1", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-1")
+        state.outcome.assert().isNull()
+        // A timeout now reports the saga's hop: the last hop completed.
+        state.lastReached!!.hop.assert().isEqualTo(saga)
+        val last = result("d-3", snapshot, snapshotFunction)
+        state.offer(last)!!.assert().containsExactly(last)
+        state.outcome.assert().isEqualTo(last)
+    }
+
+    @Test
+    fun `a command reaching its hop again through another function is emitted once`() {
+        val state = WaitState(listOf(saga, snapshot), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
+        state.offer(result("d-1", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-1")
+        val other = FunctionInfo(FunctionKind.SNAPSHOT, "shop", "snapshot", "other")
+        state.offer(result("d-1", snapshot, other))!!.assert().isEmpty()
+        state.outcome.assert().isNull()
+        state.offer(result("d-2", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-2")
+        state.outcome!!.commandId.assert().isEqualTo("d-2")
+    }
+
+    @Test
+    fun `a saga hop of several commands emits each and derives from all of them`() {
+        val second = Hop.handled("stock.saga", "shop")
+        val state = WaitState(listOf(saga, second, committed), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
+        state.offer(result("d-1", second, sagaFunction, derived = listOf("e-1")))!!
+            .map { it.derived }.assert().containsExactly(listOf("e-1"))
+        state.offer(result("e-2", committed))!!.assert().isEmpty()
+        state.offer(result("d-2", second, sagaFunction, derived = listOf("e-2")))!!
+            .map { it.commandId }.assert().containsExactly("d-2", "e-2")
+        state.lastReached!!.derived.assert().containsExactly("e-1", "e-2")
+        state.offer(result("e-1", committed))!!.map { it.commandId }.assert().containsExactly("e-1")
+        state.outcome!!.commandId.assert().isEqualTo("e-1")
     }
 
     @Test

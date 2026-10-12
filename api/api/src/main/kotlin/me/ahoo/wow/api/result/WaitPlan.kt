@@ -15,6 +15,9 @@ package me.ahoo.wow.api.result
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
+import java.time.Duration as JavaDuration
 
 /**
  * How far a command has come (decision D61). There are three stages; which kind of subscription handled a commit
@@ -37,7 +40,11 @@ enum class Stage {
  *
  * A null [context] means the context of the command the wait started with.
  */
-data class Hop(val stage: Stage, val context: String? = null, val subscription: String? = null) {
+data class Hop @JvmOverloads constructor(
+    val stage: Stage,
+    val context: String? = null,
+    val subscription: String? = null
+) {
     init {
         require(context == null || context.isNotBlank()) { "A hop's context, when present, is not blank." }
         if (stage == Stage.HANDLED) {
@@ -60,15 +67,23 @@ data class Hop(val stage: Stage, val context: String? = null, val subscription: 
         const val RESERVATION_SUBSCRIPTION: String = "reservation"
 
         /** [Stage.ACCEPTED] in [context]. */
+        @JvmStatic
+        @JvmOverloads
         fun accepted(context: String? = null): Hop = Hop(Stage.ACCEPTED, context)
 
         /** [Stage.COMMITTED] in [context]. */
+        @JvmStatic
+        @JvmOverloads
         fun committed(context: String? = null): Hop = Hop(Stage.COMMITTED, context)
 
         /** [Stage.HANDLED] by [subscription] of [context]. */
+        @JvmStatic
+        @JvmOverloads
         fun handled(subscription: String, context: String? = null): Hop = Hop(Stage.HANDLED, context, subscription)
 
         /** [Stage.HANDLED] by the snapshot subscription: the snapshot holds the commit (decision D69). */
+        @JvmStatic
+        @JvmOverloads
         fun snapshot(context: String? = null): Hop = handled(SNAPSHOT_SUBSCRIPTION, context)
     }
 }
@@ -81,23 +96,52 @@ data class Hop(val stage: Stage, val context: String? = null, val subscription: 
  * Within one command the stages come in order (accepted, committed, handled); a HANDLED hop of a saga may be followed
  * by more hops, which then apply to the commands that saga derived from the commit. The runtime checks the rest of
  * the chain's shape at admission.
+ *
+ * [isDefault] marks [DEFAULT], the plan of a caller that asked for none: it waits for the snapshot, but where the
+ * aggregate has no snapshot subscription it waits for COMMITTED instead (decision D69). Any other plan is taken as
+ * asked, so a snapshot hop the aggregate cannot reach is rejected at admission. [within] keeps the mark.
+ *
+ * From Java, build a plan with [of] and give it a timeout with the `java.time.Duration` overloads of the constructor
+ * and [within]; read it back with [javaTimeout].
  */
-data class WaitPlan(val hops: List<Hop>, val timeout: Duration = DEFAULT_TIMEOUT) {
+data class WaitPlan(val hops: List<Hop>, val timeout: Duration = DEFAULT_TIMEOUT, val isDefault: Boolean = false) {
     init {
         require(hops.isNotEmpty()) { "A wait plan has at least one hop." }
         require(timeout.isPositive()) { "A wait timeout is positive." }
+        require(!isDefault || hops == DEFAULT_HOPS) { "Only the snapshot plan is the default." }
     }
+
+    /** Until [hops] are reached, in order, within [timeout]. */
+    constructor(hops: List<Hop>, timeout: JavaDuration) : this(hops, timeout.toKotlinDuration())
+
+    /** [timeout] as a `java.time.Duration`. */
+    val javaTimeout: JavaDuration get() = timeout.toJavaDuration()
 
     /** This plan waiting at most [timeout]. */
     fun within(timeout: Duration): WaitPlan = copy(timeout = timeout)
 
+    /** This plan waiting at most [timeout]. */
+    fun within(timeout: JavaDuration): WaitPlan = within(timeout.toKotlinDuration())
+
     companion object {
+        private val DEFAULT_HOPS = listOf(Hop.snapshot())
+
         /** The timeout of a wait whose caller gives none (decision D64). */
         val DEFAULT_TIMEOUT: Duration = 10.seconds
 
-        /** The default: until the snapshot holds the commit, so the caller reads its own write (decision D69). */
+        /**
+         * The plan of a caller that asked for none (decision D69): until the snapshot holds the commit, so the caller
+         * reads its own write; until COMMITTED for an aggregate without a snapshot subscription.
+         */
         @JvmField
-        val SNAPSHOT: WaitPlan = WaitPlan(listOf(Hop.snapshot()))
+        val DEFAULT: WaitPlan = WaitPlan(DEFAULT_HOPS, isDefault = true)
+
+        /**
+         * Until the snapshot holds the commit, asked for explicitly: rejected at admission for an aggregate without a
+         * snapshot subscription. Equal to `of(Hop.snapshot())`.
+         */
+        @JvmField
+        val SNAPSHOT: WaitPlan = WaitPlan(DEFAULT_HOPS)
 
         /** Until the events are appended. */
         @JvmField
@@ -108,6 +152,7 @@ data class WaitPlan(val hops: List<Hop>, val timeout: Duration = DEFAULT_TIMEOUT
         val ACCEPTED: WaitPlan = WaitPlan(listOf(Hop.accepted()))
 
         /** Until [hops] are reached, in order. */
+        @JvmStatic
         fun of(vararg hops: Hop): WaitPlan = WaitPlan(hops.toList())
     }
 }

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class WaitPlanTest {
@@ -27,11 +28,33 @@ class WaitPlanTest {
     @Test
     fun `a command waits for the snapshot by default, ten seconds at most`() {
         val command = Command("c-1", "r-1", ref, "body")
-        command.wait.assert().isEqualTo(WaitPlan.SNAPSHOT)
+        command.wait.assert().isEqualTo(WaitPlan.DEFAULT)
+        command.wait.isDefault.assert().isTrue()
         command.wait.hops.assert().containsExactly(Hop(Stage.HANDLED, null, Hop.SNAPSHOT_SUBSCRIPTION))
         command.wait.timeout.assert().isEqualTo(10.seconds)
         WaitPlan.COMMITTED.hops.assert().containsExactly(Hop.committed())
         WaitPlan.ACCEPTED.hops.assert().containsExactly(Hop.accepted())
+    }
+
+    @Test
+    fun `only the default plan is marked default, and a timeout keeps the mark`() {
+        WaitPlan.of(Hop.snapshot()).assert().isEqualTo(WaitPlan.SNAPSHOT)
+        WaitPlan.SNAPSHOT.isDefault.assert().isFalse()
+        WaitPlan.DEFAULT.assert().isNotEqualTo(WaitPlan.SNAPSHOT)
+        WaitPlan.DEFAULT.hops.assert().isEqualTo(WaitPlan.SNAPSHOT.hops)
+        val longer = WaitPlan.DEFAULT.within(30.seconds)
+        longer.isDefault.assert().isTrue()
+        longer.timeout.assert().isEqualTo(30.seconds)
+        assertThrownBy<IllegalArgumentException> { WaitPlan(listOf(Hop.committed()), isDefault = true) }
+    }
+
+    @Test
+    fun `a timeout may be a java time Duration`() {
+        val plan = WaitPlan(listOf(Hop.committed()), java.time.Duration.ofMillis(1_500))
+        plan.timeout.assert().isEqualTo(1_500.milliseconds)
+        plan.within(java.time.Duration.ofSeconds(2)).timeout.assert().isEqualTo(2.seconds)
+        WaitPlan.DEFAULT.javaTimeout.assert().isEqualTo(java.time.Duration.ofSeconds(10))
+        assertThrownBy<IllegalArgumentException> { WaitPlan.COMMITTED.within(java.time.Duration.ZERO) }
     }
 
     @Test
