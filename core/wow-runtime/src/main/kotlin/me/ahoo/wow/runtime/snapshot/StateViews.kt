@@ -28,7 +28,8 @@ import me.ahoo.wow.kernel.EventCodec
  * it keeps the latest view of at most [capacity] aggregates, evicting the least recently used. A view is a cache: one
  * that is missing (evicted, taken on another node, or not recorded yet when the entry is handled) costs the
  * subscription a rebuild from the snapshot and the log's tail, never a wrong snapshot, since a view is used only for
- * the exact version it was taken at.
+ * the exact version it was taken at. One recorded after the subscription already wrote its version is dropped, never
+ * written again.
  */
 class StateViews(
     private val codec: EventCodec,
@@ -55,6 +56,11 @@ class StateViews(
 
     /** Removes and returns the view of [ref] taken at [version], or null when there is none at that version. */
     fun take(ref: AggregateRef, version: Int): String? = views.removeIf(ref) { it.version == version }?.state
+
+    /** Removes the view of [ref] when it was taken at [version] or earlier: a snapshot already holds it. */
+    internal fun dropThrough(ref: AggregateRef, version: Int) {
+        views.removeIf(ref) { it.version <= version }
+    }
 
     private class View(val version: Int, val state: String)
 

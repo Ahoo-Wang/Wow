@@ -45,10 +45,12 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   the stream's commit time, its first event time that of the aggregate's first stream.
  * - **Idempotent**: [SnapshotStore.save] only ever replaces a lower version, so a replay or an old owner running
  *   alongside the new one (decision D45) never moves a snapshot back. When the store already holds the stream's
- *   version or a later one, nothing is rebuilt.
+ *   version or a later one, as this subscription last wrote or loaded it, nothing is rebuilt or saved, from a view
+ *   or without one, and the aggregate's views up to that version are dropped: a view recorded after its entry was
+ *   written without it never costs a second write.
  *
  * [codec] must be the kernel's, so the views and the fingerprints are what the kernel reads back. [capacity] bounds
- * both the views and the first event times kept per aggregate.
+ * both the views and the versions and first event times kept per aggregate.
  */
 class SnapshotSubscription(
     context: String,
@@ -60,7 +62,7 @@ class SnapshotSubscription(
     capacity: Int = StateViews.DEFAULT_CAPACITY,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
-    private val firstEventTimes = LruMap<AggregateRef, Long>(capacity)
+    private val written = LruMap<AggregateRef, Written>(capacity)
 
     init {
         require(models.isNotEmpty()) { "A snapshot subscription needs the aggregate types it snapshots." }
@@ -83,15 +85,21 @@ class SnapshotSubscription(
         val ref = stream.ref
         val version = stream.version
         val model = checkNotNull(models[ref.type]) { "${ref.type} has no snapshot." }
+        val held = written[ref]
+        if (held != null && held.version >= version) {
+            // A view recorded after this subscription wrote its version, without one, is never written again.
+            views.dropThrough(ref, held.version)
+            return
+        }
         val view = views.take(ref, version)
-        val known = if (version == 1) stream.commitTime else firstEventTimes[ref]
+        val known = if (version == 1) stream.commitTime else held?.firstEventTime
         if (view != null && known != null) {
             save(codec.snapshotOf(model, ref, view, version, stream.scope, known, stream.commitTime))
             return
         }
         val stored = store.load(ref)
         if (stored != null && stored.version >= version) {
-            firstEventTimes[ref] = stored.firstEventTime
+            remember(ref, stored.firstEventTime, stored.version)
             return
         }
         val first = known ?: stored?.firstEventTime ?: firstEventTime(ref)
@@ -101,10 +109,20 @@ class SnapshotSubscription(
         save(codec.snapshotOf(model, ref, state, version, stream.scope, first, stream.commitTime))
     }
 
+    /** Saves [snapshot]: written or not, the store then holds its version or a later one (a version-guarded save). */
     private suspend fun save(snapshot: SnapshotRecord) {
         store.save(snapshot)
-        firstEventTimes[snapshot.ref] = snapshot.firstEventTime
+        remember(snapshot.ref, snapshot.firstEventTime, snapshot.version)
     }
+
+    /** The store holds [ref] at [version] or later: its views up to [version] are of no use any more. */
+    private fun remember(ref: AggregateRef, firstEventTime: Long, version: Int) {
+        written[ref] = Written(firstEventTime, version)
+        views.dropThrough(ref, version)
+    }
+
+    /** What this subscription knows the store holds of an aggregate: a lower bound of the stored version. */
+    private class Written(val firstEventTime: Long, val version: Int)
 
     /** The commit time of [ref]'s first stream. */
     private suspend fun firstEventTime(ref: AggregateRef): Long =
