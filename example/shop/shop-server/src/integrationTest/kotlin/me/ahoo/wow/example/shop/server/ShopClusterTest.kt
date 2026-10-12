@@ -31,6 +31,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The server's inventory, counting the orders this node decided: the node a command ran on consults it. */
@@ -64,10 +65,10 @@ class ShopClusterTest {
         startShop(
             "wow.node.id" to node,
             "wow.log.partitions" to PARTITIONS,
-            "wow.cluster.lease-ttl" to "3s",
-            "wow.cluster.renew-interval" to "1s",
-            "wow.cluster.member-ttl" to "3s",
-            "wow.cluster.heartbeat-interval" to "1s",
+            "wow.cluster.lease-ttl" to "15s",
+            "wow.cluster.renew-interval" to "2s",
+            "wow.cluster.member-ttl" to "15s",
+            "wow.cluster.heartbeat-interval" to "2s",
             "wow.cluster.reconcile-interval" to "200ms",
             "wow.cluster.route-refresh-interval" to "200ms",
             "wow.subscription.checkpoint-interval" to "100ms",
@@ -139,23 +140,33 @@ class ShopClusterTest {
         response.statusCode().assert().isEqualTo(400)
     }
 
-    /** An order id whose partition the second node owns and the first forwards to it, once they agree. */
+    /**
+     * An order id whose partition the second node owns and the first forwards to it, once the nodes have split the
+     * partitions between them and the split has held for [STABLE_POLLS] polls: a partition still moving between them
+     * would run the command on either.
+     */
     private fun idOwnedBySecond(): String {
         val type = AggregateType(ExampleContext.NAME, ExampleContext.ORDER)
         val deadline = System.currentTimeMillis() + OWNERSHIP_TIMEOUT
+        var last: Set<Int>? = null
+        var stable = 0
         while (System.currentTimeMillis() < deadline) {
+            val firstOwnership = first.node.context(ExampleContext.NAME).ownership
             val owned = second.node.context(ExampleContext.NAME).ownership.owned
-            val routes = first.node.context(ExampleContext.NAME).ownership
-            val id = (0 until CANDIDATES).map { "order-$it" }.firstOrNull { candidate ->
-                val partition = Partitioner.partitionOf(type.ref(Caller.DEFAULT_TENANT, candidate), PARTITIONS)
-                partition in owned && routes.forwardTarget(partition)?.node == SECOND
-            }
-            if (id != null && routes.owned.isNotEmpty()) {
-                return id
+            val split = firstOwnership.owned.isNotEmpty() && owned.isNotEmpty() &&
+                (firstOwnership.owned + owned) == (0 until PARTITIONS).toSet() &&
+                firstOwnership.owned.intersect(owned).isEmpty() &&
+                owned.all { firstOwnership.forwardTarget(it)?.node == SECOND }
+            stable = if (split && owned == last) stable + 1 else 0
+            last = owned.takeIf { split }
+            if (stable >= STABLE_POLLS) {
+                return (0 until CANDIDATES).map { "order-${UUID.randomUUID()}" }.first { candidate ->
+                    Partitioner.partitionOf(type.ref(Caller.DEFAULT_TENANT, candidate), PARTITIONS) in owned
+                }
             }
             Thread.sleep(POLL)
         }
-        error("The nodes did not share the partitions in time.")
+        error("The nodes did not split the partitions in time.")
     }
 
     private companion object {
@@ -166,6 +177,7 @@ class ShopClusterTest {
         const val CANDIDATES = 200
         const val OWNERSHIP_TIMEOUT = 30_000L
         const val POLL = 100L
+        const val STABLE_POLLS = 10
         const val ADDRESS =
             """{"country":"China","province":"Shanghai","city":"Shanghai","district":"Pudong","detail":"1 Century Avenue"}"""
     }
