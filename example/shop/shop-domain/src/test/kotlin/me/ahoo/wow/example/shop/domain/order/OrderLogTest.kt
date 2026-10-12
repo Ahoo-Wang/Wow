@@ -38,7 +38,6 @@ import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.spi.log.EventRecord
 import org.junit.jupiter.api.Test
-import java.math.BigDecimal
 
 /** The shop's states as snapshots, and its events as the log holds them. */
 class OrderLogTest {
@@ -65,7 +64,7 @@ class OrderLogTest {
         val shipped = Kernel(log, codec, snapshots = snapshots).send(model, ORDER_ID, ShipOrder)
         val state = (shipped as CommandOutcome.Committed).state as OrderState
         state.status.assert().isEqualTo(OrderStatus.SHIPPED)
-        state.paidAmount.assert().isEqualByComparingTo(total)
+        state.paidAmount.assert().isEqualTo(total)
         state.items.assert().isEqualTo(orderCreated.items)
         state.address.assert().isEqualTo(orderCreated.address)
     }
@@ -89,12 +88,6 @@ class OrderLogTest {
             "detail":"1 Century Avenue"},"fromCart":true}
         """.trimIndent()
         val upgraded = codec.decode(model, EventRecord("example.order.OrderCreated", 1, nineX)) as OrderCreated
-        upgraded.copy(items = emptyList()).assert().isEqualTo(orderCreated.copy(items = emptyList()))
-        upgraded.items.map { it.copy(price = BigDecimal.ZERO) }
-            .assert().isEqualTo(orderCreated.items.map { it.copy(price = BigDecimal.ZERO) })
-        // The kernel reads an upgraded payload as a tree of doubles, so a price keeps its value but not its scale.
-        upgraded.items.zip(orderCreated.items).forEach { (read, expected) ->
-            read.price.assert().isEqualByComparingTo(expected.price)
-        }
+        upgraded.assert().isEqualTo(orderCreated)
     }
 }
