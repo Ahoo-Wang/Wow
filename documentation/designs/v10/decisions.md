@@ -15,7 +15,6 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| D59 | 格式版本 | 日志、快照按表记录格式版本；线上结构每条带 `format`；加法不升版本；主版本内写者晚一个次版本才写新字段 | 待定 | M4 | [08](08-data-protocols.md) |
 | D6 | 命令路由 | 默认 Partitioned（经集群通道转发到分区属主）；单节点或降级用 Local；需要持久摄入的异步命令用 Kafka | 待证据 H2 | M4 | [02](02-write-path.md) |
 
 ## 2. 待验证的假设
@@ -89,6 +88,7 @@
 | D56 | 作用域：`wow-api` 的值类型 `Scope(ownerId, spaceId)`，命令、事件流、快照、查询授权共用；事件流的 `scope` 是提交后聚合的归属，由内核随状态维护、只由生命周期命令改变；事件流另带 `causation`（根命令、直接上游）与准入白名单内的 `headers` | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D57 | 事件标识由（聚合引用，版本，事件序号）推导：`ref@version#index`，不另存 ID | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D58 | Kafka 信封：key = 聚合引用；value = `{format, kind, id, type, payload, transport}`；发布的是 `StateEvent`（默认总附状态，单个 Sink 可按聚合类型关闭）；载荷是嵌入的 JSON 对象，不是字符串；下游按 id 去重 | 2026-10-12，用户 | [08](08-data-protocols.md) |
+| D59 | 格式版本：日志、快照按表记录格式版本（schema 元数据），线上结构每条带 `format`；新增带默认值的可选字段不升版本；主版本内新字段先在一个次版本学会读、下一个次版本才写（D48 的落地规则）；不兼容的变化只在下一个主版本的迁移层处理（D22） | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D60 | 对外命令结果：一个 `CommandResult`（status、hop、function、version、duplicate、error 含 violations、results）用于 HTTP、SSE、等待信号与回执；保留 9.x 的 `function`（SSE 中标明处理者）与字段级校验错误（改名 `violations`）；拒绝与失败走 problem+json 并带同样字段 | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D54 | 快照只按版本守卫写入；状态 schema 变化后的重建一律写入新的快照存储（蓝绿），不做同版本原地覆盖 | 2026-10-12，用户 | [03](03-log-and-snapshot.md) |
 | D48 | 主版本内的滚动升级：同一主版本内相邻次版本必须能混部：集群通道、日志条目、租约、等待信号、Kafka 信封都向前兼容一个次版本；10.0 GA 后重新启用 `mixed-version` 门禁；跨主版本才用蓝绿切换 | 2026-10-11，用户 | [02](02-write-path.md) |
