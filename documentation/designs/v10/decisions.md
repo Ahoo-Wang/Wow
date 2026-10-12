@@ -15,7 +15,6 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| D86 | V10 是否回主干开发（修订 D2）：V10 模块以孵化模块进 main，取消长期分支与每周前向合并 | **改为推荐保留 `v10` 长期分支（维持 D2），到 beta 再评估**。评估（2026-10-12）：第一次前向合并 main 领先 12 个提交、139 个文件，只有 4 个冲突且都在工作流路径过滤；按目录分范围的 CI、按范围构建与 D85 拆分已把分支成本降到每周一次合并；剩余成本是合并提交须直接推送（自动权限分类器拦截，需用户推送或加窄权限规则）。回主干的代价随 D123 变大：仓库只有一个版本号与一个 `v<版本>` 标签，main 无法同时发 9.x 与 10.0 alpha；main 的工具链是 JDK 17 而 V10 要求 21（D29） | 待定 | beta 之前 | [roadmap](roadmap.md) §1 |
 
 ## 2. 待验证的假设
 
@@ -143,6 +142,7 @@
 | D122 | JSON 数字在存储与线路上精确往返：唯一的 Wow mapper（`:spi` 的 `WowJson`，只带 Kotlin 模块、`USE_BIG_DECIMAL_FOR_FLOATS`、保留尾随零）供内核、集群编解码与各后端使用（完成 D105）；PostgreSQL 用 `jsonb` 精确读写；MongoDB 以 `Decimal128` 保存小数（保留小数位），无法精确保存的数（超过 34 位有效数字）写入即拒绝，绝不舍入；无类型值里的小数绑定为 `BigDecimal` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [08](08-data-protocols.md) |
 | D123 | 预发布：`v10` 的版本号改为 `10.0.0-alpha.2`（每次预发布前递增）；可用的 V10 模块移出孵化并发布到 Maven Central（artifactId `wow-<名字>`，不含示例、spike、架构测试；V10 模块在 beta 前仍不做 ABI 校验，D88；9.x 模块在 `v10` 上仍不发布，D90）；Gradle 插件只发 Maven Central（含插件标记，暂不发 Gradle Plugin Portal）；npm 用 `next` dist-tag。打标签与创建 Release 前须用户确认 | 2026-10-12，用户；**已撤销**，由 D124 取代 | [roadmap](roadmap.md) |
 | D124 | 全部目标完成前不发任何预发布（取消各里程碑的 `alpha` / `beta` / `rc`）：里程碑出口只作为测试与 CI 门槛；`v10` 保持当前版本号、V10 模块保持孵化，版本号与发布范围在 M9 一次性准备，打标签前仍须用户确认。取代 D123 | 2026-10-12，用户 | [roadmap](roadmap.md) |
+| D86 | 保留 `v10` 长期分支（维持 D2），不回主干：第一次前向合并只有 4 个冲突（都在工作流路径过滤），按目录分范围的 CI 与 D85 拆分已把分支成本降到每周一次合并；回主干则 main 须同时承载 9.x 与 10.0 的版本线，且工具链为 JDK 17 对 21（D29）。前向合并的提交由用户推送（自动权限分类器拦截直接推送）。M9 合入 main 前再评估 | 2026-10-12，用户 | [roadmap](roadmap.md) §1 |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
 | D67 | V10 注解集：约 15 个（见 01 §3），订阅处理函数统一为一个 `@OnEvent`、种类由所在类的 `@Projection` / `@Reactor` / `@Saga` 决定；KSP 只认 V10 注解，9.x 注解由迁移 Skill 映射 | 2026-10-12，用户 | [01](01-programming-model.md) |
