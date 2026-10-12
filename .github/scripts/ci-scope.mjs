@@ -51,7 +51,7 @@ const MIXED_VERSION = 'mixedVersion';
 // import, and the root build and Gradle configuration every module reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|compiler|core|backends|edge|host|migration|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike)|example\/shop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|compiler|core|query|backends|edge|host|migration|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike)|example\/(?:shop|inventory|e2e)|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -154,9 +154,9 @@ const RULES = [
     /^test\/(?:wow-it\/|wow-tck\/src\/main\/kotlin\/me\/ahoo\/wow\/tck\/container\/)/,
     [MIXED_VERSION],
   ],
-  // The V10 example (v10 branch): the 9.x example server the same-source
-  // contract runs does not build on it.
-  [/^example\/shop\//, []],
+  // The V10 example and its end-to-end tests (v10 branch): the 9.x example
+  // server the same-source contract runs does not build on them.
+  [/^example\/(?:shop|inventory|e2e)\//, []],
   // Sources and build of the example server the same-source contract runs:
   // every project on its runtime classpath, plus the Gradle build.
   [
@@ -217,7 +217,7 @@ const RULES = [
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below): no example server, client or site builds on
   // them yet.
-  [/^(?:api|compiler|core|backends|edge|host|migration)\//, []],
+  [/^(?:api|compiler|core|query|backends|edge|host|migration)\//, []],
   // Other Gradle modules, the dashboard (dashboard-test.yml), the analytics
   // service and its console (analytics-console-test.yml) and prose.
   [
