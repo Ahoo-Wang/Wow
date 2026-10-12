@@ -185,7 +185,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 **已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4，仍绑定 9.x 注解）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）。H1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
 
-**进行中**：H2 阶段 1，子代理已从 `claude/v10-spike-h2-wip` 接手，跑完实验矩阵后从 `origin/v10` 开分支 `claude/v10-spike-h2` 与 PR（不含 `wip-results/`）；主会话审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6，再合并。第 1 批的 4.2a 与注解集同时由子代理实现，两者文件不重叠（4.2a：`wow-spi`、`wow-kernel` 的租约、`wow-runtime`、`wow-postgres`、`wow-mongo`；注解集：`wow-api`、`wow-compiler`）。
+**进行中**：H2 阶段 1，原子代理仍在另一台电脑上运行（进行中的代码与部分结果在远程分支 `claude/v10-spike-h2-wip`），完成后会推送 `claude/v10-spike-h2` 并开 PR，不要另派子代理重复执行；主会话审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6，再合并。第 1 批的 4.2a 与注解集同时由子代理实现，两者文件不重叠（4.2a：`wow-spi`、`wow-kernel` 的租约、`wow-runtime`、`wow-postgres`、`wow-mongo`；注解集：`wow-api`、`wow-compiler`）。
 
 **下一步队列**（按依赖排序；同一行内的可并行）：
 
