@@ -15,7 +15,9 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import tools.jackson.databind.JsonNode
 
 /**
  * A decide function, in the form its signature has (decision D36). The kernel calls a [Sync] one directly, with no
@@ -25,16 +27,49 @@ sealed interface DecideFunction<S : Any> {
     /** Whether the command may create the aggregate: it is decided on the initial state when none exists yet. */
     val create: Boolean
 
-    class Sync<S : Any>(override val create: Boolean, val decide: (S, Any) -> Decision) : DecideFunction<S>
+    class Sync<S : Any>(override val create: Boolean, val decide: DecideScope.(S, Any) -> Decision) :
+        DecideFunction<S>
 
-    class Suspending<S : Any>(override val create: Boolean, val decide: suspend (S, Any) -> Decision) :
+    class Suspending<S : Any>(override val create: Boolean, val decide: suspend DecideScope.(S, Any) -> Decision) :
         DecideFunction<S>
 }
 
-/** How an event type is named in the log and which schema revision the model reads it as. */
-data class EventType(val name: String, val revision: Int, val type: Class<*>) {
+/**
+ * An after hook (decision D39): runs after the decide function of every command it [applies] to, sees the same,
+ * not yet evolved state, and returns events appended after the command's own, in the same event stream. It does not
+ * run when the command is rejected. Like a decide function it keeps its form (D36).
+ */
+sealed interface AfterFunction<S : Any> {
+    val applies: (Class<*>) -> Boolean
+
+    class Sync<S : Any>(override val applies: (Class<*>) -> Boolean, val after: DecideScope.(S, Any) -> List<Any>) :
+        AfterFunction<S>
+
+    class Suspending<S : Any>(
+        override val applies: (Class<*>) -> Boolean,
+        val after: suspend DecideScope.(S, Any) -> List<Any>,
+    ) : AfterFunction<S>
+}
+
+/**
+ * How an event type is named in the log and which schema revision the model reads it as.
+ *
+ * Records of an older revision are read through [upgrades]: the function at key `n` turns a revision `n` payload into
+ * a revision `n + 1` one, so every revision from 1 up to [revision] needs one (decision D22). [aliases] are names the
+ * type had before, so renaming it keeps its history readable.
+ */
+data class EventType(
+    val name: String,
+    val revision: Int,
+    val type: Class<*>,
+    val upgrades: Map<Int, (JsonNode) -> JsonNode> = emptyMap(),
+    val aliases: Set<String> = emptySet(),
+) {
     init {
         require(revision >= 1) { "An event revision starts at 1." }
+        val missing = (1 until revision) - upgrades.keys
+        require(missing.isEmpty()) { "$name revision $revision lacks upgrades from revisions $missing." }
+        require(upgrades.keys.all { it in 1 until revision }) { "$name has an upgrade beyond its revision." }
     }
 }
 
@@ -52,12 +87,18 @@ class AggregateModel<S : Any>(
     private val deciders: Map<Class<*>, DecideFunction<S>>,
     private val evolvers: Map<Class<*>, (S, Any) -> S>,
     eventTypes: Collection<EventType>,
+    private val afterFunctions: List<AfterFunction<S>> = emptyList(),
 ) {
     private val eventsByType: Map<Class<*>, EventType> = eventTypes.associateBy { it.type }
-    private val eventsByName: Map<String, EventType> = eventTypes.associateBy { it.name }
+    private val eventsByName: Map<String, EventType> = eventTypes.flatMap { type ->
+        (type.aliases + type.name).map { it to type }
+    }.toMap()
+    private val afterByCommand: Map<Class<*>, List<AfterFunction<S>>> =
+        deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
 
     init {
-        require(eventsByName.size == eventTypes.size) { "Two event types of $type share a name." }
+        val names = eventTypes.flatMap { it.aliases + it.name }
+        require(names.size == names.toSet().size) { "Two event types of $type share a name or an alias." }
         val missing = eventTypes.map { it.type } - evolvers.keys
         require(missing.isEmpty()) { "Event types of $type without an evolve function: $missing" }
     }
@@ -67,6 +108,9 @@ class AggregateModel<S : Any>(
 
     /** The decide function for [commandType], or null when the aggregate does not handle it. */
     fun decider(commandType: Class<*>): DecideFunction<S>? = deciders[commandType]
+
+    /** The after hooks that run for [commandType], in declaration order. */
+    fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()
 
     /** Applies [event] to [state]. */
     fun evolve(state: S, event: Any): S {
@@ -78,7 +122,7 @@ class AggregateModel<S : Any>(
     fun eventType(eventClass: Class<*>): EventType =
         requireNotNull(eventsByType[eventClass]) { "${eventClass.name} is not an event of $type." }
 
-    /** The event type named [name] in the log. */
+    /** The event type named [name] (or formerly named so) in the log. */
     fun eventType(name: String): EventType =
         requireNotNull(eventsByName[name]) { "$type has no event named $name." }
 }

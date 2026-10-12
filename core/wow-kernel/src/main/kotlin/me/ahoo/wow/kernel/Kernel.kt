@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.kernel
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -30,18 +32,26 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  *
  * 1. **Deduplicate before deciding** (D46): a request id already committed in the tenant is never decided again; a
  *    different command reusing it is rejected.
- * 2. **Load** the committed state, **decide**, **evolve** a fresh state with the events, **append** once.
+ * 2. **Load** the committed state, **decide** (the command's function, then its after hooks, D39), **evolve** a
+ *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [maxAttempts]; an unknown append outcome is settled
  *    by reading the version slot.
  *
- * Once an append commits, the rest of the attempt does not observe cancellation: a caller giving up must not tear
- * what is already a fact.
+ * An attempt whose events are surely not appended (rejected, conflicting, failing) runs the compensations its
+ * decide functions registered ([DecideScope.onAppendFailure]); a committed one runs their after-append actions. Once
+ * an append commits, the rest of the attempt does not observe cancellation: a caller giving up must not tear what is
+ * already a fact.
+ *
+ * [verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
+ * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log (F4). The
+ * test DSL turns it on; it costs two serializations of the state per command.
  */
 class Kernel(
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
+    private val verifyDecidePurity: Boolean = false,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -56,29 +66,79 @@ class Kernel(
         repeat(maxAttempts) {
             val (state, version) = load(model, command)
             admissible(decider, command, version)?.let { return it }
-            val events = when (val decision = decide(decider, state, command.body)) {
-                is Decision.Events -> decision.events
-                Decision.NoOp -> return CommandOutcome.Unchanged(version)
-                is Decision.Rejected -> return CommandOutcome.Rejected(decision.rejection)
+            val scope = AttemptScope()
+            val prepared = try {
+                prepare(model, decider, scope, state, command, version, fingerprint)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
+                failure: Throwable,
+            ) {
+                scope.compensate(failure)
+                throw failure
             }
-            val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
-            val stream = EventStreamRecord(
-                ref = command.ref,
-                version = version + 1,
-                commandId = command.id,
-                requestId = command.requestId,
-                fingerprint = fingerprint,
-                commitTime = clock(),
-                events = events.map { codec.encode(model, it) },
-            )
+            val (stream, evolved) = when (prepared) {
+                is Prepared.Done -> {
+                    scope.compensate()
+                    return prepared.outcome
+                }
+
+                is Prepared.Append -> prepared.stream to prepared.evolved
+            }
             when (val appended = withContext(NonCancellable) { append(stream) }) {
-                is AppendOutcome.Committed -> return CommandOutcome.Committed(stream, appended.position, evolved)
-                is AppendOutcome.AlreadyCommitted -> return settled(appended.existing, fingerprint)
-                is AppendOutcome.Conflict -> Unit
+                is AppendOutcome.Committed -> {
+                    withContext(NonCancellable) { scope.afterAppend() }
+                    return CommandOutcome.Committed(stream, appended.position, evolved)
+                }
+
+                is AppendOutcome.AlreadyCommitted -> {
+                    scope.compensate()
+                    return settled(appended.existing, fingerprint)
+                }
+
+                is AppendOutcome.Conflict -> scope.compensate()
                 is AppendOutcome.Unknown -> return CommandOutcome.Unknown(appended.cause)
             }
         }
         return CommandOutcome.Contended(maxAttempts)
+    }
+
+    /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
+    @Suppress("LongParameterList")
+    private suspend fun <S : Any> prepare(
+        model: AggregateModel<S>,
+        decider: DecideFunction<S>,
+        scope: AttemptScope,
+        state: S,
+        command: Command<*>,
+        version: Int,
+        fingerprint: String,
+    ): Prepared {
+        val before = if (verifyDecidePurity) codec.stateText(state) else null
+        val decided = when (val decision = decide(decider, scope, state, command.body)) {
+            is Decision.Events -> decision.events
+            Decision.NoOp -> emptyList()
+            is Decision.Rejected -> return Prepared.Done(CommandOutcome.Rejected(decision.rejection))
+        }
+        val events = decided + model.afterFunctions(command.body.javaClass).flatMap { after(it, scope, state, command.body) }
+        if (before != null) {
+            check(codec.stateText(state) == before) {
+                "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
+            }
+        }
+        if (events.isEmpty()) {
+            return Prepared.Done(CommandOutcome.Unchanged(version))
+        }
+        val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
+        val stream = EventStreamRecord(
+            ref = command.ref,
+            version = version + 1,
+            commandId = command.id,
+            requestId = command.requestId,
+            fingerprint = fingerprint,
+            commitTime = clock(),
+            events = events.map { codec.encode(model, it) },
+        )
+        return Prepared.Append(stream, evolved)
     }
 
     /**
@@ -131,9 +191,24 @@ class Kernel(
         else -> null
     }
 
-    private suspend fun <S : Any> decide(decider: DecideFunction<S>, state: S, body: Any): Decision = when (decider) {
-        is DecideFunction.Sync -> decider.decide(state, body)
-        is DecideFunction.Suspending -> decider.decide(state, body)
+    private suspend fun <S : Any> decide(
+        decider: DecideFunction<S>,
+        scope: DecideScope,
+        state: S,
+        body: Any,
+    ): Decision = when (decider) {
+        is DecideFunction.Sync -> decider.decide(scope, state, body)
+        is DecideFunction.Suspending -> decider.decide(scope, state, body)
+    }
+
+    private suspend fun <S : Any> after(
+        after: AfterFunction<S>,
+        scope: DecideScope,
+        state: S,
+        body: Any,
+    ): List<Any> = when (after) {
+        is AfterFunction.Sync -> after.after(scope, state, body)
+        is AfterFunction.Suspending -> after.after(scope, state, body)
     }
 
     private fun settled(existing: EventStreamRecord, fingerprint: String): CommandOutcome =
@@ -148,7 +223,51 @@ class Kernel(
 
     private fun rejected(code: String, message: String) = CommandOutcome.Rejected(Rejection(code, message))
 
+    private sealed interface Prepared {
+        class Done(val outcome: CommandOutcome) : Prepared
+
+        class Append(val stream: EventStreamRecord, val evolved: Any) : Prepared
+    }
+
+    /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
+    private class AttemptScope : DecideScope {
+        private var compensations: MutableList<suspend () -> Unit>? = null
+        private var afterAppendActions: MutableList<suspend () -> Unit>? = null
+
+        override fun onAppendFailure(compensation: suspend () -> Unit) {
+            (compensations ?: ArrayList<suspend () -> Unit>().also { compensations = it }) += compensation
+        }
+
+        override fun afterAppend(action: suspend () -> Unit) {
+            (afterAppendActions ?: ArrayList<suspend () -> Unit>().also { afterAppendActions = it }) += action
+        }
+
+        /** Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged. */
+        @Suppress("TooGenericExceptionCaught")
+        suspend fun compensate(cause: Throwable? = null) {
+            compensations?.asReversed()?.forEach { compensation ->
+                try {
+                    compensation()
+                } catch (failure: Throwable) {
+                    cause?.addSuppressed(failure) ?: log.warn(failure) { "A compensation failed." }
+                }
+            }
+        }
+
+        @Suppress("TooGenericExceptionCaught")
+        suspend fun afterAppend() {
+            afterAppendActions?.forEach { action ->
+                try {
+                    action()
+                } catch (failure: Throwable) {
+                    log.warn(failure) { "An after-append action failed; the events are committed." }
+                }
+            }
+        }
+    }
+
     private companion object {
         const val DEFAULT_MAX_ATTEMPTS = 3
+        val log = KotlinLogging.logger {}
     }
 }

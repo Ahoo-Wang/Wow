@@ -6,7 +6,7 @@
 
 | 函数 | 签名 | I/O | 失败语义 |
 |---|---|---|---|
-| Decide | `(S, C[, DecideContext]) -> Decision<E>`，可以是同步、`suspend` 或 Reactor（§4） | 允许，经 `DecideContext` 取依赖 | 命令被拒绝；不写入 |
+| Decide | `DecideScope.(S, C) -> Decision`，可以是同步、`suspend` 或 Reactor（§4） | 允许，经 `DecideScope` 取依赖 | 命令被拒绝；不写入 |
 | Evolve | `S.(E) -> Unit`（可变）或 `(S, E) -> S`（不可变） | **禁止**：非 `suspend`，上下文里没有依赖 | 模型缺陷：快速失败 |
 | React | `(StateEvent[, ReactContext]) -> Unit`，三种调用形态同 Decide | 允许，自行幂等 | 进入失败台账，停放该聚合 |
 | Saga | `(StateEvent[, SagaContext]) -> List<Command>`，三种调用形态同 Decide | 允许 | 派生命令请求 ID 确定。同上下文的命令要等到 `COMMITTED`，跨上下文的命令等到持久 `ACCEPTED`（D33），Saga 才算完成；派生命令被拒绝视为处理失败，进入失败台账，除非 Saga 声明该拒绝是预期结果 |
@@ -100,8 +100,8 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 「用户名在租户内唯一」这类约束跨越聚合实例，单个聚合的版本唯一键管不到。9.x 用 `PrepareKey` 解决：在 Mongo 或 Redis 上持久地预留一个键，支持预留、重新预留、回滚与过期（`infra/prepare`）。V10 保留这个能力（D38）：
 
 - 作为 `@WowSpi` 端口，由日志后端（PostgreSQL、MongoDB）实现，与日志同库，不引入新的存储依赖。
-- 在 Decide 里经 `DecideContext` 使用（Decide 允许 I/O）：先预留，再产出事件；命令被拒绝或追加失败时，回滚本次命令做的预留。
-- 回滚建立在一个通用机制上：`DecideContext.onAppendFailure { … }` 登记「追加没有成功时」要执行的补偿，Decide 里做的任何外部副作用都可以用它（KaeX mvp 的 `CommandUnitOfWork`）；预留键是它的第一个使用者。
+- 在 Decide 里经 `DecideScope` 使用（Decide 允许 I/O）：先预留，再产出事件；命令被拒绝或追加失败时，回滚本次命令做的预留。
+- 回滚建立在一个通用机制上：`DecideScope.onAppendFailure { … }` 登记「追加没有成功时」要执行的补偿，Decide 里做的任何外部副作用都可以用它（KaeX mvp 的 `CommandUnitOfWork`）；预留键是它的第一个使用者。
 - KaeX mvp 曾为稳住核心把 `PrepareKey` 整体移除，那是范围取舍，不是否定这个能力；9.x 用户在用，所以 V10 保留（D38）。
 - 释放与转移（例如改名）由领域事件驱动的 Saga 完成，失败进入失败台账。
 - **崩溃不泄漏预留**（R8）：`onAppendFailure` 只在进程活着时执行；在预留之后、追加之前崩溃，补偿永远不会跑，键会被永久占住。所以 Decide 里做的预留先是「待确认」状态并带短过期时间（9.x 的 `PrepareKey` 本来就有过期），追加成功后由 `afterAppend` 确认为永久；崩溃留下的只是一个会自动过期的待确认预留。
@@ -119,7 +119,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 ## 9. 待细化
 
 - DSL 与注解的完整清单（守卫、创建语义）；after 钩子见 D39。
-- `DecideContext` 的依赖注入方式（构造期绑定，还是按类型解析）。
+- `DecideScope` 的依赖注入方式（构造期绑定，还是按类型解析）。
 - Java Builder 的形状（D8 的退路）；纯 Maven 的 Java 项目如何接入 KSP。
 - 可变状态丢弃重载的范围：只丢该聚合的实例，还是连同它所在邮箱的在途命令一起重试。
 - 升级函数能否删除字段、拆分事件、丢弃事件。

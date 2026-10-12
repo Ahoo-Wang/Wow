@@ -29,14 +29,27 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         return EventRecord(type.name, type.revision, mapper.writeValueAsString(event))
     }
 
-    /** The event [record] holds, read as [model]'s current schema of its type. */
+    /**
+     * The event [record] holds, read as [model]'s current schema of its type: a record of an older revision goes
+     * through the type's upgrades one revision at a time (D22); a record named by a former name is still found.
+     */
     fun decode(model: AggregateModel<*>, record: EventRecord): Any {
         val type = model.eventType(record.name)
-        check(record.revision == type.revision) {
-            "${record.name} revision ${record.revision} has no upgrade to revision ${type.revision}."
+        check(record.revision <= type.revision) {
+            "${record.name} revision ${record.revision} is newer than revision ${type.revision} this model reads."
         }
-        return mapper.readValue(record.payload, type.type)
+        if (record.revision == type.revision) {
+            return mapper.readValue(record.payload, type.type)
+        }
+        var payload = mapper.readTree(record.payload)
+        for (revision in record.revision until type.revision) {
+            payload = type.upgrades.getValue(revision)(payload)
+        }
+        return mapper.treeToValue(payload, type.type)
     }
+
+    /** [state] as text, to tell whether something changed it. */
+    fun stateText(state: Any): String = mapper.writeValueAsString(state)
 
     /**
      * Identifies a command: its type and a hash of its body. A request id reused by a command with another
