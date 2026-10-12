@@ -179,10 +179,12 @@ core/reactor/               :reactor        Reactor adapters for the programming
 backends/postgres/          :postgres       SPI on PostgreSQL
 backends/mongo/             :mongo          SPI on MongoDB
 edge/http/                  :http           Routes from the Manifest, problem+json, SSE
+edge/cosec/                 :cosec          CoSec: the caller from CoSec's security context, command authorization
 host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiring only
 migration/migrate-data/     :migrate-data   Imports 9.x event streams into the V10 log
 test/architecture/          :architecture   V10 module graph and dependency rules
 test/kernel-benchmarks/     :kernel-benchmarks, test/routing-spike/ :routing-spike, test/lease-spike/ :lease-spike: spikes H3, H2, H6
+example/shop/               :shop-api, :shop-domain, :shop-server: the V10 example (D111); never published
 ```
 
 - V10 Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). A V10 module that replaces a 9.x one (`:api`, `:compiler`, `:mongo`) lives in its own directory; the 9.x module keeps its name and directory, and no module may depend on both (D85; `:kernel-benchmarks` is exempt, D90).

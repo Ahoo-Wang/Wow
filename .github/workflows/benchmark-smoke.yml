@@ -32,6 +32,8 @@ on:
       - 'test/wow-test/**'
       - 'test/wow-mock/**'
       - 'example/**'
+      # The V10 example (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs it.
+      - '!example/shop/**'
   # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
   workflow_dispatch:
 concurrency:

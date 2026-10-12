@@ -4,8 +4,9 @@ description = "Wow V10 architecture rules: module graph, forbidden dependencies 
 // for the module graph; declare them as inputs so a change there re-runs the tests instead of reusing a cached result.
 val v10ModuleDirs = listOf(
     "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
-    "core/reactor", "backends/postgres", "backends/mongo", "edge/http", "host/spring-boot",
+    "core/reactor", "backends/postgres", "backends/mongo", "edge/http", "edge/cosec", "host/spring-boot",
     "migration/migrate-data", "compiler/compiler", "compiler/gradle-plugin", "compiler/manifest-tools",
+    "example/shop/shop-api", "example/shop/shop-domain", "example/shop/shop-server",
 )
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())

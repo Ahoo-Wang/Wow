@@ -38,11 +38,12 @@ on:
       - 'analytics/**'
       # The console is TypeScript; analytics-console-test.yml checks it.
       - '!analytics/console/**'
-      # The V10 tests and spikes (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs them.
+      # The V10 tests, spikes and example (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs them.
       - '!test/architecture/**'
       - '!test/kernel-benchmarks/**'
       - '!test/routing-spike/**'
       - '!test/lease-spike/**'
+      - '!example/shop/**'
   pull_request:
     paths:
       - '.github/workflows/local-test.yml'
@@ -65,11 +66,12 @@ on:
       - 'analytics/**'
       # The console is TypeScript; analytics-console-test.yml checks it.
       - '!analytics/console/**'
-      # The V10 tests and spikes (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs them.
+      # The V10 tests, spikes and example (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs them.
       - '!test/architecture/**'
       - '!test/kernel-benchmarks/**'
       - '!test/routing-spike/**'
       - '!test/lease-spike/**'
+      - '!example/shop/**'
   # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
   workflow_dispatch:
 concurrency:
