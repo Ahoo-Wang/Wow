@@ -14,8 +14,6 @@
 package me.ahoo.wow.spi.log
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 
 /**
@@ -54,16 +52,8 @@ interface EventLog {
      * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and
      * transport: the read of recovery. A subscription that handles a parked aggregate again reads its streams by
      * version, and the `reservation` subscription needs the keys their transport carries (decision D50).
-     *
-     * The default finds each entry through [positionOf] and [tail], one read per stream; a backend overrides it with
-     * one read.
      */
-    fun readEntries(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<LogEntry> = flow {
-        read(ref, fromVersion, toVersion).collect { stream ->
-            val position = checkNotNull(positionOf(ref, stream.version)) { "$ref@${stream.version} has no position." }
-            emit(tail(position.partition, position.sequence - 1).first())
-        }
-    }
+    fun readEntries(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<LogEntry>
 
     /**
      * The position of [ref]'s stream at [version], or null when there is none. A duplicate request uses it to tell

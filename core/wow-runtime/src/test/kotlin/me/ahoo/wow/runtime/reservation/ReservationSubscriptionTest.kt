@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
@@ -147,7 +148,7 @@ class ReservationSubscriptionTest {
         confirming.subscription.name.assert().isEqualTo("reservation")
         confirming.subscription.filter.context.assert().isEqualTo("shop")
         confirming.subscription.filter.aggregates.assert().isEmpty()
-        confirming.subscription.kind.assert().isEqualTo(FunctionKind.REACT)
+        confirming.subscription.kind.assert().isEqualTo(FunctionKind.RESERVATION)
     }
 
     @Test
@@ -196,7 +197,7 @@ class ReservationSubscriptionTest {
         eventually { store.confirms.size == 3 }
         confirmedBy("ahoo", "u-2").assert().isTrue()
         confirmedBy("kept", "u-3").assert().isTrue()
-        ledger.isParked(ReservationSubscription.NAME, user("u-1")).assert().isFalse()
+        ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
     }
 
     @Test
@@ -208,7 +209,7 @@ class ReservationSubscriptionTest {
         runtime().start(setOf(0, 1))
         eventually { store.confirms.isNotEmpty() }
         reservations.find(NAMES, "ahoo")!!.owner.assert().isEqualTo("someone-else")
-        ledger.isParked(ReservationSubscription.NAME, user("u-1")).assert().isFalse()
+        ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
     }
 
     @Test
@@ -218,13 +219,13 @@ class ReservationSubscriptionTest {
             val runtime = runtime()
             runtime.start(setOf(0, 1))
             register("u-1", "ahoo")
-            eventually { ledger.isParked(ReservationSubscription.NAME, user("u-1")) }
+            eventually { ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")) }
             reservations.find(NAMES, "ahoo")!!.confirmed.assert().isFalse()
 
             store.failing = false
-            runtime.resume(ReservationSubscription.NAME, user("u-1")).assert().isTrue()
+            runtime.resume(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isTrue()
             confirmedBy("ahoo", "u-1").assert().isTrue()
-            ledger.isParked(ReservationSubscription.NAME, user("u-1")).assert().isFalse()
+            ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
         }
 
     private companion object {

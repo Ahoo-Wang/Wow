@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -42,11 +43,11 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  *   never confirmed; it expires in the store, and the next reservation of the key takes it over.
  */
 class ReservationSubscription(context: String, private val store: ReservationStore) {
-    /** The subscription to register: named [NAME], of every aggregate type of the context. */
+    /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
     val subscription: Subscription = Subscription(
-        name = NAME,
+        name = Hop.RESERVATION_SUBSCRIPTION,
         filter = SubscriptionFilter(context),
-        kind = FunctionKind.REACT,
+        kind = FunctionKind.RESERVATION,
         handler = ::confirm,
     )
 
@@ -64,11 +65,6 @@ class ReservationSubscription(context: String, private val store: ReservationSto
                 }
             }
         }
-    }
-
-    companion object {
-        /** The name of the built-in subscription (decision D50). */
-        const val NAME: String = "reservation"
     }
 }
 

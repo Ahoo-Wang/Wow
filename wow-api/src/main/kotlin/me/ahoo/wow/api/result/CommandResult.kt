@@ -31,6 +31,9 @@ enum class FunctionKind {
 
     /** The built-in subscription that writes snapshots. */
     SNAPSHOT,
+
+    /** The built-in subscription that confirms reservations (decision D50). */
+    RESERVATION,
 }
 
 /**
