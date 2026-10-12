@@ -1,6 +1,6 @@
 {
   "source": "wow-api DatePatternCorpusTest: TodayFilter(datePattern), DateTimeFormatter.ofPattern",
-  "javaSpecificationVersion": "17",
+  "javaSpecificationVersion": "21",
   "patterns": [
     ["", false],
     ["\t", false],
