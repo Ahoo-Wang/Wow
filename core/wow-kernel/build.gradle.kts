@@ -11,4 +11,5 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    testImplementation(testFixtures(project(":wow-spi")))
 }

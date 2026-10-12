@@ -45,7 +45,7 @@ flowchart LR
 | M0 准备 | 分支、CI、守护规则、决定评审、模块与目录骨架 | — | （已全部拍板） |
 | M1 Spike | 验证 H1～H4、H6 | — | — |
 | M2 模型与内核 | 领域模型能写、能测 | — | （已全部拍板） |
-| M3 日志与快照 | 唯一事实源成立 | — | D10、D28、D27（待 H1） |
+| M3 日志与快照 | 唯一事实源成立 | — | （已全部拍板） |
 | M4 运行时 | 多节点下写、订阅、等待闭环 | `alpha.1` | D6（待 H2） |
 | M5 契约、边缘与宿主 | 由 Manifest 驱动的 HTTP 与客户端 | `alpha.2` | （已全部拍板） |
 | M6 读平面与 Sinks | 快照查询、跨上下文、数仓 | `beta.1` | （已全部拍板） |
@@ -70,7 +70,7 @@ flowchart LR
 
 | WP | 假设 | 出口 |
 |---|---|---|
-| 1.1 | H1 分区序号分配的吞吐（PostgreSQL 两种方式；MongoDB 事务与分组提交） | 单分区与 64 分区的吞吐、p99、尾随延迟；不跳过的故障注入结果 |
+| 1.1 | H1 分区序号分配的吞吐（PostgreSQL 两种方式；MongoDB 事务与分组提交） | 单分区与 64 分区的吞吐、p99、尾随延迟；不跳过的故障注入结果；PostgreSQL 完成：单语句分配，64 分区约 3 万次/秒（Ahoo-Wang/Wow#4216）；MongoDB 待做 |
 | 1.2 | H2 亲和路由的收益 | 3 节点下 Local 与 Partitioned 的缓存命中率、每命令读次数、冲突率、p99 |
 | 1.3 | H3 协程内核的性能 | 与 9.3 Reactor 内核同一 JMH 基准的吞吐与分配率；同步与 `suspend` 处理函数分别测，验证快速路径无续体分配；完成：V10 快约 7.7 倍、分配减半，见 `wow-benchmarks/results/reports/v10-h3-kernel-comparison.md` |
 | 1.4 | H4 KSP 的覆盖 | example、compensation、view-store 与 transfer（Java 源码）的注解模型由 KSP 生成，与 9.x 运行时解析结果比对 |
@@ -95,8 +95,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 | WP | 内容 | 出口 |
 |---|---|---|
-| 3.1 | `EventLog` 合同与 TCK（唯一键、版本连续、位置不跳过、续读一致） | 内存实现通过 |
-| 3.2 | PostgreSQL 实现（含检查点、租约、失败台账、预留键） | TCK 全绿；故障注入不跳过 |
+| 3.1 | `EventLog` 合同与 TCK（唯一键、版本连续、位置不跳过、续读一致） | 内存实现通过；完成：`EventLogSpec`（`wow-spi` 的 testFixtures），内存与 PostgreSQL 实现均通过（Ahoo-Wang/Wow#4216） |
+| 3.2 | PostgreSQL 实现（含检查点、租约、失败台账、预留键） | TCK 全绿；故障注入不跳过；日志完成（Ahoo-Wang/Wow#4216）；快照、检查点、租约、台账、预留键待做 |
 | 3.3 | MongoDB 实现（D11，一等后端；含分组提交与预留键） | 同上 |
 | 3.4 | 快照存储合同与 TCK；schema 指纹；Mongo、ES、PostgreSQL 实现 | TCK 全绿 |
 

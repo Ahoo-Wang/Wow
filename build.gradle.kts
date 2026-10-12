@@ -125,6 +125,7 @@ val integrationTestProjects = setOf(
     project(":wow-it"),
     project(":wow-view-store-starter"),
     project(":wow-dataset-registry-starter"),
+    project(":wow-postgres"),
 )
 
 ext.set("localTestProjects", localTestProjects)
