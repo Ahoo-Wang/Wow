@@ -137,6 +137,9 @@
 | D116 | 按聚合类型固定租户（取代 9.x 的 `@StaticTenantId`）是宿主配置 `wow.aggregates.<ctx.agg>.tenant`，不是注解（规划者建议由用户确认；按授权先采纳，用户可改） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
 | D117 | Manifest 格式 1 不带身份规则字段（删去 05 §2 的「身份规则」）：身份规则统一 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
 | D118 | 架构规则：`http` 只依赖 `runtime`（V10 `:query` 出现前）；`:cosec` 依赖 `http` 并列入替换对；`:shop-*` 只能依赖 V10 模块 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [06](06-modules.md) |
+| D119 | 注入的领域服务用参数上的 `@Name("…")` 作限定名，生成的 `ModelProvider` 按（类型，限定名）解析；同类型不同限定名可以并存 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md) |
+| D120 | `@OnCommand(produces = [...])`：返回 `Decision` 的命令可声明可能产出的事件，KSP 校验它们是本聚合的事件并写入 Manifest 的 `produces`；不声明则省略 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md)、[05](05-read-and-contract.md) |
+| D121 | 领域拒绝码用 `@ErrorCode(description, status = 422)` 标在 `const val` 上，KSP 收集进所在上下文的 Manifest `errors`；不得以 `wow.` 开头、模块内唯一；V10 注解集增加 `@ErrorCode` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md)、[05](05-read-and-contract.md) |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
 | D67 | V10 注解集：约 15 个（见 01 §3），订阅处理函数统一为一个 `@OnEvent`、种类由所在类的 `@Projection` / `@Reactor` / `@Saga` 决定；KSP 只认 V10 注解，9.x 注解由迁移 Skill 映射 | 2026-10-12，用户 | [01](01-programming-model.md) |
