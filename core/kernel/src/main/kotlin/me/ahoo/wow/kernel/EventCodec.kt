@@ -18,8 +18,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.BeanProperty
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.MapperFeature
+import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
@@ -37,6 +39,13 @@ import java.util.concurrent.ConcurrentHashMap
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
 
+    /**
+     * Reads a payload an upgrade rewrites as a tree that keeps every number as written: a decimal is a
+     * [java.math.BigDecimal] with its scale and all its digits, never a double, so `2.50` reaches the event as `2.50`;
+     * an integer beyond `long` is a [java.math.BigInteger].
+     */
+    private val upgradeReader: ObjectReader = mapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+
     /** [event] as a record of [model]. */
     fun encode(model: AggregateModel<*>, event: Any): EventRecord {
         val type = model.eventType(event.javaClass)
@@ -45,7 +54,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     /**
      * The event [record] holds, read as [model]'s current schema of its type: a record of an older revision goes
-     * through the type's upgrades one revision at a time (D22); a record named by a former name is still found.
+     * through the type's upgrades one revision at a time (D22), as a tree that keeps its numbers exact, and is then
+     * read as a record of the current revision is; a record named by a former name is still found.
      */
     fun decode(model: AggregateModel<*>, record: EventRecord): Any {
         val type = model.eventType(record.name)
@@ -55,11 +65,13 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         if (record.revision == type.revision) {
             return mapper.readValue(record.payload, type.type)
         }
-        var payload = mapper.readTree(record.payload)
+        var payload = upgradeReader.readTree(record.payload)
         for (revision in record.revision until type.revision) {
             payload = type.upgrades.getValue(revision)(payload)
         }
-        return mapper.treeToValue(payload, type.type)
+        // Bound from its text, as a record of the current revision is, so the upgrade path reads every value the same
+        // way: a tree of exact numbers bound directly would give an untyped value a BigDecimal where text gives a Double.
+        return mapper.readValue(mapper.writeValueAsString(payload), type.type)
     }
 
     /** [state] as text, to tell whether something changed it, and as a snapshot holds it. */
