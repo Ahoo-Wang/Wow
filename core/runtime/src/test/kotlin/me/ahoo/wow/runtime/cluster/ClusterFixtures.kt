@@ -19,28 +19,35 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.kernel.InMemoryLeaseStore
-import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
-import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
-import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
-import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.runtime.wait.correlationId
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -51,7 +58,6 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
-import me.ahoo.wow.spi.wait.Origin
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -59,6 +65,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 data class Deposit(val amount: Int = 1)
 data class Deposited(val amount: Int)
@@ -88,6 +95,31 @@ fun fastOptions(
     drainTimeout = 5.seconds,
 )
 
+/** The Manifest of [TestNode]'s model: the account aggregate, its deposits, and every lifecycle command. */
+fun accountManifest(service: String? = SERVICE, context: String = CONTEXT): Manifest = Manifest(
+    service = service?.let(::ServiceInfo),
+    contexts = listOf(
+        ContextManifest(
+            context,
+            aggregates = listOf(
+                AggregateManifest(
+                    "account",
+                    state = StateManifest(Manifest.schemaRef("Account")),
+                    commands = listOf(
+                        CommandManifest(
+                            "Deposit",
+                            schema = Manifest.schemaRef("Deposit"),
+                            creation = ManifestCreation.ALLOWED,
+                        ),
+                    ),
+                    events = listOf(EventManifest("Deposited", schema = Manifest.schemaRef("Deposited"))),
+                    lifecycle = Lifecycle.COMMANDS.keys.toList(),
+                ),
+            ),
+        ),
+    ),
+)
+
 /**
  * Nodes of one service in one JVM: they share an in-memory log, lease store, checkpoint store and failure ledger,
  * reach each other through a [LoopbackClusterChannel], and signal waits straight to each other's registries.
@@ -113,6 +145,7 @@ class TestCluster(
     val leases = RecordingLeases(InMemoryLeaseStore(), events)
     val checkpoints = RecordingCheckpoints(EventCheckpoints(events))
     val ledger = InMemoryFailureLedger()
+    val backends = ContextBackends(log, checkpoints, leases, ledger, snapshots)
     val group = LeaseGroup(SERVICE, CONTEXT)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val latencies = ConcurrentHashMap<String, Duration>()
@@ -159,7 +192,11 @@ class TestCluster(
     }
 }
 
-/** One node of a [TestCluster]: its own kernel, state cache, subscriptions, ownership, router and coordinator. */
+/**
+ * One node of a [TestCluster]: a [ServiceNode] over the cluster's shared stores, with its own kernel, subscriptions,
+ * ownership, router and coordinator. Appends go straight to the log and no state is cached, so every command reads
+ * the log as it is.
+ */
 class TestNode(val name: String, private val cluster: TestCluster) {
     val address = "$name.internal:7070"
 
@@ -183,75 +220,60 @@ class TestNode(val name: String, private val cluster: TestCluster) {
     /** What this node's projector handled: (aggregate id, version). */
     val projected = CopyOnWriteArrayList<Pair<String, Int>>()
 
-    val registry = WaitRegistry()
-    private val signals = LocalSignalSender(name, registry) { origin, signal ->
-        cluster.nodes[origin.node]?.registry?.signal(signal)
-    }
-
-    private val kernel = Kernel(cluster.log, snapshots = cluster.snapshots)
-
-    /** The built-in snapshot subscription, when the cluster has a snapshot store. */
-    val snapshotting = cluster.snapshots?.let { SnapshotSubscription(CONTEXT, listOf(model), it, kernel, cluster.log) }
-
     /** The saga of [TestCluster.saga]: the derived deposits run on this node, carrying the entry's wait context on. */
-    private fun saga(): Subscription = Subscription.saga(SAGA, SubscriptionFilter(CONTEXT)) { entry ->
-        val wait = entry.transport?.wait?.derived()
-        val commands = (1..(cluster.derives[entry.ref.id] ?: 0)).map { n ->
-            val id = "${entry.stream.commandId}-d-$n"
-            Command(
-                id,
-                "r-$id",
-                ref("${entry.ref.id}-d-$n"),
-                Deposit(),
-                causation = Causation(entry.stream.correlationId, "${entry.ref}@${entry.version}"),
-            )
+    private fun saga(coordinator: WaitCoordinator): Subscription =
+        Subscription.saga(SAGA, SubscriptionFilter(CONTEXT)) { entry ->
+            val wait = entry.transport?.wait?.derived()
+            val commands = (1..(cluster.derives[entry.ref.id] ?: 0)).map { n ->
+                val id = "${entry.stream.commandId}-d-$n"
+                Command(
+                    id,
+                    "r-$id",
+                    ref("${entry.ref.id}-d-$n"),
+                    Deposit(),
+                    causation = Causation(entry.stream.correlationId, "${entry.ref}@${entry.version}"),
+                )
+            }
+            commands.forEach { coordinator.forward(model, it, wait) }
+            commands.map { it.id }
         }
-        commands.forEach { coordinator.forward(model, it, wait) }
-        commands.map { it.id }
-    }
 
     /** Checkpoints are saved only when a partition stops, so a save shows the hand-off. */
-    val subscriptions = SubscriptionRuntime(
-        cluster.group.name,
-        cluster.log,
-        cluster.checkpoints,
-        cluster.ledger,
-        listOfNotNull(
-            Subscription(PROJECTOR, SubscriptionFilter(CONTEXT)) { projected += it.ref.id to it.version },
-            snapshotting?.subscription,
-            if (cluster.saga) saga() else null,
-        ),
-        testOptions(checkpointInterval = 1.hours),
-        signals = signals,
-    )
-    val ownership = PartitionOwnership(
-        cluster.group,
+    val service = ServiceNode(
+        SERVICE,
         name,
         address,
-        cluster.partitions,
-        cluster.leases,
-        cluster.options,
-        subscriptions,
+        listOf(model),
+        accountManifest(),
+        { cluster.backends },
+        cluster.channel,
+        remoteSignals = { origin, signal -> cluster.nodes[origin.node]?.registry?.signal(signal) },
+        options = ServiceNodeOptions(
+            cluster = cluster.options,
+            subscription = testOptions(checkpointInterval = 1.hours),
+            appendQueue = AppendQueueOptions(enabled = false),
+            stateCacheCapacity = 0,
+        ),
+        subscriptions = { context ->
+            listOfNotNull(
+                Subscription(PROJECTOR, SubscriptionFilter(CONTEXT)) { projected += it.ref.id to it.version },
+                if (cluster.saga) saga(context.coordinator) else null,
+            )
+        },
     )
-    val router = PartitionedRouter(listOf(ownership), cluster.channel, cluster.options)
-    val coordinator = WaitCoordinator(
-        Executor(kernel, views = snapshotting?.views),
-        registry,
-        subscriptions,
-        signals,
-        WaitOptions(Origin(name, address, SERVICE)),
-        router = router,
-    )
-    private val endpoint = ForwardEndpoint(coordinator, listOf(model), listOf(ownership))
+
+    val registry: WaitRegistry get() = service.waits
+    val ownership: PartitionOwnership get() = service.context(CONTEXT).ownership
+    val coordinator: WaitCoordinator get() = service.context(CONTEXT).coordinator
 
     suspend fun start() {
-        cluster.channel.bind(address, endpoint)
-        ownership.start()
+        cluster.channel.bind(address, service.forwardHandler)
+        service.start()
     }
 
-    /** Leaves gracefully, then stops serving the cluster channel. */
+    /** Leaves gracefully (the node's whole stop), then stops serving the cluster channel. */
     suspend fun leave() {
-        ownership.stop()
+        service.stop()
         cluster.channel.unbind(address)
     }
 
@@ -272,7 +294,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         Command(commandId, "r-$commandId", ref(id), Deposit(), wait = wait)
 
     companion object {
-        fun ref(id: String) = me.ahoo.wow.api.aggregate.AggregateType(CONTEXT, "account").ref("t", id)
+        fun ref(id: String) = AggregateType(CONTEXT, "account").ref("t", id)
     }
 }
 

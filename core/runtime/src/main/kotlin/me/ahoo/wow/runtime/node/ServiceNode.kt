@@ -1,0 +1,400 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.node
+
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.LruStateCache
+import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.cluster.ClusterChannel
+import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
+import me.ahoo.wow.runtime.cluster.CommandRouter
+import me.ahoo.wow.runtime.cluster.ForwardEndpoint
+import me.ahoo.wow.runtime.cluster.ForwardReply
+import me.ahoo.wow.runtime.cluster.LeaseGroup
+import me.ahoo.wow.runtime.cluster.PartitionOwnership
+import me.ahoo.wow.runtime.cluster.PartitionedRouter
+import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.log.PartitionAppendQueue
+import me.ahoo.wow.runtime.manifest.ManifestCheck
+import me.ahoo.wow.runtime.reservation.ReservationSubscription
+import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
+import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.wait.LocalSignalSender
+import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.wait.Origin
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
+
+/**
+ * The parts of one bounded context on a node (decisions D72, D108): the log it appends through ([log], the partition
+ * append queue over the backend's log), its [kernel] and [executor], the built-in [snapshots] and [reservations]
+ * subscriptions when the context has their stores, the [subscriptions] runtime of its lease [group], this node's
+ * [ownership] of the group's partitions, its wait [coordinator], and the [endpoint] that executes the commands other
+ * nodes forward to it.
+ */
+class ContextNode internal constructor(
+    val context: String,
+    val models: List<AggregateModel<*>>,
+    val group: LeaseGroup,
+    val log: PartitionAppendQueue,
+    val kernel: Kernel,
+    val executor: Executor,
+    val snapshots: SnapshotSubscription?,
+    val reservations: ReservationSubscription?,
+    val subscriptions: SubscriptionRuntime,
+    val ownership: PartitionOwnership,
+    val coordinator: WaitCoordinator,
+    val endpoint: ForwardEndpoint,
+)
+
+/**
+ * One node of a service, assembled without a host (decision D108; roadmap 4.8): what a host (Spring Boot, a test, a
+ * sample) wires to its ports.
+ *
+ * **Per bounded context** of the [models] ([contexts]): a [PartitionAppendQueue] over the context's log, configured by
+ * [ServiceNodeOptions.appendQueue] → a [Kernel] with its state cache, snapshot and reservation stores → an [Executor]
+ * recording the snapshot subscription's state views; the built-in [SnapshotSubscription] (for the aggregates whose
+ * Manifest enables snapshots) and [ReservationSubscription], with the application's subscriptions, in a
+ * [SubscriptionRuntime]; a [PartitionOwnership] of the lease group `(service, context)`; a [WaitCoordinator]; a
+ * [ForwardEndpoint].
+ *
+ * **Per node**: the [waits] registered here, the [signals] sender (a signal to this node goes straight to [waits],
+ * one to another node through the host's remote sender), the [router] over every context's lease group, the
+ * [gateway] that admits commands, the [registry] of models, and the [forwardHandler] that hands a forwarded command
+ * to its context's endpoint.
+ *
+ * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
+ * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built.
+ *
+ * **Lifecycle** ([state]): [start] joins every context's lease group (heartbeat, reconcile, acquire its partitions,
+ * start their subscriptions), and the node is then [isReady]. [stop] leaves in this order (decision D108, refining
+ * D71 to the whole node), each step after the previous one:
+ *
+ * 1. every context's [PartitionOwnership.stop], concurrently: leave the members, and for each partition stop
+ *    accepting, drain its commands within [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout], stop its
+ *    subscriptions and save their checkpoints, release its lease;
+ * 2. wait until no wait is registered on the node, at most [ServiceNodeOptions.maxWaitTimeout] after the stop began,
+ *    which no wait outlives;
+ * 3. [CommandGateway.close]: refuse new requests, finish the detached ones;
+ * 4. every context's [Executor.close];
+ * 5. every context's [PartitionAppendQueue.close], committing what is queued.
+ *
+ * [listener] hears each [Step] once it is done. A step that fails is logged and the next ones still run; [stop] then
+ * throws the first failure.
+ *
+ * **The host** does the rest around it. Starting: open the backends ([BackendFactory]) → serve the internal port
+ * (forwards to [forwardHandler], signals to [waits]) → [start] → serve the public port → report ready. Stopping:
+ * report not ready and shut the public port down gracefully → [stop] → stop the internal port, which serves the
+ * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
+ * `maxWaitTimeout + drainTimeout`.
+ */
+class ServiceNode(
+    val service: String,
+    val node: String,
+    /** This node's internal address: the cluster channel and the signals reach it there. */
+    val address: String,
+    models: Collection<AggregateModel<*>>,
+    val manifest: Manifest,
+    backends: BackendFactory,
+    channel: ClusterChannel,
+    /** Sends signals to the other nodes of the service; a single node needs none. */
+    remoteSignals: SignalSender = SignalSender.NONE,
+    val options: ServiceNodeOptions = ServiceNodeOptions(),
+    admission: AdmissionPlugins = AdmissionPlugins(),
+    subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
+    private val listener: (Step) -> Unit = {},
+    /** The kernel's codec, shared with the snapshot subscriptions. */
+    codec: EventCodec = EventCodec(),
+) {
+    init {
+        require(service.isNotBlank()) { "A node names its service." }
+        require(node.isNotBlank()) { "A node has an id." }
+        require(address.isNotBlank()) { "A node has an internal address." }
+        val named = manifest.service?.name
+        require(named == null || named == service) { "The Manifest is of service $named, not $service." }
+        ManifestCheck.check(manifest, models)
+    }
+
+    /** The aggregate models this node serves. */
+    val registry: ModelRegistry = ModelRegistry(models)
+
+    /** The waits started on this node. */
+    val waits: WaitRegistry = WaitRegistry()
+
+    /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
+    val signals: SignalSender = LocalSignalSender(node, waits, remoteSignals)
+
+    private val waitOptions = WaitOptions(Origin(node, address, service), options.maxWaitTimeout, options.maxWaitHops)
+
+    private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
+        assemble(context, contextModels, backends.backends(context), codec)
+    }
+
+    /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
+    val router: CommandRouter = when (options.routing) {
+        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster)
+        Routing.LOCAL -> CommandRouter.LOCAL
+    }
+
+    /** The parts of each bounded context, by its name. */
+    val contexts: Map<String, ContextNode> = parts.associate { it.context to it.complete() }
+
+    /** Admits the commands of every context. */
+    val gateway: CommandGateway = CommandGateway(
+        registry,
+        contexts.mapValues { it.value.coordinator },
+        authorizer = admission.authorizer,
+        rewriters = admission.rewriters,
+        validators = admission.validators,
+        ids = admission.ids,
+    )
+
+    /**
+     * What the internal port serves to the cluster channel: a forwarded command goes to its context's endpoint; one
+     * of a context this node does not host is refused as of an unknown type, so its sender runs it (decision D71).
+     */
+    val forwardHandler: ClusterChannelHandler = ClusterChannelHandler { request ->
+        contexts[request.command.ref.type.context]?.endpoint?.forward(request)
+            ?: ForwardReply.refused(Refusal.UNKNOWN_TYPE)
+    }
+
+    private val applicationSubscriptions = contexts.values.associateWith { subscriptions.subscriptions(it) }
+
+    private val lifecycle = Mutex()
+
+    /** Where the node is in its lifecycle. */
+    @Volatile
+    var state: State = State.NEW
+        private set
+
+    /** Whether the node serves commands: it has started and is not stopping. */
+    val isReady: Boolean get() = state == State.RUNNING
+
+    /** The parts of [context]. */
+    fun context(context: String): ContextNode =
+        requireNotNull(contexts[context]) { "Node $node hosts no context $context." }
+
+    /**
+     * Registers the application's subscriptions and joins every context's lease group: heartbeats, reconciles, and
+     * acquires its share of the partitions, starting their subscriptions. A start that fails stops what it started
+     * and throws.
+     */
+    suspend fun start(): Unit = lifecycle.withLock {
+        check(state == State.NEW) { "Node $node is $state; a node starts once." }
+        state = State.STARTING
+        try {
+            contexts.values.forEach { context ->
+                applicationSubscriptions.getValue(context).forEach { context.subscriptions.add(it) }
+                context.ownership.start()
+            }
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+            // Whatever failed, what started is stopped; the failure is the start's.
+            try {
+                shutdown()
+            } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
+                failure.addSuppressed(stopping)
+            }
+            throw failure
+        }
+        state = State.RUNNING
+        logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
+    }
+
+    /** Leaves the cluster and closes the node, in the order the class describes. Stopping twice does nothing. */
+    suspend fun stop(): Unit = lifecycle.withLock {
+        when (state) {
+            State.NEW -> state = State.STOPPED
+            State.STOPPED -> Unit
+            else -> shutdown()
+        }
+    }
+
+    private suspend fun shutdown() {
+        state = State.STOPPING
+        val waitsEnd = TimeSource.Monotonic.markNow() + options.maxWaitTimeout
+        var failure: Exception? = null
+        suspend fun step(step: Step, block: suspend () -> Unit) {
+            try {
+                block()
+                logger.info { "Node $node of $service: $step." }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (@Suppress("TooGenericExceptionCaught") failed: Exception) {
+                logger.warn(failed) { "Node $node of $service failed to reach $step; stopping on." }
+                failure = failure ?: failed
+            }
+            listener(step)
+        }
+        step(Step.HANDED_OFF) {
+            coroutineScope { contexts.values.forEach { launch { it.ownership.stop() } } }
+        }
+        step(Step.WAITS_ENDED) {
+            val ended = withTimeoutOrNull(-waitsEnd.elapsedNow()) {
+                while (waits.size > 0) {
+                    delay(WAIT_POLL)
+                }
+            }
+            if (ended == null && waits.size > 0) {
+                logger.warn { "Node $node of $service stops with ${waits.size} waits still registered." }
+            }
+        }
+        step(Step.GATEWAY_CLOSED) { gateway.close() }
+        step(Step.EXECUTORS_CLOSED) { contexts.values.forEach { it.executor.close() } }
+        step(Step.LOGS_CLOSED) { contexts.values.forEach { it.log.close() } }
+        state = State.STOPPED
+        logger.info { "Node $node of $service stopped." }
+        failure?.let { throw it }
+    }
+
+    private fun assemble(
+        context: String,
+        models: List<AggregateModel<*>>,
+        backends: ContextBackends,
+        codec: EventCodec,
+    ): Parts {
+        val log = PartitionAppendQueue(backends.log, options.appendQueue)
+        val states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None
+        val kernel = Kernel(
+            log,
+            codec = codec,
+            reservations = backends.reservations,
+            states = states,
+            snapshots = backends.snapshots,
+        )
+        val snapshotted = models.filter { snapshotEnabled(it) }
+        val snapshots = backends.snapshots?.takeIf { snapshotted.isNotEmpty() }?.let {
+            SnapshotSubscription(context, snapshotted, it, kernel, backends.log, codec)
+        }
+        val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
+        val group = LeaseGroup(service, context)
+        val subscriptions = SubscriptionRuntime(
+            group.name,
+            backends.log,
+            backends.checkpoints,
+            backends.ledger,
+            listOfNotNull(snapshots?.subscription, reservations?.subscription),
+            options.subscription,
+            signals = signals,
+        )
+        val ownership = PartitionOwnership(
+            group,
+            node,
+            address,
+            backends.log.partitions,
+            backends.leases,
+            options.cluster,
+            subscriptions,
+        )
+        val executor = Executor(kernel, options.laneCapacity, snapshots?.views)
+        return Parts(context, models, group, log, kernel, executor, snapshots, reservations, subscriptions, ownership)
+    }
+
+    private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
+        .first { it.name == model.type.context }.aggregates
+        .first { it.name == model.type.name }.snapshot.enabled
+
+    /** A context's parts before the node's router exists. */
+    private inner class Parts(
+        val context: String,
+        val models: List<AggregateModel<*>>,
+        val group: LeaseGroup,
+        val log: PartitionAppendQueue,
+        val kernel: Kernel,
+        val executor: Executor,
+        val snapshots: SnapshotSubscription?,
+        val reservations: ReservationSubscription?,
+        val subscriptions: SubscriptionRuntime,
+        val ownership: PartitionOwnership,
+    ) {
+        fun complete(): ContextNode {
+            val coordinator = WaitCoordinator(executor, waits, subscriptions, signals, waitOptions, router = router)
+            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
+            return ContextNode(
+                context,
+                models,
+                group,
+                log,
+                kernel,
+                executor,
+                snapshots,
+                reservations,
+                subscriptions,
+                ownership,
+                coordinator,
+                endpoint,
+            )
+        }
+    }
+
+    /** Where a node is in its lifecycle. */
+    enum class State { NEW, STARTING, RUNNING, STOPPING, STOPPED }
+
+    /** The steps of [stop], in their order. */
+    enum class Step {
+        /** Every context's partitions are handed off, its subscriptions stopped with their checkpoints saved. */
+        HANDED_OFF,
+
+        /** No wait is registered on the node any more, or the longest wait's timeout has passed. */
+        WAITS_ENDED,
+
+        /** The gateway refuses new requests, and its detached commands have finished. */
+        GATEWAY_CLOSED,
+
+        /** Every context's executor is closed, its commands finished. */
+        EXECUTORS_CLOSED,
+
+        /** Every context's append queue is closed, what was queued committed. */
+        LOGS_CLOSED,
+    }
+
+    companion object {
+        private val WAIT_POLL = 10.milliseconds
+        private val logger = KotlinLogging.logger {}
+
+        /**
+         * The aggregate models of [providers] (by default, those registered on the class path, decision D107), their
+         * factories' parameters from [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException] when one is
+         * missing, so the node does not start.
+         */
+        fun models(
+            dependencies: Dependencies,
+            providers: List<ModelProvider> = ModelProvider.load(),
+        ): List<AggregateModel<*>> = providers.flatMap { provider ->
+            provider.models(dependencies).onEach {
+                require(it.type.context == provider.context) {
+                    "${provider.fragment} provides ${it.type}, which is not of its context ${provider.context}."
+                }
+            }
+        }
+    }
+}
