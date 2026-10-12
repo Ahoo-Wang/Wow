@@ -20,6 +20,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.MapperFeature
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
@@ -76,12 +77,16 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
      * The state [text] of a snapshot, read as [model]'s state class: a Jackson exception when it does not parse, an
      * [IllegalArgumentException] when the state read does not write back as the same JSON. A state that silently
      * dropped what it could not take back (a read-only property Jackson does not fill) would decide on lost data;
-     * a computed property writes back the same and passes. Objects compare by field, so a backend that reorders
-     * keys (PostgreSQL JSONB) does not fail it.
+     * a computed property writes back the same and passes.
+     *
+     * The same JSON is the same value, not the same text ([sameJson]): a backend may give back the state it stores
+     * normalised, PostgreSQL JSONB with its keys reordered and `1.0E10` as `10000000000`, and such a snapshot still
+     * loads. A state whose value does not survive the round trip, a number its property cannot hold or a property it
+     * cannot take back, is still refused.
      */
     fun <S : Any> decodeState(model: AggregateModel<S>, text: String): S {
         val state = mapper.readValue(text, model.stateType)
-        require(mapper.readTree(stateText(state)) == mapper.readTree(text)) {
+        require(sameJson(mapper.readTree(stateText(state)), mapper.readTree(text))) {
             "A ${model.stateType.name} read from this text does not hold all of it."
         }
         return state
@@ -193,6 +198,24 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             visitor.constants.isNotEmpty() -> visitor.constants.joinToString(",", "enum(", ")")
             else -> type.rawClass.name
         }
+    }
+
+    /**
+     * Whether [left] and [right] hold the same JSON value: objects by field whatever their key order, arrays element
+     * by element, numbers by numeric value whatever their form or scale, so `1.0E10` is `10000000000` and `2.50` is
+     * `2.5`. A backend may normalise how a number is written (PostgreSQL JSONB writes no exponent, MongoDB may hold it
+     * as a Decimal128) but not its value, and a state only needs its value back. Everything else compares as
+     * Jackson's nodes do.
+     */
+    internal fun sameJson(left: JsonNode, right: JsonNode): Boolean = when {
+        left.isNumber && right.isNumber -> left.decimalValue().compareTo(right.decimalValue()) == 0
+        left.isObject && right.isObject -> left.size() == right.size() &&
+            left.properties().all { (name, value) -> right.get(name)?.let { sameJson(value, it) } == true }
+
+        left.isArray && right.isArray -> left.size() == right.size() &&
+            (0 until left.size()).all { sameJson(left.get(it), right.get(it)) }
+
+        else -> left == right
     }
 
     private fun isPlatform(rawClass: Class<*>): Boolean = PLATFORM_PACKAGES.any { rawClass.name.startsWith(it) }

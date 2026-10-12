@@ -96,6 +96,25 @@ class KernelSnapshotTest {
     }
 
     @Test
+    fun `a snapshot given back with its keys reordered and respaced still loads`(): Unit = runTest {
+        history()
+        val stored = snapshots.load(ref)!!
+        // As PostgreSQL JSONB gives a state back: keys in its own order, its own whitespace.
+        stored.state.assert().isEqualTo("""{"id":"cart-1","items":{"apple":1,"pear":2},"owner":"ahoo"}""")
+        val normalised = InMemorySnapshotStore()
+        normalised.save(stored.copy(state = """{"items": {"pear": 2, "apple": 1}, "owner": "ahoo", "id": "cart-1"}"""))
+        log.streamsRead = 0
+        val outcome = Kernel(log, codec, snapshots = normalised).execute(
+            cartModel,
+            Command("c-normalised", "r-normalised", ref, AddItem("apple", 10)),
+        )
+        outcome.cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
+        outcome.cart().owner.assert().isEqualTo("ahoo")
+        // From the snapshot and its tail, not a replay of the whole log.
+        log.streamsRead.assert().isEqualTo(3)
+    }
+
+    @Test
     fun `the aggregate's scope comes from the creating command and is carried forward`(): Unit = runTest {
         history()
         // A later command's caller scope, here without the space, does not move the aggregate's.
