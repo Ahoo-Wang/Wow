@@ -400,6 +400,27 @@ test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow j
     assert.ok(none([path]), path);
 });
 
+test('V10 modules skip the TypeScript workflow jobs and the mixed-version test', () => {
+  for (const path of [
+    'api/api/src/main/kotlin/me/ahoo/wow/api/decide/Command.kt',
+    'api/manifest/build.gradle.kts',
+    'compiler/compiler/src/main/kotlin/me/ahoo/wow/compiler/model/ModelSource.kt',
+    'compiler/gradle-plugin/src/functionalTest/kotlin/A.kt',
+    'core/spi/src/testFixtures/kotlin/A.kt',
+    'core/kernel/src/main/kotlin/A.kt',
+    'backends/mongo/src/integrationTest/kotlin/A.kt',
+    'backends/postgres/build.gradle.kts',
+    'edge/http/src/main/kotlin/A.kt',
+    'host/spring-boot/src/main/kotlin/A.kt',
+    'migration/migrate-data/src/main/kotlin/A.kt',
+    'test/architecture/src/test/kotlin/A.kt',
+    'test/lease-spike/src/integrationTest/kotlin/A.kt',
+  ]) {
+    assert.ok(none([path]), path);
+    assert.ok(!scopes([path]).mixedVersion, path);
+  }
+});
+
 test('wire modules, the example cluster, dependency versions and the harness run the mixed-version test', () => {
   for (const path of [
     'wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt',
