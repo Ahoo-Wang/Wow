@@ -76,3 +76,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | 集群通道 4.2a 合入（Ahoo-Wang/Wow#4251）：转发消息格式 1 记入 08，HRW 权重与交接细节记入 02；用户拍板 D83、D84：新模块 `wow-gradle-plugin` 承载构建期 schema 内省与 Manifest 合并，schema 由 victools 加 Jackson 模块生成；H6 的依赖已满足 |
 | 2026-10-12 | H2 阶段 1 的完整报告合入（Ahoo-Wang/Wow#4255）：补充格子与 D6 一致；D6 的依据补上 PostgreSQL 用 `synchronous_commit=off` 的前提，阶段 2 在真实 3 JVM 与持久化配置下确认；删除交接分支 `claude/v10-spike-h2-wip` |
 | 2026-10-12 | 4.6 内置快照订阅合入（Ahoo-Wang/Wow#4256）。发现 `v10` 的 Local Test 自 H4 起一直失败（`wow-compiler` 的 ABI 转储缺 V10 类，`--admin` 合并绕过了它），派子代理修复。用户拍板 D85：同名模块不再原地演进，V10 在新目录另起模块（项目名临时 `-v10` 后缀、artifactId 用最终名），`v10` 不发布、不校验 9.x 模块；D79 随之修订 |
+| 2026-10-12 | D50 预留确认订阅合入（Ahoo-Wang/Wow#4260），`v10` 的 Local Test 恢复（Ahoo-Wang/Wow#4261）；§5 的验证命令加入 `checkKotlinAbi` 并改跑 `:wow-compiler:check`，写明合并前必须看 `gh pr checks`；队列加入 CI 按目录分范围（D85 之后） |
