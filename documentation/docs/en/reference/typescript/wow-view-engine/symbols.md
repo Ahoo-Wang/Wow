@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 878 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -171,6 +171,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and th
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
 | `DatasetResources` | class | Keeps an engine's datasets in step with a service's directory (D85): each`refresh` registers a dataset the directory newly lists, registers again one whose descriptor version changed, and removes one it no longer lists or whose schema does not compile (`version` `null`). | — |
+| `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes (D91): the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
+| `DatasetWordingStore` | interface | Where a dataset's wording is kept (D91); see `DatasetCatalog.wordings`. | — |
 | `DateInstant` | interface | The instant a value of this kind names, and what kind of value said it. | — |
 | `DatePartOffer` | interface | What `datePartsOf` reads: a capability, or the editor's option of one. | — |
 | `DateTemporal` | interface | — | — |
@@ -437,6 +439,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 875 — with its kind and th
 | `ShapeFacts` | interface | The facts of a result's shape a family's fit reads. | — |
 | `SizedPanel` | type | A dashboard panel whose layout gives only its size, for `inRows`. | — |
 | `SortDirection` | type | Sort direction as stored in a config: Wow's `SortDirection` values. | — |
+| `StoredDatasetWording` | interface | A dataset's wording as stored, and the revision a write expects. | — |
 | `StringComparisonName` | type | Wow's `StringComparison`, as the literal a definition writes. | — |
 | `StringFilterValue` | type | — | — |
 | `SummaryCell` | interface | — | — |

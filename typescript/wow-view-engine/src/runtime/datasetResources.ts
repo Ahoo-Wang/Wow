@@ -32,7 +32,7 @@ export interface DatasetCatalog {
   overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
   /**
    * Where a tenant's administrators keep their wording over the datasets
-   * (D90), such as wow-view-store's `WowDatasetWordings`: read whole before
+   * (D91), such as wow-view-store's `WowDatasetWordings`: read whole before
    * each `refresh` registers, by definition id. A dataset's stored wording
    * stands in place of `overrides`. Given, each dataset registers with an
    * editor of its wording (`DatasetWordingEditor`).
@@ -47,7 +47,7 @@ export interface StoredDatasetWording {
   revision: string;
 }
 
-/** Where a dataset's wording is kept (D90); see `DatasetCatalog.wordings`. */
+/** Where a dataset's wording is kept (D91); see `DatasetCatalog.wordings`. */
 export interface DatasetWordingStore {
   /** Every dataset's stored wording, by definition id (`{context}.{dataset}`). */
   list(
@@ -63,7 +63,7 @@ export interface DatasetWordingStore {
 }
 
 /**
- * What a dataset's wording editor reads and writes (D90): the fields the
+ * What a dataset's wording editor reads and writes (D91): the fields the
  * descriptor derives, the wording in force, and a save that stores it and
  * registers the dataset again in the new words.
  */

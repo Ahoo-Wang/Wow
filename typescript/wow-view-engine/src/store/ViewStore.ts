@@ -158,7 +158,7 @@ export interface ViewPermissions {
   /**
    * Whether this user edits the wording of the definition's dataset — its
    * title, record noun and field labels, order and hiding — in the view
-   * manager (D90), where the dataset was registered with a store of wording.
+   * manager (D91), where the dataset was registered with a store of wording.
    * **Absent is false**, as `editSystem`: the wording reaches every reader
    * of the tenant.
    */

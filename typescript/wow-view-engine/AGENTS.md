@@ -431,6 +431,7 @@ src/
       outcomes.ts             — One outcome per row, and what a row's slot accepts
       queue.ts                — One write at a time, in click order, per set of inputs
       useCommandRunner.ts     — The protocol every manager command runs under
+      wording.ts              — The dataset's wording the manager edits, where `editDatasetWording` is granted (D91)
     workbench/                — What `useWorkbench` composes: instance sync, the leave guard, a new view, a deleted one let go
       instanceSync.ts         — Keeping the host's `instanceId` and the workbench's open view in agreement
       leaveGuard.ts           — Headless leave protection; `/ui` draws `LeaveDialog` from it
@@ -725,9 +726,10 @@ src/
       chartFailure.ts         — `ChartFailure`: a chart whose library did not arrive or threw drawing, thrown in render for the boundary to tell the host as a `chart` failure (D40)
     lib/utils.ts              — shadcn cn() helper — vendored
     manage/
+      DatasetWordingForm.tsx  — The manager's wording tab (D91): the dataset's title, record noun and fields' names, order and visibility
       drag.ts                 — What the manager makes of a drag: which drop it will take, and what a screen reader hears while one is under way
       DeleteDialog.tsx        — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it; a system view's, that it goes for everyone (D81)
-      ViewManager.tsx         — Rename, delete, reorder and the default view, from the sidebar
+      ViewManager.tsx         — Rename, delete, reorder and the default view, from the sidebar; the dataset's wording beside them
       ViewManagerRow.tsx      — One managed view: drag handle, rename in place, default, move of audience, publish as a system view (D81), delete
     messages/                 — the catalogue, one file per prefix family
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them

@@ -15,6 +15,8 @@ import { ResultExtractors, type Fetcher } from '@ahoo-wang/fetcher';
 import { listQuery, filter } from '@ahoo-wang/wow-client';
 import type {
   DatasetOverrides,
+  DatasetWordingStore,
+  StoredDatasetWording,
   WriteContext,
 } from '@ahoo-wang/wow-view-engine';
 import { failureOf } from './errors.js';
@@ -30,13 +32,6 @@ export interface WowDatasetWordingsOptions {
    * wording is the tenant's, so the store always names the owner `(shared)`.
    */
   fetcher: Fetcher;
-}
-
-/** One dataset's wording as stored, and the revision a write expects. */
-export interface StoredDatasetWording {
-  wording: DatasetOverrides;
-  /** The wording's version, as a write's expected version; `'0'` is never written. */
-  revision: string;
 }
 
 /** The most datasets one application's wording is read for at once. */
@@ -64,28 +59,24 @@ interface WordingSnapshotBody {
  * view store (view engine D86): one per dataset of the caller's tenant and
  * application, under `owner/(shared)`. The gateway decides who may write it.
  *
- * A host gives the engine the stored wording through
- * `DatasetCatalog.overrides`, which is read as each dataset registers, so
- * it reads all of it first ({@link load}) and answers each dataset from what
- * it read ({@link of}):
+ * A host hands it to the datasets it registers as their store of wording
+ * (`DatasetCatalog.wordings`, D91): `DatasetResources` reads it before each
+ * refresh, registers each dataset in its stored words, and gives the view
+ * manager an editor of them. The key is the dataset's definition id,
+ * `{context}.{dataset}`.
  *
  * ```ts
- * const wordings = new WowDatasetWordings({ fetcher });
  * const resources = new DatasetResources(engine, {
- *   list: async () => {
- *     await wordings.load().catch(report); // none until it loads: the derived words stand
- *     return directory.list();
- *   },
+ *   list: () => directory.list(),
  *   source: entry => directory.source(entry),
- *   overrides: entry => wordings.of(entry.name),
+ *   wordings: new WowDatasetWordings({ fetcher }),
  * });
  * ```
  *
  * Every rejection is a `ViewStoreError`, read as a `WowViewStore`'s are.
  */
-export class WowDatasetWordings {
+export class WowDatasetWordings implements DatasetWordingStore {
   private readonly fetcher: Fetcher;
-  private loaded: ReadonlyMap<string, StoredDatasetWording> = new Map();
 
   constructor(options: WowDatasetWordingsOptions) {
     this.fetcher = options.fetcher;
@@ -153,21 +144,6 @@ export class WowDatasetWordings {
         signal: context.signal,
       });
     });
-  }
-
-  /**
-   * Reads every dataset's wording for {@link of}. It rejects as {@link list}
-   * does, and keeps what it read last: a host that cannot reach the store
-   * still registers its datasets, in the words they were last read in or
-   * their own.
-   */
-  async load(signal?: AbortSignal): Promise<void> {
-    this.loaded = await this.list(signal);
-  }
-
-  /** The wording of `dataset` as last loaded, or `undefined` when it has none. */
-  of(dataset: string): DatasetOverrides | undefined {
-    return this.loaded.get(dataset)?.wording;
   }
 
   private async send(

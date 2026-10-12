@@ -76,18 +76,17 @@ admits to `tenant/(platform)/owner/(system)` (`view-store/README.md`, 「System 
 
 `WowDatasetWordings` keeps a tenant's wording over its datasets (the view
 engine's dataset overrides: title, record noun, field labels, order and
-narrowing) under `owner/(shared)`, one per dataset and application. A host
-reads it all before its datasets register, and answers each from it:
+narrowing) under `owner/(shared)`, one per dataset and application, keyed by
+the dataset's definition id. Hand it to the datasets as their store of
+wording: `DatasetResources` reads it before each refresh, registers each
+dataset in its stored words, and gives the view manager its wording tab
+where the host grants `editDatasetWording`:
 
 ```ts
-const wordings = new WowDatasetWordings({ fetcher });
 const datasets = new DatasetResources(engine, {
-  list: async () => {
-    await wordings.load().catch(report);
-    return directory.list();
-  },
+  list: () => directory.list(),
   source: entry => directory.source(entry),
-  overrides: entry => wordings.of(entry.name),
+  wordings: new WowDatasetWordings({ fetcher }),
 });
 ```
 

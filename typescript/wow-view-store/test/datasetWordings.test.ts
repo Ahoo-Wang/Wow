@@ -12,7 +12,10 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ViewStoreError } from '@ahoo-wang/wow-view-engine';
+import {
+  ViewStoreError,
+  type DatasetWordingStore,
+} from '@ahoo-wang/wow-view-engine';
 import { WowDatasetWordings } from '../src/index.js';
 import { at, fakeServer, json, wowError } from './support/fakeServer.js';
 
@@ -63,24 +66,20 @@ describe('WowDatasetWordings', () => {
     expect(server.requests[0]!.body).toMatchObject({ limit: 1000 });
   });
 
-  it('answers each dataset from what it loaded, and keeps it when a load fails', async () => {
+  it("is a store of wording the engine's DatasetResources reads", async () => {
     const server = fakeServer(at('POST', LIST, () => json(stored)));
-    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
-    expect(wordings.of('analytics.orders')).toBeUndefined();
-
-    await wordings.load();
-    expect(wordings.of('analytics.orders')).toEqual({
-      title: '订单',
-      fields: { buyer: '买家', discount: false },
+    const store: DatasetWordingStore = new WowDatasetWordings({
+      fetcher: server.fetcher,
     });
-    expect(wordings.of('analytics.missing')).toBeUndefined();
+    expect((await store.list()).get('analytics.orders')?.revision).toBe('3');
+  });
 
-    server.on(
+  it('rejects a list it cannot read as a ViewStoreError', async () => {
+    const server = fakeServer(
       at('POST', LIST, () => wowError('ServiceUnavailable', 'down', 503)),
     );
-    await expect(wordings.load()).rejects.toBeInstanceOf(ViewStoreError);
-    // The datasets still register in the words last read.
-    expect(wordings.of('analytics.orders')?.title).toBe('订单');
+    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
+    await expect(wordings.list()).rejects.toBeInstanceOf(ViewStoreError);
   });
 
   it('writes the wording whole at the expected revision, and answers the new one', async () => {

@@ -1450,6 +1450,7 @@ export interface DatasetCatalog {
     list(): Promise<readonly DatasetDirectoryEntry[]>;
     overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
     source(entry: DatasetDirectoryEntry): ViewSource;
+    wordings?: DatasetWordingStore;
 }
 
 // @public
@@ -1463,6 +1464,7 @@ export interface DatasetRegistrar {
     register(resource: {
         definition: ReturnType<typeof defineDataset>;
         source: ViewSource;
+        wording?: DatasetWordingEditor;
     }): void;
     // (undocumented)
     unregister(definitionId: string): boolean;
@@ -1479,10 +1481,30 @@ export interface DatasetResource {
 // @public
 export class DatasetResources {
     constructor(engine: DatasetRegistrar, catalog: DatasetCatalog,
-    onError?: (entry: DatasetDirectoryEntry, error: unknown) => void);
+    onError?: (entry: DatasetDirectoryEntry, error: unknown) => void,
+    onWordingError?: (error: unknown) => void);
     // (undocumented)
     refresh(): Promise<readonly DatasetResource[]>;
     get resources(): readonly DatasetResource[];
+}
+
+// @public
+export interface DatasetWordingEditor {
+    readonly dataset: string;
+    readonly derivedTitle: string;
+    readonly fields: readonly {
+        name: string;
+        label: string;
+    }[];
+    readonly revision: string;
+    save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+    readonly wording: DatasetOverrides;
+}
+
+// @public
+export interface DatasetWordingStore {
+    list(signal?: AbortSignal): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteContext): Promise<string>;
 }
 
 // @public
@@ -1915,6 +1937,7 @@ export abstract class EngineResources {
     register(resource: {
         definition: ViewDefinition;
         source?: ViewSource;
+        wording?: DatasetWordingEditor;
     }): void;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
     protected report(found: Issue, resource?: string): void;
@@ -1924,6 +1947,7 @@ export abstract class EngineResources {
     setText(text: TextResolver | undefined, language?: string): void;
     startingWord(key: string): string | undefined;
     unregister(definitionId: string): boolean;
+    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
 }
 
 // @public
@@ -4524,6 +4548,13 @@ export function stacks(type: ChartType, series: Pick<CartesianSeries, 'type'>): 
 // @public
 export function stageValues(rows: readonly RecordData[], category: string): string[];
 
+// @public
+export interface StoredDatasetWording {
+    revision: string;
+    // (undocumented)
+    wording: DatasetOverrides;
+}
+
 // @public (undocumented)
 export const STRING_COMPARISONS: readonly StringComparisonName[];
 
@@ -5101,6 +5132,7 @@ export interface ViewPermissions {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    editDatasetWording?: boolean;
     editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;

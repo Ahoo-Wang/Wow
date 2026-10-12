@@ -12,7 +12,7 @@
  */
 
 /**
- * The view manager's wording tab (D90): where the host grants
+ * The view manager's wording tab (D91): where the host grants
  * `editDatasetWording` and the dataset was registered with a store of
  * wording, an administrator renames the dataset and its fields, hides one,
  * moves one, and saves; the dataset registers again in the new words.
@@ -115,7 +115,7 @@ async function setup(editDatasetWording?: boolean) {
   return { engine, set };
 }
 
-describe('the wording tab of the view manager (D90)', () => {
+describe('the wording tab of the view manager (D91)', () => {
   it('renames, hides and moves fields, and saves the wording whole', async () => {
     const { engine, set } = await setup(true);
     fireEvent.click(

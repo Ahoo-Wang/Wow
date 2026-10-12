@@ -49,6 +49,7 @@ export interface ViewPermissions {
   reorder: boolean;
   setDefault: boolean;
   editSystem?: boolean; // 缺省读作 false（D81）：编辑存着的系统视图、新建系统视图
+  editDatasetWording?: boolean; // 缺省读作 false（D91）：在管理器的「措辞」页签改数据集的措辞
   instance(id: string): {
     save: boolean;
     rename: boolean;
@@ -60,7 +61,9 @@ export interface ViewPermissions {
 
 **就地改受众**（设为共享／设为个人，[D18](decisions.md) 第 10 条，[view-store-backend.md](view-store-backend.md) 6.1）：`ViewStore.changeAudience` 是端口上唯一可选的写入方法——没有它的 store，Engine 以 `view.changeAudience.unsupported` 拒绝命令，`engine.permissions` 把每个实例的 `changeAudience` 答成 `false`，管理器里就没有这颗按钮（D4）。有它时，一次改受众要过两道许可：实例的 `changeAudience`（沉默不是拒绝，与其余几项同一读法），以及**去往那个受众的创建许可**——设为共享问 `createShared`，设为个人问 `createPersonal`：共享就是把视图摆到所有人面前，这正是 `createShared` 守的事，与视图当初怎么来的无关。两道都在 `instanceAbilities` 里一处读出，守卫与管理器的按钮问的是同一个答案。id 不变，所以显示它的仪表盘不断。仪表盘的引用约束（上一段）在两个方向上的落点不同：**把被共享仪表盘显示着的视图改成个人**由 store 拒绝（`INVALID`，`boards` 带上那几块看板的标题）——只有 store 看得见所有定义下的所有看板；Engine 把它记为 `rejected`，句子是引擎自己的 `view.changeAudience.invalid.shared-boards`（`{boards}` 是那些标题，以键写的标题在显示处说成话，D2）；store 没给 `boards` 时退回 `view.changeAudience.invalid` 带上 store 的理由。**把显示着个人视图的仪表盘设为共享**不拒绝，与共享看板的保存一致（D22 B）：面板对别的读者是空的，打开着的看板随受众重新准入，面板上出 `dashboard.panel.scope-too-narrow` 的 warning，「复制为共享视图并替换…」照常可用。删除一个被共享看板显示的视图仍然允许（那块面板只坏自己）。
 
-`store.permissions(definitionId)` 同步返回；缺省全部允许（`editSystem` 除外）。Engine 在每个命令派发前检查一次，并通过 `useSaveCommands().can` 暴露给 UI 决定按钮可用性。对无权修改的共享视图，用户仍可 `saveAs` 到个人范围。服务端返回 `FORBIDDEN` 时以 Issue 呈现，不伪装成配置错误。不建设角色模型，不在前端做授权推导。
+**数据集的措辞**（[D91](decisions.md)）：数据集由带措辞存储的目录登记（`DatasetCatalog.wordings`）、且宿主给了 `editDatasetWording` 时，管理器分「视图」「措辞」两个页签；措辞页改数据集的标题、记录的叫法、字段的名称、次序与显示，保存即按版本整份写入并重新登记这个数据集，之后打开的视图读新词。没有别的可管时，有这一页也足以打开管理器。
+
+`store.permissions(definitionId)` 同步返回；缺省全部允许（`editSystem` 与 `editDatasetWording` 除外）。Engine 在每个命令派发前检查一次，并通过 `useSaveCommands().can` 暴露给 UI 决定按钮可用性。对无权修改的共享视图，用户仍可 `saveAs` 到个人范围。服务端返回 `FORBIDDEN` 时以 Issue 呈现，不伪装成配置错误。不建设角色模型，不在前端做授权推导。
 
 ## 列表、偏好与默认视图
 

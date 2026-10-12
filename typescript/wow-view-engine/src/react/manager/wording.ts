@@ -20,7 +20,7 @@ import { newRequestId } from '../../runtime/requestId.js';
 import type { ViewEngine } from '../../runtime/viewEngine.js';
 import type { ViewPermissions } from '../../store/ViewStore.js';
 
-/** The manager's hold on a dataset's wording (D90); see `ViewManagerController.wording`. */
+/** The manager's hold on a dataset's wording (D91); see `ViewManagerController.wording`. */
 export interface ManagedWording {
   /** The editor in force: what the fields are, what they are called now. */
   editor: DatasetWordingEditor;

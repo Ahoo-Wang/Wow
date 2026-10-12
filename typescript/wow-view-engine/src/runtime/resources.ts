@@ -63,7 +63,7 @@ export abstract class EngineResources {
   /** The words the definitions' keys are checked against; see `EngineText`. */
   private readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
-  /** Each dataset's wording editor, by definition id (D90). */
+  /** Each dataset's wording editor, by definition id (D91). */
   private readonly wordings = new Map<string, DatasetWordingEditor>();
   /** What was told to lack words, by language, code and key; see `setText`. */
   private readonly lacking = new Set<string>();
@@ -198,7 +198,7 @@ export abstract class EngineResources {
   register(resource: {
     definition: ViewDefinition;
     source?: ViewSource;
-    /** A dataset's wording editor (D90), given by `DatasetResources` when its store keeps wording. */
+    /** A dataset's wording editor (D91), given by `DatasetResources` when its store keeps wording. */
     wording?: DatasetWordingEditor;
   }): void {
     const { definition, source, wording } = resource;
@@ -210,7 +210,7 @@ export abstract class EngineResources {
   }
 
   /**
-   * The editor of a dataset's wording (D90), where its resource was
+   * The editor of a dataset's wording (D91), where its resource was
    * registered with one: what the view manager's wording tab reads and saves.
    */
   wordingOf(definitionId: string): DatasetWordingEditor | undefined {

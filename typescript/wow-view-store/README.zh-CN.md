@@ -61,17 +61,14 @@ const engine = new ViewEngine({
 ### 数据集措辞
 
 `WowDatasetWordings` 在 `owner/(shared)` 下存租户给数据集写的措辞（视图引擎的数据集覆盖：标题、名词、字段的
-口径、次序与收窄），每个应用、每个数据集一份。宿主在数据集登记之前读一次，登记时按名字取：
+口径、次序与收窄），每个应用、每个数据集一份，按数据集的定义 id 存。把它交给数据集作措辞存储：`DatasetResources`
+每次刷新前读它，按存着的措辞登记每个数据集，并在宿主给了 `editDatasetWording` 时给视图管理器一个「措辞」页签：
 
 ```ts
-const wordings = new WowDatasetWordings({ fetcher });
 const datasets = new DatasetResources(engine, {
-  list: async () => {
-    await wordings.load().catch(report);
-    return directory.list();
-  },
+  list: () => directory.list(),
   source: entry => directory.source(entry),
-  overrides: entry => wordings.of(entry.name),
+  wordings: new WowDatasetWordings({ fetcher }),
 });
 ```
 

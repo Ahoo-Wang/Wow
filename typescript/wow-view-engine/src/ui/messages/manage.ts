@@ -25,7 +25,7 @@ export const manageMessages = {
   'label.manage.description':
     'Rename, reorder and delete views, and choose which one opens first.',
   'label.manage.default': 'Default',
-  // The manager's two tabs where the dataset's wording may be edited (D90).
+  // The manager's two tabs where the dataset's wording may be edited (D91).
   'label.manage.tab.views': 'Views',
   'label.manage.tab.wording': 'Wording',
   'label.wording.description':

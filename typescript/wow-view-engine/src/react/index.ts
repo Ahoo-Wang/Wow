@@ -160,6 +160,7 @@ export type {
   ManagedInstanceAbilities,
   ViewManagerAbilities,
 } from './manager/abilities.js';
+export type { ManagedWording } from './manager/wording.js';
 export {
   type DrillTarget,
   type HeldView,

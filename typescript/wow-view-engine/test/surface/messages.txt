@@ -1,4 +1,4 @@
-# Message keys — 2165.
+# Message keys — 2178.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1538,6 +1538,8 @@ label.manage.resubmit
 label.manage.set-default
 label.manage.share
 label.manage.shared
+label.manage.tab.views
+label.manage.tab.wording
 label.manage.unset-default
 label.manage.view-group
 label.operator.AFTER_NOW
@@ -1998,6 +2000,17 @@ label.view.unavailable
 label.view.unopenable
 label.view.warnings-count
 label.view.warnings-count-one
+label.wording.description
+label.wording.failed
+label.wording.field.down
+label.wording.field.label
+label.wording.field.shown
+label.wording.field.up
+label.wording.fields
+label.wording.noun
+label.wording.save
+label.wording.saved
+label.wording.title
 label.workbench.choose-view
 label.workbench.collapse-sidebar
 label.workbench.collapse-view

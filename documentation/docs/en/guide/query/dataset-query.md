@@ -197,24 +197,19 @@ async function datasetBindings(engine: ViewEngine): Promise<ViewBinding[]> {
 }
 ```
 
-A dataset's title, record noun and field labels (wording that only renames and narrows, D86) can be kept in the view store by a tenant's administrators rather than in the host's code. `WowDatasetWordings` from `@ahoo-wang/wow-view-store` reads and writes it: read it once before a `refresh`, and answer each dataset from it as it registers:
+A dataset's title, record noun and field labels (wording that only renames and narrows, D86) can be kept in the view store by a tenant's administrators rather than in the host's code. `WowDatasetWordings` from `@ahoo-wang/wow-view-store` reads and writes it; hand it to `DatasetResources` as the datasets' store of wording, read before each `refresh` and registered in, the wording read last standing when it cannot be read:
 
 ```typescript
 import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
 
-const wordings = new WowDatasetWordings({ fetcher }); // the fetcher WowViewStore uses
 const datasets = new DatasetResources(engine, {
-  list: async () => {
-    await wordings.load().catch(report); // unreadable: the wording last read, or the descriptor's own
-    return directory.list();
-  },
-  source: entry =>
-    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
-  overrides: entry => wordings.of(entry.name),
+  list: () => directory.list(),
+  source: entry => new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  wordings: new WowDatasetWordings({ fetcher }), // the fetcher WowViewStore uses
 });
 ```
 
-When an administrator changes the wording, the next `refresh` registers the dataset again in the new words. Writing is `wordings.set(dataset, wording, revision, { requestId })`; the CoSec gateway decides who may ([View Store](../extensions/view-store.md#dataset-wording)).
+Where the host grants `editDatasetWording`, the view manager gains a Wording tab: an administrator renames the dataset, its records and its fields, reorders and hides fields there, and a save registers the dataset again in the new words. The CoSec gateway decides who may write ([View Store](../extensions/view-store.md#dataset-wording)).
 
 ## In-Process Queries
 

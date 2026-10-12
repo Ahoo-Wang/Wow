@@ -260,7 +260,7 @@ describe('DatasetResources', () => {
     ]);
   });
 
-  describe('with a store of wording (D90)', () => {
+  describe('with a store of wording (D91)', () => {
     function storeOf(initial: Record<string, StoredDatasetWording>) {
       const stored = new Map(Object.entries(initial));
       const store: DatasetWordingStore = {

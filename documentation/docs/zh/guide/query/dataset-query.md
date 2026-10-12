@@ -197,24 +197,19 @@ async function datasetBindings(engine: ViewEngine): Promise<ViewBinding[]> {
 }
 ```
 
-数据集的标题、名词与字段口径（只能改词与收窄，D86）可以由租户的管理员存进视图存储，不必写进宿主代码。`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写它：在 `refresh` 之前读一次，登记时按名字取：
+数据集的标题、名词与字段口径（只能改词与收窄，D86）可以由租户的管理员存进视图存储，不必写进宿主代码。`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写它，交给 `DatasetResources` 作措辞存储：每次 `refresh` 前读一遍，按存着的措辞登记；读不到时沿用上次读到的。
 
 ```typescript
 import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
 
-const wordings = new WowDatasetWordings({ fetcher }); // 与 WowViewStore 同一个 fetcher
 const datasets = new DatasetResources(engine, {
-  list: async () => {
-    await wordings.load().catch(report); // 读不到时沿用上次读到的，或描述符的原词
-    return directory.list();
-  },
-  source: entry =>
-    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
-  overrides: entry => wordings.of(entry.name),
+  list: () => directory.list(),
+  source: entry => new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  wordings: new WowDatasetWordings({ fetcher }), // 与 WowViewStore 同一个 fetcher
 });
 ```
 
-管理员改了措辞，下一次 `refresh` 就按新词重新登记。写入是 `wordings.set(dataset, wording, revision, { requestId })`，谁能写由 CoSec 网关决定（[视图存储](../extensions/view-store.md#数据集措辞)）。
+宿主给了 `editDatasetWording` 许可时，视图管理器多一个「措辞」页签：管理员在那里改标题、名词、字段的名称、次序与显示，保存后数据集按新词重新登记。谁能写由 CoSec 网关决定（[视图存储](../extensions/view-store.md#数据集措辞)）。
 
 ## 进程内查询
 

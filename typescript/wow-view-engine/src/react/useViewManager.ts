@@ -111,7 +111,7 @@ export interface ViewManagerController {
   pending: string | null;
   can: ViewManagerAbilities;
   /**
-   * The wording of the definition's dataset (D90), where the host grants
+   * The wording of the definition's dataset (D91), where the host grants
    * `editDatasetWording` and the dataset was registered with a store of
    * wording: the view manager's wording tab. Absent otherwise.
    */

@@ -61,9 +61,6 @@ describe.each(viewStoreServers.map(server => [server.name, server] as const))(
         revision: '1',
       });
 
-      await wordings.load();
-      expect(wordings.of(dataset)?.title).toBe('订单');
-
       // Another application of the tenant has none.
       const portal = wordingsOf({ ...admin, appId: 'portal' }, server);
       expect((await portal.list()).has(dataset)).toBe(false);

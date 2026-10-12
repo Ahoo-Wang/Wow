@@ -964,7 +964,7 @@
   - **覆盖写在派生的输入上**：`DefineDatasetSpec.fields` 每项是口径（字符串）、**defineView** 的 `FieldSpec`（收窄）或 `false`（隐藏）；写到的字段按写的次序在前，其余按描述符的次序在后。不能增加描述符没有的字段或能力：没有的路径被忽略（不是错误，数据集删了列，覆盖不该让定义坏掉）。
   - **`DatasetCatalog.overrides(entry)`** 把标题、名词与字段覆盖交给 `DatasetResources`；覆盖变了（按 JSON 比较）即使版本没变也重新登记。
   - **存在哪里不在这一批**：宿主可以写在代码或配置里；存进视图存储、由管理员编辑，留在 todo。
-  - **存储（2026-10-11 用户确认）**：存在视图存储，按租户一份（`dataset_wording` 聚合，`owner/(shared)` 下，id 按「租户 × 应用 × 数据集」算出），`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写，宿主在 `refresh` 前 `load()`、`overrides` 用 `of(name)`；编辑界面放进视图管理器（todo）。设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
+  - **存储（2026-10-11 用户确认）**：存在视图存储，按租户一份（`dataset_wording` 聚合，`owner/(shared)` 下，id 按「租户 × 应用 × 数据集」算出），`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写，宿主把它交给 `DatasetCatalog.wordings`；编辑界面放进视图管理器（D91）。设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
 - **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/datasetResources.ts`；[host-integration.md 3.2](host-integration.md)。
 
 ## D87 数据源声明了窗口时，累计、累计占比与移动平均由 Wow 在全部分组上算（2026-10-11，修订 Q53）
@@ -1017,3 +1017,13 @@
 - **Q69 记录与分析的编辑按段还原**（R2-100，2026-10-11）：今天只有整体「还原」；筛选有自己的「放弃筛选修改」，其余每一处改动都能在原处逐项改回。按段还原（只还原列、只还原图表……）是新功能，待真人读屏走查（D73）或宿主反馈说整体还原不够再议。
 - **Q70 「设为共享／设为个人」按钮的图形**（R2-100，2026-10-11）：名字与提示已说去向，图标是去向那一方的图标（D18 第 10 条），在个人那一行上可能被读成「这一行已共享」；换成带方向的图形是视觉上的取舍，待真人走查（D73）或宿主反馈说仍读不出再议。
 - **Q71 日历热力图的对数色阶**（Storybook 审查 P2，2026-10-11）：热力图有 `scale: 'log'`，日历热力图没有；每日 GMV 被双 11 一天压得其余日子都很浅。加它是 `CalendarSpec` 的新成员（准入、选项页、绘制都要跟着），待有真实的日历看板需要再议。
+
+## D91 数据集措辞的编辑：视图管理器的「措辞」页签，存储由数据集目录带来（2026-10-11，落实 D86 的存储）
+
+- **来由**：D86 的措辞覆盖已能存进视图存储（`dataset_wording`，`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings`），管理员却还只能调 `PUT` 或由宿主自己的后台写；宿主也得自己在 `refresh` 之前读一遍再按名字套用。
+- **裁定**（用户 2026-10-11 确认设计 §7：编辑界面放进视图管理器）：
+  - **存储由目录带来**：`DatasetCatalog.wordings?: DatasetWordingStore`（`list`、`set`），`WowDatasetWordings` 就是一个。`DatasetResources` 每次 `refresh` 前读一遍（读不到经 `onWordingError` 说，沿用上次读到的），按定义 id（`{context}.{dataset}`）取存着的措辞，**整份**取代宿主的 `overrides`。
+  - **编辑器随定义登记**：给了 `wordings` 时，每个数据集登记时带一个 `DatasetWordingEditor`——描述符派生的字段（名字与派生的口径，未加措辞时的样子）、派生标题、在用的措辞与版本、`save`。`save` 按版本整份写入，再用登记时的描述符**重新派生并登记**这一个数据集，不再 `describe`；之后打开的视图读新词，已经打开的照旧，与 D84 的再登记同一条规则。`engine.wordingOf(id)` 取它。
+  - **许可**：`ViewPermissions.editDatasetWording?`，**缺省为 false**（与 `editSystem` 同理：措辞对本租户所有读者生效）。给了、且数据集带编辑器时，`useViewManager` 的控制器多一个 `wording`，管理器即使没有别的可管也可打开（`can.anything`）。
+  - **界面**：管理器分「视图」「措辞」两个页签。措辞页：标题、记录的叫法两个输入框（空着用派生的词，派生的词作占位），字段一行一个——显示／隐藏、名称（空着用派生的口径）、上移／下移、路径；保存后状态行说「已保存。之后打开的视图使用新的措辞。」，失败说「措辞没能保存，请重试。」。保存时字段按屏上的次序**整份**写：改了名的写字符串，没改的写 `{}`（只占次序），隐藏的写 `false`，原有的收窄（`FieldSpec`）保留、改名并入它的 `label`。
+- **落点**：`src/runtime/datasetResources.ts`、`src/runtime/resources.ts`（`wordingOf`）、`src/react/manager/wording.ts`、`src/ui/manage/DatasetWordingForm.tsx`；`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings`；[host-integration.md 3.2](host-integration.md)、[management.md](management.md)。
