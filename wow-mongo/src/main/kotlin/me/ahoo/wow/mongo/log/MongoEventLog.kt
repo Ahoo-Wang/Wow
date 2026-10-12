@@ -13,9 +13,7 @@
 
 package me.ahoo.wow.mongo.log
 
-import com.mongodb.ErrorCategory
 import com.mongodb.MongoException
-import com.mongodb.MongoWriteException
 import com.mongodb.ReadConcern
 import com.mongodb.TransactionOptions
 import com.mongodb.WriteConcern
@@ -32,13 +30,14 @@ import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.VirtualThreads
+import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -50,7 +49,6 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import org.bson.json.JsonMode
 import org.bson.json.JsonWriterSettings
-import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -71,7 +69,7 @@ class MongoEventLog(
     databaseName: String,
     private val context: String,
     override val partitions: Int,
-    private val dispatcher: CoroutineDispatcher = VIRTUAL_THREADS,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
 ) : EventLog {
@@ -133,7 +131,7 @@ class MongoEventLog(
         } catch (failure: MongoException) {
             // Inside a transaction a duplicate key may surface as a write or a command error: go by its code.
             when {
-                !isDuplicateKey(failure) -> AppendOutcome.Unknown(failure)
+                !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
                 failure.message.orEmpty().contains(REQUEST_KEY) ->
                     findByRequestIdNow(stream.ref.tenantId, stream.requestId)
                         ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
@@ -249,10 +247,6 @@ class MongoEventLog(
         }
     }
 
-    private fun isDuplicateKey(failure: MongoException): Boolean =
-        failure.code == DUPLICATE_KEY_CODE ||
-            (failure is MongoWriteException && failure.error.category == ErrorCategory.DUPLICATE_KEY)
-
     private fun findByRequestIdNow(tenantId: String, requestId: String): EventStreamRecord? =
         log.find(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
             .firstOrNull()
@@ -301,10 +295,8 @@ class MongoEventLog(
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         const val DEFAULT_TAIL_BATCH = 500
-        val VIRTUAL_THREADS: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
         val JSON: JsonWriterSettings = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build()
 
-        const val DUPLICATE_KEY_CODE = 11000
         const val ID = "_id"
         const val PARTITION = "partition"
         const val SEQUENCE = "sequence"

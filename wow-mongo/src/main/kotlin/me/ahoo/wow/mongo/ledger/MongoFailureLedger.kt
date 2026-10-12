@@ -1,0 +1,145 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.mongo.ledger
+
+import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoCollection
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.IndexOptions
+import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.UpdateOptions
+import com.mongodb.client.model.Updates
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.VirtualThreads
+import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.ParkedAggregate
+import org.bson.Document
+import org.bson.conversions.Bson
+
+/**
+ * The [FailureLedger] of one service on MongoDB (documentation/designs/v10/04-subscriptions.md §2), in the service's
+ * own database: one document per parked (subscription, aggregate), keyed by a unique index on (subscription, context,
+ * aggregate name, tenant, id).
+ *
+ * Every write is one single-document operation. A park is a conditional upsert (see [conditionalUpsert]) whose filter
+ * admits only a later stored from version, so concurrent or replayed parks converge on the earliest (decision D45)
+ * without a transaction; a resolve is one `findOneAndDelete`. No collation is set: MongoDB then compares strings by
+ * their UTF-8 bytes, which is code point order, so [list] pages in the order the contract asks for.
+ *
+ * Calls run on [dispatcher], virtual threads by default (decision D29).
+ */
+class MongoFailureLedger(
+    client: MongoClient,
+    databaseName: String,
+    collection: String = DEFAULT_COLLECTION,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+) : FailureLedger {
+    private val ledger: MongoCollection<Document> = client.getDatabase(databaseName).getCollection(collection)
+
+    /** Creates the key index, which also serves [list]'s order, when missing. */
+    fun createSchema() {
+        ledger.createIndex(
+            Indexes.ascending(SUBSCRIPTION, CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID),
+            IndexOptions().unique(true).name(LEDGER_KEY),
+        )
+    }
+
+    override suspend fun park(entry: ParkedAggregate): Boolean = withContext(dispatcher) {
+        val earlier = Filters.and(keyFilter(entry.subscription, entry.ref), Filters.gt(FROM_VERSION, entry.fromVersion))
+        val update = Updates.combine(
+            Updates.set(FROM_VERSION, entry.fromVersion),
+            Updates.set(REASON, entry.reason),
+            Updates.set(FAILED_AT, entry.failedAt),
+        )
+        conditionalUpsert { upsert ->
+            val result = ledger.updateOne(earlier, update, UpdateOptions().upsert(upsert))
+            result.matchedCount > 0 || result.upsertedId != null
+        }
+    }
+
+    override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = withContext(dispatcher) {
+        ledger.find(keyFilter(subscription, ref)).firstOrNull()?.let { entryOf(it) }
+    }
+
+    override suspend fun list(subscription: String, after: AggregateRef?, limit: Int): List<ParkedAggregate> {
+        require(limit >= 1) { "A page holds at least one entry." }
+        val filter = if (after == null) {
+            Filters.eq(SUBSCRIPTION, subscription)
+        } else {
+            Filters.and(Filters.eq(SUBSCRIPTION, subscription), after(after))
+        }
+        return withContext(dispatcher) {
+            ledger.find(filter)
+                .sort(Sorts.ascending(CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID))
+                .limit(limit)
+                .map { entryOf(it) }
+                .toList()
+        }
+    }
+
+    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = withContext(dispatcher) {
+        ledger.findOneAndDelete(keyFilter(subscription, ref))?.let { entryOf(it) }
+    }
+
+    private fun keyFilter(subscription: String, ref: AggregateRef): Bson = Filters.and(
+        Filters.eq(SUBSCRIPTION, subscription),
+        Filters.eq(CONTEXT, ref.type.context),
+        Filters.eq(AGGREGATE_NAME, ref.type.name),
+        Filters.eq(TENANT_ID, ref.tenantId),
+        Filters.eq(AGGREGATE_ID, ref.id),
+    )
+
+    /** The aggregates ordered after [ref]: the row comparison (context, name, tenant, id) > ref's, spelled out. */
+    private fun after(ref: AggregateRef): Bson {
+        val key = listOf(
+            CONTEXT to ref.type.context,
+            AGGREGATE_NAME to ref.type.name,
+            TENANT_ID to ref.tenantId,
+            AGGREGATE_ID to ref.id,
+        )
+        return Filters.or(
+            key.indices.map { index ->
+                val (field, value) = key[index]
+                Filters.and(key.take(index).map { (equal, same) -> Filters.eq(equal, same) } + Filters.gt(field, value))
+            },
+        )
+    }
+
+    private fun entryOf(document: Document) = ParkedAggregate(
+        subscription = document.getString(SUBSCRIPTION),
+        ref = AggregateType(document.getString(CONTEXT), document.getString(AGGREGATE_NAME))
+            .ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
+        fromVersion = document.getInteger(FROM_VERSION),
+        reason = document.getString(REASON),
+        failedAt = document.getLong(FAILED_AT),
+    )
+
+    private companion object {
+        const val DEFAULT_COLLECTION = "wow_failure_ledger"
+        const val LEDGER_KEY = "ledger_key"
+        const val SUBSCRIPTION = "subscription"
+        const val CONTEXT = "context"
+        const val AGGREGATE_NAME = "aggregate_name"
+        const val TENANT_ID = "tenant_id"
+        const val AGGREGATE_ID = "aggregate_id"
+        const val FROM_VERSION = "from_version"
+        const val REASON = "reason"
+        const val FAILED_AT = "failed_at"
+    }
+}
