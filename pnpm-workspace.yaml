@@ -49,7 +49,7 @@ catalog:
   babel-plugin-react-compiler: 1.0.0
   '@babel/core': 7.29.7
   '@babel/plugin-syntax-decorators': 7.29.7
-  '@base-ui/react': ^1.8.0
+  '@base-ui/react': ^1.9.0
   canvas-confetti: ^1.9.4
   '@chromatic-com/storybook': ^5.4.0
   class-variance-authority: ^0.7.1
