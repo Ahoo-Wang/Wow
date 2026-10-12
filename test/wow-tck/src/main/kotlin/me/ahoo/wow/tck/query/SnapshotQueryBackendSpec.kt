@@ -791,6 +791,32 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation should summarize the elements of each root group`() {
+        if (!elementRootGroups) return
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        fun query(products: List<String>, limit: Int) = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines") { "productId" isIn products }
+            terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+            sum(field("quantity"), "quantity")
+            count("lines")
+            sort { "aggregate".desc() }
+            limit(limit)
+        }
+        fun rows(query: AggregationQuery) = queryBackendBinding.aggregate(query, false).collectList().block()!!
+            .map { Triple(it.path("aggregate").asString(), it.path("quantity").asDouble(), it.path("lines").asLong()) }
+
+        rows(query(listOf("alpha", "beta"), 10)).assert().containsExactly(
+            Triple("aggregation-b", 6.0, 2L),
+            Triple("aggregation-a", 3.0, 2L),
+        )
+        rows(query(listOf("alpha", "beta"), 1)).assert().containsExactly(Triple("aggregation-b", 6.0, 2L))
+        // A root record with no element left after the element filters forms no group.
+        rows(query(listOf("delta"), 10)).assert().containsExactly(Triple("aggregation-b", 5.0, 1L))
+    }
+
+    @Test
     fun `aggregation should ignore invalid arithmetic values`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 
@@ -2409,7 +2435,7 @@ abstract class SnapshotQueryBackendSpec {
             .verifyComplete()
     }
 
-    private fun saveAggregationStates(vararg states: MockStateAggregate) {
+    protected fun saveAggregationStates(vararg states: MockStateAggregate) {
         states.forEachIndexed { index, state ->
             snapshotStore.save(
                 SimpleSnapshot(
@@ -2440,7 +2466,7 @@ abstract class SnapshotQueryBackendSpec {
         return states.map(MockStateAggregate::id)
     }
 
-    private fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
+    protected fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
 
     private fun aggregationStateA(): MockStateAggregate =
         MockStateAggregate(

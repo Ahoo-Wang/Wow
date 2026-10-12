@@ -30,6 +30,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
+import kotlin.math.max
 import kotlin.math.min
 
 internal const val ROOT_AGGREGATION = "__wow_aggregation"
@@ -67,6 +68,7 @@ internal class ElasticsearchAggregationPager(
      */
     fun execute(plan: ElasticsearchAggregationPlan, window: GroupWindow): Flux<ObjectNode> = Flux.defer {
         val limit = (window as? GroupWindow.First)?.limit
+        if (plan.rootSources.isNotEmpty()) return@defer executeRootGroups(plan, limit)
         if (plan.groupSources.isEmpty()) {
             search(plan, null, plan.aggregation(emptyMap(), 0)).map { response -> response.summary(plan) }.flux()
         } else {
@@ -87,6 +89,67 @@ internal class ElasticsearchAggregationPager(
                     }
                     .concatMapIterable({ it.rows }, 1)
             }
+        }
+    }
+
+    /**
+     * Streams the groups of a plan with [ElasticsearchAggregationPlan.rootSources]: pages of an outer composite over
+     * the root records, each outer bucket holding all of its element groups. The rows come in sort order, since the
+     * root groups lead it.
+     */
+    private fun executeRootGroups(plan: ElasticsearchAggregationPlan, limit: Int?): Flux<ObjectNode> {
+        val capacity = plan.pageSize(null, 0)
+        val rows = pointInTime.use { pit ->
+            searchRootPage(plan, pit, RootPage(), capacity)
+                .expand { page ->
+                    if (page.shouldStop(limit)) Mono.empty() else searchRootPage(plan, pit, page, capacity)
+                }
+                .concatMapIterable({ it.rows }, 1)
+        }
+        return if (limit == null) rows else rows.take(limit.toLong())
+    }
+
+    private fun searchRootPage(
+        plan: ElasticsearchAggregationPlan,
+        pit: ElasticsearchPointInTime.Session,
+        previous: RootPage,
+        capacity: Int,
+    ): Mono<RootPage> {
+        // The first page probes one outer bucket; later pages hold as many as fit at the widest seen.
+        val size = if (previous.probed) (capacity / previous.widest.coerceAtLeast(1)).coerceIn(1, capacity) else 1
+        val aggregation = plan.rootAggregation(previous.afterKey, size, capacity)
+        return search(plan, pit, aggregation).map { response ->
+            val composite = response.aggregations().getValue(ROOT_AGGREGATION).composite()
+            val buckets = composite.buckets().array()
+            val groups = buckets.map { it.rootRows(plan, capacity) }
+            val rows = groups.flatten()
+            RootPage(
+                rows = rows,
+                afterKey = composite.afterKey(),
+                fetched = previous.fetched + rows.size,
+                widest = max(previous.widest, groups.maxOfOrNull { it.size } ?: 0),
+                probed = true,
+                exhausted = buckets.isEmpty(),
+            )
+        }
+    }
+
+    private fun ElasticsearchAggregationPlan.rootAggregation(
+        afterKey: Map<String, FieldValue>,
+        size: Int,
+        innerSize: Int,
+    ): Aggregation {
+        val inner = if (groupSources.isEmpty()) {
+            summaryMetricAggregations()
+        } else {
+            innerGroupAggregations(innerSize, metricAggregations())
+        }
+        return Aggregation.of { builder ->
+            builder.composite { composite ->
+                composite.sources(rootSources).size(size).apply {
+                    if (afterKey.isNotEmpty()) after(afterKey)
+                }
+            }.aggregations(elementAggregations(inner))
         }
     }
 
@@ -161,20 +224,30 @@ internal class ElasticsearchAggregationPager(
         } else {
             mapOf(GROUP_AGGREGATION to groupAggregation(afterKey, pageSize))
         }
+        aggregations = elementAggregations(aggregations)
+        if (elements.isNotEmpty()) return aggregations.values.single()
+        if (groupSources.isNotEmpty()) return aggregations.getValue(GROUP_AGGREGATION)
+        return Aggregation.of { builder ->
+            builder.filter { it.matchAll { matchAll -> matchAll } }.aggregations(aggregations)
+        }
+    }
+
+    /** Wraps [inner] in the nested and filter scope of each element, outermost first. */
+    private fun ElasticsearchAggregationPlan.elementAggregations(
+        inner: Map<String, Aggregation>,
+    ): Map<String, Aggregation> {
+        var aggregations = inner
         elements.indices.reversed().forEach { index ->
             val element = elements[index]
-            val filter = Aggregation.of { builder -> builder.filter(element.filter).aggregations(aggregations) }
+            val scope = aggregations
+            val filter = Aggregation.of { builder -> builder.filter(element.filter).aggregations(scope) }
             val nested = Aggregation.of { builder ->
                 builder.nested { it.path(element.path) }
                     .aggregations(filterAggregationName(index), filter)
             }
             aggregations = mapOf(nestedAggregationName(index) to nested)
         }
-        if (elements.isNotEmpty()) return aggregations.values.single()
-        if (groupSources.isNotEmpty()) return aggregations.getValue(GROUP_AGGREGATION)
-        return Aggregation.of { builder ->
-            builder.filter { it.matchAll { matchAll -> matchAll } }.aggregations(aggregations)
-        }
+        return aggregations
     }
 
     private fun ElasticsearchAggregationPlan.groupAggregation(
@@ -276,6 +349,22 @@ internal class ElasticsearchAggregationPager(
                 }.aggregations(aggregations)
             },
         )
+    }
+
+    /**
+     * One page of outer buckets: [widest] is the most element groups one outer bucket has held so far, which sizes
+     * the next page once [probed], and [exhausted] says the outer composite has no more buckets.
+     */
+    private class RootPage(
+        val rows: List<ObjectNode> = emptyList(),
+        val afterKey: Map<String, FieldValue> = emptyMap(),
+        val fetched: Int = 0,
+        val widest: Int = 0,
+        val probed: Boolean = false,
+        val exhausted: Boolean = false,
+    ) {
+        fun shouldStop(limit: Int?): Boolean =
+            exhausted || afterKey.isEmpty() || (limit != null && fetched >= limit)
     }
 
     private class AggregationPage(

@@ -23,7 +23,9 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
@@ -222,9 +224,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     // Text-mapped fields of nested objects run `match` inside the nested query.
     override val elementFullTextSearch: Boolean = true
-
-    // A composite inside a nested aggregation reaches no root field; the two-level form is not built yet.
-    override val elementRootGroups: Boolean = false
 
     // A `long` mapping coerces a fractional epoch to its integer part when it indexes it (`coerce` defaults to true).
     override val truncatesFractionalEpochs: Boolean = true
@@ -865,6 +864,65 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .test()
             .assertNext { row -> row.path("count").longValue().assert().isEqualTo(1L) }
             .verifyComplete()
+    }
+
+    @Test
+    fun `root groups should page the outer buckets and key the nested element groups`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        // Two rows a page: the first page probes one root bucket, the next ones are sized from the widest seen.
+        val service = ElasticsearchSnapshotQueryBackendFactory(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = 2,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+        ).target(MOCK_AGGREGATE_METADATA, querySchemaSources)
+        fun rows(query: AggregationQuery, vararg aliases: String) = query.query(service).collectList().block()!!
+            .map { row -> aliases.map { row.path(it).asString() } }
+
+        rows(
+            aggregation {
+                filter { deletion(DeletionState.ACTIVE) }
+                expand("state.orders")
+                terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+                terms("status", "status")
+                count("orders")
+            },
+            "aggregate", "status", "orders",
+        ).assert().containsExactly(
+            listOf("aggregation-a", "CANCELLED", "1"),
+            listOf("aggregation-a", "PAID", "1"),
+            listOf("aggregation-b", "PAID", "1"),
+        )
+        // A long terms group and a histogram group key their rows as their composite sources would.
+        rows(
+            aggregation {
+                filter { deletion(DeletionState.ACTIVE) }
+                expand("state.orders")
+                expand("lines") { "productId" isIn listOf("alpha", "beta") }
+                terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+                histogram("quantity", 2.0, "band")
+                terms("quantity", "quantity")
+                count("lines")
+            },
+            "aggregate", "band", "quantity", "lines",
+        ).assert().containsExactly(
+            listOf("aggregation-a", "0.0", "1", "1"),
+            listOf("aggregation-a", "2.0", "2", "1"),
+            listOf("aggregation-b", "2.0", "2", "1"),
+            listOf("aggregation-b", "4.0", "4", "1"),
+        )
+        // Three products under aggregation-a exceed the two keys a page holds: the query fails, not truncates.
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+            terms("productId", "product")
+            count("lines")
+        }.query(service).test()
+            .expectErrorSatisfies { error ->
+                generateSequence(error) { it.cause }.any { it.message?.contains("under one root group") == true }
+                    .assert().isTrue()
+            }.verify()
     }
 
     @Test

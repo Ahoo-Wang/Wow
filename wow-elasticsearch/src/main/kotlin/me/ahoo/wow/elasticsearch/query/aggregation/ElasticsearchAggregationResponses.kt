@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.aggregation
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
+import co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.elasticsearch.query.toObjectNode
@@ -25,6 +26,11 @@ internal fun ResponseBody<Map<*, *>>.summary(plan: ElasticsearchAggregationPlan)
     val scope = aggregations().getValue(ROOT_AGGREGATION).let { root ->
         if (plan.elements.isEmpty()) root.filter() else root.innermostScope(plan)
     }
+    return scope.summaryRow(plan)
+}
+
+internal fun FilterAggregate.summaryRow(plan: ElasticsearchAggregationPlan): ObjectNode {
+    val scope = this
     if (plan.groupSources.isEmpty() && plan.metrics.any { it is ElasticsearchAggregationMetric.Derived }) {
         val bucket = scope.aggregations()
             .getValue(SUMMARY_BUCKET_AGGREGATION)
@@ -51,11 +57,9 @@ internal fun ResponseBody<Map<*, *>>.innermost(plan: ElasticsearchAggregationPla
     return aggregations
 }
 
-private fun Aggregate.innermostScope(
-    plan: ElasticsearchAggregationPlan,
-): co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate {
+internal fun Aggregate.innermostScope(plan: ElasticsearchAggregationPlan): FilterAggregate {
     var aggregations = nested().aggregations()
-    var scope: co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate? = null
+    var scope: FilterAggregate? = null
     plan.elements.indices.forEach { index ->
         scope = aggregations.getValue(filterAggregationName(index)).filter()
         aggregations = scope!!.aggregations()

@@ -32,7 +32,7 @@
 ## 4. 两个后端
 
 - **MongoDB**：管道是 `$match → $unwind 元素 → $match 元素条件 → $group`。`$unwind` 之后根字段仍在文档上，根分组的 `_id` 键直接取根路径即可。
-- **Elasticsearch**：今天的 composite 分组整个在 `nested` 里。有根分组时改成两层：外层 composite 只放根分组的来源，分页照旧用它的 `after_key`；每个外层桶里是 `nested → filter →` 内层 composite，放元素分组的来源与指标，内层不分页（一次取够本页剩余的行数，超出时与今天的残余上限同样报错）。没有根分组时，编译与今天完全相同。
+- **Elasticsearch**：今天的 composite 分组整个在 `nested` 里。有根分组时改成两层：外层 composite 只放根分组的来源，分页照旧用它的 `after_key`；每个外层桶里是 `nested → filter →` 元素分组。实现时（E2）发现 composite 不能放在另一个多桶聚合之下，所以元素分组改为按排序次序逐级嵌套的普通桶聚合（terms、histogram、date_histogram，由同一份 composite 来源转换，按键排序、只留有文档的键），指标在最内层；内层不分页，一个外层桶下的元素分组超过批大小时报错而不截断。外层页的大小按已见到的单个外层桶最多行数调整，首页只探一个外层桶。没有根分组时，编译与今天完全相同。
 - **结果**：行里根分组与元素分组的键并列，次序照 `groupBy`，排序与 `limit` 照旧在后端之后由查询服务处理。
 
 ## 5. 客户端与视图引擎

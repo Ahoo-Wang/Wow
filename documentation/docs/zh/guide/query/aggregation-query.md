@@ -60,7 +60,7 @@ flowchart LR
 - `ROOT` 分组只能是字段，不能是表达式；准入照常检查根字段的分组能力与是否受保护。
 - `ROOT` 分组排在元素分组之前：有效排序（先显式排序，再按 `groupBy` 次序补上其余分组）里，`ROOT` 分组不能出现在元素分组之后。指标仍可排在最前。
 - 只有分组有 `scope`。指标仍读最内层元素：根上的值会随它的元素被数多次。
-- 它属于昂贵构造：后端能执行且允许昂贵运算符时，描述符的 `analysis.rootGroups` 为 `true`。MongoDB 原生执行；Elasticsearch 与 ClickHouse 目前回答 `StorageUnsupported`。Wow 9.9 起。
+- 它属于昂贵构造：后端能执行且允许昂贵运算符时，描述符的 `analysis.rootGroups` 为 `true`。MongoDB 与 Elasticsearch 原生执行（Elasticsearch 在一个根分组下的元素分组超过查询批大小时报错，而不是截断）；ClickHouse 回答 `StorageUnsupported`。Wow 9.9 起。
 
 ```json
 {
