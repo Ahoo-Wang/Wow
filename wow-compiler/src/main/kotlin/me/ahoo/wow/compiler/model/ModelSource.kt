@@ -25,8 +25,11 @@ object ModelSource {
             appendLine("package ${binding.packageName}")
         }
         appendLine()
-        appendLine("/** The V10 model of [${binding.root}], in bounded context [context]. */")
-        val parameters = (listOf("context: String") + binding.dependencies.map { "${it.name}: ${it.type}" })
+        appendLine(
+            "/** The V10 model of [${binding.root}], in bounded context [context]; [configure] runs after the bindings. */",
+        )
+        val parameters = listOf("context: String") + binding.dependencies.map { "${it.name}: ${it.type}" } +
+            "configure: me.ahoo.wow.kernel.AggregateModelBuilder<$state>.() -> Unit = {}"
         appendLine(
             "public fun $functionName(${parameters.joinToString(", ")}): me.ahoo.wow.kernel.AggregateModel<$state> =",
         )
@@ -44,18 +47,7 @@ object ModelSource {
             appendLine("            me.ahoo.wow.kernel.decisionOf(${awaited(call, command.reactor)})")
             appendLine("        }")
         }
-        binding.sourcing.forEach { sourcing ->
-            val name = sourcing.eventName?.let { "name = \"\$type.$it\", " }.orEmpty()
-            if (sourcing.returnsState) {
-                appendLine(
-                    "        evolveTo<${sourcing.event}>(${name}evolve = { state, event -> state.${sourcing.function}(event) })"
-                )
-            } else {
-                appendLine(
-                    "        evolve<${sourcing.event}>(${name}evolve = { event -> ${sourcing.function}(event) })"
-                )
-            }
-        }
+        renderSourcing(binding.sourcing)
         binding.afters.forEach { after ->
             val dsl = if (after.suspending || after.reactor) "afterSuspending" else "after"
             val include = after.include.joinToString(", ", "setOf(", ")") { "$it::class.java" }
@@ -66,7 +58,30 @@ object ModelSource {
             appendLine("            me.ahoo.wow.kernel.eventsOf(${awaited(call, after.reactor)})")
             appendLine("        }")
         }
+        appendLine("        configure()")
         appendLine("    }")
+    }
+
+    /** The evolve functions, each with its event's name and revision, then the events' former names. */
+    private fun StringBuilder.renderSourcing(sourcing: List<SourcingBinding>) {
+        sourcing.forEach { binding ->
+            val name = binding.eventName?.let { "name = \"\$type.$it\", " }.orEmpty() +
+                if (binding.revision == 1) "" else "revision = ${binding.revision}, "
+            if (binding.returnsState) {
+                appendLine(
+                    "        evolveTo<${binding.event}>(${name}evolve = { state, event -> state.${binding.function}(event) })"
+                )
+            } else {
+                appendLine("        evolve<${binding.event}>(${name}evolve = { event -> ${binding.function}(event) })")
+            }
+        }
+        sourcing.forEach { binding ->
+            binding.aliases.forEach { alias ->
+                // A former name without a dot is within the aggregate; one with dots is a full type name.
+                val former = if ('.' in alias) alias else "\$type.$alias"
+                appendLine("        alias<${binding.event}>(\"$former\")")
+            }
+        }
     }
 
     private fun awaited(call: String, reactor: Boolean): String =

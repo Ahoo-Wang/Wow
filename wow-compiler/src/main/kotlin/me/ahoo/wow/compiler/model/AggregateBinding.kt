@@ -39,6 +39,8 @@ data class CommandBinding(
     val command: String,
     /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
     val commandName: String?,
+    /** The command's `@Alias` former names; recorded, not bound: the kernel's command types have none yet. */
+    val aliases: List<String> = emptyList(),
     val function: String,
     /** Whether the function takes the admitted `Command<X>` rather than the body `X`. */
     val admitted: Boolean,
@@ -54,6 +56,10 @@ data class CommandBinding(
 data class SourcingBinding(
     val event: String,
     val eventName: String?,
+    /** The event's `@Revision`, 1 without it. */
+    val revision: Int = 1,
+    /** The event's `@Alias` former names: simple ones within the aggregate, or full type names. */
+    val aliases: List<String> = emptyList(),
     val function: String,
     /** Whether the function returns the new state (immutable form) rather than changing it in place. */
     val returnsState: Boolean,

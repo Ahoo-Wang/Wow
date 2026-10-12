@@ -85,6 +85,33 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `api rule should catch a 9x type or Jackson in a V10 package of wow-api only`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.API_DIR,
+            "me/ahoo/wow/api/subscribe/Bad.kt",
+            """
+            package me.ahoo.wow.api.subscribe
+
+            import me.ahoo.wow.api.messaging.Message
+            import tools.jackson.databind.JsonNode
+            """.trimIndent(),
+        )
+        root.writeSource(
+            V10Rules.API_DIR,
+            "me/ahoo/wow/api/messaging/Old.kt",
+            """
+            package me.ahoo.wow.api.messaging
+
+            import tools.jackson.databind.JsonNode
+            """.trimIndent(),
+        )
+        V10Rules.V10_API_STANDS_ALONE.violations(root).assert().containsExactly(
+            "${V10Rules.API_DIR}/src/main/kotlin/me/ahoo/wow/api/subscribe/Bad.kt:3: me.ahoo.wow.api.messaging.Message",
+            "${V10Rules.API_DIR}/src/main/kotlin/me/ahoo/wow/api/subscribe/Bad.kt:4: tools.jackson.databind.JsonNode",
+        )
+    }
+
+    @Test
     fun `module graph should read the project dependencies of a build script`(@TempDir root: File) {
         File(root, V10Rules.KERNEL.dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
             """

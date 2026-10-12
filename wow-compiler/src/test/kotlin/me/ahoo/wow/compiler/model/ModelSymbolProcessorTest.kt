@@ -16,7 +16,6 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
-import com.tschuchort.compiletesting.configureKsp
 import me.ahoo.test.asserts.assert
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
@@ -24,18 +23,8 @@ import org.junit.jupiter.api.Test
 /** Spike H4 / roadmap 2.3: annotated aggregates compile into kernel models that run. */
 @OptIn(ExperimentalCompilerApi::class)
 class ModelSymbolProcessorTest {
-    private fun compile(mode: String, vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> {
-        val compilation = KotlinCompilation().apply {
-            inheritClassPath = true
-            this.sources = sources.toList()
-            configureKsp {
-                symbolProcessorProviders += ModelSymbolProcessorProvider()
-                processorOptions[ModelSymbolProcessorProvider.OPTION] = mode
-            }
-            jvmTarget = "21"
-        }
-        return compilation to compilation.compile()
-    }
+    private fun compile(mode: String, vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> =
+        compileModel(mode, *sources)
 
     private val cart = SourceFile.kotlin(
         "Cart.kt",
@@ -222,7 +211,6 @@ class ModelSymbolProcessorTest {
             package sample
 
             import me.ahoo.wow.api.annotation.AggregateRoot
-            import me.ahoo.wow.api.annotation.OnError
             import me.ahoo.wow.api.command.CommandResultAccessor
             import me.ahoo.wow.api.command.CommandMessage
 
@@ -235,9 +223,6 @@ class ModelSymbolProcessorTest {
                 fun onCommand(command: PlaceOrder, results: CommandResultAccessor): OrderPlaced = OrderPlaced(command.id)
 
                 fun onCommand(command: CommandMessage<CancelOrder>): OrderPlaced = OrderPlaced(command.body.id)
-
-                @OnError
-                fun onError(command: PlaceOrder, error: Throwable) = Unit
             }
 
             class OrderState(val id: String) {
@@ -252,7 +237,6 @@ class ModelSymbolProcessorTest {
             .contains(
                 "takes me.ahoo.wow.api.command.CommandMessage<sample.CancelOrder>: a V10 decide function takes the"
             )
-            .contains("@OnError onError has no V10 counterpart")
     }
 
     @Test
@@ -262,8 +246,10 @@ class ModelSymbolProcessorTest {
         val files = compilation.workingDir.walkTopDown().filter { it.isFile }.toList()
         files.any { it.name == "CartModel.kt" }.assert().isFalse()
         val report = files.single { it.name == "model-report.json" }.readText()
-        report.assert().contains(
-            "\"root\" : \"sample.Cart\""
-        ).contains("\"commands\" : 4").contains("\"problems\" : [ ]")
+        report.assert().contains("\"aggregates\" : [")
+            .contains("\"root\" : \"sample.Cart\"")
+            .contains("\"commands\" : 4")
+            .contains("\"problems\" : [ ]")
+            .contains("\"subscriptions\" : [ ]")
     }
 }

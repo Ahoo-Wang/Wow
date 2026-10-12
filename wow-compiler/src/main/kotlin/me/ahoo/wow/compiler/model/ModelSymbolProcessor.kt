@@ -33,12 +33,13 @@ import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.annotation.OnError
 import me.ahoo.wow.api.annotation.OnSourcing
+import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.compiler.AggregateRootResolver.toName
 
 /**
@@ -48,7 +49,19 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
  *
  * Command and event types are named `context.aggregate.Name` (decision D55): the class's simple name, or its `@Name`.
  *
- * It recognizes the 9.x forms: a root built from its state (`ctor(state)`) or a root that is its own state, command
+ * It recognizes only the V10 annotation set (design 01 §3, decision D67; [V10Annotations]): any other annotation of
+ * `me.ahoo.wow.api.annotation` on the root, its state, its commands or its events is a problem that points to the
+ * migration skill, and so is an identity annotation on a command's field (decision D68). An event's `@Name`,
+ * `@Revision` and `@Alias` and a command's `@Name` flow into the model; a command's `@Alias` is recorded but not bound,
+ * since the kernel's command types have no former names yet. The generated factory's last parameter, `configure`,
+ * runs on the model builder after the bindings, so the host can add what annotations do not bind yet, such as the
+ * upgrades a `@Revision` above 1 needs.
+ *
+ * Subscription processors (`@Projection`, `@Reactor`, `@Saga` with `@OnEvent` handlers) are checked by
+ * [SubscriptionResolver]; their bindings are not generated yet, since the runtime has no annotation-facing
+ * subscription API to bind them to.
+ *
+ * It recognizes these forms: a root built from its state (`ctor(state)`) or a root that is its own state, command
  * functions annotated `@OnCommand` or named `onCommand`, sourcing functions annotated `@OnSourcing` or named
  * `onSourcing`, after hooks annotated `@AfterCommand` or named `afterCommand`, `@CreateAggregate` commands and
  * suspending functions, `@AllowCreate`, functions returning a Reactor publisher (awaited through wow-reactor), and
@@ -68,6 +81,7 @@ class ModelSymbolProcessor(
     enum class Mode { OFF, GENERATE, REPORT }
 
     private val bindings = mutableListOf<AggregateBinding>()
+    private val subscriptions = mutableListOf<SubscriptionBinding>()
     private val sources = mutableSetOf<KSFile>()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -82,9 +96,45 @@ class ModelSymbolProcessor(
             bindings += binding
             if (mode == Mode.GENERATE) {
                 if (binding.problems.isEmpty()) {
+                    binding.commands.filter { it.aliases.isNotEmpty() }.forEach {
+                        logger.warn(
+                            "${binding.root}: @Alias of ${it.command} is not bound: the kernel's command types " +
+                                "have no former names yet",
+                            root,
+                        )
+                    }
                     generate(binding, root)
                 } else {
                     binding.problems.forEach { logger.error("${binding.root}: $it", root) }
+                }
+            }
+        }
+        return deferred + processSubscriptions(resolver)
+    }
+
+    private fun processSubscriptions(resolver: Resolver): List<KSAnnotated> {
+        val handlerClasses = resolver.getSymbolsWithAnnotation(SubscriptionResolver.ON_EVENT)
+            .filterIsInstance<KSFunctionDeclaration>()
+            .mapNotNull { it.parentDeclaration as? KSClassDeclaration }
+        val processors = (
+            (SubscriptionResolver.KIND_ANNOTATIONS + SubscriptionResolver.REMOVED_KIND_ANNOTATIONS).asSequence()
+                .flatMap { resolver.getSymbolsWithAnnotation(it) }
+                .filterIsInstance<KSClassDeclaration>() + handlerClasses
+            ).distinct().toList()
+        val deferred = processors.filterNot { it.validate() }
+        processors.filter { it.validate() }.forEach { processor ->
+            processor.containingFile?.let { sources += it }
+            val binding = SubscriptionResolver.resolve(processor, REACTOR_TYPES)
+            subscriptions += binding
+            if (mode == Mode.GENERATE) {
+                if (binding.problems.isEmpty()) {
+                    logger.warn(
+                        "${binding.processor}: subscription bindings are not generated yet; its handlers " +
+                            binding.handlers.joinToString { it.subscription } + " are checked only",
+                        processor,
+                    )
+                } else {
+                    binding.problems.forEach { logger.error("${binding.processor}: $it", processor) }
                 }
             }
         }
@@ -92,14 +142,14 @@ class ModelSymbolProcessor(
     }
 
     override fun finish() {
-        if (mode != Mode.REPORT || bindings.isEmpty()) {
+        if (mode != Mode.REPORT || (bindings.isEmpty() && subscriptions.isEmpty())) {
             return
         }
         codeGenerator.createNewFileByPath(
             Dependencies(aggregating = true, sources = sources.toTypedArray()),
             "META-INF/wow/model-report",
             "json",
-        ).bufferedWriter().use { it.write(ModelReport.json(bindings)) }
+        ).bufferedWriter().use { it.write(ModelReport.json(bindings, subscriptions)) }
     }
 
     @OptIn(KspExperimental::class)
@@ -126,9 +176,10 @@ class ModelSymbolProcessor(
             .mapNotNull { function -> sourcingBinding(function, state, problems) }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AfterCommand::class.java.name)
             .mapNotNull { function -> afterBinding(function, dependencies, problems) }
-        root.getAllFunctions().filter { function -> function.hasAnnotation(OnError::class.java.name) }.forEach {
-            problems += "@OnError ${it.simpleName.asString()} has no V10 counterpart: reject, or compensate in a saga"
-        }
+        val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
+        val eventTypes = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
+            .mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
+        problems += annotationProblems(root, state, commandTypes, eventTypes)
         return AggregateBinding(
             root = rootName,
             packageName = root.packageName.asString(),
@@ -144,6 +195,32 @@ class ModelSymbolProcessor(
             problems = problems,
         )
     }
+
+    private fun KSClassDeclaration.isFramework(): Boolean =
+        qualifiedName?.asString().orEmpty().let { name -> FRAMEWORK_PACKAGES.any { name.startsWith(it) } }
+
+    private fun firstParameterClass(function: KSFunctionDeclaration, unwrapCommand: Boolean): KSClassDeclaration? {
+        val type = function.parameters.firstOrNull()?.type?.resolve() ?: return null
+        val unwrapped = if (unwrapCommand && type.declaration.qualifiedName?.asString() == COMMAND) {
+            type.arguments.firstOrNull()?.type?.resolve() ?: return null
+        } else {
+            type
+        }
+        return unwrapped.declaration as? KSClassDeclaration
+    }
+
+    /** What V10 does not recognize on the model's types: the root, its state, its commands and its events. */
+    private fun annotationProblems(
+        root: KSClassDeclaration,
+        state: KSClassDeclaration,
+        commands: List<KSClassDeclaration>,
+        events: List<KSClassDeclaration>,
+    ): List<String> = (
+        V10Annotations.problemsOfType(root, "aggregate root") +
+            (if (state != root) V10Annotations.problemsOfType(state, "state") else emptyList()) +
+            commands.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "command") } +
+            events.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "event") }
+        ).distinct()
 
     private fun stateArguments(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
         val constructor = state.primaryConstructor ?: state.getConstructors().firstOrNull()
@@ -181,9 +258,13 @@ class ModelSymbolProcessor(
                 "or $COMMAND of it"
             return null
         }
+        if (command.hasAnnotation(Revision::class.java.name)) {
+            problems += "command ${command.simpleName.asString()} is annotated @Revision: only events have revisions"
+        }
         return CommandBinding(
             command = commandType.render(),
             commandName = command.getAnnotationsByType(Name::class).firstOrNull()?.value,
+            aliases = command.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
             function = name,
             admitted = admitted,
             arguments = parameters.drop(1).mapNotNull { argument(name, it.type.resolve(), dependencies, problems) },
@@ -239,9 +320,15 @@ class ModelSymbolProcessor(
         val eventType = function.parameters.single().type.resolve()
         val event = eventType.declaration as? KSClassDeclaration ?: return null
         val returned = function.returnType?.resolve()?.declaration?.qualifiedName?.asString()
+        val revision = event.getAnnotationsByType(Revision::class).firstOrNull()?.value ?: 1
+        if (revision < 1) {
+            problems += "event ${event.simpleName.asString()} has @Revision($revision): a revision starts at 1"
+        }
         return SourcingBinding(
             event = eventType.render(),
             eventName = event.getAnnotationsByType(Name::class).firstOrNull()?.value,
+            revision = revision,
+            aliases = event.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
             function = name,
             returnsState = returned == state.qualifiedName?.asString(),
         )
