@@ -31,8 +31,8 @@ interface EventLog {
     val partitions: Int
 
     /**
-     * Appends [stream] atomically, with [transport] stored beside it (decision D25): [tail] gives the transport
-     * back, [read] and [findByRequestId] never do.
+     * Appends [stream] atomically, with [transport] stored beside it (decision D25): [tail] and [readEntries] give
+     * the transport back, [read] and [findByRequestId] never do.
      */
     suspend fun append(stream: EventStreamRecord, transport: Transport? = null): AppendOutcome
 
@@ -47,6 +47,13 @@ interface EventLog {
 
     /** The streams of [ref] with versions in [fromVersion]..[toVersion], in version order: facts only. */
     fun read(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<EventStreamRecord>
+
+    /**
+     * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and
+     * transport: the read of recovery. A subscription that handles a parked aggregate again reads its streams by
+     * version, and the `reservation` subscription needs the keys their transport carries (decision D50).
+     */
+    fun readEntries(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<LogEntry>
 
     /**
      * The position of [ref]'s stream at [version], or null when there is none. A duplicate request uses it to tell

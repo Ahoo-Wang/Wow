@@ -57,7 +57,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * commits, and inserts the stream at that sequence only if the aggregate is exactly one version behind. Because the
  * lock is held until commit, the sequence order is the order commits become visible, so [tail] never skips an entry;
  * a failed append rolls its sequence back too, so there are no gaps. The transport is stored in its own column and
- * read back only by [tail].
+ * read back only by [tail] and [readEntries].
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -174,6 +174,22 @@ class PostgresEventLog(
         streams.forEach { emit(it) }
     }
 
+    override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
+        val entries = withContext(dispatcher) {
+            dataSource.connection.use { connection ->
+                connection.prepareStatement(tables.entries).use { query ->
+                    query.setString(1, ref.id)
+                    query.setString(2, ref.tenantId)
+                    query.setString(3, ref.type.name)
+                    query.setInt(4, fromVersion)
+                    query.setInt(5, toVersion)
+                    query.executeQuery().use { rows -> rows.map { entryOf(it.getInt("partition"), it) } }
+                }
+            }
+        }
+        entries.forEach { emit(it) }
+    }
+
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
         dataSource.connection.use { connection ->
             connection.prepareStatement(tables.position).use { query ->
@@ -204,13 +220,7 @@ class PostgresEventLog(
                         query.setLong(2, last)
                         query.setInt(3, tailBatch)
                         query.executeQuery().use { rows ->
-                            rows.map {
-                                LogEntry(
-                                    LogPosition(partition, it.getLong("sequence")),
-                                    streamOf(it),
-                                    it.getString("transport")?.let(::decodeTransport),
-                                )
-                            }
+                            rows.map { entryOf(partition, it) }
                         }
                     }
                 }
@@ -254,6 +264,12 @@ class PostgresEventLog(
                 rows.getInt(1)
             }
         }
+
+    private fun entryOf(partition: Int, row: ResultSet) = LogEntry(
+        LogPosition(partition, row.getLong("sequence")),
+        streamOf(row),
+        row.getString("transport")?.let(::decodeTransport),
+    )
 
     private fun streamOf(row: ResultSet) = EventStreamRecord(
         ref = AggregateType(

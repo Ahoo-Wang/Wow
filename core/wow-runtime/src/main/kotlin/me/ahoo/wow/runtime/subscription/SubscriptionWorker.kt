@@ -369,9 +369,9 @@ internal class SubscriptionWorker(
             // A lower entry may have failed and been parked while this resume waited in the lane.
             ledger.parked(subscription.name, ref)?.let { from = minOf(from, it.fromVersion) }
             var last: Int? = null
-            for (stream in log.read(ref, from).toList()) {
+            for ((position, stream, transport) in log.readEntries(ref, from).toList()) {
                 val failure = if (subscription.filter.matches(stream)) {
-                    handle(stream, null, null).exceptionOrNull() as Exception?
+                    handle(stream, position, transport).exceptionOrNull() as Exception?
                 } else {
                     null
                 }

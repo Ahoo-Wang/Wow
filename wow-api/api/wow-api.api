@@ -4479,6 +4479,7 @@ public final class me/ahoo/wow/api/result/FunctionKind : java/lang/Enum {
 	public static final field COMMAND Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field PROJECT Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field REACT Lme/ahoo/wow/api/result/FunctionKind;
+	public static final field RESERVATION Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field SAGA Lme/ahoo/wow/api/result/FunctionKind;
 	public static final field SNAPSHOT Lme/ahoo/wow/api/result/FunctionKind;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
@@ -4488,6 +4489,7 @@ public final class me/ahoo/wow/api/result/FunctionKind : java/lang/Enum {
 
 public final class me/ahoo/wow/api/result/Hop {
 	public static final field Companion Lme/ahoo/wow/api/result/Hop$Companion;
+	public static final field RESERVATION_SUBSCRIPTION Ljava/lang/String;
 	public static final field SNAPSHOT_SUBSCRIPTION Ljava/lang/String;
 	public fun <init> (Lme/ahoo/wow/api/result/Stage;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/result/Stage;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

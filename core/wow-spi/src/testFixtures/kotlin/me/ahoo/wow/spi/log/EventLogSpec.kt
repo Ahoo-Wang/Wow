@@ -130,7 +130,7 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `transport is given back by tail only`(): Unit = runBlocking {
+    fun `transport is given back by tail and readEntries only`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
         val transport = Transport(
             wait = WaitContext(
@@ -155,10 +155,32 @@ abstract class EventLogSpec {
         entries[0].stream.assertSameAs(carried)
         entries[1].transport.assert().isNull()
         entries[2].transport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
+        log.readEntries(carried.ref).toList().map { it.transport }.assert().isEqualTo(entries.map { it.transport })
         // read and findByRequestId return facts only: an EventStreamRecord has no place for the transport.
         log.read(carried.ref, 1, 1).toList().single().assertSameAs(carried)
         checkNotNull(log.findByRequestId("tenant", carried.requestId)).assertSameAs(carried)
     }
+
+    @Test
+    fun `readEntries returns a version range in version order, each entry with its position and transport`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 4)
+            val transport = Transport(reservations = listOf(ReservationKey("user-name", "ahoo ü")))
+            val appended = listOf(stream("a", 1), stream("a", 2), stream("a", 3), stream("a", 4))
+            val positions = appended.mapIndexed { index, stream ->
+                log.append(stream("b", index + 1))
+                val outcome = log.append(stream, transport.takeIf { index % 2 == 1 })
+                (outcome as AppendOutcome.Committed).position
+            }
+            val entries = log.readEntries(type.ref("tenant", "a"), 2, 3).toList()
+            entries.map { it.stream.version }.assert().containsExactly(2, 3)
+            entries.map { it.position }.assert().containsExactly(positions[1], positions[2])
+            entries.map { it.transport }.assert().containsExactly(transport, null)
+            entries[0].stream.assertSameAs(appended[1])
+            log.readEntries(type.ref("tenant", "a")).toList().map { it.position }.assert().isEqualTo(positions)
+            log.readEntries(type.ref("tenant", "missing")).toList().assert().isEmpty()
+            log.readEntries(type.ref("other", "a")).toList().assert().isEmpty()
+        }
 
     @Test
     fun `positionOf finds where a version of an aggregate was committed`(): Unit = runBlocking {

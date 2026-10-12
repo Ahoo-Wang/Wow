@@ -56,6 +56,9 @@ data class Hop(val stage: Stage, val context: String? = null, val subscription: 
         /** The name of the built-in subscription that writes snapshots. */
         const val SNAPSHOT_SUBSCRIPTION: String = "snapshot"
 
+        /** The name of the built-in subscription that confirms reservations (decision D50). */
+        const val RESERVATION_SUBSCRIPTION: String = "reservation"
+
         /** [Stage.ACCEPTED] in [context]. */
         fun accepted(context: String? = null): Hop = Hop(Stage.ACCEPTED, context)
 
