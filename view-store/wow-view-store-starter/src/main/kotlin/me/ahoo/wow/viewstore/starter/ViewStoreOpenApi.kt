@@ -38,6 +38,7 @@ import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesView
+import me.ahoo.wow.viewstore.api.wording.DatasetWordingInput
 import me.ahoo.wow.viewstore.domain.view.ViewState
 import reactor.core.scheduler.Schedulers
 
@@ -73,6 +74,7 @@ internal class ViewStoreOpenApi(
         val systemView: Schema<*>,
         val preferencesView: Schema<*>,
         val preferencesInput: Schema<*>,
+        val wordingInput: Schema<*>,
         val commandResult: Schema<*>,
         val replay: Schema<*>,
         val components: Map<String, Schema<*>>,
@@ -87,6 +89,7 @@ internal class ViewStoreOpenApi(
         val preferencesView = context.schema(ViewPreferencesView::class.java)
         val commandResult = context.schema(CommandResult::class.java)
         val preferencesInput = context.schema(ViewPreferencesInput::class.java)
+        val wordingInput = context.schema(DatasetWordingInput::class.java)
         val replay = context.schema(MaterializedSnapshot::class.java, ViewState::class.java)
         context.finish()
         return RenderedSchemas(
@@ -94,6 +97,7 @@ internal class ViewStoreOpenApi(
             systemView = systemView,
             preferencesView = preferencesView,
             preferencesInput = preferencesInput,
+            wordingInput = wordingInput,
             commandResult = commandResult,
             replay = replay,
             components = LinkedHashMap(context.schemas),
@@ -126,6 +130,9 @@ internal class ViewStoreOpenApi(
             paths.preferences to PathItem()
                 .get(getPreferences(schemas))
                 .put(setPreferences(schemas)),
+            paths.datasetWording to PathItem()
+                .put(setDatasetWording(schemas))
+                .delete(clearDatasetWording(schemas)),
             paths.replay to PathItem().get(replay(schemas)),
             paths.claim to PathItem().put(claim(schemas)),
         )
@@ -184,6 +191,31 @@ internal class ViewStoreOpenApi(
                 Content().addMediaType(JSON, MediaType().schema(schemas.preferencesInput))
             )
         )
+
+    private fun setDatasetWording(schemas: RenderedSchemas): Operation = operation(
+        "view-store.setDatasetWording",
+        "Set the tenant's wording of a dataset, under the shared owner only; expected version 0 is never written",
+        schemas.errorInfo,
+        ok(schemas.commandResult),
+    ).addParametersItem(pathParameter(ViewStorePaths.DATASET))
+        .addParametersItem(header(CommandHeaders.REQUEST_ID, false))
+        .addParametersItem(header(CommandHeaders.AGGREGATE_VERSION, false, IntegerSchema()))
+        .addParametersItem(header(CommandHeaders.WAIT_STAGE, false))
+        .requestBody(
+            RequestBody().required(true).content(
+                Content().addMediaType(JSON, MediaType().schema(schemas.wordingInput))
+            )
+        )
+
+    private fun clearDatasetWording(schemas: RenderedSchemas): Operation = operation(
+        "view-store.clearDatasetWording",
+        "Clear the tenant's wording of a dataset, under the shared owner only",
+        schemas.errorInfo,
+        ok(schemas.commandResult),
+    ).addParametersItem(pathParameter(ViewStorePaths.DATASET))
+        .addParametersItem(header(CommandHeaders.REQUEST_ID, false))
+        .addParametersItem(header(CommandHeaders.AGGREGATE_VERSION, false, IntegerSchema()))
+        .addParametersItem(header(CommandHeaders.WAIT_STAGE, false))
 
     private fun claim(schemas: RenderedSchemas): Operation = operation(
         "view-store.claimView",

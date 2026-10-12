@@ -22,6 +22,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferences
 import me.ahoo.wow.viewstore.domain.view.View
+import me.ahoo.wow.viewstore.domain.wording.DatasetWording
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.server.PathContainer
@@ -40,6 +41,7 @@ class ViewStoreRouteSpecsTest {
     private val namedAggregates = setOf(
         View::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate,
         ViewPreferences::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate,
+        DatasetWording::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate,
     )
 
     @Test
@@ -68,6 +70,8 @@ class ViewStoreRouteSpecsTest {
             "GET ${paths.systemView}",
             "GET ${paths.preferences}",
             "PUT ${paths.preferences}",
+            "PUT ${paths.datasetWording}",
+            "DELETE ${paths.datasetWording}",
             "GET ${paths.replay}",
             "PUT ${paths.claim}",
         )
@@ -93,10 +97,13 @@ class ViewStoreRouteSpecsTest {
                     "GET $scope/system-views/{id}",
                     "GET $scope/definitions/{definitionId}/preferences",
                     "PUT $scope/definitions/{definitionId}/preferences",
+                    "PUT $scope/datasets/{dataset}/wording",
+                    "DELETE $scope/datasets/{dataset}/wording",
                     "GET $scope/view/requests/{requestId}",
                 ) +
                     snapshotQueries.map { "POST $scope/view/snapshot/$it" } +
-                    snapshotQueries.map { "POST $scope/view_preferences/snapshot/$it" }
+                    snapshotQueries.map { "POST $scope/view_preferences/snapshot/$it" } +
+                    snapshotQueries.map { "POST $scope/dataset_wording/snapshot/$it" }
                 ).toTypedArray()
         )
         exposed.forEach { route ->
@@ -130,9 +137,13 @@ class ViewStoreRouteSpecsTest {
         val closedCommands = guard.closedContracts
             .filter { it.handlerKey == BuiltInHttpRouteHandlerKeys.Command.COMMAND }
             .map { "${it.method} ${it.path}" }
-        // Wow's recover and resource tags, for both aggregates, and preferences' delete: in-process only.
-        closedCommands.assert().hasSize(5)
-        closedCommands.assert().contains("DELETE $scope/view_preferences/{id}")
+        // Wow's recover and resource tags, for each aggregate, and preferences' delete: in-process only.
+        closedCommands.assert().hasSize(7)
+        closedCommands.assert().contains(
+            "DELETE $scope/view_preferences/{id}",
+            "PUT $scope/dataset_wording/{id}/recover",
+            "PUT $scope/dataset_wording/{id}/tags",
+        )
         guard.closedContracts.map { "${it.method} ${it.path}" }.assert()
             .contains("POST $scope/view/event/list", "POST $scope/view_preferences/event/count")
         guard.closedContracts.forEach { contract ->

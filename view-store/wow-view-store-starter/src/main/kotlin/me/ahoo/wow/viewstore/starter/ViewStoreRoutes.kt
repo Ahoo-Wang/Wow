@@ -23,12 +23,15 @@ internal object ViewStoreRoutes {
         paths: ViewStorePaths,
         handlers: ViewStoreHandlers,
         audienceHandlers: ViewAudienceHandlers,
+        wordingHandlers: DatasetWordingHandlers,
     ): RouterFunction<ServerResponse> =
         RouterFunctions.route()
             .GET(paths.systemViews, handlers::systemViews)
             .GET(paths.systemView, handlers::systemView)
             .GET(paths.preferences, handlers::getPreferences)
             .PUT(paths.preferences, handlers::setPreferences)
+            .PUT(paths.datasetWording, wordingHandlers::set)
+            .DELETE(paths.datasetWording, wordingHandlers::clear)
             .GET(paths.replay, handlers::replay)
             .PUT(paths.share, audienceHandlers::share)
             .PUT(paths.claim, audienceHandlers::claim)

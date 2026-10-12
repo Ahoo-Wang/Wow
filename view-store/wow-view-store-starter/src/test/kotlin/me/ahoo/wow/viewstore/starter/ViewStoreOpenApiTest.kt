@@ -71,6 +71,7 @@ class ViewStoreOpenApiTest {
             paths.systemViews,
             paths.systemView,
             paths.preferences,
+            paths.datasetWording,
             paths.replay,
             paths.claim,
         )

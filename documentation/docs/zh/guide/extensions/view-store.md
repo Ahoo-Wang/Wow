@@ -5,7 +5,7 @@ description: 视图引擎保存的视图与偏好在 Wow 服务端的落点：�
 
 # 视图存储
 
-视图存储是视图引擎 `ViewStore` 端口在 Wow 上的服务端：读者保存的视图与偏好是两个 Wow 聚合，`view`（视图）与 `view_preferences`（视图偏好），限界上下文 `view-store`。前端用 `@ahoo-wang/wow-view-store` 的 `WowViewStore` 接它（[视图存在哪里](../typescript/view-engine-storage.md)）。
+视图存储是视图引擎 `ViewStore` 端口在 Wow 上的服务端：读者保存的视图与偏好是两个 Wow 聚合，`view`（视图）与 `view_preferences`（视图偏好），另有租户给数据集写的措辞 `dataset_wording`（数据集措辞），限界上下文 `view-store`。前端用 `@ahoo-wang/wow-view-store` 的 `WowViewStore` 接它（[视图存在哪里](../typescript/view-engine-storage.md)）。
 
 **它不做认证。** 租户、所有者与应用按请求写的取：路径里的 `{tenantId}`、`{ownerId}` 与请求头 `CoSec-App-Id`。谁能用哪条路径，全由前面的 CoSec 网关决定。所以每个部署——嵌入的也好，独立的也好——都只能放在 CoSec 网关后面（[安全模型](#安全模型)）。
 
@@ -14,7 +14,7 @@ description: 视图引擎保存的视图与偏好在 Wow 服务端的落点：�
 | 模块 | 内容 |
 |---|---|
 | `wow-view-store-api` | 限界上下文 `view-store`、命令、事件、`ViewKind`／`ViewAudience`、`SystemView`、错误码 |
-| `wow-view-store-domain` | 聚合 `View`（`view`）与 `ViewPreferences`（`view_preferences`）及其规则 |
+| `wow-view-store-domain` | 聚合 `View`（`view`）、`ViewPreferences`（`view_preferences`）与 `DatasetWording`（`dataset_wording`）及其规则 |
 | `wow-view-store-starter` | Spring Boot 自动配置：把视图存储嵌进一个 Wow 服务 |
 | `wow-view-store-server` | 基于 starter 的独立服务，事件与快照存在 MongoDB；以 Docker 镜像发布 |
 
@@ -39,12 +39,12 @@ implementation("me.ahoo.wow:wow-view-store-starter")
 
 两个聚合随 domain 模块进到 classpath，Wow 像路由宿主自己的聚合一样路由它们，前缀是 `/view-store/tenant/{tenantId}/owner/{ownerId}/…`。starter 加上它们需要的其余部分，每个 Bean 都以视图存储命名、只碰视图存储的聚合与路径，宿主自己的聚合、路由与查询不受影响。
 
-- **开放的路由**：`POST /view`（创建）、`PUT /view/{id}/save` 与 `/rename`、`DELETE /view/{id}`；`PUT /view/{id}/share`（在视图的个人路径上，移到 `owner/(shared)`）与 `PUT /view/{id}/claim`（在调用者自己的个人路径上，把共享视图收为己有）；`/view/snapshot/…` 与 `/view_preferences/snapshot/…` 的快照查询；`GET /system-views`、`GET`／`PUT /definitions/{definitionId}/preferences` 与 `GET /view/requests/{requestId}`（重放）。
+- **开放的路由**：`POST /view`（创建）、`PUT /view/{id}/save` 与 `/rename`、`DELETE /view/{id}`；`PUT /view/{id}/share`（在视图的个人路径上，移到 `owner/(shared)`）与 `PUT /view/{id}/claim`（在调用者自己的个人路径上，把共享视图收为己有）；`/view/snapshot/…`、`/view_preferences/snapshot/…` 与 `/dataset_wording/snapshot/…` 的快照查询；`GET /system-views`、`GET`／`PUT /definitions/{definitionId}/preferences`、`PUT`／`DELETE /datasets/{dataset}/wording`（只在 `owner/(shared)` 下）与 `GET /view/requests/{requestId}`（重放）。
 - **其余路由一律 404**：Wow 为两个聚合生成的状态、追踪、事件流、快照维护、补偿、恢复与资源标签路由，以及它们命令的命令门面，都关掉了。少一条路由，网关就少一条要管的路径。
 - 命令不带 id（Wow 从 `{id}` 取）；没有字段的命令（`share`、`delete`）以 `{}` 为请求体。
 - 设 `wow.view-store.enabled=false` 关掉 starter。
 
-**聚合名会撞。** 两个聚合叫 `view` 与 `view_preferences`，Wow 的 MongoDB 集合（`view_event_stream`、`view_snapshot`……）不带上下文名。宿主自己若有叫 `view` 或 `view_preferences` 的聚合，会共用这些集合：不要在它里面嵌入 starter，或者给宿主的聚合改名。
+**聚合名会撞。** 三个聚合叫 `view`、`view_preferences` 与 `dataset_wording`，Wow 的 MongoDB 集合（`view_event_stream`、`view_snapshot`……）不带上下文名。宿主自己若有同名的聚合，会共用这些集合：不要在它里面嵌入 starter，或者给宿主的聚合改名。
 
 **路径大小写。** starter 的规则都不区分大小写地匹配路径，所以设了 `PathMatchConfigurer.setUseCaseSensitiveMatch(false)` 的宿主也受保护。只有一处例外：开放路由只在它自己的大小写下胜过关闭的路由，所以在不区分大小写的宿主上，`…/view/REQUESTS/state` 这样的路径答 404。用别的解析选项替换了 Spring 的 `RouterFunctionMapping` 的宿主，不要嵌入 starter。
 
@@ -135,7 +135,7 @@ wow:
 
 - 改一个运行中部署的前缀，视图存储就搬到新的空主题上：先把旧主题消费完。
 - 视图存储的主题是 Wow 缺省主题（两个前缀都没设，总线在 Kafka 上）的宿主，启动时打一条警告，点名 `wow.view-store.kafka.topic-prefix`：它无从知道集群上是否还有别的部署。
-- Kafka 集群不自动建主题（`auto.create.topics.enable=false`）时，在宿主启动前建好视图存储的六个主题：`<prefix>view-store.view.{command,event,state}` 与 `<prefix>view-store.view_preferences.{command,event,state}`。补偿服务就是 `wow.compensation-service.view-store.view.command` 和它旁边的五个。
+- Kafka 集群不自动建主题（`auto.create.topics.enable=false`）时，在宿主启动前建好视图存储的九个主题：`<prefix>view-store.view.{command,event,state}`、`<prefix>view-store.view_preferences.{command,event,state}` 与 `<prefix>view-store.dataset_wording.{command,event,state}`。补偿服务就是 `wow.compensation-service.view-store.view.command` 和它旁边的八个。
 - 视图存储有自己前缀的宿主，在它生成的 BI 脚本（`wow.bi.script`）里不包含视图存储：脚本按 BI 唯一的 `topic-prefix` 读每个聚合的主题，而那个前缀不是视图存储的。
 
 ## 存储
@@ -147,7 +147,7 @@ wow:
 
 ### Elasticsearch
 
-starter 带着两个快照索引的定义（`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json` 与 `wow.view-store.view_preferences.snapshot.json`）和视图事件流的定义（`wow.view-store.view.es.json`），索引还不存在时，Wow 在启动时按它们建，与它自己的模板并列：
+starter 带着三个快照索引的定义（`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json`、`wow.view-store.view_preferences.snapshot.json` 与 `wow.view-store.dataset_wording.snapshot.json`）和视图事件流的定义（`wow.view-store.view.es.json`），索引还不存在时，Wow 在启动时按它们建，与它自己的模板并列：
 
 - 被查询的路径（`state.definitionId`、`state.appId`、`state.config.kind` 与面板引用）是不带 `ignore_above` 的 `keyword`，所以无论 Wow 的模板推断出什么，查询模式都接受视图存储发的过滤。
 - `state.config` 是 `dynamic: false`：它装着引擎配置里的一切，包括同一个键下不同类型的值；只有 `kind` 与 `panels`（`nested` 数组，供共享看板检查用，含 `instanceId`、`opens`、`click.instanceId`）是字段。服务端因此拒绝 `panels` 不是至多 1000 个对象的数组、引用不是至多 256 字的字符串的配置，以及超过 256 字的 `definitionId`：存储会拒绝它索引不了的文档。
@@ -238,6 +238,14 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 - 存储视图经宿主的快照查询后端（MongoDB 或 Elasticsearch）从视图快照里读，每个应用至多 1000 个（超出时警告点名那个应用）。没有快照查询后端的宿主（内存快照）只提供配置视图，启动时打一条警告：存储的系统视图在那里是关的。宿主自己的 `StoredSystemViewSource` Bean 可以替换两者。
 - 前端由宿主给 `editSystem` 的人发布与编辑它们（[权限](../typescript/view-engine-storage.md#权限-只管按钮-网关来决定)）。
 
+## 数据集措辞
+
+数据集（`defineDataset`，视图引擎 D86）的标题、名词与字段的口径、次序与收窄，可以由租户的管理员存在视图存储里，而不必写进宿主代码：每个租户、每个应用、每个数据集一份（聚合 `dataset_wording`，id 由服务端算出），挂在 `owner/(shared)` 下。
+
+- 写：`PUT …/owner/(shared)/datasets/{dataset}/wording`，请求体 `{title?, recordNoun?, fields?}`，带期望版本（`0` 即从没写过）；`DELETE` 同一路径清掉它。标题去空白后 1～120 字，名词 1～40 字，`fields` 是对象、不超过 64 KB，服务端不解释其语义，也不校验字段路径——数据集删了列，措辞照旧存着，引擎套用时略过。
+- 读：`dataset_wording` 的快照查询（`POST …/owner/(shared)/dataset_wording/snapshot/list`），照例只读到本应用的。
+- 设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
+
 ## 安全模型
 
 ### 网关拥有权限
@@ -259,6 +267,7 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 | `/view-store/tenant/{tenantId}/owner/(shared)/**` | `POST /view`、`PUT`、`DELETE`（写） | `{tenantId}` 是令牌的租户，**且**调用者具备写共享视图的角色 |
 | `/view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`、`…/view/{id}/share` | `PUT` | `{tenantId}` 是令牌的租户，`{ownerId}` 是令牌的 `sub`，**且**调用者具备写共享视图的角色 |
 | `/view-store/tenant/{tenantId}/owner/(shared)/definitions/{definitionId}/preferences` | `PUT` | 同共享写入（不登录的宿主把偏好存在这里） |
+| `/view-store/tenant/{tenantId}/owner/(shared)/datasets/{dataset}/wording` | `PUT`、`DELETE` | `{tenantId}` 是令牌的租户，**且**调用者具备管理数据集措辞的角色——比共享写入更严，在它的放行之外另加一条拒绝策略 |
 | `/view-store/tenant/(platform)/owner/(system)/**` | 全部 | 调用者是系统视图的管理员（任何租户：这些视图是全局的） |
 
 - **收为个人与设为共享两样都要。** 收为个人把共享视图移给调用者，等于把它从所有人的列表里拿掉；设为共享把个人视图移到 `(shared)`，等于把它发布到所有人的列表里。两者都发到个人路径（`sub == {ownerId}`），还要写共享视图的角色。个人规则不能单独放行它们：把 `…/view/{id}/claim` 与 `…/view/{id}/share` 从个人规则里排除，只由这一条决定；否则谁都能先建个人视图、再设为共享，发布一个共享视图。

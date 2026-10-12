@@ -78,7 +78,7 @@ private fun Any.isViewStoreTopicConverter(): Boolean =
         this is ViewStoreEventStreamTopicConverter ||
         this is ViewStoreStateEventTopicConverter
 
-/** Whether this is one of the view store's aggregates (`view`, `view_preferences`). */
+/** Whether this is one of the view store's aggregates (`view`, `view_preferences`, `dataset_wording`). */
 internal fun NamedAggregate.isViewStoreAggregate(): Boolean = contextName == ViewStoreService.SERVICE_NAME
 
 internal class ViewStoreCommandTopicConverter(

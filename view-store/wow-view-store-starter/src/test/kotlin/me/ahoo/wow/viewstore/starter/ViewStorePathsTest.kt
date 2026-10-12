@@ -26,6 +26,8 @@ class ViewStorePathsTest {
         hosted.systemViews.assert().isEqualTo("/view-store/tenant/{tenantId}/owner/{ownerId}/system-views")
         hosted.preferences.assert()
             .isEqualTo("/view-store/tenant/{tenantId}/owner/{ownerId}/definitions/{definitionId}/preferences")
+        hosted.datasetWording.assert()
+            .isEqualTo("/view-store/tenant/{tenantId}/owner/{ownerId}/datasets/{dataset}/wording")
         hosted.replay.assert().isEqualTo("/view-store/tenant/{tenantId}/owner/{ownerId}/view/requests/{requestId}")
     }
 

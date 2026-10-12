@@ -1,5 +1,6 @@
 public final class me/ahoo/wow/viewstore/domain/AggregatesMetadata {
 	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/AggregatesMetadata;
+	public final fun getDatasetWordingAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
 	public final fun getViewAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
 	public final fun getViewPreferencesAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
 }
@@ -128,6 +129,46 @@ public final class me/ahoo/wow/viewstore/domain/view/ViewStateProperties {
 	public static final field DEFINITION_ID Ljava/lang/String;
 	public static final field ID Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/view/ViewStateProperties;
+	public static final field TITLE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/domain/wording/DatasetWording {
+	public static final field Companion Lme/ahoo/wow/viewstore/domain/wording/DatasetWording$Companion;
+	public static final field MAX_FIELDS_BYTES I
+	public static final field MAX_NOUN_LENGTH I
+	public fun <init> (Lme/ahoo/wow/viewstore/domain/wording/DatasetWordingState;)V
+	public final fun onClear (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/api/event/DefaultAggregateDeleted;
+	public final fun onSet (Lme/ahoo/wow/api/command/CommandMessage;)Lme/ahoo/wow/viewstore/api/wording/DatasetWordingSet;
+}
+
+public final class me/ahoo/wow/viewstore/domain/wording/DatasetWording$Companion {
+}
+
+public final class me/ahoo/wow/viewstore/domain/wording/DatasetWordingIds {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/wording/DatasetWordingIds;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/domain/wording/DatasetWordingState {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getDataset ()Ljava/lang/String;
+	public final fun getFields ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getRecordNoun ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun onSet (Lme/ahoo/wow/viewstore/api/wording/DatasetWordingSet;)V
+}
+
+public final class me/ahoo/wow/viewstore/domain/wording/DatasetWordingStateProperties {
+	public static final field APP_ID Ljava/lang/String;
+	public static final field DATASET Ljava/lang/String;
+	public static final field FIELDS Ljava/lang/String;
+	public static final field FIELDS___CHILDREN Ljava/lang/String;
+	public static final field FIELDS___NODE_FACTORY Ljava/lang/String;
+	public static final field ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/domain/wording/DatasetWordingStateProperties;
+	public static final field RECORD_NOUN Ljava/lang/String;
 	public static final field TITLE Ljava/lang/String;
 }
 
