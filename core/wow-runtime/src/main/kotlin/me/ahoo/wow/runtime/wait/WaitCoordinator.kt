@@ -105,7 +105,7 @@ class WaitCoordinator(
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
         val function = commandFunction(model, command)
         val context = command.ref.type.context
-        val chain = when (val checked = WaitChain.of(command.wait, context, directory, options.maxHops)) {
+        val chain = when (val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops)) {
             is WaitChain.Invalid -> {
                 emit(admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock()))
                 return@flow

@@ -237,6 +237,32 @@ class Kernel(
     }
 
     /**
+     * The committed state of [ref] at [version], read-only (design 04 §1: the state a subscription hands over when
+     * the commit's state view is gone, on a replay or after an ownership change): [snapshot] evolved with the log's
+     * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
+     * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
+     *
+     * @return the state, version and scope at [version]; null when the log does not hold [version].
+     */
+    suspend fun <S : Any> stateAt(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        version: Int,
+        snapshot: SnapshotRecord? = null,
+    ): CachedState? {
+        require(ref.type == model.type) { "$ref is not a ${model.type}." }
+        require(version >= 1) { "A committed state has a version from 1." }
+        if (snapshot != null && snapshot.ref == ref && snapshot.version <= version) {
+            fromSnapshot(model, snapshot, version)?.let { return it.takeIf { state -> state.version == version } }
+        }
+        val streams = log.read(ref, 1, version).toList()
+        if (streams.lastOrNull()?.version != version) {
+            return null
+        }
+        return replay(model, CachedState(model.initialState(ref), 0), streams)
+    }
+
+    /**
      * The snapshot of [ref], or null when there is none or the store fails: a snapshot is only a cache, so a failing
      * store costs a full replay, never the command. Cancellation still propagates.
      */
@@ -258,9 +284,14 @@ class Kernel(
     /**
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
      * for another state schema, not decodable, or newer than the log. The tail is read from the snapshot's own
-     * version, so the same read proves the log holds that version; that stream is already folded and is skipped.
+     * version, so the same read proves the log holds that version; that stream is already folded and is skipped. The
+     * tail stops at [until].
      */
-    private suspend fun <S : Any> fromSnapshot(model: AggregateModel<S>, snapshot: SnapshotRecord): CachedState? {
+    private suspend fun <S : Any> fromSnapshot(
+        model: AggregateModel<S>,
+        snapshot: SnapshotRecord,
+        until: Int = Int.MAX_VALUE,
+    ): CachedState? {
         if (snapshot.schemaFingerprint != codec.stateSchemaFingerprint(model)) {
             logger.debug { "The snapshot of ${snapshot.ref} has another state schema; replaying its log." }
             return null
@@ -274,7 +305,7 @@ class Kernel(
             logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode whole; replaying its log." }
             return null
         }
-        val streams = log.read(snapshot.ref, snapshot.version).toList()
+        val streams = log.read(snapshot.ref, snapshot.version, until).toList()
         if (streams.firstOrNull()?.version != snapshot.version) {
             logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
             return null

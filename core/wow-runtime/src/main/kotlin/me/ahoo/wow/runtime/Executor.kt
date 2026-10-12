@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.runtime
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -21,6 +23,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.snapshot.StateViews
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -35,10 +38,16 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * [close] stops taking commands at once (a late command fails instead of waiting on a lane nobody will run) and
  * returns when the commands already taken have finished.
+ *
+ * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
+ * next command, while nothing can change the state (design 01 §2): the snapshot subscription writes from it. A
+ * view is only an optimisation, so failing to take one never fails the committed command: the failure is logged,
+ * the aggregate's view is dropped, and the subscription rebuilds the state instead.
  */
 class Executor(
     private val kernel: Kernel,
     private val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
+    private val views: StateViews? = null,
 ) {
     private val lanes = ConcurrentHashMap<AggregateRef, Lane>()
     private val inFlight = AtomicInteger()
@@ -58,9 +67,28 @@ class Executor(
     suspend fun execute(model: AggregateModel<*>, command: Command<*>, wait: WaitContext? = null): CommandOutcome {
         val lane = enter(command.ref)
         try {
-            return lane.lock.withLock { kernel.execute(model, command, wait) }
+            return lane.lock.withLock {
+                kernel.execute(model, command, wait).also {
+                    if (views != null && it is CommandOutcome.Committed) {
+                        recordView(views, model, it)
+                    }
+                }
+            }
         } finally {
             leave(command.ref)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Whatever fails, the command is committed; only cancellation propagates.
+    private fun recordView(views: StateViews, model: AggregateModel<*>, committed: CommandOutcome.Committed) {
+        try {
+            views.record(model, committed)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            val stream = committed.stream
+            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; dropping it." }
+            views.drop(stream.ref)
         }
     }
 
@@ -121,6 +149,7 @@ class Executor(
 
     private companion object {
         const val DEFAULT_LANE_CAPACITY = 1_024
+        val logger = KotlinLogging.logger {}
     }
 }
 
