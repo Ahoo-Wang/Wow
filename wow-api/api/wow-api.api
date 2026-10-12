@@ -493,6 +493,7 @@ public abstract interface class me/ahoo/wow/api/decide/DecideScope {
 	public abstract fun getCommand ()Lme/ahoo/wow/api/decide/Command;
 	public abstract fun onAppendFailure (Lkotlin/jvm/functions/Function1;)V
 	public abstract fun putResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public abstract fun reserve (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class me/ahoo/wow/api/decide/Decision {

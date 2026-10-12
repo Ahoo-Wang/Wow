@@ -33,4 +33,13 @@ interface DecideScope {
 
     /** Registers [action] to run once this attempt's events are appended. A failure of it is logged, not raised. */
     fun afterAppend(action: suspend () -> Unit)
+
+    /**
+     * Reserves [key] in [namespace] for this command's aggregate, such as a unique user name (decision D38); false
+     * when another aggregate holds it. The reservation is pending, with an expiry, until the events are appended; then
+     * it is confirmed. When they are surely not appended it is released, and if the process dies first it expires
+     * (finding R8). A key the aggregate already holds confirmed stays held whatever this attempt does. Releasing or
+     * moving a confirmed key, as a rename does, is a saga's work.
+     */
+    suspend fun reserve(namespace: String, key: String): Boolean
 }

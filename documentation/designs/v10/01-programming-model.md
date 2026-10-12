@@ -110,6 +110,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 
 - 作为 `@WowSpi` 端口，由日志后端（PostgreSQL、MongoDB）实现，与日志同库，不引入新的存储依赖。
 - 在 Decide 里经 `DecideScope` 使用（Decide 允许 I/O）：先预留，再产出事件；命令被拒绝或追加失败时，回滚本次命令做的预留。
+- 用法：`suspend` 的 decide 调用 `DecideScope.reserve(命名空间, 键)`，返回 false 即键已被其他聚合占用；预留归聚合所有（`AggregateRef`），所以 Saga 改名时知道该释放谁的键。
 - 回滚建立在一个通用机制上：`DecideScope.onAppendFailure { … }` 登记「追加没有成功时」要执行的补偿，Decide 里做的任何外部副作用都可以用它（KaeX mvp 的 `CommandUnitOfWork`）；预留键是它的第一个使用者。
 - KaeX mvp 曾为稳住核心把 `PrepareKey` 整体移除，那是范围取舍，不是否定这个能力；9.x 用户在用，所以 V10 保留（D38）。
 - 释放与转移（例如改名）由领域事件驱动的 Saga 完成，失败进入失败台账。

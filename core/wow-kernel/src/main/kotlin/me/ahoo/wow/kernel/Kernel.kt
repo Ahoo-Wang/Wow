@@ -25,6 +25,9 @@ import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.reservation.ReservationStore
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The write kernel: turns one admitted command into at most one committed event stream
@@ -45,6 +48,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  * [verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
  * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log (F4). The
  * test DSL turns it on; it costs two serializations of the state per command.
+ *
+ * [reservations] backs [DecideScope.reserve]; a pending reservation lives for [reservationTtl] unless the append
+ * confirms it first.
  */
 class Kernel(
     private val log: EventLog,
@@ -52,6 +58,8 @@ class Kernel(
     private val clock: () -> Long = System::currentTimeMillis,
     private val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
     private val verifyDecidePurity: Boolean = false,
+    private val reservations: ReservationStore? = null,
+    private val reservationTtl: Duration = DEFAULT_RESERVATION_TTL,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -66,7 +74,7 @@ class Kernel(
         repeat(maxAttempts) {
             val (state, version) = load(model, command)
             admissible(decider, command, version)?.let { return it }
-            val scope = AttemptScope(command)
+            val scope = AttemptScope(command, reservations, reservationTtl)
             val prepared = try {
                 prepare(model, decider, scope, state, command, version, fingerprint)
             } catch (
@@ -230,7 +238,11 @@ class Kernel(
     }
 
     /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
-    private class AttemptScope(override val command: Command<*>) : DecideScope {
+    private class AttemptScope(
+        override val command: Command<*>,
+        private val reservations: ReservationStore?,
+        private val reservationTtl: Duration,
+    ) : DecideScope {
         private var compensations: MutableList<suspend () -> Unit>? = null
         private var afterAppendActions: MutableList<suspend () -> Unit>? = null
         private var results: MutableMap<String, Any>? = null
@@ -240,6 +252,19 @@ class Kernel(
         }
 
         fun results(): Map<String, Any> = results ?: emptyMap()
+
+        override suspend fun reserve(namespace: String, key: String): Boolean {
+            val store = checkNotNull(reservations) { "Reserving a key needs a kernel with a ReservationStore." }
+            // The aggregate owns the key, so a saga can release or move it. Commands of one aggregate are serialized by
+            // its partition owner, so two attempts sharing a pending reservation do not overlap in practice.
+            val owner = command.ref.toString()
+            val reservation = store.reserve(namespace, key, owner, reservationTtl) ?: return false
+            if (!reservation.confirmed) {
+                onAppendFailure { store.release(namespace, key, owner) }
+                afterAppend { store.confirm(namespace, key, owner) }
+            }
+            return true
+        }
 
         override fun onAppendFailure(compensation: suspend () -> Unit) {
             (compensations ?: ArrayList<suspend () -> Unit>().also { compensations = it }) += compensation
@@ -275,6 +300,7 @@ class Kernel(
 
     private companion object {
         const val DEFAULT_MAX_ATTEMPTS = 3
+        val DEFAULT_RESERVATION_TTL = 30.seconds
         val log = KotlinLogging.logger {}
     }
 }
