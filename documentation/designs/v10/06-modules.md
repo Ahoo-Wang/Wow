@@ -78,7 +78,7 @@ me.ahoo.wow.api
 | `command`（`CommandMessage`、`CommandResultAccessor`…）、`event`（`DomainEvent`、`EventMessage`） | 约 850 行 | 删除，由 `Command`、`StateEvent` 取代 |
 | 生命周期事件、`exception/ErrorInfo`、`abac` | 约 1,100 行 | 按 V10 语义重做（`lifecycle`、`result`；标签进生命周期命令） |
 
-**时机**：`wow-api` 与 9.x 同名，只能原地演进（§4）；`v10` 上仍有 9.x 的 `wow-core` 及约 15 个模块依赖旧类型。所以 V10 的包现在就补齐、KSP 改为只认 V10 注解（同名注解原地沿用，D79）；9.x 的包在替换 `wow-core` 的里程碑里一并删除，`query` 在 M9 搬走。
+**时机**：V10 的 `wow-api` 是新目录 `api/wow-api` 里的新模块（Gradle 项目 `:wow-api-v10`，artifactId `wow-api`，D85），只放上表的包；9.x 的 `wow-api` 原地不动，供 `wow-core` 等 9.x 模块使用，M9 随 9.x 一起删除，`query` 在 M9 搬入 `wow-query-api`。
 
 ## 3. 依赖方向
 
@@ -136,7 +136,7 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 **搬迁时机**：`v10` 分支每周合入 main（[路线图](roadmap.md) §1）。main 上仍在活跃变化的目录（`typescript/`、`view-store/`、`dataset-registry/`、`analytics/`、`compensation/dashboard/`、`documentation/`）若在分支上提早搬家，每次前向合并都会冲突。所以：
 
 - V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。它们在孵化中：照常构建与测试，不发布、不做 ABI 校验，用 JDK 21（D29）。
-- 与 9.x **同名**、原地演进的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）在被重写的里程碑里随重写一起搬到新目录；其中 main 上仍在活跃变化的（`wow-api` 的查询部分、`wow-query`、`wow-clickhouse` 等）放到 M9 搬迁，理由同平台目录。Gradle 项目名唯一，同名模块不能新旧并存，所以它们只能原地演进。
+- 与 9.x **同名**的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）**不原地演进**（D85）：V10 重写时在新目录另起模块，只放 V10 代码，Gradle 项目名临时加后缀 `-v10`，artifactId 用最终名；9.x 模块的项目名与目录不动，前向合并照常，`v10` 不发布、不校验它们的 ABI；架构测试禁止同时依赖新旧两边；M9 删除 9.x 时去掉后缀。项目名与 artifactId 可以不同，所以同名不妨碍新旧并存。
 - 被整体替换的 9.x 模块（`wow-core`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux`、`wow-rest-contract`、`wow-redis`、`wow-bi`、`wow-schema`、`wow-metadata`、`wow-mock`）留在原地，在替换它的里程碑里删除。
 - 平台目录在 M9 合入 main 之前，用一个只做搬迁的提交移到 `platform/`；CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 在同一个提交里更新。
 
