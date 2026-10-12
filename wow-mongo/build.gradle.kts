@@ -8,6 +8,8 @@ dependencies {
     api("org.mongodb:mongodb-driver-sync")
     testImplementation(project(":wow-tck"))
     integrationTestImplementation(testFixtures(project(":spi")))
+    // V10: the partition owner's append queue against the MongoDB log.
+    integrationTestImplementation(project(":runtime"))
 }
 
 // Spike H1 (MongoDB) measures throughput only on demand: ./gradlew :wow-mongo:integrationTest -Dwow.spike.h1=true
