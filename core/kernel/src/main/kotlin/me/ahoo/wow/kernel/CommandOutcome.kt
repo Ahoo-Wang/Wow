@@ -60,4 +60,10 @@ object KernelRejections {
 
     /** The aggregate is deleted: it takes no command but [me.ahoo.wow.api.lifecycle.RestoreAggregate]. */
     const val DELETED = "wow.aggregate.deleted"
+
+    /**
+     * The aggregate belongs to another owner or space than the command's scope (decision D94): each part present in
+     * the command's scope must equal the aggregate's; an absent one is not checked.
+     */
+    const val FORBIDDEN = "wow.aggregate.forbidden"
 }

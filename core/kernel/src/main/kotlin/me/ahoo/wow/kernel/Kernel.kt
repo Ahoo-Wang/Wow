@@ -20,10 +20,12 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -45,6 +47,7 @@ import kotlin.time.Duration.Companion.seconds
  * 1. **Deduplicate before deciding** (D46): a request id already committed in the tenant is never decided again; a
  *    command of another type reusing it is rejected. Commands are told apart by their model name only, not by a hash
  *    of their body (D55): a same-type command reusing a request id is taken for a retry, by the caller's contract.
+ *    A duplicate is answered only within the scope that sent it (see [duplicate]).
  * 2. **Load** the committed state, **decide** (the command's function, then its after hooks, D39), **evolve** a
  *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [maxAttempts]; an unknown append outcome is settled
@@ -72,6 +75,13 @@ import kotlin.time.Duration.Companion.seconds
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
  * The kernel keeps the deleted mark and the tags beside the state too, evolved by the lifecycle events: a deleted
  * aggregate refuses every command but [RestoreAggregate] ([KernelRejections.DELETED]).
+ *
+ * The aggregate's scope also guards it (D94): an existing aggregate refuses a command whose scope names another owner
+ * or space ([KernelRejections.FORBIDDEN]). A part absent from the command's scope is not checked: a system command, a
+ * saga's, or an administrator's acting across scopes carries none. Creating an aggregate is not guarded; it gives the
+ * aggregate the creating command's scope. A transfer of the owner or the space is guarded like any other command: its
+ * scope is the caller's, so the current owner (or a member of the current space) transfers, and the new owner or space
+ * is in its body.
  */
 class Kernel(
     private val log: EventLog,
@@ -105,7 +115,7 @@ class Kernel(
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
-        log.findByRequestId(command.ref.tenantId, command.requestId)?.let { return settled(it, commandType) }
+        log.findByRequestId(command.ref.tenantId, command.requestId)?.let { return duplicate(it, command, commandType) }
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         repeat(maxAttempts) {
             val loaded = load(model, command)
@@ -350,15 +360,21 @@ class Kernel(
     }
 
     /**
-     * Refuses [command] before deciding when the aggregate as [loaded] cannot take it: it does not exist and the
-     * command does not create it, it is deleted and the command does not restore it, it exists and the command must
-     * create it, or it is not at the expected version.
+     * Refuses [command] before deciding when the aggregate as [loaded] cannot take it, checked in this order: it does
+     * not exist and the command does not create it; it exists in another scope than the command's (D94); it is
+     * deleted and the command does not restore it; it exists and the command must create it; it is not at the
+     * expected version.
+     *
+     * The scope comes right after existence, so a caller outside the aggregate's scope learns only that it exists,
+     * which a colliding creation would tell it anyway: not whether it is deleted, nor its version.
      */
     private fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded: CachedState): CommandOutcome? {
         val version = loaded.version
         return when {
             version == 0 && decider.creation == Creation.NONE ->
                 rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
+
+            version > 0 && !admits(loaded.scope, command.scope) -> forbidden(command)
 
             loaded.deleted && command.body != RestoreAggregate ->
                 rejected(KernelRejections.DELETED, "${command.ref} is deleted.")
@@ -395,6 +411,34 @@ class Kernel(
         is AfterFunction.Sync -> after.after(scope, state, body)
         is AfterFunction.Suspending -> after.after(scope, state, body)
     }
+
+    /**
+     * Answers [command], whose request id [existing] already committed: a retry gets that stream back, before the
+     * aggregate is loaded and without deciding again (D46).
+     *
+     * A retry comes from the scope that sent the command, so the answer is given only within that scope (D94): a
+     * caller outside it, reusing or guessing another caller's request id, learns neither the stream nor which command
+     * committed it, so this check comes before the command types are compared. That scope is the aggregate's before
+     * the stream, but the stream records only its scope after; the two differ only in a part the stream's own events
+     * transferred, and that part is not checked: retrying a transfer is still answered though the caller no longer
+     * holds the aggregate.
+     */
+    private fun duplicate(existing: EventStreamRecord, command: Command<*>, commandType: CommandType): CommandOutcome {
+        val names = existing.events.mapTo(HashSet()) { it.name }
+        val before = Scope(
+            if (Lifecycle.OWNER_TRANSFERRED in names) command.scope.ownerId else existing.scope.ownerId,
+            if (Lifecycle.SPACE_TRANSFERRED in names) command.scope.spaceId else existing.scope.spaceId,
+        )
+        return if (admits(before, command.scope)) settled(existing, commandType) else forbidden(command)
+    }
+
+    /** Whether an aggregate in scope [aggregate] takes a command in scope [caller]: each part the caller has matches. */
+    private fun admits(aggregate: Scope, caller: Scope): Boolean =
+        (caller.ownerId == null || caller.ownerId == aggregate.ownerId) &&
+            (caller.spaceId == null || caller.spaceId == aggregate.spaceId)
+
+    private fun forbidden(command: Command<*>) =
+        rejected(KernelRejections.FORBIDDEN, "${command.ref} is outside the command's scope.")
 
     /** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's (D55). */
     private fun settled(existing: EventStreamRecord, commandType: CommandType): CommandOutcome =

@@ -49,7 +49,13 @@ class CartSpec {
     @Test
     fun `the cart keeps the scope it was created in`() = aggregateSpec(cartModel) {
         whenCommand(CreateCart("ahoo"), scope = Scope("ahoo", "home")) { expectScope(Scope("ahoo", "home")) }
-        whenCommand(AddItem("apple", 1), scope = Scope("bob", null)) { expectScope(Scope("ahoo", "home")) }
+        whenCommand(AddItem("apple", 1), scope = Scope("ahoo", null)) { expectScope(Scope("ahoo", "home")) }
+    }
+
+    @Test
+    fun `the cart refuses a command from another owner`() = aggregateSpec(cartModel) {
+        given(CartCreated("ahoo"), scope = Scope("ahoo", "home"))
+        whenCommand(AddItem("apple", 1), scope = Scope("bob", "home")) { expectRejected(KernelRejections.FORBIDDEN) }
     }
 
     @Test

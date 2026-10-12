@@ -98,8 +98,8 @@ class KernelSnapshotTest {
     @Test
     fun `the aggregate's scope comes from the creating command and is carried forward`(): Unit = runTest {
         history()
-        // A later command's caller scope does not move the aggregate's.
-        (send(replaying, AddItem("apple", 1), Scope("bob", null)) as CommandOutcome.Committed).stream.scope
+        // A later command's caller scope, here without the space, does not move the aggregate's.
+        (send(replaying, AddItem("apple", 1), Scope("alice", null)) as CommandOutcome.Committed).stream.scope
             .assert().isEqualTo(owned)
         log.read(ref).toList().map { it.scope }.distinct().assert().containsExactly(owned)
     }

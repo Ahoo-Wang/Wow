@@ -119,7 +119,7 @@ class KernelLifecycleTest {
         transferred.stream.events.map { it.name }.assert().containsExactly(Lifecycle.OWNER_TRANSFERRED)
         transferred.stream.scope.assert().isEqualTo(Scope("bob", "space-a"))
         // A later command's caller scope does not move it.
-        send(AddItem("apple", 1), Scope("carol", null)).committed().stream.scope
+        send(AddItem("apple", 1), Scope("bob", null)).committed().stream.scope
             .assert().isEqualTo(Scope("bob", "space-a"))
         send(TransferOwner("bob")).assert().isEqualTo(CommandOutcome.Unchanged(3))
         head().scope.assert().isEqualTo(Scope("bob", "space-a"))
