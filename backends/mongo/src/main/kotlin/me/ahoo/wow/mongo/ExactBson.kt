@@ -77,9 +77,8 @@ internal object ExactBson {
         node.isInt -> node.intValue()
         node.isLong -> node.longValue()
         node.isBigInteger -> decimal128(BigDecimal(node.bigIntegerValue()))
-        node.isBigDecimal -> decimal128(node.decimalValue())
-        // Wow's mapper reads every JSON value as one of the nodes above.
-        else -> throw IllegalArgumentException("A ${node.nodeType} node is not JSON a document can store.")
+        // What Wow's mapper reads besides the nodes above is a decimal.
+        else -> decimal128(node.decimalValue())
     }
 
     /** [value] as a Decimal128 of the same digits and scale; refused when it has no such Decimal128. */
