@@ -16,6 +16,10 @@ package me.ahoo.wow.runtime.wait
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
@@ -37,6 +41,8 @@ import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -78,7 +84,11 @@ data class WaitOptions(
  * - A duplicate request (decision D63) cannot be signalled again: its later hops happened, or will, under the first
  *   request's wait. A HANDLED hop of this context that ends the chain is checked from the subscription's checkpoint
  *   and the failure ledger ([SubscriptionDirectory.hasHandled]); otherwise the wait stops at COMMITTED, `duplicate`.
- * - On timeout the answer is FAILED with [ResultCodes.WAIT_TIMEOUT] at the last hop reached.
+ * - On timeout the answer is FAILED with [ResultCodes.WAIT_TIMEOUT] at the last hop reached. The deadline covers the
+ *   whole wait, the command's execution included (decision D64): the command is routed and executed in a supervised
+ *   scope this coordinator owns, so a wait that times out before the command's outcome is known answers at ACCEPTED
+ *   while the execution goes on, not cancelled half-way through a commit. Its outcome is then only logged; a retry
+ *   with the same request id finds it, as the kernel deduplicates by request id.
  * - A plan the runtime cannot follow is rejected before the command runs ([ResultCodes.WAIT_INVALID]), including an
  *   explicit snapshot hop for an aggregate without a snapshot subscription; only the default plan
  *   ([me.ahoo.wow.api.result.WaitPlan.DEFAULT]) waits for COMMITTED there instead (decision D69).
@@ -101,7 +111,11 @@ class WaitCoordinator(
     private val clock: () -> Long = System::currentTimeMillis,
     private val waitIds: () -> String = { UUID.randomUUID().toString() },
     private val router: CommandRouter = CommandRouter.LOCAL,
+    executionContext: CoroutineContext = Dispatchers.Default,
 ) {
+    /** Where the commands of [stream] execute, apart from their waits (decision D64). */
+    private val executions = CoroutineScope(SupervisorJob() + executionContext)
+
     /** Executes [command] on [model]'s aggregate and returns the result it ends its wait with. */
     suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = stream(model, command).last()
 
@@ -117,8 +131,12 @@ class WaitCoordinator(
      *   hop completed). A plan rejected at admission emits only that rejection, at ACCEPTED.
      * - A plan whose only hop is ACCEPTED still runs the command before the flow completes; [accept] answers it at
      *   once instead (decision D100).
-     * - Outcomes are results, never errors: the flow fails only when the execution itself throws, and is cancelled
-     *   with its collector. Either way the wait is unregistered, and later signals for it are dropped.
+     * - The timeout bounds the execution too (decision D64): a command whose outcome is not known by the deadline ends
+     *   the wait at ACCEPTED, timed out, and goes on executing in this coordinator's scope, as does one whose
+     *   collector cancels the flow first; its outcome is logged.
+     * - Outcomes are results, never errors: the flow fails only when the execution itself throws while it is waited
+     *   for, and is cancelled with its collector. Either way the wait is unregistered, and later signals for it are
+     *   dropped.
      */
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
         val function = commandFunction(model, command)
@@ -138,7 +156,11 @@ class WaitCoordinator(
         try {
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
             val wait = WaitContext(waitId, options.origin, chain.hops, deadline)
-            val settlement = router.route(model, command, wait) { executeHere(model, command, wait) }
+            val settlement = settle(model, command, wait)
+            if (settlement == null) {
+                timeOut(waiting) { "The wait timed out at $it, before the command's outcome was known." }
+                return@flow
+            }
             waiting.offer(settlement.committed)
             settlement.reached.forEach { waiting.offer(it) }
             if (settlement.committed.duplicate) {
@@ -178,21 +200,58 @@ class WaitCoordinator(
         }
     }
 
+    /**
+     * Routes and executes [command] in [executions] and returns its settlement, or null when [wait]'s deadline passes
+     * first. The execution is cancelled neither then nor with the caller: of the waiter giving up and the execution
+     * finishing, whichever comes second learns it from [AtomicBoolean.compareAndSet] failing, and when the execution
+     * finishes second, it logs its outcome.
+     */
+    private suspend fun settle(model: AggregateModel<*>, command: Command<*>, wait: WaitContext): Settlement? {
+        val taken = AtomicBoolean()
+        val execution: Deferred<Settlement> = executions.async { routeReporting(model, command, wait, taken) }
+        try {
+            return withTimeoutOrNull(left(wait.deadline)) { execution.await() }
+                ?: if (taken.compareAndSet(false, true)) null else execution.await()
+        } catch (cancelled: CancellationException) {
+            taken.set(true)
+            throw cancelled
+        }
+    }
+
+    /** Routes and executes [command]; logs its outcome when its waiter has gone ([taken] already set). */
+    @Suppress("TooGenericExceptionCaught") // What the execution throws is the waiter's, or logged once it has gone.
+    private suspend fun routeReporting(
+        model: AggregateModel<*>,
+        command: Command<*>,
+        wait: WaitContext,
+        taken: AtomicBoolean,
+    ): Settlement {
+        val settlement = try {
+            router.route(model, command, wait) { executeHere(model, command, wait) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            if (!taken.compareAndSet(false, true)) {
+                logger.warn(failure) { "Command ${command.id} on ${command.ref} failed after its waiter had gone." }
+            }
+            throw failure
+        }
+        if (!taken.compareAndSet(false, true)) {
+            val committed = settlement.committed
+            logger.info {
+                "Command ${command.id} on ${command.ref} settled ${committed.status} after its waiter had gone: " +
+                    (committed.error?.toString() ?: "version ${committed.version}")
+            }
+        }
+        return settlement
+    }
+
     /** Emits the wait's hop results until it ends, ending it with a timeout at [deadline]. */
     private suspend fun FlowCollector<CommandResult>.drain(waiting: Waiting, deadline: Long) {
         while (true) {
-            val left = (deadline - clock()).coerceAtLeast(0).milliseconds
-            val next = withTimeoutOrNull(left) { waiting.results.receiveCatching() }
+            val next = withTimeoutOrNull(left(deadline)) { waiting.results.receiveCatching() }
             if (next == null) {
-                val last = checkNotNull(waiting.lastReached) { "A registered wait has reached ACCEPTED." }
-                waiting.finish(
-                    last.failed(ResultCodes.WAIT_TIMEOUT, "The wait timed out after reaching ${last.hop}.")
-                        .copy(signalTime = clock()),
-                )
-                // Ended now, by the timeout or by a result that came first: what is left ends with the final result.
-                for (result in waiting.results) {
-                    emit(result)
-                }
+                timeOut(waiting) { "The wait timed out after reaching $it." }
                 return
             }
             if (next.isClosed) {
@@ -201,6 +260,22 @@ class WaitCoordinator(
             emit(next.getOrThrow())
         }
     }
+
+    /**
+     * Ends the wait with a timeout at the last hop it reached, saying so in the [message] of that hop, unless it
+     * already ended; then emits what is left of its results, ending with the final one.
+     */
+    private suspend inline fun FlowCollector<CommandResult>.timeOut(waiting: Waiting, message: (Hop) -> String) {
+        val last = checkNotNull(waiting.lastReached) { "A registered wait has reached ACCEPTED." }
+        waiting.finish(last.failed(ResultCodes.WAIT_TIMEOUT, message(last.hop)).copy(signalTime = clock()))
+        // Ended now, by the timeout or by a result that came first: what is left ends with the final result.
+        for (result in waiting.results) {
+            emit(result)
+        }
+    }
+
+    /** The time left until [deadline], none when it passed. */
+    private fun left(deadline: Long): Duration = (deadline - clock()).coerceAtLeast(0).milliseconds
 
     /**
      * Executes [command] on [model]'s aggregate on this node, with the [wait] context it arrived with, and settles
