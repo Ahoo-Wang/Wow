@@ -1,0 +1,121 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.http.command
+
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.Problem
+import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.TargetScope
+import org.springframework.http.HttpStatus
+import org.springframework.http.InvalidMediaTypeException
+import org.springframework.http.MediaType
+import org.springframework.web.reactive.function.server.ServerRequest
+
+/**
+ * Reads the Wow headers of a request (decisions D95, D98, D99); a header that does not parse is answered as a problem
+ * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
+ */
+internal class RequestHeaders(private val statuses: ErrorStatuses) {
+    /** The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69). */
+    fun wait(request: ServerRequest): WaitPlan? {
+        val plan = request.header(WowHeaders.WAIT)
+        val timeout = request.header(WowHeaders.WAIT_TIMEOUT)
+        if (plan == null && timeout == null) {
+            return null
+        }
+        return try {
+            val parsed = plan?.let(WaitHeader::parse) ?: WaitPlan.DEFAULT
+            timeout?.let { parsed.within(WaitHeader.parseTimeout(it)) } ?: parsed
+        } catch (invalid: IllegalArgumentException) {
+            throw problem(FrameworkCodes.WAIT_INVALID, invalid.message ?: "The wait does not parse.")
+        }
+    }
+
+    /** The target scope of `Wow-Scope`, or null without it. */
+    fun target(request: ServerRequest): TargetScope? = request.header(WowHeaders.SCOPE)?.let {
+        try {
+            ScopeHeader.parse(it)
+        } catch (malformed: IllegalArgumentException) {
+            throw problem(FrameworkCodes.MALFORMED, malformed.message ?: "Wow-Scope does not parse.")
+        }
+    }
+
+    /**
+     * The expected version of `If-Match`: one entity tag, the version (`"3"`, or `3`), or null without it or for
+     * `If-Match: *`, which expects no version in particular.
+     */
+    fun expectedVersion(request: ServerRequest): Int? {
+        val value = request.header(WowHeaders.IF_MATCH) ?: return null
+        if (value == "*") {
+            return null
+        }
+        val tag = value.removeSurrounding("\"")
+        return tag.toIntOrNull()?.takeIf { it >= 0 }
+            ?: throw problem(FrameworkCodes.MALFORMED, "If-Match is one version as an entity tag, such as \"3\".")
+    }
+
+    /** The request id of `Wow-Request-Id`, or null without it. */
+    fun requestId(request: ServerRequest): String? = request.header(WowHeaders.REQUEST_ID)
+
+    /** The request facts [names] lists that [request] carries, as named in [names]. */
+    fun facts(request: ServerRequest, names: Set<String>): Map<String, String> =
+        names.mapNotNull { name -> request.header(name)?.let { name to it } }.toMap()
+
+    private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
+
+    private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
+}
+
+/** The media types a public route answers in. */
+internal object Negotiation {
+    private val ANSWERED = listOf(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)
+
+    /** Whether the client asked for server-sent events. */
+    fun wantsEventStream(request: ServerRequest): Boolean =
+        accept(request).any { it.equalsTypeAndSubtype(MediaType.TEXT_EVENT_STREAM) }
+
+    /** Fails with 406 when the client accepts none of the JSON types [alsoEventStream] or event stream. */
+    fun checkAcceptable(request: ServerRequest, alsoEventStream: Boolean) {
+        val accept = accept(request)
+        val answered = if (alsoEventStream) ANSWERED + MediaType.TEXT_EVENT_STREAM else ANSWERED
+        if (accept.isNotEmpty() && accept.none { type -> answered.any { type.isCompatibleWith(it) } }) {
+            throw ProblemException(
+                Problem.ofStatus(HttpStatus.NOT_ACCEPTABLE, "The route answers in ${answered.joinToString()}."),
+            )
+        }
+    }
+
+    /** Fails with 415 when the request body is given as another type than JSON. */
+    fun checkJsonBody(request: ServerRequest) {
+        val type = try {
+            request.headers().contentType().orElse(null)
+        } catch (_: InvalidMediaTypeException) {
+            throw ProblemException(Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type does not parse."))
+        } ?: return
+        if (!type.isCompatibleWith(MediaType.APPLICATION_JSON) && !type.subtype.endsWith("+json")) {
+            throw ProblemException(
+                Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "A command is sent as application/json."),
+            )
+        }
+    }
+
+    private fun accept(request: ServerRequest): List<MediaType> = try {
+        request.headers().accept()
+    } catch (_: InvalidMediaTypeException) {
+        throw ProblemException(Problem.ofStatus(HttpStatus.NOT_ACCEPTABLE, "Accept does not parse."))
+    }
+}
