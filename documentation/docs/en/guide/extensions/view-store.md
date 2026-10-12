@@ -5,7 +5,7 @@ description: Where the view engine's saved views and preferences live on a Wow s
 
 # View Store
 
-The view store is the server side of the view engine's `ViewStore` port on Wow: the views and preferences readers save are two Wow aggregates, `view` and `view_preferences`, in the bounded context `view-store`. The front end reaches it with `WowViewStore` from `@ahoo-wang/wow-view-store` ([Where Views Live](../typescript/view-engine-storage.md)).
+The view store is the server side of the view engine's `ViewStore` port on Wow: the views and preferences readers save are two Wow aggregates, `view` and `view_preferences`, and the wording a tenant sets over its datasets a third, `dataset_wording`, in the bounded context `view-store`. The front end reaches it with `WowViewStore` from `@ahoo-wang/wow-view-store` ([Where Views Live](../typescript/view-engine-storage.md)).
 
 **It does no authentication.** It takes the tenant, the owner and the application as the request names them: the path's `{tenantId}` and `{ownerId}`, and the `CoSec-App-Id` header. Who may use which path is decided entirely by the CoSec gateway in front of it. So every deployment, embedded or standalone, runs only behind the CoSec gateway ([security model](#security-model)).
 
@@ -14,7 +14,7 @@ The view store is the server side of the view engine's `ViewStore` port on Wow: 
 | Module | Contents |
 |---|---|
 | `wow-view-store-api` | Bounded context `view-store`, commands, events, `ViewKind` / `ViewAudience`, `SystemView`, error codes |
-| `wow-view-store-domain` | Aggregates `View` (`view`) and `ViewPreferences` (`view_preferences`) and their rules |
+| `wow-view-store-domain` | Aggregates `View` (`view`), `ViewPreferences` (`view_preferences`) and `DatasetWording` (`dataset_wording`) and their rules |
 | `wow-view-store-starter` | Spring Boot auto-configuration that embeds the view store in a Wow service |
 | `wow-view-store-server` | A standalone service on the starter, with MongoDB for events and snapshots; published as a Docker image |
 
@@ -39,12 +39,12 @@ implementation("me.ahoo.wow:wow-view-store-starter")
 
 The two aggregates come with the domain module on the classpath, and Wow routes them like the host's own, under `/view-store/tenant/{tenantId}/owner/{ownerId}/…`. The starter adds what they need around them; every bean is named for the view store and touches only the view store's aggregates and paths, so the host's own aggregates, routes and queries are left as they were.
 
-- **Open routes**: `POST /view` (create), `PUT /view/{id}/save` and `/rename`, `DELETE /view/{id}`; `PUT /view/{id}/share` (on the view's personal path, moves it to `owner/(shared)`) and `PUT /view/{id}/claim` (on the caller's own personal path, moves a shared view to the caller); the snapshot queries under `/view/snapshot/…` and `/view_preferences/snapshot/…`; `GET /system-views`, `GET` / `PUT /definitions/{definitionId}/preferences`, and `GET /view/requests/{requestId}` (replay).
+- **Open routes**: `POST /view` (create), `PUT /view/{id}/save` and `/rename`, `DELETE /view/{id}`; `PUT /view/{id}/share` (on the view's personal path, moves it to `owner/(shared)`) and `PUT /view/{id}/claim` (on the caller's own personal path, moves a shared view to the caller); the snapshot queries under `/view/snapshot/…`, `/view_preferences/snapshot/…` and `/dataset_wording/snapshot/…`; `GET /system-views`, `GET` / `PUT /definitions/{definitionId}/preferences`, `PUT` / `DELETE /datasets/{dataset}/wording` (under `owner/(shared)` only), and `GET /view/requests/{requestId}` (replay).
 - **Every other route answers 404**: the state, tracing, event-stream, snapshot-maintenance, compensation, recover and resource-tag routes Wow generates for the two aggregates, and the command facade for their commands, are closed. One route fewer is one path fewer for the gateway to govern.
 - Commands carry no id (Wow takes it from `{id}`); a command without fields (`share`, `delete`) is sent with the body `{}`.
 - Set `wow.view-store.enabled=false` to turn the starter off.
 
-**Aggregate names can collide.** The aggregates are named `view` and `view_preferences`, and Wow's MongoDB collections (`view_event_stream`, `view_snapshot`, …) carry no context. A host with its own `view` or `view_preferences` aggregate would share those collections: do not embed the starter in it, or rename the host's aggregate.
+**Aggregate names can collide.** The aggregates are named `view`, `view_preferences` and `dataset_wording`, and Wow's MongoDB collections (`view_event_stream`, `view_snapshot`, …) carry no context. A host with its own aggregate of one of those names would share its collections: do not embed the starter in it, or rename the host's aggregate.
 
 **Path case.** The starter matches paths case-insensitively for all of its rules, so a host that sets `PathMatchConfigurer.setUseCaseSensitiveMatch(false)` is covered, with one exception: an open route wins over a closed one only in its own case, so on a case-insensitive host a path such as `…/view/REQUESTS/state` answers 404. A host that replaces Spring's `RouterFunctionMapping` with a parser of other options must not embed the starter.
 
@@ -135,7 +135,7 @@ wow:
 
 - Changing either prefix of a running deployment moves the view store to new, empty topics: drain the old ones first.
 - A host whose view store topics are Wow's default ones (neither prefix set, and a bus on Kafka) logs a warning at startup naming `wow.view-store.kafka.topic-prefix`: nothing tells it whether another deployment shares the cluster.
-- On a Kafka cluster that does not create topics on first use (`auto.create.topics.enable=false`), create the view store's six topics before the host starts: `<prefix>view-store.view.{command,event,state}` and `<prefix>view-store.view_preferences.{command,event,state}`. For the compensation service that is `wow.compensation-service.view-store.view.command` and the five beside it.
+- On a Kafka cluster that does not create topics on first use (`auto.create.topics.enable=false`), create the view store's nine topics before the host starts: `<prefix>view-store.view.{command,event,state}`, `<prefix>view-store.view_preferences.{command,event,state}` and `<prefix>view-store.dataset_wording.{command,event,state}`. For the compensation service that is `wow.compensation-service.view-store.view.command` and the eight beside it.
 - A host with its own view store prefix leaves the view store out of the BI script it generates (`wow.bi.script`): the script reads every aggregate's topics under BI's one `topic-prefix`, which is not the view store's.
 
 ## Storage
@@ -147,7 +147,7 @@ wow:
 
 ### Elasticsearch
 
-The starter ships the index definitions of its two snapshot indices (`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json` and `wow.view-store.view_preferences.snapshot.json`) and of the view's event stream (`wow.view-store.view.es.json`), which Wow creates at startup when the index does not exist yet, beside its own templates:
+The starter ships the index definitions of its three snapshot indices (`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json`, `wow.view-store.view_preferences.snapshot.json` and `wow.view-store.dataset_wording.snapshot.json`) and of the view's event stream (`wow.view-store.view.es.json`), which Wow creates at startup when the index does not exist yet, beside its own templates:
 
 - The queried paths (`state.definitionId`, `state.appId`, `state.config.kind` and the panel references) are `keyword` without `ignore_above`, so the query schema admits the filters the view store sends whatever Wow's template infers.
 - `state.config` is `dynamic: false`: it holds whatever the engine's config holds, values of several types under one key included, and only `kind` and `panels` (a `nested` array, for the shared-board check, with `instanceId`, `opens` and `click.instanceId`) are fields. So the server refuses a config whose `panels` is not an array of at most 1000 objects or whose references are not strings of at most 256 characters, and a `definitionId` longer than 256 characters: a store refuses a document it cannot index.
@@ -238,6 +238,14 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 - Stored views are read from the view snapshots through the host's snapshot query backend (MongoDB or Elasticsearch), at most 1000 per application (a warning names an application past that). A host without one (in-memory snapshots) serves the configured views alone and logs one warning at startup: stored system views are off there. A `StoredSystemViewSource` bean of the host's replaces either.
 - On the front end, whoever the host grants `editSystem` publishes and edits them ([permissions](../typescript/view-engine-storage.md#permissions-buttons-only-the-gateway-decides)).
 
+## Dataset wording
+
+A dataset's title, record noun, and its fields' labels, order and narrowing (`defineDataset`, view engine D86) can be kept in the view store by a tenant's administrators rather than in the host's code: one per tenant, application and dataset (aggregate `dataset_wording`, its id derived on the server), under `owner/(shared)`.
+
+- Write: `PUT …/owner/(shared)/datasets/{dataset}/wording` with the body `{title?, recordNoun?, fields?}` and the expected version (`0` is never written); `DELETE` on the same path clears it. A title is 1 to 120 characters once trimmed, a noun 1 to 40, and `fields` an object of at most 64 KB that the server neither interprets nor checks against the dataset: a column the dataset dropped keeps its wording, and the engine passes over it.
+- Read: the snapshot queries of `dataset_wording` (`POST …/owner/(shared)/dataset_wording/snapshot/list`), kept in the request's application as every view store query is.
+- The design: `documentation/designs/2026-10-11-dataset-wording-storage-design.md` in the Wow repository.
+
 ## Security model
 
 ### The gateway owns permissions
@@ -259,6 +267,7 @@ The rules tie the tenant, the owner and the application to the token (paths unde
 | `/view-store/tenant/{tenantId}/owner/(shared)/**` | `POST /view`, `PUT`, `DELETE` (writes) | `{tenantId}` is the token's tenant **and** the caller has the role that may write shared views |
 | `/view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`, `…/view/{id}/share` | `PUT` | `{tenantId}` is the token's tenant, `{ownerId}` is the token's `sub`, **and** the caller has the role that may write shared views |
 | `/view-store/tenant/{tenantId}/owner/(shared)/definitions/{definitionId}/preferences` | `PUT` | As a shared write (a host nobody signs in to keeps its preferences there) |
+| `/view-store/tenant/{tenantId}/owner/(shared)/datasets/{dataset}/wording` | `PUT`, `DELETE` | `{tenantId}` is the token's tenant, **and** the caller has the role that manages dataset wording: narrower than a shared write, so a deny statement beside that write's allow |
 | `/view-store/tenant/(platform)/owner/(system)/**` | all | The caller is an administrator of the system views (any tenant: the views are global) |
 
 - **Claim and share need both.** Claiming moves a shared view to the caller, so it takes it out of everyone's list; sharing moves a personal view to `(shared)`, so it publishes it into everyone's list. Both are sent to a personal path (`sub == {ownerId}`) and need the shared-write role as well. The personal rule must not admit either on its own: leave `…/view/{id}/claim` and `…/view/{id}/share` out of it, so only this rule decides; otherwise anyone could publish a shared view by creating a personal one and sharing it.

@@ -16,18 +16,20 @@ package me.ahoo.wow.viewstore
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.view.CreateView
+import me.ahoo.wow.viewstore.api.wording.SetDatasetWording
 
 /**
- * The view store: the saved views and view preferences of the view engine's `ViewStore` port.
+ * The view store: the saved views and view preferences of the view engine's `ViewStore` port, and the wording a
+ * tenant sets over the datasets it reads.
  *
- * Neither aggregate has a static tenant, so every route carries `tenant/{tenantId}`; both require an owner, so every
+ * No aggregate has a static tenant, so every route carries `tenant/{tenantId}`; each requires an owner, so every
  * route carries `owner/{ownerId}` too. The owner segment is the audience: a user id for a personal view,
- * [SHARED_OWNER_ID] for a shared one, [SYSTEM_OWNER_ID] for a stored system view. Neither aggregate is spaced.
+ * [SHARED_OWNER_ID] for a shared one, [SYSTEM_OWNER_ID] for a stored system view. No aggregate is spaced.
  */
 @BoundedContext(
     name = ViewStoreService.SERVICE_NAME,
     alias = ViewStoreService.SERVICE_ALIAS,
-    description = "The view engine's saved views and view preferences.",
+    description = "The view engine's saved views, view preferences and dataset wording.",
     aggregates = [
         BoundedContext.Aggregate(
             name = ViewStoreService.VIEW_AGGREGATE_NAME,
@@ -37,6 +39,10 @@ import me.ahoo.wow.viewstore.api.view.CreateView
             name = ViewStoreService.VIEW_PREFERENCES_AGGREGATE_NAME,
             packageScopes = [SetViewPreferences::class],
         ),
+        BoundedContext.Aggregate(
+            name = ViewStoreService.DATASET_WORDING_AGGREGATE_NAME,
+            packageScopes = [SetDatasetWording::class],
+        ),
     ],
 )
 object ViewStoreService {
@@ -44,6 +50,12 @@ object ViewStoreService {
     const val SERVICE_NAME = SERVICE_ALIAS
     const val VIEW_AGGREGATE_NAME = "view"
     const val VIEW_PREFERENCES_AGGREGATE_NAME = "view_preferences"
+
+    /**
+     * A tenant's wording over one dataset in one application (the view engine's dataset overrides, D86): kept under
+     * [SHARED_OWNER_ID], since it is the whole tenant's, and written by whom the security gateway lets write it.
+     */
+    const val DATASET_WORDING_AGGREGATE_NAME = "dataset_wording"
 
     /**
      * The reserved owner of shared views and shared preferences. The parentheses keep it apart from every user id.

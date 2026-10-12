@@ -59,6 +59,7 @@ class ViewStoreElasticsearchTest : ViewStoreHostSpec() {
         private val DATABASE = "view_store_es_it_" + UUID.randomUUID().toString().replace("-", "").take(12)
         private const val VIEW_INDEX = "wow.view-store.view.snapshot"
         private const val PREFERENCES_INDEX = "wow.view-store.view_preferences.snapshot"
+        private const val WORDING_INDEX = "wow.view-store.dataset_wording.snapshot"
         private const val VIEW_EVENTS_INDEX = "wow.view-store.view.es"
 
         @JvmStatic
@@ -114,6 +115,12 @@ class ViewStoreElasticsearchTest : ViewStoreHostSpec() {
                 view.at(path).keyword().ignoreAbove().assert().isNull()
             }
         properties(PREFERENCES_INDEX).at("state.lastTabs").`object`().enabled().assert().isFalse()
+        // A dataset's wording is listed by its dataset and application; its fields are the dataset's keys.
+        val wording = properties(WORDING_INDEX)
+        listOf("state.dataset", "state.appId").forEach { path ->
+            wording.at(path).keyword().ignoreAbove().assert().isNull()
+        }
+        wording.at("state.fields").`object`().enabled().assert().isFalse()
         // The replay's filters: Wow's event-stream template stores an event's body unindexed.
         val events = properties(VIEW_EVENTS_INDEX)
         events.at("body").isNested.assert().isTrue()

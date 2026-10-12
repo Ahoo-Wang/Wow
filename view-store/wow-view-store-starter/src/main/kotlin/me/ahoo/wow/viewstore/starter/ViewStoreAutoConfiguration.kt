@@ -41,6 +41,7 @@ import me.ahoo.wow.viewstore.domain.preferences.ViewPreferences
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.domain.view.View
 import me.ahoo.wow.viewstore.domain.view.ViewState
+import me.ahoo.wow.viewstore.domain.wording.DatasetWording
 import me.ahoo.wow.viewstore.starter.system.PropertiesSystemViewProvider
 import me.ahoo.wow.viewstore.starter.system.SnapshotStoredSystemViewSource
 import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
@@ -70,7 +71,7 @@ import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
 /**
- * Puts the view store into a Wow service: the `View` and `ViewPreferences` aggregates come with the domain on the
+ * Puts the view store into a Wow service: the `View`, `ViewPreferences` and `DatasetWording` aggregates come with the domain on the
  * classpath (Wow routes them like the host's own, under `/view-store`); this adds what they need around them. Every
  * bean is named for the view store and touches only the view store's aggregates and paths, so the host's own
  * aggregates, routes and queries are left as they were.
@@ -90,6 +91,9 @@ class ViewStoreAutoConfiguration {
         private val viewNamedAggregate = View::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate
         private val preferencesNamedAggregate =
             ViewPreferences::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate
+        private val wordingNamedAggregate =
+            DatasetWording::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate
+        private val viewStoreAggregates = setOf(viewNamedAggregate, preferencesNamedAggregate, wordingNamedAggregate)
     }
 
     @Bean("viewStoreErrorStatuses")
@@ -109,11 +113,11 @@ class ViewStoreAutoConfiguration {
 
     @Bean("viewStoreQueryPolicy")
     internal fun viewStoreQueryPolicy(): ViewStoreQueryPolicy =
-        ViewStoreQueryPolicy(setOf(viewNamedAggregate, preferencesNamedAggregate))
+        ViewStoreQueryPolicy(viewStoreAggregates)
 
     @Bean("viewStoreScopeContributor")
     internal fun viewStoreScopeContributor(): ViewStoreScopeContributor =
-        ViewStoreScopeContributor(setOf(viewNamedAggregate, preferencesNamedAggregate))
+        ViewStoreScopeContributor(viewStoreAggregates)
 
     @Bean
     @ConditionalOnMissingBean
@@ -187,6 +191,19 @@ class ViewStoreAutoConfiguration {
         exceptionHandler = exceptionHandler,
     )
 
+    @Bean("viewStoreDatasetWordingHandlers")
+    internal fun viewStoreDatasetWordingHandlers(
+        stateAggregateRepository: StateAggregateRepository,
+        commandGateway: CommandGateway,
+        commandMessageExtractor: CommandMessageExtractor,
+        commandWaitPolicy: CommandWaitPolicy,
+        exceptionHandler: RequestExceptionHandler,
+    ): DatasetWordingHandlers = DatasetWordingHandlers(
+        stateAggregateRepository = stateAggregateRepository,
+        commandHandler = CommandHandler(commandGateway, commandMessageExtractor, commandWaitPolicy),
+        exceptionHandler = exceptionHandler,
+    )
+
     @Bean("viewStoreAudienceHandlers")
     @Suppress("LongParameterList")
     internal fun viewStoreAudienceHandlers(
@@ -219,8 +236,13 @@ class ViewStoreAutoConfiguration {
         viewStorePaths: ViewStorePaths,
         viewStoreHandlers: ViewStoreHandlers,
         viewStoreAudienceHandlers: ViewAudienceHandlers,
-    ): RouterFunction<ServerResponse> =
-        ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, viewStoreAudienceHandlers)
+        viewStoreDatasetWordingHandlers: DatasetWordingHandlers,
+    ): RouterFunction<ServerResponse> = ViewStoreRoutes.routerFunction(
+        viewStorePaths,
+        viewStoreHandlers,
+        viewStoreAudienceHandlers,
+        viewStoreDatasetWordingHandlers,
+    )
 
     @Bean("viewStoreRouteGuard")
     internal fun viewStoreRouteGuard(
@@ -229,7 +251,7 @@ class ViewStoreAutoConfiguration {
     ): ViewStoreRouteGuard = ViewStoreRouteGuard(
         viewStorePaths,
         routerSpecs,
-        setOf(viewNamedAggregate, preferencesNamedAggregate)
+        viewStoreAggregates
     )
 
     @Bean("viewStoreWebFilter")

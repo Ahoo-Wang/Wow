@@ -31,6 +31,7 @@ internal class ViewStorePaths(currentContext: NamedBoundedContext) {
         const val TENANT_ID = MessageRecords.TENANT_ID
         const val OWNER_ID = MessageRecords.OWNER_ID
         const val DEFINITION_ID = "definitionId"
+        const val DATASET = "dataset"
         const val REQUEST_ID = "requestId"
         const val ID = MessageRecords.ID
     }
@@ -48,6 +49,9 @@ internal class ViewStorePaths(currentContext: NamedBoundedContext) {
     val systemViews: String = "$scope/system-views"
     val systemView: String = "$systemViews/{$ID}"
     val preferences: String = "$scope/definitions/{$DEFINITION_ID}/preferences"
+
+    /** A dataset's wording, under the shared owner only (see [DatasetWordingHandlers]). */
+    val datasetWording: String = "$scope/datasets/{$DATASET}/wording"
     val replay: String = "$scope/${ViewStoreService.VIEW_AGGREGATE_NAME}/requests/{$REQUEST_ID}"
 
     /** Wow's route of `ShareView`, which the starter answers first (see [ViewAudienceHandlers.share]). */

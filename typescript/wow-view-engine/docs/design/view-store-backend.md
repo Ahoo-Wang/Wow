@@ -155,6 +155,29 @@ data class ViewPreferencesState(
 
 此外还有平台管理员在界面上存下的系统视图（[D81](decisions.md)）：存在 `tenant/(platform)/owner/(system)` 下，随同一个列表返回，带 `stored: true`，同 id 时盖过配置的那一条；有 `editSystem` 的人可以再保存、改名、删除，其余人照样只读。
 
+### 5.4 数据集措辞（**DatasetWording**）
+
+一个租户在一个应用里给一个数据集写的措辞（view-engine [D86](decisions.md)：标题、名词与字段的口径、次序与收窄），存法与设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
+
+```kotlin
+data class DatasetWordingState(
+    val id: String,          // 服务端按「租户 × 应用 × 数据集」算出
+    val dataset: String,     // 目录里的名字，{context}.{dataset}
+    val appId: String,
+    val title: String?,      // 去空白后 1～120 字
+    val recordNoun: String?, // 去空白后 1～40 字
+    val fields: ObjectNode?, // 引擎的 DefineDatasetSpec.fields，整份 JSON，不超过 64 KB，服务端不解释其语义
+)
+```
+
+| 命令与路径                                                                           | 事件                  | 规则                                                                                                 |
+| ------------------------------------------------------------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------- |
+| **SetDatasetWording**：`PUT …/owner/(shared)/datasets/{dataset}/wording`（允许创建） | **DatasetWordingSet** | 期望版本（0 即从没写过）；只在 `owner/(shared)` 下，别的所有者答「不存在」；应用与状态不符读作不存在 |
+| **ClearDatasetWording**：`DELETE …/owner/(shared)/datasets/{dataset}/wording`        | 聚合已删除            | 期望版本；之后读作没有措辞                                                                           |
+
+- 读用 Wow 的快照查询（`POST …/owner/(shared)/dataset_wording/snapshot/list`），查询策略照例按请求的应用追加过滤；没有自定义的读路由。
+- 谁能写由 CoSec 按路径决定，规则与写共享视图分开（「管理数据集措辞」的角色）。
+
 ## 6. 客户端与端口
 
 ### 6.1 端口的变化（`@ahoo-wang/wow-view-engine`）

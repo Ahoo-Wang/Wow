@@ -42,7 +42,7 @@ import org.springframework.web.util.pattern.PathPattern
  * the owner, so for the view store's aggregates only these stay open:
  * - five of the command routes Wow generates (create, save, rename, share, delete), and its snapshot queries under
  *   `tenant/{tenantId}/owner/{ownerId}`;
- * - the routes the starter adds: claim, system views, preferences and replay.
+ * - the routes the starter adds: claim, system views, preferences, dataset wording and replay.
  *
  * Every other route Wow generates for them is closed, and so is the command facade (`POST /wow/command/send`) for
  * their commands: it takes the aggregate id, the owner and the headers from the caller and passes none of the
@@ -90,6 +90,8 @@ internal class ViewStoreRouteGuard(
                 HttpMethod.GET to paths.systemView,
                 HttpMethod.GET to paths.preferences,
                 HttpMethod.PUT to paths.preferences,
+                HttpMethod.PUT to paths.datasetWording,
+                HttpMethod.DELETE to paths.datasetWording,
                 HttpMethod.GET to paths.replay,
                 HttpMethod.PUT to paths.claim,
             )
@@ -166,8 +168,8 @@ internal class ViewStoreRouteGuard(
     private companion object {
         /**
          * The commands of `view` with an open route. Wow's recover and resource-tags commands (routed by default for
-         * every aggregate), and every command of `view_preferences` (whose one route is the starter's), are not among
-         * them, so they are in-process only.
+         * every aggregate), and every command of `view_preferences` and `dataset_wording` (whose routes are the
+         * starter's), are not among them, so they are in-process only.
          */
         val OPEN_VIEW_COMMANDS: Set<Class<*>> = setOf(
             CreateView::class.java,
