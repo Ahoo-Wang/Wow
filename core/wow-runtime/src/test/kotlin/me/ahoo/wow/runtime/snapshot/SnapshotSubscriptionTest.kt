@@ -24,6 +24,11 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.ApplyTags
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
+import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
@@ -35,6 +40,7 @@ import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.KernelRejections
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -182,6 +188,19 @@ class SnapshotSubscriptionTest {
     }
 
     private fun ref(id: String) = counter.type.ref("t", id)
+
+    /** A command of any [body], a lifecycle one included, to counter [id]. */
+    private fun command(
+        id: String,
+        body: Any,
+        wait: WaitPlan = WaitPlan.COMMITTED,
+        scope: Scope = Scope.NONE,
+    ): Command<Any> {
+        val n = sequence.incrementAndGet()
+        return Command("c-$n", "r-$n", ref(id), body, scope = scope, wait = wait)
+    }
+
+    private fun CommandOutcome.rejection(): String = (this as CommandOutcome.Rejected).rejection.code
 
     @AfterEach
     fun stop(): Unit = runBlocking {
@@ -334,6 +353,104 @@ class SnapshotSubscriptionTest {
         log.reads.assert().isEmpty()
         snapshots.views.size.assert().isEqualTo(0)
         store.load(ref("a"))!!.lastEventTime.assert().isEqualTo(committed.stream.commitTime)
+    }
+
+    @Test
+    fun `a deletion written from its state view reloads as deleted until it is restored`(): Unit = runBlocking {
+        runtime.start(setOf(0))
+        coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
+        runtime.stop()
+        // The view is recorded as the deletion commits, before the stopped runtime reads the entry.
+        val deleted = executor.execute(counter, command("a", DeleteAggregate)) as CommandOutcome.Committed
+        snapshots.views.size.assert().isEqualTo(1)
+        log.reads.clear()
+        val loads = store.loads.get()
+
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 1) })
+        resumed.start(setOf(0))
+        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
+        // Written from the view: neither the store nor the log was read.
+        store.loads.get().assert().isEqualTo(loads)
+        log.reads.assert().isEmpty()
+        val snapshot = store.load(ref("a"))!!
+        snapshot.version.assert().isEqualTo(2)
+        snapshot.deleted.assert().isTrue()
+
+        // The kernel caches no state, as after an eviction: it reloads from the snapshot, whose tail is empty.
+        executor.execute(counter, add("a", WaitPlan.COMMITTED)).rejection().assert().isEqualTo(KernelRejections.DELETED)
+        log.reads.assert().containsExactly(2)
+
+        val restored = executor.execute(counter, command("a", RestoreAggregate)) as CommandOutcome.Committed
+        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, restored.stream) }
+        store.load(ref("a"))!!.deleted.assert().isFalse()
+        val added = executor.execute(counter, add("a", WaitPlan.COMMITTED)) as CommandOutcome.Committed
+        added.stream.version.assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `the snapshot holds the scope and the tags the lifecycle commands gave`(): Unit = runBlocking {
+        runtime.start(setOf(0))
+        coordinator.execute(counter, add("a").copy(scope = Scope("alice", "space-a")))
+        val tags = mapOf("region" to listOf("eu", "us"))
+        listOf(TransferOwner("bob"), TransferSpace("space-b"), ApplyTags(tags)).forEach { body ->
+            coordinator.execute(counter, command("a", body, WaitPlan.SNAPSHOT)).hop
+                .assert().isEqualTo(Hop.snapshot("shop"))
+            store.load(ref("a"))!!.scope.assert().isEqualTo(log.read(ref("a")).toList().last().scope)
+        }
+        val snapshot = store.load(ref("a"))!!
+        snapshot.version.assert().isEqualTo(4)
+        snapshot.scope.assert().isEqualTo(Scope("bob", "space-b"))
+        snapshot.tags.assert().isEqualTo(tags)
+        snapshot.deleted.assert().isFalse()
+
+        // Reloaded from the snapshot alone, the aggregate has them: applying them again changes nothing.
+        log.reads.clear()
+        executor.execute(counter, command("a", ApplyTags(tags))).assert().isEqualTo(CommandOutcome.Unchanged(4))
+        executor.execute(counter, command("a", TransferOwner("bob"))).assert().isEqualTo(CommandOutcome.Unchanged(4))
+        executor.execute(counter, command("a", TransferSpace("space-b")))
+            .assert().isEqualTo(CommandOutcome.Unchanged(4))
+        log.reads.assert().containsExactly(4, 4, 4)
+    }
+
+    @Test
+    fun `without a state view the snapshot holds the deleted mark, the scope and the tags`(): Unit = runBlocking {
+        // Commands run outside the executor that records views: as on another node, or before an ownership change.
+        val elsewhere = Executor(kernel)
+        val tags = mapOf("tier" to listOf("gold"))
+        elsewhere.execute(counter, command("a", Add(), scope = Scope("alice", "space-a")))
+        listOf(ApplyTags(tags), TransferOwner("bob"), DeleteAggregate).forEach {
+            elsewhere.execute(counter, command("a", it)).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        }
+        // No snapshot is stored yet: the log is replayed.
+        runtime.start(setOf(0))
+        eventually { store.load(ref("a"))?.version == 4 }
+        runtime.stop()
+        val deleted = store.load(ref("a"))!!
+        deleted.deleted.assert().isTrue()
+        deleted.tags.assert().isEqualTo(tags)
+        deleted.scope.assert().isEqualTo(Scope("bob", "space-a"))
+
+        log.reads.clear()
+        elsewhere.execute(
+            counter,
+            add("a", WaitPlan.COMMITTED)
+        ).rejection().assert().isEqualTo(KernelRejections.DELETED)
+        log.reads.assert().containsExactly(4)
+
+        // The restore is written from the stored snapshot evolved with the log's tail.
+        val restored = elsewhere.execute(counter, command("a", RestoreAggregate)) as CommandOutcome.Committed
+        log.reads.clear()
+        val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 4) }, other)
+        resumed.start(setOf(0))
+        eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, restored.stream) }
+        log.reads.assert().isNotEmpty()
+        log.reads.none { it == 1 }.assert().isTrue()
+        val snapshot = store.load(ref("a"))!!
+        snapshot.version.assert().isEqualTo(5)
+        snapshot.deleted.assert().isFalse()
+        snapshot.tags.assert().isEqualTo(tags)
+        snapshot.scope.assert().isEqualTo(Scope("bob", "space-a"))
     }
 
     @Test

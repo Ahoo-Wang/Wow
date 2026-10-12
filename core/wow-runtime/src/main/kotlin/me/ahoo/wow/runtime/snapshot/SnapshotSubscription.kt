@@ -25,6 +25,7 @@ import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
@@ -41,8 +42,10 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * - **The state**: the view taken when the stream committed on this node ([views]); without one (a replay, an
  *   ownership change, a command run on another node) the stored snapshot evolved with the log's tail up to the
  *   stream ([Kernel.stateAt]), else the log replayed.
- * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's (decision D56), its last event time
- *   the stream's commit time, its first event time that of the aggregate's first stream.
+ * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's (decision D56), its deleted mark and
+ *   tags the kernel's after the stream (the view's, else those [Kernel.stateAt] returns), its last event time the
+ *   stream's commit time, its first event time that of the aggregate's first stream. The kernel reloads a deleted
+ *   or tagged aggregate from it as such.
  * - **Idempotent**: [SnapshotStore.save] only ever replaces a lower version, so a replay or an old owner running
  *   alongside the new one (decision D45) never moves a snapshot back. When the store already holds the stream's
  *   version or a later one, as this subscription last wrote or loaded it, nothing is rebuilt or saved, from a view
@@ -94,7 +97,7 @@ class SnapshotSubscription(
         val view = views.take(ref, version)
         val known = if (version == 1) stream.commitTime else held?.firstEventTime
         if (view != null && known != null) {
-            save(codec.snapshotOf(model, ref, view, version, stream.scope, known, stream.commitTime))
+            save(snapshotOf(model, stream, view.state, known, view.deleted, view.tags))
             return
         }
         val stored = store.load(ref)
@@ -103,11 +106,34 @@ class SnapshotSubscription(
             return
         }
         val first = known ?: stored?.firstEventTime ?: firstEventTime(ref)
-        val state = view ?: codec.stateText(
-            checkNotNull(kernel.stateAt(model, ref, version, stored)?.state) { "The log does not hold $ref@$version." },
-        )
-        save(codec.snapshotOf(model, ref, state, version, stream.scope, first, stream.commitTime))
+        if (view != null) {
+            save(snapshotOf(model, stream, view.state, first, view.deleted, view.tags))
+            return
+        }
+        val state = checkNotNull(kernel.stateAt(model, ref, version, stored)) { "The log does not hold $ref@$version." }
+        save(snapshotOf(model, stream, codec.stateText(state.state), first, state.deleted, state.tags))
     }
+
+    /** The snapshot of [stream]: [state] with the kernel's [deleted] mark and [tags] after it, and its scope. */
+    @Suppress("LongParameterList")
+    private fun snapshotOf(
+        model: AggregateModel<*>,
+        stream: EventStreamRecord,
+        state: String,
+        firstEventTime: Long,
+        deleted: Boolean,
+        tags: Map<String, List<String>>,
+    ): SnapshotRecord = codec.snapshotOf(
+        model,
+        stream.ref,
+        state,
+        stream.version,
+        stream.scope,
+        firstEventTime,
+        stream.commitTime,
+        deleted,
+        tags,
+    )
 
     /** Saves [snapshot]: written or not, the store then holds its version or a later one (a version-guarded save). */
     private suspend fun save(snapshot: SnapshotRecord) {
