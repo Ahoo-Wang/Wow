@@ -125,6 +125,7 @@ interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    rootGroups?: boolean;
     windows?: AnalysisWindowFunction[];
 }
 
@@ -408,6 +409,7 @@ interface AnalysisSpec {
     having?: boolean;
     // (undocumented)
     limits?: AnalysisLimits;
+    rootGroups?: boolean;
 }
 
 // @public
@@ -3229,6 +3231,7 @@ export const en: {
     readonly 'analysis.metric.currency-unchecked': "{metric} is money in each record’s own currency, which the source cannot check, so its totals may add several currencies; group by {field} to see each currency.";
     readonly 'analysis.split.whole-failed': "Could not fold the smaller series into “Other”, so colours repeat: {reason}";
     readonly 'analysis.sort.duplicate': "The sort already orders by {alias}.";
+    readonly 'analysis.sort.root-group-first': "The sort orders by {alias} ahead of a dimension over the record itself; those dimensions must come first.";
     readonly 'analysis.sort.metric-unsupported': "The source orders groups by their dimensions only, not by {alias}.";
     readonly 'analysis.sort.requires-group': "Sorting needs at least one dimension.";
     readonly 'analysis.sort.too-many': "A result sorts by at most {max} dimensions and metrics.";

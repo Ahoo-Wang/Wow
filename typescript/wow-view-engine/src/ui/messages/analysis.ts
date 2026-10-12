@@ -1021,6 +1021,8 @@ export const analysisMessages = {
   'analysis.split.whole-failed':
     'Could not fold the smaller series into “Other”, so colours repeat: {reason}',
   'analysis.sort.duplicate': 'The sort already orders by {alias}.',
+  'analysis.sort.root-group-first':
+    'The sort orders by {alias} ahead of a dimension over the record itself; those dimensions must come first.',
   'analysis.sort.metric-unsupported':
     'The source orders groups by their dimensions only, not by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one dimension.',

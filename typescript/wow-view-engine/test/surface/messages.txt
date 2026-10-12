@@ -1,4 +1,4 @@
-# Message keys — 2189.
+# Message keys — 2190.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -75,6 +75,7 @@ analysis.result.more-groups
 analysis.sort.duplicate
 analysis.sort.metric-unsupported
 analysis.sort.requires-group
+analysis.sort.root-group-first
 analysis.sort.too-many
 analysis.sort.unknown-alias
 analysis.split.whole-failed

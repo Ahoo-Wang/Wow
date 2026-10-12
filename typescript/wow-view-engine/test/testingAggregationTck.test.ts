@@ -24,6 +24,7 @@ import {
   AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionType,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   ComparisonOperator,
@@ -31,6 +32,7 @@ import {
   FilterOperator,
   SortDirection,
   type AggregationExpression,
+  type AggregationGroup,
 } from '@ahoo-wang/wow-client';
 import type { RecordData } from '../src/index.js';
 import { memorySource } from '../src/testing/index.js';
@@ -114,6 +116,55 @@ describe('the aggregation TCK (SnapshotQueryBackendSpec)', () => {
       }),
     ).toEqual([
       { count: 6, total: 410, average: 82, minimum: 0, maximum: 240 },
+    ]);
+  });
+
+  it('aggregation should group the elements by a field of their root record', async () => {
+    const root = {
+      ...terms('aggregateId', 'aggregate'),
+      scope: AggregationGroupScope.ROOT,
+    } as AggregationGroup;
+    expect(
+      pick(
+        await ask({
+          elements: [{ path: 'state.orders' }],
+          groupBy: [root, terms('status', 'status')],
+          metrics: [count('orders')],
+        }),
+        'aggregate',
+        'status',
+        'orders',
+      ),
+    ).toEqual([
+      ['aggregation-a', 'CANCELLED', 1],
+      ['aggregation-a', 'PAID', 1],
+      ['aggregation-b', 'PAID', 1],
+    ]);
+  });
+
+  it('aggregation should summarize the elements of each root group', async () => {
+    const root = {
+      ...terms('aggregateId', 'aggregate'),
+      scope: AggregationGroupScope.ROOT,
+    } as AggregationGroup;
+    const rows = (products: string[], limit: number) =>
+      ask({
+        elements: lines(undefined, isIn('productId', products)),
+        groupBy: [root],
+        metrics: [sum('quantity', 'quantity'), count('lines')],
+        sort: [{ field: 'aggregate', direction: SortDirection.DESC }],
+        limit,
+      });
+    expect(await rows(['alpha', 'beta'], 10)).toEqual([
+      { aggregate: 'aggregation-b', quantity: 6, lines: 2 },
+      { aggregate: 'aggregation-a', quantity: 3, lines: 2 },
+    ]);
+    expect(await rows(['alpha', 'beta'], 1)).toEqual([
+      { aggregate: 'aggregation-b', quantity: 6, lines: 2 },
+    ]);
+    // A root record with no element left after the element filters forms no group.
+    expect(await rows(['delta'], 10)).toEqual([
+      { aggregate: 'aggregation-b', quantity: 5, lines: 1 },
     ]);
   });
 

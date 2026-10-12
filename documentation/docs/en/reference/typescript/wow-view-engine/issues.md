@@ -123,6 +123,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `analysis.sort.duplicate` | The sort already orders by {alias}. |
 | `analysis.sort.metric-unsupported` | The source orders groups by their dimensions only, not by {alias}. |
 | `analysis.sort.requires-group` | Sorting needs at least one dimension. |
+| `analysis.sort.root-group-first` | The sort orders by {alias} ahead of a dimension over the record itself; those dimensions must come first. |
 | `analysis.sort.too-many` | A result sorts by at most {max} dimensions and metrics. |
 | `analysis.sort.unknown-alias` | The sort orders by {alias}, which this result does not have. |
 | `analysis.split.whole-failed` | Could not fold the smaller series into “Other”, so colours repeat: {reason} |

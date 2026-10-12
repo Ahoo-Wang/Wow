@@ -108,6 +108,40 @@ describe('a group counted over one level of elements', () => {
     ).toEqual([]);
   });
 
+  it('selects a root dimension on the record, beside the match into its elements (D92)', () => {
+    const conditions = drillConditions(
+      analysisConfig({
+        elements: [{ path: 'items' }],
+        groups: [
+          { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+          SKU,
+        ],
+      }),
+      FIELDS,
+      builtinFieldKinds,
+      { warehouse: 'WH-1', sku: 'A-1' },
+      context,
+    );
+    expect(conditions).toEqual([
+      { field: 'warehouse', operator: 'EQ', value: 'WH-1' },
+      {
+        field: 'items',
+        operator: 'ELEMENT_MATCH',
+        value: {
+          op: 'and',
+          children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+        },
+      },
+    ]);
+    expect(
+      validateFilter(
+        FIELDS,
+        drillFilter({ op: 'and', children: [] }, conditions!),
+        builtinFieldKinds,
+      ),
+    ).toEqual([]);
+  });
+
   it('reads the gate and the groups as one "all of" where they bound different fields', () => {
     expect(
       drillConditions(
