@@ -28,6 +28,12 @@ internal data class ElasticsearchAggregationPlan(
     val metrics: List<ElasticsearchAggregationMetric>,
     val runtimeMappings: Map<String, RuntimeField>,
     val effectiveSort: List<Sort>,
+    /**
+     * The sources of the groups that read the root record while the query expands elements, in sort order. They
+     * form an outer composite over the root records, outside the nested scopes; [groupSources] then holds only the
+     * element groups, grouped inside each outer bucket.
+     */
+    val rootSources: List<NamedValue<CompositeAggregationSource>> = emptyList(),
 )
 
 internal data class ElasticsearchAggregationElement(

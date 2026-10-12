@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -52,18 +53,20 @@ internal object ElasticsearchAggregationCompiler {
         val runtimeMappings = linkedMapOf<String, RuntimeField>()
         val effectiveSort = query.effectiveSort()
         val groups = query.groupBy.withIndex().associateBy { it.value.alias }
-        val groupSources = effectiveSort.mapNotNull { sort ->
+        // Admission put the ROOT groups first in the effective sort, so the outer composite leads the order.
+        val (rootSources, groupSources) = effectiveSort.mapNotNull { sort ->
             groups[sort.field.path]?.let { indexed ->
-                indexed.value.toSource(sort, indexed.index, admitted, runtimeMappings)
+                indexed.value to indexed.value.toSource(sort, indexed.index, admitted, runtimeMappings)
             }
-        }
+        }.partition { (group, _) -> elements.isNotEmpty() && group.scope == AggregationGroupScope.ROOT }
         return ElasticsearchAggregationPlan(
             rootQuery = rootQuery,
             elements = elements,
-            groupSources = groupSources,
+            groupSources = groupSources.map { it.second },
             metrics = compileMetrics(admitted, runtimeMappings),
             runtimeMappings = runtimeMappings,
             effectiveSort = effectiveSort,
+            rootSources = rootSources.map { it.second },
         )
     }
 
