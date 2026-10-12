@@ -307,8 +307,8 @@ class ServiceNode(
         }
         step(Step.GATEWAY_CLOSED) { gateway.close() }
         step(Step.EXECUTIONS_ENDED) {
-            val bound = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
-            withTimeoutOrNull(bound) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
+            val limit = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
+            withTimeoutOrNull(limit) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
                 val executing = contexts.values.sumOf { it.coordinator.executing }
                 "Node $node of $service closes its executors with $executing commands still executing."
             }
