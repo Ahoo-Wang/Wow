@@ -120,6 +120,18 @@ public final class me/ahoo/wow/mongo/SnapshotSchemaInitializer {
 public final class me/ahoo/wow/mongo/SnapshotSchemaInitializer$Companion {
 }
 
+public final class me/ahoo/wow/mongo/log/MongoEventLog : me/ahoo/wow/spi/log/EventLog {
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;ILkotlinx/coroutines/CoroutineDispatcher;JIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;ILkotlinx/coroutines/CoroutineDispatcher;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun appendAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun createSchema ()V
+	public fun findByRequestId (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getPartitions ()I
+	public fun read (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
+	public fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
+}
+
 public final class me/ahoo/wow/mongo/prepare/MongoPrepareKey : me/ahoo/wow/infra/prepare/PrepareKey {
 	public static final field Companion Lme/ahoo/wow/mongo/prepare/MongoPrepareKey$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/Class;Lcom/mongodb/reactivestreams/client/MongoDatabase;)V

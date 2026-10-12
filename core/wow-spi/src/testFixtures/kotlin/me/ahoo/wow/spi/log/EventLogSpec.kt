@@ -162,6 +162,46 @@ abstract class EventLogSpec {
         }
     }
 
+    /** Distinct aggregate ids that land in partition 0 of [partitions]. */
+    private fun idsInPartitionZero(count: Int, partitions: Int): List<String> =
+        generateSequence(1) { it + 1 }.map { "g-$it" }
+            .filter { Partitioner.partitionOf(type.ref("tenant", it), partitions) == 0 }
+            .take(count)
+            .toList()
+
+    @Test
+    fun `appendAll gives each stream the outcome append would`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (fits, behind, ahead, duplicate) = idsInPartitionZero(4, 4)
+        log.append(stream(behind, 1))
+        log.append(stream(duplicate, 1, requestId = "taken"))
+        val outcomes = log.appendAll(
+            listOf(
+                stream(fits, 1),
+                stream(behind, 1),
+                stream(ahead, 3),
+            ),
+        )
+        outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(1))
+        outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(0))
+        val withDuplicate = log.appendAll(listOf(stream(ahead, 1), stream(duplicate, 2, requestId = "taken")))
+        withDuplicate[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        (withDuplicate[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(duplicate)
+    }
+
+    @Test
+    fun `appendAll sequences a group without gaps`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val ids = idsInPartitionZero(10, 4)
+        val outcomes = log.appendAll(ids.map { stream(it, 1) })
+        outcomes.map { (it as AppendOutcome.Committed).position.sequence }.assert().isEqualTo((1L..10L).toList())
+        val more = log.appendAll(ids.take(3).map { stream(it, 2) })
+        more.map { (it as AppendOutcome.Committed).position.sequence }.assert().isEqualTo((11L..13L).toList())
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(13).toList() }.map { it.position.sequence }
+            .assert().isEqualTo((1L..13L).toList())
+    }
+
     @Test
     fun `tail resumes after a position with the same entries`(): Unit = runBlocking {
         val log = createLog(partitions = 1)

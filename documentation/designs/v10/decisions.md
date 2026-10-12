@@ -21,7 +21,7 @@
 
 | # | 假设 | spike | 放弃条件与退路 | 里程碑 | 影响的决定 |
 |---|---|---|---|---|---|
-| H1 | 分区序号的分配能满足吞吐 | PostgreSQL 两种分配方式与 MongoDB 事务；单分区与 64 分区的吞吐、p99、尾随延迟；**分别在属主串行（Partitioned）与多节点并发追加（Local、交接期）下测**，含分组提交里单条冲突的隔离；故障注入 | 单分区不足：加大 P；MongoDB 事务过贵：分组提交（同分区多次追加合并为一个事务），MongoDB 不降级（D11） | M1 | D10、D11、D27、D28；**PostgreSQL 已验证**（`wow-benchmarks/results/reports/v10-h1-postgres-partition-sequence.md`），MongoDB 待测 |
+| H1 | 分区序号的分配能满足吞吐 | PostgreSQL 两种分配方式与 MongoDB 事务；单分区与 64 分区的吞吐、p99、尾随延迟；**分别在属主串行（Partitioned）与多节点并发追加（Local、交接期）下测**，含分组提交里单条冲突的隔离；故障注入 | 单分区不足：加大 P；MongoDB 事务过贵：分组提交（同分区多次追加合并为一个事务），MongoDB 不降级（D11） | M1 | D10、D11、D27、D28；**已验证**：PostgreSQL（`wow-benchmarks/results/reports/v10-h1-postgres-partition-sequence.md`）；MongoDB（2026-10-12，`wow-benchmarks/results/reports/v10-h1-mongo-partition-sequence.md`），F1 的塌缩被测到，属主串行加分组提交可用 |
 | H2 | 亲和路由值得转发的一跳 | 3 节点随机负载均衡，Local 与 Partitioned 的缓存命中率、每命令读次数、冲突率、p99 | Partitioned 的 p99 不优于 Local：默认改为 Local，并按 H1 的并发追加数据重新评估 MongoDB 后端（F1） | M1 | D6、D11 |
 | H3 | 协程内核不比 9.3 的 Reactor 内核慢 | 同一 JMH 生产链路基准的吞吐与 `gc.alloc.rate.norm`，同步与 `suspend` 处理函数分别测 | 下降超过噪声：优化热点后才进入 M2；方向已定，不回退 | M1 | D9；**已验证（2026-10-11）**：同机同 JVM 下 V10 内核约 3.5 µs、11.2 KB/次，9.3 约 26.6 µs、21.8 KB/次；V10 的成本主要是序列化与指纹（`wow-benchmarks/results/reports/v10-h3-kernel-comparison.md`） |
 | H4 | KSP 覆盖注解模型的全部语义 | example、compensation、view-store 与 transfer（Java 源码）的生成模型与 9.x 运行时解析结果比对 | 有缺口：补编译器，不回到反射 | M1 | D7、D8、D37；**已验证（2026-10-12）**：5 个领域 9 个聚合 38 个命令处理函数，27 个源码不改即可绑定、生成代码在原模块编译通过；其余 11 个只因签名用了 9.x 框架类型，有 V10 对应写法（D49），由迁移 Skill 改写（`wow-benchmarks/results/reports/v10-h4-ksp-coverage.md`） |
@@ -42,7 +42,7 @@
 | D8 | Java 支持：Java 照样写注解，由 KSP 分析 Java 源文件生成同一个模型（构建需加 Kotlin Gradle 插件与 KSP）；不想引入 Kotlin 插件的项目用 Builder 写 Decider。不提供运行时反射 | 2026-10-11，用户 | [01](01-programming-model.md) |
 | D9 | 协程原生，覆盖 API、SPI 与内核；用户编程模型可以用 Reactor，只由 `wow-reactor` 做适配，内核与 SPI 不感知。H3 是实现的性能门禁，不改变方向 | 2026-10-11，用户 | [01](01-programming-model.md)、[06](06-modules.md) |
 | D10 | PostgreSQL 是首选日志后端：分区序号由一条自动提交的语句分配（CTE 内版本检查加计数行加锁，失败整体回滚，不留空洞）；H1：64 分区约 3 万次追加/秒，为直接插入的约 70% | 2026-10-11，H1 证据 | [03](03-log-and-snapshot.md) |
-| D11 | MongoDB 是一等日志后端（D5 的条件）：多文档事务分配分区序号，吞吐不足用分组提交与加大 P，不降级 | 2026-10-11，用户 | [03](03-log-and-snapshot.md) |
+| D11 | MongoDB 是一等日志后端（D5 的条件）：多文档事务分配分区序号，吞吐不足用分组提交与加大 P，不降级。H1：分区属主串行并分组提交时约 4.4～5.6 千次追加/秒，为直接插入的 45%～57%，约为 PostgreSQL 的六分之一；多写者无串行时单分区塌缩到约 100 次/秒、p99 1.4 秒，所以 MongoDB 后端要求 Partitioned 路由（D6） | 2026-10-11，用户；2026-10-12，H1 证据 | [03](03-log-and-snapshot.md) |
 | D12 | Redis 事件存储：V10 不提供 Redis 日志后端；需要的社区实现者按日志合同与 TCK 自行实现 | 2026-10-11，用户 | [03](03-log-and-snapshot.md) |
 | D13 | Elasticsearch 的定位：不作为日志后端；作为快照、查询与全文检索后端 | 2026-10-11，用户授权按推荐 | [03](03-log-and-snapshot.md) |
 | D14 | 失败处理与补偿：停放聚合 + 失败台账；台账写在出错服务自己的存储里，wow-ops 经 Kafka 汇总并把重试、跳过作为命令发回；compensation 改为 wow-ops | 2026-10-11，用户 | [04](04-subscriptions.md) |
