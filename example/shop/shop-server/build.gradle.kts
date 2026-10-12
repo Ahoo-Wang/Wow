@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
     testImplementation("org.springframework:spring-test")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
 }
