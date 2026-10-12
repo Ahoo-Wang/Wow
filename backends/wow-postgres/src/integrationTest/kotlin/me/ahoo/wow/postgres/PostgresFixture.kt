@@ -15,10 +15,11 @@ package me.ahoo.wow.postgres
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import org.testcontainers.postgresql.PostgreSQLContainer
 import java.util.concurrent.atomic.AtomicInteger
 
-/** One PostgreSQL container for the test JVM, and a fresh context (so fresh tables) per log. */
+/** One PostgreSQL container for the test JVM, and a fresh context (so fresh tables) per log or snapshot store. */
 object PostgresFixture {
     private val container: PostgreSQLContainer by lazy {
         PostgreSQLContainer("postgres:17-alpine").also { it.start() }
@@ -41,6 +42,9 @@ object PostgresFixture {
 
     fun log(partitions: Int, context: String = newContext()): PostgresEventLog =
         PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
+
+    fun snapshotStore(context: String = newContext()): PostgresSnapshotStore =
+        PostgresSnapshotStore(dataSource, context).also { it.createSchema() }
 
     private const val POOL_SIZE = 64
 }

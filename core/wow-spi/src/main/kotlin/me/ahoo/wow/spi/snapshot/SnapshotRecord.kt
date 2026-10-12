@@ -1,0 +1,51 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.spi.snapshot
+
+import me.ahoo.wow.api.aggregate.AggregateRef
+
+/**
+ * An aggregate's latest committed state as the snapshot store keeps it: a cache derived from the log, never a fact.
+ *
+ * - [version] is the version of the last event stream folded into [state];
+ * - [schemaFingerprint] identifies the state's schema: a reader whose fingerprint differs discards the snapshot and
+ *   rebuilds the state from the log;
+ * - [state] is the serialized state, a JSON document;
+ * - [ownerId], [spaceId] and [tags] are the access facts admission decided; the query side filters on the same
+ *   fields;
+ * - [deleted] marks an aggregate that is deleted; its snapshot stays, so it can be queried and restored;
+ * - [firstEventTime] and [lastEventTime] are the commit times (epoch milliseconds) of its first and last streams.
+ */
+data class SnapshotRecord(
+    val ref: AggregateRef,
+    val version: Int,
+    val schemaFingerprint: String,
+    val state: String,
+    val ownerId: String? = null,
+    val spaceId: String? = null,
+    val deleted: Boolean = false,
+    val firstEventTime: Long,
+    val lastEventTime: Long,
+    val tags: Map<String, List<String>> = emptyMap(),
+) {
+    init {
+        require(version >= 1) { "A snapshot's version starts at 1: it folds at least one event stream." }
+        require(schemaFingerprint.isNotBlank()) { "A snapshot needs its state's schema fingerprint." }
+        require(state.isNotBlank()) { "A snapshot needs a state." }
+        require(ownerId == null || ownerId.isNotBlank()) { "An owner id, when present, is not blank." }
+        require(spaceId == null || spaceId.isNotBlank()) { "A space id, when present, is not blank." }
+        require(firstEventTime <= lastEventTime) { "The first event is not committed after the last one." }
+        require(tags.keys.none { it.isBlank() }) { "A tag needs a name." }
+    }
+}
