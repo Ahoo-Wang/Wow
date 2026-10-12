@@ -101,6 +101,8 @@
 | D80 | 转发超时默认 1 秒，且不超过命令剩余的截止时间（取两者较小值），可配置；超时按 D78 降级 Local。1 秒盖住属主正常的执行尾延迟，又远小于 10 秒的租约 TTL | 2026-10-12，用户 | [02](02-write-path.md) |
 | D81 | 命名：处理函数拿到的类型化形式叫 `StateEvent<S>`（`wow-api` 的 `subscribe` 包）；线上与存储形式（位置、事件流记录、状态视图，发布到 Kafka）改名 `StateEventRecord`，与 `EventStreamRecord`、`SnapshotRecord` 一致；D23、D58 中的 `StateEvent` 指后者 | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D82 | 事件升级函数用注解 `@Upgrade(event, from)` 声明（参数与返回值为 JSON 节点），KSP 串成链并在编译期校验从 1 到当前 revision 不断档、不重复；V10 注解集增加这一个；生成的工厂函数的 `configure` 参数保留为通用扩展口 | 2026-10-12，用户 | [01](01-programming-model.md) |
+| D83 | 新模块 `wow-gradle-plugin`（`compiler/`，插件 id `me.ahoo.wow`）：为用户构建接好 KSP 与 `wow-compiler`，注册「生成片段 schema」与「合并服务级 `manifest.json`」两个任务；内省在隔离类加载器的 Gradle Worker 里运行；与其他 V10 模块一样先孵化、不发布 | 2026-10-12，用户 | [06](06-modules.md)、[05](05-read-and-contract.md) |
+| D84 | D73 的 schema 由 victools `jsonschema-generator` 加 `jsonschema-module-jackson` 生成（JSON Schema 2020-12），只在构建期使用；自定义序列化器无法内省，由显式覆盖配置补上 | 2026-10-12，用户 | [05](05-read-and-contract.md) |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
 | D67 | V10 注解集：约 15 个（见 01 §3），订阅处理函数统一为一个 `@OnEvent`、种类由所在类的 `@Projection` / `@Reactor` / `@Saga` 决定；KSP 只认 V10 注解，9.x 注解由迁移 Skill 映射 | 2026-10-12，用户 | [01](01-programming-model.md) |
