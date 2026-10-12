@@ -79,3 +79,7 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | D50 预留确认订阅合入（Ahoo-Wang/Wow#4260），`v10` 的 Local Test 恢复（Ahoo-Wang/Wow#4261）；§5 的验证命令加入 `checkKotlinAbi` 并改跑 `:wow-compiler:check`，写明合并前必须看 `gh pr checks`；队列加入 CI 按目录分范围（D85 之后） |
 | 2026-10-12 | 用户确认降低 9.x 与 CI 拖累的三层方案：D85 之后做 CI 按目录分范围与构建按范围加载（`-Pwow.scope=v10`、`v10Check`）；回主干开发登记为待定的 D86，在第一次前向合并之前评估拍板 |
 | 2026-10-12 | Manifest v0 合入（Ahoo-Wang/Wow#4259）：实现要点记入 05 §2；为让 Worker 侧代码计入覆盖率新增孵化模块 `wow-manifest-tools`（D83 的落地方式）；`codecov/project/wow-compiler` 的失败是基线漏计 `compiler/model` 文件所致，同口径覆盖率由 85.8% 升到 86.7% |
+| 2026-10-12 | 用户拍板 D87：V10 模块的项目名与目录不带 `wow-` 前缀，artifactId 与 jar 名仍是 `wow-<名字>`；取代 D85 的 `-v10` 后缀，随 D85 搬迁一起改名 |
+| 2026-10-12 | 快照订阅视图竞态修复合入（Ahoo-Wang/Wow#4263）。用户确认 CI 调整方案（`v10.yml` 与 `v10-gate`、9.x 工作流收窄、Codecov 分开），并授权 `v10-gate` 跑通后用 `gh` 改 `v10` 的分支保护 |
+| 2026-10-12 | 用户拍板 D88、D89：V10 模块到 `10.0.0-beta` 才开始 ABI 转储与校验；4.2b 的集群通道与信号入口放在宿主独立内部端口的 h2c 服务上，客户端用 JDK `HttpClient` |
+| 2026-10-12 | 用户拍板 D90（D85 的执行细则）：`v10` 保留 9.x 的 ABI 校验、只关闭 9.x 发布；`:kernel-benchmarks` 具名豁免；搬迁分 3 个 PR。用户授权：按计划推进，遇到选择默认按协调者的推荐 |

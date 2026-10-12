@@ -20,11 +20,11 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -68,8 +68,10 @@ import kotlin.time.Duration.Companion.seconds
  * confirms it first. The keys an attempt reserved pending go into the appended entry's transport (D50), so the
  * `reservation` subscription confirms them even when the after-append confirmation never runs.
  *
- * Every stream carries the aggregate's scope after it (D56): the creating command's scope, carried forward unchanged
- * by every later command (see [scopeAfter]).
+ * Every stream carries the aggregate's scope after it (D56): the creating command's scope, carried forward by every
+ * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
+ * The kernel keeps the deleted mark and the tags beside the state too, evolved by the lifecycle events: a deleted
+ * aggregate refuses every command but [RestoreAggregate] ([KernelRejections.DELETED]).
  */
 class Kernel(
     private val log: EventLog,
@@ -107,11 +109,11 @@ class Kernel(
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         repeat(maxAttempts) {
             val loaded = load(model, command)
-            admissible(decider, command, loaded.version)?.let {
+            admissible(decider, command, loaded)?.let {
                 states.put(command.ref, loaded)
                 return it
             }
-            val attempt = AttemptScope(command, reservations, reservationTtl, waitBeyondCommitted)
+            val attempt = AttemptScope(command, loaded, reservations, reservationTtl, waitBeyondCommitted)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType)
             } catch (
@@ -133,9 +135,16 @@ class Kernel(
             }
             when (val appended = withContext(NonCancellable) { append(stream, attempt.transport()) }) {
                 is AppendOutcome.Committed -> {
-                    states.put(command.ref, CachedState(evolved, stream.version, stream.scope))
+                    states.put(command.ref, evolved)
                     withContext(NonCancellable) { attempt.afterAppend() }
-                    return CommandOutcome.Committed(stream, appended.position, evolved, attempt.results())
+                    return CommandOutcome.Committed(
+                        stream,
+                        appended.position,
+                        evolved.state,
+                        attempt.results(),
+                        evolved.deleted,
+                        evolved.tags,
+                    )
                 }
 
                 is AppendOutcome.AlreadyCommitted -> {
@@ -179,6 +188,7 @@ class Kernel(
             return Prepared.Done(CommandOutcome.Unchanged(version))
         }
         val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
+        val metadata = metadataAfter(loaded, command, events)
         val stream = EventStreamRecord(
             ref = command.ref,
             version = version + 1,
@@ -187,22 +197,23 @@ class Kernel(
             commandType = commandType,
             commitTime = clock(),
             events = events.map { codec.encode(model, it) },
-            scope = scopeAfter(loaded, command),
+            scope = metadata.scope,
             causation = command.causation,
             headers = command.headers,
         )
-        return Prepared.Append(stream, evolved)
+        return Prepared.Append(stream, loaded.with(evolved, stream.version, metadata))
     }
 
     /**
-     * The aggregate's scope after [command] commits on [loaded] (decision D56): a command that creates the aggregate
-     * gives it the caller's scope; every other command carries the aggregate's scope forward unchanged.
-     *
-     * This is the seam for the lifecycle commands that change it, transferring the owner or the space (design 01 §6,
-     * roadmap 2.4): they will decide the new scope here, from their own command type, and nothing else will.
+     * The aggregate's metadata after [command] commits [events] on [loaded]. Its scope (decision D56): a command that
+     * creates the aggregate gives it the caller's scope; every other command carries the aggregate's scope forward,
+     * and only the lifecycle events of transferring the owner or the space change it (design 01 §6). Its deleted mark
+     * and tags change only by their lifecycle events too.
      */
-    private fun scopeAfter(loaded: CachedState, command: Command<*>): Scope =
-        if (loaded.version == 0) command.scope else loaded.scope
+    private fun metadataAfter(loaded: CachedState, command: Command<*>, events: List<Any>): KernelLifecycle.Metadata {
+        val before = if (loaded.version == 0) loaded.metadata.copy(scope = command.scope) else loaded.metadata
+        return events.fold(before, KernelLifecycle::evolve)
+    }
 
     /**
      * Appends [stream] with [transport]; when the outcome is unknown, reads the version slot it targeted, which only
@@ -242,7 +253,8 @@ class Kernel(
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
      * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
      *
-     * @return the state, version and scope at [version]; null when the log does not hold [version].
+     * @return the state at [version] with the metadata the kernel keeps beside it (scope, deleted mark, tags); null
+     *   when the log does not hold [version].
      */
     suspend fun <S : Any> stateAt(
         model: AggregateModel<S>,
@@ -310,12 +322,13 @@ class Kernel(
             logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
             return null
         }
-        return replay(model, CachedState(state, snapshot.version, snapshot.scope), streams.subList(1, streams.size))
+        val restored = CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.tags)
+        return replay(model, restored, streams.subList(1, streams.size))
     }
 
     /**
-     * Evolves [initial] with the events of [streams]; the version and the scope are the last stream's, or
-     * [initial]'s when there is none.
+     * Evolves [initial] with the events of [streams]: the state, and the deleted mark and tags by the lifecycle
+     * events; the version and the scope are the last stream's, or [initial]'s when there is none.
      */
     private fun <S : Any> replay(
         model: AggregateModel<S>,
@@ -324,27 +337,43 @@ class Kernel(
     ): CachedState {
         @Suppress("UNCHECKED_CAST") // The initial state is built by this model, or read as its state type.
         var state = initial.state as S
+        var metadata = initial.metadata
         streams.forEach { stream ->
-            stream.events.forEach { record -> state = model.evolve(state, codec.decode(model, record)) }
+            stream.events.forEach { record ->
+                val event = codec.decode(model, record)
+                state = model.evolve(state, event)
+                metadata = KernelLifecycle.evolve(metadata, event)
+            }
         }
-        val last = streams.lastOrNull() ?: return CachedState(state, initial.version, initial.scope)
-        return CachedState(state, last.version, last.scope)
+        val last = streams.lastOrNull() ?: return initial.with(state, initial.version, metadata)
+        return initial.with(state, last.version, metadata.copy(scope = last.scope))
     }
 
-    private fun admissible(decider: DecideFunction<*>, command: Command<*>, version: Int): CommandOutcome? = when {
-        version == 0 && decider.creation == Creation.NONE ->
-            rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
+    /**
+     * Refuses [command] before deciding when the aggregate as [loaded] cannot take it: it does not exist and the
+     * command does not create it, it is deleted and the command does not restore it, it exists and the command must
+     * create it, or it is not at the expected version.
+     */
+    private fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded: CachedState): CommandOutcome? {
+        val version = loaded.version
+        return when {
+            version == 0 && decider.creation == Creation.NONE ->
+                rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
 
-        version > 0 && decider.creation == Creation.REQUIRED ->
-            rejected(KernelRejections.EXISTS, "${command.ref} already exists.")
+            loaded.deleted && command.body != RestoreAggregate ->
+                rejected(KernelRejections.DELETED, "${command.ref} is deleted.")
 
-        command.expectedVersion != null && command.expectedVersion != version ->
-            rejected(
-                KernelRejections.VERSION_MISMATCH,
-                "${command.ref} is at version $version, not ${command.expectedVersion}.",
-            )
+            version > 0 && decider.creation == Creation.REQUIRED ->
+                rejected(KernelRejections.EXISTS, "${command.ref} already exists.")
 
-        else -> null
+            command.expectedVersion != null && command.expectedVersion != version ->
+                rejected(
+                    KernelRejections.VERSION_MISMATCH,
+                    "${command.ref} is at version $version, not ${command.expectedVersion}.",
+                )
+
+            else -> null
+        }
     }
 
     private suspend fun <S : Any> decide(
@@ -382,16 +411,17 @@ class Kernel(
     private sealed interface Prepared {
         class Done(val outcome: CommandOutcome) : Prepared
 
-        class Append(val stream: EventStreamRecord, val evolved: Any) : Prepared
+        class Append(val stream: EventStreamRecord, val evolved: CachedState) : Prepared
     }
 
     /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
     private class AttemptScope(
         override val command: Command<*>,
+        override val loaded: CachedState,
         private val reservations: ReservationStore?,
         private val reservationTtl: Duration,
         private val wait: WaitContext?,
-    ) : DecideScope {
+    ) : DecideScope, KernelLifecycle.MetadataScope {
         private var compensations: MutableList<suspend () -> Unit>? = null
         private var afterAppendActions: MutableList<suspend () -> Unit>? = null
         private var results: MutableMap<String, Any>? = null

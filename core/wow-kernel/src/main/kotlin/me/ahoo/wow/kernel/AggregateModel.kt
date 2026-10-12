@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import tools.jackson.databind.JsonNode
 
 /**
@@ -109,36 +110,69 @@ data class CommandType(val name: String, val type: Class<*>) {
  *
  * [stateType] is the class of [S]: snapshots are read back as it, and its schema fingerprint tells whether a snapshot
  * still fits it ([EventCodec.stateSchemaFingerprint]).
+ *
+ * Every model handles the lifecycle commands of [lifecycle] (design 01 §6; all of them unless it says otherwise)
+ * without user code: the kernel decides them, under their system names ([Lifecycle]). A model that declares a decide
+ * function for one overrides the kernel's. The lifecycle events are always known, so a log written while a command was
+ * enabled still reads; they leave the state as it is unless the model declares an evolve function for them. Only the
+ * lifecycle types may take a name in the system namespace.
  */
 class AggregateModel<S : Any>(
     val type: AggregateType,
     val stateType: Class<S>,
     private val initial: (AggregateRef) -> S,
-    private val deciders: Map<Class<*>, DecideFunction<S>>,
-    private val evolvers: Map<Class<*>, (S, Any) -> S>,
+    deciders: Map<Class<*>, DecideFunction<S>>,
+    evolvers: Map<Class<*>, (S, Any) -> S>,
     eventTypes: Collection<EventType>,
     commandTypes: Collection<CommandType>,
     private val afterFunctions: List<AfterFunction<S>> = emptyList(),
+    lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet(),
 ) {
-    private val eventsByType: Map<Class<*>, EventType> = eventTypes.associateBy { it.type }
-    private val eventsByName: Map<String, EventType> = eventTypes.flatMap { type ->
+    private val deciders: Map<Class<*>, DecideFunction<S>> =
+        lifecycle.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
+    private val evolvers: Map<Class<*>, (S, Any) -> S> =
+        Lifecycle.EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
+            evolvers
+    private val eventTypes: List<EventType> = eventTypes + Lifecycle.EVENTS
+        .filterValues { event -> eventTypes.none { it.type == event } }
+        .map { (name, event) -> EventType(name, 1, event) }
+    private val commandTypes: List<CommandType> = commandTypes + lifecycle
+        .filter { command -> commandTypes.none { it.type == command } }
+        .map { CommandType(Lifecycle.nameOf(it)!!, it) }
+    private val eventsByType: Map<Class<*>, EventType> = this.eventTypes.associateBy { it.type }
+    private val eventsByName: Map<String, EventType> = this.eventTypes.flatMap { type ->
         (type.aliases + type.name).map { it to type }
     }.toMap()
-    private val commandsByType: Map<Class<*>, CommandType> = commandTypes.associateBy { it.type }
-    private val commandsByName: Map<String, CommandType> = commandTypes.associateBy { it.name }
+    private val commandsByType: Map<Class<*>, CommandType> = this.commandTypes.associateBy { it.type }
+    private val commandsByName: Map<String, CommandType> = this.commandTypes.associateBy { it.name }
     private val afterByCommand: Map<Class<*>, List<AfterFunction<S>>> =
-        deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
+        this.deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
+
+    /** The lifecycle commands this model handles, by the kernel or by its own decide functions. */
+    val lifecycleCommands: Set<Class<*>> = this.deciders.keys.filter { it in KernelLifecycle.COMMANDS }.toSet()
 
     init {
-        val names = eventTypes.flatMap { it.aliases + it.name }
+        require(KernelLifecycle.COMMANDS.containsAll(lifecycle)) {
+            "Not lifecycle commands: ${lifecycle - KernelLifecycle.COMMANDS}"
+        }
+        val names = this.eventTypes.flatMap { it.aliases + it.name }
         require(names.size == names.toSet().size) { "Two event types of $type share a name or an alias." }
-        val missing = eventTypes.map { it.type } - evolvers.keys
+        val missing = this.eventTypes.map { it.type } - this.evolvers.keys
         require(missing.isEmpty()) { "Event types of $type without an evolve function: $missing" }
-        val commandNames = commandTypes.map { it.name }
+        val commandNames = this.commandTypes.map { it.name }
         require(commandNames.size == commandNames.toSet().size) { "Two command types of $type share a name." }
-        val unnamed = deciders.keys - commandsByType.keys
+        val unnamed = this.deciders.keys - commandsByType.keys
         require(unnamed.isEmpty()) { "Command types of $type without a name: $unnamed" }
+        val named = this.eventTypes.flatMap { event -> (event.aliases + event.name).map { it to event.type } } +
+            this.commandTypes.map { it.name to it.type }
+        named.forEach { (name, typeClass) ->
+            require(isSystemName(name) == (Lifecycle.nameOf(typeClass) != null)) {
+                "$type names ${typeClass.name} $name: only the lifecycle types have names in ${Lifecycle.NAMESPACE}."
+            }
+        }
     }
+
+    private fun isSystemName(name: String): Boolean = name.startsWith("${Lifecycle.NAMESPACE}.")
 
     /** The state of an aggregate that has no event yet. */
     fun initialState(ref: AggregateRef): S = initial(ref)
