@@ -98,10 +98,10 @@ public class AggregationCompilerBenchmark {
             QueryField input = logical;
             String alias = "group" + index;
             switch (shape) {
-                case "known_terms" -> groups.add(new AggregationGroup.Terms(input, alias, null, null));
-                case "known_histogram" -> groups.add(new AggregationGroup.Histogram(input, alias, 10.0, null));
+                case "known_terms" -> groups.add(new AggregationGroup.Terms(input, alias, null, null, null));
+                case "known_histogram" -> groups.add(new AggregationGroup.Histogram(input, alias, 10.0, null, null));
                 case "known_epoch" -> groups.add(new AggregationGroup.DateHistogram(
-                        input, alias, AggregationDateUnit.DAY, "UTC", false));
+                        input, alias, AggregationDateUnit.DAY, "UTC", false, null));
                 case "known_metric" -> metrics.add(new AggregationMetric.Numeric(
                         AggregationFunction.SUM,
                         new AggregationExpression.Field(input),
