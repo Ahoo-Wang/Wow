@@ -25,6 +25,7 @@ import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
+import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
@@ -100,7 +101,7 @@ open class KernelComparisonBenchmark {
         /** The example cart's AddCartItem logic (example-domain `Cart.onCommand`), in the V10 DSL. */
         val cart = aggregate<CartState>("example-service", "cart") {
             initial { CartState(it.id) }
-            decide<AddCartItem>(create = true) { state, command ->
+            decide<AddCartItem>(Creation.REQUIRED) { state, command ->
                 require(state.items.size < MAX_CART_ITEM_SIZE) { "At most $MAX_CART_ITEM_SIZE items." }
                 val existing = state.items.firstOrNull { it.productId == command.productId }
                 if (existing != null) {

@@ -44,18 +44,24 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType) {
     }
 
     /** Decides commands of type [C] with a plain function: the fast path (D36). */
-    inline fun <reified C : Any> decide(create: Boolean = false, noinline decide: DecideScope.(S, C) -> Decision) {
+    inline fun <reified C : Any> decide(
+        creation: Creation = Creation.NONE,
+        noinline decide: DecideScope.(S, C) -> Decision,
+    ) {
         @Suppress("UNCHECKED_CAST")
-        addDecider(C::class.java, DecideFunction.Sync(create, decide as DecideScope.(S, Any) -> Decision))
+        addDecider(C::class.java, DecideFunction.Sync(creation, decide as DecideScope.(S, Any) -> Decision))
     }
 
     /** Decides commands of type [C] with a suspending function, for decisions that read other systems. */
     inline fun <reified C : Any> decideSuspending(
-        create: Boolean = false,
+        creation: Creation = Creation.NONE,
         noinline decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
-        addDecider(C::class.java, DecideFunction.Suspending(create, decide as suspend DecideScope.(S, Any) -> Decision))
+        addDecider(
+            C::class.java,
+            DecideFunction.Suspending(creation, decide as suspend DecideScope.(S, Any) -> Decision)
+        )
     }
 
     /**

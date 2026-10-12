@@ -1,12 +1,12 @@
 # V10 领域编程模型
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。上位文档：[00 目标架构](00-architecture.md)（A3、A4、A6）。相关决定：D7、D8、D9、D22、D36、D37、D38、D39。
+日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。上位文档：[00 目标架构](00-architecture.md)（A3、A4、A6）。相关决定：D7、D8、D9、D22、D36、D37、D38、D39、D49。
 
 ## 1. 五类函数
 
 | 函数 | 签名 | I/O | 失败语义 |
 |---|---|---|---|
-| Decide | `DecideScope.(S, C) -> Decision`，可以是同步、`suspend` 或 Reactor（§4） | 允许，经 `DecideScope` 取依赖 | 命令被拒绝；不写入 |
+| Decide | `DecideScope.(S, C) -> Decision`，可以是同步、`suspend` 或 Reactor（§4） | 允许：依赖在构造期绑定，副作用的补偿经 `DecideScope` 登记（D49） | 命令被拒绝；不写入 |
 | Evolve | `S.(E) -> Unit`（可变）或 `(S, E) -> S`（不可变） | **禁止**：非 `suspend`，上下文里没有依赖 | 模型缺陷：快速失败 |
 | React | `(StateEvent[, ReactContext]) -> Unit`，三种调用形态同 Decide | 允许，自行幂等 | 进入失败台账，停放该聚合 |
 | Saga | `(StateEvent[, SagaContext]) -> List<Command>`，三种调用形态同 Decide | 允许 | 派生命令请求 ID 确定。同上下文的命令要等到 `COMMITTED`，跨上下文的命令等到持久 `ACCEPTED`（D33），Saga 才算完成；派生命令被拒绝视为处理失败，进入失败台账，除非 Saga 声明该拒绝是预期结果 |
@@ -60,6 +60,15 @@ class CartState(val id: String) {
 ```
 
 两者都编译成同一个 `AggregateModel`：命令表、演化表、身份规则、创建语义、守卫。注解写法由 KSP 在编译期生成绑定代码，运行时不扫描、不反射（D37）。Java 用户照样写注解：KSP 能分析 Java 源文件，构建里加上 Kotlin Gradle 插件与 KSP 即可；不想引入 Kotlin 插件的 Java 项目，用 Builder 写 Decider（D8）。V10 的注解是重新设计的，不沿用 9.x 的注解；9.x 代码由迁移 Skill 改写（[07](07-migration.md)）。
+
+**注解写法怎样绑定**（H4 的结论，D49）：
+
+- 命令处理函数的第一个参数是命令体 `X`，或者被准入的命令 `Command<X>`；后者带着准入得到的请求事实：所有者、空间、请求头（例如调用方应用）。这些事实不进命令指纹。
+- 其后的参数是领域服务，成为生成的工厂函数 `xxxModel(context, 服务…)` 的参数，由宿主在构建模型时绑定一次；`DecideScope` 类型的参数传入本次决定的作用域。依赖因此在构造期绑定，运行时不按类型解析。
+- 返回给调用方的附加结果（9.x 的 `CommandResultAccessor`）经 `DecideScope.putResult` 写入，随提交结果返回，不持久化，所以重复请求得到的回答不含它。
+- 创建语义三态：`@CreateAggregate` 必须新建，`@AllowCreate` 新建或已有皆可，其余只作用于已有聚合。
+- 非 private 的函数都会被找到（Java 的包级可见函数也算），生成代码与聚合根同包。
+- 9.x 框架类型（`CommandMessage`、`ServerCommandExchange`、`CommandResultAccessor` 等）不能出现在 V10 的签名里，编译期报错，由迁移 Skill 改写成上面的形式。
 
 ## 4. 调用形态与快速路径
 
@@ -119,7 +128,6 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 ## 9. 待细化
 
 - DSL 与注解的完整清单（守卫、创建语义）；after 钩子见 D39。
-- `DecideScope` 的依赖注入方式（构造期绑定，还是按类型解析）。
 - Java Builder 的形状（D8 的退路）；纯 Maven 的 Java 项目如何接入 KSP。
 - 可变状态丢弃重载的范围：只丢该聚合的实例，还是连同它所在邮箱的在途命令一起重试。
 - 升级函数能否删除字段、拆分事件、丢弃事件。

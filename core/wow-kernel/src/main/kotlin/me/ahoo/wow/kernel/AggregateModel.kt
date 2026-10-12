@@ -24,14 +24,28 @@ import tools.jackson.databind.JsonNode
  * continuation and no dispatch; only a [Suspending] one runs as a coroutine call.
  */
 sealed interface DecideFunction<S : Any> {
-    /** Whether the command may create the aggregate: it is decided on the initial state when none exists yet. */
-    val create: Boolean
+    /** Whether the command may, or must, create the aggregate. */
+    val creation: Creation
 
-    class Sync<S : Any>(override val create: Boolean, val decide: DecideScope.(S, Any) -> Decision) :
+    class Sync<S : Any>(override val creation: Creation, val decide: DecideScope.(S, Any) -> Decision) :
         DecideFunction<S>
 
-    class Suspending<S : Any>(override val create: Boolean, val decide: suspend DecideScope.(S, Any) -> Decision) :
-        DecideFunction<S>
+    class Suspending<S : Any>(
+        override val creation: Creation,
+        val decide: suspend DecideScope.(S, Any) -> Decision,
+    ) : DecideFunction<S>
+}
+
+/** How a command relates to the aggregate's existence (9.x `@CreateAggregate` and `@AllowCreate`). */
+enum class Creation {
+    /** The aggregate must exist. */
+    NONE,
+
+    /** The command creates the aggregate: it must not exist yet. */
+    REQUIRED,
+
+    /** The command creates the aggregate when it does not exist, and acts on it when it does. */
+    ALLOWED,
 }
 
 /**

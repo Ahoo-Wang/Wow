@@ -22,6 +22,12 @@ package me.ahoo.wow.api.decide
  * if the process dies; an act that must not leak then needs its own expiry.
  */
 interface DecideScope {
+    /** The command being decided, with what admission learned about its request. */
+    val command: Command<*>
+
+    /** Adds [value] under [key] to what the caller is answered once the events are appended. */
+    fun putResult(key: String, value: Any)
+
     /** Registers [compensation] to run when this attempt's events are surely not appended. */
     fun onAppendFailure(compensation: suspend () -> Unit)
 

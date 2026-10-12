@@ -42,7 +42,10 @@ class KernelHooksTest {
 
     private val model = aggregate<Counter>("test", "counter") {
         initial { Counter(it.id) }
-        decide<Open>(create = true) { _, command -> Decision.events(Opened(command.by)) }
+        decide<Open>(Creation.REQUIRED) { _, body ->
+            putResult("app", command.headers.getValue("app") + "/" + command.owner)
+            Decision.events(Opened(body.by))
+        }
         decide<Touch> { _, command ->
             onAppendFailure { trail += "undo ${command.reason}" }
             afterAppend { trail += "done ${command.reason}" }
@@ -67,8 +70,16 @@ class KernelHooksTest {
     private fun command(body: Any) = Command("c-${++sequence}", "r-$sequence", ref, body)
 
     private suspend fun opened(log: EventLog = InMemoryEventLog()): EventLog {
-        Kernel(log).execute(model, command(Open("me")))
+        Kernel(log).execute(model, open())
         return log
+    }
+
+    private fun open() = Command("c-0", "r-0", ref, Open("me"), owner = "alice", headers = mapOf("app" to "console"))
+
+    @Test
+    fun `a decide function reads the admitted command and answers the caller`() = runTest {
+        val outcome = Kernel(InMemoryEventLog()).execute(model, open()) as CommandOutcome.Committed
+        outcome.results.assert().isEqualTo(mapOf("app" to "console/alice"))
     }
 
     @Test
@@ -140,7 +151,7 @@ class KernelHooksTest {
     fun `a failing after-append action does not fail the committed command`() = runTest {
         val failing = aggregate<Counter>("test", "counter") {
             initial { Counter(it.id) }
-            decide<Open>(create = true) { _, command ->
+            decide<Open>(Creation.REQUIRED) { _, command ->
                 afterAppend { error("notify failed") }
                 Decision.events(Opened(command.by))
             }
@@ -154,7 +165,7 @@ class KernelHooksTest {
     fun `deciding that changes the state fails when purity is verified`() = runTest {
         val sneaky = aggregate<Counter>("test", "counter") {
             initial { Counter(it.id) }
-            decide<Open>(create = true) { state, command ->
+            decide<Open>(Creation.REQUIRED) { state, command ->
                 state.touches = 99
                 Decision.events(Opened(command.by))
             }

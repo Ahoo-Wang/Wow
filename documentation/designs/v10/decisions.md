@@ -24,7 +24,7 @@
 | H1 | 分区序号的分配能满足吞吐 | PostgreSQL 两种分配方式与 MongoDB 事务；单分区与 64 分区的吞吐、p99、尾随延迟；**分别在属主串行（Partitioned）与多节点并发追加（Local、交接期）下测**，含分组提交里单条冲突的隔离；故障注入 | 单分区不足：加大 P；MongoDB 事务过贵：分组提交（同分区多次追加合并为一个事务），MongoDB 不降级（D11） | M1 | D10、D11、D27、D28；**PostgreSQL 已验证**（`wow-benchmarks/results/reports/v10-h1-postgres-partition-sequence.md`），MongoDB 待测 |
 | H2 | 亲和路由值得转发的一跳 | 3 节点随机负载均衡，Local 与 Partitioned 的缓存命中率、每命令读次数、冲突率、p99 | Partitioned 的 p99 不优于 Local：默认改为 Local，并按 H1 的并发追加数据重新评估 MongoDB 后端（F1） | M1 | D6、D11 |
 | H3 | 协程内核不比 9.3 的 Reactor 内核慢 | 同一 JMH 生产链路基准的吞吐与 `gc.alloc.rate.norm`，同步与 `suspend` 处理函数分别测 | 下降超过噪声：优化热点后才进入 M2；方向已定，不回退 | M1 | D9；**已验证（2026-10-11）**：同机同 JVM 下 V10 内核约 3.5 µs、11.2 KB/次，9.3 约 26.6 µs、21.8 KB/次；V10 的成本主要是序列化与指纹（`wow-benchmarks/results/reports/v10-h3-kernel-comparison.md`） |
-| H4 | KSP 覆盖注解模型的全部语义 | example、compensation、view-store 与 transfer（Java 源码）的生成模型与 9.x 运行时解析结果比对 | 有缺口：补编译器，不回到反射 | M1 | D7、D8、D37 |
+| H4 | KSP 覆盖注解模型的全部语义 | example、compensation、view-store 与 transfer（Java 源码）的生成模型与 9.x 运行时解析结果比对 | 有缺口：补编译器，不回到反射 | M1 | D7、D8、D37；**已验证（2026-10-12）**：5 个领域 9 个聚合 38 个命令处理函数，27 个源码不改即可绑定、生成代码在原模块编译通过；其余 11 个只因签名用了 9.x 框架类型，有 V10 对应写法（D49），由迁移 Skill 改写（`wow-benchmarks/results/reports/v10-h4-ksp-coverage.md`） |
 | H5 | Skill 能把真实的 9.x 领域升级到 V10 | 5 个 9.x 领域（example、transfer、compensation、view-store、dataset-registry）作为 eval，各跑多次 | 门禁通不过：补参考规则与示例；反复失败的改写改为「必须问用户」 | M8 | D3、D20 |
 | H6 | 存储租约能支撑成员与再平衡 | 在 PostgreSQL 与 MongoDB 上实现分区租约：节点上下线时属主收敛时间、再平衡迁移的分区数、交接期间重复处理的比例 | 收敛过慢：缩短租约并加主动让渡；仍不足再评估外部协调器（etcd） | M1 | D6、D24、D45 |
 
@@ -79,4 +79,5 @@
 | D45 | 租约交接与 fencing：不做 fencing：命令靠版本唯一键，订阅副作用靠确定性 ID 幂等，检查点只前进，台账写入幂等（KaeX mvp 做过 fencing 后删除，理由相同） | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
 | D46 | 请求幂等：去重先于决定、在冲突重试之外只做一次：有 I/O 的 decide 每次走 L2（唯一索引存在性检查）；纯计算的 decide 可用 L1 轮转布隆过滤器跳过 L2，漏判由追加唯一键兜住（对抗验证 F3：布隆的「无假阴性」跨重启、跨属主、跨轮转不成立）；记录命令指纹，同一请求 ID 携带不同命令时拒绝 | 2026-10-11，用户 | [02](02-write-path.md) |
 | D47 | 跨上下文命令被拒绝的回执：目标上下文把拒绝作为 `CommandRejected` 写入发起上下文的回执主题，**之后**才确认命令消息，崩溃重投保证至少一次，回执按命令 ID 去重；发起方 Saga 可订阅并补偿；技术故障才进目标的失败台账；拒绝不写日志 | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
+| D49 | 处理函数取得请求事实与依赖：`Command` 带准入得到的所有者、空间与请求头，处理函数以 `Command<X>` 为第一个参数或经 `DecideScope.command` 读取；领域服务参数成为生成工厂的参数，构造期绑定；附加结果经 `DecideScope.putResult` 返回调用方、不持久化。依据 H4：5 个 9.x 领域里 11 个命令处理函数读命令元数据或写附加结果 | 2026-10-12，H4 证据 | [01](01-programming-model.md) |
 | D48 | 主版本内的滚动升级：同一主版本内相邻次版本必须能混部：集群通道、日志条目、租约、等待信号、Kafka 信封都向前兼容一个次版本；10.0 GA 后重新启用 `mixed-version` 门禁；跨主版本才用蓝绿切换 | 2026-10-11，用户 | [02](02-write-path.md) |

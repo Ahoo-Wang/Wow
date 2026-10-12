@@ -66,7 +66,7 @@ class Kernel(
         repeat(maxAttempts) {
             val (state, version) = load(model, command)
             admissible(decider, command, version)?.let { return it }
-            val scope = AttemptScope()
+            val scope = AttemptScope(command)
             val prepared = try {
                 prepare(model, decider, scope, state, command, version, fingerprint)
             } catch (
@@ -87,7 +87,7 @@ class Kernel(
             when (val appended = withContext(NonCancellable) { append(stream) }) {
                 is AppendOutcome.Committed -> {
                     withContext(NonCancellable) { scope.afterAppend() }
-                    return CommandOutcome.Committed(stream, appended.position, evolved)
+                    return CommandOutcome.Committed(stream, appended.position, evolved, scope.results())
                 }
 
                 is AppendOutcome.AlreadyCommitted -> {
@@ -176,10 +176,10 @@ class Kernel(
     }
 
     private fun admissible(decider: DecideFunction<*>, command: Command<*>, version: Int): CommandOutcome? = when {
-        version == 0 && !decider.create ->
+        version == 0 && decider.creation == Creation.NONE ->
             rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
 
-        version > 0 && decider.create ->
+        version > 0 && decider.creation == Creation.REQUIRED ->
             rejected(KernelRejections.EXISTS, "${command.ref} already exists.")
 
         command.expectedVersion != null && command.expectedVersion != version ->
@@ -230,9 +230,16 @@ class Kernel(
     }
 
     /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
-    private class AttemptScope : DecideScope {
+    private class AttemptScope(override val command: Command<*>) : DecideScope {
         private var compensations: MutableList<suspend () -> Unit>? = null
         private var afterAppendActions: MutableList<suspend () -> Unit>? = null
+        private var results: MutableMap<String, Any>? = null
+
+        override fun putResult(key: String, value: Any) {
+            (results ?: LinkedHashMap<String, Any>().also { results = it })[key] = value
+        }
+
+        fun results(): Map<String, Any> = results ?: emptyMap()
 
         override fun onAppendFailure(compensation: suspend () -> Unit) {
             (compensations ?: ArrayList<suspend () -> Unit>().also { compensations = it }) += compensation

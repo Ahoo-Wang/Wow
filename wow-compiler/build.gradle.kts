@@ -8,6 +8,8 @@ dependencies {
     testImplementation(libs.kotlin.compile.testing)
     testImplementation(libs.ksp.symbol.processing)
     testImplementation(project(":wow-api"))
+    testImplementation(project(":wow-kernel"))
+    testImplementation(project(":wow-reactor"))
     testImplementation(project(":wow-apiclient"))
     testImplementation(project(":wow-core"))
     testImplementation(project(":wow-models"))

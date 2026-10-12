@@ -463,28 +463,36 @@ public abstract interface class me/ahoo/wow/api/command/validation/CommandValida
 }
 
 public final class me/ahoo/wow/api/decide/Command {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun component4 ()Ljava/lang/Object;
 	public final fun component5 ()Ljava/lang/Integer;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;)Lme/ahoo/wow/api/decide/Command;
-	public static synthetic fun copy$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/api/decide/Command;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBody ()Ljava/lang/Object;
 	public final fun getExpectedVersion ()Ljava/lang/Integer;
+	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getId ()Ljava/lang/String;
+	public final fun getOwner ()Ljava/lang/String;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getSpace ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class me/ahoo/wow/api/decide/DecideScope {
 	public abstract fun afterAppend (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun getCommand ()Lme/ahoo/wow/api/decide/Command;
 	public abstract fun onAppendFailure (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun putResult (Ljava/lang/String;Ljava/lang/Object;)V
 }
 
 public abstract interface class me/ahoo/wow/api/decide/Decision {

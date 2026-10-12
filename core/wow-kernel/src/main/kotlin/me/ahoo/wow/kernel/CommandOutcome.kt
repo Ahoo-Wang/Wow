@@ -19,8 +19,17 @@ import me.ahoo.wow.spi.log.LogPosition
 
 /** How the kernel finished a command. */
 sealed interface CommandOutcome {
-    /** The command's events are committed as [stream] at [position]; [state] is the state after them. */
-    data class Committed(val stream: EventStreamRecord, val position: LogPosition, val state: Any) : CommandOutcome
+    /**
+     * The command's events are committed as [stream] at [position]; [state] is the state after them. [results] are
+     * what its decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]); they are not
+     * kept, so a duplicate of the command is answered without them.
+     */
+    data class Committed(
+        val stream: EventStreamRecord,
+        val position: LogPosition,
+        val state: Any,
+        val results: Map<String, Any> = emptyMap(),
+    ) : CommandOutcome
 
     /** The same command was already committed as [stream]: it was not decided again. */
     data class AlreadyCommitted(val stream: EventStreamRecord) : CommandOutcome

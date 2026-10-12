@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -64,6 +65,28 @@ class KernelTest {
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         val outcome = kernel.execute(cartModel, command(CreateCart("other")))
         (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.EXISTS)
+    }
+
+    @Test
+    fun `a command allowed to create acts on a missing and on an existing aggregate`() = runTest {
+        val upsert = aggregate<CartState>("example", "cart") {
+            initial { CartState(it.id) }
+            decide<AddItem>(Creation.ALLOWED) { _, command -> Decision.events(ItemAdded(command.productId, 1)) }
+            evolve<ItemAdded> { items[it.productId] = (items[it.productId] ?: 0) + it.quantity }
+        }
+        val kernel = Kernel(InMemoryEventLog())
+        (
+            kernel.execute(
+                upsert,
+                command(AddItem("apple", 1))
+            ) as CommandOutcome.Committed
+            ).stream.version.assert().isEqualTo(1)
+        (
+            kernel.execute(
+                upsert,
+                command(AddItem("apple", 1))
+            ) as CommandOutcome.Committed
+            ).stream.version.assert().isEqualTo(2)
     }
 
     @Test
