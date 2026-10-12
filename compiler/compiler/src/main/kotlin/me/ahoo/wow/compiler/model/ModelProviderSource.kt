@@ -76,7 +76,8 @@ internal object ModelProviderSource {
     }
 
     private fun dependency(dependency: Dependency): String {
-        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType)"
+        val qualifier = dependency.qualifier?.let { ", \"${escape(it)}\"" }.orEmpty()
+        val lookup = "dependencies.get(${dependency.erasure}::class.javaObjectType$qualifier)"
         return if (dependency.erasure == dependency.type) lookup else "$lookup as ${dependency.type}"
     }
 

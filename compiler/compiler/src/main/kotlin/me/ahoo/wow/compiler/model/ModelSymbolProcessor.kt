@@ -29,7 +29,9 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.api.annotation.AfterCommand
@@ -90,6 +92,12 @@ import tools.jackson.databind.json.JsonMapper
  *
  * `@AggregateRoot(lifecycle = [...])` narrows the lifecycle commands a model handles (decision D91): the generated
  * model calls `lifecycle(...)` with them before `configure`, and the fragment lists them.
+ *
+ * `@Name` on a dependency parameter qualifies it (decision D119): the binding index asks for the dependency of its
+ * type by that name, and two parameters of one type with different qualifiers are two dependencies.
+ * `@OnCommand(produces = [...])` declares the events of a function whose return type does not say (decision D120),
+ * such as a `Decision`; a conventionally named `onCommand` needs the annotation to declare them. The module's
+ * `@ErrorCode` constants (decision D121, [ErrorCodeResolver]) are the context's `errors` in the fragment.
  */
 internal class ModelSymbolProcessor(
     private val mode: Mode,
@@ -113,6 +121,9 @@ internal class ModelSymbolProcessor(
     private val claimedUpgrades = mutableSetOf<UpgradeFunction>()
     private val reportedUpgrades = mutableSetOf<UpgradeFunction>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
+
+    /** The module's `@ErrorCode` codes without problems, by code (decision D121). */
+    private val errorCodes = sortedMapOf<String, ErrorCodeBinding>()
     private val sources = mutableSetOf<KSFile>()
 
     /** The packages of the module's aggregate roots and subscription processors, where its binding index goes. */
@@ -130,6 +141,7 @@ internal class ModelSymbolProcessor(
             it.containingFile?.let { file -> sources += file }
             upgrades += UpgradeResolver.read(it)
         }
+        val deferredErrorCodes = processErrorCodes(resolver)
         val roots = resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT).filterIsInstance<KSClassDeclaration>().toList()
         val deferred = roots.filterNot { it.validate() }
         val analyzed = roots.filter { it.validate() }.map { root ->
@@ -155,7 +167,31 @@ internal class ModelSymbolProcessor(
         if (deferred.isEmpty()) {
             reportUnclaimedUpgrades()
         }
-        return deferred + processSubscriptions(resolver)
+        return deferred + deferredErrorCodes + processSubscriptions(resolver)
+    }
+
+    /**
+     * Collects the module's `@ErrorCode` constants (decision D121); in generate mode, their problems and a code two
+     * of them hold fail the compilation.
+     */
+    private fun processErrorCodes(resolver: Resolver): List<KSAnnotated> {
+        val properties = resolver.getSymbolsWithAnnotation(ErrorCodeResolver.ERROR_CODE)
+            .filterIsInstance<KSPropertyDeclaration>().toList()
+        properties.filter { it.validate() }.forEach { property ->
+            property.containingFile?.let { sources += it }
+            val binding = ErrorCodeResolver.resolve(property)
+            val code = binding.error?.code
+            val previous = code?.let { errorCodes[it] }
+            val problems = binding.problems + listOfNotNull(
+                previous?.let { "error code $code is declared by ${it.property} and ${binding.property}" },
+            )
+            if (problems.isEmpty() && code != null) {
+                errorCodes[code] = binding
+            } else if (mode == Mode.GENERATE) {
+                problems.forEach { logger.error(it, property) }
+            }
+        }
+        return properties.filterNot { it.validate() }
     }
 
     /** The bounded context of the module's types, when an option or a single `@BoundedContext` names it. */
@@ -218,7 +254,7 @@ internal class ModelSymbolProcessor(
     }
 
     override fun finish() {
-        if (bindings.isEmpty() && subscriptions.isEmpty()) {
+        if (bindings.isEmpty() && subscriptions.isEmpty() && errorCodes.isEmpty()) {
             return
         }
         // With the processor off, nothing was collected: the mode is report or generate.
@@ -249,7 +285,8 @@ internal class ModelSymbolProcessor(
         }
         val module = manifest.module ?: context
         val description = boundedContexts[context]?.ifBlank { null }
-        val fragment = ManifestFragmentBuilder.build(context, description, bindings, subscriptions)
+        val errors = errorCodes.values.mapNotNull(ErrorCodeBinding::error)
+        val fragment = ManifestFragmentBuilder.build(context, description, bindings, subscriptions, errors)
         codeGenerator.createNewFileByPath(
             Dependencies(aggregating = true, sources = sources.toTypedArray()),
             "${Manifest.FRAGMENT_DIRECTORY}/$module",
@@ -302,6 +339,7 @@ internal class ModelSymbolProcessor(
             .mapNotNull { function -> sourcingBinding(function, state, problems) }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AfterCommand::class.java.name)
             .mapNotNull { function -> afterBinding(function, dependencies, problems) }
+        problems += producesProblems(commands, sourcing)
         val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
         val eventTypes = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
             .mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
@@ -327,6 +365,17 @@ internal class ModelSymbolProcessor(
             description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
             lifecycle = lifecycle(root, problems),
         )
+    }
+
+    /** `@OnCommand(produces)` lists events of the aggregate only (decision D120). */
+    private fun producesProblems(commands: List<CommandBinding>, sourcing: List<SourcingBinding>): List<String> {
+        val events = sourcing.map { it.event }.toSet()
+        return commands.flatMap { command ->
+            command.declaredProduces.filterNot { it in events }.map {
+                "@OnCommand(produces) of ${command.function}(${command.command}) lists $it, which is not an event " +
+                    "of the aggregate: no sourcing function takes it"
+            }
+        }
     }
 
     /**
@@ -453,13 +502,22 @@ internal class ModelSymbolProcessor(
         if (command.hasAnnotation(Revision::class.java.name)) {
             problems += "command ${command.simpleName.asString()} is annotated @Revision: only events have revisions"
         }
+        if (parameters.first().hasAnnotation(Name::class.java.name)) {
+            problems += "$name's command parameter is annotated @Name: a qualifier names a dependency parameter"
+        }
+        val returned = EventYield.of(function.returnType?.resolve())
+        val producesListed = declaredProduces(function)
+        if (producesListed.isNotEmpty() && returned != null) {
+            problems += "$name returns ${function.returnType?.resolve()?.render()}, which names the events it " +
+                "produces: @OnCommand(produces) is for a return type that does not, such as a Decision"
+        }
         return CommandBinding(
             command = commandType.render(),
             commandName = command.getAnnotationsByType(Name::class).firstOrNull()?.value,
             aliases = command.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
             function = name,
             admitted = admitted,
-            arguments = parameters.drop(1).mapNotNull { argument(name, it.type.resolve(), dependencies, problems) },
+            arguments = parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactorReturn(function) != null,
             creation = when {
@@ -468,34 +526,63 @@ internal class ModelSymbolProcessor(
                 else -> "NONE"
             },
             type = command.binaryName(),
-            yields = EventYield.of(function.returnType?.resolve()),
+            yields = returned ?: producesListed.ifEmpty { null },
+            declaredProduces = producesListed,
         )
+    }
+
+    /** The events `@OnCommand(produces)` lists on [function], by qualified name (decision D120). */
+    private fun declaredProduces(function: KSFunctionDeclaration): List<String> {
+        val annotation = function.annotations.firstOrNull {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == OnCommand::class.java.name
+        }
+        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == PRODUCES }?.value as? List<*>
+        return listed.orEmpty().filterIsInstance<KSType>().mapNotNull { it.declaration.qualifiedName?.asString() }
+            .distinct()
     }
 
     /**
      * The argument for a parameter after the command: the decide scope itself, or a dependency the model factory
-     * takes. A framework type of 9.x has no V10 counterpart to pass.
+     * takes, qualified by the parameter's `@Name` (decision D119). One type with one qualifier, or none, is one
+     * dependency, however many functions take it. A framework type of 9.x has no V10 counterpart to pass.
      */
+    @OptIn(KspExperimental::class)
     private fun argument(
         function: String,
-        type: KSType,
+        parameter: KSValueParameter,
         dependencies: MutableMap<String, Dependency>,
         problems: MutableList<String>,
     ): String? {
+        val type = parameter.type.resolve()
         val rendered = type.render()
+        val qualifier = parameter.getAnnotationsByType(Name::class).firstOrNull()?.value
+        val where = "$function's parameter ${parameter.name?.asString()}"
         if (rendered == DECIDE_SCOPE) {
+            if (qualifier != null) {
+                problems += "$where is annotated @Name: the decide scope takes no qualifier"
+            }
             return "this"
         }
         if (FRAMEWORK_PACKAGES.any { rendered.startsWith(it) }) {
             problems += "$function takes $rendered, a 9.x framework type with no V10 counterpart"
             return null
         }
-        return dependencies.getOrPut(rendered) {
-            val simple = type.declaration.simpleName.asString().replaceFirstChar { it.lowercase() }
+        if (qualifier != null && qualifier.isBlank()) {
+            problems += "$where has a blank @Name: a qualifier names the dependency"
+            return null
+        }
+        return dependencies.getOrPut(if (qualifier == null) rendered else "$rendered@$qualifier") {
+            val simple = type.declaration.simpleName.asString().replaceFirstChar { it.lowercase() } +
+                qualifier?.let(::identifierSuffix).orEmpty()
             val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
-            Dependency(unique, rendered, type.declaration.qualifiedName!!.asString())
+            Dependency(unique, rendered, type.declaration.qualifiedName!!.asString(), qualifier)
         }.name
     }
+
+    /** `"fx.primary"` gives `FxPrimary`, to name a qualified dependency's factory parameter. */
+    private fun identifierSuffix(qualifier: String): String =
+        qualifier.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }
+            .joinToString("") { word -> word.replaceFirstChar { it.uppercase() } }
 
     @OptIn(KspExperimental::class)
     private fun sourcingBinding(
@@ -544,9 +631,7 @@ internal class ModelSymbolProcessor(
         return AfterBinding(
             function = name,
             parameter = function.parameters.firstOrNull()?.type?.resolve()?.render(),
-            arguments = function.parameters.drop(
-                1
-            ).mapNotNull { argument(name, it.type.resolve(), dependencies, problems) },
+            arguments = function.parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
             reactor = reactorReturn(function) != null,
             include = classes("include"),
             exclude = classes("exclude"),
@@ -601,6 +686,7 @@ internal class ModelSymbolProcessor(
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
         const val LIFECYCLE = "lifecycle"
+        const val PRODUCES = "produces"
 
         /** The lifecycle commands' system names, by their classes' names. */
         val LIFECYCLE_COMMANDS: Map<String, String> = Lifecycle.COMMANDS.entries.associate { (name, type) ->

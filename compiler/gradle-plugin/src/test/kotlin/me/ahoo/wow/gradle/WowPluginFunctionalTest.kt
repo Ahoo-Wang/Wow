@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Creation
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
@@ -199,11 +200,14 @@ class WowPluginFunctionalTest {
             import me.ahoo.wow.api.annotation.Alias
             import me.ahoo.wow.api.annotation.BoundedContext
             import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.ErrorCode
             import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnCommand
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Revision
             import me.ahoo.wow.api.annotation.Upgrade
+            import me.ahoo.wow.api.decide.Decision
             import me.ahoo.wow.api.subscribe.StateEvent
             import tools.jackson.databind.node.ObjectNode
 
@@ -239,11 +243,21 @@ class WowPluginFunctionalTest {
                 return node
             }
 
+            object CartErrors {
+                @ErrorCode(description = "The cart is full", status = 409)
+                const val FULL = "shop.cart.full"
+            }
+
             @AggregateRoot
             class Cart(private val state: CartState) {
                 fun onCommand(command: CreateCart): CartCreated = CartCreated(command.owner)
 
-                fun onCommand(command: AddItem): ItemAdded = ItemAdded(command.productId, command.quantity)
+                @OnCommand(produces = [ItemAdded::class])
+                fun onCommand(command: AddItem): Decision = if (state.items.size >= 10) {
+                    Decision.reject(CartErrors.FULL, "The cart is full.")
+                } else {
+                    Decision.events(ItemAdded(command.productId, command.quantity))
+                }
             }
 
             class CartState(val id: String) {
@@ -305,6 +319,8 @@ class WowPluginFunctionalTest {
             it.creation.assert().isEqualTo(Creation.REQUIRED)
             it.produces.assert().isEqualTo(listOf("CartCreated"))
         }
+        // A Decision says nothing of its events: @OnCommand(produces) declares them, by the event's name.
+        cart.commands.single { it.name == "PutItem" }.produces.assert().isEqualTo(listOf("ItemPut"))
         cart.events.map { Triple(it.name, it.revision, it.aliases) }.assert().containsExactly(
             Triple("CartCreated", 1, emptyList()),
             Triple("ItemPut", 2, listOf("ItemAdded")),
@@ -318,7 +334,7 @@ class WowPluginFunctionalTest {
     }
 
     @Test
-    fun `the merged manifest should hold the command routes and the framework's errors`() {
+    fun `the merged manifest should hold the command routes, the framework's errors and the context's own`() {
         val manifest = manifest()
         manifest.contexts.flatMap { context ->
             context.aggregates.flatMap { aggregate -> aggregate.commands.flatMap { it.routes } }
@@ -330,7 +346,12 @@ class WowPluginFunctionalTest {
             RouteManifest("POST", "/shop/cart/{id}/put-item"),
         )
         manifest.errors.assert().isEqualTo(FrameworkErrors.ALL)
-        manifest.contexts.forEach { it.errors.assert().isEmpty() }
+        manifest.contexts.associate { it.name to it.errors }.assert().isEqualTo(
+            mapOf(
+                "billing" to emptyList(),
+                "shop" to listOf(ErrorManifest("shop.cart.full", 409, "The cart is full")),
+            ),
+        )
     }
 
     @Test

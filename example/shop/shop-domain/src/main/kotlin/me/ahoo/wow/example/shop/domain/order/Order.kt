@@ -15,6 +15,7 @@ package me.ahoo.wow.example.shop.domain.order
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -28,7 +29,6 @@ import me.ahoo.wow.example.shop.api.order.OrderPaid
 import me.ahoo.wow.example.shop.api.order.OrderPayDuplicated
 import me.ahoo.wow.example.shop.api.order.OrderPayment
 import me.ahoo.wow.example.shop.api.order.OrderReceived
-import me.ahoo.wow.example.shop.api.order.OrderRejections
 import me.ahoo.wow.example.shop.api.order.OrderShipped
 import me.ahoo.wow.example.shop.api.order.OrderStatus
 import me.ahoo.wow.example.shop.api.order.PayOrder
@@ -44,7 +44,11 @@ class Order(private val state: OrderState) {
      * services are parameters of the generated factory, bound once when the host builds the model (decision D49); the
      * function suspends on them. The order's total goes back to the caller as the result `totalAmount`
      * ([DecideScope.putResult]); it is not persisted, and a repeated request is not answered it again (decision D51).
+     *
+     * A [Decision] does not say which events it holds, so `@OnCommand(produces)` declares them for the Manifest
+     * (decision D120), as on the other functions that return one.
      */
+    @OnCommand(produces = [OrderCreated::class])
     suspend fun onCommand(
         command: Command<CreateOrder>,
         inventoryService: InventoryService,
@@ -83,6 +87,7 @@ class Order(private val state: OrderState) {
         return Decision.events(created)
     }
 
+    @OnCommand(produces = [AddressChanged::class])
     fun onCommand(command: ChangeAddress): Decision = whenStatus(OrderStatus.CREATED, "change its address") {
         Decision.events(AddressChanged(command.shippingAddress))
     }
@@ -106,11 +111,13 @@ class Order(private val state: OrderState) {
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+    @OnCommand(produces = [OrderShipped::class])
     fun onCommand(command: ShipOrder): Decision = whenStatus(OrderStatus.PAID, "ship it") {
         Decision.events(OrderShipped)
     }
 
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+    @OnCommand(produces = [OrderReceived::class])
     fun onCommand(command: ReceiptOrder): Decision = whenStatus(OrderStatus.SHIPPED, "receive it") {
         Decision.events(OrderReceived)
     }

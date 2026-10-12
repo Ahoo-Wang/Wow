@@ -40,18 +40,3 @@ enum class OrderStatus {
     SHIPPED,
     RECEIVED,
 }
-
-/** The codes an order rejects a command with, besides the framework's. */
-object OrderRejections {
-    /** A product has less stock than the quantity ordered. */
-    const val INSUFFICIENT_INVENTORY = "example.order.insufficient-inventory"
-
-    /** A product's price is no longer the one the customer saw. */
-    const val PRICE_CHANGED = "example.order.price-changed"
-
-    /** The order has no item. */
-    const val NO_ITEMS = "example.order.no-items"
-
-    /** The order's status does not allow the command, such as shipping an order that is not paid. */
-    const val WRONG_STATUS = "example.order.wrong-status"
-}

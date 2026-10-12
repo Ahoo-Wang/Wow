@@ -49,6 +49,7 @@ internal object V10Annotations {
         "Blocking",
         "Description",
         "Summary",
+        "ErrorCode",
         "WowSpi",
         // Not a domain annotation: it marks the framework's own internals.
         "InternalWowApi",

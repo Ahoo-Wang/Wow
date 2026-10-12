@@ -15,10 +15,12 @@ package me.ahoo.wow.example.shop.domain
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.example.shop.domain.cart.CartRejections
 import me.ahoo.wow.example.shop.domain.order.InventoryService
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.createOrder
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.orderCreated
+import me.ahoo.wow.example.shop.domain.order.OrderRejections
 import me.ahoo.wow.example.shop.domain.order.OrderState
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
@@ -136,5 +138,49 @@ class ShopDomainModelProviderTest {
         // A sealed return type tells the compiler every event a command can produce.
         order.commands.single { it.name == "PayOrder" }.produces
             .assert().isEqualTo(listOf("OrderOverPaid", "OrderPaid", "OrderPayDuplicated"))
+    }
+
+    @Test
+    fun `the fragment should list what each command produces, @OnCommand(produces) declaring a Decision's events`() {
+        val produces = fragment().contexts.single().aggregates.associate { aggregate ->
+            aggregate.name to aggregate.commands.associate { it.name to it.produces }
+        }
+        produces.assert().isEqualTo(
+            mapOf(
+                "cart" to mapOf(
+                    "AddCartItem" to listOf("CartItemAdded", "CartQuantityChanged"),
+                    "ChangeQuantity" to listOf("CartQuantityChanged"),
+                    "RemoveCartItem" to listOf("CartItemRemoved"),
+                ),
+                "order" to mapOf(
+                    "ChangeAddress" to listOf("AddressChanged"),
+                    "CreateOrder" to listOf("OrderCreated"),
+                    "PayOrder" to listOf("OrderOverPaid", "OrderPaid", "OrderPayDuplicated"),
+                    "ReceiptOrder" to listOf("OrderReceived"),
+                    "ShipOrder" to listOf("OrderShipped"),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `the fragment should list the context's error codes from @ErrorCode`() {
+        fragment().contexts.single().errors.map { Triple(it.code, it.status, it.description) }.assert().containsExactly(
+            Triple(CartRejections.FULL, 422, "The cart already holds its maximum number of products."),
+            Triple(CartRejections.ITEM_NOT_FOUND, 422, "The product is not in the cart."),
+            Triple(
+                CartRejections.NOT_OWNER,
+                403,
+                "The caller is not the customer whose cart this is: a cart's id is its customer's user id.",
+            ),
+            Triple(OrderRejections.INSUFFICIENT_INVENTORY, 422, "A product has less stock than the quantity ordered."),
+            Triple(OrderRejections.NO_ITEMS, 422, "The order has no item."),
+            Triple(OrderRejections.PRICE_CHANGED, 422, "A product's price is no longer the one the customer saw."),
+            Triple(
+                OrderRejections.WRONG_STATUS,
+                409,
+                "The order's status does not allow the command, such as shipping an order that is not paid.",
+            ),
+        )
     }
 }

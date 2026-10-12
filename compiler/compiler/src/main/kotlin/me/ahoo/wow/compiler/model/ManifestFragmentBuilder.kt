@@ -18,6 +18,7 @@ import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
@@ -45,6 +46,7 @@ internal object ManifestFragmentBuilder {
         description: String?,
         aggregates: List<AggregateBinding>,
         subscriptions: List<SubscriptionBinding>,
+        errors: List<ErrorManifest> = emptyList(),
     ): Manifest = Manifest(
         contexts = listOf(
             ContextManifest(
@@ -52,6 +54,7 @@ internal object ManifestFragmentBuilder {
                 description = description,
                 aggregates = aggregates.map { aggregate(context, it) }.sortedBy { it.name },
                 subscriptions = subscriptions.flatMap { subscriptions(context, it, aggregates) }.sortedBy { it.name },
+                errors = errors.sortedBy { it.code },
             ),
         ),
     )

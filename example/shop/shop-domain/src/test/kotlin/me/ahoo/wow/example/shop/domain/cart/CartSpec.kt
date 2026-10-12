@@ -21,7 +21,6 @@ import me.ahoo.wow.example.shop.api.cart.CartItem
 import me.ahoo.wow.example.shop.api.cart.CartItemAdded
 import me.ahoo.wow.example.shop.api.cart.CartItemRemoved
 import me.ahoo.wow.example.shop.api.cart.CartQuantityChanged
-import me.ahoo.wow.example.shop.api.cart.CartRejections
 import me.ahoo.wow.example.shop.api.cart.ChangeQuantity
 import me.ahoo.wow.example.shop.api.cart.RemoveCartItem
 import me.ahoo.wow.kernel.KernelRejections
