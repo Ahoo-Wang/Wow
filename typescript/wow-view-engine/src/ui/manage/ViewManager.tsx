@@ -36,6 +36,7 @@ import { manageDragAccessibility, managerDrop } from './drag.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { useAnnouncer } from '../kit/Announcer.js';
 import { DialogContent } from '../kit/popups.js';
+import { WithWordingTab } from './DatasetWordingForm.js';
 import {
   SortableViewManagerRow,
   ViewManagerOutcome,
@@ -251,6 +252,62 @@ export function ViewManager({
     </div>
   );
 
+  const viewsBody = (
+    <>
+      {/* The body scrolls, the heading stays: a list longer than the
+            screen (30-odd system views) scrolls here rather than pushing the
+            dialog past the viewport's edges. It is the rows' containing
+            block too (`relative`): the screen-reader words a row carries
+            (`sr-only`, absolute) would otherwise hang off the transformed
+            dialog, outside this clip, and give the dialog a second
+            scrollbar of its own once the list is long. */}
+      <div
+        data-slot="view-manager-body"
+        className="fve:relative fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-1 fve:py-0.5"
+      >
+        {/* The order and the default are one record, so their outcome belongs
+            to the list rather than to any row that moved. */}
+        {preferences && (
+          <ViewManagerOutcome
+            state={preferences}
+            manager={manager}
+            list={list}
+            outcomeKey={PREFERENCES_KEY}
+          />
+        )}
+
+        {manager.can.reorder ? (
+          <DragDropProvider
+            {...sortableList(manageDragAccessibility(messages, titleOf))}
+            onDragEnd={({ operation, canceled }) => {
+              // The library holds a drag inside its own group; `managerDrop`
+              // says the same thing where the order is decided, so a drop
+              // the sensor let through cannot store one audience among the
+              // other's rows.
+              const drop = managerDrop(
+                operation,
+                canceled,
+                id => groupOf(id)?.audience,
+              );
+              // The place of the row it was dropped on, asked for now for
+              // the same reason the arrow keys ask for it now.
+              if (drop) move(drop.source, manager.placeOf(drop.target));
+            }}
+          >
+            {rows}
+          </DragDropProvider>
+        ) : (
+          rows
+        )}
+
+        {/* One voice for what landed: a move asked for with the arrow keys
+            (the library announces its own pick-up and cancel) and a move to
+            the other audience. */}
+        {announcement}
+      </div>
+    </>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Opening on the heading rather than on whatever is focusable first.
@@ -274,57 +331,11 @@ export function ViewManager({
           </DialogDescription>
         </DialogHeader>
 
-        {/* The body scrolls, the heading stays: a list longer than the
-            screen (30-odd system views) scrolls here rather than pushing the
-            dialog past the viewport's edges. It is the rows' containing
-            block too (`relative`): the screen-reader words a row carries
-            (`sr-only`, absolute) would otherwise hang off the transformed
-            dialog, outside this clip, and give the dialog a second
-            scrollbar of its own once the list is long. */}
-        <div
-          data-slot="view-manager-body"
-          className="fve:relative fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-1 fve:py-0.5"
-        >
-          {/* The order and the default are one record, so their outcome belongs
-            to the list rather than to any row that moved. */}
-          {preferences && (
-            <ViewManagerOutcome
-              state={preferences}
-              manager={manager}
-              list={list}
-              outcomeKey={PREFERENCES_KEY}
-            />
-          )}
-
-          {manager.can.reorder ? (
-            <DragDropProvider
-              {...sortableList(manageDragAccessibility(messages, titleOf))}
-              onDragEnd={({ operation, canceled }) => {
-                // The library holds a drag inside its own group; `managerDrop`
-                // says the same thing where the order is decided, so a drop
-                // the sensor let through cannot store one audience among the
-                // other's rows.
-                const drop = managerDrop(
-                  operation,
-                  canceled,
-                  id => groupOf(id)?.audience,
-                );
-                // The place of the row it was dropped on, asked for now for
-                // the same reason the arrow keys ask for it now.
-                if (drop) move(drop.source, manager.placeOf(drop.target));
-              }}
-            >
-              {rows}
-            </DragDropProvider>
-          ) : (
-            rows
-          )}
-
-          {/* One voice for what landed: a move asked for with the arrow keys
-            (the library announces its own pick-up and cancel) and a move to
-            the other audience. */}
-          {announcement}
-        </div>
+        {manager.wording ? (
+          <WithWordingTab wording={manager.wording}>{viewsBody}</WithWordingTab>
+        ) : (
+          viewsBody
+        )}
       </DialogContent>
     </Dialog>
   );

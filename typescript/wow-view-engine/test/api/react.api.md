@@ -1331,6 +1331,22 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
 type DashboardWidth = 'fixed' | 'full';
 
 // @public
+type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
+
+// @public
+interface DatasetWordingEditor {
+    readonly dataset: string;
+    readonly derivedTitle: string;
+    readonly fields: readonly {
+        name: string;
+        label: string;
+    }[];
+    readonly revision: string;
+    save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+    readonly wording: DatasetOverrides;
+}
+
+// @public
 type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 // @public
@@ -1376,6 +1392,17 @@ interface DecimalNumeric {
     scale: number;
     // (undocumented)
     type: 'decimal';
+}
+
+// @public
+interface DefineDatasetSpec {
+    fields?: Readonly<Record<string, FieldSpec | string | false>>;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    recordNoun?: string;
+    source: string;
+    title: string;
 }
 
 // @public
@@ -1558,6 +1585,7 @@ abstract class EngineResources {
     register(resource: {
         definition: ViewDefinition;
         source?: ViewSource;
+        wording?: DatasetWordingEditor;
     }): void;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
     protected report(found: Issue, resource?: string): void;
@@ -1567,6 +1595,7 @@ abstract class EngineResources {
     setText(text: TextResolver | undefined, language?: string): void;
     startingWord(key: string): string | undefined;
     unregister(definitionId: string): boolean;
+    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
 }
 
 // @public (undocumented)
@@ -1772,6 +1801,31 @@ interface FieldOption {
     tone?: FieldTone;
     // (undocumented)
     value: string | number;
+}
+
+// @public
+interface FieldSpec {
+    analysis?: FieldAnalysisSpec | false;
+    // (undocumented)
+    cell?: FieldCellId;
+    deprecated?: {
+        message?: string;
+    };
+    elements?: Readonly<Record<string, FieldSpec | string>>;
+    // (undocumented)
+    elementTitle?: string;
+    kind?: FieldKindId;
+    label?: string;
+    more?: Partial<Pick<FieldDefinition, 'numberFormat' | 'numeric' | 'temporal' | 'remote' | 'stringComparison'>>;
+    operators?: FilterOperatorName[];
+    options?: Readonly<Record<string, OptionSpec>> | readonly (readonly [FieldOption['value'], OptionSpec])[];
+    search?: {
+        fields: string[];
+        mode?: SearchModeName;
+    };
+    sortable?: boolean;
+    summary?: SummaryFunction[];
+    timePrecision?: TimePrecision;
 }
 
 // @public
@@ -2358,6 +2412,15 @@ export interface ManagedInstanceAbilities {
     rename: boolean;
 }
 
+// @public
+export interface ManagedWording {
+    editor: DatasetWordingEditor;
+    error: unknown;
+    save(wording: DatasetOverrides): Promise<boolean>;
+    // (undocumented)
+    saving: boolean;
+}
+
 // @public (undocumented)
 interface MapData {
     // (undocumented)
@@ -2590,6 +2653,9 @@ interface OptionSource {
         nextCursor: string | null;
     }>;
 }
+
+// @public
+type OptionSpec = string | Omit<FieldOption, 'value'> | false;
 
 // @public
 export function ownedNavigation(runtime: ViewRuntime<DataViewConfig>, title: string, handOver: HandOver | null): ViewNavigation | null;
@@ -4176,6 +4242,7 @@ export interface ViewManagerController {
     retry(key: string): Promise<boolean>;
     // (undocumented)
     setDefault(id: string | null): Promise<boolean>;
+    wording?: ManagedWording;
 }
 
 // @public
@@ -4200,6 +4267,7 @@ interface ViewPermissions {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    editDatasetWording?: boolean;
     editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;

@@ -882,7 +882,7 @@ interface Request {
 }
 
 /** The headers of a write: its request id, its expected version, the wait. */
-function writeHeaders(
+export function writeHeaders(
   context: WriteContext,
   revision?: string,
 ): Record<string, string> {
@@ -925,7 +925,7 @@ function readOnly(message: string): never {
  * `ViewStoreError`: a failed request as its code says, anything else — a
  * body that did not parse — as `UNAVAILABLE`, the outcome unknown.
  */
-async function guard<T>(run: () => Promise<T>): Promise<T> {
+export async function guard<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (thrown) {

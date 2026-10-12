@@ -4,7 +4,10 @@
 
 ```ts
 
+import { DatasetOverrides } from '@ahoo-wang/wow-view-engine';
+import { DatasetWordingStore } from '@ahoo-wang/wow-view-engine';
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { StoredDatasetWording } from '@ahoo-wang/wow-view-engine';
 import { ViewAudience } from '@ahoo-wang/wow-view-engine';
 import { ViewConfig } from '@ahoo-wang/wow-view-engine';
 import { ViewInstance } from '@ahoo-wang/wow-view-engine';
@@ -22,6 +25,19 @@ export const SYSTEM_OWNER_ID = "(system)";
 
 // @public
 export const SYSTEM_TENANT_ID = "(platform)";
+
+// @public
+export class WowDatasetWordings implements DatasetWordingStore {
+    constructor(options: WowDatasetWordingsOptions);
+    clear(dataset: string, revision: string, context: WriteContext): Promise<void>;
+    list(signal?: AbortSignal): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteContext): Promise<string>;
+}
+
+// @public
+export interface WowDatasetWordingsOptions {
+    fetcher: Fetcher;
+}
 
 // @public
 export class WowViewStore implements ViewStore {

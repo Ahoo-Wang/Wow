@@ -18,7 +18,11 @@ description: 把 ClickHouse 宽表等声明式数据集接入 Wow 查询：声�
   "title": "订单宽表",
   "identity": "order_id",
   "eventTime": "updated_at",
-  "scope": { "tenant": "tenant_id", "owner": "owner_id", "tags": { "region": "region", "dept": "depts" } },
+  "scope": {
+    "tenant": "tenant_id",
+    "owner": "owner_id",
+    "tags": { "region": "region", "dept": "depts" }
+  },
   "storage": { "table": "bi_db.order_wide", "deduplicate": "FINAL" },
   "fields": {
     "order_id": { "types": ["STRING"], "nullable": false },
@@ -26,25 +30,35 @@ description: 把 ClickHouse 宽表等声明式数据集接入 Wow 查询：声�
     "owner_id": { "types": ["STRING"], "nullable": false },
     "city": { "types": ["STRING"], "nullable": false },
     "region": { "types": ["STRING"], "nullable": false },
-    "depts": { "kind": "ARRAY", "items": { "types": ["STRING"] }, "nullable": false },
+    "depts": {
+      "kind": "ARRAY",
+      "items": { "types": ["STRING"] },
+      "nullable": false
+    },
     "amount": { "types": ["DECIMAL"], "nullable": false },
-    "updated_at": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" } },
-    "customer_phone": { "types": ["STRING"], "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 } }
+    "updated_at": {
+      "types": ["STRING"],
+      "semantic": { "type": "TEMPORAL_DATE" }
+    },
+    "customer_phone": {
+      "types": ["STRING"],
+      "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 }
+    }
   }
 }
 ```
 
-| 键 | 含义 |
-| --- | --- |
-| `fields` | 可查询的字段，每个是表的一列，使用[查询模型 Schema](./query-model-schema.md) 的声明词汇。没有声明的列不会暴露 |
-| `scope.tenant` | 租户列：调用方范围中的 `tenantId` 落到这一列，`wow.query.require-authenticated-scope` 也要求它。与 `scope.platform` 二选一 |
-| `scope.platform` | `true` 表示表里没有租户列，数据集属于平台租户 `(0)`：调用方的租户是 `(0)` 时读到全部记录，是其他租户时什么都读不到，从不对所有租户开放。适合企业仓库中不分租户的表 |
-| `scope.owner`、`scope.space` | 可选。所有者列与空间列 |
-| `scope.tags` | 可选。ABAC 标签键到列的绑定，见 [ABAC](#abac) |
-| `identity` | 可选。每行的唯一标识：ID 过滤、游标分页与 View Engine 明细视图的 `rowKey` 都需要它 |
-| `eventTime` | 可选。`FIRST`/`LAST` 指标的默认 `orderBy` |
-| `fields.*.sensitive` | 字段的敏感等级与遮挡方式（`level`、`keepPrefix`、`keepSuffix`），语义同 `@Sensitive`。宽表的列没有类型可以携带注解，所以数据集声明是例外 |
-| `storage` | 查询后端自己的绑定，核心原样交给后端，见[ClickHouse 后端](#clickhouse) |
+| 键                           | 含义                                                                                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fields`                     | 可查询的字段，每个是表的一列，使用[查询模型 Schema](./query-model-schema.md) 的声明词汇。没有声明的列不会暴露                                                      |
+| `scope.tenant`               | 租户列：调用方范围中的 `tenantId` 落到这一列，`wow.query.require-authenticated-scope` 也要求它。与 `scope.platform` 二选一                                         |
+| `scope.platform`             | `true` 表示表里没有租户列，数据集属于平台租户 `(0)`：调用方的租户是 `(0)` 时读到全部记录，是其他租户时什么都读不到，从不对所有租户开放。适合企业仓库中不分租户的表 |
+| `scope.owner`、`scope.space` | 可选。所有者列与空间列                                                                                                                                             |
+| `scope.tags`                 | 可选。ABAC 标签键到列的绑定，见 [ABAC](#abac)                                                                                                                      |
+| `identity`                   | 可选。每行的唯一标识：ID 过滤、游标分页与 View Engine 明细视图的 `rowKey` 都需要它                                                                                 |
+| `eventTime`                  | 可选。`FIRST`/`LAST` 指标的默认 `orderBy`                                                                                                                          |
+| `fields.*.sensitive`         | 字段的敏感等级与遮挡方式（`level`、`keepPrefix`、`keepSuffix`），语义同 `@Sensitive`。宽表的列没有类型可以携带注解，所以数据集声明是例外                           |
+| `storage`                    | 查询后端自己的绑定，核心原样交给后端，见[ClickHouse 后端](#clickhouse)                                                                                             |
 
 在 `wow.query.datasets` 中列出服务提供的数据集：
 
@@ -74,7 +88,7 @@ wow:
   query:
     clickhouse:
       enabled: true
-      endpoints: [ http://clickhouse:8123 ]
+      endpoints: [http://clickhouse:8123]
       username: wow_reader
       password: ${CLICKHOUSE_PASSWORD}
       database: bi_db
@@ -98,7 +112,7 @@ wow:
     clickhouse:
       sources:
         warehouse:
-          endpoints: [ http://dw:8123 ]
+          endpoints: [http://dw:8123]
           username: wow_reader
           password: ${DW_PASSWORD}
           database: dw
@@ -110,16 +124,16 @@ wow:
 
 ## HTTP 路由
 
-| 方法 | 路径 | 请求体与响应 |
-| --- | --- | --- |
-| `GET` | `/dataset` | 目录：本服务提供的每个数据集的上下文、名字、标题与能力描述版本（schema 不能编译时为 `null`） |
-| `GET` | `/dataset/{context}/{dataset}/schema` | 能力描述（ETag，未变化时 304） |
-| `POST` | `/dataset/{context}/{dataset}/count` | `FilterExpression` → 记录数 |
-| `POST` | `/dataset/{context}/{dataset}/list` | `ListQuery` → 行（JSON 数组或 SSE） |
-| `POST` | `/dataset/{context}/{dataset}/paged` | `PagedQuery` → `{ total, list }` |
-| `POST` | `/dataset/{context}/{dataset}/cursor` | `CursorQuery` → `{ list, nextCursor }` |
-| `POST` | `/dataset/{context}/{dataset}/single` | `SingleQuery` → 一行，没有时 404 |
-| `POST` | `/dataset/{context}/{dataset}/aggregation` | `AggregationQuery` → 行（JSON 数组或 SSE） |
+| 方法   | 路径                                       | 请求体与响应                                                                                 |
+| ------ | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `GET`  | `/dataset`                                 | 目录：本服务提供的每个数据集的上下文、名字、标题与能力描述版本（schema 不能编译时为 `null`） |
+| `GET`  | `/dataset/{context}/{dataset}/schema`      | 能力描述（ETag，未变化时 304）                                                               |
+| `POST` | `/dataset/{context}/{dataset}/count`       | `FilterExpression` → 记录数                                                                  |
+| `POST` | `/dataset/{context}/{dataset}/list`        | `ListQuery` → 行（JSON 数组或 SSE）                                                          |
+| `POST` | `/dataset/{context}/{dataset}/paged`       | `PagedQuery` → `{ total, list }`                                                             |
+| `POST` | `/dataset/{context}/{dataset}/cursor`      | `CursorQuery` → `{ list, nextCursor }`                                                       |
+| `POST` | `/dataset/{context}/{dataset}/single`      | `SingleQuery` → 一行，没有时 404                                                             |
+| `POST` | `/dataset/{context}/{dataset}/aggregation` | `AggregationQuery` → 行（JSON 数组或 SSE）                                                   |
 
 配置了数据集查询后端（例如 ClickHouse）时注册这些路由。除目录外，每个路由也在 `/tenant/{tenantId}` 下提供。这些路由与聚合的查询路由走同一条管道：HTTP 入口、HTTP 预算、空闲超时、错误码与能力描述。服务没有提供的数据集返回 404。
 
@@ -159,7 +173,10 @@ async function registerDataset(
 `DatasetResources` 替宿主做完这些：它读目录（`DatasetDirectoryClient`），按版本登记、再登记、移除，并答出当前提供着的数据集。宿主为每个生成一个绑定，导航里就出现它们，打开一个就是开始分析它：
 
 ```typescript
-import { DatasetDirectoryClient, DatasetQueryClient } from '@ahoo-wang/wow-client';
+import {
+  DatasetDirectoryClient,
+  DatasetQueryClient,
+} from '@ahoo-wang/wow-client';
 import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { bind, type ViewBinding } from '@ahoo-wang/wow-view-engine/ui';
 
@@ -168,12 +185,31 @@ async function datasetBindings(engine: ViewEngine): Promise<ViewBinding[]> {
   const datasets = new DatasetResources(engine, {
     list: () => directory.list(),
     source: entry =>
-      new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+      new DatasetQueryClient({
+        context: entry.contextName,
+        dataset: entry.name,
+      }),
   });
   const served = await datasets.refresh();
-  return served.map(({ id }) => bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }));
+  return served.map(({ id }) =>
+    bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }),
+  );
 }
 ```
+
+数据集的标题、名词与字段口径（只能改词与收窄，D86）可以由租户的管理员存进视图存储，不必写进宿主代码。`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写它，交给 `DatasetResources` 作措辞存储：每次 `refresh` 前读一遍，按存着的措辞登记；读不到时沿用上次读到的。
+
+```typescript
+import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
+
+const datasets = new DatasetResources(engine, {
+  list: () => directory.list(),
+  source: entry => new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  wordings: new WowDatasetWordings({ fetcher }), // 与 WowViewStore 同一个 fetcher
+});
+```
+
+宿主给了 `editDatasetWording` 许可时，视图管理器多一个「措辞」页签：管理员在那里改标题、名词、字段的名称、次序与显示，保存后数据集按新词重新登记。谁能写由 CoSec 网关决定（[视图存储](../extensions/view-store.md#数据集措辞)）。
 
 ## 进程内查询
 
@@ -198,10 +234,10 @@ orders.aggregate(
 
 `AbacQueryPolicy` 也作用于在 `scope.tags` 中绑定了标签列的数据集，规则与 Snapshot 的 `tags` 系统字段相同。每个标签键绑定一列：单值标签用字符串列，多值标签用 `Array(String)` 列。空字符串或空数组表示记录没有这个标签。
 
-| 主体标签 | 字符串列 | 数组列 |
-| --- | --- | --- |
+| 主体标签     | 字符串列                  | 数组列                    |
+| ------------ | ------------------------- | ------------------------- |
 | `["a", "b"]` | 值为 `a` 或 `b`，或为空串 | 含 `a` 或 `b`，或为空数组 |
-| 通配 `["*"]` | 不为空串 | 不为空数组 |
+| 通配 `["*"]` | 不为空串                  | 不为空数组                |
 
 - 关闭 `wow.query.abac.match-missing-tag-key` 时，“为空”的记录不再作为公开资源匹配。
 - 数据集没有绑定的标签键，视为所有记录都不带这个标签：默认不限制；通配或关闭上一项时，什么都不匹配。
@@ -215,7 +251,10 @@ orders.aggregate(
 ```typescript
 import { DatasetQueryClient, aggregation } from '@ahoo-wang/wow-client';
 
-const orders = new DatasetQueryClient({ context: 'analytics', dataset: 'order_wide' });
+const orders = new DatasetQueryClient({
+  context: 'analytics',
+  dataset: 'order_wide',
+});
 const byCity = await orders.aggregate(
   aggregation.query({
     groupBy: [aggregation.terms('city', 'city')],

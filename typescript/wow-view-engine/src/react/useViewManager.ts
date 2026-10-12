@@ -24,6 +24,7 @@ import type {
   WritePayload,
   WriteState,
 } from '../runtime/index.js';
+import { type ManagedWording, useDatasetWording } from './manager/wording.js';
 import { abilitiesOf, type ViewManagerAbilities } from './manager/abilities.js';
 import { kept, PREFERENCES_KEY, projectStates } from './manager/outcomes.js';
 import { UNSENT } from './writes.js';
@@ -109,6 +110,12 @@ export interface ViewManagerController {
    */
   pending: string | null;
   can: ViewManagerAbilities;
+  /**
+   * The wording of the definition's dataset (D91), where the host grants
+   * `editDatasetWording` and the dataset was registered with a store of
+   * wording: the view manager's wording tab. Absent otherwise.
+   */
+  wording?: ManagedWording;
 }
 
 /** A queued move's orders, with the inputs it was computed under. */
@@ -324,9 +331,18 @@ export function useViewManager(
   const { retry, abandon, resolveConflict, resubmit, canResubmit } =
     useRecovery(engine, { run, outcomes, held, record });
 
-  const can = useMemo<ViewManagerAbilities>(
+  const wording = useDatasetWording(engine, definitionId, permissions);
+  const abilities = useMemo<ViewManagerAbilities>(
     () => abilitiesOf(items, permissions),
     [items, permissions],
+  );
+  // The wording alone is reason enough to open the manager.
+  const can = useMemo<ViewManagerAbilities>(
+    () =>
+      wording && !abilities.anything
+        ? { ...abilities, anything: true }
+        : abilities,
+    [abilities, wording],
   );
 
   const states = useMemo(() => projectStates(outcomes), [outcomes]);
@@ -347,6 +363,7 @@ export function useViewManager(
     canResubmit,
     pending,
     can,
+    ...(wording ? { wording } : {}),
   };
 }
 

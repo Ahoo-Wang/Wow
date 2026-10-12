@@ -18,7 +18,11 @@ A dataset is named within a bounded context, such as `analytics.order_wide`. Its
   "title": "Order wide table",
   "identity": "order_id",
   "eventTime": "updated_at",
-  "scope": { "tenant": "tenant_id", "owner": "owner_id", "tags": { "region": "region", "dept": "depts" } },
+  "scope": {
+    "tenant": "tenant_id",
+    "owner": "owner_id",
+    "tags": { "region": "region", "dept": "depts" }
+  },
   "storage": { "table": "bi_db.order_wide", "deduplicate": "FINAL" },
   "fields": {
     "order_id": { "types": ["STRING"], "nullable": false },
@@ -26,25 +30,35 @@ A dataset is named within a bounded context, such as `analytics.order_wide`. Its
     "owner_id": { "types": ["STRING"], "nullable": false },
     "city": { "types": ["STRING"], "nullable": false },
     "region": { "types": ["STRING"], "nullable": false },
-    "depts": { "kind": "ARRAY", "items": { "types": ["STRING"] }, "nullable": false },
+    "depts": {
+      "kind": "ARRAY",
+      "items": { "types": ["STRING"] },
+      "nullable": false
+    },
     "amount": { "types": ["DECIMAL"], "nullable": false },
-    "updated_at": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" } },
-    "customer_phone": { "types": ["STRING"], "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 } }
+    "updated_at": {
+      "types": ["STRING"],
+      "semantic": { "type": "TEMPORAL_DATE" }
+    },
+    "customer_phone": {
+      "types": ["STRING"],
+      "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 }
+    }
   }
 }
 ```
 
-| Key | Meaning |
-| --- | --- |
-| `fields` | The queryable fields, each a column of the table, in the [Query Model Schema](./query-model-schema.md) declaration vocabulary. A column that is not declared is never exposed |
-| `scope.tenant` | The tenant column: the caller scope's `tenantId` lands on it, and `wow.query.require-authenticated-scope` requires it. Exactly one of it and `scope.platform` |
-| `scope.platform` | `true` for a table without a tenant column: the dataset belongs to the platform tenant `(0)`, so a caller of tenant `(0)` reads every record and a caller of any other tenant reads none; it is never open to every tenant. For an enterprise warehouse's tables that have no tenant |
-| `scope.owner`, `scope.space` | Optional. The owner and space columns |
-| `scope.tags` | Optional. ABAC tag keys bound to columns; see [ABAC](#abac) |
-| `identity` | Optional. Each row's unique identity: ID filters, cursor pages and the View Engine record view's `rowKey` need it |
-| `eventTime` | Optional. The default `orderBy` of `FIRST`/`LAST` metrics |
-| `fields.*.sensitive` | The field's sensitivity level and mask (`level`, `keepPrefix`, `keepSuffix`), as `@Sensitive` means them. A wide table's columns have no type to carry the annotation, so a dataset declaration is the exception |
-| `storage` | The query backend's own binding, passed to it unread; see [ClickHouse Backend](#clickhouse) |
+| Key                          | Meaning                                                                                                                                                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fields`                     | The queryable fields, each a column of the table, in the [Query Model Schema](./query-model-schema.md) declaration vocabulary. A column that is not declared is never exposed                                                                                                        |
+| `scope.tenant`               | The tenant column: the caller scope's `tenantId` lands on it, and `wow.query.require-authenticated-scope` requires it. Exactly one of it and `scope.platform`                                                                                                                        |
+| `scope.platform`             | `true` for a table without a tenant column: the dataset belongs to the platform tenant `(0)`, so a caller of tenant `(0)` reads every record and a caller of any other tenant reads none; it is never open to every tenant. For an enterprise warehouse's tables that have no tenant |
+| `scope.owner`, `scope.space` | Optional. The owner and space columns                                                                                                                                                                                                                                                |
+| `scope.tags`                 | Optional. ABAC tag keys bound to columns; see [ABAC](#abac)                                                                                                                                                                                                                          |
+| `identity`                   | Optional. Each row's unique identity: ID filters, cursor pages and the View Engine record view's `rowKey` need it                                                                                                                                                                    |
+| `eventTime`                  | Optional. The default `orderBy` of `FIRST`/`LAST` metrics                                                                                                                                                                                                                            |
+| `fields.*.sensitive`         | The field's sensitivity level and mask (`level`, `keepPrefix`, `keepSuffix`), as `@Sensitive` means them. A wide table's columns have no type to carry the annotation, so a dataset declaration is the exception                                                                     |
+| `storage`                    | The query backend's own binding, passed to it unread; see [ClickHouse Backend](#clickhouse)                                                                                                                                                                                          |
 
 List the datasets a service serves in `wow.query.datasets`:
 
@@ -74,7 +88,7 @@ wow:
   query:
     clickhouse:
       enabled: true
-      endpoints: [ http://clickhouse:8123 ]
+      endpoints: [http://clickhouse:8123]
       username: wow_reader
       password: ${CLICKHOUSE_PASSWORD}
       database: bi_db
@@ -98,7 +112,7 @@ wow:
     clickhouse:
       sources:
         warehouse:
-          endpoints: [ http://dw:8123 ]
+          endpoints: [http://dw:8123]
           username: wow_reader
           password: ${DW_PASSWORD}
           database: dw
@@ -110,16 +124,16 @@ Give Wow a read-only account (`readonly=2`). The security boundary is Wow's admi
 
 ## HTTP Routes
 
-| Method | Path | Body and response |
-| --- | --- | --- |
-| `GET` | `/dataset` | The directory: each served dataset's context, name, title and descriptor version (`null` while its schema does not compile) |
-| `GET` | `/dataset/{context}/{dataset}/schema` | The capability descriptor (ETag, 304 while unchanged) |
-| `POST` | `/dataset/{context}/{dataset}/count` | `FilterExpression` → the record count |
-| `POST` | `/dataset/{context}/{dataset}/list` | `ListQuery` → rows (a JSON array or SSE) |
-| `POST` | `/dataset/{context}/{dataset}/paged` | `PagedQuery` → `{ total, list }` |
-| `POST` | `/dataset/{context}/{dataset}/cursor` | `CursorQuery` → `{ list, nextCursor }` |
-| `POST` | `/dataset/{context}/{dataset}/single` | `SingleQuery` → one row, 404 when none |
-| `POST` | `/dataset/{context}/{dataset}/aggregation` | `AggregationQuery` → rows (a JSON array or SSE) |
+| Method | Path                                       | Body and response                                                                                                           |
+| ------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/dataset`                                 | The directory: each served dataset's context, name, title and descriptor version (`null` while its schema does not compile) |
+| `GET`  | `/dataset/{context}/{dataset}/schema`      | The capability descriptor (ETag, 304 while unchanged)                                                                       |
+| `POST` | `/dataset/{context}/{dataset}/count`       | `FilterExpression` → the record count                                                                                       |
+| `POST` | `/dataset/{context}/{dataset}/list`        | `ListQuery` → rows (a JSON array or SSE)                                                                                    |
+| `POST` | `/dataset/{context}/{dataset}/paged`       | `PagedQuery` → `{ total, list }`                                                                                            |
+| `POST` | `/dataset/{context}/{dataset}/cursor`      | `CursorQuery` → `{ list, nextCursor }`                                                                                      |
+| `POST` | `/dataset/{context}/{dataset}/single`      | `SingleQuery` → one row, 404 when none                                                                                      |
+| `POST` | `/dataset/{context}/{dataset}/aggregation` | `AggregationQuery` → rows (a JSON array or SSE)                                                                             |
 
 These routes are registered when a dataset query backend (ClickHouse, say) is configured. Every route but the directory is also served under `/tenant/{tenantId}`. These routes run the same pipeline as an aggregate's query routes: the HTTP entry, the HTTP budget, the idle timeout, the error codes and the capability descriptor. A dataset the service does not serve answers 404.
 
@@ -159,7 +173,10 @@ Registering a dataset again replaces it whole; views already open keep the defin
 `DatasetResources` does this for a host: it reads the directory (`DatasetDirectoryClient`), registers, registers again and removes by version, and answers the datasets served. The host binds a route to each, so they appear in its navigation, and opening one is how a reader starts analysing it:
 
 ```typescript
-import { DatasetDirectoryClient, DatasetQueryClient } from '@ahoo-wang/wow-client';
+import {
+  DatasetDirectoryClient,
+  DatasetQueryClient,
+} from '@ahoo-wang/wow-client';
 import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { bind, type ViewBinding } from '@ahoo-wang/wow-view-engine/ui';
 
@@ -168,12 +185,31 @@ async function datasetBindings(engine: ViewEngine): Promise<ViewBinding[]> {
   const datasets = new DatasetResources(engine, {
     list: () => directory.list(),
     source: entry =>
-      new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+      new DatasetQueryClient({
+        context: entry.contextName,
+        dataset: entry.name,
+      }),
   });
   const served = await datasets.refresh();
-  return served.map(({ id }) => bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }));
+  return served.map(({ id }) =>
+    bind(id, { route: view => `/datasets/${id}${view ? `/${view}` : ''}` }),
+  );
 }
 ```
+
+A dataset's title, record noun and field labels (wording that only renames and narrows, D86) can be kept in the view store by a tenant's administrators rather than in the host's code. `WowDatasetWordings` from `@ahoo-wang/wow-view-store` reads and writes it; hand it to `DatasetResources` as the datasets' store of wording, read before each `refresh` and registered in, the wording read last standing when it cannot be read:
+
+```typescript
+import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
+
+const datasets = new DatasetResources(engine, {
+  list: () => directory.list(),
+  source: entry => new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  wordings: new WowDatasetWordings({ fetcher }), // the fetcher WowViewStore uses
+});
+```
+
+Where the host grants `editDatasetWording`, the view manager gains a Wording tab: an administrator renames the dataset, its records and its fields, reorders and hides fields there, and a save registers the dataset again in the new words. The CoSec gateway decides who may write ([View Store](../extensions/view-store.md#dataset-wording)).
 
 ## In-Process Queries
 
@@ -198,10 +234,10 @@ orders.aggregate(
 
 `AbacQueryPolicy` also restricts a dataset that binds tag columns in `scope.tags`, with the rules of the Snapshot `tags` system field. Each tag key is bound to one column: a string column for a single-valued tag, an `Array(String)` column for a multi-valued one. An empty string or array is a record without the tag.
 
-| Principal tag | String column | Array column |
-| --- | --- | --- |
-| `["a", "b"]` | `a` or `b`, or empty | contains `a` or `b`, or empty |
-| Wildcard `["*"]` | not empty | not empty |
+| Principal tag    | String column        | Array column                  |
+| ---------------- | -------------------- | ----------------------------- |
+| `["a", "b"]`     | `a` or `b`, or empty | contains `a` or `b`, or empty |
+| Wildcard `["*"]` | not empty            | not empty                     |
 
 - With `wow.query.abac.match-missing-tag-key` off, an empty record no longer matches as a public resource.
 - A tag key the dataset binds no column for is a tag no record carries: unrestricted by default; with a wildcard, or with the option above off, nothing matches.
@@ -215,7 +251,10 @@ orders.aggregate(
 ```typescript
 import { DatasetQueryClient, aggregation } from '@ahoo-wang/wow-client';
 
-const orders = new DatasetQueryClient({ context: 'analytics', dataset: 'order_wide' });
+const orders = new DatasetQueryClient({
+  context: 'analytics',
+  dataset: 'order_wide',
+});
 const byCity = await orders.aggregate(
   aggregation.query({
     groupBy: [aggregation.terms('city', 'city')],

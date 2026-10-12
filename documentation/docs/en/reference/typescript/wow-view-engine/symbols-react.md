@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 119 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 120 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -46,6 +46,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 119 — with its kind 
 | `LeaveGuardOptions` | interface | — | — |
 | `LeaveGuardState` | interface | What the guard reads off the open view. | — |
 | `ManagedInstanceAbilities` | interface | What may be done to one row. | — |
+| `ManagedWording` | interface | The manager's hold on a dataset's wording (D91); see `ViewManagerController.wording`. | — |
 | `MetricRemoval` | type | Whether a metric's ✕ may take it out: `last` when it is the only one,`cascade` when every other metric reads it and would leave with it — the edit #3777 makes as asked, leaving admission to refuse it. | — |
 | `NewViewOptions` | interface | What a workbench needs before it can make a view from nothing. | — |
 | `OpenViewState` | interface | — | [React Hooks](./react#api-useOpenView) |

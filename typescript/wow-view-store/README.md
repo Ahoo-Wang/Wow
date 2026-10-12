@@ -72,6 +72,43 @@ one all need it. Left out, everything is allowed — but the engine's
 off unless the host's answer says `true`: give it by the role the gateway
 admits to `tenant/(platform)/owner/(system)` (`view-store/README.md`, 「System views」).
 
+### Dataset wording
+
+`WowDatasetWordings` keeps a tenant's wording over its datasets (the view
+engine's dataset overrides: title, record noun, field labels, order and
+narrowing) under `owner/(shared)`, one per dataset and application, keyed by
+the dataset's definition id. Hand it to the datasets as their store of
+wording: `DatasetResources` reads it before each refresh, registers each
+dataset in its stored words, and gives the view manager its wording tab
+where the host grants `editDatasetWording`:
+
+```ts
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  DatasetDirectoryClient,
+  DatasetQueryClient,
+} from '@ahoo-wang/wow-client';
+import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
+
+declare const engine: ViewEngine;
+declare const fetcher: Fetcher;
+
+const directory = new DatasetDirectoryClient();
+const datasets = new DatasetResources(engine, {
+  list: () => directory.list(),
+  source: entry =>
+    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  wordings: new WowDatasetWordings({ fetcher }),
+});
+await datasets.refresh();
+```
+
+`set(dataset, wording, revision, { requestId })` writes one whole at the
+expected revision (`'0'` for one never written) and `clear` removes it; the
+gateway decides who may, by the role it admits to
+`…/owner/(shared)/datasets/{dataset}/wording`.
+
 ## Documentation
 
 | To                                                                                              | Read                                                                                                             |

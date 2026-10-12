@@ -1469,6 +1469,22 @@ export interface DashboardWorkbenchProps {
 }
 
 // @public
+type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
+
+// @public
+interface DatasetWordingEditor {
+    readonly dataset: string;
+    readonly derivedTitle: string;
+    readonly fields: readonly {
+        name: string;
+        label: string;
+    }[];
+    readonly revision: string;
+    save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
+    readonly wording: DatasetOverrides;
+}
+
+// @public
 type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 // @public
@@ -1555,6 +1571,17 @@ interface DecimalNumeric {
 
 // @public
 export function dedupeIssues(issues: readonly Issue[]): Issue[];
+
+// @public
+interface DefineDatasetSpec {
+    fields?: Readonly<Record<string, FieldSpec | string | false>>;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    recordNoun?: string;
+    source: string;
+    title: string;
+}
 
 // @public
 interface DefinitionDescribed {
@@ -3276,6 +3303,19 @@ export const en: {
     readonly 'label.manage.heading': "Manage views";
     readonly 'label.manage.description': "Rename, reorder and delete views, and choose which one opens first.";
     readonly 'label.manage.default': "Default";
+    readonly 'label.manage.tab.views': "Views";
+    readonly 'label.manage.tab.wording': "Wording";
+    readonly 'label.wording.description': "What readers call this dataset, its records and its fields. An empty box keeps the dataset's own word; a change reaches every reader, in views opened after it.";
+    readonly 'label.wording.title': "Title";
+    readonly 'label.wording.noun': "A record is called";
+    readonly 'label.wording.fields': "Fields";
+    readonly 'label.wording.field.label': "Name of {field}";
+    readonly 'label.wording.field.shown': "Show {field}";
+    readonly 'label.wording.field.up': "Move {field} up";
+    readonly 'label.wording.field.down': "Move {field} down";
+    readonly 'label.wording.save': "Save wording";
+    readonly 'label.wording.saved': "Saved. Views opened from now on read the new words.";
+    readonly 'label.wording.failed': "The wording could not be saved. Try again.";
     readonly 'label.manage.view-group': "Actions for “{title}”";
     readonly 'label.manage.set-default': "Open this one first";
     readonly 'label.manage.unset-default': "Stop opening this one first";
@@ -4062,6 +4102,7 @@ abstract class EngineResources {
     register(resource: {
         definition: ViewDefinition;
         source?: ViewSource;
+        wording?: DatasetWordingEditor;
     }): void;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
     protected report(found: Issue, resource?: string): void;
@@ -4071,6 +4112,7 @@ abstract class EngineResources {
     setText(text: TextResolver | undefined, language?: string): void;
     startingWord(key: string): string | undefined;
     unregister(definitionId: string): boolean;
+    wordingOf(definitionId: string): DatasetWordingEditor | undefined;
 }
 
 // @public (undocumented)
@@ -4327,6 +4369,31 @@ interface FieldOption {
     tone?: FieldTone;
     // (undocumented)
     value: string | number;
+}
+
+// @public
+interface FieldSpec {
+    analysis?: FieldAnalysisSpec | false;
+    // (undocumented)
+    cell?: FieldCellId;
+    deprecated?: {
+        message?: string;
+    };
+    elements?: Readonly<Record<string, FieldSpec | string>>;
+    // (undocumented)
+    elementTitle?: string;
+    kind?: FieldKindId;
+    label?: string;
+    more?: Partial<Pick<FieldDefinition, 'numberFormat' | 'numeric' | 'temporal' | 'remote' | 'stringComparison'>>;
+    operators?: FilterOperatorName[];
+    options?: Readonly<Record<string, OptionSpec>> | readonly (readonly [FieldOption['value'], OptionSpec])[];
+    search?: {
+        fields: string[];
+        mode?: SearchModeName;
+    };
+    sortable?: boolean;
+    summary?: SummaryFunction[];
+    timePrecision?: TimePrecision;
 }
 
 // @public
@@ -4991,6 +5058,15 @@ interface ManagedInstanceAbilities {
     rename: boolean;
 }
 
+// @public
+interface ManagedWording {
+    editor: DatasetWordingEditor;
+    error: unknown;
+    save(wording: DatasetOverrides): Promise<boolean>;
+    // (undocumented)
+    saving: boolean;
+}
+
 // @public (undocumented)
 interface MapData {
     // (undocumented)
@@ -5312,6 +5388,9 @@ interface OptionSource {
         nextCursor: string | null;
     }>;
 }
+
+// @public
+type OptionSpec = string | Omit<FieldOption, 'value'> | false;
 
 // @public
 interface OwnedView {
@@ -8549,6 +8628,7 @@ interface ViewManagerController {
     retry(key: string): Promise<boolean>;
     // (undocumented)
     setDefault(id: string | null): Promise<boolean>;
+    wording?: ManagedWording;
 }
 
 // @public (undocumented)
@@ -8607,6 +8687,7 @@ interface ViewPermissions {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    editDatasetWording?: boolean;
     editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;

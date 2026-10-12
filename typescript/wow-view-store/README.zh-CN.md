@@ -58,6 +58,37 @@ const engine = new ViewEngine({
 但引擎的 `editSystem`（发布、编辑、取消发布存储的系统视图）只在宿主明确答 `true` 时打开：按网关放行
 `tenant/(platform)/owner/(system)` 的角色给（`view-store/README.md`「System views」）。
 
+### 数据集措辞
+
+`WowDatasetWordings` 在 `owner/(shared)` 下存租户给数据集写的措辞（视图引擎的数据集覆盖：标题、名词、字段的
+口径、次序与收窄），每个应用、每个数据集一份，按数据集的定义 id 存。把它交给数据集作措辞存储：`DatasetResources`
+每次刷新前读它，按存着的措辞登记每个数据集，并在宿主给了 `editDatasetWording` 时给视图管理器一个「措辞」页签：
+
+```ts
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  DatasetDirectoryClient,
+  DatasetQueryClient,
+} from '@ahoo-wang/wow-client';
+import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
+
+declare const engine: ViewEngine;
+declare const fetcher: Fetcher;
+
+const directory = new DatasetDirectoryClient();
+const datasets = new DatasetResources(engine, {
+  list: () => directory.list(),
+  source: entry =>
+    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
+  wordings: new WowDatasetWordings({ fetcher }),
+});
+await datasets.refresh();
+```
+
+`set(dataset, wording, revision, { requestId })` 按期望版本整份写入（从没写过的是 `'0'`），`clear` 清掉；谁能写由网关
+按放行 `…/owner/(shared)/datasets/{dataset}/wording` 的角色决定。
+
 ## 文档
 
 | 想做的事                                                          | 读                                                                                                             |
