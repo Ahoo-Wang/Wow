@@ -33,7 +33,7 @@ const val MAX_ITEMS = 2
 /** A cart with mutable state, the default style (D7). */
 val cartModel = aggregate<CartState>("example", "cart") {
     initial { CartState(it.id) }
-    decide<CreateCart>(create = true) { _, command -> Decision.events(CartCreated(command.owner)) }
+    decide<CreateCart>(Creation.REQUIRED) { _, command -> Decision.events(CartCreated(command.owner)) }
     decide<AddItem> { state, command ->
         if (command.productId !in state.items && state.items.size >= MAX_ITEMS) {
             Decision.reject("cart.full", "A cart holds at most $MAX_ITEMS products.")

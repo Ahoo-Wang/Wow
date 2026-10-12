@@ -4,4 +4,5 @@ dependencies {
     api(project(":wow-runtime"))
     api("io.projectreactor:reactor-core")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
