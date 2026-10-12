@@ -94,9 +94,13 @@ data class EventType(
  * State is mutable by default (decision D7): [evolve] may change [S] in place and return it. The kernel never lets
  * a changed instance outlive a failure: it evolves a state freshly loaded for the attempt and drops it if the
  * attempt does not commit.
+ *
+ * [stateType] is the class of [S]: snapshots are read back as it, and its schema fingerprint tells whether a snapshot
+ * still fits it ([EventCodec.stateSchemaFingerprint]).
  */
 class AggregateModel<S : Any>(
     val type: AggregateType,
+    val stateType: Class<S>,
     private val initial: (AggregateRef) -> S,
     private val deciders: Map<Class<*>, DecideFunction<S>>,
     private val evolvers: Map<Class<*>, (S, Any) -> S>,
