@@ -19,7 +19,7 @@ import com.google.devtools.ksp.symbol.Modifier
 
 /**
  * What a decide function or an after hook can produce, read from its return type for the Manifest's `produces`:
- * the qualified names of the classes it yields as events. `Unit` yields none; a collection, array, sequence or
+ * the qualified names of the classes it yields as events. `Unit` yields none; a collection, array or
  * Reactor publisher yields what its element type yields; a sealed type yields what its subclasses yield; any other
  * class yields itself. A type that does not say what it holds (`Any`, `Decision`, a star projection) gives null.
  */
@@ -36,33 +36,26 @@ internal object EventYield {
         "kotlin.collections.Set",
         "kotlin.collections.MutableSet",
         "kotlin.Array",
-        "kotlin.sequences.Sequence",
         "reactor.core.publisher.Mono",
         "reactor.core.publisher.Flux",
         "org.reactivestreams.Publisher",
     )
 
+    /** What [type] yields; null for a star projection, as for any type that does not say. */
     fun of(type: KSType?): List<String>? {
-        val declaration = type?.declaration ?: return null
+        val declaration = (type ?: return null).declaration
         val name = declaration.qualifiedName?.asString() ?: return null
         return when {
             name in NOTHING -> emptyList()
             name in UNKNOWN -> null
-            name in CONTAINERS -> of(type.arguments.firstOrNull()?.type?.resolve())
+            name in CONTAINERS -> of(type.arguments.single().type?.resolve())
             declaration is KSClassDeclaration && Modifier.SEALED in declaration.modifiers -> sealed(declaration)
             else -> listOf(name)
         }
     }
 
     private fun sealed(declaration: KSClassDeclaration): List<String>? {
-        val yielded = mutableListOf<String>()
-        for (subclass in declaration.getSealedSubclasses()) {
-            yielded += if (Modifier.SEALED in subclass.modifiers) {
-                sealed(subclass) ?: return null
-            } else {
-                listOf(subclass.qualifiedName?.asString() ?: return null)
-            }
-        }
-        return yielded.distinct()
+        val yielded = declaration.getSealedSubclasses().map { of(it.asStarProjectedType()) }.toList()
+        return if (null in yielded) null else yielded.flatMap { it.orEmpty() }.distinct()
     }
 }

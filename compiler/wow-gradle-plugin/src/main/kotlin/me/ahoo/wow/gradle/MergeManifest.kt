@@ -23,6 +23,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
@@ -54,12 +55,15 @@ abstract class MergeManifest @Inject constructor(private val workers: WorkerExec
 
     @TaskAction
     fun merge() {
-        workers.classLoaderIsolation { spec -> spec.classpath.from(tools) }
-            .submit(ManifestToolsWork.Merge::class.java) { parameters ->
-                parameters.classpath.from(classpath)
-                parameters.serviceName.set(serviceName)
-                parameters.serviceVersion.set(serviceVersion)
-                parameters.output.set(outputFile)
-            }
+        submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
+    }
+
+    internal fun submit(queue: WorkQueue) {
+        queue.submit(ManifestToolsWork.Merge::class.java) { parameters ->
+            parameters.classpath.from(classpath)
+            parameters.serviceName.set(serviceName)
+            parameters.serviceVersion.set(serviceVersion)
+            parameters.output.set(outputFile)
+        }
     }
 }

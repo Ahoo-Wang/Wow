@@ -89,7 +89,7 @@ internal class ModelSymbolProcessor(
     private val mode: Mode,
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
-    private val manifest: ManifestOptions = ManifestOptions(),
+    private val manifest: ManifestOptions,
 ) : SymbolProcessor {
     enum class Mode { OFF, GENERATE, REPORT }
 
@@ -98,7 +98,7 @@ internal class ModelSymbolProcessor(
      * names the bounded context the module's aggregates and subscriptions belong to. Without [context], the one
      * `@BoundedContext` of the module names it; without [module], the context does.
      */
-    internal data class ManifestOptions(val module: String? = null, val context: String? = null)
+    internal data class ManifestOptions(val module: String?, val context: String?)
 
     private val bindings = mutableListOf<AggregateBinding>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
@@ -180,26 +180,23 @@ internal class ModelSymbolProcessor(
         if (bindings.isEmpty() && subscriptions.isEmpty()) {
             return
         }
-        when (mode) {
-            Mode.REPORT -> codeGenerator.createNewFileByPath(
+        // With the processor off, nothing was collected: the mode is report or generate.
+        if (mode == Mode.REPORT) {
+            codeGenerator.createNewFileByPath(
                 Dependencies(aggregating = true, sources = sources.toTypedArray()),
                 "META-INF/wow/model-report",
                 "json",
             ).bufferedWriter().use { it.write(ModelReport.json(bindings, subscriptions)) }
-
-            Mode.GENERATE -> writeManifestFragment()
-            Mode.OFF -> Unit
+        } else {
+            writeManifestFragment()
         }
     }
 
     /**
-     * Writes the module's Manifest fragment ([ManifestFragmentBuilder]) when the model compiled without problems and
-     * its bounded context is known.
+     * Writes the module's Manifest fragment ([ManifestFragmentBuilder]) when its bounded context is known. A model
+     * with problems never gets here: their errors make KSP call [onError] instead of [finish].
      */
     private fun writeManifestFragment() {
-        if (bindings.any { it.problems.isNotEmpty() } || subscriptions.any { it.problems.isNotEmpty() }) {
-            return
-        }
         val context = manifest.context ?: boundedContexts.keys.singleOrNull()
         if (context == null) {
             logger.warn(

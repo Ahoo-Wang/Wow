@@ -240,6 +240,162 @@ class ManifestFragmentTest {
         read(fragment).unresolvedSchemaRefs.assert().hasSize(11)
     }
 
+    private val order = SourceFile.kotlin(
+        "Order.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.annotation.AfterCommand
+        import me.ahoo.wow.api.annotation.AggregateRoot
+        import me.ahoo.wow.api.annotation.BoundedContext
+        import me.ahoo.wow.api.annotation.CreateAggregate
+        import me.ahoo.wow.api.annotation.OnEvent
+        import me.ahoo.wow.api.annotation.Reactor
+        import me.ahoo.wow.api.subscribe.StateEvent
+        import reactor.core.publisher.Flux
+
+        @BoundedContext(name = "orders")
+        object OrdersContext
+
+        @CreateAggregate
+        data class PlaceOrder(val id: String)
+        data class Ship(val note: String)
+        data class Rename(val name: String)
+        data class Archive(val all: Boolean)
+        data class Audit(val note: String)
+
+        data class OrderPlaced(val id: String)
+        sealed interface ShipEvent
+        sealed interface Shipped : ShipEvent
+        data class ShippedByAir(val flight: String) : Shipped
+        data class ShippedBySea(val vessel: String) : Shipped
+        data class ShipFailed(val reason: String) : ShipEvent
+        data class Renamed(val name: String)
+        data class Noted(val note: String)
+
+        @AggregateRoot
+        class Order(private val state: OrderState) {
+            fun onCommand(command: PlaceOrder): Array<OrderPlaced> = arrayOf(OrderPlaced(command.id))
+
+            fun onCommand(command: Ship): ShipEvent = ShipFailed(command.note)
+
+            fun onCommand(command: Rename): String = command.name
+
+            fun onCommand(command: Archive): List<*> = emptyList<Any>()
+
+            fun onCommand(command: Audit): Flux<Renamed> = Flux.just(Renamed(command.note))
+
+            @AfterCommand(exclude = [PlaceOrder::class])
+            fun afterCommand(command: Any): Noted = Noted(command.javaClass.simpleName)
+        }
+
+        class OrderState(val id: String) {
+            fun onSourcing(event: OrderPlaced) = Unit
+
+            fun onSourcing(event: ShippedByAir) = Unit
+
+            fun onSourcing(event: ShippedBySea) = Unit
+
+            fun onSourcing(event: ShipFailed) = Unit
+
+            fun onSourcing(event: Renamed) = Unit
+
+            fun onSourcing(event: Noted) = Unit
+        }
+
+        @Reactor
+        class Notifier {
+            @OnEvent
+            fun onEvent(event: StateEvent<OrderState>) = Unit
+        }
+        """.trimIndent(),
+    )
+
+    @Test
+    fun `produces should follow containers, sealed types and excluded hooks, and be unknown otherwise`() {
+        val (compilation, result) = compileModel("generate", order)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val context = read(fragments(compilation).single()).contexts.single()
+        context.description.assert().isNull()
+        context.aggregates.single().commands.associate { it.name to it.produces }.assert().isEqualTo(
+            mapOf(
+                "Archive" to null,
+                "Audit" to listOf("Noted", "Renamed"),
+                "PlaceOrder" to listOf("OrderPlaced"),
+                "Rename" to null,
+                "Ship" to listOf("Noted", "ShipFailed", "ShippedByAir", "ShippedBySea"),
+            ),
+        )
+        context.subscriptions.single().let {
+            it.kind.assert().isEqualTo(SubscriptionKind.REACTOR)
+            it.function.kind.assert().isEqualTo(FunctionKind.REACT)
+            it.source.aggregates.assert().containsExactly("order")
+        }
+    }
+
+    @Test
+    fun `a module with nothing to describe should write no fragment`() {
+        val (compilation, result) = compileModel("generate", context)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragments(compilation).assert().isEmpty()
+    }
+
+    @Test
+    fun `a model with problems should write no fragment`() {
+        val brokenProcessor = SourceFile.kotlin(
+            "Broken.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.Projection
+
+            @Projection
+            class Broken {
+                fun onEvent(event: String) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, cart, brokenProcessor)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        fragments(compilation).assert().isEmpty()
+
+        val brokenRoot = SourceFile.kotlin(
+            "BrokenRoot.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            @AggregateRoot
+            class Lone(private val state: LoneState, private val extra: String)
+
+            class LoneState(val id: String)
+            """.trimIndent(),
+        )
+        val (rootCompilation, rootResult) = compileModel("generate", context, brokenRoot)
+        rootResult.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        fragments(rootCompilation).assert().isEmpty()
+    }
+
+    @Test
+    fun `two bounded contexts and no option should write no fragment`() {
+        val another = SourceFile.kotlin(
+            "Billing.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "billing")
+            object BillingContext
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, another, cart)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragments(compilation).assert().isEmpty()
+        result.messages.assert().contains("No Manifest fragment: the module declares 2 @BoundedContext")
+    }
+
     @Test
     fun `the options should name the context and the fragment`() {
         val options = mapOf(
@@ -254,6 +410,17 @@ class ManifestFragmentTest {
             it.name.assert().isEqualTo("store")
             it.description.assert().isNull()
         }
+    }
+
+    @Test
+    fun `blank options should count as absent`() {
+        val options = mapOf(
+            ModelSymbolProcessorProvider.CONTEXT_OPTION to " ",
+            ModelSymbolProcessorProvider.MODULE_OPTION to ""
+        )
+        val (compilation, result) = compileModel("generate", options, context, cart)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragments(compilation).single().name.assert().isEqualTo("shop.json")
     }
 
     @Test

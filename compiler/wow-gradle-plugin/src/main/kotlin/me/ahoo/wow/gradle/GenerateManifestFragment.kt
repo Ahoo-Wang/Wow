@@ -27,6 +27,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.TaskAction
+import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
@@ -62,10 +63,14 @@ abstract class GenerateManifestFragment @Inject constructor(private val workers:
 
     @TaskAction
     fun generate() {
+        // The module's class path first: its classes are read with the Jackson it runs with.
+        submit(workers.classLoaderIsolation { spec -> spec.classpath.from(classpath, tools) })
+    }
+
+    /** One work item per fragment, each completing it into [outputDirectory]. */
+    internal fun submit(queue: WorkQueue) {
         val output = outputDirectory.get().asFile
         output.deleteRecursively()
-        // The module's class path first: its classes are read with the Jackson it runs with.
-        val queue = workers.classLoaderIsolation { spec -> spec.classpath.from(classpath, tools) }
         fragments.files.sortedBy { it.name }.forEach { fragment ->
             queue.submit(ManifestToolsWork.CompleteFragment::class.java) { parameters ->
                 parameters.fragment.set(fragment)

@@ -15,13 +15,13 @@ package me.ahoo.wow.gradle
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.gradle.tools.ManifestJson
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -47,7 +47,7 @@ class WowPluginFunctionalTest {
             "tools.jackson.databind.ObjectMapper",
             "tools.jackson.module.kotlin.KotlinModule",
             "me.ahoo.wow.kernel.EventCodec",
-            "me.ahoo.wow.gradle.tools.ManifestTools",
+            "me.ahoo.wow.manifest.tools.ManifestTools",
         )
     }
 

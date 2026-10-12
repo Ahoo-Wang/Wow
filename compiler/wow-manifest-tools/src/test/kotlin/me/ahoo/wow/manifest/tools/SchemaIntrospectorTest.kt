@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.gradle.tools
+package me.ahoo.wow.manifest.tools
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue
@@ -146,6 +146,25 @@ class SchemaIntrospectorTest {
         assertThrows<IllegalArgumentException> {
             SchemaIntrospector(javaClass.classLoader, mapOf(Money::class.java.name to "[]")).complete(fragment())
         }
+    }
+
+    @Test
+    fun `a Java class should have no required or nullable property`() {
+        val java = fragment().let { fragment ->
+            val aggregate = fragment.contexts.single().aggregates.single()
+            val commands = listOf(CommandManifest("Ship", schema = schemaRef(JavaShipment::class.java.name)))
+            fragment.copy(
+                contexts = listOf(
+                    fragment.contexts.single().copy(aggregates = listOf(aggregate.copy(commands = commands)))
+                )
+            )
+        }
+        val shipment = defOf(introspector.complete(java), JavaShipment::class.java)
+        shipment.containsKey("required").assert().isFalse()
+        val properties = shipment["properties"] as Map<*, *>
+        properties["carrier"].assert().isEqualTo(mapOf("type" to "string"))
+        properties["parcels"].assert().isEqualTo(mapOf("type" to "array", "items" to mapOf("type" to "integer")))
+        (properties["address"] as Map<*, *>)["type"].assert().isEqualTo("object")
     }
 
     @Test

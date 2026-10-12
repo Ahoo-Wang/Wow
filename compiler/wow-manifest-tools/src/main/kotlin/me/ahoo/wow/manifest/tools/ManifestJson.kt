@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.gradle.tools
+package me.ahoo.wow.manifest.tools
 
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
@@ -22,7 +22,7 @@ import java.io.InputStream
 import java.util.zip.ZipFile
 
 /** Reads and writes Manifests as JSON text, and finds the fragments on a classpath. */
-internal object ManifestJson {
+object ManifestJson {
     private val mapper = jacksonObjectMapper()
 
     fun read(input: InputStream): Manifest = ManifestTree.read(mapper.readValue(input, Map::class.java))

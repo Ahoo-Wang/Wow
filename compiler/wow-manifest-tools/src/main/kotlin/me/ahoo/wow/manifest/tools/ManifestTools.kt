@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.gradle.tools
+package me.ahoo.wow.manifest.tools
 
 import me.ahoo.wow.manifest.ManifestMerger
 import me.ahoo.wow.manifest.ServiceInfo

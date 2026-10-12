@@ -66,6 +66,71 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `a minimal manifest should read with every default`() {
+        val tree = mapOf(
+            "format" to 1,
+            "contexts" to listOf(
+                mapOf(
+                    "name" to "shop",
+                    "aggregates" to listOf(mapOf("name" to "cart", "state" to mapOf("schema" to "#/\$defs/s"))),
+                ),
+            ),
+        )
+        val expected = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = "shop",
+                    aggregates = listOf(AggregateManifest(name = "cart", state = StateManifest("#/\$defs/s")))
+                ),
+            ),
+        )
+        ManifestTree.read(tree).assert().isEqualTo(expected)
+        expected.service.assert().isNull()
+        expected.contexts.single().let { context ->
+            context.description.assert().isNull()
+            context.subscriptions.assert().isEmpty()
+            context.aggregates.single().let { aggregate ->
+                aggregate.description.assert().isNull()
+                aggregate.snapshot.enabled.assert().isTrue()
+                aggregate.commands.assert().isEmpty()
+                aggregate.events.assert().isEmpty()
+                aggregate.state.fingerprint.assert().isNull()
+            }
+        }
+        Manifest().defs.assert().isEmpty()
+        ServiceInfo("shop").version.assert().isNull()
+        CommandManifest("Add", schema = "#/\$defs/a").let {
+            it.aliases.assert().isEmpty()
+            it.creation.assert().isEqualTo(Creation.NONE)
+            it.produces.assert().isNull()
+        }
+        EventManifest("Added", schema = "#/\$defs/a").revision.assert().isEqualTo(1)
+        SubscriptionSource().let {
+            it.context.assert().isNull()
+            it.aggregates.assert().isEmpty()
+            it.events.assert().isEmpty()
+        }
+    }
+
+    @Test
+    fun `reading should refuse an array element of the wrong type`() {
+        val tree = ManifestTree.write(manifest)
+        val context = (tree["contexts"] as List<*>).single() as Map<*, *>
+        val aggregate = (context["aggregates"] as List<*>).single() as Map<*, *>
+        val command = (aggregate["commands"] as List<*>).first() as Map<*, *>
+        val badAlias = tree + (
+            "contexts" to listOf(
+                context + ("aggregates" to listOf(aggregate + ("commands" to listOf(command + ("aliases" to listOf(1)))))),
+            )
+            )
+        assertThrows<IllegalArgumentException> { ManifestTree.read(badAlias) }
+            .message.assert().isEqualTo("manifest.contexts[0].aggregates[0].commands[0].aliases[0] is not a string: 1")
+        val badContext = tree + ("contexts" to listOf("shop"))
+        assertThrows<IllegalArgumentException> { ManifestTree.read(badContext) }
+            .message.assert().isEqualTo("manifest.contexts[0] is not an object: shop")
+    }
+
+    @Test
     fun `a schema reference should point into the defs`() {
         Manifest.schemaRef("a.B\$C").assert().isEqualTo("#/\$defs/a.B\$C")
         Manifest.schemaKey("#/\$defs/a.B\$C").assert().isEqualTo("a.B\$C")

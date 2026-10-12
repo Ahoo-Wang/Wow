@@ -18,7 +18,6 @@ import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
@@ -111,8 +110,8 @@ class WowPlugin : Plugin<Project> {
 
     /**
      * [TOOLS_CONFIGURATION]: the introspection tools the workers load (victools, Jackson, the kernel), resolved in
-     * the build's project so they stay off the build script's class path (decision D83). By default it holds the
-     * plugin's `tools` variant of the plugin's version; declaring a dependency in it replaces that default.
+     * the build's project so they stay off the build script's class path (decision D83). By default it holds
+     * `me.ahoo.wow:wow-manifest-tools` of the plugin's version; declaring a dependency in it replaces that default.
      */
     private fun toolsConfiguration(project: Project): Configuration {
         val objects = project.objects
@@ -133,15 +132,13 @@ class WowPlugin : Plugin<Project> {
                 )
             }
             configuration.defaultDependencies { dependencies ->
-                val plugin = project.dependencies.create("$GROUP:wow-gradle-plugin:$version") as ModuleDependency
-                plugin.capabilities { it.requireCapability("$GROUP:wow-gradle-plugin-tools") }
-                dependencies.add(plugin)
+                dependencies.add(project.dependencies.create("$GROUP:wow-manifest-tools:$version"))
             }
         }
     }
 
     /** `wow.context`, only when [WowExtension.context] is set: otherwise the compiler takes the `@BoundedContext`. */
-    private class ContextArgument(
+    internal class ContextArgument(
         @get:Input @get:Optional val context: Provider<String>
     ) : CommandLineArgumentProvider {
         override fun asArguments(): Iterable<String> = listOfNotNull(context.orNull?.let { "$CONTEXT_OPTION=$it" })

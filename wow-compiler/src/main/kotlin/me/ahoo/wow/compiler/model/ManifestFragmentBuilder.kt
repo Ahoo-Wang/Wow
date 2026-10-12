@@ -98,12 +98,8 @@ internal object ManifestFragmentBuilder {
         binding: SubscriptionBinding,
         aggregates: List<AggregateBinding>,
     ): List<SubscriptionManifest> {
-        val (kind, functionKind) = when (binding.kind) {
-            "PROJECT" -> SubscriptionKind.PROJECTION to FunctionKind.PROJECT
-            "REACT" -> SubscriptionKind.REACTOR to FunctionKind.REACT
-            "SAGA" -> SubscriptionKind.SAGA to FunctionKind.SAGA
-            else -> return emptyList()
-        }
+        // A processor without exactly one kind is a problem, and a model with problems gets no fragment.
+        val (kind, functionKind) = KINDS.getValue(requireNotNull(binding.kind))
         return binding.handlers.map { handler ->
             val aggregate = aggregates.firstOrNull { it.state == handler.state }
             SubscriptionManifest(
@@ -118,6 +114,12 @@ internal object ManifestFragmentBuilder {
             )
         }
     }
+
+    private val KINDS = mapOf(
+        "PROJECT" to (SubscriptionKind.PROJECTION to FunctionKind.PROJECT),
+        "REACT" to (SubscriptionKind.REACTOR to FunctionKind.REACT),
+        "SAGA" to (SubscriptionKind.SAGA to FunctionKind.SAGA),
+    )
 
     /** What `Class.getSimpleName` gives for the binary name [type], as the kernel names a type by default. */
     private fun simpleName(type: String): String = type.substringAfterLast('.').substringAfterLast('$')

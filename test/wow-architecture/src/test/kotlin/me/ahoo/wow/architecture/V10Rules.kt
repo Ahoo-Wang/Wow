@@ -33,13 +33,15 @@ object V10Rules {
     val SPRING_BOOT = V10Module("wow-spring-boot", "host/wow-spring-boot")
     val MIGRATE_DATA = V10Module("wow-migrate-data", "migration/wow-migrate-data")
     val GRADLE_PLUGIN = V10Module("wow-gradle-plugin", "compiler/wow-gradle-plugin")
+    val MANIFEST_TOOLS = V10Module("wow-manifest-tools", "compiler/wow-manifest-tools")
 
     val MODULES = listOf(
         MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA, GRADLE_PLUGIN,
+        MANIFEST_TOOLS,
     )
 
-    /** The modules an application runs with; the Gradle plugin runs in the build only. */
-    val RUNTIME_MODULES = MODULES - GRADLE_PLUGIN
+    /** The modules an application runs with; the Gradle plugin and its tools run in the build only. */
+    val RUNTIME_MODULES = MODULES - GRADLE_PLUGIN - MANIFEST_TOOLS
 
     /**
      * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-api, is a
@@ -56,9 +58,10 @@ object V10Rules {
         HTTP to setOf("wow-runtime", "wow-query"),
         SPRING_BOOT to setOf("wow-runtime", "wow-http"),
         MIGRATE_DATA to setOf("wow-kernel"),
-        // wow-kernel for the state fingerprint; wow-compiler and wow-dependencies only as files of the
-        // TestKit fixture.
-        GRADLE_PLUGIN to setOf("wow-manifest", "wow-kernel", "wow-compiler", "wow-dependencies"),
+        // wow-compiler, wow-kernel, wow-manifest-tools and wow-dependencies only for the TestKit fixture and tests.
+        GRADLE_PLUGIN to setOf("wow-manifest", "wow-manifest-tools", "wow-kernel", "wow-compiler", "wow-dependencies"),
+        // wow-kernel for the state fingerprint.
+        MANIFEST_TOOLS to setOf("wow-manifest", "wow-kernel"),
     )
 
     private val SPRING = listOf("org.springframework")
@@ -115,7 +118,7 @@ object V10Rules {
 
     /** Schemas are introspected at build time only (decision D73): no runtime module generates one. */
     val SCHEMA_GENERATION_AT_BUILD_TIME = DependencyRule(
-        name = "only wow-gradle-plugin imports the JSON Schema generator",
+        name = "only wow-manifest-tools imports the JSON Schema generator",
         modules = RUNTIME_MODULES.map { it.dir },
         forbidden = listOf("com.github.victools"),
     )
