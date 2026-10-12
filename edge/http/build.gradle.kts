@@ -9,6 +9,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm")
     // The Jakarta Bean Validation adapter of CommandValidator; the host enables it where a provider is present (D106).
     compileOnly("jakarta.validation:jakarta.validation-api")
+    testImplementation("jakarta.validation:jakarta.validation-api")
     // WebTestClient, bound to a router function or to a Reactor Netty server.
     testImplementation("org.springframework:spring-test")
     testImplementation("io.projectreactor:reactor-test")

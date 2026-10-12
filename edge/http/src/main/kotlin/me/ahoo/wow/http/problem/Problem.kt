@@ -1,0 +1,76 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.http.problem
+
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.http.HttpJson
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.bodyValueAndAwait
+
+/**
+ * An RFC 9457 problem as the public port writes it (decisions D101, D102): `type` is `urn:wow:error:<code>`, the
+ * extension members are [code], [violations] and the whole [result] of a command that has a ref.
+ *
+ * An error answered before a command has a ref (401, a malformed header, a missing route, 406, 415) carries no
+ * [result]. One that is only HTTP's (a missing route, 406, 415) has no Wow code: its type is `about:blank`, as RFC 9457
+ * says of a problem that is the status alone.
+ */
+data class Problem(
+    val status: Int,
+    val title: String,
+    val detail: String?,
+    val code: String?,
+    val violations: List<Violation> = emptyList(),
+    val result: CommandResult? = null,
+) {
+    /** `urn:wow:error:<code>`, or `about:blank` without a code. */
+    val type: String get() = code?.let { TYPE_PREFIX + it } ?: ABOUT_BLANK
+
+    /** The members as written: those without a value are left out. */
+    fun members(): Map<String, Any> = buildMap {
+        put("type", type)
+        put("title", title)
+        put("status", status)
+        detail?.let { put("detail", it) }
+        code?.let { put("code", it) }
+        if (violations.isNotEmpty()) {
+            put("violations", violations)
+        }
+        result?.let { put("result", it) }
+    }
+
+    /** This problem as a response. */
+    suspend fun respond(): ServerResponse =
+        ServerResponse.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).bodyValueAndAwait(
+            HttpJson.write(members()),
+        )
+
+    companion object {
+        const val TYPE_PREFIX: String = "urn:wow:error:"
+        const val ABOUT_BLANK: String = "about:blank"
+
+        /** A problem that is the HTTP [status] alone. */
+        fun ofStatus(status: HttpStatus, detail: String? = null): Problem =
+            Problem(status.value(), status.reasonPhrase, detail, null)
+    }
+}
+
+/**
+ * Answers a request with [problem] from wherever it is found out, before the command has a ref; caught by the route
+ * and written as its response.
+ */
+class ProblemException(val problem: Problem) : RuntimeException(problem.detail ?: problem.title, null, false, false)

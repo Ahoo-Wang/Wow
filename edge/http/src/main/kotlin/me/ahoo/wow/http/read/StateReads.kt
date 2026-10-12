@@ -1,0 +1,104 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.http.read
+
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.spi.snapshot.SnapshotStore
+import tools.jackson.databind.JsonNode
+
+/**
+ * The state reads of the public port (decision D112): `GET /{context}/{aggregate}/{id}/state` reads [latest],
+ * `?version=` reads [at]. The edge checks the caller's scope against the state's.
+ */
+interface StateReads {
+    /** The latest state of [ref] the read model holds, or null when it holds none. */
+    suspend fun latest(ref: AggregateRef): StateView?
+
+    /** The committed state of [ref] at [version], or null when the log does not hold that version. */
+    suspend fun at(ref: AggregateRef, version: Int): StateView?
+
+    companion object {
+        /** Reads nothing: every state is not found. */
+        @JvmField
+        val NONE: StateReads = object : StateReads {
+            override suspend fun latest(ref: AggregateRef): StateView? = null
+
+            override suspend fun at(ref: AggregateRef, version: Int): StateView? = null
+        }
+    }
+}
+
+/** An aggregate's state at [version] with what the kernel keeps beside it, as a state read answers it. */
+data class StateView(
+    val ref: AggregateRef,
+    val version: Int,
+    val scope: Scope,
+    val deleted: Boolean,
+    val tags: Map<String, List<String>>,
+    val state: JsonNode,
+)
+
+/**
+ * [StateReads] of the contexts a node serves: the latest state is the snapshot ([SnapshotStore], the default read
+ * model, design 03 §3), a state at a version is the log replayed by the context's [Kernel] ([Kernel.stateAt]) from
+ * the snapshot when it is not past that version.
+ *
+ * An aggregate whose model [registry] does not know, or whose context has no [ContextReads], is not found. So is the
+ * latest state of an aggregate without a snapshot: reads come from the read model, not the log.
+ */
+class KernelStateReads(private val registry: ModelRegistry, contexts: Map<String, ContextReads>) : StateReads {
+    private val contexts: Map<String, ContextReads> = contexts.toMap()
+
+    /** What [KernelStateReads] reads a context from: its kernel and its snapshot store. */
+    class ContextReads(val kernel: Kernel, val snapshots: SnapshotStore)
+
+    override suspend fun latest(ref: AggregateRef): StateView? {
+        val reads = contexts[ref.type.context] ?: return null
+        registry.find(ref.type) ?: return null
+        val snapshot = reads.snapshots.load(ref) ?: return null
+        return StateView(
+            ref = snapshot.ref,
+            version = snapshot.version,
+            scope = snapshot.scope,
+            deleted = snapshot.deleted,
+            tags = snapshot.tags,
+            state = HttpJson.mapper.readTree(snapshot.state),
+        )
+    }
+
+    override suspend fun at(ref: AggregateRef, version: Int): StateView? {
+        require(version >= 1) { "A committed state has a version from 1." }
+        val reads = contexts[ref.type.context] ?: return null
+        val model = registry.find(ref.type) ?: return null
+        val state = reads.kernel.stateAt(model.erased(), ref, version, reads.snapshots.load(ref)) ?: return null
+        return StateView(
+            ref = ref,
+            version = state.version,
+            scope = state.scope,
+            deleted = state.deleted,
+            tags = state.tags,
+            state = HttpJson.mapper.valueToTree(state.state),
+        )
+    }
+
+    private companion object {
+        @Suppress("UNCHECKED_CAST") // The kernel takes the model and its state together; nothing here names the type.
+        fun AggregateModel<*>.erased(): AggregateModel<Any> = this as AggregateModel<Any>
+    }
+}

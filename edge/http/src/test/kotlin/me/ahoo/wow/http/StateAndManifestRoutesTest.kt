@@ -1,0 +1,136 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.http
+
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.runtime.FrameworkCodes
+import org.junit.jupiter.api.Test
+
+/** `GET …/{id}/state`, `?version=` (decision D112) and `GET /wow/manifest`. */
+class StateAndManifestRoutesTest {
+    private val node = HttpNode()
+    private val ref = AggregateType(CONTEXT, "cart").ref(TENANT, "c-1")
+
+    /** Two items added by alice, and a snapshot at version 2 as the snapshot subscription would write it. */
+    private fun twoItems(snapshot: Boolean = true) {
+        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").status.assert().isEqualTo(200)
+        node.post("/shop/cart/c-1/add-item", """{"sku":"pear","quantity":2}""").status.assert().isEqualTo(200)
+        if (snapshot) {
+            runBlocking {
+                val state = Cart().apply { items = 3 }
+                node.snapshots.save(EventCodec().snapshotOf(cartModel, ref, state, 2, Scope("alice"), 1L, 2L))
+            }
+        }
+    }
+
+    @Test
+    fun `the latest state is the snapshot, with its version as ETag`() {
+        twoItems()
+        val answer = node.get("/shop/cart/c-1/state")
+        answer.status.assert().isEqualTo(200)
+        answer.headers.eTag.assert().isEqualTo("\"2\"")
+        val view = answer.body!!
+        view["version"].asInt().assert().isEqualTo(2)
+        view["state"]["items"].asInt().assert().isEqualTo(3)
+        view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        view["deleted"].asBoolean().assert().isFalse()
+        view["ref"]["id"].asString().assert().isEqualTo("c-1")
+    }
+
+    @Test
+    fun `If-None-Match with the current tag is 304`() {
+        twoItems()
+        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"2\"")).status.assert().isEqualTo(304)
+        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"1\"")).status.assert().isEqualTo(200)
+    }
+
+    @Test
+    fun `a state at a version is replayed from the log`() {
+        twoItems(snapshot = false)
+        val answer = node.get("/shop/cart/c-1/state?version=1")
+        answer.status.assert().isEqualTo(200)
+        answer.headers.eTag.assert().isEqualTo("\"1\"")
+        answer.body!!["state"]["items"].asInt().assert().isEqualTo(1)
+        node.get("/shop/cart/c-1/state?version=2").body!!["state"]["items"].asInt().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `a state that is not there is 404, a version that is not one 400`() {
+        twoItems(snapshot = false)
+        node.get("/shop/cart/c-1/state").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state?version=3").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkCodes.MALFORMED)
+        node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkCodes.MALFORMED)
+    }
+
+    @Test
+    fun `a state outside the caller's scope is forbidden`() {
+        twoItems()
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state?version=1", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+    }
+
+    @Test
+    fun `Wow-Scope reads in another scope only with the cross-scope permission`() {
+        twoItems()
+        val scope = mapOf(WowHeaders.SCOPE to """tenant="$TENANT", owner="alice"""")
+        node.get("/shop/cart/c-1/state", user = "bob", headers = scope)
+            .assertCode(403, FrameworkCodes.AUTH_FORBIDDEN)
+        node.get("/shop/cart/c-1/state", user = "admin", headers = scope + ("X-Admin" to "true"))
+            .status.assert().isEqualTo(200)
+        // Without it, the admin reads in its own scope.
+        node.get("/shop/cart/c-1/state", user = "admin", headers = mapOf("X-Admin" to "true"))
+            .assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        // Another tenant holds no such cart.
+        val otherTenant = mapOf("X-Admin" to "true", WowHeaders.SCOPE to "tenant=other")
+        node.get(
+            "/shop/cart/c-1/state",
+            user = "admin",
+            headers = otherTenant
+        ).assertCode(404, FrameworkCodes.NOT_FOUND)
+    }
+
+    @Test
+    fun `reads are authenticated`() {
+        twoItems()
+        node.get("/shop/cart/c-1/state", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
+    }
+
+    @Test
+    fun `the Manifest is served as its plain tree, authenticated`() {
+        val manifest = cartManifest()
+        val answer = node.get("/wow/manifest")
+        answer.status.assert().isEqualTo(200)
+        answer.body.assert().isEqualTo(json.valueToTree(ManifestTree.write(manifest)))
+        answer.body!!["contexts"][0]["name"].asString().assert().isEqualTo(CONTEXT)
+        node.get("/wow/manifest", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
+    }
+
+    @Test
+    fun `the Manifest endpoint can be turned off`() {
+        HttpNode(options = WowHttpOptions(manifestEndpoint = false)).get("/wow/manifest").status.assert().isEqualTo(404)
+    }
+
+    private fun Answer.assertCode(status: Int, code: String) {
+        this.status.assert().isEqualTo(status)
+        contentType.assert().isEqualTo("application/problem+json")
+        body!!["code"].asString().assert().isEqualTo(code)
+        body!!.has("result").assert().isFalse()
+    }
+}
