@@ -46,7 +46,7 @@
 | D12 | Redis 事件存储：V10 不提供 Redis 日志后端；需要的社区实现者按日志合同与 TCK 自行实现 | 2026-10-11，用户 | [03](03-log-and-snapshot.md) |
 | D13 | Elasticsearch 的定位：不作为日志后端；作为快照、查询与全文检索后端 | 2026-10-11，用户授权按推荐 | [03](03-log-and-snapshot.md) |
 | D14 | 失败处理与补偿：停放聚合 + 失败台账；台账写在出错服务自己的存储里，wow-ops 经 Kafka 汇总并把重试、跳过作为命令发回；compensation 改为 wow-ops | 2026-10-11，用户 | [04](04-subscriptions.md) |
-| D15 | 等待阶段：ACCEPTED / COMMITTED（默认）/ SNAPSHOT / HANDLED(订阅)；ACCEPTED 只在 Kafka 路由下表示持久 | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
+| D15 | 等待阶段：ACCEPTED / COMMITTED（默认）/ SNAPSHOT / HANDLED(订阅)；ACCEPTED 只在 Kafka 路由下表示持久 | 2026-10-11，用户授权按推荐；阶段集合由 D61 修订 | [04](04-subscriptions.md) |
 | D16 | REST 形状：身份来自主体，删除租户与所有者的路由变体；problem+json；`Prefer` 头表达等待 | 2026-10-11，用户 | [05](05-read-and-contract.md) |
 | D17 | 契约来源：Manifest 为唯一来源；生成器、OpenAPI、view-engine 都读它 | 2026-10-11，用户授权按推荐 | [05](05-read-and-contract.md) |
 | D18 | wow-bi：由 ClickHouse Sink 取代，删除 | 2026-10-11，用户 | [04](04-subscriptions.md) |
@@ -65,7 +65,7 @@
 | D31 | Kafka 客户端：直接基于 `kafka-clients`，协程驱动拉取循环（Reactor Kafka 已停止维护） | 2026-10-11，用户授权按推荐 | [06](06-modules.md) |
 | D32 | 切换后的回滚：切换后 V10 未写入：直接切回 9.x；已写入：提供 V10 → 9.x 的反向导出，只覆盖迁移前已存在的事件类型 | 2026-10-11，用户 | [07](07-migration.md) |
 | D33 | 跨上下文的命令投递：一律写入目标上下文的命令主题；发送方等到持久 `ACCEPTED` 即完成；失败记入目标上下文的台账。集群通道不跨服务 | 2026-10-11，用户授权按推荐 | [02](02-write-path.md) |
-| D34 | 跨上下文等待：**保留**（重要特性，用户 2026-10-11）：等待目标是跨上下文的链；信号按发起服务寻址，经集群通道中继到发起节点；链上任一跳失败立即通知（[04](04-subscriptions.md) §6.2） | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
+| D34 | 跨上下文等待：**保留**（重要特性，用户 2026-10-11）：等待目标是跨上下文的链；信号直接发往发起节点（D65 修订了原先的按服务寻址与中继）；链上任一跳失败立即通知（[04](04-subscriptions.md) §6.3） | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
 | D35 | 部署前提与跨服务信号：所有服务部署在同一个集群内、彼此可直接调用；跨服务等待信号只用 HTTP 调用发起服务的信号入口，不提供 Kafka 替代；集群内部流量受信任，信号入口与集群通道不做认证 | 2026-10-11，用户 | [00](00-architecture.md)、[04](04-subscriptions.md) |
 | D36 | 处理函数的调用形态与快速路径：同步、`suspend`、Reactor 三种形态，KSP 编译期选定调用；同步函数内联在工作线程上执行，阻塞的须标 `@Blocking` 并派发到阻塞调度器（JDK 21 下为虚拟线程）；内核在缓存命中且处理函数同步时只在追加处挂起 | 2026-10-11，用户 | [01](01-programming-model.md) |
 | D37 | 注解模型由 KSP 在编译期生成绑定代码与 Manifest，运行时不扫描、不反射，也不为任何语言保留反射退路。收益：错误提前到编译期（重复处理函数、无法解析的参数）、快速路径是直接调用、启动快且可 AOT、绑定与 Manifest 同源；代价：构建依赖 KSP、需要调试生成代码、编译器须覆盖全部语义（H4） | 2026-10-11，用户 | [01](01-programming-model.md) |
@@ -88,6 +88,11 @@
 | D56 | 作用域：`wow-api` 的值类型 `Scope(ownerId, spaceId)`，命令、事件流、快照、查询授权共用；事件流的 `scope` 是提交后聚合的归属，由内核随状态维护、只由生命周期命令改变；事件流另带 `causation`（根命令、直接上游）与准入白名单内的 `headers` | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D57 | 事件标识由（聚合引用，版本，事件序号）推导：`ref@version#index`，不另存 ID | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D58 | Kafka 信封：key = 聚合引用；value = `{format, kind, id, type, payload, transport}`；发布的是 `StateEvent`（默认总附状态，单个 Sink 可按聚合类型关闭）；载荷是嵌入的 JSON 对象，不是字符串；下游按 id 去重 | 2026-10-12，用户 | [08](08-data-protocols.md) |
+| D61 | 等待阶段收敛为 `ACCEPTED`、`COMMITTED`、`HANDLED(订阅)` 三个；`SNAPSHOT` 是 `HANDLED(snapshot)` 的简写；修订 D15 | 2026-10-12，用户 | [04](04-subscriptions.md) |
+| D62 | 等待链：多跳，只有 Saga 跳之后能接跳（作用于它派生的命令），最多 4 跳，准入按 Manifest 校验；Saga 信号带派生命令 ID，全部到达才完成，派生 0 条即完成；早到信号按 `waitId` 缓存；任一跳失败立即失败 | 2026-10-12，用户 | [04](04-subscriptions.md) |
+| D63 | 重复请求的等待：本上下文订阅按检查点与台账补查；跨上下文的跳无从补查，结果停在 `COMMITTED` 并标 `duplicate` | 2026-10-12，用户 | [04](04-subscriptions.md) |
+| D64 | 等待超时：默认 10 秒，服务端上限默认 60 秒；绝对截止时间随 `WaitContext` 下发，过期后下游不发信号；超时结果带已到达的最后一跳 | 2026-10-12，用户 | [04](04-subscriptions.md) |
+| D65 | 等待信号直接发往发起节点（`WaitContext.origin` 为实例内部地址），不经负载均衡与集群通道中继；送达失败即丢弃；修订 D35 中「按服务寻址、节点内中继」的部分 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D59 | 格式版本：日志、快照按表记录格式版本（schema 元数据），线上结构每条带 `format`；新增带默认值的可选字段不升版本；主版本内新字段先在一个次版本学会读、下一个次版本才写（D48 的落地规则）；不兼容的变化只在下一个主版本的迁移层处理（D22） | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D60 | 对外命令结果：一个 `CommandResult`（status、hop、function、version、duplicate、error 含 violations、results）用于 HTTP、SSE、等待信号与回执；保留 9.x 的 `function`（SSE 中标明处理者）与字段级校验错误（改名 `violations`）；拒绝与失败走 problem+json 并带同样字段 | 2026-10-12，用户 | [08](08-data-protocols.md) |
 | D54 | 快照只按版本守卫写入；状态 schema 变化后的重建一律写入新的快照存储（蓝绿），不做同版本原地覆盖 | 2026-10-12，用户 | [03](03-log-and-snapshot.md) |

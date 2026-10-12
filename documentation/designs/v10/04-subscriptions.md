@@ -50,20 +50,40 @@ subscription("cart-projection") {
 
 ## 6. 等待
 
-### 6.1 阶段
+### 6.1 阶段与链
 
 | 阶段 | 含义 | 9.x 对应 |
 |---|---|---|
 | `ACCEPTED` | 通过准入；只有经 Kafka 路由才表示持久 | SENT |
 | `COMMITTED`（默认） | 已追加到日志 | PROCESSED |
-| `SNAPSHOT` | 快照已写到这次提交的版本：写后即可查 | SNAPSHOT |
-| `HANDLED(context.subscription)` | 指定订阅已处理这次提交；订阅可以在任何上下文 | PROJECTED、EVENT_HANDLED、SAGA_HANDLED |
+| `HANDLED(context.subscription)` | 指定订阅已处理这次提交；订阅可以在任何上下文 | SNAPSHOT、PROJECTED、EVENT_HANDLED、SAGA_HANDLED |
 
-等待目标是一个**链**：每一跳是（上下文，阶段，订阅），链上的命令用根命令 ID 关联。例如「订单提交 → 库存上下文的 Saga 已处理 → 它派生的扣减命令在库存上下文 `COMMITTED`」。链上任何一跳失败（拒绝、停放），等待方立即收到失败与原因，而不是等到超时。
+- **阶段只有三个**（D61）：快照由内置订阅 `snapshot` 写入，`SNAPSHOT` 只是 `HANDLED(snapshot)` 的简写；订阅的种类（投影、React、Saga）由 Manifest 给出，不再各占一个阶段。
+- **等待目标是一条链**（D62）：每一跳是（上下文，阶段，订阅），链上的命令用根命令 ID（`correlationId`，[08](08-data-protocols.md) §4）关联。例如「订单 `COMMITTED` → 支付上下文的 Saga 已处理 → 它派生的命令在库存上下文 `COMMITTED`」。
+  - 只有 **Saga 跳**之后还能接跳，后面的跳作用于该 Saga 从这次提交派生的命令；投影与 React 跳必须是最后一跳。最多 4 跳。准入按 Manifest 校验链，不合法直接拒绝，不等到超时。
+  - Saga 跳的信号带上派生命令的 ID 列表（`CommandResult.derived`），派生的命令**全部**到达下一跳才算完成；派生 0 条时这一跳直接完成。
+  - 链上任何一跳失败（拒绝、停放），等待方立即收到失败与原因，而不是等到超时。
+- **重复请求**（D63）：请求被判为已提交时，后续的 `HANDLED` 可能早已发生、信号已经发过。本上下文的订阅按检查点补查：检查点越过这次提交的位置、且台账里没有停放该聚合，就算已处理。跨上下文的跳无从补查，结果停在 `COMMITTED`、`duplicate = true`，由调用方决定。
+- **超时**（D64）：调用方给出超时，默认 10 秒，服务端有上限（默认 60 秒）。截止时间随 `WaitContext` 下发，过期后下游不再发信号。超时的结果是 `FAILED / wow.wait.timeout`，带上已经到达的最后一跳，调用方知道卡在哪里。
+- **HTTP**：等待计划由请求头声明，例如 `Wow-Wait: handled(order.payment-saga) > committed(inventory)` 与 `Wow-Wait-Timeout: 10s`（语法在实现时定稿）；`Accept: text/event-stream` 时每到一跳推送一个 `CommandResult`，否则只返回最后一跳或第一个失败。
 
-### 6.2 跨上下文等待
+### 6.2 数据形状（[08](08-data-protocols.md)）
 
-跨上下文等待是 Wow 的重要特性（9.x 已支持），V10 保留，并去掉 9.x 的两个前提：跨服务的**节点**互相可达，以及按节点地址寻址。
+```kotlin
+data class WaitPlan(val hops: List<Hop>, val timeout: Duration)       // 调用方声明，只留在发起节点
+data class Hop(val stage: Stage, val context: String? = null, val subscription: String? = null)
+data class WaitContext(                                               // 传输段，随消息流转（D25）
+    val waitId: String,
+    val origin: Origin,          // 发起节点：内部地址（实例 IP:内部端口）与服务名
+    val remaining: List<Hop>,    // 还没到的跳
+    val deadline: Long,          // 绝对截止时间
+)
+data class WaitSignal(val format: Int, val waitId: String, val result: CommandResult)
+```
+
+### 6.3 跨上下文等待
+
+跨上下文等待是 Wow 的重要特性（9.x 已支持），V10 保留。
 
 原理：等待是观察，不是正确性的一部分（命令链路 P12）。信号丢了，等待方得到超时，事实不受影响。所以信号的投递只要求「尽力而为、低延迟」，不需要持久。
 
@@ -72,29 +92,24 @@ sequenceDiagram
     autonumber
     participant C as 调用方
     participant A1 as 上下文 A 节点 1（发起）
-    participant A2 as 上下文 A 节点 2
     participant B as 上下文 B 的订阅或命令
     C->>A1: 命令（等待链：A COMMITTED → B HANDLED）
-    A1->>A1: 登记等待；WaitContext = (origin: A/节点1, waitId, 链)
-    A1-->>B: 发布的事件流或命令主题，携带 WaitContext
-    B->>A2: 信号经 A 的服务入口（负载均衡，任一节点）
-    A2->>A1: 集群通道中继到节点 1
+    A1->>A1: 登记等待；WaitContext = (waitId, origin: 节点 1 的内部地址, 剩余的链, 截止时间)
+    A1-->>B: 发布的 StateEvent 或命令主题，携带 WaitContext
+    B->>A1: 信号直接发往节点 1 的信号入口
     A1-->>C: 链完成
 ```
 
-- **WaitContext 随消息走**：等待计划在准入时变成类型化的 `WaitContext`（发起服务、发起节点、`waitId`、剩余的链）。它作为传输元数据（D25）出现在三个地方：日志条目、跨上下文的命令消息（D33）、Kafka Sink 发布的信封。只在等待超出 `COMMITTED` 时才写，不属于事实，领域代码看不到。
-- **按服务寻址，节点内中继**：下游发出的信号发往**发起服务**的信号入口，由负载均衡交给任意节点；收到的节点若不是发起节点，经集群通道（[02](02-write-path.md) §3）中继。跨服务只需要服务级可达，和任何服务间调用一样；节点扩缩、重启都不影响寻址。
-- **信号传输只有 HTTP**（D35）：下游直接调用发起服务的信号入口，一跳。服务之间能直接调用是部署前提，不提供经 Kafka 的替代传输。
-- **服务定位**：发起服务的入口地址由 `ServiceLocator` 解析（默认读配置；Kubernetes 下按服务名约定）。
+- **WaitContext 随消息走**：它作为传输元数据（D25）出现在三个地方：日志条目、跨上下文的命令消息（D33）、Kafka Sink 发布的信封。只在等待超出 `COMMITTED` 时才写，不属于事实，领域代码看不到。
+- **信号直接发往发起节点**（D65）：`WaitContext.origin` 是发起节点的内部地址，下游一跳送达，不经负载均衡，也不经集群通道中继。部署前提保证同一集群内实例之间可直接调用（D35）；发起节点若已下线，客户端连接也已断开，送不到的信号直接丢弃，不重试。地址只在等待期间有意义，过了截止时间就作废。
+- **信号传输只有 HTTP**（D35）：不提供经 Kafka 的替代传输。
 - **信任边界**：信号入口与集群通道都只在同一个集群内使用，集群内部流量受信任，不做认证（D35）。不认证的前提是它们**到不了集群外**：信号能直接完成等待并把结果交给调用方，若信号入口和公开 REST 在同一端口、经同一个入口网关暴露，外部就能伪造任意命令的结果（对抗验证 F6）。所以信号入口与集群通道只监听独立的内部端口，公开入口不转发它们。同一信号按（`waitId`，跳，来源）去重，这是幂等，不是安全措施。
 - **不阻塞下游**：发信号是下游处理完成后的旁路动作，不进入它的检查点与失败判定；Saga 本身的完成条件不变（跨上下文命令到持久 `ACCEPTED` 即完成，D33），等待方仍能沿链等到目标上下文的 `COMMITTED` 或更后的阶段。
-- **先登记，后发送；早到的信号要缓存**：等待在命令发出之前登记。链上后一跳的信号可能先于前一跳到达（例如 Saga 派生命令的 `COMMITTED` 早于 Saga 自己的 `HANDLED`），等待方先缓存，前一跳到达后按链回放（KaeX 检查表 C7）。
-- **发起节点下线**：等待随节点消失，中继找不到目标即丢弃信号；调用方按超时或重连处理。
+- **先登记，后发送；早到的信号要缓存**：等待在命令发出之前登记。链上后一跳的信号可能先于前一跳到达（例如 Saga 派生命令的 `COMMITTED` 早于 Saga 自己的 `HANDLED`），等待方按 `waitId` 先缓存，前一跳到达后按链回放（KaeX 检查表 C7）。
 
 ## 7. 待细化
 
 - 租约的时长、续约与抢占；属主切换时在途处理的交接。
 - 停放的粒度（聚合）与台账的数据结构；台账里条目的保留期。
 - Kafka 来源的订阅如何与 Kafka 消费组协作（自管偏移量还是用消费组）。
-- 链式等待的表达（DSL 与 `Prefer` 头）与链的最大长度。
 - 信号入口的限流，以及信号风暴（一条命令扇出到大量订阅）时的合并。
