@@ -82,11 +82,14 @@ class CartState(val id: String) {
 | `@Name`、`@Revision`、`@Alias` | 命令与事件的名字、事件的 revision 与旧名（D22、D55） | `@Name`、`Revision` |
 | `@Projection`、`@Reactor`、`@Saga` | 订阅处理器的种类 | `@ProjectionProcessor`、`@EventProcessor`、`@StatelessSaga` |
 | `@OnEvent` | 订阅处理函数，唯一一个；种类由所在类的注解决定，每个函数编成一个订阅（[04](04-subscriptions.md) §1） | `@OnEvent`、`@OnStateEvent`、`@OnMessage` |
+| `@Upgrade` | 事件的升级函数：`@Upgrade(event = X::class, from = n)`，把 revision n 的 JSON 升到 n + 1；KSP 校验链从 1 到当前 revision 不断档、不重复（§8，D82） | 9.x 的 `EventUpgrader` |
 | `@Blocking` | 阻塞调用，派发到虚拟线程（§4） | 同名 |
 | `@Description`、`@Summary` | 写进 Manifest 的说明 | 同名 |
 | `@WowSpi` | 标注可替换的端口 | 同名 |
 
 V10 注解与 9.x 同在 `me.ahoo.wow.api.annotation`（D79）：同名的原地沿用，V10 处理器忽略 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`），这些属性在删除 `wow-core` 时裁掉；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
+
+实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数也可按约定名 `onEvent` 找到；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId` 与调用顺序生成确定的命令 ID 与请求 ID，并带上因果；生成的工厂函数最后一个参数 `configure` 是通用扩展口。
 
 删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Retry`（改为订阅配置）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
 
@@ -144,7 +147,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 
 日志永久保存，领域事件结构必然演进，所以「读旧事件」是领域模型的常态，不是框架的兼容债（9.x 的 `EventUpgrader` 就是这个需求）。
 
-- 事件类型声明 `revision`；结构变化时，用户写一个从上一个 revision 到当前 revision 的升级函数，由 KSP 串成链，读日志时按 revision 升级。
+- 事件类型声明 `revision`（`@Revision`）；结构变化时，用户写一个从上一个 revision 到当前 revision 的升级函数（`@Upgrade`，D82），由 KSP 串成链，读日志时按 revision 升级。
 - **事件类型的身份是名字，不是类名**：`上下文.聚合.事件名`（可用注解指定），所以重命名或移动类不影响读取历史事件（KaeX 检查表 C9）。
 - Manifest 记录每个事件类型的 revision 历史。
 - 与迁移层的分工（D22）：**框架**格式的不兼容变化只在迁移层处理；**领域**事件的 revision 属于用户模型。
