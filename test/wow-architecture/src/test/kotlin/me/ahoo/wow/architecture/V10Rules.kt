@@ -99,7 +99,36 @@ object V10Rules {
         forbidden = listOf("org.springframework.boot"),
     )
 
-    val DEPENDENCY_RULES = listOf(CORE_IS_FRAMEWORK_FREE, KERNEL_IGNORES_RUNTIME, ONLY_HOST_USES_SPRING_BOOT)
+    /** The directory of wow-api, a 9.x module that V10 rewrites in place (06 §2.1, decision D66). */
+    const val API_DIR = "wow-api"
+
+    /** The V10 packages of wow-api; `annotation` is not one of them, since it is shared with 9.x until wow-core goes. */
+    val V10_API_PACKAGES = listOf("aggregate", "decide", "subscribe", "result").map { "me.ahoo.wow.api.$it" }
+
+    /** The 9.x parts of wow-api, deleted with wow-core (or, for `query`, moved to wow-query-api in M9). */
+    private val API_9X = listOf(
+        "abac", "command", "event", "exception", "messaging", "modeling", "naming", "query", "serialization",
+        "Copyable", "Identifier", "Ordered", "Version", "Wow",
+    ).map { "me.ahoo.wow.api.$it" }
+
+    /**
+     * wow-api's V10 packages have no runtime dependency and do not build on its 9.x parts (06 §3, decision D66): they
+     * must outlive both.
+     */
+    val V10_API_STANDS_ALONE = DependencyRule(
+        name = "the V10 packages of wow-api import no framework and no 9.x part of wow-api",
+        modules = listOf(API_DIR),
+        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS +
+            listOf("tools.jackson", "com.fasterxml", "kotlinx.coroutines") + API_9X,
+        appliesToPackage = { it in V10_API_PACKAGES },
+    )
+
+    val DEPENDENCY_RULES = listOf(
+        CORE_IS_FRAMEWORK_FREE,
+        KERNEL_IGNORES_RUNTIME,
+        ONLY_HOST_USES_SPRING_BOOT,
+        V10_API_STANDS_ALONE,
+    )
 
     private val PROJECT_DEPENDENCY = Regex("""project\(\s*":([\w-]+)"\s*\)""")
 

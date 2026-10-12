@@ -194,6 +194,10 @@ public final class me/ahoo/wow/api/annotation/AggregateRoute$Owner : java/lang/E
 public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateVersion : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/Alias : java/lang/annotation/Annotation {
+	public abstract fun value ()[Ljava/lang/String;
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/AllowCreate : java/lang/annotation/Annotation {
 }
 
@@ -378,7 +382,13 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Preparable
 	public abstract fun name ()Ljava/lang/String;
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/Projection : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/ProjectionProcessor : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Reactor : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Retry : java/lang/annotation/Annotation {
@@ -398,6 +408,13 @@ public final class me/ahoo/wow/api/annotation/Retry$Companion {
 	public static final field DEFAULT_EXECUTION_TIMEOUT I
 	public static final field DEFAULT_MAX_RETRIES I
 	public static final field DEFAULT_MIN_BACKOFF I
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Revision : java/lang/annotation/Annotation {
+	public abstract fun value ()I
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Saga : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Spaced : java/lang/annotation/Annotation {
@@ -4574,5 +4591,68 @@ public abstract interface annotation class me/ahoo/wow/api/serialization/Missing
 public final class me/ahoo/wow/api/serialization/MissingTypeImplProblemHandler : tools/jackson/databind/deser/DeserializationProblemHandler {
 	public fun <init> ()V
 	public fun handleMissingTypeId (Ltools/jackson/databind/DeserializationContext;Ltools/jackson/databind/JavaType;Ltools/jackson/databind/jsontype/TypeIdResolver;Ljava/lang/String;)Ltools/jackson/databind/JavaType;
+}
+
+public final class me/ahoo/wow/api/subscribe/ExecutionId {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component3 ()I
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getSubscription ()Ljava/lang/String;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/api/subscribe/ProjectContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+}
+
+public abstract interface class me/ahoo/wow/api/subscribe/ReactContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+}
+
+public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
+	public abstract fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+}
+
+public final class me/ahoo/wow/api/subscribe/StateEvent {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component10 ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun component11 ()Ljava/util/Map;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()J
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/lang/Object;
+	public final fun component9 ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;)Lme/ahoo/wow/api/subscribe/StateEvent;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/StateEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getCommitTime ()J
+	public final fun getCorrelationId ()Ljava/lang/String;
+	public final fun getEvents ()Ljava/util/List;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getState ()Ljava/lang/Object;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
+	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 }
 

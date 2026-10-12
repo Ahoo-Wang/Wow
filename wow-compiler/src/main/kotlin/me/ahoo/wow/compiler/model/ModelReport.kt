@@ -15,21 +15,31 @@ package me.ahoo.wow.compiler.model
 
 import tools.jackson.module.kotlin.jacksonObjectMapper
 
-/** The coverage report spike H4 reads: per aggregate root, what was bound and what could not be. */
+/** The coverage report spike H4 reads: per aggregate root and per subscription processor, what was bound and what could not be. */
 object ModelReport {
     private val mapper = jacksonObjectMapper()
 
-    fun json(bindings: List<AggregateBinding>): String =
+    fun json(bindings: List<AggregateBinding>, subscriptions: List<SubscriptionBinding> = emptyList()): String =
         mapper.writerWithDefaultPrettyPrinter().writeValueAsString(
-            bindings.sortedBy { it.root }.map {
-                mapOf(
-                    "root" to it.root,
-                    "state" to it.state,
-                    "commands" to it.commands.size,
-                    "sourcing" to it.sourcing.size,
-                    "afters" to it.afters.size,
-                    "problems" to it.problems,
-                )
-            },
+            mapOf(
+                "aggregates" to bindings.sortedBy { it.root }.map {
+                    mapOf(
+                        "root" to it.root,
+                        "state" to it.state,
+                        "commands" to it.commands.size,
+                        "sourcing" to it.sourcing.size,
+                        "afters" to it.afters.size,
+                        "problems" to it.problems,
+                    )
+                },
+                "subscriptions" to subscriptions.sortedBy { it.processor }.map {
+                    mapOf(
+                        "processor" to it.processor,
+                        "kind" to it.kind,
+                        "handlers" to it.handlers.map { handler -> handler.subscription },
+                        "problems" to it.problems,
+                    )
+                },
+            ),
         )
 }
