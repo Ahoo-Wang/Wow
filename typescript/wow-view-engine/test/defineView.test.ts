@@ -401,20 +401,21 @@ describe('defineView', () => {
     const fields = { createdAt: 'Created' };
     // A server before 9.9 does not offer it.
     expect(define({ fields }).analysis).not.toHaveProperty('rootGroups');
-    const offering = (spec: Partial<DefineViewSpec>) => {
+    const offering = (analysis?: DefineViewSpec['analysis']) => {
       const offered = descriptor();
       offered.analysis.rootGroups = true;
       return defineView(offered, {
         id: 'orders',
         source: 'orders',
         title: 'Orders',
-        ...spec,
+        fields,
+        ...(analysis === undefined ? {} : { analysis }),
       });
     };
-    expect(offering({ fields }).analysis?.rootGroups).toBe(true);
-    expect(
-      offering({ fields, analysis: { rootGroups: false } }).analysis,
-    ).not.toHaveProperty('rootGroups');
+    expect(offering().analysis?.rootGroups).toBe(true);
+    expect(offering({ rootGroups: false }).analysis).not.toHaveProperty(
+      'rootGroups',
+    );
   });
 
   it('is admitted with what it found, and its time field checked', () => {
