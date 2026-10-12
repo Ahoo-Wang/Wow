@@ -60,7 +60,7 @@ With Elements, a group's optional `scope` says what its `field` is relative to: 
 - A `ROOT` group names a field, never an expression; admission checks the root field's group capability and protection as for any other group.
 - The `ROOT` groups sort before the element groups: in the effective sort (explicit sort, then the remaining groups in `groupBy` order) no `ROOT` group may follow an element group. A metric may still lead the sort.
 - Only groups take `scope`. A metric still reads the innermost element, because a root value would be counted once per element.
-- It is an expensive construct: the descriptor's `analysis.rootGroups` is `true` where the backend can run it and expensive operators are allowed. MongoDB runs it natively; Elasticsearch and ClickHouse answer `StorageUnsupported` for now. Wow 9.9 and later.
+- It is an expensive construct: the descriptor's `analysis.rootGroups` is `true` where the backend can run it and expensive operators are allowed. MongoDB and Elasticsearch run it natively (Elasticsearch fails the query, rather than truncating it, when one root group holds more element groups than its query batch size); ClickHouse answers `StorageUnsupported`. Wow 9.9 and later.
 
 ```json
 {

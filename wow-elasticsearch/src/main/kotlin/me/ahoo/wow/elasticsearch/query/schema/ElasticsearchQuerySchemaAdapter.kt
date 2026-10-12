@@ -84,8 +84,6 @@ class ElasticsearchQuerySchemaAdapter(
                 having = SupportMode.RESIDUAL,
                 topN = SupportMode.RESIDUAL,
                 denseFill = SupportMode.RESIDUAL,
-                // A composite inside a nested aggregation reaches no root field; the two-level form is not built yet.
-                rootGroups = SupportMode.NONE,
             ),
             // No value is indexed for null or [], and keyword doc values are sorted and deduplicated.
             absentValues = AbsentValues.AS_MISSING,

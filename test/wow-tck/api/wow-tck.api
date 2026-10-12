@@ -847,9 +847,11 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun aggregation should sort groups by distinct count ()V
 	public final fun aggregation should start UTC weeks on Monday ()V
 	public final fun aggregation should summarize standard root fields with every metric ()V
+	public final fun aggregation should summarize the elements of each root group ()V
 	public final fun aggregation should support cancellation after a real result ()V
 	public final fun aggregation should support second date histograms ()V
 	public final fun aggregation terms missingKey should bucket missing values into the sentinel key ()V
+	protected final fun aggregationStates ()Ljava/util/List;
 	public final fun count ()V
 	public final fun createFromCache ()V
 	protected abstract fun createSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
@@ -885,6 +887,7 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun projection should preserve scalar and object subtree semantics ()V
 	public final fun query helpers defer schema lookup until subscription ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
+	protected final fun saveAggregationStates ([Lme/ahoo/wow/tck/mock/MockStateAggregate;)V
 	public final fun schema refresh with unchanged storage keeps the published object ()V
 	public final fun schema should aggregate annotated epoch fields as time ()V
 	public final fun schema should execute exact range and sort bindings ()V
