@@ -11,8 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.log
+package me.ahoo.wow.leases
 
+import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoClients
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -22,6 +24,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -29,23 +32,43 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.Document
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.testcontainers.mongodb.MongoDBContainer
 
 /**
  * The partition owner's append queue on MongoDB (finding F1, decision D52): concurrent aggregates of one partition
  * appending through [PartitionAppendQueue] commit in groups without one aborted transaction, where appending to the
  * log directly aborts transactions on the partition's counter. Transactions are counted by the server.
+ *
+ * Not part of the gated spike: it runs with every `integrationTest`.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MongoAppendQueueTest {
+    private lateinit var container: MongoDBContainer
+    private lateinit var client: MongoClient
+
+    @BeforeAll
+    fun start() {
+        container = MongoDBContainer(IMAGE).withReplicaSet().also { it.start() }
+        client = MongoClients.create(container.replicaSetUrl)
+    }
+
+    @AfterAll
+    fun stop() {
+        client.close()
+        container.stop()
+    }
+
     @Test
     fun `concurrent aggregates of one partition no longer abort each other's transactions`(): Unit = runBlocking {
-        val directContext = MongoLogFixture.newContext("direct")
-        val directRun = run(MongoLogFixture.log(1, directContext), directContext)
+        val directRun = run(log("direct"), "direct")
         directRun.committed.assert().isEqualTo(APPENDS)
 
-        val queuedContext = MongoLogFixture.newContext("queued")
-        val queue = PartitionAppendQueue(MongoLogFixture.log(1, queuedContext), AppendQueueOptions.MONGO)
-        val queuedRun = run(queue, queuedContext)
+        val queue = PartitionAppendQueue(log("queued"), AppendQueueOptions.MONGO)
+        val queuedRun = run(queue, "queued")
         queue.close()
         println("MongoDB, one partition, $AGGREGATES aggregates: direct $directRun; queued $queuedRun")
 
@@ -54,6 +77,9 @@ class MongoAppendQueueTest {
         (queuedRun.transactions < APPENDS).assert().isTrue()
         (directRun.aborted > 0).assert().isTrue()
     }
+
+    private fun log(context: String): MongoEventLog =
+        MongoEventLog(client, DATABASE, context, 1).also { it.createSchema() }
 
     private data class Run(val committed: Int, val transactions: Long, val aborted: Long, val millis: Long)
 
@@ -89,10 +115,11 @@ class MongoAppendQueueTest {
     )
 
     private fun transactions(): Document =
-        MongoLogFixture.client.getDatabase("admin").runCommand(Document("serverStatus", 1))
-            .get("transactions", Document::class.java)
+        client.getDatabase("admin").runCommand(Document("serverStatus", 1)).get("transactions", Document::class.java)
 
     private companion object {
+        const val IMAGE = "mongo:7.0"
+        const val DATABASE = "wow_append_queue"
         const val AGGREGATES = 32
         const val VERSIONS = 8
         const val APPENDS = AGGREGATES * VERSIONS

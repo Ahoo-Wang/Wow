@@ -19,8 +19,6 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
@@ -29,12 +27,10 @@ import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
+import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import org.bson.Document
@@ -47,7 +43,7 @@ class NodeStores(
     val leases: LeaseStore,
     val checkpoints: CheckpointStore,
     val ledger: FailureLedger,
-    val close: () -> Unit,
+    val close: suspend () -> Unit,
 )
 
 /** A database in a container: the schema of a context, and per-node clients of its log, leases and checkpoints. */
@@ -97,7 +93,7 @@ class PostgresBackend : Backend {
             leases = PostgresLeaseStore(dataSource),
             checkpoints = PostgresCheckpointStore(dataSource),
             ledger = PostgresFailureLedger(dataSource),
-            close = dataSource::close,
+            close = { dataSource.close() },
         )
     }
 
@@ -145,12 +141,19 @@ class MongoBackend : Backend {
 
     override fun node(context: String, partitions: Int): NodeStores {
         val client = client()
+        // The partition owner's append queue MongoDB needs (spike H1, finding F1; D52): without it, concurrent appends
+        // to one partition abort each other's transactions and the log collapses under this spike's load. Two nodes
+        // appending to one partition (Local fallback during a change, D71) still contend, as they would in production.
+        val log = PartitionAppendQueue(MongoEventLog(client, DATABASE, context, partitions), AppendQueueOptions.MONGO)
         return NodeStores(
-            log = PartitionSerializedLog(MongoEventLog(client, DATABASE, context, partitions)),
+            log = log,
             leases = MongoLeaseStore(client, DATABASE),
             checkpoints = MongoCheckpointStore(client, DATABASE),
             ledger = MongoFailureLedger(client, DATABASE),
-            close = client::close,
+            close = {
+                log.close()
+                client.close()
+            },
         )
     }
 
@@ -171,17 +174,4 @@ class MongoBackend : Backend {
         const val DATABASE = "wow_h6"
         const val NODE_POOL = 32
     }
-}
-
-/**
- * Appends to one partition one at a time on this node, standing in for the partition owner's append queue that
- * MongoDB needs (spike H1, finding F1) and the runtime does not have yet: without it, concurrent appends to one
- * partition abort each other's transactions and the log collapses under this spike's load. Two nodes appending to one
- * partition (Local fallback during a change, D71) still contend, as they would in production.
- */
-class PartitionSerializedLog(private val delegate: EventLog) : EventLog by delegate {
-    private val locks = Array(delegate.partitions) { Mutex() }
-
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        locks[Partitioner.partitionOf(stream.ref, delegate.partitions)].withLock { delegate.append(stream, transport) }
 }

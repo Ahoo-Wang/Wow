@@ -43,7 +43,6 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
-import me.ahoo.wow.compiler.AggregateRootResolver.toName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import tools.jackson.databind.json.JsonMapper

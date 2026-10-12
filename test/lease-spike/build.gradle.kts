@@ -3,7 +3,7 @@ description = "V10 spike H6: partition leases, membership and rebalancing on Pos
 dependencies {
     integrationTestImplementation(project(":runtime"))
     integrationTestImplementation(project(":postgres"))
-    integrationTestImplementation(project(":wow-mongo"))
+    integrationTestImplementation(project(":mongo"))
     integrationTestImplementation("tools.jackson.module:jackson-module-kotlin")
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-mongodb")

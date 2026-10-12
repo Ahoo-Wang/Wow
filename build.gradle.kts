@@ -58,9 +58,9 @@ val benchmarksProject = project(":wow-benchmarks")
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3) and
 // :routing-spike (spike H2) and :lease-spike (spike H6) are never published.
 val v10Projects = listOf(
-    "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
-    "postgres", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
-    "gradle-plugin", "manifest-tools",
+    "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
+    "postgres", "mongo", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
+    "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
 ).map { project(":$it") }.toSet()
 
@@ -134,6 +134,7 @@ val integrationTestProjects = setOf(
     project(":wow-view-store-starter"),
     project(":wow-dataset-registry-starter"),
     project(":postgres"),
+    project(":mongo"),
     project(":routing-spike"),
     project(":lease-spike"),
 )

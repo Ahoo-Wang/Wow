@@ -24,7 +24,9 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 fun compileModel(mode: String, vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> =
     compileModel(mode, emptyMap(), *sources)
 
-/** Compiles [sources] with the model processor in [mode] and the further KSP [options]. */
+/**
+ * Compiles [sources], with the [NineXStubs], with the model processor in [mode] and the further KSP [options].
+ */
 @OptIn(ExperimentalCompilerApi::class)
 fun compileModel(
     mode: String,
@@ -33,7 +35,7 @@ fun compileModel(
 ): Pair<KotlinCompilation, JvmCompilationResult> {
     val compilation = KotlinCompilation().apply {
         inheritClassPath = true
-        this.sources = sources.toList()
+        this.sources = sources.toList() + NineXStubs.SOURCES
         configureKsp {
             symbolProcessorProviders += ModelSymbolProcessorProvider()
             processorOptions[ModelSymbolProcessorProvider.OPTION] = mode
