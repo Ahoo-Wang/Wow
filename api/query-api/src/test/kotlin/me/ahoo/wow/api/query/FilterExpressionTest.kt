@@ -145,6 +145,8 @@ class FilterExpressionTest {
         assertThrows<IllegalArgumentException> { EqualFilter(QueryField("state"), listOf(listOf("a"))) }
         assertThrows<IllegalArgumentException> { GreaterThanFilter(QueryField("state"), listOf(1)) }
         assertThrows<IllegalArgumentException> { InFilter(QueryField("state"), listOf(mapOf("a" to 1))) }
+        assertThrows<IllegalArgumentException> { EqualFilter(QueryField("state"), arrayOf("a")) }
+        assertThrows<IllegalArgumentException> { GreaterThanFilter(QueryField("state"), intArrayOf(1)) }
     }
 
     @Test
