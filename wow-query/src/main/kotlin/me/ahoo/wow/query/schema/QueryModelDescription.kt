@@ -360,6 +360,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 maxLimit = maxList?.let { minOf(it, AggregationQuery.MAX_LIMIT) } ?: AggregationQuery.MAX_LIMIT,
                 maxExpressionDepth = AggregationQuery.MAX_EXPRESSION_DEPTH,
                 maxExpressionNodes = AggregationQuery.MAX_EXPRESSION_NODES,
+                maxResidualGroups = budget?.maxResidualGroups?.limit(),
             ),
         )
     }

@@ -157,6 +157,7 @@ export interface AggregationLimitsDescriptor {
     maxGroups: number;
     maxLimit: number;
     maxMetrics: number;
+    maxResidualGroups?: number | null;
 }
 
 // @public

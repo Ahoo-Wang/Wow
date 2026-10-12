@@ -3577,15 +3577,17 @@ public final class me/ahoo/wow/api/query/annotation/SensitivityLevel : java/lang
 }
 
 public final class me/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor {
-	public fun <init> (IIIIII)V
+	public fun <init> (IIIIIILjava/lang/Integer;)V
+	public synthetic fun <init> (IIIIIILjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()I
 	public final fun component2 ()I
 	public final fun component3 ()I
 	public final fun component4 ()I
 	public final fun component5 ()I
 	public final fun component6 ()I
-	public final fun copy (IIIIII)Lme/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor;
-	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor;IIIIIIILjava/lang/Object;)Lme/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor;
+	public final fun component7 ()Ljava/lang/Integer;
+	public final fun copy (IIIIIILjava/lang/Integer;)Lme/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor;IIIIIILjava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMaxElements ()I
 	public final fun getMaxExpressionDepth ()I
@@ -3593,6 +3595,7 @@ public final class me/ahoo/wow/api/query/descriptor/AggregationLimitsDescriptor 
 	public final fun getMaxGroups ()I
 	public final fun getMaxLimit ()I
 	public final fun getMaxMetrics ()I
+	public final fun getMaxResidualGroups ()Ljava/lang/Integer;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

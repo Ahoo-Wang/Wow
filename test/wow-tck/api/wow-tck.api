@@ -850,6 +850,7 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun aggregation should summarize the elements of each root group ()V
 	public final fun aggregation should support cancellation after a real result ()V
 	public final fun aggregation should support second date histograms ()V
+	public final fun aggregation should take the top N of one group by a count without reading every group ()V
 	public final fun aggregation terms missingKey should bucket missing values into the sentinel key ()V
 	protected final fun aggregationStates ()Ljava/util/List;
 	public final fun count ()V
@@ -867,6 +868,7 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun dynamicSingle ()V
 	public final fun element full text search runs inside element match only where storage grants it ()V
 	public final fun filter semantics matrix ()Ljava/util/List;
+	protected fun getBoundedTermsTopN ()Z
 	protected fun getElementFullTextSearch ()Z
 	protected fun getElementRootGroups ()Z
 	public final fun getQueryBackendBinding ()Lme/ahoo/wow/tck/query/QueryTarget;

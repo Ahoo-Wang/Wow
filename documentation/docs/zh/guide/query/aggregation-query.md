@@ -331,6 +331,7 @@ aggregation {
 - MongoDB 在聚合投影链之后把 having 编译为一个追加的 `$match` 阶段：比较在投影后的 metric 值上进行，数值统一转换到 IEEE double 空间（Decimal128 存储值安全转换）；
 - Elasticsearch 的 composite 聚合下没有 `bucket_selector`，having 在客户端求值：metric 排序查询在 top-N 截断前先过滤行；group 排序查询按页超取，直到集满 `limit` 个存活行或桶耗尽；
 - 性能建议：聚合值不携带索引选择性，having 无法像根 filter 那样下推到索引；成本取决于所需排序语义——metric 值 Top-N 为保证全局正确性必然扫描全部 composite 桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描；
+- Elasticsearch 上不带 having 的按指标 Top-N：索引只有一个主分片时（Wow 索引模板的默认），按 `COUNT` 或 `DISTINCT_COUNT` 给单个 `TERMS` 分组取前 N 是一次 `terms` 请求，只读 `limit` 个分组；没有分片结果的合并，所以结果精确。多个主分片、别名或数据流指向多个索引、其他分组形态或其他指标时，查询服务照上文读全部分组，上限为 `wow.query.http.max-residual-groups`；描述符以 `limits.aggregation.maxResidualGroups` 公布这个上限（Wow 9.10）；
 - 两个后端均无新增存储版本要求。
 
 HTTP 查询护栏：

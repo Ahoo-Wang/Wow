@@ -378,6 +378,7 @@ describe('Wow OpenAPI document', () => {
           maxLimit: true,
           maxExpressionDepth: true,
           maxExpressionNodes: true,
+          maxResidualGroups: true,
         }),
       ],
       [

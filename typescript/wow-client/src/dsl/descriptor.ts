@@ -540,6 +540,13 @@ export interface AggregationLimitsDescriptor {
   maxExpressionDepth: number;
   /** Most nodes in one arithmetic expression. */
   maxExpressionNodes: number;
+  /**
+   * The most groups an aggregation may read where the server computes part of
+   * it (HAVING, a metric sort, dense fill or windows its storage cannot run),
+   * beyond which the query fails; `null` or absent is unlimited. Absent from
+   * servers before Wow 9.10.
+   */
+  maxResidualGroups?: number | null;
 }
 
 /**

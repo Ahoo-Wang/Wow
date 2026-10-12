@@ -4987,6 +4987,14 @@
           "maxMetrics" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "maxResidualGroups" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
           }
         },
         "required" : [ "maxElements", "maxExpressionDepth", "maxExpressionNodes", "maxGroups", "maxLimit", "maxMetrics" ],

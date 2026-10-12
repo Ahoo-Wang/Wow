@@ -790,6 +790,35 @@ abstract class SnapshotQueryBackendSpec {
             }.verifyComplete()
     }
 
+    /**
+     * Whether the backend takes the top N of one TERMS group by a count itself, so the query reads no more groups than
+     * it returns: MongoDB natively, Elasticsearch on an index of one primary shard.
+     */
+    protected open val boundedTermsTopN: Boolean = true
+
+    @Test
+    fun `aggregation should take the top N of one group by a count without reading every group`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        // alpha 2, beta 2, gamma 1, delta 1: four groups, beyond a residual bound of two.
+        val query = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            count("lines")
+            sort { "lines".desc() }
+            limit(1)
+        }
+        val budget = QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)
+        val rows = queryBackendBinding.aggregate(query, budget = budget)
+        if (!boundedTermsTopN) {
+            rows.test().expectError().verify()
+            return
+        }
+        rows.collectList().block()!!.map { it.path("product").asString() to it.path("lines").asLong() }
+            .assert().containsExactly("alpha" to 2L)
+    }
+
     @Test
     fun `aggregation should summarize the elements of each root group`() {
         if (!elementRootGroups) return
@@ -2660,14 +2689,19 @@ private fun QueryTarget<SnapshotQueryBackend>.count(filter: FilterExpression): M
         backend.count(QueryAdmission.Trusted.count(filter, schema))
     }
 
-/** [query]'s groups; with [residual], the core computes every window the storage would. */
+/**
+ * [query]'s groups; with [residual], the core computes every window the storage would; [budget] bounds the groups a
+ * residual operator reads.
+ */
 private fun QueryTarget<SnapshotQueryBackend>.aggregate(
     query: AggregationQuery,
     residual: Boolean = false,
+    budget: QueryBudget? = null,
 ): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.aggregate(
             QueryAdmission.Trusted.aggregate(query, if (residual) schema.withResidualWindows() else schema),
+            budget,
         )
     }
 

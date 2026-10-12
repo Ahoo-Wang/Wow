@@ -1152,8 +1152,8 @@ public final class me/ahoo/wow/query/schema/AggregationSupport {
 	public static final field Companion Lme/ahoo/wow/query/schema/AggregationSupport$Companion;
 	public static final field RESIDUAL_WINDOWS Ljava/util/Map;
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;)V
-	public synthetic fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Set;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component2 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component3 ()Lme/ahoo/wow/query/schema/SupportMode;
@@ -1162,8 +1162,9 @@ public final class me/ahoo/wow/query/schema/AggregationSupport {
 	public final fun component6 ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun component7 ()Ljava/util/Map;
 	public final fun component8 ()Lme/ahoo/wow/query/schema/SupportMode;
-	public final fun copy (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;)Lme/ahoo/wow/query/schema/AggregationSupport;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/AggregationSupport;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/AggregationSupport;
+	public final fun component9 ()Ljava/util/Set;
+	public final fun copy (Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Set;)Lme/ahoo/wow/query/schema/AggregationSupport;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/AggregationSupport;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Map;Lme/ahoo/wow/query/schema/SupportMode;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/AggregationSupport;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDenseFill ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getDistinctCount ()Lme/ahoo/wow/query/schema/SupportMode;
@@ -1171,6 +1172,7 @@ public final class me/ahoo/wow/query/schema/AggregationSupport {
 	public final fun getHaving ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getPercentile ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getRootGroups ()Lme/ahoo/wow/query/schema/SupportMode;
+	public final fun getTermsTopN ()Ljava/util/Set;
 	public final fun getTopN ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getWindows ()Ljava/util/Map;
 	public fun hashCode ()I

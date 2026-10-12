@@ -24,6 +24,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
 import me.ahoo.wow.elasticsearch.query.requireComplete
+import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.GroupWindow
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -69,6 +70,7 @@ internal class ElasticsearchAggregationPager(
     fun execute(plan: ElasticsearchAggregationPlan, window: GroupWindow): Flux<ObjectNode> = Flux.defer {
         val limit = (window as? GroupWindow.First)?.limit
         if (plan.rootSources.isNotEmpty()) return@defer executeRootGroups(plan, limit)
+        if (plan.metricOrder.isNotEmpty()) return@defer executeTopN(plan, checkNotNull(limit))
         if (plan.groupSources.isEmpty()) {
             search(plan, null, plan.aggregation(emptyMap(), 0)).map { response -> response.summary(plan) }.flux()
         } else {
@@ -89,6 +91,29 @@ internal class ElasticsearchAggregationPager(
                     }
                     .concatMapIterable({ it.rows }, 1)
             }
+        }
+    }
+
+    /**
+     * The first [limit] groups of a native top-N ([ElasticsearchAggregationPlan.metricOrder]): one `terms` request
+     * ordered by the metric, on an index whose one primary shard makes the order exact. One search, so no point in
+     * time.
+     */
+    private fun executeTopN(plan: ElasticsearchAggregationPlan, limit: Int): Flux<ObjectNode> {
+        val group = plan.groupSources.single()
+        val terms = group.value().toBucketAggregation(limit, plan.metricAggregations(), plan.metricOrder)
+        val aggregation = if (plan.elements.isEmpty()) {
+            terms
+        } else {
+            plan.elementAggregations(mapOf(GROUP_AGGREGATION to terms)).values.single()
+        }
+        return search(plan, null, aggregation).flatMapIterable { response ->
+            response.innermost(plan).getValue(GROUP_AGGREGATION)
+                .keyedBuckets(group.name(), limit, complete = false)
+                .map { bucket ->
+                    linkedMapOf<String, Any?>(group.name() to bucket.key).toObjectNode()
+                        .setAll(plan.toRow(bucket.docCount, bucket.aggregations))
+                }
         }
     }
 
