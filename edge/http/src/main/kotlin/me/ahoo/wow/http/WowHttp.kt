@@ -82,6 +82,21 @@ object WowPaths {
 
     /** The query parameter of a state read at a version. */
     const val VERSION: String = "version"
+
+    /** The query parameter of a state read as of a time, an ISO-8601 instant (decision D40). */
+    const val AT: String = "at"
+
+    /** The segment after [STATE] of a trace: `GET /{context}/{aggregate}/{id}/state/trace` (decision D40). */
+    const val TRACE: String = "trace"
+
+    /** The query parameter of a trace's first version. */
+    const val FROM: String = "from"
+
+    /** The query parameter of a trace's last version. */
+    const val TO: String = "to"
+
+    /** The query parameter of the most commits a trace holds. */
+    const val LIMIT: String = "limit"
 }
 
 /**
