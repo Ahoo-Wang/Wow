@@ -69,7 +69,7 @@
 | D35 | 部署前提与跨服务信号：所有服务部署在同一个集群内、彼此可直接调用；跨服务等待信号只用 HTTP 调用发起服务的信号入口，不提供 Kafka 替代；集群内部流量受信任，信号入口与集群通道不做认证 | 2026-10-11，用户 | [00](00-architecture.md)、[04](04-subscriptions.md) |
 | D36 | 处理函数的调用形态与快速路径：同步、`suspend`、Reactor 三种形态，KSP 编译期选定调用；同步函数内联在工作线程上执行，阻塞的须标 `@Blocking` 并派发到阻塞调度器（JDK 21 下为虚拟线程）；内核在缓存命中且处理函数同步时只在追加处挂起 | 2026-10-11，用户 | [01](01-programming-model.md) |
 | D37 | 注解模型由 KSP 在编译期生成绑定代码与 Manifest，运行时不扫描、不反射，也不为任何语言保留反射退路。收益：错误提前到编译期（重复处理函数、无法解析的参数）、快速路径是直接调用、启动快且可 AOT、绑定与 Manifest 同源；代价：构建依赖 KSP、需要调试生成代码、编译器须覆盖全部语义（H4） | 2026-10-11，用户 | [01](01-programming-model.md) |
-| D38 | 跨聚合唯一性（9.x `PrepareKey`）：保留：`@WowSpi` 端口，由日志后端实现；在 Decide 中经 `DecideContext` 预留，拒绝或追加失败时内核回滚；释放与转移由 Saga 完成 | 2026-10-11，用户 | [01](01-programming-model.md) |
+| D38 | 跨聚合唯一性（9.x `PrepareKey`）：保留：`@WowSpi` 端口，由日志后端实现；在 Decide 中经 `DecideScope` 预留，拒绝或追加失败时内核回滚；释放与转移由 Saga 完成 | 2026-10-11，用户 | [01](01-programming-model.md) |
 | D39 | after 钩子（9.x `@AfterCommand`）保留：外部用户在用。用途是在 Decide 之后追加事件：命令函数之后按 include/exclude 匹配、按声明顺序执行，看到与命令函数相同的（未演化）状态；事件拼在命令事件之后组成同一条事件流，一起演化、一次追加；调用形态同 Decide（D36），可以做 I/O；任一失败则命令失败、不写入 | 2026-10-11，用户 | [01](01-programming-model.md) |
 | D40 | 历史状态（按版本、按时间、逐事件追溯）：保留：最新读快照，历史从日志重放；带超时与版本数保护 | 2026-10-11，用户授权按推荐 | [03](03-log-and-snapshot.md) |
 | D41 | 仓库目录结构：按层分目录（`api/`、`compiler/`、`core/`、`query/`、`backends/`、`edge/`、`host/`、`test/`、`migration/`、`bom/`、`platform/`），Gradle 项目名保持 `:wow-xxx`；新模块在 M0 按新结构建立，main 上仍活跃的平台目录在 M9 合入前一次搬迁 | 2026-10-11，用户 | [06](06-modules.md) |

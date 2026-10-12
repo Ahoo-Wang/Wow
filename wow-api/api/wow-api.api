@@ -482,6 +482,11 @@ public final class me/ahoo/wow/api/decide/Command {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class me/ahoo/wow/api/decide/DecideScope {
+	public abstract fun afterAppend (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun onAppendFailure (Lkotlin/jvm/functions/Function1;)V
+}
+
 public abstract interface class me/ahoo/wow/api/decide/Decision {
 	public static final field Companion Lme/ahoo/wow/api/decide/Decision$Companion;
 }
