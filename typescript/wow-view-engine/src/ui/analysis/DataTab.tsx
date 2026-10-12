@@ -21,6 +21,7 @@ import {
 } from '../../analysis/index.js';
 import {
   CHART_FAMILY,
+  METRIC_AGAINST,
   METRIC_HEADLINES,
   type ChartFamily,
   type FunnelSpec,
@@ -436,7 +437,12 @@ function StageList({
   );
 }
 
-function MetricData({ chart, shape, onChange }: OptionsPageProps) {
+function MetricData({
+  chart,
+  shape,
+  onChange,
+  yearAgoGapOf,
+}: OptionsPageProps) {
   const messages = useViewMessages();
   const spec = chart.metric;
   if (!spec) return null;
@@ -449,6 +455,13 @@ function MetricData({ chart, shape, onChange }: OptionsPageProps) {
   const moment = shape.moments.has(spec.metric);
   const trend = spec.trend;
   const headline = trend?.headline === 'whole' ? 'whole' : 'last';
+  // What the last period is measured against (D90): the period before, or
+  // the same period a year earlier where the source computes it. A source
+  // that cannot keeps the choice on screen, greyed, and says why — unless a
+  // stored card already holds it, which stays choosable to be undone.
+  const against =
+    trend?.against === 'previous-year' ? 'previous-year' : 'previous';
+  const yearGap = moment ? 'not-measured' : yearAgoGapOf?.(spec.metric);
   return (
     <>
       {/*
@@ -474,6 +487,35 @@ function MetricData({ chart, shape, onChange }: OptionsPageProps) {
                 next === 'whole'
                   ? { ...trend, headline: next }
                   : without(trend, 'headline'),
+            })
+          }
+        />
+      )}
+      {trend && headline === 'last' && yearAgoGapOf && (
+        <ChoiceField
+          data-slot="metric-against"
+          label={messages.label('label.chart.against')}
+          hint={messages.label(
+            yearGap === undefined
+              ? `label.chart.against.${against}.hint`
+              : `label.chart.against.gap.${yearGap}`,
+          )}
+          items={METRIC_AGAINST.map(value => ({
+            value,
+            label: messages.label(`label.chart.against.${value}`),
+            disabled:
+              value === 'previous-year' &&
+              yearGap !== undefined &&
+              against !== 'previous-year',
+          }))}
+          value={against}
+          onChange={next =>
+            update({
+              ...spec,
+              trend:
+                next === 'previous-year'
+                  ? { ...trend, against: next }
+                  : without(trend, 'against'),
             })
           }
         />

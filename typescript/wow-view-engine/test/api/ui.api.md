@@ -2809,6 +2809,14 @@ export const en: {
     readonly 'label.chart.compare-mode': "Comparison";
     readonly 'label.chart.compare.delta': "Difference";
     readonly 'label.chart.compare.percent': "Percent";
+    readonly 'label.chart.against': "Compare with";
+    readonly 'label.chart.against.previous': "Period before";
+    readonly 'label.chart.against.previous-year': "Same period last year";
+    readonly 'label.chart.against.previous.hint': "The last period against the one right before it.";
+    readonly 'label.chart.against.previous-year.hint': "The last period against the same days a year earlier.";
+    readonly 'label.chart.against.gap.unsupported': "This source cannot read the same period last year.";
+    readonly 'label.chart.against.gap.week': "Weeks have no same week last year; group by day or month to compare with last year.";
+    readonly 'label.chart.against.gap.not-measured': "Only a count or a summary of a field can be compared with last year.";
     readonly 'label.chart.headline': "Big number";
     readonly 'label.chart.headline.last': "Last period";
     readonly 'label.chart.headline.whole': "All";
@@ -3103,10 +3111,13 @@ export const en: {
     readonly 'label.chart.change.against.HOUR': "vs the hour before";
     readonly 'label.chart.change.against.MINUTE': "vs the minute before";
     readonly 'label.chart.change.against.SECOND': "vs the second before";
+    readonly 'label.chart.change.against.previous-year': "vs the same period last year";
     readonly 'label.chart.compare.against': "vs {metric}";
     readonly 'label.chart.compare.unmatched': "The span of {metric} does not match the dates picked; not compared";
     readonly 'label.chart.change.points': "{amount} pp";
     readonly 'label.chart.change.none': "No previous period to compare with";
+    readonly 'label.chart.change.none.previous-year': "No same period last year to compare with";
+    readonly 'label.chart.change.unknown.previous-year': "No number in the same period last year to compare with";
     readonly 'label.chart.change.unknown': "No number in the previous period to compare with";
     readonly 'label.chart.change.unmatched': "The dates picked cover this period and the one before unequally; not compared";
     readonly 'label.chart.period.range.in-year': "{start} – {end}, {year}";
@@ -5048,6 +5059,9 @@ type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId'
 | 'deletion';
 
 // @public (undocumented)
+type MetricAgainst = 'previous' | 'previous-year';
+
+// @public (undocumented)
 interface MetricCardData {
     compare?: {
         value: number | null;
@@ -5099,6 +5113,7 @@ type MetricHeadline = 'last' | 'whole';
 
 // @public
 interface MetricPeriod {
+    against?: 'previous-year';
     at: unknown;
     change?: {
         delta: number;
@@ -5121,6 +5136,7 @@ interface MetricPeriod {
 
 // @public
 interface MetricTrend {
+    against?: MetricAgainst;
     headline?: MetricHeadline;
     x: string;
 }

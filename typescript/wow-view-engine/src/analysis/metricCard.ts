@@ -29,6 +29,7 @@ import {
 } from './timeAxis.js';
 import { metricReach } from './metricWindow.js';
 import { isAdditiveMetric, readsOffSums } from './additive.js';
+import { yearAgoAlias } from './serverLines.js';
 
 export interface MetricCardData {
   type: 'metric';
@@ -106,14 +107,22 @@ export interface MetricPeriod {
    */
   skipped?: unknown;
   /**
+   * What `change` measures against (D90): the period right before — left
+   * out, the default — or the same period a year earlier, which Wow
+   * computed over the range shifted back a year. Against the year before
+   * there is no `previous` and never `unmatched`: the shift keeps the cut.
+   */
+  against?: 'previous-year';
+  /**
    * The period right before `at` and its value; absent when the trend holds
    * no bucket just before it (the range starts at `at`).
    */
   previous?: { at: unknown; value: number | null };
   /**
-   * The headline against `previous`: the difference, and the difference as
-   * a share of the previous value — null when either number is missing, or
-   * the share when the previous value is 0.
+   * The headline against `previous`, or the same period a year earlier:
+   * the difference, and the difference as a share of the earlier value —
+   * null when either number is missing, or the share when the earlier
+   * value is 0. Absent where there is nothing to measure against.
    */
   change?: { delta: number; ratio: number | null } | null;
   /**
@@ -160,13 +169,17 @@ export function metricCard(
     !whole &&
     context.cutShort === true &&
     !latestFirst(config, trend.x);
-  const last =
+  const lastBefore =
     trend && axis && !whole && !cut
       ? lastPeriod(spec.metric, trend.x, axis, buckets, {
           ...context,
           window: askedWindow(config, axis.field, context),
         })
       : undefined;
+  const last =
+    lastBefore && trend?.against === 'previous-year'
+      ? yearAgo(spec.metric, lastBefore)
+      : lastBefore;
   const headline: RecordData = !trend
     ? (rows[0] ?? {})
     : cut
@@ -381,17 +394,54 @@ function lastPeriod(
       ...(matched
         ? {
             previous: { at: matched.row[x], value: was },
-            change:
-              value === null || was === null
-                ? null
-                : {
-                    delta: value - was,
-                    ratio: was === 0 ? null : (value - was) / Math.abs(was),
-                  },
+            change: changeOf(value, was),
           }
         : {}),
     },
   };
+}
+
+/**
+ * The last period measured against the same period a year earlier (D90)
+ * rather than the one before: the year-ago value is the hidden metric Wow
+ * computed on the headline's row (`cardLineMetrics`). A row without it —
+ * the source does not compute it, or the rows ran before the card asked —
+ * has nothing to measure against.
+ */
+function yearAgo(
+  metric: string,
+  last: { row: RecordData; period: MetricPeriod },
+): { row: RecordData; period: MetricPeriod } {
+  const { row } = last;
+  // The period before is not what this period is measured against.
+  const period: MetricPeriod = { ...last.period };
+  delete period.previous;
+  delete period.change;
+  delete period.unmatched;
+  const alias = yearAgoAlias(metric);
+  const value = num(row, metric);
+  const was = alias in row ? num(row, alias) : undefined;
+  return {
+    row,
+    period: {
+      ...period,
+      against: 'previous-year',
+      ...(was === undefined ? {} : { change: changeOf(value, was) }),
+    },
+  };
+}
+
+/** The change from `was` to `value`; null where either is missing. */
+function changeOf(
+  value: number | null,
+  was: number | null,
+): MetricPeriod['change'] {
+  return value === null || was === null
+    ? null
+    : {
+        delta: value - was,
+        ratio: was === 0 ? null : (value - was) / Math.abs(was),
+      };
 }
 
 /**

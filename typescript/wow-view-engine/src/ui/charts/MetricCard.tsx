@@ -207,6 +207,9 @@ function PeriodChange({
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const change = period.change;
+  // Measured against the same period a year earlier (D90), not the one
+  // before: every word that names what it is measured against says so.
+  const yearAgo = period.against === 'previous-year';
   if (!change)
     return (
       <span
@@ -220,8 +223,12 @@ function PeriodChange({
           period.unmatched
             ? 'label.chart.change.unmatched'
             : change === null
-              ? 'label.chart.change.unknown'
-              : 'label.chart.change.none',
+              ? yearAgo
+                ? 'label.chart.change.unknown.previous-year'
+                : 'label.chart.change.unknown'
+              : yearAgo
+                ? 'label.chart.change.none.previous-year'
+                : 'label.chart.change.none',
         )}
       </span>
     );
@@ -253,7 +260,11 @@ function PeriodChange({
         {ratio !== undefined && ` · ${ratio}`}
       </ChangeBadge>
       <span className="fve:text-muted-foreground">
-        {messages.label(`label.chart.change.against.${period.unit}`)}
+        {messages.label(
+          yearAgo
+            ? 'label.chart.change.against.previous-year'
+            : `label.chart.change.against.${period.unit}`,
+        )}
       </span>
     </span>
   );
