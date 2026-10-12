@@ -30,8 +30,8 @@ class V10ArchitectureTest {
             .canonicalFile
 
     @Test
-    fun `every V10 module should exist`() {
-        V10Rules.MODULES.forEach { module ->
+    fun `every V10 module and the example should exist`() {
+        (V10Rules.MODULES + V10Rules.EXAMPLES).forEach { module ->
             File(repositoryRoot, "${module.dir}/build.gradle.kts").isFile.assert()
                 .describedAs("${module.dir}/build.gradle.kts must exist under $repositoryRoot")
                 .isTrue()
@@ -67,6 +67,11 @@ class V10ArchitectureTest {
     @Test
     fun `no 9x project should depend on a V10 project`() {
         V10Rules.nineXOnV10Violations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `the example should reach V10 modules only`() {
+        V10Rules.exampleOutsideV10Violations(repositoryRoot).assert().isEmpty()
     }
 
     @Test
@@ -213,6 +218,32 @@ class V10ArchitectureTest {
         )
         V10Rules.v10SettingsProjects(root).assert().containsExactlyInAnyOrder("spi", "mongo")
         V10Rules.nineXOnV10Violations(root).assert().containsExactly("wow-it reaches :spi", "wow-mongo reaches :spi")
+    }
+
+    @Test
+    fun `example rule should catch the example reaching a 9x module or a spike transitively`(@TempDir root: File) {
+        root.writeBuild(
+            mapOf(
+                "wow-spring" to "wow-spring",
+                "api" to "api/api",
+                "spring-boot" to "host/spring-boot",
+                "routing-spike" to "test/routing-spike",
+                "shop-api" to "example/shop/shop-api",
+                "shop-domain" to "example/shop/shop-domain",
+                "shop-server" to "example/shop/shop-server",
+            ),
+            mapOf(
+                "spring-boot" to listOf("wow-spring"),
+                "shop-api" to listOf("api"),
+                "shop-domain" to listOf("shop-api", "routing-spike"),
+                "shop-server" to listOf("shop-api", "spring-boot"),
+            ),
+            v10 = setOf("api", "spring-boot", "routing-spike", "shop-api", "shop-domain", "shop-server"),
+        )
+        V10Rules.exampleOutsideV10Violations(root).assert().containsExactly(
+            "shop-domain reaches :routing-spike",
+            "shop-server reaches :wow-spring",
+        )
     }
 
     @Test

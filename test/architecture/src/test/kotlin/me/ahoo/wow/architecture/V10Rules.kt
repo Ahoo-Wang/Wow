@@ -32,6 +32,7 @@ object V10Rules {
     val POSTGRES = V10Module("postgres", "backends/postgres")
     val MONGO = V10Module("mongo", "backends/mongo")
     val HTTP = V10Module("http", "edge/http")
+    val COSEC = V10Module("cosec", "edge/cosec")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
     val COMPILER = V10Module("compiler", "compiler/compiler")
@@ -39,9 +40,16 @@ object V10Rules {
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, SPRING_BOOT, MIGRATE_DATA,
-        COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, COSEC, SPRING_BOOT,
+        MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
+
+    val SHOP_API = V10Module("shop-api", "example/shop/shop-api")
+    val SHOP_DOMAIN = V10Module("shop-domain", "example/shop/shop-domain")
+    val SHOP_SERVER = V10Module("shop-server", "example/shop/shop-server")
+
+    /** The V10 example (decision D111): an application of the V10 modules, not one of them. */
+    val EXAMPLES = listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER)
 
     /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
@@ -60,8 +68,11 @@ object V10Rules {
         REACTOR to setOf("runtime"),
         POSTGRES to setOf("spi", "wow-query"),
         MONGO to setOf("spi"),
-        HTTP to setOf("runtime", "wow-query"),
-        SPRING_BOOT to setOf("runtime", "http"),
+        // runtime only until the V10 query module exists (decision D118).
+        HTTP to setOf("runtime"),
+        COSEC to setOf("http"),
+        // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
+        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo"),
         MIGRATE_DATA to setOf("kernel"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
@@ -172,6 +183,7 @@ object V10Rules {
         "api" to "wow-api",
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
+        "cosec" to "wow-cosec",
     )
 
     /**
@@ -249,6 +261,18 @@ object V10Rules {
             .flatMap { project ->
                 reachable(graph, project).filter { it in v10 }.sorted().map { "$project reaches :$it" }
             }
+    }
+
+    /**
+     * The example builds on the V10 modules only (decision D118), directly or transitively: it shows V10 as an
+     * application uses it, with no 9.x module, spike or test project on its classpath.
+     */
+    fun exampleOutsideV10Violations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        val allowed = (MODULES + EXAMPLES).map { it.name }.toSet()
+        return EXAMPLES.map { it.name }.flatMap { example ->
+            reachable(graph, example).filterNot { it in allowed }.sorted().map { "$example reaches :$it" }
+        }
     }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")

@@ -414,6 +414,9 @@ test('V10 modules skip the TypeScript workflow jobs and the mixed-version test',
     'migration/migrate-data/src/main/kotlin/A.kt',
     'test/architecture/src/test/kotlin/A.kt',
     'test/lease-spike/src/integrationTest/kotlin/A.kt',
+    'edge/cosec/build.gradle.kts',
+    'example/shop/shop-domain/src/main/kotlin/A.kt',
+    'example/shop/shop-server/build.gradle.kts',
   ]) {
     assert.ok(none([path]), path);
     assert.ok(!scopes([path]).mixedVersion, path);
@@ -479,6 +482,9 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/kernel-benchmarks/build.gradle.kts',
     'test/routing-spike/src/integrationTest/kotlin/A.kt',
     'test/lease-spike/src/integrationTest/kotlin/A.kt',
+    'edge/cosec/src/main/kotlin/A.kt',
+    'example/shop/shop-api/src/main/kotlin/A.kt',
+    'example/shop/shop-server/build.gradle.kts',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'build-logic/build.gradle.kts',
