@@ -83,7 +83,11 @@ M5 的定稿（D92～D118）：准入顺序与扩展点（D92）、`Caller` 与 
 - 等待：`Wow-Wait` 与 `Wow-Wait-Timeout` 请求头，默认 `snapshot`（D69）；链的写法与流式等待（SSE）见 [04](04-subscriptions.md) §6.1。
 - 错误：RFC 9457 `application/problem+json`，`type` 指向 Manifest 中的错误码。
 - 查询（D127）：`POST /{context}/{aggregate}/{model}/query`，`model` 为 `snapshot` 或 `events`（投影名推迟，D131）；请求体的 `kind` 为 `list`、`paged`、`cursor`、`single`、`count`、`aggregate` 之一，`Accept: text/event-stream` 时流式返回 `list`；同一路径的 `GET` 返回能力描述并带 `ETag`。HTTP 把 `Caller`（`crossScope` 时加 `Wow-Scope`）映射为 `QueryCaller`，路由级授权仍由 CoSec WebFilter 负责（D93、D129）。
-- 历史状态：`GET /{context}/{aggregate}/{id}/state?version=` 或 `?at=`，以及逐事件追溯 `GET …/{id}/state/trace`（D40，[03](03-log-and-snapshot.md) §4）。
+- 历史状态（D40，[03](03-log-and-snapshot.md) §4，Ahoo-Wang/Wow#4317）：
+  - `GET /{context}/{aggregate}/{id}/state?version=` 或 `?at=<ISO-8601>`；`ETag` 取版本，支持 304。按时刻读以提交时间随版本递增为前提。
+  - 逐事件追溯 `GET …/{id}/state/trace?from=&to=&limit=`，`limit` 默认 100、最大 1000，超过即拒绝；返回 `{ref, commits[]}`。
+  - 参数不合法：400 `wow.command.malformed`；在第一次提交之前或区间为空：404 `wow.aggregate.not-found`；某次提交不在调用方的作用域内：403。
+  - 读路由经 `WowJson` 输出精确的数字（D122）。
 
 ## 4. TypeScript
 
