@@ -30,7 +30,11 @@ import {
   sunburstOption,
   treeOption,
 } from '../src/ui/charts/hierarchyOption.js';
-import { parallelOption, radarOption } from '../src/ui/charts/profileOption.js';
+import {
+  parallelOption,
+  radarFit,
+  radarOption,
+} from '../src/ui/charts/profileOption.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import {
   calendarOption,
@@ -369,5 +373,44 @@ describe('the D41 options say what the library asks', () => {
     // first week ran off the left edge, the last off the right).
     expect(axis.left).toBeGreaterThanOrEqual(48);
     expect(axis.right).toBeGreaterThanOrEqual(48);
+  });
+});
+
+describe('radarFit: the axis names fit the plot (R2-101)', () => {
+  // A CJK character 14px wide, a line 17px tall.
+  const measure = (text: string) => text.length * 14;
+  type Fit = {
+    radar: { radius: number; axisNameGap: number; axisName: { width: number } };
+  };
+  const fit = (names: string[], width: number, height = 360) =>
+    radarFit(names, width, height, measure, 17) as Fit;
+  const RATIOS = ['退款率', '直降占比', '老客占比', '取消率'];
+
+  it('leaves the widest name room beside the corners on a phone', () => {
+    const { radar } = fit(RATIOS, 330);
+    // 「直降占比」 is 56px: the radius stops a gap and an edge short of it.
+    expect(radar.radius).toBe(330 / 2 - 56 - 8 - 4);
+    expect(radar.axisName.width).toBe(56);
+  });
+
+  it('wraps a name wider than three tenths of the plot', () => {
+    const { radar } = fit(['平均每单的直降金额占原价比例', '退款率'], 330);
+    expect(radar.axisName.width).toBe(99);
+    expect(radar.radius).toBe(Math.floor(330 / 2 - 99 - 8 - 4));
+  });
+
+  it('is held by the height where the plot is wide and short', () => {
+    const { radar } = fit(RATIOS, 1200, 150);
+    expect(radar.radius).toBe(Math.floor(150 * 0.48 - 17 - 8 - 4));
+  });
+
+  it('grows no larger than two thirds of the shorter half', () => {
+    const { radar } = fit(RATIOS, 1200, 900);
+    expect(radar.radius).toBe(Math.floor(450 * 0.66));
+  });
+
+  it('keeps a radius that still reads, however long the names', () => {
+    const { radar } = fit(['一'.repeat(40)], 120, 120);
+    expect(radar.radius).toBe(40);
   });
 });
