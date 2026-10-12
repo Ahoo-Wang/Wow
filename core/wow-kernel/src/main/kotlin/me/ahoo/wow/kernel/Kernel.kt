@@ -137,7 +137,14 @@ class Kernel(
                 is AppendOutcome.Committed -> {
                     states.put(command.ref, evolved)
                     withContext(NonCancellable) { attempt.afterAppend() }
-                    return CommandOutcome.Committed(stream, appended.position, evolved.state, attempt.results())
+                    return CommandOutcome.Committed(
+                        stream,
+                        appended.position,
+                        evolved.state,
+                        attempt.results(),
+                        evolved.deleted,
+                        evolved.tags,
+                    )
                 }
 
                 is AppendOutcome.AlreadyCommitted -> {
@@ -246,7 +253,8 @@ class Kernel(
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
      * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
      *
-     * @return the state, version and scope at [version]; null when the log does not hold [version].
+     * @return the state at [version] with the metadata the kernel keeps beside it (scope, deleted mark, tags); null
+     *   when the log does not hold [version].
      */
     suspend fun <S : Any> stateAt(
         model: AggregateModel<S>,

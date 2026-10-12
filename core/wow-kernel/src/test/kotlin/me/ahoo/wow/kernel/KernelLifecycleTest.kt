@@ -150,6 +150,21 @@ class KernelLifecycleTest {
     }
 
     @Test
+    fun `a committed outcome carries the deleted mark and the tags after its stream`(): Unit = runTest {
+        val created = created().committed()
+        created.deleted.assert().isFalse()
+        created.tags.assert().isEmpty()
+        val tags = mapOf("region" to listOf("eu"))
+        send(ApplyTags(tags)).committed().tags.assert().isEqualTo(tags)
+        val deleted = send(DeleteAggregate).committed()
+        deleted.deleted.assert().isTrue()
+        deleted.tags.assert().isEqualTo(tags)
+        val restored = send(RestoreAggregate).committed()
+        restored.deleted.assert().isFalse()
+        restored.tags.assert().isEqualTo(tags)
+    }
+
+    @Test
     fun `the lifecycle events leave the user's state as it is`(): Unit = runTest {
         created()
         send(AddItem("apple", 1))
