@@ -154,6 +154,7 @@ export interface AggregationLimitsDescriptor {
     maxLimit: number;
     maxExpressionDepth: number;
     maxExpressionNodes: number;
+    maxResidualGroups?: number | null;
 }
 export interface AnalysisDescriptor {
     metrics: (AggregationMetricType | (string & {}))[];

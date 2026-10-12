@@ -38,6 +38,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.spec.MetricSpec
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.AggregationSupport
@@ -289,6 +290,48 @@ class BackendQueriesTest {
             .map { it["name"].stringValue() }.assert().containsExactly("b", "c")
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
         backend.aggregations.single().sort.assert().isEmpty()
+    }
+
+    @Test
+    fun `a storage that orders one TERMS group by the metric takes the top N itself`() {
+        val backend = RecordingBackend(groups = { Flux.just(group("b", 3), group("c", 2)) })
+        val count = AggregationMetric.Count("count")
+        val byCount = listOf(Sort(QueryField("count"), Sort.Direction.DESC))
+        val name = AggregationGroup.Terms(QueryField("name"), "name")
+        val native = schema.withStorage(
+            StorageSupport(
+                aggregation = AggregationSupport(topN = SupportMode.RESIDUAL, termsTopN = setOf(MetricSpec.COUNT))
+            )
+        )
+        val query = AggregationQuery(groupBy = listOf(name), metrics = listOf(count), sort = byCount, limit = 2)
+        // The bound on residual groups does not apply: the storage reads only its limit.
+        backend.aggregate(
+            QueryAdmission.Trusted.aggregate(query, native),
+            QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 1),
+        ).collectList().block()!!.map { it["name"].stringValue() }.assert().containsExactly("b", "c")
+        backend.groupWindows.single().assert().isEqualTo(GroupWindow.First(2))
+        backend.aggregations.single().sort.assert().isEqualTo(byCount)
+
+        // Two groups, a HAVING, or a metric type the storage does not order by stay residual.
+        val residual = listOf(
+            query.copy(groupBy = listOf(name, AggregationGroup.Terms(QueryField("aggregateId"), "aggregate"))),
+            query.copy(having = HavingExpression.Condition("count", ComparisonOperator.GT, 0.0)),
+            query.copy(
+                metrics = listOf(
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QueryField("amount")),
+                        "count",
+                    )
+                ),
+            ),
+            query.copy(groupBy = listOf(AggregationGroup.Histogram(QueryField("amount"), "name", 10.0))),
+        )
+        residual.forEach { shape ->
+            val recording = RecordingBackend(groups = { Flux.empty() })
+            recording.aggregate(QueryAdmission.Trusted.aggregate(shape, native)).collectList().block()
+            recording.groupWindows.single().assert().isEqualTo(GroupWindow.All)
+        }
     }
 
     @Test

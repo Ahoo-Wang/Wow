@@ -146,18 +146,20 @@ public final class me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping {
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component6 ()I
 	public final fun component7 ()Z
+	public final fun component8 ()Z
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFieldCount ()I
 	public final fun getIndexName ()Ljava/lang/String;
 	public final fun getMaxResultWindow ()I
 	public final fun getProvisional ()Z
+	public final fun getSingleShard ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping$Companion {
-	public final fun from (Ljava/lang/String;Lco/elastic/clients/elasticsearch/_types/mapping/TypeMapping;IZ)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping;
-	public static synthetic fun from$default (Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping$Companion;Ljava/lang/String;Lco/elastic/clients/elasticsearch/_types/mapping/TypeMapping;IZILjava/lang/Object;)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping;
+	public final fun from (Ljava/lang/String;Lco/elastic/clients/elasticsearch/_types/mapping/TypeMapping;IZZ)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping;
+	public static synthetic fun from$default (Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping$Companion;Ljava/lang/String;Lco/elastic/clients/elasticsearch/_types/mapping/TypeMapping;IZZILjava/lang/Object;)Lme/ahoo/wow/elasticsearch/query/ElasticsearchIndexMapping;
 }
 
 public final class me/ahoo/wow/elasticsearch/query/ElasticsearchIndexMappingResolver {

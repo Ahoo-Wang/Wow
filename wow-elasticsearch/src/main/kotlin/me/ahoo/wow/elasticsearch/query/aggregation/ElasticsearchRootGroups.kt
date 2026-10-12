@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.aggregation
 
+import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CalendarInterval
@@ -47,14 +48,20 @@ internal fun ElasticsearchAggregationPlan.innerGroupAggregations(
     return aggregations
 }
 
-private fun CompositeAggregationSource.toBucketAggregation(
+/**
+ * The bucket aggregation of one group, built from its composite source: ordered by key as the source is, or a TERMS
+ * group by [order] (a native top-N's metric order).
+ */
+internal fun CompositeAggregationSource.toBucketAggregation(
     size: Int,
     subAggregations: Map<String, Aggregation>,
+    order: List<NamedValue<SortOrder>> = emptyList(),
 ): Aggregation = Aggregation.of { builder ->
     when {
         isTerms -> builder.terms { terms ->
             val source = terms()
-            terms.field(source.field()).size(size).order(NamedValue.of(KEY_ORDER, source.order()))
+            terms.field(source.field()).size(size)
+                .order(order.ifEmpty { listOf(NamedValue.of(KEY_ORDER, checkNotNull(source.order()))) })
         }
 
         isHistogram -> builder.histogram { histogram ->
@@ -117,26 +124,15 @@ private fun ElasticsearchAggregationPlan.collectInnerRows(
     }
 }
 
-private class KeyedBucket(val key: Any?, val docCount: Long, val aggregations: Map<String, Aggregate>)
+internal class KeyedBucket(val key: Any?, val docCount: Long, val aggregations: Map<String, Aggregate>)
 
-/** The buckets of a nested group aggregation, keyed as its composite source would key them. */
-private fun Aggregate.keyedBuckets(alias: String, size: Int): List<KeyedBucket> {
+/**
+ * The buckets of a group aggregation, keyed as its composite source would key them. [complete]: every key of the
+ * group fits [size], or the query fails; a top-N takes only its first [size] keys.
+ */
+internal fun Aggregate.keyedBuckets(alias: String, size: Int, complete: Boolean = true): List<KeyedBucket> {
     val buckets = when {
-        isSterms -> sterms().also { it.requireComplete(alias, size) }.buckets().array()
-            .map { KeyedBucket(it.key().nativeValue(), it.docCount(), it.aggregations()) }
-
-        isLterms -> lterms().also { it.requireComplete(alias, size) }.buckets().array()
-            .map {
-                KeyedBucket(
-                    it.keyAsString()?.toBooleanStrictOrNull() ?: it.key(),
-                    it.docCount(),
-                    it.aggregations()
-                )
-            }
-
-        isDterms -> dterms().also { it.requireComplete(alias, size) }.buckets().array()
-            .map { KeyedBucket(it.key(), it.docCount(), it.aggregations()) }
-
+        isSterms || isLterms || isDterms -> termsBuckets(alias, size, complete)
         isUmterms -> emptyList()
         isHistogram -> histogram().buckets().array().map { KeyedBucket(it.key(), it.docCount(), it.aggregations()) }
         isDateHistogram -> dateHistogram().buckets().array()
@@ -146,6 +142,26 @@ private fun Aggregate.keyedBuckets(alias: String, size: Int): List<KeyedBucket> 
     }
     check(buckets.size <= size) { tooManyGroups(alias, size) }
     return buckets
+}
+
+/** A terms aggregate's buckets: a boolean field's keys read as booleans, as a composite source reads them. */
+private fun Aggregate.termsBuckets(alias: String, size: Int, complete: Boolean): List<KeyedBucket> {
+    val terms: TermsAggregateBase<*> = when {
+        isSterms -> sterms()
+        isLterms -> lterms()
+        else -> dterms()
+    }
+    if (complete) terms.requireComplete(alias, size)
+    return when {
+        isSterms -> sterms().buckets().array()
+            .map { KeyedBucket(it.key().nativeValue(), it.docCount(), it.aggregations()) }
+
+        isLterms -> lterms().buckets().array().map {
+            KeyedBucket(it.keyAsString()?.toBooleanStrictOrNull() ?: it.key(), it.docCount(), it.aggregations())
+        }
+
+        else -> dterms().buckets().array().map { KeyedBucket(it.key(), it.docCount(), it.aggregations()) }
+    }
 }
 
 private fun TermsAggregateBase<*>.requireComplete(
@@ -159,5 +175,3 @@ private fun tooManyGroups(alias: String, size: Int): String =
     "Elasticsearch aggregation group [$alias] has more than $size keys under one root group."
 
 private fun Map<String, Any?>.toRow(values: ObjectNode): ObjectNode = toObjectNode().setAll(values)
-
-private const val KEY_ORDER = "_key"

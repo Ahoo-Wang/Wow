@@ -121,6 +121,11 @@ data class AggregationLimitsDescriptor(
     val maxLimit: Int,
     val maxExpressionDepth: Int,
     val maxExpressionNodes: Int,
+    /**
+     * The most groups an aggregation may read when the core computes part of it (HAVING, top-N by a metric, dense
+     * fill or windows the storage declares RESIDUAL), beyond which the query fails; `null` is unlimited.
+     */
+    val maxResidualGroups: Int? = null,
 )
 
 data class AnalysisDescriptor(

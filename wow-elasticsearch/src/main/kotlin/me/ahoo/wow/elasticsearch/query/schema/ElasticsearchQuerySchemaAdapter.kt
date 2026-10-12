@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.spec.MetricSpec
 import me.ahoo.wow.elasticsearch.eventsourcing.SNAPSHOT_DOCUMENT_ID_SOURCE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
@@ -76,8 +77,16 @@ class ElasticsearchQuerySchemaAdapter(
 
     companion object {
         /**
+         * The metrics a `terms` aggregation orders one group by, taking its first groups exactly, on one primary
+         * shard: those that are never null, so their order matches the core's (a SUM of no values is `null` in Wow and
+         * 0 here).
+         */
+        private val EXACT_TERMS_TOP_N = setOf(MetricSpec.COUNT, MetricSpec.DISTINCT_COUNT)
+
+        /**
          * Composite aggregations have no bucket selector, no metric ordering and no empty buckets: the core computes
-         * HAVING, top-N by a metric and dense fill over the groups this backend streams.
+         * HAVING, top-N by a metric and dense fill over the groups this backend streams. On one primary shard a
+         * single TERMS group's top N by a count is a `terms` aggregation instead ([EXACT_TERMS_TOP_N]).
          */
         internal val STORAGE_SUPPORT = StorageSupport(
             aggregation = AggregationSupport(
@@ -119,7 +128,7 @@ class ElasticsearchQuerySchemaAdapter(
                 // `cardinality` (HyperLogLog++) and `percentiles` (TDigest) are estimates.
                 approximateMetrics = setOf("DISTINCT_COUNT", "PERCENTILE"),
                 // A search whose `from + size` passes the index's window fails; admission rejects the page instead.
-                storage = STORAGE_SUPPORT.copy(paging = PagingSupport(maxOffsetWindow = mapping.maxResultWindow)),
+                storage = mapping.storageSupport(),
                 provisional = mapping.provisional,
                 capabilities = buildSet {
                     // A missing index answers nothing, so a model-wide search of it answers nothing as well.
@@ -160,6 +169,14 @@ class ElasticsearchQuerySchemaAdapter(
                 },
             )
         }
+
+        /** [STORAGE_SUPPORT] over this index: its offset window, and a native top-N where it has one shard. */
+        private fun ElasticsearchIndexMapping.storageSupport(): StorageSupport = STORAGE_SUPPORT.copy(
+            paging = PagingSupport(maxOffsetWindow = maxResultWindow),
+            aggregation = STORAGE_SUPPORT.aggregation.copy(
+                termsTopN = if (singleShard) EXACT_TERMS_TOP_N else emptySet(),
+            ),
+        )
 
         @Suppress("LongParameterList")
         private fun ElasticsearchIndexMapping.valueBindings(

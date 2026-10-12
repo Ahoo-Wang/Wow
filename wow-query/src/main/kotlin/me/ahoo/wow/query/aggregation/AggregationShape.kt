@@ -80,10 +80,23 @@ private class Residual(val dense: Boolean, val windows: Boolean, val having: Boo
                 dense = dense,
                 windows = windows,
                 having = query.having != null && (support.having == SupportMode.RESIDUAL || after),
-                topN = query.metricSorted && (support.topN == SupportMode.RESIDUAL || after),
+                topN = query.metricSorted &&
+                    (after || support.topN == SupportMode.RESIDUAL && !query.termsTopN(support)),
             )
         }
     }
+}
+
+/**
+ * Whether the storage takes this query's top N groups by a metric itself ([AggregationSupport.termsTopN]): one TERMS
+ * group that reads the counting unit, no HAVING, and every metric the effective sort names of a type the storage
+ * orders by.
+ */
+private fun AggregationQuery.termsTopN(support: AggregationSupport): Boolean {
+    val group = groupBy.singleOrNull() as? AggregationGroup.Terms ?: return false
+    if (having != null || elements.isNotEmpty() && group.scope == AggregationGroupScope.ROOT) return false
+    val specs = metrics.associate { it.alias to it.spec }
+    return sort.mapNotNull { specs[it.field.path] }.all(support.termsTopN::contains)
 }
 
 /**

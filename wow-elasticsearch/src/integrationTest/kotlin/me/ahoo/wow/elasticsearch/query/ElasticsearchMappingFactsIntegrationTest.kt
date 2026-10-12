@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
@@ -153,13 +154,51 @@ class ElasticsearchMappingFactsIntegrationTest {
         }
     }
 
-    private fun withIndex(mapping: String, properties: Map<String, QueryValueSchema>, document: String,
-                          verify: (AbstractElasticsearchQueryBackend, QueryModelSchema) -> Unit) {
+    @Test
+    fun `one primary shard takes a top N by a count in one request, two shards read every group`() {
+        val documents = listOf("""{"code":"A"}""", """{"code":"A"}""", """{"code":"B"}""", """{"code":"C"}""")
+        listOf(1 to true, 2 to false).forEach { (shards, native) ->
+            withIndex(
+                """{"properties":{"code":{"type":"keyword"}}}""",
+                mapOf("code" to string),
+                *documents.toTypedArray(),
+                shards = shards,
+            ) { backend, schema ->
+                schema.storage.aggregation.termsTopN.isNotEmpty().assert().isEqualTo(native)
+                val top = AggregationQuery(
+                    groupBy = listOf(AggregationGroup.Terms(QueryField("code"), "code")),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                    sort = listOf(Sort(QueryField("count"), Sort.Direction.DESC)),
+                    limit = 2,
+                )
+                backend.aggregate(QueryAdmission.Trusted.aggregate(top, schema)).collectList().block()!!
+                    .map { it.path("code").asString() to it.path("count").asLong() }
+                    .assert().containsExactly("A" to 2L, "B" to 1L)
+            }
+        }
+    }
+
+    private fun withIndex(
+        mapping: String,
+        properties: Map<String, QueryValueSchema>,
+        vararg documents: String,
+        shards: Int? = null,
+        verify: (AbstractElasticsearchQueryBackend, QueryModelSchema) -> Unit,
+    ) {
         val client = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         val name = "wow.${elasticsearch.index("facts")}.snapshot"
-        client.indices().create { it.index(name).mappings(TypeMapping.of { it.withJson(StringReader(mapping)) }) }.block()
+        client.indices().create { request ->
+            request.index(name).mappings(TypeMapping.of { it.withJson(StringReader(mapping)) }).apply {
+                shards?.let { count -> settings { it.numberOfShards(count.toString()).numberOfReplicas("0") } }
+            }
+        }.block()
         try {
-            client.index { it.index(name).id("1").document(JsonSerializer.readValue(document, ObjectNode::class.java)).refresh(Refresh.True) }.block()
+            documents.forEachIndexed { index, document ->
+                client.index {
+                    it.index(name).id("${index + 1}")
+                        .document(JsonSerializer.readValue(document, ObjectNode::class.java)).refresh(Refresh.True)
+                }.block()
+            }
             val schema = ElasticsearchQuerySchemaAdapter(name, ElasticsearchIndexMappingResolver(client))
                 .resolve(LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT, properties = properties))).block()!!
             val backend = object : AbstractElasticsearchQueryBackend() {

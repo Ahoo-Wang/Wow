@@ -249,6 +249,7 @@ class QueryModelDescriptionTest {
         descriptor.limits.maxListSize.assert().isEqualTo(1000)
         descriptor.limits.defaultListSize.assert().isEqualTo(100)
         descriptor.limits.aggregation.maxLimit.assert().isEqualTo(1000)
+        descriptor.limits.aggregation.maxResidualGroups.assert().isEqualTo(QueryBudget.DEFAULT_MAX_RESIDUAL_GROUPS)
         descriptor.constraints.assert().contains(
             ConstraintDescriptor(ConstraintDescriptor.CURSOR_UNIQUE_SORT, appended = "aggregateId"),
         )
@@ -256,6 +257,7 @@ class QueryModelDescriptionTest {
         val unbudgeted = schema.describe(budget = null, defaultListSize = null)
         unbudgeted.limits.maxListSize.assert().isNull()
         unbudgeted.limits.aggregation.maxLimit.assert().isEqualTo(10_000)
+        unbudgeted.limits.aggregation.maxResidualGroups.assert().isNull()
     }
 
     /**

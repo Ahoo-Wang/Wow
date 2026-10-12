@@ -76,6 +76,11 @@ data class AggregationSupport(
      * NONE: with NONE admission rejects such a group and the descriptor says `rootGroups: false`.
      */
     val rootGroups: SupportMode = SupportMode.NATIVE,
+    /**
+     * Where [topN] is RESIDUAL: the metric types the storage orders one TERMS group by itself, taking the first
+     * `limit` groups exactly, so such a query reads no more groups than it returns. Empty: [topN] alone decides.
+     */
+    val termsTopN: Set<MetricSpec> = emptySet(),
 ) {
     init {
         require(rootGroups != SupportMode.RESIDUAL) { "Root groups have no residual implementation." }

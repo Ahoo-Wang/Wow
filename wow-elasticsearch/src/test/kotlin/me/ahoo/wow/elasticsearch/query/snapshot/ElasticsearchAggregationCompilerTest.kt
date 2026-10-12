@@ -383,9 +383,10 @@ class ElasticsearchAggregationCompilerTest {
                 count("c")
                 having { "c" gte 2.0 }
             },
+            // A count sort over one TERMS group is a native top-N (ElasticsearchTermsTopNTest); a sum is not.
             aggregation {
                 terms("name", "name")
-                count("c")
+                sum("amount", "c")
                 sort { "c".desc() }
             },
         ).forEach { query ->
