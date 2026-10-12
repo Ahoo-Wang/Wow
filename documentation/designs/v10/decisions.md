@@ -15,6 +15,12 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
+| D55 | 命令的类型名与指纹 | 命令像事件一样由模型命名（`context.aggregate.Name`，`@Name` 覆盖）；指纹 = SHA-256(类型名 + 规范化 JSON)，不用 Java 类名 | 待定 | M4 | [08](08-data-protocols.md) |
+| D56 | 事件流的作用域 | 每条事件流带提交后聚合的 `scope`（所有者、空间），创建时取自命令、只由生命周期命令改变，由内核随状态维护；另带 `causation`（根命令、直接上游）与准入白名单内的 `headers` | 待定 | M4 | [08](08-data-protocols.md) |
+| D57 | 事件标识 | 由（聚合引用，版本，事件序号）推导：`ref@version#index`，不另存 ID | 待定 | M4 | [08](08-data-protocols.md) |
+| D58 | Kafka 信封 | key = 聚合引用；value = `{format, kind, id, type, payload, transport}`，kind 为 state-event / command / command-receipt；下游按 id 去重 | 待定 | M6 | [08](08-data-protocols.md) |
+| D59 | 格式版本 | 日志、快照按表记录格式版本；线上结构每条带 `format`；加法不升版本；主版本内写者晚一个次版本才写新字段 | 待定 | M4 | [08](08-data-protocols.md) |
+| D60 | 对外命令结果 | 一个 `CommandResult`（status、hop、version、duplicate、error、results）用于 HTTP、SSE、等待信号与回执；拒绝与失败走 problem+json 并带同样字段 | 待定 | M4 | [08](08-data-protocols.md) |
 | D6 | 命令路由 | 默认 Partitioned（经集群通道转发到分区属主）；单节点或降级用 Local；需要持久摄入的异步命令用 Kafka | 待证据 H2 | M4 | [02](02-write-path.md) |
 
 ## 2. 待验证的假设

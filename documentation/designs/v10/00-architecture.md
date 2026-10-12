@@ -2,7 +2,7 @@
 
 日期：2026-10-11。基线：`main` `b5813af56f`（9.8.0）。状态：草案；待决事项见 [决策台账](decisions.md)。
 
-本文只写高层结论与理由。接口、算法与细节在专题文档 [01](01-programming-model.md)～[07](07-migration.md)。
+本文只写高层结论与理由。接口、算法与细节在专题文档 [01](01-programming-model.md)～[08](08-data-protocols.md)。
 
 ## 1. 立场
 
