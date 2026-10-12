@@ -17,6 +17,7 @@ import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.FileLocation
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.manifest.ErrorManifest
@@ -41,23 +42,23 @@ internal object ErrorCodeResolver {
     private val STATUSES = 400..599
 
     @OptIn(KspExperimental::class)
-    fun resolve(property: KSPropertyDeclaration): ErrorCodeBinding {
+    fun resolve(property: KSPropertyDeclaration, stringType: KSType): ErrorCodeBinding {
         val name = property.qualifiedName?.asString() ?: property.simpleName.asString()
         val annotation = property.getAnnotationsByType(ErrorCode::class).first()
-        val string = property.type.resolve().declaration.qualifiedName?.asString() == STRING
-        if (Modifier.CONST !in property.modifiers || !string) {
+        if (Modifier.CONST !in property.modifiers || property.type.resolve() != stringType) {
             return ErrorCodeBinding(name, null, listOf("@ErrorCode property $name must be a const val of type String"))
         }
-        val code = (property.location as? FileLocation)?.let { location ->
-            literal(File(location.filePath).readText(), location.lineNumber, property.simpleName.asString())
-        } ?: return ErrorCodeBinding(
-            name,
-            null,
-            listOf(
-                "@ErrorCode property $name must be initialized with a string literal without templates: the " +
-                    "compiler reads the code from the source",
-            ),
-        )
+        // A property of the module's sources has a file location.
+        val location = property.location as FileLocation
+        val code = literal(File(location.filePath).readText(), location.lineNumber, property.simpleName.asString())
+            ?: return ErrorCodeBinding(
+                name,
+                null,
+                listOf(
+                    "@ErrorCode property $name must be initialized with a string literal without templates: the " +
+                        "compiler reads the code from the source",
+                ),
+            )
         val problems = buildList {
             if (code.isBlank()) {
                 add("@ErrorCode property $name holds a blank code")
@@ -118,7 +119,6 @@ internal object ErrorCodeResolver {
         return rest.isEmpty() || listOf("//", "/*", ";", "}").any { rest.startsWith(it) }
     }
 
-    private const val STRING = "kotlin.String"
     private const val HEX = 16
 
     /** `\uXXXX` is six characters; the loop moves past the last. */

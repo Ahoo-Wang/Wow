@@ -65,12 +65,7 @@ internal data class AggregateBinding(
  * A parameter of the generated model factory: a domain service of [type], found by its class [erasure] and, when the
  * parameter has a `@Name`, by its [qualifier] (decision D119).
  */
-internal data class Dependency(
-    val name: String,
-    val type: String,
-    val erasure: String = type,
-    val qualifier: String? = null,
-)
+internal class Dependency(val name: String, val type: String, val erasure: String, val qualifier: String?)
 
 internal data class CommandBinding(
     val command: String,
@@ -96,7 +91,7 @@ internal data class CommandBinding(
      */
     val yields: List<String>?,
     /** The events `@OnCommand(produces)` declares (decision D120), checked against the aggregate's events. */
-    val declaredProduces: List<String> = emptyList(),
+    val declaredProduces: List<String>,
 )
 
 internal data class SourcingBinding(

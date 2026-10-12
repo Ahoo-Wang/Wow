@@ -46,7 +46,7 @@ internal object ManifestFragmentBuilder {
         description: String?,
         aggregates: List<AggregateBinding>,
         subscriptions: List<SubscriptionBinding>,
-        errors: List<ErrorManifest> = emptyList(),
+        errors: List<ErrorManifest>,
     ): Manifest = Manifest(
         contexts = listOf(
             ContextManifest(

@@ -177,9 +177,10 @@ internal class ModelSymbolProcessor(
     private fun processErrorCodes(resolver: Resolver): List<KSAnnotated> {
         val properties = resolver.getSymbolsWithAnnotation(ErrorCodeResolver.ERROR_CODE)
             .filterIsInstance<KSPropertyDeclaration>().toList()
+        val stringType = resolver.builtIns.stringType
         properties.filter { it.validate() }.forEach { property ->
-            property.containingFile?.let { sources += it }
-            val binding = ErrorCodeResolver.resolve(property)
+            sources += listOfNotNull(property.containingFile)
+            val binding = ErrorCodeResolver.resolve(property, stringType)
             val code = binding.error?.code
             val previous = code?.let { errorCodes[it] }
             val problems = binding.problems + listOfNotNull(
@@ -508,8 +509,8 @@ internal class ModelSymbolProcessor(
         val returned = EventYield.of(function.returnType?.resolve())
         val producesListed = declaredProduces(function)
         if (producesListed.isNotEmpty() && returned != null) {
-            problems += "$name returns ${function.returnType?.resolve()?.render()}, which names the events it " +
-                "produces: @OnCommand(produces) is for a return type that does not, such as a Decision"
+            problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
+                "type that does not, such as a Decision"
         }
         return CommandBinding(
             command = commandType.render(),
@@ -572,7 +573,7 @@ internal class ModelSymbolProcessor(
             return null
         }
         return dependencies.getOrPut(if (qualifier == null) rendered else "$rendered@$qualifier") {
-            val simple = type.declaration.simpleName.asString().replaceFirstChar { it.lowercase() } +
+            val simple = type.declaration.simpleName.asString().withFirst(Char::lowercaseChar) +
                 qualifier?.let(::identifierSuffix).orEmpty()
             val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
             Dependency(unique, rendered, type.declaration.qualifiedName!!.asString(), qualifier)
@@ -582,7 +583,10 @@ internal class ModelSymbolProcessor(
     /** `"fx.primary"` gives `FxPrimary`, to name a qualified dependency's factory parameter. */
     private fun identifierSuffix(qualifier: String): String =
         qualifier.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }
-            .joinToString("") { word -> word.replaceFirstChar { it.uppercase() } }
+            .joinToString("") { it.withFirst(Char::uppercaseChar) }
+
+    /** This non-empty name with its first character mapped by [first]. */
+    private fun String.withFirst(first: (Char) -> Char): String = first(this[0]) + substring(1)
 
     @OptIn(KspExperimental::class)
     private fun sourcingBinding(

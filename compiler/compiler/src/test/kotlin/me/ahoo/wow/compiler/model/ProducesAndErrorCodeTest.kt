@@ -102,7 +102,7 @@ class ProducesAndErrorCodeTest {
         }
 
         @ErrorCode(description = "Escapes are read")
-        const val ESCAPED = "orders.abc\${'$'}"
+        const val ESCAPED = "orders.a\u0062c\${'$'}"
 
         class Holder {
             companion object {
@@ -163,8 +163,8 @@ class ProducesAndErrorCodeTest {
         val (_, result) = compileModel("generate", context, wrong)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
-            "onCommand returns sample.Posted, which names the events it produces: @OnCommand(produces) is for a " +
-                "return type that does not, such as a Decision",
+            "onCommand's return type names the events it produces: @OnCommand(produces) is for a return type " +
+                "that does not, such as a Decision",
             "@OnCommand(produces) of edit(sample.Edit) lists sample.Stray, which is not an event of the aggregate",
         )
     }
@@ -203,6 +203,7 @@ class ProducesAndErrorCodeTest {
             object Bad {
                 @ErrorCode const val FRAMEWORK = "wow.command.invalid"
                 @ErrorCode(status = 302) const val REDIRECT = "orders.redirect"
+                @ErrorCode(status = 600) const val UNKNOWN = "orders.unknown"
                 @ErrorCode const val JOINED = "orders." + "joined"
                 @ErrorCode val NOT_CONST = "orders.not-const"
                 @ErrorCode const val NUMBER = 7
@@ -217,6 +218,7 @@ class ProducesAndErrorCodeTest {
         result.messages.assert().contains(
             "error code wow.command.invalid of sample.Bad.FRAMEWORK takes the framework's prefix wow.",
             "error code orders.redirect of sample.Bad.REDIRECT has status 302: a status is 400 to 599",
+            "error code orders.unknown of sample.Bad.UNKNOWN has status 600: a status is 400 to 599",
             "@ErrorCode property sample.Bad.JOINED must be initialized with a string literal without templates",
             "@ErrorCode property sample.Bad.NOT_CONST must be a const val of type String",
             "@ErrorCode property sample.Bad.NUMBER must be a const val of type String",
@@ -226,28 +228,36 @@ class ProducesAndErrorCodeTest {
         compilation.workingDir.walkTopDown()
             .none { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
             .assert().isTrue()
+
+        // Report mode measures coverage only: the codes' problems do not fail it, and the valid ones are kept.
+        val (_, report) = compileModel("report", context, order, bad)
+        report.exitCode.assert().withFailMessage { report.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        report.messages.assert().doesNotContain("takes the framework's prefix")
     }
 
     @Test
     fun `the code should be read from a plain string literal only`() {
-        val source = """
-            object A {
-                @ErrorCode
-                const val X: kotlin.String = "a\tb\"c\\dA" ; val Y = 1
-                const val T = "a${'$'}{X}"
-                const val R = ${"\"\"\""}raw${"\"\"\""}
-                const val U = "a\u00"
-                const val E = "a\q"
-                const val O = "open
-            }
-        """.trimIndent()
-        ErrorCodeResolver.literal(source, 2, "X").assert().isEqualTo("a\tb\"c\\dA")
-        ErrorCodeResolver.literal(source, 1, "T").assert().isNull()
-        ErrorCodeResolver.literal(source, 1, "R").assert().isNull()
-        ErrorCodeResolver.literal(source, 1, "U").assert().isNull()
-        ErrorCodeResolver.literal(source, 1, "E").assert().isNull()
-        ErrorCodeResolver.literal(source, 1, "O").assert().isNull()
-        ErrorCodeResolver.literal(source, 1, "MISSING").assert().isNull()
-        ErrorCodeResolver.literal("const val Z = \"a\\", 1, "Z").assert().isNull()
+        // Built from plain strings so that every backslash is the source's.
+        val backslash = "\\"
+        val quote = "\""
+        fun read(initializer: String, line: Int = 1): String? =
+            ErrorCodeResolver.literal("object A {\n    @ErrorCode\n    const val X = $initializer\n}", line, "X")
+
+        read("${quote}a${backslash}tb$backslash${quote}c$backslash${backslash}d${backslash}u0041$quote ; val Y = 1", 2)
+            .assert().isEqualTo("a\tb\"c\\dA")
+        read("$quote${backslash}u00e9$quote }").assert().isEqualTo("\u00e9")
+        read("${quote}a${backslash}${'$'}$quote // a comment").assert().isEqualTo("a${'$'}")
+        // Templates, raw strings, other expressions and malformed literals are not read.
+        read("${quote}a${'$'}{B}$quote").assert().isNull()
+        read("$quote$quote${quote}raw$quote$quote$quote").assert().isNull()
+        read("7").assert().isNull()
+        read("${quote}a$quote + ${quote}b$quote").assert().isNull()
+        read("${quote}a${backslash}u00$quote").assert().isNull()
+        read("${quote}a${backslash}q$quote").assert().isNull()
+        ErrorCodeResolver.literal("const val X = ${quote}open\n", 1, "X").assert().isNull()
+        ErrorCodeResolver.literal("const val X = ${quote}unterminated", 1, "X").assert().isNull()
+        ErrorCodeResolver.literal("const val X = ${quote}a$backslash", 1, "X").assert().isNull()
+        ErrorCodeResolver.literal("const val X = ", 1, "X").assert().isNull()
+        ErrorCodeResolver.literal("const val Y = ${quote}a$quote", 1, "X").assert().isNull()
     }
 }

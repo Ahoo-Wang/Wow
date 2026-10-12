@@ -47,7 +47,7 @@ class DependencyQualifierTest {
         class Wallet(private val state: WalletState) {
             fun onCommand(
                 command: Convert,
-                @Name("fx.primary") primary: Rate,
+                @Name("/fx/primary") primary: Rate,
                 @Name("backup") backup: Rate,
                 plain: Rate,
             ): Converted = Converted(primary.of(command.amount) * 100 + backup.of(command.amount) * 10 + plain.of(0))
@@ -80,7 +80,7 @@ class DependencyQualifierTest {
         import me.ahoo.wow.kernel.ModelProvider
 
         fun run(loader: ClassLoader): Int = runBlocking {
-            val dependencies = Dependencies.of(mapOf("fx.primary" to Rate { 1 }, "backup" to Rate { 2 }), Rate { 3 })
+            val dependencies = Dependencies.of(mapOf("/fx/primary" to Rate { 1 }, "backup" to Rate { 2 }), Rate { 3 })
             @Suppress("UNCHECKED_CAST")
             val wallet = ModelProvider.load(loader).single().models(dependencies).single() as AggregateModel<WalletState>
             val outcome = Kernel(InMemoryEventLog()).execute(wallet, Command("c1", "r1", wallet.type.ref("t", "w-1"), Convert(5)))
@@ -103,7 +103,7 @@ class DependencyQualifierTest {
         )
         generated(compilation, "BankDomainModelProvider.kt").readText().assert().contains(
             "sample.fx.walletModel(context, " +
-                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"fx.primary\"), " +
+                "dependencies.get(sample.fx.Rate::class.javaObjectType, \"/fx/primary\"), " +
                 "dependencies.get(sample.fx.Rate::class.javaObjectType, \"backup\"), " +
                 "dependencies.get(sample.fx.Rate::class.javaObjectType)),",
         )
