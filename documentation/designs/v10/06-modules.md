@@ -109,7 +109,9 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 
 **搬迁时机**：`v10` 分支每周合入 main（[路线图](roadmap.md) §1）。main 上仍在活跃变化的目录（`typescript/`、`view-store/`、`dataset-registry/`、`analytics/`、`compensation/dashboard/`、`documentation/`）若在分支上提早搬家，每次前向合并都会冲突。所以：
 
-- V10 新写或整体替换的模块，在 M0 就按新结构建立（`api/`、`compiler/`、`core/`、`query/`、`backends/`、`edge/`、`host/`、`test/`、`migration/`、`bom/`）；9.x 的旧模块在被替换的里程碑里删除。
+- V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。它们在孵化中：照常构建与测试，不发布、不做 ABI 校验，用 JDK 21（D29）。
+- 与 9.x **同名**、原地演进的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）在被重写的里程碑里随重写一起搬到新目录；其中 main 上仍在活跃变化的（`wow-api` 的查询部分、`wow-query`、`wow-clickhouse` 等）放到 M9 搬迁，理由同平台目录。Gradle 项目名唯一，同名模块不能新旧并存，所以它们只能原地演进。
+- 被整体替换的 9.x 模块（`wow-core`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux`、`wow-rest-contract`、`wow-redis`、`wow-bi`、`wow-schema`、`wow-metadata`、`wow-mock`）留在原地，在替换它的里程碑里删除。
 - 平台目录在 M9 合入 main 之前，用一个只做搬迁的提交移到 `platform/`；CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 在同一个提交里更新。
 
 ## 5. 平台基线
