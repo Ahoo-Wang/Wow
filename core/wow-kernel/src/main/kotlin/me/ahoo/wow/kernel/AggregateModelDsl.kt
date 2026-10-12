@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import tools.jackson.databind.JsonNode
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
@@ -47,6 +48,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val eventNames = LinkedHashMap<Class<*>, Pair<String, Int>>()
     private val upgrades = HashMap<Class<*>, MutableMap<Int, (JsonNode) -> JsonNode>>()
     private val aliases = HashMap<Class<*>, MutableSet<String>>()
+    private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -132,8 +134,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         addAlias(E::class.java, former)
     }
 
-    /** The name of a command or event type declared without one: `context.aggregate.SimpleName`. */
-    fun defaultName(typeClass: Class<*>): String = "$type.${typeClass.simpleName}"
+    /**
+     * Enables only the lifecycle commands [commands] (design 01 §6); all are enabled unless this is called, and calling
+     * it with none disables them. A command disabled is not handled, as any command the model does not decide; the
+     * lifecycle events stay readable. A decide function declared for a lifecycle command enables it too.
+     */
+    fun lifecycle(vararg commands: Class<*>) {
+        lifecycle = commands.toSet()
+    }
+
+    /**
+     * The name of a command or event type declared without one: `context.aggregate.SimpleName`, or the system name of
+     * a lifecycle command or event ([Lifecycle]).
+     */
+    fun defaultName(typeClass: Class<*>): String = Lifecycle.nameOf(typeClass) ?: "$type.${typeClass.simpleName}"
 
     fun addDecider(commandType: Class<*>, name: String, decider: DecideFunction<S>) {
         require(deciders.putIfAbsent(commandType, decider) == null) {
@@ -176,6 +190,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         },
         commandTypes = commandNames.map { (commandClass, name) -> CommandType(name, commandClass) },
         afterFunctions = afterFunctions.toList(),
+        lifecycle = lifecycle,
     )
 
     private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =

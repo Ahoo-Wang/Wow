@@ -43,7 +43,19 @@ interface StateCache {
 }
 
 /**
- * An aggregate's [state] after its event stream [version], with its [scope]: the owner and space it has after that
- * stream (decision D56), which the next stream carries forward.
+ * An aggregate's [state] after its event stream [version], with the metadata the kernel keeps beside it: its [scope],
+ * the owner and space it has after that stream (decision D56), which the next stream carries forward; whether it is
+ * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6).
  */
-class CachedState(val state: Any, val version: Int, val scope: Scope = Scope.NONE)
+class CachedState(
+    val state: Any,
+    val version: Int,
+    val scope: Scope = Scope.NONE,
+    val deleted: Boolean = false,
+    val tags: Map<String, List<String>> = emptyMap(),
+) {
+    internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, tags)
+
+    internal fun with(state: Any, version: Int, metadata: KernelLifecycle.Metadata): CachedState =
+        CachedState(state, version, metadata.scope, metadata.deleted, metadata.tags)
+}

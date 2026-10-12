@@ -83,7 +83,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     /**
      * The snapshot of [state], which folds [ref]'s event streams up to [version]; [scope] is the aggregate's, the
      * scope of the last of them (decision D56), and [firstEventTime] and [lastEventTime] are the commit times of the
-     * first and the last. Tags stay empty.
+     * first and the last. [deleted] and [tags] are the aggregate's after them, evolved by the lifecycle events
+     * (design 08 §2); a state the kernel loaded holds all three ([CachedState]).
      */
     @Suppress("LongParameterList")
     fun <S : Any> snapshotOf(
@@ -94,7 +95,10 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         scope: Scope,
         firstEventTime: Long,
         lastEventTime: Long,
-    ): SnapshotRecord = snapshotOf(model, ref, stateText(state), version, scope, firstEventTime, lastEventTime)
+        deleted: Boolean = false,
+        tags: Map<String, List<String>> = emptyMap(),
+    ): SnapshotRecord =
+        snapshotOf(model, ref, stateText(state), version, scope, firstEventTime, lastEventTime, deleted, tags)
 
     /**
      * The snapshot of a state this codec already serialized as [stateText]: the state view taken
@@ -110,6 +114,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         scope: Scope,
         firstEventTime: Long,
         lastEventTime: Long,
+        deleted: Boolean = false,
+        tags: Map<String, List<String>> = emptyMap(),
     ): SnapshotRecord {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         return SnapshotRecord(
@@ -118,8 +124,10 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             schemaFingerprint = stateSchemaFingerprint(model),
             state = stateText,
             scope = scope,
+            deleted = deleted,
             firstEventTime = firstEventTime,
             lastEventTime = lastEventTime,
+            tags = tags,
         )
     }
 
