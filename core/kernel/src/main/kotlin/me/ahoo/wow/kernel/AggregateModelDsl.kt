@@ -129,9 +129,12 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         addUpgrade(E::class.java, from, upgrade)
     }
 
-    /** Reads records of event [E] stored under its former name [former]. */
-    inline fun <reified E : Any> alias(former: String) {
-        addAlias(E::class.java, former)
+    /**
+     * A former name of the command or event type [T]: records of an event stored under it are read as [T], and a
+     * request id recorded with a command under it is a retry of [T] (D55).
+     */
+    inline fun <reified T : Any> alias(former: String) {
+        addAlias(T::class.java, former)
     }
 
     /**
@@ -169,11 +172,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         }
     }
 
-    fun addAlias(eventClass: Class<*>, former: String) {
-        aliases.getOrPut(eventClass) { LinkedHashSet() } += former
+    fun addAlias(typeClass: Class<*>, former: String) {
+        require(former.isNotBlank()) { "$type gives ${typeClass.name} a blank alias." }
+        aliases.getOrPut(typeClass) { LinkedHashSet() } += former
     }
 
-    fun build(): AggregateModel<S> = AggregateModel(
+    fun build(): AggregateModel<S> {
+        val unknown = aliases.keys.filterNot { it in eventNames || it in commandNames }
+        require(unknown.isEmpty()) {
+            "$type gives aliases to ${unknown.map { it.name }}, which are none of its command or event types."
+        }
+        return model()
+    }
+
+    private fun model(): AggregateModel<S> = AggregateModel(
         type = type,
         stateType = stateType,
         initial = requireNotNull(initial) { "$type needs an initial state." },
@@ -188,7 +200,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
                 aliases = aliases[eventClass].orEmpty().toSet(),
             )
         },
-        commandTypes = commandNames.map { (commandClass, name) -> CommandType(name, commandClass) },
+        commandTypes = commandNames.map { (commandClass, name) ->
+            CommandType(name, commandClass, aliases[commandClass].orEmpty().toSet())
+        },
         afterFunctions = afterFunctions.toList(),
         lifecycle = lifecycle,
     )

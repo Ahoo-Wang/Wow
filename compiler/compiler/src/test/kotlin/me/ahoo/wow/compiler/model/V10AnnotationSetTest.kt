@@ -81,6 +81,7 @@ class V10AnnotationSetTest {
                     event.name + "#" + event.revision,
                     model.eventType("shop.shopping_basket.ItemAdded").name,
                     model.eventType("legacy.basket.ItemAdded").name,
+                    model.findCommandType("shop.shopping_basket.Add")?.name,
                     (committed.state as BasketState).items.toString(),
                 ).joinToString(" | ")
             }
@@ -91,15 +92,16 @@ class V10AnnotationSetTest {
         val kt = result.classLoader.loadClass("sample.BasketScenarioKt")
         kt.getMethod("run").invoke(null).assert().isEqualTo(
             "shop.shopping_basket.Put | shop.shopping_basket.ItemPut#2 | shop.shopping_basket.ItemPut | " +
-                "shop.shopping_basket.ItemPut | [pen]",
+                "shop.shopping_basket.ItemPut | shop.shopping_basket.Put | [pen]",
         )
-        // A revision above 1 needs upgrades, which the host adds through `configure`.
+        // A revision above 1 with no @Upgrade is a warning: without upgrades from `configure`, the model does not build.
         (kt.getMethod("withoutUpgrades").invoke(null) as String).assert().contains("lacks upgrades from revisions [1]")
-        // The kernel's command types have no former names: a command's alias is reported, not bound.
-        result.messages.assert().contains("@Alias of sample.PutItem is not bound")
+        result.messages.assert().contains("event ItemPut is at revision 2 with no @Upgrade")
+            .doesNotContain("is not bound")
         val generated = compilation.workingDir.walkTopDown().single { it.name == "BasketModel.kt" }.readText()
         generated.assert().contains("revision = 2").contains("alias<sample.ItemPut>(\"\$type.ItemAdded\")")
             .contains("alias<sample.ItemPut>(\"legacy.basket.ItemAdded\")")
+            .contains("alias<sample.PutItem>(\"\$type.Add\")")
     }
 
     @Test

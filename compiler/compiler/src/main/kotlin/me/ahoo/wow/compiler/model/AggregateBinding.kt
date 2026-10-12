@@ -29,6 +29,8 @@ internal data class AggregateBinding(
     val commands: List<CommandBinding>,
     val sourcing: List<SourcingBinding>,
     val afters: List<AfterBinding>,
+    /** The `@Upgrade` functions of its events, by event and revision (decision D82). */
+    val upgrades: List<UpgradeBinding> = emptyList(),
     val problems: List<String>,
     /** The state's JVM binary name, which keys its schema in the Manifest fragment. */
     val stateType: String,
@@ -43,7 +45,7 @@ internal data class CommandBinding(
     val command: String,
     /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
     val commandName: String?,
-    /** The command's `@Alias` former names; recorded, not bound: the kernel's command types have none yet. */
+    /** The command's `@Alias` former names: simple ones within the aggregate, or full type names. */
     val aliases: List<String> = emptyList(),
     val function: String,
     /** Whether the function takes the admitted `Command<X>` rather than the body `X`. */

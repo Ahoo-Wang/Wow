@@ -104,7 +104,7 @@ class Kernel(
         require(command.ref.type == model.type) { "${command.ref} is not a ${model.type}." }
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
-        val commandType = model.commandType(command.body.javaClass).name
+        val commandType = model.commandType(command.body.javaClass)
         log.findByRequestId(command.ref.tenantId, command.requestId)?.let { return settled(it, commandType) }
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         repeat(maxAttempts) {
@@ -115,7 +115,7 @@ class Kernel(
             }
             val attempt = AttemptScope(command, loaded, reservations, reservationTtl, waitBeyondCommitted)
             val prepared = try {
-                prepare(model, decider, attempt, loaded, command, commandType)
+                prepare(model, decider, attempt, loaded, command, commandType.name)
             } catch (
                 @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
                 failure: Throwable,
@@ -396,8 +396,9 @@ class Kernel(
         is AfterFunction.Suspending -> after.after(scope, state, body)
     }
 
-    private fun settled(existing: EventStreamRecord, commandType: String): CommandOutcome =
-        if (existing.commandType == commandType) {
+    /** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's (D55). */
+    private fun settled(existing: EventStreamRecord, commandType: CommandType): CommandOutcome =
+        if (commandType.isNamed(existing.commandType)) {
             CommandOutcome.AlreadyCommitted(existing)
         } else {
             rejected(
