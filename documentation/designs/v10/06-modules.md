@@ -30,6 +30,7 @@
 | 契约 | `wow-query-api` | 查询协议：`FilterExpression`、聚合、窗口 | wow-api 的 `api.query` 包 |
 | 契约 | `wow-manifest` | Manifest 的类型与 JSON schema；纯数据 | wow-metadata |
 | 编译 | `wow-compiler` | KSP：绑定代码与 Manifest；只依赖 `wow-api` 与 `wow-manifest` | wow-compiler |
+| 编译 | `wow-gradle-plugin` | Gradle 插件 `me.ahoo.wow`：接好 KSP，构建期内省 schema、合并服务级 Manifest（D83） | wow-schema 的构建期部分 |
 | 内核 | `wow-spi` | 全部端口（日志、快照、检查点、租约、失败台账、预留键、Sink）与值类型，`@WowSpi` | wow-core 的 SPI |
 | 内核 | `wow-kernel` | `AggregateModel`、decide → evolve → append 循环、结局查明、事件编解码与 revision 升级、状态版本视图、内存日志 | wow-core 的内核 |
 | 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期 | wow-core 的其余部分 |
@@ -117,7 +118,7 @@ flowchart BT
 
 ```text
 api/            wow-api  wow-query-api  wow-manifest
-compiler/       wow-compiler
+compiler/       wow-compiler  wow-gradle-plugin
 core/           wow-spi  wow-kernel  wow-runtime  wow-reactor
 query/          wow-query
 backends/       wow-postgres  wow-mongo  wow-elasticsearch  wow-clickhouse  wow-kafka
