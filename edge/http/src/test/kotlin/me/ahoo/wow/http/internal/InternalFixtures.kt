@@ -45,12 +45,13 @@ const val TEST_CONTEXT = "bank"
 class InternalServer(
     routes: RouterFunction<ServerResponse>,
     upgradeBody: Int = InternalHttp.MAX_UPGRADE_BODY,
+    port: Int = 0,
 ) : AutoCloseable {
     val versions = CopyOnWriteArrayList<String>()
     private val adapter = ReactorHttpHandlerAdapter(RouterFunctions.toHttpHandler(routes))
     private val server: DisposableServer = HttpServer.create()
         .host("127.0.0.1")
-        .port(0)
+        .port(port)
         .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
         .httpRequestDecoder { it.h2cMaxContentLength(upgradeBody) }
         .handle { request, response ->

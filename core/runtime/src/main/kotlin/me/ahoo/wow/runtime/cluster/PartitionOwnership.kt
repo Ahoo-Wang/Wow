@@ -88,7 +88,8 @@ data class RenewalRound(
  *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
  *   State caches are not handed over: the new owner loads from the snapshot and the log's tail.
  * - **Routes**: every [ClusterOptions.routeRefreshInterval], and at once on [refreshSoon], the node reads the owners
- *   and members into its [routes].
+ *   and members into its [routes]. Each other member they show at an address not seen before is handed to [peers],
+ *   apart from the refresh: the node connects to it there ([ClusterChannel.connect]) before forwarding to it.
  *
  * Acquiring a partition starts its subscriptions in [subscriptions] ([SubscriptionRuntime.startPartition]) before
  * the node accepts commands for it.
@@ -111,6 +112,8 @@ class PartitionOwnership internal constructor(
     private val timeSource: TimeSource = TimeSource.Monotonic,
     /** Called after every renewal round, from the renewing coroutine: a metric hook. */
     private val renewalRounds: (RenewalRound) -> Unit = {},
+    /** Called, in its own coroutine, for each other member the routes show at an address not seen before. */
+    private val peers: suspend (Member) -> Unit = {},
 ) {
     @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
     constructor(
@@ -127,6 +130,8 @@ class PartitionOwnership internal constructor(
         timeSource: TimeSource = TimeSource.Monotonic,
         /** Called after every renewal round, from the renewing coroutine: a metric hook. */
         renewalRounds: (RenewalRound) -> Unit = {},
+        /** Called, in its own coroutine, for each other member the routes show at an address not seen before. */
+        peers: suspend (Member) -> Unit = {},
     ) : this(
         group,
         node,
@@ -138,6 +143,7 @@ class PartitionOwnership internal constructor(
         context,
         timeSource,
         renewalRounds,
+        peers,
     )
 
     /** This node's internal address, as the other members reach it. */
@@ -155,6 +161,9 @@ class PartitionOwnership internal constructor(
 
     @Volatile
     private var lastMembers: Set<String> = emptySet()
+
+    /** The other members' addresses handed to [peers] so far, as `node@address`. */
+    private val seenPeers = ConcurrentHashMap.newKeySet<String>()
 
     init {
         require(node.isNotBlank()) { "A node has an id." }
@@ -312,10 +321,19 @@ class PartitionOwnership internal constructor(
         val leased = leases.owners(group.name)
         val owners = leased.mapNotNull { lease -> byNode[lease.owner]?.let { lease.partition to it } }.toMap()
         routes = RouteTable(owners, members)
+        greetNew(members)
         val nodes = byNode.keys
         if (nodes != lastMembers) {
             lastMembers = nodes
             wakeReconcile.trySend(Unit)
+        }
+    }
+
+    /** Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. */
+    private fun greetNew(members: List<Member>) {
+        val run = running ?: return
+        members.filter { it.node != node && seenPeers.add("${it.node}@${it.address}") }.forEach { member ->
+            run.upkeep.launch { quietly("greet ${member.node} at ${member.address}") { peers(member) } }
         }
     }
 

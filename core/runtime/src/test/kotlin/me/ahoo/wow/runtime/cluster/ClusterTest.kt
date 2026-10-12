@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.cluster
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.CommandResult
@@ -201,6 +202,77 @@ class ClusterTest {
         retry.version.assert().isEqualTo(1)
         two.decided.assert().containsExactly(result.commandId)
     }
+
+    @Test
+    fun `a node connects to each peer once its routes show it, before forwarding to it`(): Unit = runBlocking {
+        val (one, two) = cluster.start("node-1", "node-2")
+        cluster.awaitStable()
+        eventually { one.address in cluster.connects && two.address in cluster.connects }
+        val greeted = cluster.connects.size
+        // The routes keep showing the same peers: they are not greeted again.
+        delay(300)
+        cluster.connects.size.assert().isEqualTo(greeted)
+
+        val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+        one.deposit(id).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        two.decided.assert().hasSize(1)
+        cluster.connects.size.assert().isEqualTo(greeted + 1)
+    }
+
+    @Test
+    fun `connecting to a peer is not counted against the forward's timeout`(): Unit = runBlocking {
+        val (one, two) = cluster.start("node-1", "node-2")
+        cluster.awaitStable()
+        val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+        // Longer than the forward timeout, one second, as to a node that has just started (D80).
+        cluster.connectLatencies[two.address] = 1_500.milliseconds
+
+        val started = System.nanoTime()
+        val result = one.deposit(id)
+        val elapsed = (System.nanoTime() - started) / 1_000_000
+
+        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        two.decided.assert().containsExactly(result.commandId)
+        one.decided.assert().isEmpty()
+        elapsed.assert().isGreaterThanOrEqualTo(1_500L)
+    }
+
+    @Test
+    fun `a peer that cannot be connected to runs the command here`(): Unit = runBlocking {
+        val (one, two) = cluster.start("node-1", "node-2")
+        cluster.awaitStable()
+        val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+        cluster.unreachable += two.address
+
+        val result = one.deposit(id)
+
+        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        one.decided.assert().containsExactly(result.commandId)
+        two.decided.assert().isEmpty()
+    }
+
+    @Test
+    fun `connecting waits no longer than the command's own deadline, then the command runs here`(): Unit =
+        runBlocking {
+            val (one, two) = cluster.start("node-1", "node-2")
+            cluster.awaitStable()
+            val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+            cluster.connectLatencies[two.address] = 3.seconds
+
+            val started = System.nanoTime()
+            val result = one.deposit(id, wait = WaitPlan.COMMITTED.within(300.milliseconds))
+            val elapsed = (System.nanoTime() - started) / 1_000_000
+
+            elapsed.assert().isBetween(250L, 900L)
+            // The wait and the connection end at the same deadline: the command, run here then, is too late for the
+            // wait, unless it settles first.
+            if (result.status == CommandResult.Status.FAILED) {
+                result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+            }
+            // Not connected by the deadline, the router gave up the peer and ran the command here (D71).
+            eventually { one.decided.contains(result.commandId) }
+            two.decided.assert().isEmpty()
+        }
 
     @Test
     fun `a peer with its in-flight forwards at the limit is not forwarded to`(): Unit = runBlocking {

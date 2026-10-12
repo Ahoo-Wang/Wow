@@ -82,7 +82,12 @@ class WaitCoordinatorTest {
     private val order = aggregate<Order>("shop", "order") {
         initial { Order(it.id) }
         decide<Place>(Creation.ALLOWED) { _, body ->
-            if (body.reject) Decision.reject("shop.order.refused", "Refused.") else Decision.events(Placed(body.items))
+            if (body.reject) {
+                Decision.reject("shop.order.refused", "Refused.")
+            } else {
+                putResult(ITEMS, body.items)
+                Decision.events(Placed(body.items))
+            }
         }
         decide<Touch>(Creation.NONE) { _, _ -> Decision.NoOp }
         decideSuspending<PlaceSlowly>(Creation.ALLOWED) { _, body ->
@@ -101,6 +106,7 @@ class WaitCoordinatorTest {
                     "Out of stock."
                 )
             } else {
+                putResult(ORDER, body.order)
                 Decision.events(Reserved(body.order))
             }
         }
@@ -413,6 +419,11 @@ class WaitCoordinatorTest {
         hops.last().function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
         hops.last().commandId.assert().isEqualTo("${command.id}-reserve-1")
         snapshotted.assert().contains("${command.ref.id}-1@1")
+        // Each hop answers the results of its own command: the order's at COMMITTED and at its saga's hop, the derived
+        // one's at its snapshot.
+        hops[0].results.assert().isEqualTo(mapOf(ITEMS to 1))
+        hops[1].results.assert().isEqualTo(mapOf(ITEMS to 1))
+        hops.last().results.assert().isEqualTo(mapOf(ORDER to command.ref.id))
     }
 
     @Test
@@ -653,13 +664,17 @@ class WaitCoordinatorTest {
     fun `a duplicate request reaches the snapshot when its checkpoint has passed the commit`(): Unit = runBlocking {
         started()
         val first = place()
-        coordinator.execute(order, first).hop.assert().isEqualTo(Hop.snapshot("shop"))
+        val answered = coordinator.execute(order, first)
+        answered.hop.assert().isEqualTo(Hop.snapshot("shop"))
+        answered.results.assert().isEqualTo(mapOf(ITEMS to 0))
         val retry = first.copy(id = "c-retry")
         val result = coordinator.execute(order, retry)
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.duplicate.assert().isTrue()
         result.hop.assert().isEqualTo(Hop.snapshot("shop"))
         result.function.kind.assert().isEqualTo(FunctionKind.SNAPSHOT)
+        // The results are not persisted (D49): only the first commit answered them.
+        result.results.assert().isEmpty()
     }
 
     @Test
@@ -709,5 +724,10 @@ class WaitCoordinatorTest {
         sender.send(Origin("node-2", "10.0.0.2:9090", "shop"), WaitSignal(waitId = "w-9", result = result))
         sender.send(origin, WaitSignal(waitId = "w-8", result = result))
         sent.assert().containsExactly("node-2:w-9")
+    }
+
+    private companion object {
+        const val ITEMS = "items"
+        const val ORDER = "order"
     }
 }

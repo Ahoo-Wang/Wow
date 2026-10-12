@@ -53,6 +53,9 @@ class ClusterSnapshotTest {
         first.version.assert().isEqualTo(1)
         two.decided.assert().contains(first.commandId)
         one.decided.assert().doesNotContain(first.commandId)
+        // The owner's decide function put a result: it came back with the forward's reply, and the snapshot's hop,
+        // signalled from the owner, answers it (D49).
+        first.results.assert().isEqualTo(mapOf(DECIDED_BY to two.name))
         // Answered after the write: the caller reads its own write.
         snapshots.load(TestNode.ref(id))!!.version.assert().isEqualTo(1)
 

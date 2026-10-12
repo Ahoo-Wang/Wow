@@ -194,8 +194,13 @@ class PartitionAppendQueueTest {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
         val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
         val refs = refsOfOnePartition(2)
-        val appends = refs.map { ref -> async(Dispatchers.Default) { queue.append(stream(ref, 1)) } }
+        // One batch in the log, the other append queued behind it, before the queue closes: launched together, the
+        // second could still be on its way to the queue when it closed, and be refused.
+        val first = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
+        val second = async(Dispatchers.Default) { queue.append(stream(refs[1], 1)) }
+        queue.queuedSoon(1)
+        val appends = listOf(first, second)
         val closing = launch(Dispatchers.Default) { queue.close() }
         log.release.complete(Unit)
         closing.join()

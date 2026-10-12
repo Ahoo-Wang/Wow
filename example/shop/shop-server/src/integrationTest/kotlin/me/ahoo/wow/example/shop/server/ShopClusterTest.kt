@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.example.shop.api.ExampleContext
 import me.ahoo.wow.example.shop.domain.order.InventoryService
+import me.ahoo.wow.example.shop.domain.order.Order
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.node.Routing
@@ -71,9 +72,6 @@ class ShopClusterTest {
             "wow.cluster.heartbeat-interval" to "2s",
             "wow.cluster.reconcile-interval" to "200ms",
             "wow.cluster.route-refresh-interval" to "200ms",
-            // A first forward to a cold node may take more than the default second on a busy runner; past it, the
-            // sender runs the command itself (D71), which this test tells apart.
-            "wow.cluster.forward-timeout" to "10s",
             "wow.subscription.checkpoint-interval" to "100ms",
             "spring.datasource.url" to postgres.jdbcUrl,
             "spring.datasource.username" to postgres.username,
@@ -104,8 +102,17 @@ class ShopClusterTest {
 
     @Test
     fun `an order placed on the node that does not own it should run on the owner and its wait end where it was sent`() {
-        val id = idOwnedBySecond()
+        val (warmUp, id) = idsOwnedBySecond(2)
+        // The forward timeout (one second, D80) is for an owner that is warm; this JVM, both nodes in it, has decided
+        // no order yet. One order decided on its owner first, so the forward below is not its first decision. The
+        // connection to the owner was opened when the first node's routes learned it (ClusterChannel.connect).
+        second.post(
+            "/example/order/$warmUp/create-order",
+            """{"items":[{"productId":"apple","price":2.50,"quantity":1}],"address":$ADDRESS}""",
+            ALICE,
+        ).status.assert().isEqualTo(200)
         val before = first.inventory.calls.get()
+        val ownerBefore = second.inventory.calls.get()
 
         val created = first.post(
             "/example/order/$id/create-order",
@@ -116,14 +123,17 @@ class ShopClusterTest {
         created.json["status"].asString().assert().isEqualTo("SUCCEEDED")
         // The default wait reached the snapshot, which the owner's snapshot subscription signalled across.
         created.json["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
-        val decided = "first ${first.inventory.calls.get() - before}, second ${second.inventory.calls.get()}"
+        // The total the owner's decide function put (D49) came back with the forward's reply: the snapshot's hop,
+        // signalled from the owner, answers it.
+        created.json["results"][Order.TOTAL_AMOUNT_RESULT].decimalValue().assert().isEqualByComparingTo("5.00")
+        val decided = "first ${first.inventory.calls.get() - before}, second ${second.inventory.calls.get() - ownerBefore}"
         val split = nodes.map { it.node.context(ExampleContext.NAME).ownership.owned }
         val partition = Partitioner.partitionOf(
             AggregateType(ExampleContext.NAME, ExampleContext.ORDER).ref(Caller.DEFAULT_TENANT, id),
             PARTITIONS,
         )
         val where = "Decided by $decided; partition $partition; owned $split; result ${created.body}"
-        second.inventory.calls.get().assert().describedAs(where).isGreaterThan(0)
+        second.inventory.calls.get().assert().describedAs(where).isGreaterThan(ownerBefore)
         first.inventory.calls.get().assert().describedAs(where).isEqualTo(before)
 
         // The node the order was sent to reads its own write from the shared snapshots.
@@ -151,11 +161,11 @@ class ShopClusterTest {
     }
 
     /**
-     * An order id whose partition the second node owns and the first forwards to it, once the nodes have split the
-     * partitions between them and the split has held for [STABLE_POLLS] polls: a partition still moving between them
-     * would run the command on either.
+     * [count] order ids whose partitions the second node owns and the first forwards to it, once the nodes have split
+     * the partitions between them and the split has held for [STABLE_POLLS] polls: a partition still moving between
+     * them would run the command on either.
      */
-    private fun idOwnedBySecond(): String {
+    private fun idsOwnedBySecond(count: Int): List<String> {
         val type = AggregateType(ExampleContext.NAME, ExampleContext.ORDER)
         val deadline = System.currentTimeMillis() + OWNERSHIP_TIMEOUT
         var last: Set<Int>? = null
@@ -170,9 +180,9 @@ class ShopClusterTest {
             stable = if (split && owned == last) stable + 1 else 0
             last = owned.takeIf { split }
             if (stable >= STABLE_POLLS) {
-                return (0 until CANDIDATES).map { "order-${UUID.randomUUID()}" }.first { candidate ->
+                return (0 until CANDIDATES).map { "order-${UUID.randomUUID()}" }.filter { candidate ->
                     Partitioner.partitionOf(type.ref(Caller.DEFAULT_TENANT, candidate), PARTITIONS) in owned
-                }
+                }.take(count)
             }
             Thread.sleep(POLL)
         }
