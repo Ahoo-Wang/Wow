@@ -334,6 +334,41 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `with elements the ROOT groups sort before the element groups`() {
+        val elements = listOf(AggregationElement(QueryField("state.events")))
+        val day = AggregationGroup.DateHistogram(
+            QueryField("createTime"),
+            "day",
+            AggregationDateUnit.DAY,
+            scope = AggregationGroupScope.ROOT,
+        )
+        val name = AggregationGroup.Terms(QueryField("name"), "name")
+        val count = listOf(AggregationMetric.Count("n"))
+        AggregationQuery(elements = elements, groupBy = listOf(day, name), metrics = count)
+            .groupBy.size.assert().isEqualTo(2)
+        // A metric may lead: the groups keep their order behind it.
+        AggregationQuery(
+            elements = elements,
+            groupBy = listOf(day, name),
+            metrics = count,
+            sort = listOf(Sort(QueryField("n"), Sort.Direction.DESC)),
+        ).sort.size.assert().isEqualTo(1)
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(elements = elements, groupBy = listOf(name, day), metrics = count)
+        }.message.assert().isEqualTo("groups with a ROOT scope must sort before the element groups.")
+        assertThrows<IllegalArgumentException> {
+            AggregationQuery(
+                elements = elements,
+                groupBy = listOf(day, name),
+                metrics = count,
+                sort = listOf(Sort(QueryField("name"), Sort.Direction.ASC)),
+            )
+        }
+        // Without elements a ROOT group reads like any other.
+        AggregationQuery(groupBy = listOf(name, day), metrics = count).groupBy.size.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `a ROOT group names a field, not an expression`() {
         val input = AggregationExpression.Field(QueryField("amount"))
         assertThrows<IllegalArgumentException> {

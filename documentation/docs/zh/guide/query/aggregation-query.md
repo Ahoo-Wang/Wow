@@ -58,6 +58,7 @@ flowchart LR
 有 Elements 时，分组可选的 `scope` 指明 `field` 相对什么：`ELEMENT`（缺省）是最内层元素，`ROOT` 是查询模型根，字段写绝对路径。`ROOT` 分组把元素按它所属记录上的字段归组，例如按天统计各事件名的次数：展开 `state.events`，按 `createTime`（`scope: ROOT`）与 `name` 分组，再计数。没有 Elements 时，`ROOT` 与缺省相同。
 
 - `ROOT` 分组只能是字段，不能是表达式；准入照常检查根字段的分组能力与是否受保护。
+- `ROOT` 分组排在元素分组之前：有效排序（先显式排序，再按 `groupBy` 次序补上其余分组）里，`ROOT` 分组不能出现在元素分组之后。指标仍可排在最前。
 - 只有分组有 `scope`。指标仍读最内层元素：根上的值会随它的元素被数多次。
 - 它属于昂贵构造：后端能执行且允许昂贵运算符时，描述符的 `analysis.rootGroups` 为 `true`。MongoDB 原生执行；Elasticsearch 与 ClickHouse 目前回答 `StorageUnsupported`。Wow 9.9 起。
 

@@ -77,7 +77,7 @@ export function revenueBySku(orders: SnapshotQueryClient<Order>) {
 
 空时区或未知的枚举值会抛错。
 
-每个分组构造器还接受 `scope`（`AggregationGroupScope`，Wow 9.9）：有 `elements` 时，`ROOT` 把元素按它所属根记录上的字段分组，例如展开 `state.events` 后 `dateHistogram('createTime', 'day', { unit: AggregationDateUnit.DAY, scope: AggregationGroupScope.ROOT })`。它只能配字段，不能配表达式，并且需要服务端描述符的 `analysis.rootGroups` 为真。
+每个分组构造器还接受 `scope`（`AggregationGroupScope`，Wow 9.9）：有 `elements` 时，`ROOT` 把元素按它所属根记录上的字段分组，例如展开 `state.events` 后 `dateHistogram('createTime', 'day', { unit: AggregationDateUnit.DAY, scope: AggregationGroupScope.ROOT })`。它只能配字段，不能配表达式，须排在元素分组之前，并且需要服务端描述符的 `analysis.rootGroups` 为真。
 
 `dense: true` 补齐缺口，要求该分组是唯一的分组。对 `dateHistogram`，它补齐日期之间的空档；没有结果行时没有范围可补。对 `datePart`，它返回该部分固定取值域的每个键，空的也补上。多个 `datePart` 分组可以组合，例如星期 × 小时：
 

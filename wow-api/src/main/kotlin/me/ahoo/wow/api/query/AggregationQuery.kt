@@ -66,6 +66,20 @@ data class AggregationQuery(
         require(effectiveSort().size <= Sort.MAX_FIELDS) {
             "effective sort must contain at most ${Sort.MAX_FIELDS} fields."
         }
+        requireRootGroupsFirst()
+    }
+
+    /**
+     * With [elements], the groups of a ROOT scope lead the effective sort: a storage reads the root records' keys
+     * before the keys of their elements, so a root key nested under an element key has no native order.
+     */
+    private fun requireRootGroupsFirst() {
+        if (elements.isEmpty()) return
+        val root = groupBy.associate { it.alias to (it.scope == AggregationGroupScope.ROOT) }
+        val order = effectiveSort().mapNotNull { root[it.field.path] }
+        require(order.dropWhile { it }.none { it }) {
+            "groups with a ROOT scope must sort before the element groups."
+        }
     }
 
     override fun withFilter(newFilter: FilterExpression): AggregationQuery = copy(filter = newFilter)

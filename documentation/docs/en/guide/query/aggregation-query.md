@@ -58,6 +58,7 @@ For example, `state.orders` → `lines` first expands root `state.orders`, then 
 With Elements, a group's optional `scope` says what its `field` is relative to: `ELEMENT` (the default) is the innermost element, and `ROOT` is the query-model root, as an absolute path. A `ROOT` group counts the elements under a field of the record they belong to, such as each day's events by name: expand `state.events`, group by `createTime` with `scope: ROOT` and by `name`, and count. Without Elements, `ROOT` reads the same as the default.
 
 - A `ROOT` group names a field, never an expression; admission checks the root field's group capability and protection as for any other group.
+- The `ROOT` groups sort before the element groups: in the effective sort (explicit sort, then the remaining groups in `groupBy` order) no `ROOT` group may follow an element group. A metric may still lead the sort.
 - Only groups take `scope`. A metric still reads the innermost element, because a root value would be counted once per element.
 - It is an expensive construct: the descriptor's `analysis.rootGroups` is `true` where the backend can run it and expensive operators are allowed. MongoDB runs it natively; Elasticsearch and ClickHouse answer `StorageUnsupported` for now. Wow 9.9 and later.
 

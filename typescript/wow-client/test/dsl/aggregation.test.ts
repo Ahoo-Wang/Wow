@@ -17,6 +17,7 @@ import {
   AggregationDatePart,
   AggregationDateUnit,
   AggregationGroupScope,
+  type AggregationMetric,
   DerivedExpressionType,
   HavingExpressionType,
   ComparisonOperator,
@@ -314,6 +315,41 @@ describe('AggregationQuery', () => {
         metrics: [aggregation.count('rows')],
       }),
     ).toThrow('TERMS with a ROOT scope requires a field input.');
+  });
+
+  it('sorts the ROOT groups of an element query before its element groups', () => {
+    const day = aggregation.dateHistogram('createTime', 'day', {
+      unit: AggregationDateUnit.DAY,
+      scope: AggregationGroupScope.ROOT,
+    });
+    const name = aggregation.terms('name', 'name');
+    const elements = [aggregation.element('state.events')];
+    const metrics: [AggregationMetric] = [aggregation.count('n')];
+    expect(
+      aggregation.query({ elements, groupBy: [day, name], metrics }).groupBy,
+    ).toHaveLength(2);
+    expect(
+      aggregation.query({
+        elements,
+        groupBy: [day, name],
+        metrics,
+        sort: [{ field: 'n', direction: SortDirection.DESC }],
+      }).sort,
+    ).toHaveLength(1);
+    expect(() =>
+      aggregation.query({ elements, groupBy: [name, day], metrics }),
+    ).toThrow('groups with a ROOT scope must sort before the element groups.');
+    expect(() =>
+      aggregation.query({
+        elements,
+        groupBy: [day, name],
+        metrics,
+        sort: [{ field: 'name', direction: SortDirection.ASC }],
+      }),
+    ).toThrow('groups with a ROOT scope must sort before the element groups.');
+    expect(
+      aggregation.query({ groupBy: [name, day], metrics }).groupBy,
+    ).toHaveLength(2);
   });
 
   it('reads the first and last value of a field, ordered on request', () => {
