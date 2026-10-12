@@ -95,22 +95,21 @@ class ViewStoreStarterTest {
     @Autowired
     private lateinit var applicationContext: ApplicationContext
 
+    /**
+     * The first requests pay one-time costs on the request: the first one starts the HTTP client and the server's
+     * request path, the first command creates the ID generators and idempotency filters and loads the command
+     * pipeline, and the first `/v3/api-docs` builds the whole document (springdoc scans the routes and generates every
+     * command, query and response schema). Together that takes about 1 s on a warm machine but several seconds on a
+     * busy CI runner, past WebTestClient's default 5 s response timeout; which test pays it depends on the test order,
+     * so every request gets the longer budget.
+     */
     private val client: WebTestClient by lazy {
         val port = applicationContext.environment.getRequiredProperty("local.server.port")
         WebTestClient.bindToServer()
             .baseUrl("http://localhost:$port")
+            .responseTimeout(RESPONSE_TIMEOUT)
             .codecs { it.defaultCodecs().maxInMemorySize(OPENAPI_BUFFER_BYTES) }
             .build()
-    }
-
-    /**
-     * The first `/v3/api-docs` builds the whole document: springdoc scans the routes and every command, query and
-     * response schema is generated, on the request. That takes about 0.2 s on a warm machine but several seconds on a
-     * busy CI runner, past WebTestClient's default 5 s response timeout; later requests are served from springdoc's
-     * cache. Only this request gets the longer budget.
-     */
-    private val openApiClient: WebTestClient by lazy {
-        client.mutate().responseTimeout(OPENAPI_RESPONSE_TIMEOUT).build()
     }
 
     @Test
@@ -170,7 +169,7 @@ class ViewStoreStarterTest {
 
     @Test
     fun `the host's own routes stay where they were`() {
-        val document = openApiClient.get().uri("/v3/api-docs").exchange()
+        val document = client.get().uri("/v3/api-docs").exchange()
             .expectStatus().isOk
             .expectBody(JsonNode::class.java).returnResult().responseBody!!
         val paths = document.get("paths").propertyNames().toList()
@@ -205,7 +204,7 @@ class ViewStoreStarterTest {
      */
     @Test
     fun `the document leaves out the routes the view store closes`() {
-        val document = openApiClient.get().uri("/v3/api-docs").exchange()
+        val document = client.get().uri("/v3/api-docs").exchange()
             .expectStatus().isOk
             .expectBody(JsonNode::class.java).returnResult().responseBody!!
         val documented = document.get("paths").properties().flatMap { (path, item) ->
@@ -230,7 +229,7 @@ class ViewStoreStarterTest {
      */
     @Test
     fun `the view query fields include the ones the view store declares`() {
-        val document = openApiClient.get().uri("/v3/api-docs").exchange()
+        val document = client.get().uri("/v3/api-docs").exchange()
             .expectStatus().isOk
             .expectBody(JsonNode::class.java).returnResult().responseBody!!
         val viewFields = document.at("/components/schemas").propertyNames()
@@ -302,5 +301,5 @@ class ViewStoreStarterTest {
 }
 
 private const val OPENAPI_BUFFER_BYTES = 16 * 1024 * 1024
-private val OPENAPI_RESPONSE_TIMEOUT: Duration = Duration.ofMinutes(1)
+private val RESPONSE_TIMEOUT: Duration = Duration.ofMinutes(1)
 private val HTTP_METHODS = setOf("get", "put", "post", "delete", "options", "head", "patch", "trace")
