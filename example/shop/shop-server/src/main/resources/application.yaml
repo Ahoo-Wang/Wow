@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: shop-service
+server:
+  port: 8080
+wow:
+  service: shop-service
+  # One node, its data in memory: the default, for trying the shop out. The `postgres` profile below serves it from
+  # PostgreSQL, on as many nodes as share the database.
+  backend: memory
+  internal:
+    port: 9090
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shop
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
