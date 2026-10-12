@@ -166,7 +166,7 @@ wow-api -> wow-metadata -> wow-core -> wow-spring -> wow-spring-boot-starter
 
 ## Code Style
 
-- Kotlin and KSP versions come from `gradle/libs.versions.toml`; JVM toolchain 17 is configured in `build.gradle.kts`, and `kotlin.code.style=official` in `gradle.properties`.
+- Kotlin and KSP versions come from `gradle/libs.versions.toml`; JVM toolchain 21 is configured in `build.gradle.kts` (V10 decision D29), and `kotlin.code.style=official` in `gradle.properties`.
 - Spring Boot dependency management is centralized through `wow-dependencies`, which imports the BOM version from `gradle/libs.versions.toml`.
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
