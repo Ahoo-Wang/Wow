@@ -25,13 +25,13 @@ import me.ahoo.wow.manifest.Manifest
  * keep. A node checks it when it is assembled and refuses to start on any difference:
  *
  * - an aggregate type in the Manifest without a model, or a model of an aggregate type the Manifest does not list;
- * - a command of the Manifest the model does not decide under that name, a former name
- *   ([me.ahoo.wow.manifest.CommandManifest.aliases]) the model does not read as that command, or a different [creation][me.ahoo.wow.manifest.Creation];
+ * - a command of the Manifest the model does not decide under that name, or a command the model decides
+ *   ([AggregateModel.commandTypes]) that the Manifest does not list; the lifecycle commands are compared apart;
+ * - a former name ([me.ahoo.wow.manifest.CommandManifest.aliases]) the model does not read as that command, or one the
+ *   model reads as the command and the Manifest does not list;
+ * - a different [creation][me.ahoo.wow.manifest.Creation];
  * - an event of the Manifest the model does not name so, or of another revision;
  * - a different set of lifecycle commands.
- *
- * A model does not list its own command types, so a command the model decides and the Manifest leaves out is not
- * found here; both come from the same sources through the compiler, which writes every one into the fragment.
  */
 object ManifestCheck {
     /** Every difference between [manifest] and [models]; empty when they agree. */
@@ -59,23 +59,7 @@ object ManifestCheck {
 
     private fun differences(type: AggregateType, aggregate: AggregateManifest, model: AggregateModel<*>): List<String> =
         buildList {
-            aggregate.commands.forEach { command ->
-                val name = fullName(type, command.name)
-                val commandType = model.findCommandType(name)
-                if (commandType == null || commandType.name != name) {
-                    add("command $name is in the Manifest but the model of $type does not decide it")
-                    return@forEach
-                }
-                command.aliases.map { fullName(type, it) }.filter { model.findCommandType(it) != commandType }.forEach {
-                    add("command $name has the former name $it in the Manifest but not in the model of $type")
-                }
-                val creation = model.decider(commandType.type)?.creation?.name
-                if (creation != command.creation.name) {
-                    add(
-                        "command $name creates its aggregate ${command.creation} in the Manifest, $creation in the model"
-                    )
-                }
-            }
+            addAll(commandDifferences(type, aggregate, model))
             aggregate.events.forEach { event ->
                 val name = fullName(type, event.name)
                 val eventType = model.findEventType(name)
@@ -95,6 +79,40 @@ object ManifestCheck {
             }
             (lifecycle - aggregate.lifecycle.toSet()).forEach {
                 add("lifecycle command $it of $type is handled by the model but not in the Manifest")
+            }
+        }
+
+    /** The differences in the commands, but for the lifecycle commands, compared apart. */
+    private fun commandDifferences(
+        type: AggregateType,
+        aggregate: AggregateManifest,
+        model: AggregateModel<*>,
+    ): List<String> =
+        buildList {
+            val listed = aggregate.commands.mapTo(HashSet()) { fullName(type, it.name) }
+            model.commandTypes
+                .filter { Lifecycle.nameOf(it.type) == null && it.name !in listed }
+                .forEach { add("command ${it.name} is decided by the model of $type but not in the Manifest") }
+            aggregate.commands.forEach { command ->
+                val name = fullName(type, command.name)
+                val commandType = model.findCommandType(name)
+                if (commandType == null || commandType.name != name) {
+                    add("command $name is in the Manifest but the model of $type does not decide it")
+                    return@forEach
+                }
+                val aliases = command.aliases.map { fullName(type, it) }
+                aliases.filter { model.findCommandType(it) != commandType }.forEach {
+                    add("command $name has the former name $it in the Manifest but not in the model of $type")
+                }
+                (commandType.aliases - aliases.toSet()).forEach {
+                    add("command $name has the former name $it in the model of $type but not in the Manifest")
+                }
+                val creation = model.decider(commandType.type)?.creation?.name
+                if (creation != command.creation.name) {
+                    add(
+                        "command $name creates its aggregate ${command.creation} in the Manifest, $creation in the model"
+                    )
+                }
             }
         }
 

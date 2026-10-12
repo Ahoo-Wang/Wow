@@ -54,9 +54,19 @@ data class Hop @JvmOverloads constructor(
         }
     }
 
+    /**
+     * This hop as the `Wow-Wait` header spells it (decision D99): `accepted`, `committed`, `snapshot` and
+     * `handled(subscription)`, each with its context when it has one: `committed(ctx)`, `snapshot(ctx)`,
+     * `handled(ctx/subscription)`. A subscription may hold dots (`processor.function`), so `/` sets the context apart.
+     */
     override fun toString(): String {
-        val where = listOfNotNull(context, subscription).joinToString(".")
-        return if (where.isEmpty()) stage.name.lowercase() else "${stage.name.lowercase()}($where)"
+        val keyword = if (subscription == SNAPSHOT_SUBSCRIPTION) "snapshot" else stage.name.lowercase()
+        val argument = when {
+            subscription == null || subscription == SNAPSHOT_SUBSCRIPTION -> context
+            context == null -> subscription
+            else -> "$context/$subscription"
+        }
+        return if (argument == null) keyword else "$keyword($argument)"
     }
 
     companion object {

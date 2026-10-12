@@ -68,11 +68,22 @@ class WaitPlanTest {
 
     @Test
     fun `only a HANDLED hop names a subscription, and it must`() {
-        Hop.handled("projector.on-placed", "sales").toString().assert().isEqualTo("handled(sales.projector.on-placed)")
-        Hop.committed().toString().assert().isEqualTo("committed")
+        Hop.handled("projector.on-placed", "sales").toString().assert().isEqualTo("handled(sales/projector.on-placed)")
         assertThrownBy<IllegalArgumentException> { Hop(Stage.HANDLED) }
         assertThrownBy<IllegalArgumentException> { Hop(Stage.COMMITTED, subscription = "snapshot") }
         assertThrownBy<IllegalArgumentException> { Hop(Stage.ACCEPTED, context = " ") }
+    }
+
+    @Test
+    fun `a hop prints as the Wow-Wait header spells it`() {
+        Hop.accepted().toString().assert().isEqualTo("accepted")
+        Hop.accepted("sales").toString().assert().isEqualTo("accepted(sales)")
+        Hop.committed().toString().assert().isEqualTo("committed")
+        Hop.committed("sales").toString().assert().isEqualTo("committed(sales)")
+        Hop.snapshot().toString().assert().isEqualTo("snapshot")
+        Hop.snapshot("sales").toString().assert().isEqualTo("snapshot(sales)")
+        Hop.handled("audit").toString().assert().isEqualTo("handled(audit)")
+        Hop.handled("order-saga.onPaid", "payment").toString().assert().isEqualTo("handled(payment/order-saga.onPaid)")
     }
 
     @Test

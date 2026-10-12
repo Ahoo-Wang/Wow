@@ -84,7 +84,7 @@ class WaitChainTest {
             .assert().containsExactly(Hop.snapshot("shop"))
         (WaitChain.of(WaitPlan.SNAPSHOT, stock, ordersOnly, 4) as WaitChain.Invalid).reason
             .assert().isEqualTo(
-                "Hop handled(shop.snapshot) waits for a snapshot, but shop.stock has no snapshot subscription."
+                "Hop snapshot(shop) waits for a snapshot, but shop.stock has no snapshot subscription."
             )
         (WaitChain.of(WaitPlan.SNAPSHOT.within(1.seconds), ORDER, SubscriptionDirectory.NONE, 4) as WaitChain.Invalid)
             .reason.assert().contains("shop.order has no snapshot subscription")

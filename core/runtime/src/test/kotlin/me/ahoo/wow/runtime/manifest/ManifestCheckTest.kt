@@ -32,6 +32,8 @@ import me.ahoo.wow.manifest.Creation as ManifestCreation
 
 /** A node refuses to start when its Manifest and its models disagree (decision D108). */
 class ManifestCheckTest {
+    data class Withdraw(val amount: Long)
+
     private val manifest = accountManifest(context = "bank")
 
     /** [manifest] with its account aggregate changed by [change]. */
@@ -80,7 +82,66 @@ class ManifestCheckTest {
             evolve<Deposited> { balance += it.amount }
         }
         ManifestCheck.differences(manifest, listOf(renamed)).assert().containsExactly(
+            "command bank.account.Credit is decided by the model of bank.account but not in the Manifest",
             "command bank.account.Deposit is in the Manifest but the model of bank.account does not decide it",
+        )
+    }
+
+    @Test
+    fun `a command the model decides and the Manifest leaves out is found`() {
+        val withdrawing = aggregate<Account>("bank", "account") {
+            initial { Account() }
+            decide<Deposit>(Creation.ALLOWED) { _, body -> Decision.events(Deposited(body.amount)) }
+            decide<Withdraw> { _, _ -> Decision.NoOp }
+            evolve<Deposited> { balance += it.amount }
+        }
+        // The lifecycle commands the kernel decides are not the Manifest's commands: they are compared apart.
+        withdrawing.commandTypes.map { it.name }.assert().contains("bank.account.Withdraw", Lifecycle.DELETE_AGGREGATE)
+        ManifestCheck.differences(manifest, listOf(withdrawing)).assert().containsExactly(
+            "command bank.account.Withdraw is decided by the model of bank.account but not in the Manifest",
+        )
+    }
+
+    @Test
+    fun `a former name the model reads and the Manifest leaves out is found`() {
+        val aliased = aggregate<Account>("bank", "account") {
+            initial { Account() }
+            decide<Deposit>(Creation.ALLOWED) { _, body -> Decision.events(Deposited(body.amount)) }
+            alias<Deposit>("bank.account.Pay")
+            alias<Deposit>("bank.account.Credit")
+            evolve<Deposited> { balance += it.amount }
+        }
+        // Without a dot a former name is within the aggregate; with one it is the full name.
+        val listingOne = changed { aggregate ->
+            aggregate.copy(commands = aggregate.commands.map { it.copy(aliases = listOf("Pay")) })
+        }
+        ManifestCheck.differences(listingOne, listOf(aliased)).assert().containsExactly(
+            "command bank.account.Deposit has the former name bank.account.Credit in the model of bank.account " +
+                "but not in the Manifest",
+        )
+        val listingBoth = changed { aggregate ->
+            aggregate.copy(
+                commands = aggregate.commands.map { it.copy(aliases = listOf("Pay", "bank.account.Credit")) },
+            )
+        }
+        ManifestCheck.differences(listingBoth, listOf(aliased)).assert().isEmpty()
+    }
+
+    @Test
+    fun `creation is compared both ways`() {
+        val requiring = aggregate<Account>("bank", "account") {
+            initial { Account() }
+            decide<Deposit>(Creation.REQUIRED) { _, body -> Decision.events(Deposited(body.amount)) }
+            evolve<Deposited> { balance += it.amount }
+        }
+        ManifestCheck.differences(manifest, listOf(requiring)).assert().containsExactly(
+            "command bank.account.Deposit creates its aggregate ALLOWED in the Manifest, REQUIRED in the model",
+        )
+        val none = changed { aggregate ->
+            aggregate.copy(commands = aggregate.commands.map { it.copy(creation = ManifestCreation.NONE) })
+        }
+        ManifestCheck.differences(none, listOf(accountModel("bank"))).assert().containsExactly(
+            "command bank.account.Deposit creates its aggregate NONE in the Manifest, ALLOWED in the model",
         )
     }
 

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.wait.ResultCodes
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -183,10 +184,22 @@ class ClusterTest {
         val result = one.deposit(id, wait = WaitPlan.COMMITTED.within(300.milliseconds))
         val elapsed = (System.nanoTime() - started) / 1_000_000
 
-        // The default forward timeout is one second; the command had 300 ms left, and then ran here.
+        // The default forward timeout is one second; the wait had 300 ms, which bound the forward too (D64).
         elapsed.assert().isBetween(250L, 900L)
+        // The router gives up the forward at the deadline and runs the command here, a duplicate of the owner's
+        // commit; whether that settles just before the wait's own deadline or not, the answer comes in time.
+        if (result.status == CommandResult.Status.FAILED) {
+            result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+            result.hop.assert().isEqualTo(Hop.accepted(CONTEXT))
+        } else {
+            result.duplicate.assert().isTrue()
+        }
+        // The forward went on apart from the wait: the owner committed it, and a retry is answered from that commit.
+        eventually { two.decided.contains(result.commandId) }
+        val retry = one.deposit(id, commandId = result.commandId)
+        retry.duplicate.assert().isTrue()
+        retry.version.assert().isEqualTo(1)
         two.decided.assert().containsExactly(result.commandId)
-        result.duplicate.assert().isTrue()
     }
 
     @Test
