@@ -37,6 +37,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
     private val requests = HashMap<Pair<String, String>, EventStreamRecord>()
+    private val positions = HashMap<AggregateRef, MutableList<LogPosition>>()
     private val entries = List(partitions) { ArrayList<LogEntry>() }
     private val appended = List(partitions) { MutableStateFlow(0L) }
 
@@ -57,6 +58,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
         val log = entries[partition]
         val position = LogPosition(partition, log.size + 1L)
         log += LogEntry(position, stream, transport)
+        positions.getOrPut(stream.ref) { ArrayList() } += position
         appended[partition].value = position.sequence
         AppendOutcome.Committed(position)
     }
@@ -65,6 +67,9 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
         val snapshot = lock.withLock { streams[ref]?.toList().orEmpty() }
         snapshot.filter { it.version in fromVersion..toVersion }.forEach { emit(it) }
     }
+
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
+        lock.withLock { positions[ref]?.getOrNull(version - 1) }
 
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         lock.withLock { requests[tenantId to requestId] }

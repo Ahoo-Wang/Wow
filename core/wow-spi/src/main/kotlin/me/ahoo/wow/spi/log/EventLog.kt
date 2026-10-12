@@ -48,6 +48,12 @@ interface EventLog {
     /** The streams of [ref] with versions in [fromVersion]..[toVersion], in version order: facts only. */
     fun read(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<EventStreamRecord>
 
+    /**
+     * The position of [ref]'s stream at [version], or null when there is none. A duplicate request uses it to tell
+     * whether a subscription's checkpoint has passed the stream committed for it (decision D63).
+     */
+    suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
+
     /** The stream committed for [requestId] within [tenantId], if any: facts only. */
     suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?
 

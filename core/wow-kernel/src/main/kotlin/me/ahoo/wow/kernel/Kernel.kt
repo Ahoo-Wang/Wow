@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.core.JacksonException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -85,19 +86,32 @@ class Kernel(
         require(maxAttempts >= 1) { "At least one attempt." }
     }
 
-    suspend fun <S : Any> execute(model: AggregateModel<S>, command: Command<*>): CommandOutcome {
+    /**
+     * Executes [command] on [model]'s aggregate.
+     *
+     * [wait] is the wait context the runtime built for the command's wait plan, if any: when it still has hops to
+     * reach after COMMITTED, it is appended with the stream as transport (decision D25), so the subscription its next
+     * hop names signals the waiting node. The kernel only carries it; registering the wait and the signals are the
+     * runtime's.
+     */
+    suspend fun <S : Any> execute(
+        model: AggregateModel<S>,
+        command: Command<*>,
+        wait: WaitContext? = null,
+    ): CommandOutcome {
         require(command.ref.type == model.type) { "${command.ref} is not a ${model.type}." }
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass).name
         log.findByRequestId(command.ref.tenantId, command.requestId)?.let { return settled(it, commandType) }
+        val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         repeat(maxAttempts) {
             val loaded = load(model, command)
             admissible(decider, command, loaded.version)?.let {
                 states.put(command.ref, loaded)
                 return it
             }
-            val attempt = AttemptScope(command, reservations, reservationTtl)
+            val attempt = AttemptScope(command, reservations, reservationTtl, waitBeyondCommitted)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType)
             } catch (
@@ -345,6 +359,7 @@ class Kernel(
         override val command: Command<*>,
         private val reservations: ReservationStore?,
         private val reservationTtl: Duration,
+        private val wait: WaitContext?,
     ) : DecideScope {
         private var compensations: MutableList<suspend () -> Unit>? = null
         private var afterAppendActions: MutableList<suspend () -> Unit>? = null
@@ -357,8 +372,15 @@ class Kernel(
 
         fun results(): Map<String, Any> = results ?: emptyMap()
 
-        /** What the append carries for delivery: the keys this attempt reserved pending, if any (D50). */
-        fun transport(): Transport? = reserved?.let { Transport(reservations = it.toList()) }
+        /**
+         * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), and
+         * the keys this attempt reserved pending (D50); null when there is neither.
+         */
+        fun transport(): Transport? = if (wait == null && reserved == null) {
+            null
+        } else {
+            Transport(wait = wait, reservations = reserved?.toList().orEmpty())
+        }
 
         override suspend fun reserve(namespace: String, key: String): Boolean {
             val store = checkNotNull(reservations) { "Reserving a key needs a kernel with a ReservationStore." }

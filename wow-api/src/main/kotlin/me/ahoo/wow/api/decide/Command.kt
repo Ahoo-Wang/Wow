@@ -15,6 +15,7 @@ package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.WaitPlan
 
 /**
  * An admitted command: who it targets and what it asks, with every fact decided once at admission and read-only
@@ -30,6 +31,9 @@ import me.ahoo.wow.api.aggregate.Scope
  * metadata instead (design 08 §3).
  *
  * [causation] links the command to the chain it belongs to; a command a user sends directly has none.
+ *
+ * [wait] is what the caller waits for before it is answered (design 04 §6), by default until the snapshot holds the
+ * commit (decision D69). It stays on the node that took the command: only a wait context travels with it.
  */
 data class Command<C : Any>(
     val id: String,
@@ -40,6 +44,7 @@ data class Command<C : Any>(
     val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null,
+    val wait: WaitPlan = WaitPlan.SNAPSHOT,
 ) {
     init {
         require(id.isNotBlank()) { "A command needs an id." }
