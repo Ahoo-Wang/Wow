@@ -40,6 +40,8 @@ flowchart LR
     M8c --> M9[M9 发布]
 ```
 
+预发布一栏已由 D124 取消：全部目标完成前不发版，里程碑出口只作测试与 CI 门槛。
+
 | 里程碑 | 目标 | 预发布 | 必须先拍板的决定 |
 |---|---|---|---|
 | M0 准备 | 分支、CI、守护规则、决定评审、模块与目录骨架 | — | （已全部拍板） |
@@ -173,7 +175,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ## 5. 当前进度与下一步（2026-10-12 交接）
 
-本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D85、D87～D123 已定；D86 待定，最晚第一次前向合并之前）与 [08 数据协议](08-data-protocols.md)。
+本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D85、D87～D124 已定，D123 由 D124 取代；D86 待定，最晚第一次前向合并之前）与 [08 数据协议](08-data-protocols.md)。
 
 **工作方式**：主会话只做协调与审查；实现交给隔离 worktree 里的子代理，子代理开 PR 到 `v10` 但不合并；主会话审查后在本地对合并结果做演练（完整验证命令全绿），再 `gh pr merge --squash --admin --match-head-commit <完整 SHA>`。子代理的说明里必须写明：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；改动公开面时更新 `wow-api`、`wow-mongo` 的 ABI 转储；先 `detekt --auto-correct`；不改设计文档（由主会话改）；互相并行的子代理不碰同一批文件。
 
@@ -186,7 +188,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 **已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）；内置快照订阅（4.6 第一部分，Ahoo-Wang/Wow#4256：按聚合保留最新快照、同批合并、默认 `SNAPSHOT` 等待由它完成、关闭快照的类型退回 `COMMITTED`；状态视图由 `Executor` 在提交后记录，读不到时由快照加尾部兜底）；Manifest v0（5a.1 第一部分，Ahoo-Wang/Wow#4259：`wow-manifest` 模型与合并、KSP 片段、`wow-gradle-plugin` 与隔离的 `wow-manifest-tools`）；快照订阅视图竞态的修复（Ahoo-Wang/Wow#4263：订阅记住每个聚合已写或已加载的版本，不超过它的条目不再取视图、不再写；`ExecutorTest` 先预热、等慢聚合进入车道再测，不再依赖调度）；预留确认订阅（D50，Ahoo-Wang/Wow#4260：按日志条目的传输段确认预留，`EventLog.readEntries` 读回位置与传输段，恢复停放的聚合也走它；种类 `FunctionKind.RESERVATION`；`confirm` 返回 false 时记日志跳过；过期清理未定，未做）；生命周期命令与事件（2.4，Ahoo-Wang/Wow#4267：`wow-api` 的 `lifecycle` 包，内核为每个模型处理删除、恢复、转移所有者 / 空间与标签，`CachedState` 带删除标记与标签）；快照带上删除标记与标签（Ahoo-Wang/Wow#4272）；V10 模块去掉 `wow-` 前缀（D87，Ahoo-Wang/Wow#4277：`:kernel` 在 `core/kernel`，jar 与 artifactId 仍是 `wow-<名字>`）；D85 模块拆分完成（Ahoo-Wang/Wow#4280：V10 代码移入 `:api`、`:compiler`、`:mongo`，9.x 的三个同名模块回到与 main 的分叉点；架构规则：新旧两边不得同时依赖、9.x 不依赖 V10；Ahoo-Wang/Wow#4282：CI 路径与 `ci-scope.mjs`、`v10-*` 覆盖率组件、`v10` 上关闭 9.x 发布、AGENTS.md）；e2e 发现的运行时问题（#4312：默认等待也返回 `putResult` 结果、预先建立对端连接、等待截止由运行时线程负责、追加队列测试竞态）；M5 完成（#4306 快照状态按值比较；#4307 `wow-spring-boot` 宿主；#4309 运行时收尾：停机等待执行、唯一信号编解码、可配置默认等待超时、D116 固定租户、绑定后才定内部地址；#4310 `:cosec`；#4308 `shop-server` 与端到端测试，达到 alpha.2 的出口）；M5 第二批（#4294 准入 `CommandGateway`；#4299、#4303 JSON 数字精确往返与唯一 `WowJson`；#4300 依赖限定名、`@OnCommand(produces)`、`@ErrorCode`；#4301 `ServiceNode` 与 `ManifestLoader`；#4302 公开 HTTP 边缘；#4304 等待截止约束执行、`Hop.toString` 用 D99 形式、Manifest 与模型双向检查）；M5 第一批（Ahoo-Wang/Wow#4291 内核作用域守卫 D94；#4292 脚手架；#4293 Manifest 路由与框架错误码表；#4295 绑定索引 `ModelProvider` / `Dependencies` 与 `@AggregateRoot(lifecycle)`；#4296 内部端口与 h2c 集群传输（4.2b）；#4297 V10 示例领域 `example/shop`）；编译器的后续（Ahoo-Wang/Wow#4286：缺少升级链条即报错，Manifest 的 `lifecycle` 字段）；等待的后续（Ahoo-Wang/Wow#4288：每条派生命令推一个结果，只有默认计划可退回 `COMMITTED`，`Duration` 重载）；main 上的 `v10-nightly.yml`（Ahoo-Wang/Wow#4289）；H6 的缺陷修复（Ahoo-Wang/Wow#4281：有上限的并发续约、续约循环先于首次获取；`PartitionAppendQueue` 按分区用 `appendAll` 分组提交，MongoDB 预设开启、PostgreSQL 关闭，由宿主组装时选用）；注解集的后续（Ahoo-Wang/Wow#4284：`@Upgrade` 与编译期链条校验，命令 `@Alias` 绑定进内核，`@Alias` 值校验）；按范围构建与 V10 工作流（Ahoo-Wang/Wow#4285：`-Pwow.scope=v10`、`v10Check`、`v10IntegrationTest`；`v10.yml` 与总是运行的 `v10-gate`；9.x 工作流不再因 V10 目录触发，由 `v10-nightly.yml` 每晚在 `v10` 上运行，需先进 main）；H6（Ahoo-Wang/Wow#4278，新模块 `:lease-spike`）；集群通道 4.2a（Ahoo-Wang/Wow#4251：HRW 无主对账、主动交接、`Partitioned` 路由与降级 Local、`Member` 内部地址、同步命令转发与进程内回环传输）；V10 注解集与 `wow-api` 的 `subscribe` 包（Ahoo-Wang/Wow#4250：KSP 只认 V10 注解，删除的注解与命令字段上的身份注解报编译错误，事件的 `@Name` / `@Revision` / `@Alias` 进入模型，订阅类的形状校验）。H1、H2 阶段 1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
 
-**进行中**：`10.0.0-alpha.2` 的发布准备 PR（子代理，D123；不打标签、不发布）；第一次前向合并已在本地完成并验证（旁路分支 `claude/v10-forward-merge-1`，快进），待用户推送到 `v10`。**待用户**：推送前向合并；确认打 `v10.0.0-alpha.2` 标签与创建 Release；拍板 D86（推荐保留长期分支）。
+**进行中**（子代理）：KSP 订阅绑定（`@Projection`/`@Reactor`/`@Saga`，示例补 `CartSaga`）；4.6 第二部分历史状态（`?at=`、`/state/trace`）；8a.1 迁移 Skill 初稿；M6 规划（只读）。第一次前向合并已由用户推送（`722f60b24`）。**待用户**：D86（推荐保留长期分支）。
 
 **合并门禁**：`--admin` 会绕过红色检查，合并前必须看 `gh pr checks`，失败要逐项说明与本 PR 无关才能合并；本地演练的命令包含 `checkKotlinAbi`。`v10` 的 Local Test 自 H4 起因 `wow-compiler` 的 ABI 转储失败，Ahoo-Wang/Wow#4261 修复（模型处理器的类改为 `internal`）；`allLocalTest` 恢复运行后暴露的 9.x 不稳定测试（`wow-core` 的 `LocalFirstDistributedCopiesTest`、view-store 的超时）在 main 上修。
 
