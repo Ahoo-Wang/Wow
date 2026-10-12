@@ -15,7 +15,10 @@ import {
 // Admits a release of the commit checked out at HEAD, the commit of a v* tag:
 //
 // 1. The commit is on main or on a maintenance branch (release-x.y), so a tag
-//    cannot ship a commit that no pull request brought in.
+//    cannot ship a commit that no pull request brought in. A pre-release of
+//    the next major may also come from that major's development line (v10
+//    for 10.0.0-rc.0): it is published under npm's `next` dist-tag and leaves
+//    `latest` alone, so users try it before the line merges into main.
 // 2. Every workflow in REQUIRED has a successful full run on exactly this
 //    commit, and its gate job passed in it. Only manual dispatch runs count:
 //    a dispatch run has no base to diff against, so its scope job turns every
@@ -52,11 +55,30 @@ export const REQUIRED = [
 /** Remote branches a release commit may come from. */
 const RELEASE_BRANCH = /^origin\/(?:main|release-\d+\.\d+)$/;
 
-/** Some remote branch containing the commit is main or a release-x.y line. */
-export function requireReleaseBranch(branches, sha) {
+/** A major version's development line, e.g. `origin/v10`. */
+const MAJOR_LINE = /^origin\/v(\d+)$/;
+
+/**
+ * Some remote branch containing the commit is main or a release-x.y line, or
+ * the version is a pre-release of a major whose development line (`vN`)
+ * contains the commit.
+ */
+export function requireReleaseBranch(branches, sha, version) {
+  const parsed = parseVersion(version);
+  const onMajorLine = branch => {
+    const line = MAJOR_LINE.exec(branch);
+    return (
+      line !== null &&
+      parsed?.prerelease !== undefined &&
+      parsed.major === Number(line[1])
+    );
+  };
   assert.ok(
-    branches.some(branch => RELEASE_BRANCH.test(branch.trim())),
-    `${sha} is on neither main nor a release-x.y branch (found: ${branches.join(', ') || 'none'})`,
+    branches.some(
+      branch =>
+        RELEASE_BRANCH.test(branch.trim()) || onMajorLine(branch.trim()),
+    ),
+    `${sha} is on neither main nor a release-x.y branch, nor is ${version} a pre-release on its major's development line (found: ${branches.join(', ') || 'none'})`,
   );
 }
 
@@ -227,6 +249,7 @@ if (
   assert.match(sha, /^[a-f0-9]{40}$/);
   assert.match(repo ?? '', /^[\w.-]+\/[\w.-]+$/);
   assert.match(ref ?? '', /^refs\/tags\/v/, 'ADMISSION_REF must be a v* tag');
+  const version = readProjectVersion();
 
   requireReleaseBranch(
     execFileSync(
@@ -243,8 +266,9 @@ if (
       .split('\n')
       .filter(Boolean),
     sha,
+    version,
   );
-  console.log(`${sha} is on main or a release-x.y branch`);
+  console.log(`${sha} is on a branch ${version} may be released from`);
 
   const pages = path =>
     JSON.parse(
@@ -313,7 +337,6 @@ if (
     console.log(`${workflow}: run ${run.id} and ${gate} passed for ${sha}`);
   }
 
-  const version = readProjectVersion();
   const tags = execFileSync(
     'git',
     ['tag', '--merged', 'HEAD', '--list', 'v*'],

@@ -17,9 +17,9 @@
 name: TypeScript Storybook
 on:
   pull_request:
-    branches: [main]
+    branches: [main, v10]
   push:
-    branches: [main]
+    branches: [main, v10]
   workflow_dispatch:
     inputs:
       update-screenshots:
