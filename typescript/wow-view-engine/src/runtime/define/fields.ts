@@ -20,9 +20,10 @@
  * would only go stale.
  */
 
-import type {
-  FieldDescriptor,
-  QueryModelDescriptor,
+import {
+  TimeUnit,
+  type FieldDescriptor,
+  type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
 import {
   TEMPORAL_FIELD_KIND_IDS,
@@ -247,7 +248,10 @@ function fieldDescriptor(
 function temporalOf(described: DescribedField): FieldTemporal | undefined {
   const semantic = described.semantic;
   if (semantic?.type === 'TEMPORAL_DATE') return { type: 'date' };
-  if (semantic?.type === 'TEMPORAL_EPOCH' && semantic.timeUnit === 'SECONDS')
+  if (
+    semantic?.type === 'TEMPORAL_EPOCH' &&
+    semantic.timeUnit === TimeUnit.SECONDS
+  )
     return { type: 'epoch', timeUnit: 'SECONDS' };
   return undefined;
 }
