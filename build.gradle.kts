@@ -55,14 +55,20 @@ val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
-// incubating until their API settles; wow-architecture (V10's dependency rules), wow-kernel-benchmarks (spike H3) and
-// wow-routing-spike (spike H2) and wow-lease-spike (spike H6) are never published.
+// incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3) and
+// :routing-spike (spike H2) and :lease-spike (spike H6) are never published.
 val v10Projects = listOf(
-    "wow-manifest", "wow-query-api", "wow-spi", "wow-kernel", "wow-runtime", "wow-reactor",
-    "wow-postgres", "wow-http", "wow-spring-boot", "wow-migrate-data", "wow-architecture", "wow-kernel-benchmarks",
-    "wow-gradle-plugin", "wow-manifest-tools",
-    "wow-routing-spike", "wow-lease-spike",
+    "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
+    "postgres", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
+    "gradle-plugin", "manifest-tools",
+    "routing-spike", "lease-spike",
 ).map { project(":$it") }.toSet()
+
+// D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
+// Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
+// artifact minus the prefix (a Gradle task name, such as the test DSL's `:test-dsl`) is mapped here.
+val v10ArtifactIds = mapOf<String, String>()
+fun Project.artifactName(): String = if (this in v10Projects) v10ArtifactIds[name] ?: "wow-$name" else name
 // Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform
 // design R1b) left with the analytics service (R5d).
 val incubatingProjects = v10Projects
@@ -127,9 +133,9 @@ val integrationTestProjects = setOf(
     project(":wow-it"),
     project(":wow-view-store-starter"),
     project(":wow-dataset-registry-starter"),
-    project(":wow-postgres"),
-    project(":wow-routing-spike"),
-    project(":wow-lease-spike"),
+    project(":postgres"),
+    project(":routing-spike"),
+    project(":lease-spike"),
 )
 
 ext.set("localTestProjects", localTestProjects)
@@ -203,7 +209,7 @@ allprojects {
     }
     tasks.withType<Jar> {
         manifest {
-            attributes["Implementation-Title"] = project.name
+            attributes["Implementation-Title"] = project.artifactName()
             attributes["Implementation-Version"] = project.version
         }
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -226,6 +232,11 @@ configure(libraryProjects) {
     }
     apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
+    if (project in v10Projects) {
+        configure<BasePluginExtension> {
+            archivesName.set(artifactName())
+        }
+    }
     configure<JavaPluginExtension> {
         withJavadocJar()
         withSourcesJar()
@@ -350,6 +361,7 @@ configure(publishProjects) {
             val publishComponentName = if (isBom) "javaPlatform" else "java"
             create<MavenPublication>(publishName) {
                 from(components[publishComponentName])
+                artifactId = project.artifactName()
                 pom {
                     name.set(rootProject.name)
                     description.set(getPropertyOf("description"))

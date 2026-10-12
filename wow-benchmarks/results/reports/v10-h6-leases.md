@@ -6,7 +6,7 @@ In short: owners converge in about 2 s after a join or a graceful leave, and in 
 
 ## What Is Measured
 
-`test/wow-lease-spike`: `LeaseSpike`, plus `RenewalRoundSpike` for the defect. Both run only with `-Dwow.spike.h6=true`.
+`test/lease-spike` (`:lease-spike`): `LeaseSpike`, plus `RenewalRoundSpike` for the defect. Both run only with `-Dwow.spike.h6=true`.
 
 - **Nodes**: up to 5 in-process nodes. Each wires what a production node wires for one context:
   - its own database clients: a HikariCP pool of 16 for PostgreSQL, or a `MongoClient` with up to 32 connections;
@@ -239,7 +239,7 @@ With all partitions held, a 10 s TTL renews P/3 leases a second and a 5 s TTL re
 
 ## Defect: `PartitionOwnership` Renews Leases One At A Time
 
-`core/wow-runtime/.../cluster/PartitionOwnership.kt`, `renew()` and `start()`. Not fixed here.
+`core/runtime/.../cluster/PartitionOwnership.kt` (`:runtime`), `renew()` and `start()`. Not fixed here.
 
 - `renew()` loops over the held partitions and awaits `leases.renew(...)` for each in turn. The loop runs every `renewInterval`, counted from the end of the previous round: `every()` is `delay(interval)` then the block. So a partition is renewed about every `renewInterval + owned × latency`. Once that exceeds the TTL, the node's own leases expire between renewals, and it stops partitions that nobody else wants. They are re-acquired on a later reconcile, after the drop.
 - `start()` acquires every target partition one at a time, starting each partition's subscriptions, before it launches the renew loop. The leases acquired first are already as old as the whole initial reconcile when the first round begins.
@@ -286,7 +286,7 @@ The H6 row's abandon criterion is: *convergence too slow: shorten the lease and 
 ## Reproduce
 
 - **Source**: measured at `81f5e8d54d` (`v10` at `88643c2b95` plus this harness), with the harness as in this pull request. No production module changed.
-- **Command**: `./gradlew :wow-lease-spike:integrationTest -Dwow.spike.h6=true` (82 minutes, both backends). It writes `test/wow-lease-spike/build/spike-h6.json` and `spike-h6.md`.
+- **Command**: `./gradlew :lease-spike:integrationTest -Dwow.spike.h6=true` (82 minutes, both backends). It writes `test/lease-spike/build/spike-h6.json` and `spike-h6.md`. The measured run predates the D87 rename, so it used the old project names: `:wow-lease-spike` in `test/wow-lease-spike`, on `:wow-runtime` and `:wow-postgres`. The harness code is the same.
   - `-Dwow.spike.h6.quick=true` runs one repetition at P = 64 per backend and configuration.
   - `-Dwow.spike.h6.only=PostgreSQL` (or `MongoDB`) and `-Dwow.spike.h6.repetitions=<n>` narrow a run.
   - `--tests '*RenewalRoundSpike*'` runs the defect's scenario alone, in 90 seconds, without containers.
