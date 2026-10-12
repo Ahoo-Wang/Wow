@@ -77,6 +77,8 @@ The output stays flat whatever the parts: one object per row, keyed by the group
 
 An empty time zone or an unknown enum value throws.
 
+Each group builder also takes `scope` (`AggregationGroupScope`, Wow 9.9): with `elements`, `ROOT` groups the elements by a field of their root record, such as `dateHistogram('createTime', 'day', { unit: AggregationDateUnit.DAY, scope: AggregationGroupScope.ROOT })` after expanding `state.events`. It needs a field, not an expression, and a server whose descriptor has `analysis.rootGroups`.
+
 `dense: true` fills the gaps, and needs the group to be the only one. For `dateHistogram` it fills interior date gaps; with no rows there is no range to fill. For `datePart` it returns every key of the part's fixed domain, the empty ones filled in. Several `datePart` groups combine, such as weekday by hour:
 
 ```ts

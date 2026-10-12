@@ -16,6 +16,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   AggregationDatePart,
   AggregationDateUnit,
+  AggregationGroupScope,
   DerivedExpressionType,
   HavingExpressionType,
   ComparisonOperator,
@@ -257,6 +258,62 @@ describe('AggregationQuery', () => {
         metrics: [aggregation.avg(days, 'avgDays')],
       }).groupBy,
     ).toHaveLength(1);
+  });
+
+  it('groups expanded elements by a root field with a ROOT scope', () => {
+    const days = aggregation.dateDiff('a', 'b', DateDiffUnit.DAY);
+    expect(
+      aggregation.terms('state.id', 'aggregate', {
+        scope: AggregationGroupScope.ROOT,
+      }),
+    ).toEqual({
+      type: 'TERMS',
+      field: 'state.id',
+      scope: 'ROOT',
+      alias: 'aggregate',
+    });
+    expect(
+      aggregation.histogram('amount', 'band', {
+        interval: 10,
+        scope: AggregationGroupScope.ELEMENT,
+      }).scope,
+    ).toBe('ELEMENT');
+    expect(
+      aggregation.dateHistogram('createTime', 'day', {
+        unit: AggregationDateUnit.DAY,
+        scope: AggregationGroupScope.ROOT,
+      }).scope,
+    ).toBe('ROOT');
+    expect(
+      aggregation.datePart('createTime', 'hour', {
+        part: AggregationDatePart.HOUR_OF_DAY,
+        scope: AggregationGroupScope.ROOT,
+      }).scope,
+    ).toBe('ROOT');
+    expect(aggregation.terms('status', 'status')).not.toHaveProperty('scope');
+    expect(() =>
+      aggregation.histogram(days, 'band', {
+        interval: 7,
+        scope: AggregationGroupScope.ROOT,
+      }),
+    ).toThrow('HISTOGRAM with a ROOT scope requires a field input.');
+    expect(() =>
+      aggregation.terms('status', 'status', { scope: 'OUTER' as never }),
+    ).toThrow('TERMS group scope is invalid.');
+    // Hand-built groups are held to the same rule by aggregation.query().
+    expect(() =>
+      aggregation.query({
+        groupBy: [
+          {
+            type: 'TERMS',
+            expression: days,
+            alias: 'g',
+            scope: 'ROOT',
+          } as never,
+        ],
+        metrics: [aggregation.count('rows')],
+      }),
+    ).toThrow('TERMS with a ROOT scope requires a field input.');
   });
 
   it('reads the first and last value of a field, ordered on request', () => {

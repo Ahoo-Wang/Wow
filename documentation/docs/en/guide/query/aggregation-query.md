@@ -36,7 +36,7 @@ Each `AggregationElement` has a `path` and an optional `filter`. Elements are on
 - the first `path` is relative to the query-model root and uses an absolute logical path;
 - each later `path` is relative to the current expanded element;
 - an Element `filter` is relative to its own single element and cannot contain root-only filters;
-- with Elements, group, metric, and numeric-expression fields are relative to the innermost element; without them, they are relative to the query-model root.
+- with Elements, group, metric, and numeric-expression fields are relative to the innermost element; without them, they are relative to the query-model root. A group can name a root field instead with `scope: ROOT` ([Root Groups](#root-groups)).
 
 For example, `state.orders` → `lines` first expands root `state.orders`, then expands `lines` inside each order. It does not expand two root arrays independently.
 
@@ -52,6 +52,25 @@ For example, `state.orders` → `lines` first expands root `state.orders`, then 
 | `DATE_PART` | `field` | `part`, optional `timeZone` (defaults to `UTC`), optional `dense` (defaults to `false`) |
 
 `DATE_HISTOGRAM` date units are `YEAR`, `QUARTER`, `MONTH`, `WEEK`, `DAY`, `HOUR`, `MINUTE`, and `SECOND`. Bucket boundaries, temporal values, and field capability come from the actual query entry and backend; the shared AST does not promise complete backend equivalence.
+
+### Root Groups {#root-groups}
+
+With Elements, a group's optional `scope` says what its `field` is relative to: `ELEMENT` (the default) is the innermost element, and `ROOT` is the query-model root, as an absolute path. A `ROOT` group counts the elements under a field of the record they belong to, such as each day's events by name: expand `state.events`, group by `createTime` with `scope: ROOT` and by `name`, and count. Without Elements, `ROOT` reads the same as the default.
+
+- A `ROOT` group names a field, never an expression; admission checks the root field's group capability and protection as for any other group.
+- Only groups take `scope`. A metric still reads the innermost element, because a root value would be counted once per element.
+- It is an expensive construct: the descriptor's `analysis.rootGroups` is `true` where the backend can run it and expensive operators are allowed. MongoDB runs it natively; Elasticsearch and ClickHouse answer `StorageUnsupported` for now. Wow 9.9 and later.
+
+```json
+{
+  "elements": [{ "path": "state.events" }],
+  "groupBy": [
+    { "type": "DATE_HISTOGRAM", "field": "createTime", "alias": "day", "unit": "DAY", "scope": "ROOT" },
+    { "type": "TERMS", "field": "name", "alias": "event" }
+  ],
+  "metrics": [{ "type": "COUNT", "alias": "count" }]
+}
+```
 
 ### Date Parts {#date-part}
 

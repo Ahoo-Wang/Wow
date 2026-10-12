@@ -170,6 +170,7 @@ export type AggregationGroup<FIELDS extends string = string> = TermsAggregationG
 interface AggregationGroupBase<FIELDS extends string = string> {
     alias: string;
     field: QueryField<FIELDS>;
+    scope?: AggregationGroupScope;
 }
 
 // @public
@@ -180,6 +181,17 @@ export type AggregationGroupInput<FIELDS extends string = string> = {
     field?: undefined;
     expression: AggregationExpression<FIELDS>;
 };
+
+// @public
+export enum AggregationGroupScope {
+    ELEMENT = "ELEMENT",
+    ROOT = "ROOT"
+}
+
+// @public
+export interface AggregationGroupScopeOptions {
+    scope?: AggregationGroupScope;
+}
 
 // @public
 export enum AggregationGroupType {
@@ -253,6 +265,7 @@ export interface AnalysisDescriptor {
     firstLastOrderBy?: string;
     having: HavingDescriptor;
     metrics: (AggregationMetricType | (string & {}))[];
+    rootGroups?: boolean;
     sort: AnalysisSortDescriptor;
     windows?: WindowFunction[];
 }
@@ -689,7 +702,7 @@ export interface DateHistogramAggregationGroup<FIELDS extends string = string> e
 }
 
 // @public
-export interface DateHistogramAggregationOptions {
+export interface DateHistogramAggregationOptions extends AggregationGroupScopeOptions {
     dense?: boolean;
     timeZone?: string;
     unit: AggregationDateUnit;
@@ -705,7 +718,7 @@ export interface DatePartAggregationGroup<FIELDS extends string = string> extend
 }
 
 // @public
-export interface DatePartAggregationOptions {
+export interface DatePartAggregationOptions extends AggregationGroupScopeOptions {
     dense?: boolean;
     part: AggregationDatePart;
     timeZone?: string;
@@ -1406,10 +1419,11 @@ export type HistogramAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.HISTOGRAM;
     alias: string;
     interval: number;
+    scope?: AggregationGroupScope;
 } & AggregationGroupInput<FIELDS>;
 
 // @public
-export interface HistogramAggregationOptions {
+export interface HistogramAggregationOptions extends AggregationGroupScopeOptions {
     interval: number;
 }
 
@@ -2226,10 +2240,11 @@ export type TermsAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.TERMS;
     alias: string;
     missingKey?: string;
+    scope?: AggregationGroupScope;
 } & AggregationGroupInput<FIELDS>;
 
 // @public
-export interface TermsAggregationOptions {
+export interface TermsAggregationOptions extends AggregationGroupScopeOptions {
     missingKey?: string;
 }
 

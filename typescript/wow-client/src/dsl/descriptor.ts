@@ -628,6 +628,13 @@ export interface AnalysisDescriptor {
    * which compute no windows.
    */
   windows?: WindowFunction[];
+  /**
+   * Whether a group of a query that expands elements may name a field of the
+   * root record (`scope: 'ROOT'`); `false` when expensive operators are off.
+   * Absent from servers before Wow 9.9, which group elements by element
+   * fields only.
+   */
+  rootGroups?: boolean;
 }
 
 /** A rule about combinations that no single capability shows. */

@@ -17,6 +17,7 @@ import { requireValidExpressionTrees } from './expressionTrees.js';
 import { effectiveSort } from './sort.js';
 import {
   AGGREGATION_LIMITS,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   DerivedExpressionType,
@@ -106,6 +107,11 @@ function validateExpressions(
       group.expression
     ) {
       throw new TypeError('terms missingKey requires a field input.');
+    }
+    if (group.scope === AggregationGroupScope.ROOT && group.expression) {
+      throw new TypeError(
+        `${group.type} with a ROOT scope requires a field input.`,
+      );
     }
   });
 }

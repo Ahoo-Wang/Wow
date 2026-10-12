@@ -223,6 +223,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     // Text-mapped fields of nested objects run `match` inside the nested query.
     override val elementFullTextSearch: Boolean = true
 
+    // A composite inside a nested aggregation reaches no root field; the two-level form is not built yet.
+    override val elementRootGroups: Boolean = false
+
     // A `long` mapping coerces a fractional epoch to its integer part when it indexes it (`coerce` defaults to true).
     override val truncatesFractionalEpochs: Boolean = true
 

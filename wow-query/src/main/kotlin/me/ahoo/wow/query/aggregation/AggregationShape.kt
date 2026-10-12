@@ -15,6 +15,7 @@ package me.ahoo.wow.query.aggregation
 
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.spec.MetricSpec
@@ -188,6 +189,10 @@ internal fun requireSupported(query: AggregationQuery, storage: StorageSupport) 
     support.having.require(query.having != null, "HAVING")
     support.denseFill.require(query.denseGroup != null, "dense DATE_HISTOGRAM")
     support.topN.require(query.metricSorted, "sorting groups by a metric")
+    support.rootGroups.require(
+        query.elements.isNotEmpty() && query.groupBy.any { it.scope == AggregationGroupScope.ROOT },
+        "grouping elements by a root field",
+    )
     val used = query.metrics.mapTo(hashSetOf()) { it.spec }
     OFFERED_METRICS.forEach { (spec, feature) ->
         requireValid(spec !in used || storage.offers(spec)) { QueryViolation.StorageUnsupported(feature) }

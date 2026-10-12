@@ -19,6 +19,7 @@ import {
   AggregationExpressionOperator,
   AggregationExpressionType,
   AggregationFunction,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   ComparisonOperator,
@@ -166,6 +167,11 @@ describe('Wow OpenAPI document', () => {
       () => query('AggregationDatePart').enum,
     ],
     [
+      'AggregationGroupScope',
+      AggregationGroupScope,
+      () => query('AggregationGroupScope').enum,
+    ],
+    [
       'AggregationFunction',
       AggregationFunction,
       () => query('AggregationFunction').enum,
@@ -208,6 +214,7 @@ describe('Wow OpenAPI document', () => {
       part: true,
       timeZone: true,
       dense: true,
+      scope: true,
     };
     const group = query('AggregationGroup.DatePart');
     expect(Object.keys(declared).sort()).toEqual(
@@ -387,6 +394,7 @@ describe('Wow OpenAPI document', () => {
           dateDiffUnits: true,
           firstLastOrderBy: true,
           windows: true,
+          rootGroups: true,
         }),
       ],
       ['HavingDescriptor', keys<HavingDescriptor>({ metrics: true })],

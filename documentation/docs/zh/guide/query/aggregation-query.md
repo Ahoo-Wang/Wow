@@ -36,7 +36,7 @@ flowchart LR
 - 第一个 `path` 相对查询模型根，使用绝对逻辑路径；
 - 之后的 `path` 相对当前已展开元素；
 - Element 的 `filter` 相对它自己的单个元素，且不能含 root-only 过滤器；
-- 有 Elements 时，group、metric 与数值表达式的字段相对最内层元素；没有 Elements 时，它们相对查询模型根。
+- 有 Elements 时，group、metric 与数值表达式的字段相对最内层元素；没有 Elements 时，它们相对查询模型根。分组可以用 `scope: ROOT` 改按根字段（见[按根字段分组](#root-groups)）。
 
 例如 `state.orders` → `lines` 表示先展开根上的 `state.orders`，再在每个 order 内展开 `lines`；它不是分别展开两个根数组。
 
@@ -52,6 +52,25 @@ flowchart LR
 | `DATE_PART` | `field` | `part`、可选 `timeZone`（默认 `UTC`）、可选 `dense`（默认 `false`） |
 
 `DATE_HISTOGRAM` 的日期单位为 `YEAR`、`QUARTER`、`MONTH`、`WEEK`、`DAY`、`HOUR`、`MINUTE`、`SECOND`。桶边界、时间值与字段能力由实际查询入口及后端决定；公共 AST 不承诺它们在所有后端完全一致。
+
+### 按根字段分组 {#root-groups}
+
+有 Elements 时，分组可选的 `scope` 指明 `field` 相对什么：`ELEMENT`（缺省）是最内层元素，`ROOT` 是查询模型根，字段写绝对路径。`ROOT` 分组把元素按它所属记录上的字段归组，例如按天统计各事件名的次数：展开 `state.events`，按 `createTime`（`scope: ROOT`）与 `name` 分组，再计数。没有 Elements 时，`ROOT` 与缺省相同。
+
+- `ROOT` 分组只能是字段，不能是表达式；准入照常检查根字段的分组能力与是否受保护。
+- 只有分组有 `scope`。指标仍读最内层元素：根上的值会随它的元素被数多次。
+- 它属于昂贵构造：后端能执行且允许昂贵运算符时，描述符的 `analysis.rootGroups` 为 `true`。MongoDB 原生执行；Elasticsearch 与 ClickHouse 目前回答 `StorageUnsupported`。Wow 9.9 起。
+
+```json
+{
+  "elements": [{ "path": "state.events" }],
+  "groupBy": [
+    { "type": "DATE_HISTOGRAM", "field": "createTime", "alias": "day", "unit": "DAY", "scope": "ROOT" },
+    { "type": "TERMS", "field": "name", "alias": "event" }
+  ],
+  "metrics": [{ "type": "COUNT", "alias": "count" }]
+}
+```
 
 ### 日期部分（DATE_PART） {#date-part}
 

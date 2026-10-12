@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 277 names, from src/index.ts.
+# @ahoo-wang/wow-client — 279 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -20,6 +20,8 @@ value AggregationExpressionType
 value AggregationFunction
 type  AggregationGroup
 type  AggregationGroupInput
+value AggregationGroupScope
+type  AggregationGroupScopeOptions
 value AggregationGroupType
 type  AggregationLimitsDescriptor
 type  AggregationMetric

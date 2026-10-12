@@ -316,6 +316,48 @@ class AggregationQueryTest {
     }
 
     @Test
+    fun `a group's scope is written only when it reads the root`() {
+        val root = AggregationGroup.DateHistogram(
+            QueryField("createTime"),
+            "day",
+            AggregationDateUnit.DAY,
+            scope = AggregationGroupScope.ROOT,
+        )
+        val element = AggregationGroup.Terms(QueryField("name"), "name")
+        val json = configuredMapper.writeValueAsString(
+            AggregationQuery(groupBy = listOf(root, element), metrics = listOf(AggregationMetric.Count("n"))),
+        )
+        json.assert().contains("\"scope\":\"ROOT\"")
+        json.split("\"scope\"").size.assert().isEqualTo(2)
+        configuredMapper.readValue(json, AggregationQuery::class.java).groupBy.map { it.scope }
+            .assert().containsExactly(AggregationGroupScope.ROOT, null)
+    }
+
+    @Test
+    fun `a ROOT group names a field, not an expression`() {
+        val input = AggregationExpression.Field(QueryField("amount"))
+        assertThrows<IllegalArgumentException> {
+            AggregationGroup.Terms(alias = "t", expression = input, scope = AggregationGroupScope.ROOT)
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregationGroup.Histogram(
+                alias = "h",
+                interval = 1.0,
+                expression = input,
+                scope = AggregationGroupScope.ROOT
+            )
+        }
+        AggregationGroup.Histogram(QueryField("amount"), "h", 1.0, scope = AggregationGroupScope.ROOT)
+            .scope.assert().isEqualTo(AggregationGroupScope.ROOT)
+        AggregationGroup.DatePart(
+            QueryField("createTime"),
+            "hour",
+            AggregationDatePart.HOUR_OF_DAY,
+            scope = AggregationGroupScope.ELEMENT,
+        ).scope.assert().isEqualTo(AggregationGroupScope.ELEMENT)
+    }
+
+    @Test
     fun `groups should reject invalid local histogram options`() {
         listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY).forEach { interval ->
             assertThrows<IllegalArgumentException> {

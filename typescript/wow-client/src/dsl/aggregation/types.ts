@@ -35,6 +35,17 @@ export enum AggregationGroupType {
 }
 
 /**
+ * What an {@link AggregationGroup}'s field is relative to when the query
+ * expands elements, sent as its `scope`. Wow 9.9 and later.
+ */
+export enum AggregationGroupScope {
+  /** The innermost expanded element; the default. */
+  ELEMENT = 'ELEMENT',
+  /** The root record, so the elements are grouped by a field of their root. */
+  ROOT = 'ROOT',
+}
+
+/**
  * The kind of an {@link AggregationMetric}, sent as its `type`. Wow 8.12
  * knows `COUNT` and `NUMERIC`, Wow 9.0 adds `ANY`, and the other three need
  * Wow 9.1.
@@ -192,6 +203,13 @@ interface AggregationGroupBase<FIELDS extends string = string> {
   field: QueryField<FIELDS>;
   /** The name of the group's column in the result rows. */
   alias: string;
+  /**
+   * What `field` is relative to when the query expands elements: the
+   * innermost element (`ELEMENT`, the default) or the root record (`ROOT`).
+   * A `ROOT` group names a field, never an expression. Wow 9.9 and later,
+   * where `analysis.rootGroups` is `true`.
+   */
+  scope?: AggregationGroupScope;
 }
 
 /**
@@ -222,6 +240,13 @@ export type TermsAggregationGroup<FIELDS extends string = string> = {
   alias: string;
   /** The key the rows without a value are grouped under. Wow 9.1 and later. */
   missingKey?: string;
+  /**
+   * What `field` is relative to when the query expands elements: the
+   * innermost element (`ELEMENT`, the default) or the root record (`ROOT`).
+   * A `ROOT` group names a field, never an expression. Wow 9.9 and later,
+   * where `analysis.rootGroups` is `true`.
+   */
+  scope?: AggregationGroupScope;
 } & AggregationGroupInput<FIELDS>;
 
 /**
@@ -234,6 +259,13 @@ export type HistogramAggregationGroup<FIELDS extends string = string> = {
   alias: string;
   /** The width of each bucket, greater than 0. */
   interval: number;
+  /**
+   * What `field` is relative to when the query expands elements: the
+   * innermost element (`ELEMENT`, the default) or the root record (`ROOT`).
+   * A `ROOT` group names a field, never an expression. Wow 9.9 and later,
+   * where `analysis.rootGroups` is `true`.
+   */
+  scope?: AggregationGroupScope;
 } & AggregationGroupInput<FIELDS>;
 
 /**
@@ -683,20 +715,30 @@ export interface AggregationMetricOptions<FIELDS extends string = string> {
   filter?: FilterExpression<FIELDS>;
 }
 
+/** The option every group builder takes. */
+export interface AggregationGroupScopeOptions {
+  /**
+   * What the field is relative to when the query expands elements; the
+   * innermost element when absent. `ROOT` needs a field input. Wow 9.9 and
+   * later.
+   */
+  scope?: AggregationGroupScope;
+}
+
 /** The options of {@link aggregation.terms}. */
-export interface TermsAggregationOptions {
+export interface TermsAggregationOptions extends AggregationGroupScopeOptions {
   /** The key rows without a value are grouped under; must not be blank. */
   missingKey?: string;
 }
 
 /** The options of {@link aggregation.histogram}. */
-export interface HistogramAggregationOptions {
+export interface HistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The width of each bucket: finite and greater than 0. */
   interval: number;
 }
 
 /** The options of {@link aggregation.dateHistogram}. */
-export interface DateHistogramAggregationOptions {
+export interface DateHistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar unit of each bucket. */
   unit: AggregationDateUnit;
   /** The zone the buckets are cut in, an IANA id. Defaults to `UTC`. */
@@ -709,7 +751,7 @@ export interface DateHistogramAggregationOptions {
 }
 
 /** The options of {@link aggregation.datePart}. */
-export interface DatePartAggregationOptions {
+export interface DatePartAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar part each row is grouped by. */
   part: AggregationDatePart;
   /** The zone the part is read in, an IANA id. Defaults to `UTC`. */

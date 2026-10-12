@@ -44,6 +44,6 @@
 
 | 批 | 内容 | 验证 |
 | -- | -- | -- |
-| E1 | wow-api 的 `scope`、wow-query 的准入、MongoDB 编译、TCK 用例 | TCK 在 MongoDB 上过 |
+| E1 | wow-api 的 `scope`、wow-query 的准入、MongoDB 编译、TCK 用例；wow-client 镜像（契约测试逐键对照服务端的 schema，须同批） | TCK 在 MongoDB 上过；契约测试 |
 | E2 | Elasticsearch 的两层编译与分页 | 同一套 TCK 在 Elasticsearch 上过 |
-| E3 | wow-client 镜像、view-engine 放开分组、控制台的图 | 单测、契约测试、浏览器故事 |
+| E3 | view-engine 放开分组、控制台的图 | 单测、契约测试、浏览器故事 |
