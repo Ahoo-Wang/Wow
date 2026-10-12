@@ -74,3 +74,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | V10 注解集合入（Ahoo-Wang/Wow#4250）。用户拍板 D81、D82：线上形式改名 `StateEventRecord`，处理函数的类型化形式叫 `StateEvent<S>`；事件升级函数用 `@Upgrade` 注解、KSP 编译期校验链 |
 | 2026-10-12 | H2 阶段 1 的判定格子跑完，预先登记的标准全部满足：D6 定为默认 Partitioned（Zipf 热点 80% 负载 p99 8.95 → 3.20 ms、读次数降 43%、冲突归零；均匀冷负载代价 +0.6 ms）；入口一致性哈希作为部署建议；阶段 2 只做确认 |
 | 2026-10-12 | 集群通道 4.2a 合入（Ahoo-Wang/Wow#4251）：转发消息格式 1 记入 08，HRW 权重与交接细节记入 02；用户拍板 D83、D84：新模块 `wow-gradle-plugin` 承载构建期 schema 内省与 Manifest 合并，schema 由 victools 加 Jackson 模块生成；H6 的依赖已满足 |
+| 2026-10-12 | H2 阶段 1 的完整报告合入（Ahoo-Wang/Wow#4255）：补充格子与 D6 一致；D6 的依据补上 PostgreSQL 用 `synchronous_commit=off` 的前提，阶段 2 在真实 3 JVM 与持久化配置下确认；删除交接分支 `claude/v10-spike-h2-wip` |

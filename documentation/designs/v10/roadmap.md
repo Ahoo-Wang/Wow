@@ -71,7 +71,7 @@ flowchart LR
 | WP | 假设 | 出口 |
 |---|---|---|
 | 1.1 | H1 分区序号分配的吞吐（PostgreSQL 两种方式；MongoDB 事务与分组提交） | 单分区与 64 分区的吞吐、p99、尾随延迟；不跳过的故障注入结果；PostgreSQL 完成：单语句分配，64 分区约 3 万次/秒（Ahoo-Wang/Wow#4216）；MongoDB 完成：属主分组提交约 4.4～5.6 千次/秒，无属主时塌缩，见 `wow-benchmarks/results/reports/v10-h1-mongo-partition-sequence.md` |
-| 1.2 | H2 亲和路由的收益：阶段 1 进程内 3 节点 + 真实 PostgreSQL（Local、Partitioned、入口哈希三组）；阶段 2 在 4.2 之后用 3 个 JVM 复测并测属主故障（设计见决策台账 H2） | 阶段 1 的报告与 D6 拍板；阶段 2 的确认报告；阶段 1 完成：D6 定为 Partitioned（2026-10-12） |
+| 1.2 | H2 亲和路由的收益：阶段 1 进程内 3 节点 + 真实 PostgreSQL（Local、Partitioned、入口哈希三组）；阶段 2 在 4.2 之后用 3 个 JVM 复测并测属主故障（设计见决策台账 H2） | 阶段 1 的报告与 D6 拍板；阶段 2 的确认报告；阶段 1 完成：D6 定为 Partitioned（2026-10-12，[报告](../../../wow-benchmarks/results/reports/v10-h2-routing.md)，Ahoo-Wang/Wow#4255） |
 | 1.3 | H3 协程内核的性能 | 与 9.3 Reactor 内核同一 JMH 基准的吞吐与分配率；同步与 `suspend` 处理函数分别测，验证快速路径无续体分配；完成：V10 快约 7.7 倍、分配减半，见 `wow-benchmarks/results/reports/v10-h3-kernel-comparison.md` |
 | 1.4 | H4 KSP 的覆盖 | example、compensation、view-store 与 transfer（Java 源码）的注解模型由 KSP 生成，与 9.x 运行时解析结果比对；完成：38 个命令处理函数中 27 个直接绑定，11 个经 Skill 改写签名（D49），见 `wow-benchmarks/results/reports/v10-h4-ksp-coverage.md` |
 | 1.5 | H6 存储租约：成员、属主收敛与再平衡（PostgreSQL、MongoDB） | 收敛时间、迁移分区数、交接期间的重复处理比例 |
@@ -183,9 +183,9 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 ./gradlew :wow-api:check :wow-spi:check :wow-kernel:check :wow-runtime:check :wow-reactor:check :wow-compiler:test :wow-postgres:check :wow-postgres:integrationTest :wow-mongo:check :wow-mongo:integrationTest :wow-kernel-benchmarks:compileJmhKotlin :wow-architecture:test detekt
 ```
 
-**已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）；集群通道 4.2a（Ahoo-Wang/Wow#4251：HRW 无主对账、主动交接、`Partitioned` 路由与降级 Local、`Member` 内部地址、同步命令转发与进程内回环传输）；V10 注解集与 `wow-api` 的 `subscribe` 包（Ahoo-Wang/Wow#4250：KSP 只认 V10 注解，删除的注解与命令字段上的身份注解报编译错误，事件的 `@Name` / `@Revision` / `@Alias` 进入模型，订阅类的形状校验）。H1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
+**已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）；集群通道 4.2a（Ahoo-Wang/Wow#4251：HRW 无主对账、主动交接、`Partitioned` 路由与降级 Local、`Member` 内部地址、同步命令转发与进程内回环传输）；V10 注解集与 `wow-api` 的 `subscribe` 包（Ahoo-Wang/Wow#4250：KSP 只认 V10 注解，删除的注解与命令字段上的身份注解报编译错误，事件的 `@Name` / `@Revision` / `@Alias` 进入模型，订阅类的形状校验）。H1、H2 阶段 1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
 
-**进行中**：Manifest v0（5a.1 的第一部分，子代理实现：`wow-manifest` 模型与片段合并、`wow-compiler` 产出片段、新模块 `wow-gradle-plugin` 用 victools 内省 schema 并合并服务级 `manifest.json`）。H2 的完整报告（补充的大状态与 5 节点负载）仍由原来那台电脑上的子代理在跑，完成后推送 `claude/v10-spike-h2` 并开 PR；主会话只核对报告结论与 D6 一致（补充负载若给出相反证据，提交用户拍板），演练后合并；不要另派子代理重复执行，久等不到再从 `claude/v10-spike-h2-wip` 接手补完报告。
+**进行中**：Manifest v0（5a.1 的第一部分，子代理实现：`wow-manifest` 模型与片段合并、`wow-compiler` 产出片段、新模块 `wow-gradle-plugin` 用 victools 内省 schema 并合并服务级 `manifest.json`）；4.6 内置快照订阅（Ahoo-Wang/Wow#4256，审查中）。
 
 **下一步队列**（按依赖排序；同一行内的可并行）：
 
