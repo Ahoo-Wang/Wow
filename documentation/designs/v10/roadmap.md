@@ -169,3 +169,33 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 ## 4. 并行与关键路径
 
 关键路径：M1 → M2 → M3 → M4 → M6 → M7 → M8c → M9。可并行：M5a 与 M3 同时（都只依赖 M2）；M8a 在 M2 之后即可试点；M8b 在 M3 之后开始。同一时间最多三路，避免改同一批模块。
+
+## 5. 当前进度与下一步（2026-10-12 交接）
+
+本节是换会话继续推进的入口：先读本节，再读[决策台账](decisions.md)（D1～D76 已定，只剩 D6 待 H2 证据）与 [08 数据协议](08-data-protocols.md)。
+
+**工作方式**：主会话只做协调与审查；实现交给隔离 worktree 里的子代理，子代理开 PR 到 `v10` 但不合并；主会话审查后在本地对合并结果做演练（完整验证命令全绿），再 `gh pr merge --squash --admin --match-head-commit <完整 SHA>`。子代理的说明里必须写明：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；改动公开面时更新 `wow-api`、`wow-mongo` 的 ABI 转储；先 `detekt --auto-correct`；不改设计文档（由主会话改）；互相并行的子代理不碰同一批文件。
+
+完整验证命令：
+
+```text
+./gradlew :wow-api:check :wow-spi:check :wow-kernel:check :wow-runtime:check :wow-reactor:check :wow-compiler:test :wow-postgres:check :wow-postgres:integrationTest :wow-mongo:check :wow-mongo:integrationTest :wow-kernel-benchmarks:compileJmhKotlin :wow-architecture:test detekt
+```
+
+**已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4，仍绑定 9.x 注解）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）。H1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
+
+**进行中**：H2 阶段 1（分支 `claude/v10-spike-h2`，测试模块 `test/wow-routing-spike`）。若该分支已有 PR：审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6（中间数据明显偏向 Partitioned：Zipf 80% 负载 p99 Local 274 ms 对 Partitioned 3.7 ms），再合并。若没有 PR：从该分支或重新按 H2 行的设计派子代理完成。
+
+**下一步队列**（按依赖排序；同一行内的可并行）：
+
+| 顺序 | 工作包 | 依赖与要点 |
+|---|---|---|
+| 1 | 4.2 集群通道与再平衡（D70～D72） | HRW 无主对账、主动交接、转发失败降级 Local、`Member` 增加内部地址（SPI 与三套后端）、命令转发与结果回传（HTTP/2 + JSON，D26）、跨节点等待信号直达发起节点（D65） |
+| 1 | V10 注解集与 `wow-api` 新包（D66～D68） | 01 §3 的注解表、06 §2.1 的包结构；KSP 改为只认 V10 注解；命令与事件的 `@Alias`；`StateEvent` 与订阅上下文（`subscribe` 包）；命令体不放身份 |
+| 2 | 4.6 内置快照订阅 | 用 `EventCodec.snapshotOf`，作用域取自事件流的 `scope`；同批同聚合合并写入；等待的默认 `SNAPSHOT` 由它完成 |
+| 2 | D50 预留确认订阅 | 按日志条目传输段确认待确认预留；恢复路径需要一条带传输段的读取 |
+| 3 | 2.4 生命周期命令与事件 | 删除、恢复、转移所有者 / 空间（在 `Kernel.scopeAfter` 接入）、标签 |
+| 3 | 等待的后续 | 流式结果改为每条派生命令推一个；只有默认计划可退回 `COMMITTED`，显式要求快照而无快照订阅时拒绝；`WaitPlan` 提供 `java.time.Duration` 重载 |
+| 4 | H6（租约收敛实测）、H2 阶段 2 | 依赖 4.2 |
+| 4 | 5a.1 Manifest v0 与 Jackson 内省 schema（D73～D74） | 依赖注解集 |
+
