@@ -47,8 +47,6 @@ class WaitChainTest {
             Hop.handled("order.saga", "shop"),
             Hop.committed("shop"),
         )
-        chain.firstHandled.assert().isEqualTo(Hop.handled("order.saga", "shop"))
-        chain.continuesAfter(Hop.handled("order.saga", "shop")).assert().isTrue()
     }
 
     @Test

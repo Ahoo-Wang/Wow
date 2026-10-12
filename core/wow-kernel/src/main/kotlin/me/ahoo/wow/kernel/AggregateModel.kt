@@ -125,6 +125,7 @@ class AggregateModel<S : Any>(
         (type.aliases + type.name).map { it to type }
     }.toMap()
     private val commandsByType: Map<Class<*>, CommandType> = commandTypes.associateBy { it.type }
+    private val commandsByName: Map<String, CommandType> = commandTypes.associateBy { it.name }
     private val afterByCommand: Map<Class<*>, List<AfterFunction<S>>> =
         deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
 
@@ -164,6 +165,12 @@ class AggregateModel<S : Any>(
 
     /** The event type named [name] (or formerly named so) in the log, or null when this aggregate has none. */
     fun findEventType(name: String): EventType? = eventsByName[name]
+
+    /**
+     * The command type named [name], or null when this aggregate has none: how a command that arrives in its wire
+     * form (design 08 §3, a forwarded one) finds the class its body is read as.
+     */
+    fun findCommandType(name: String): CommandType? = commandsByName[name]
 
     /** The name of [commandClass], a command this aggregate decides. */
     fun commandType(commandClass: Class<*>): CommandType =

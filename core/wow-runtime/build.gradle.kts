@@ -2,6 +2,7 @@ description = "Wow Runtime: gateway, router, cluster channel, executor, subscrip
 
 dependencies {
     api(project(":wow-kernel"))
+    implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")
 }
 

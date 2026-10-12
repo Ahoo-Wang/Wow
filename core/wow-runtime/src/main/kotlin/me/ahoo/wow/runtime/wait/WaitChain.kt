@@ -26,12 +26,6 @@ internal sealed interface CheckedPlan
  * its context, a null one being [context].
  */
 internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan {
-    /** The HANDLED hop the root command's generation ends with, if any. */
-    val firstHandled: Hop? get() = hops.firstOrNull { it.stage == Stage.HANDLED }
-
-    /** Whether [hop] is followed by more hops. */
-    fun continuesAfter(hop: Hop): Boolean = hops.indexOf(hop) < hops.lastIndex
-
     /** A plan that is not a chain the runtime can follow, and why. */
     class Invalid(val reason: String) : CheckedPlan
 

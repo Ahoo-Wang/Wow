@@ -30,10 +30,15 @@ data class Lease(
     val expiresAt: Long,
 )
 
-/** [node] is a live member of subscription group [group] until [expiresAt] (epoch milliseconds, exclusive). */
+/**
+ * [node] is a live member of subscription group [group] until [expiresAt] (epoch milliseconds, exclusive). [address]
+ * is the node's internal address (`host:port` of its internal port, never the public one; decision D72): where the
+ * cluster channel reaches it, so commands can be routed to the owners of partitions.
+ */
 data class Member(
     val group: String,
     val node: String,
+    val address: String,
     val expiresAt: Long,
 )
 
@@ -71,8 +76,11 @@ interface LeaseStore {
     /** The live leases of [group], in partition order. */
     suspend fun owners(group: String): List<Lease>
 
-    /** Registers [node] as a member of [group], or keeps it one, for [ttl] from now. */
-    suspend fun heartbeat(group: String, node: String, ttl: Duration): Member
+    /**
+     * Registers [node] as a member of [group] reachable at [address], or keeps it one, for [ttl] from now. A later
+     * heartbeat replaces the address, so a node restarted on another address is found there.
+     */
+    suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member
 
     /** The live members of [group], in node order. */
     suspend fun members(group: String): List<Member>
