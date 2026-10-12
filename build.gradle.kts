@@ -129,6 +129,7 @@ val localContractTestProjects = includedProjects(
 val v10IntegrationTestProjects = includedProjects(
     ":postgres",
     ":mongo",
+    ":spring-boot",
     ":routing-spike",
     ":lease-spike",
 )
