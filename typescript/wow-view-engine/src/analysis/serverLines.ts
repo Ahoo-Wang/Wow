@@ -125,6 +125,92 @@ export function serverLineMetrics(
   return metrics;
 }
 
+/**
+ * Why a metric card over a trend cannot be measured against the same period
+ * a year earlier (D90), or `undefined` when the source computes it: the
+ * source lists no `PREVIOUS` (`unsupported`), the trend is cut in weeks — 52
+ * weeks back is no week of the year (`week`) — or the headline is no number
+ * of the group a window reads, a ratio or a moment (`not-measured`).
+ */
+export type YearAgoGap = 'unsupported' | 'week' | 'not-measured';
+
+export function yearAgoGap(
+  offeredWindows: readonly string[],
+  config: AnalysisViewConfig,
+  metric: string,
+  moments: ReadonlySet<string> = new Set(),
+): YearAgoGap | undefined {
+  if (!offeredWindows.includes('PREVIOUS')) return 'unsupported';
+  const x = config.chart.metric?.trend?.x;
+  if (timeGroup(config, x)?.unit === 'WEEK') return 'week';
+  const measured = config.metrics.find(one => one.alias === metric);
+  return measured && WINDOWED.has(measured.type) && !moments.has(metric)
+    ? undefined
+    : 'not-measured';
+}
+
+/** The hidden metric a card's same period a year earlier is read off. */
+export function yearAgoAlias(metric: string): string {
+  return serverLineAlias({ kind: 'previous-year', metric });
+}
+
+/**
+ * The hidden metric a metric card asks for to say its last period against
+ * the same period a year earlier (D90): `PREVIOUS(metric, along the trend,
+ * a year)`, which Wow reads over the range shifted back a year — so a month
+ * to date is compared with the same days of that month a year before. None
+ * where the card reads the whole, measures against the period before, or
+ * cannot be measured so (`yearAgoGap`), or where the alias is taken.
+ */
+export function cardLineMetrics(
+  offeredWindows: readonly string[],
+  config: AnalysisViewConfig,
+  moments: ReadonlySet<string> = new Set(),
+): AggregationMetric[] {
+  const spec = config.chart.type === 'metric' ? config.chart.metric : undefined;
+  const trend = spec?.trend;
+  if (
+    !spec ||
+    !trend ||
+    trend.against !== 'previous-year' ||
+    trend.headline === 'whole' ||
+    timeGroup(config, trend.x) === undefined ||
+    yearAgoGap(offeredWindows, config, spec.metric, moments) !== undefined
+  )
+    return [];
+  const alias = yearAgoAlias(spec.metric);
+  if (
+    config.groups.some(group => group.alias === alias) ||
+    config.metrics.some(metric => metric.alias === alias)
+  )
+    return [];
+  return [
+    aggregation.derived(
+      d =>
+        d.previous(spec.metric, trend.x, { period: AggregationDateUnit.YEAR }),
+      alias,
+    ),
+  ];
+}
+
+/**
+ * Every hidden metric the chart asks the source for: the computed lines of
+ * a cartesian chart (D87–D88) and a metric card's same period a year
+ * earlier (D90). A chart that asks for one the rows lack runs again
+ * (`useAnalysisResult`), since a chart edit alone never asks the source.
+ */
+export function hiddenMetrics(
+  offeredWindows: readonly string[],
+  config: AnalysisViewConfig,
+  windowOf: (line: DerivedSeries) => number,
+  moments: ReadonlySet<string> = new Set(),
+): AggregationMetric[] {
+  return [
+    ...serverLineMetrics(offeredWindows, config, windowOf),
+    ...cardLineMetrics(offeredWindows, config, moments),
+  ];
+}
+
 /** Whether a derived kind is an earlier period's value of the metric (D88). */
 export function isPrevious(kind: DerivedSeries['kind']): boolean {
   return kind === 'previous' || kind === 'previous-year';

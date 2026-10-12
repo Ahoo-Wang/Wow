@@ -144,6 +144,7 @@ class ViewStoreServerBootTest {
             "$scope/view/snapshot/single",
             "$scope/system-views",
             "$scope/definitions/{definitionId}/preferences",
+            "$scope/datasets/{dataset}/wording",
             "$scope/view/requests/{requestId}",
         )
         // The routes the view store refuses are left out of the document.
@@ -172,6 +173,42 @@ class ViewStoreServerBootTest {
             .exchange()
             .expectStatus().isOk
             .expectBody().jsonPath("$.version").isEqualTo(0)
+    }
+
+    private fun wording(owner: String, version: Int, body: String? = "{\"title\":\"订单\"}"): WebTestClient.ResponseSpec {
+        val request = client.put().uri("/view-store/tenant/t1/owner/$owner/datasets/analytics.orders/wording")
+            .header(ViewStoreService.APP_ID_HEADER, "console")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.AGGREGATE_VERSION, version.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+        return (body?.let { request.bodyValue(it) } ?: request).exchange()
+    }
+
+    /** A dataset's wording (view engine D86): set and cleared under the shared owner, at the expected version. */
+    @Test
+    fun `sets and clears a dataset's wording under the shared owner`() {
+        wording("(shared)", 0)
+            .expectStatus().isOk
+            .expectBody().jsonPath("$.aggregateVersion").isEqualTo(1)
+        // Version 0 is "never written": against written wording it is a conflict.
+        wording("(shared)", 0).expectStatus().isEqualTo(409)
+        // The wording is the tenant's: no other owner serves it.
+        wording("alice", 1).expectStatus().isNotFound
+        wording("(shared)", 1, body = null).expectStatus().isBadRequest
+        client.put().uri("/view-store/tenant/t1/owner/(shared)/datasets/analytics.orders/wording")
+            .header(CommandHeaders.AGGREGATE_VERSION, "1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"title":"订单"}""")
+            .exchange()
+            .expectStatus().isBadRequest
+
+        client.delete().uri("/view-store/tenant/t1/owner/(shared)/datasets/analytics.orders/wording")
+            .header(ViewStoreService.APP_ID_HEADER, "console")
+            .header(CommandHeaders.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandHeaders.AGGREGATE_VERSION, "1")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody().jsonPath("$.errorCode").isEqualTo("Ok")
     }
 
     @Test

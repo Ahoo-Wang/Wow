@@ -1185,6 +1185,16 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.chart.compare-mode': '比较方式',
   'label.chart.compare.delta': '差值',
   'label.chart.compare.percent': '百分比',
+  'label.chart.against': '对比',
+  'label.chart.against.previous': '上一期',
+  'label.chart.against.previous-year': '去年同期',
+  'label.chart.against.previous.hint': '最后一期与紧挨着的上一期比。',
+  'label.chart.against.previous-year.hint': '最后一期与一年前的同一段日子比。',
+  'label.chart.against.gap.unsupported': '这个数据源读不了去年同期。',
+  'label.chart.against.gap.week':
+    '按周分组没有「去年同一周」；按日或按月分组才能与去年同期比。',
+  'label.chart.against.gap.not-measured':
+    '只有记录数或字段的汇总能与去年同期比。',
   'label.chart.headline': '大数字',
   'label.chart.headline.last': '最后一期',
   'label.chart.headline.whole': '全部',
@@ -1515,11 +1525,14 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.chart.change.against.HOUR': '较前一小时',
   'label.chart.change.against.MINUTE': '较前一分钟',
   'label.chart.change.against.SECOND': '较前一秒',
+  'label.chart.change.against.previous-year': '较去年同期',
   'label.chart.compare.against': '较「{metric}」',
   'label.chart.compare.unmatched':
     '「{metric}」的时段与所选日期对不上，不作比较',
   'label.chart.change.points': '{amount} 个百分点',
   'label.chart.change.none': '没有上一期可比',
+  'label.chart.change.none.previous-year': '没有去年同期可比',
+  'label.chart.change.unknown.previous-year': '去年同期没有可比的数',
   'label.chart.change.unknown': '上一期没有可比的数',
   'label.chart.change.unmatched':
     '所选日期在本期与上一期覆盖的长短不同，不作比较',

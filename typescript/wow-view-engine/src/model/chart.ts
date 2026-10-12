@@ -643,9 +643,25 @@ export interface MetricTrend {
    * record in the range, from the ungrouped query (`asksForWhole`).
    */
   headline?: MetricHeadline;
+  /**
+   * What the last period is measured against (D90). `previous`, the
+   * default: the period right before, read off the sparkline's own rows.
+   * `previous-year`: the same period a year earlier, which Wow computes
+   * (`PREVIOUS` by a year over the range shifted back) where the source
+   * lists the window — 「较去年同期」. Read only with the `last` headline.
+   */
+  against?: MetricAgainst;
 }
 
 export type MetricHeadline = 'last' | 'whole';
+
+export type MetricAgainst = 'previous' | 'previous-year';
+
+/** The two periods a trend card's last period is measured against, the default first. */
+export const METRIC_AGAINST = [
+  'previous',
+  'previous-year',
+] as const satisfies readonly MetricAgainst[];
 
 /** The two readings of a trend card's headline, the default first. */
 export const METRIC_HEADLINES = [

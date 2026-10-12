@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 878 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 880 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -288,6 +288,7 @@ value MAX_VIEW_CONFIG_BYTES
 value MAX_VIEW_TITLE_LENGTH
 value METADATA_FIELD_KINDS
 value METADATA_FIELD_KIND_IDS
+value METRIC_AGAINST
 value METRIC_HEADLINES
 type  MalformedVisit
 type  MapData
@@ -299,6 +300,7 @@ type  MemoryState
 value MemoryViewStore
 type  MemoryViewStoreOptions
 type  MetadataFieldKindId
+type  MetricAgainst
 type  MetricCardData
 type  MetricCardSpec
 type  MetricCondition

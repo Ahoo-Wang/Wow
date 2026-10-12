@@ -805,6 +805,40 @@ abstract class ViewStoreHostSpec {
         getPreferences(uri, OTHER_APP).expectBody().jsonPath("$.version").isEqualTo(0)
     }
 
+    /**
+     * A dataset's wording (view engine D86): set and cleared at the expected version under the shared owner only,
+     * listed through the snapshot queries of `dataset_wording` in the request's application.
+     */
+    @Test
+    fun `a dataset's wording is set, listed in its application and cleared`() {
+        val uri = "$SCOPE/$SHARED/datasets/analytics.wording-orders/wording"
+        val body = """{"title":"订单","fields":{"buyer":"买家","discount":false}}"""
+        write("PUT", uri, body, version = 0).expectStatus().isOk
+        write("PUT", uri, body, version = 0).expectStatus().isEqualTo(HttpStatus.CONFLICT)
+            .expectBody().jsonPath("$.errorCode").isEqualTo(ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT)
+        write("PUT", "$SCOPE/alice/datasets/analytics.wording-orders/wording", body, version = 0)
+            .expectStatus().isNotFound
+        write("PUT", uri, null, version = 1).expectStatus().isBadRequest
+        write("PUT", uri, body, appId = null, version = 1).expectStatus().isBadRequest
+        write("DELETE", "$SCOPE/$SHARED/datasets/analytics.wording-orders/wording", "{}", appId = null, version = 1)
+            .expectStatus().isBadRequest
+
+        fun listedWording(appId: String): List<JsonNode> =
+            query("$SCOPE/$SHARED/dataset_wording/snapshot/list", listQuery { }.toJsonString(), appId)
+                .expectStatus().isOk
+                .expectBody(JsonNode::class.java).returnResult().responseBody!!.items()
+                .filter { it.at("/state/dataset").asString() == "analytics.wording-orders" }
+        listedWording(APP).single().let {
+            it.at("/version").asInt().assert().isEqualTo(1)
+            it.at("/state/title").asString().assert().isEqualTo("订单")
+            it.at("/state/fields/buyer").asString().assert().isEqualTo("买家")
+        }
+        listedWording(OTHER_APP).assert().isEmpty()
+
+        write("DELETE", uri, "{}", version = 1).expectStatus().isOk
+        listedWording(APP).assert().isEmpty()
+    }
+
     private fun getPreferences(uri: String, appId: String = APP): WebTestClient.ResponseSpec =
         client.get().uri(uri).header(ViewStoreService.APP_ID_HEADER, appId).exchange().expectStatus().isOk
 

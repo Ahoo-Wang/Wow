@@ -2452,6 +2452,9 @@ type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId'
 | 'deletion';
 
 // @public (undocumented)
+type MetricAgainst = 'previous' | 'previous-year';
+
+// @public (undocumented)
 interface MetricCardData {
     compare?: {
         value: number | null;
@@ -2518,6 +2521,7 @@ interface MetricMoveStop {
 
 // @public
 interface MetricPeriod {
+    against?: 'previous-year';
     at: unknown;
     change?: {
         delta: number;
@@ -2543,6 +2547,7 @@ export type MetricRemoval = 'ok' | 'last' | 'cascade';
 
 // @public
 interface MetricTrend {
+    against?: MetricAgainst;
     headline?: MetricHeadline;
     x: string;
 }

@@ -991,7 +991,7 @@
   - **置灰**：拆分（`split`）、横轴不是时间（`not-time`），以及数据源的能力没有 `PREVIOUS`、或按周分组要去年同期（周的桶前移一年对不上桶，`unsupported`）。都不因截断、「只保留」、洞置灰：每一点是 Wow 按那个桶算的；没有行的桶没有点。
   - **提示框**写上一期的值和较之的变化（`较上一期 +12.3%`），变化的读法与指标卡的「较前一期」同一套（`BucketChange`）。
   - **范围**：filter 对日期字段的条件不在顶层「且」里时，Wow 拒绝这条查询（`PREVIOUS_UNSHIFTABLE`，措辞已有），视图在结果处说原因；分析的范围编辑器写出的条件本来就在顶层。
-  - **指标卡**：首发后指标卡的「较前一期」本就在同一份结果里读紧挨着的上一桶，不发第二条查询，保持不变。整段对比的另一半——「较去年同期」——在图表之后另做：指标卡的 `compare` 多一种读法，读最后一期的 `PREVIOUS(YEAR)`。
+  - **指标卡**：首发后指标卡的「较前一期」本就在同一份结果里读紧挨着的上一桶，不发第二条查询，保持不变。整段对比的另一半——「较去年同期」——在图表之后另做：读最后一期的 `PREVIOUS(YEAR)`（已做，放在走势上而不是 `compare` 上，见 D90）。
 - **落点**：`src/model/chart.ts`（`DERIVED_KINDS`）、`src/analysis/serverLines.ts`、`src/analysis/derived.ts`（`unsupported`）、`src/ui/charts/cartesianTooltip.ts`、`src/ui/charts/cartesianMarks.ts`、措辞；[kernels.md](kernels.md)「算出的线」。
 
 ## D89 组内 TopN：「每个〈外层维度〉只留前 N 个」，由 Wow 的 RANK 算（2026-10-11）
@@ -1004,6 +1004,17 @@
   - **编辑器**：结果区「只保留…」旁多一颗「每组只留前几个…」（与「只保留…」同一种打开方式），按下成为一张卡片，读作一句话「每个〈维度〉只留前〈N〉个，按〈指标〉〈从高到低〉」，卡片上的 × 关掉它；新开的取第一个维度、第一个能排名次的指标、前 3 个。结果的读法那一行在「只保留」之后说出跑过的那一份。
   - **它在「只保留」之后、行数上限之前**：与 Wow 的求值次序一致（窗口 → having → 排序 → 上限）。合计行仍是全部记录（与「只保留」一样）。
 - **落点**：`src/model/analysis.ts`（`top`）、`src/analysis/top.ts`（编译与 `narrowsGroups`）、`src/analysis/compile.ts`、`src/analysis/validateTop.ts`、`src/react/useReshape.ts`（跟着走）、`src/ui/analysis/TopRow.tsx` 与 `ResultSlot.tsx`、措辞与发现码；[kernels.md](kernels.md)、[model.md](model.md)、[ui/analysis.md](ui/analysis.md)。
+
+## D90 指标卡的「较去年同期」：最后一期与一年前的同一段比，由 Wow 的 PREVIOUS 算（2026-10-11，落实 D88 的指标卡一半）
+
+- **来由**：D88 说指标卡的整段对比在图表之后另做：「较前一期」读的是同一份结果里紧挨着的上一桶，「较去年同期」那一桶不在结果里，要 Wow 的 `PREVIOUS` 按一年平移范围去读。用户 2026-10-11 按推荐确认推进。
+- **裁定**：
+  - **放在走势上，不放在 `compare` 上**：`MetricTrend.against?: 'previous' | 'previous-year'`，缺省上一期。卡上「较上一期」那一行本来就是「这一期较什么」，去年同期换的只是它比的那一期；`compare` 仍是「较另一个指标」，两者可以同时有。D88 写的「`compare` 多一种读法」照此改。
+  - **查询**：读最后一期（`headline` 不是 `whole`）、选了去年同期、数据源列出 `PREVIOUS` 时，查询带一个隐藏的派生指标 `<指标>__previousYear` = `PREVIOUS(指标, 沿走势那个日期分组, 一年)`（`cardLineMetrics`）。Wow 把查询的日期范围整体前移一年再读，所以「本月至今」比的是去年同月的同样几天，截短的一期与它截法相同，不会 `unmatched`。
+  - **读法**：卡读主数那一行上的隐藏指标，`MetricPeriod.against = 'previous-year'`，没有 `previous`；变化的算法与较上一期相同。行里没有它（数据源算不了，或那次运行没问）写「没有去年同期可比」，去年那一期没有数写「去年同期没有可比的数」。
+  - **算不了的**（`yearAgoGap`）：数据源没有 `PREVIOUS`（`unsupported`）、按周分组（`week`：52 周前不是去年的同一周）、主数是派生指标或时间点（`not-measured`，Wow 的窗口只读分组的数）。选项页的「对比：上一期｜去年同期」只在数据源能往回读一年、或存下来的卡已经选了它时出现；算不了时那一项置灰、下面一行说原因。不是准入发现：卡照画，只是没有这一句比较。
+  - **图表的改动要隐藏指标时就地再跑一次**：图表是「怎么看」，改它从不发查询；但算出的线（D87、D88）与去年同期要的隐藏指标只有查询才带回来。从前勾上「上一期」线，这一次的行里没有 `__previous`，线被说成数据源算不了，要等下一次运行才出现。现在 `useAnalysisResult` 比较跑过的配置与当前图表要的隐藏指标（`hiddenMetrics`），多出来时 `submit` 一次，与「全部」读法另问整体是同一条路（草稿里有别的待应用修改时不代为应用）。
+- **落点**：`src/model/chart.ts`（`MetricTrend.against`、`METRIC_AGAINST`）、`src/analysis/serverLines.ts`（`yearAgoGap`、`cardLineMetrics`、`hiddenMetrics`）、`src/analysis/compile.ts`、`src/analysis/metricCard.ts`（`MetricPeriod.against`）、`src/react/useAnalysisResult.ts`（再跑一次）、`src/ui/analysis/DataTab.tsx`、`src/ui/charts/MetricCard.tsx`、措辞；[kernels.md](kernels.md)、[model-shapes.md](model-shapes.md)、[ui/analysis.md](ui/analysis.md)。（见 test/metricCardYearAgo.test.tsx）
 
 ## 搁置待议
 

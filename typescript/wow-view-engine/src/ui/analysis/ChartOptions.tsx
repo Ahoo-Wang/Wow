@@ -69,6 +69,8 @@ interface ChartOptionsProps {
   gapOf?: OptionsPageProps['gapOf'];
   /** A moving average's window when none is typed. */
   defaultWindow?: number;
+  /** Why a card cannot say its period against a year before (D90). */
+  yearAgoGapOf?: OptionsPageProps['yearAgoGapOf'];
   /** The chart as drawn over the rows on screen, where there are rows. */
   data?: ChartData;
 }
@@ -94,6 +96,7 @@ export function ChartOptions({
   headingRef,
   gapOf,
   defaultWindow,
+  yearAgoGapOf,
   data,
 }: ChartOptionsProps) {
   const messages = useViewMessages();
@@ -159,6 +162,7 @@ export function ChartOptions({
     onChange,
     gapOf,
     defaultWindow,
+    yearAgoGapOf,
     data,
   };
   const tabs = optionTabs(picked);

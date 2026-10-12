@@ -62,7 +62,8 @@ import {
 import { companionMetrics, currencyCompanions } from './currency.js';
 import { limitBounds } from './limitBounds.js';
 import { movingWindow } from './derived.js';
-import { serverLineMetrics } from './serverLines.js';
+import { momentMetrics } from './metricFormat.js';
+import { hiddenMetrics } from './serverLines.js';
 import { topRankMetric, withTopHaving } from './top.js';
 
 /**
@@ -81,11 +82,13 @@ export function compileAnalysis(
   const scope = scopeOf(definition, config);
   const query = baseQuery(definition, scope, config, kinds, context);
   const inner = innerPrefix(scope);
-  // The running lines the source computes over every group (D87).
-  const lines = serverLineMetrics(
+  // The lines the source computes over every group (D87–D88), and a
+  // metric card's same period a year earlier (D90).
+  const lines = hiddenMetrics(
     definition.analysis?.windows ?? [],
     config,
     line => movingWindow(config, line),
+    momentMetrics(config.metrics, scope.fields),
   );
   // The per-group top N's rank (D89), kept by the having beside 「只保留」.
   const top = config.top;
