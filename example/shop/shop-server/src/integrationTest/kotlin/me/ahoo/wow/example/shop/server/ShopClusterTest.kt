@@ -113,8 +113,15 @@ class ShopClusterTest {
         created.json["status"].asString().assert().isEqualTo("SUCCEEDED")
         // The default wait reached the snapshot, which the owner's snapshot subscription signalled across.
         created.json["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
-        second.inventory.calls.get().assert().isGreaterThan(0)
-        first.inventory.calls.get().assert().isEqualTo(before)
+        val decided = "first ${first.inventory.calls.get() - before}, second ${second.inventory.calls.get()}"
+        val split = nodes.map { it.node.context(ExampleContext.NAME).ownership.owned }
+        val partition = Partitioner.partitionOf(
+            AggregateType(ExampleContext.NAME, ExampleContext.ORDER).ref(Caller.DEFAULT_TENANT, id),
+            PARTITIONS,
+        )
+        val where = "Decided by $decided; partition $partition; owned $split; result ${created.body}"
+        second.inventory.calls.get().assert().describedAs(where).isGreaterThan(0)
+        first.inventory.calls.get().assert().describedAs(where).isEqualTo(before)
 
         // The node the order was sent to reads its own write from the shared snapshots.
         val state = first.get("/example/order/$id/state", ALICE)
