@@ -152,4 +152,4 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 
 - `wow-apiclient`、`wow-cocache`、`wow-models` 的去留与替代。
 - `wow-it` 的内容：端到端、多节点、迁移演练是否各成模块。
-- 发布模块清单与 ABI 转储从哪个里程碑开始强制。
+- 发布模块清单（ABI 转储从 `10.0.0-beta` 开始，D88）。
