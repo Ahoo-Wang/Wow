@@ -22,14 +22,16 @@ The port's conformance suite runs over this package against a real server in `ty
 
 ```
 src/
-  index.ts          — the entry: WowViewStore, WowViewStoreOptions, SHARED_OWNER_ID, WowViewStoreErrorCodes, by name
+  index.ts          — the entry: WowViewStore, WowViewStoreOptions, SHARED_OWNER_ID, WowViewStoreErrorCodes, WowDatasetWordings, by name
   wowViewStore.ts   — the store: where a view lives (the owner segment), the writes, the replay, the read back
+  datasetWordings.ts — WowDatasetWordings: a tenant's wording over its datasets (view engine D86), under (shared); load/of for DatasetCatalog.overrides
   paths.ts          — the routes under /view-store/tenant/{tenantId}/owner/{ownerId}, and the owner `(shared)`
   errors.ts         — Failure (a request that did not succeed) and the server's error codes onto the port's
   wire.ts           — the server's shapes (snapshots, system views, preferences, command results) as the port's
 test/
   support/fakeServer.ts — fake global fetch behind a real Fetcher, asking as alice of tenant t1
   wowViewStore.test.ts  — requests, lookups and the edges a healthy server does not reach
+  datasetWordings.test.ts — the wording's list, writes, load and of
   errors.test.ts        — the error-code table
   publicSurface.test.ts, surface/root.txt, fixtures/exports.ts — the public surface, name by name
   api/root.api.md       — API Extractor's report of the entry (scripts/api-report.mjs)

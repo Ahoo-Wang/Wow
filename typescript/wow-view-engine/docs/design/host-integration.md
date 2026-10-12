@@ -104,7 +104,7 @@ export const executionFailed = defineView(executionFailedDescriptor, {
 - **不在打开路径上异步解析**：已存的视图引用一个宿主还没登记的数据集时，按「定义不在」报（`view.definition.not-found`），与拼错的 id 同一条路。打开路径因此保持同步，宿主决定什么时候读目录。
 - **`engine.unregister(id)`** 移除一份资源（[D85](decisions.md)）：已经打开的视图照常读完，再打开报「定义不在」。
 - **`DatasetResources`** 让引擎跟上服务端的目录（D85）：每次 `refresh` 登记新列出的、版本变了的再登记、没再列出或 schema 编译不了（`version` 为 `null`）的移除；定义 id 是数据集名，标题取目录的；宿主在代码里同 id 的定义优先。`refresh` 答出提供着的数据集，宿主据此为每个生成绑定（`bind(id, { route })`）：导航里因此出现它们，**打开一个就是选数据集、开始一个视图**——不另做选择器。
-- **措辞覆盖**（[D86](decisions.md)）：`DefineDatasetSpec.fields` 与 `DatasetCatalog.overrides` 给派生的定义改口径、排序、收窄、隐藏字段，只能收窄与改词；描述符不再列出的路径被忽略，覆盖因此比数据集删掉的列活得久。措辞变了，`DatasetResources` 下次 `refresh` 就重新登记。覆盖存在哪里由宿主定；存进视图存储见 [todo.md](todo.md)。
+- **措辞覆盖**（[D86](decisions.md)）：`DefineDatasetSpec.fields` 与 `DatasetCatalog.overrides` 给派生的定义改口径、排序、收窄、隐藏字段，只能收窄与改词；描述符不再列出的路径被忽略，覆盖因此比数据集删掉的列活得久。措辞变了，`DatasetResources` 下次 `refresh` 就重新登记。覆盖可以写在宿主代码里，也可以由租户的管理员存进视图存储：`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写它（view-store-backend.md 5.4），宿主在 `refresh` 前 `load()` 一次，`overrides: entry => wordings.of(entry.name)`。
 
 ## 4. 资源注册：数据在核心，行为在 React
 

@@ -15,3 +15,8 @@
 export { WowViewStore, type WowViewStoreOptions } from './wowViewStore.js';
 export { SHARED_OWNER_ID, SYSTEM_OWNER_ID, SYSTEM_TENANT_ID } from './paths.js';
 export { WowViewStoreErrorCodes } from './errors.js';
+export {
+  WowDatasetWordings,
+  type StoredDatasetWording,
+  type WowDatasetWordingsOptions,
+} from './datasetWordings.js';

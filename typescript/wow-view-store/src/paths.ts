@@ -50,7 +50,7 @@ export const SYSTEM_TENANT_ID = '(platform)';
 export type Place = 'personal' | 'shared' | 'system';
 
 /** Every route starts here; the tenant and owner are path variables. */
-const SCOPE = '/view-store/tenant/{tenantId}/owner/{ownerId}';
+export const SCOPE = '/view-store/tenant/{tenantId}/owner/{ownerId}';
 
 /** The view store's routes, relative to the fetcher's base URL. */
 export const PATHS = {

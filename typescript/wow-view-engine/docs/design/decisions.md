@@ -964,6 +964,7 @@
   - **覆盖写在派生的输入上**：`DefineDatasetSpec.fields` 每项是口径（字符串）、**defineView** 的 `FieldSpec`（收窄）或 `false`（隐藏）；写到的字段按写的次序在前，其余按描述符的次序在后。不能增加描述符没有的字段或能力：没有的路径被忽略（不是错误，数据集删了列，覆盖不该让定义坏掉）。
   - **`DatasetCatalog.overrides(entry)`** 把标题、名词与字段覆盖交给 `DatasetResources`；覆盖变了（按 JSON 比较）即使版本没变也重新登记。
   - **存在哪里不在这一批**：宿主可以写在代码或配置里；存进视图存储、由管理员编辑，留在 todo。
+  - **存储（2026-10-11 用户确认）**：存在视图存储，按租户一份（`dataset_wording` 聚合，`owner/(shared)` 下，id 按「租户 × 应用 × 数据集」算出），`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写，宿主在 `refresh` 前 `load()`、`overrides` 用 `of(name)`；编辑界面放进视图管理器（todo）。设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
 - **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/datasetResources.ts`；[host-integration.md 3.2](host-integration.md)。
 
 ## D87 数据源声明了窗口时，累计、累计占比与移动平均由 Wow 在全部分组上算（2026-10-11，修订 Q53）

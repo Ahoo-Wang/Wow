@@ -72,6 +72,30 @@ one all need it. Left out, everything is allowed — but the engine's
 off unless the host's answer says `true`: give it by the role the gateway
 admits to `tenant/(platform)/owner/(system)` (`view-store/README.md`, 「System views」).
 
+### Dataset wording
+
+`WowDatasetWordings` keeps a tenant's wording over its datasets (the view
+engine's dataset overrides: title, record noun, field labels, order and
+narrowing) under `owner/(shared)`, one per dataset and application. A host
+reads it all before its datasets register, and answers each from it:
+
+```ts
+const wordings = new WowDatasetWordings({ fetcher });
+const datasets = new DatasetResources(engine, {
+  list: async () => {
+    await wordings.load().catch(report);
+    return directory.list();
+  },
+  source: entry => directory.source(entry),
+  overrides: entry => wordings.of(entry.name),
+});
+```
+
+`set(dataset, wording, revision, { requestId })` writes one whole at the
+expected revision (`'0'` for one never written) and `clear` removes it; the
+gateway decides who may, by the role it admits to
+`…/owner/(shared)/datasets/{dataset}/wording`.
+
 ## Documentation
 
 | To                                                                                              | Read                                                                                                             |
