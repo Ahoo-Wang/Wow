@@ -184,7 +184,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 **已合并到 `v10`**：内核（decide → evolve → append、去重、冲突重试、结局查明、after 钩子、revision 升级、`Creation` 三态、`DecideScope` 的补偿 / `putResult` / `reserve`、`StateCache` 取出放回、快照加尾部加载与状态 schema 指纹）；SPI 与三套后端（内存、PostgreSQL、MongoDB）的日志、快照、检查点、租约与成员、失败台账（含 `repark`）、预留键，日志带传输段、`head`、`positionOf` 与格式版本表；08 数据协议（`Scope`、`Causation`、`commandType`、`Transport`）；KSP 模型处理器（H4，仍绑定 9.x 注解）；`wow-reactor` 的 `awaitResult`；运行时的 `Executor`、`LruStateCache`、订阅运行时核心（共享尾随、追赶并入、分区内并行、连续低水位、停放与恢复）、等待（4.7：`WaitCoordinator`、链、早到缓存、重复请求补查、超时；单服务内）。H1、H3、H4 已有报告（`wow-benchmarks/results/reports/v10-h*.md`）。
 
-**进行中**：H2 阶段 1（分支 `claude/v10-spike-h2`，测试模块 `test/wow-routing-spike`）。若该分支已有 PR：审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6（中间数据明显偏向 Partitioned：Zipf 80% 负载 p99 Local 274 ms 对 Partitioned 3.7 ms），再合并。若没有 PR：从该分支或重新按 H2 行的设计派子代理完成。
+**进行中**：H2 阶段 1。进行中的代码与部分结果已推到远程分支 `claude/v10-spike-h2-wip`（测试模块 `test/wow-routing-spike`，部分结果在其 `wip-results/`，未审查，不能原样合并）；原子代理若完成，会推送 `claude/v10-spike-h2` 并开 PR。若已有 PR：审查报告 `wow-benchmarks/results/reports/v10-h2-routing.md`，按决策台账 H2 行预先登记的标准把结论记入 D6（中间数据明显偏向 Partitioned：Zipf 80% 负载 p99 Local 274 ms 对 Partitioned 3.7 ms），再合并。若没有 PR：派子代理从 `claude/v10-spike-h2-wip` 接手完成（删去 `wip-results/`），开 PR。
 
 **下一步队列**（按依赖排序；同一行内的可并行）：
 
