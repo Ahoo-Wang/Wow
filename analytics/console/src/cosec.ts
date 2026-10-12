@@ -15,7 +15,6 @@ import { fetcher, type Fetcher } from '@ahoo-wang/fetcher';
 import {
   CoSecConfigurer,
   TokenStorage,
-  type CompositeToken,
   type TokenRefresher,
 } from '@ahoo-wang/fetcher-cosec';
 
@@ -45,7 +44,7 @@ export const tokenStorage = new TokenStorage();
  * console out the moment it signed in (found by the demo, analytics/demo).
  */
 export const noRefresh: TokenRefresher = {
-  refresh: (_token: CompositeToken) =>
+  refresh: () =>
     Promise.reject(
       new Error('The console cannot refresh a token; sign in again.'),
     ),
