@@ -56,12 +56,12 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3) and
-// :routing-spike (spike H2) are never published.
+// :routing-spike (spike H2) and :lease-spike (spike H6) are never published.
 val v10Projects = listOf(
     "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
     "postgres", "mongo", "http", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
     "compiler", "gradle-plugin", "manifest-tools",
-    "routing-spike",
+    "routing-spike", "lease-spike",
 ).map { project(":$it") }.toSet()
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
@@ -136,6 +136,7 @@ val integrationTestProjects = setOf(
     project(":postgres"),
     project(":mongo"),
     project(":routing-spike"),
+    project(":lease-spike"),
 )
 
 ext.set("localTestProjects", localTestProjects)

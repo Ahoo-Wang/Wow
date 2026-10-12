@@ -146,4 +146,6 @@ include(":manifest-tools")
 project(":manifest-tools").projectDir = file("compiler/manifest-tools")
 include(":routing-spike")
 project(":routing-spike").projectDir = file("test/routing-spike")
+include(":lease-spike")
+project(":lease-spike").projectDir = file("test/lease-spike")
 //endregion
