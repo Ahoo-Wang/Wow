@@ -15,6 +15,7 @@ package me.ahoo.wow.gradle
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.gradle.tools.ManifestJson
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.Creation
@@ -39,6 +40,17 @@ import java.util.zip.ZipFile
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WowPluginFunctionalTest {
+    private companion object {
+        /** A class of each tool the workers run: victools, Jackson, the kernel, and the plugin's own tools. */
+        val PROBED = listOf(
+            "com.github.victools.jsonschema.generator.SchemaGenerator",
+            "tools.jackson.databind.ObjectMapper",
+            "tools.jackson.module.kotlin.KotlinModule",
+            "me.ahoo.wow.kernel.EventCodec",
+            "me.ahoo.wow.gradle.tools.ManifestTools",
+        )
+    }
+
     private lateinit var projectDir: File
 
     private lateinit var result: BuildResult
@@ -68,7 +80,20 @@ class WowPluginFunctionalTest {
             dependencies {
                 implementation(files(${classpath("wow.fixture.compileClasspath")}))
                 ksp(files(${classpath("wow.fixture.processorClasspath")}))
+                wowManifestTools(files(${classpath("wow.fixture.toolsClasspath")}))
                 $dependencies
+            }
+
+            // What the plugin brings to the build script's class path: none of the tools the workers run.
+            val toolClasses = listOf(${PROBED.joinToString { "\"$it\"" }})
+            val pluginLoader = me.ahoo.wow.gradle.WowPlugin::class.java.classLoader
+            val visibleTools = toolClasses.filter { runCatching { Class.forName(it, false, pluginLoader) }.isSuccess }
+            val buildscriptJars = buildscript.configurations.getByName("classpath").files.map { it.name }
+            tasks.register("probeBuildClasspath") {
+                doLast {
+                    println("tools on the build classpath: " + visibleTools)
+                    println("buildscript jars: " + buildscriptJars)
+                }
             }
 
             wow {
@@ -95,7 +120,7 @@ class WowPluginFunctionalTest {
         result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments(":shop:${WowPlugin.MERGE_TASK}", ":shop:jar", "--stacktrace")
+            .withArguments(":shop:${WowPlugin.MERGE_TASK}", ":shop:jar", ":shop:probeBuildClasspath", "--stacktrace")
             .forwardOutput()
             .build()
     }
@@ -289,6 +314,25 @@ class WowPluginFunctionalTest {
         manifest().contexts.single { it.name == "shop" }.aggregates.single().state.fingerprint.assert().isEqualTo(
             fingerprint
         )
+    }
+
+    @Test
+    fun `the tools should stay off the build script's class path`() {
+        // The plugin under test comes in through TestKit's injected class path, as a published plugin's own
+        // dependencies would: the classes the workers use are not visible from it.
+        result.output.assert().contains("tools on the build classpath: []")
+        val jars = result.output.lines().single { it.startsWith("buildscript jars: ") }
+        jars.assert().doesNotContain(
+            "jsonschema",
+            "jackson-databind",
+            "jackson-module-kotlin",
+            "kotlin-reflect",
+            "wow-kernel"
+        )
+        PROBED.forEach { name ->
+            // They are on the worker's class path instead, which is how the fragment got its schemas.
+            Class.forName(name, false, javaClass.classLoader).assert().isNotNull()
+        }
     }
 
     @Test

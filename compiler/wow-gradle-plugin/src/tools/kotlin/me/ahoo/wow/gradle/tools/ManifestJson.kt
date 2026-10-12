@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.gradle
+package me.ahoo.wow.gradle.tools
 
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.gradle
+package me.ahoo.wow.gradle.tools
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue

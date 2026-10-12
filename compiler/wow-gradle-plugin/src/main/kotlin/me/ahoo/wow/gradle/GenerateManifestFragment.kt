@@ -17,7 +17,6 @@ import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
@@ -28,16 +27,14 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.TaskAction
-import org.gradle.workers.WorkAction
-import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
 
 /**
- * Completes the module's Manifest fragment that `wow-compiler` wrote (decision D73): loads the compiled classes in a
- * worker with an isolated class loader, so neither they nor their dependencies reach the build's class path, and
- * fills in the schemas and the state fingerprints ([SchemaIntrospector]). The completed fragment replaces the
- * compiler's in the module's resources.
+ * Completes the module's Manifest fragment that `wow-compiler` wrote (decision D73): fills in the schemas and the
+ * state fingerprints in a worker with an isolated class loader that holds the tools ([tools]) and the compiled
+ * classes, so neither the tools nor the module's classes reach the build's class path (decision D83). The completed
+ * fragment replaces the compiler's in the module's resources.
  */
 @CacheableTask
 abstract class GenerateManifestFragment @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
@@ -51,6 +48,10 @@ abstract class GenerateManifestFragment @Inject constructor(private val workers:
     @get:Classpath
     abstract val classpath: ConfigurableFileCollection
 
+    /** The introspection tools: the `wowManifestTools` configuration. */
+    @get:Classpath
+    abstract val tools: ConfigurableFileCollection
+
     /** [WowExtension.schemaOverrides]. */
     @get:Input
     abstract val schemaOverrides: MapProperty<String, String>
@@ -63,28 +64,14 @@ abstract class GenerateManifestFragment @Inject constructor(private val workers:
     fun generate() {
         val output = outputDirectory.get().asFile
         output.deleteRecursively()
-        val queue = workers.classLoaderIsolation { spec -> spec.classpath.from(classpath) }
+        // The module's class path first: its classes are read with the Jackson it runs with.
+        val queue = workers.classLoaderIsolation { spec -> spec.classpath.from(classpath, tools) }
         fragments.files.sortedBy { it.name }.forEach { fragment ->
-            queue.submit(CompleteFragment::class.java) { parameters ->
+            queue.submit(ManifestToolsWork.CompleteFragment::class.java) { parameters ->
                 parameters.fragment.set(fragment)
                 parameters.output.set(output.resolve("${Manifest.FRAGMENT_DIRECTORY}/${fragment.name}"))
                 parameters.schemaOverrides.set(schemaOverrides)
             }
-        }
-    }
-
-    /** Runs in the isolated worker: its class loader holds the module's classes. */
-    abstract class CompleteFragment : WorkAction<CompleteFragment.Parameters> {
-        interface Parameters : WorkParameters {
-            val fragment: RegularFileProperty
-            val output: RegularFileProperty
-            val schemaOverrides: MapProperty<String, String>
-        }
-
-        override fun execute() {
-            val skeleton = ManifestJson.read(parameters.fragment.get().asFile)
-            val introspector = SchemaIntrospector(javaClass.classLoader, parameters.schemaOverrides.get())
-            ManifestJson.write(introspector.complete(skeleton), parameters.output.get().asFile)
         }
     }
 }

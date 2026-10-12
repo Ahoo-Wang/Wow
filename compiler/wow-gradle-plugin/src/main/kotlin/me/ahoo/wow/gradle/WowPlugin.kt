@@ -17,6 +17,12 @@ import com.google.devtools.ksp.gradle.KspExtension
 import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -38,6 +44,9 @@ import java.util.Properties
  *   place of the compiler's;
  * - registers [MERGE_TASK] ([MergeManifest]), which merges every fragment on the runtime class path into
  *   `build/wow/manifest.json`.
+ *
+ * Both tasks run their work in workers with an isolated class loader over [TOOLS_CONFIGURATION]: the plugin itself
+ * depends on KSP and `wow-manifest` only, so it brings no Jackson, victools or Kotlin reflection to the build script.
  */
 class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -65,9 +74,9 @@ class WowPlugin : Plugin<Project> {
             }
         }
 
-        val main = project.extensions.getByType(
-            SourceSetContainer::class.java
-        ).getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+        val tools = toolsConfiguration(project)
+        val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
+        val main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
         val runtimeClasspath = project.configurations.named(main.runtimeClasspathConfigurationName)
         val compilerFragments = project.files(project.layout.buildDirectory.dir(KSP_RESOURCES))
             .builtBy(KSP_TASK)
@@ -79,6 +88,7 @@ class WowPlugin : Plugin<Project> {
             task.description = "Completes this module's Manifest fragment with the schemas of its types."
             task.fragments.from(compilerFragments)
             task.classpath.from(main.output.classesDirs, runtimeClasspath)
+            task.tools.from(tools)
             task.schemaOverrides.set(extension.schemaOverrides)
             task.outputDirectory.set(fragmentDirectory)
         }
@@ -92,9 +102,41 @@ class WowPlugin : Plugin<Project> {
             task.group = GROUP_NAME
             task.description = "Merges the Manifest fragments on the runtime class path into the service's manifest.json."
             task.classpath.from(main.output, runtimeClasspath)
+            task.tools.from(tools)
             task.serviceName.set(extension.serviceName)
             task.serviceVersion.set(extension.serviceVersion)
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
+        }
+    }
+
+    /**
+     * [TOOLS_CONFIGURATION]: the introspection tools the workers load (victools, Jackson, the kernel), resolved in
+     * the build's project so they stay off the build script's class path (decision D83). By default it holds the
+     * plugin's `tools` variant of the plugin's version; declaring a dependency in it replaces that default.
+     */
+    private fun toolsConfiguration(project: Project): Configuration {
+        val objects = project.objects
+        return project.configurations.create(TOOLS_CONFIGURATION) { configuration ->
+            configuration.description = "The tools the Wow Manifest tasks run in their isolated workers."
+            configuration.isCanBeConsumed = false
+            configuration.isVisible = false
+            configuration.attributes { attributes ->
+                attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+                attributes.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+                attributes.attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR),
+                )
+                attributes.attribute(
+                    Bundling.BUNDLING_ATTRIBUTE,
+                    objects.named(Bundling::class.java, Bundling.EXTERNAL)
+                )
+            }
+            configuration.defaultDependencies { dependencies ->
+                val plugin = project.dependencies.create("$GROUP:wow-gradle-plugin:$version") as ModuleDependency
+                plugin.capabilities { it.requireCapability("$GROUP:wow-gradle-plugin-tools") }
+                dependencies.add(plugin)
+            }
         }
     }
 
@@ -109,6 +151,7 @@ class WowPlugin : Plugin<Project> {
         const val EXTENSION = "wow"
         const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
         const val MERGE_TASK = "mergeWowManifest"
+        const val TOOLS_CONFIGURATION = "wowManifestTools"
         private const val GROUP_NAME = "wow"
         private const val GROUP = "me.ahoo.wow"
         private const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
