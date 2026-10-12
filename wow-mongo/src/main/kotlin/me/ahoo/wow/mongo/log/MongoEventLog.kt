@@ -73,7 +73,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * abort-and-retry is why appends to one partition should come from its owner, serialized (finding F1).
  *
  * A stream's facts are fields of its document; the transport is a field of its own, `transport` (decision D25),
- * which only [tail] reads: [read] and [findByRequestId] leave it out of their projection.
+ * which only [tail] and [readEntries] read: [read] and [findByRequestId] leave it out of their projection.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -259,6 +259,16 @@ class MongoEventLog(
         streams.forEach { emit(it) }
     }
 
+    override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
+        val entries = withContext(dispatcher) {
+            log.find(Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)))
+                .sort(Sorts.ascending(VERSION))
+                .map { entryOf(it) }
+                .toList()
+        }
+        entries.forEach { emit(it) }
+    }
+
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
         log.find(Filters.and(refFilter(ref), Filters.eq(VERSION, version)))
             .projection(Projections.include(PARTITION, SEQUENCE))
@@ -277,13 +287,7 @@ class MongoEventLog(
                 log.find(Filters.and(Filters.eq(PARTITION, partition), Filters.gt(SEQUENCE, last)))
                     .sort(Sorts.ascending(SEQUENCE))
                     .limit(tailBatch)
-                    .map {
-                        LogEntry(
-                            LogPosition(partition, it.getLong(SEQUENCE)),
-                            streamOf(it),
-                            it.get(TRANSPORT, Document::class.java)?.let(::transportOf),
-                        )
-                    }
+                    .map { entryOf(it) }
                     .toList()
             }
             batch.forEach {
@@ -390,6 +394,12 @@ class MongoEventLog(
             it
         )
     }
+
+    private fun entryOf(document: Document) = LogEntry(
+        LogPosition(document.getInteger(PARTITION), document.getLong(SEQUENCE)),
+        streamOf(document),
+        document.get(TRANSPORT, Document::class.java)?.let(::transportOf),
+    )
 
     private fun streamOf(document: Document) = EventStreamRecord(
         ref = AggregateType(context, document.getString(AGGREGATE_NAME))

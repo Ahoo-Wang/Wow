@@ -104,6 +104,9 @@ internal class PostgresEventLogTables(context: String) {
     val read = "SELECT $facts FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND aggregate_name = ? " +
         "AND version BETWEEN ? AND ? ORDER BY version"
 
+    val entries = "SELECT partition, sequence, $facts, transport FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
+        "AND aggregate_name = ? AND version BETWEEN ? AND ? ORDER BY version"
+
     val position = "SELECT partition, sequence FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND " +
         "aggregate_name = ? AND version = ?"
 

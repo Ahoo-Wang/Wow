@@ -103,7 +103,7 @@ class RecordingCheckpoints(
         saves.filter { it.first == subscription && it.second == partition }.map { it.third }
 }
 
-/** What a handler saw: (aggregate id, version, sequence or null when resumed), in the order handled. */
+/** What a handler saw: (aggregate id, version, sequence), in the order handled. */
 class Handled {
     val entries = CopyOnWriteArrayList<Triple<String, Int, Long?>>()
 

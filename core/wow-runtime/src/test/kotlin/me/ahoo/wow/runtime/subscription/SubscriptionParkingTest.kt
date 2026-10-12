@@ -100,7 +100,10 @@ class SubscriptionParkingTest {
         runtime.resume("parking", cart("x")).assert().isTrue()
         ledger.isParked("parking", cart("x")).assert().isFalse()
         handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4))
-        handled.entries.filter { it.first == "x" && it.second >= 2 }.all { it.third == null }.assert().isTrue()
+        // Resuming reads the entries with their positions, as the tail hands them over.
+        handled.entries.filter { it.first == "x" && it.second >= 2 }
+            .map { it.third }
+            .assert().isEqualTo((2..4).map { log.positionOf(cart("x"), it)?.sequence })
 
         appender.append("x")
         eventually { handled.versionsOf("x").size == 5 }
