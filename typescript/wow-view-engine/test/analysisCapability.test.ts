@@ -617,6 +617,76 @@ describe('element scope', () => {
     ).toEqual(['analysis.field.outside-scope']);
   });
 
+  it('groups the elements by a root field where the source offers it', () => {
+    const withRoot = definition({
+      ...withElements,
+      analysis: { ...withElements.analysis!, rootGroups: true },
+    });
+    const byWarehouse = (overrides: Partial<AnalysisViewConfig> = {}) =>
+      onItems({
+        groups: [
+          { type: 'TERMS', field: 'items.sku', alias: 'sku' },
+          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+        ],
+        chart: {
+          type: 'bar',
+          cartesian: {
+            x: 'wh',
+            splitBy: 'sku',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        ...overrides,
+      });
+    expect(
+      codes(validateAnalysis(withRoot, byWarehouse(), builtinFieldKinds)),
+    ).toEqual([]);
+    // Sent with a ROOT scope and ahead of the element dimension, as Wow reads
+    // the root keys first.
+    expect(
+      compileAnalysis(withRoot, byWarehouse(), builtinFieldKinds, context)
+        .groupBy,
+    ).toEqual([
+      { type: 'TERMS', field: 'warehouse', alias: 'wh', scope: 'ROOT' },
+      { type: 'TERMS', field: 'sku', alias: 'sku' },
+    ]);
+    // An explicit sort may not put the element dimension first.
+    expect(
+      codes(
+        validateAnalysis(
+          withRoot,
+          byWarehouse({ sort: [{ alias: 'sku', direction: 'ASC' }] }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['analysis.sort.root-group-first']);
+    expect(
+      codes(
+        validateAnalysis(
+          withRoot,
+          byWarehouse({
+            sort: [
+              { alias: 'wh', direction: 'DESC' },
+              { alias: 'sku', direction: 'ASC' },
+            ],
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
+    // A metric still reads the innermost element only.
+    expect(
+      check(
+        { metrics: [{ type: 'ANY', alias: 'orders', field: 'amount' }] },
+        withRoot,
+      ),
+    ).toEqual(['analysis.field.outside-scope']);
+    // Without the offer, a server before 9.9, the dimension stands outside.
+    expect(
+      codes(validateAnalysis(withElements, byWarehouse(), builtinFieldKinds)),
+    ).toEqual(['analysis.field.outside-scope']);
+  });
+
   it('keeps the range on the root fields', () => {
     // The root filter runs before any expansion, so it names root fields and
     // only root fields — an element field there is unknown to it.

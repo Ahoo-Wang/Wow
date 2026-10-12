@@ -24,7 +24,11 @@ import {
   type IssuePath,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
-import { unknownOrOutside, type AnalysisScope } from './capability.js';
+import {
+  isRootGroup,
+  unknownOrOutside,
+  type AnalysisScope,
+} from './capability.js';
 import { displayNameIssues } from './validateAliases.js';
 import { budgetedExpressionIssues } from './expressions.js';
 import type { BudgetCounter } from './budget.js';
@@ -41,6 +45,61 @@ export function validateGroups(
 ): Issue[] {
   // Every group's expression is one more tree in the query's budget.
   const counted: BudgetCounter = { nodes: 0 };
+  return [
+    ...groupIssues(config, scope, kinds, analysis, limits, counted),
+    ...rootSortIssues(config, scope),
+  ];
+}
+
+/**
+ * A sort that orders by an element dimension ahead of a dimension over a
+ * root field. Wow reads the root records' keys before their elements' and
+ * refuses a ROOT group sorted after an element group; the dimensions no sort
+ * names are sent root first, so only an explicit sort can break the order.
+ */
+function rootSortIssues(
+  config: AnalysisViewConfig,
+  scope: AnalysisScope,
+): Issue[] {
+  if (scope.rootAggregations.size === 0) return [];
+  const root = new Map(
+    config.groups.map(group => [group.alias, isRootGroup(scope, group.field)]),
+  );
+  const placed = new Set<string>();
+  let element: number | undefined;
+  const issues: Issue[] = [];
+  config.sort.forEach((sort, index) => {
+    const isRoot = root.get(sort.alias);
+    if (isRoot === undefined) return;
+    if (!isRoot) element ??= index;
+    else if (element !== undefined) issues.push(rootSortIssue(config, element));
+    placed.add(sort.alias);
+  });
+  if (
+    element !== undefined &&
+    issues.length === 0 &&
+    [...root].some(([alias, isRoot]) => isRoot && !placed.has(alias))
+  )
+    issues.push(rootSortIssue(config, element));
+  return issues.slice(0, 1);
+}
+
+function rootSortIssue(config: AnalysisViewConfig, index: number): Issue {
+  return issue('analysis.sort.root-group-first', ['sort', index, 'alias'], {
+    alias: config.sort[index].alias,
+  });
+}
+
+function groupIssues(
+  config: AnalysisViewConfig,
+  scope: AnalysisScope,
+  kinds: FieldKindRegistry,
+  analysis:
+    | Pick<AnalysisCapability, 'dense' | 'expressions' | 'dateDiffUnits'>
+    | undefined,
+  limits: RuntimeLimits,
+  counted: BudgetCounter,
+): Issue[] {
   return config.groups.flatMap((group, index) => {
     const path: IssuePath = ['groups', index];
     // A band of a number computed per record (N3): its expression is held
@@ -61,7 +120,11 @@ export function validateGroups(
           : [issue('analysis.config.malformed', [...path, 'field'])]),
         ...intervalIssues(group, path),
       ];
-    const capability = scope.aggregations.get(group.field);
+    // With `rootGroups`, a dimension over a root field groups the elements by
+    // the record they belong to.
+    const capability =
+      scope.aggregations.get(group.field) ??
+      scope.rootAggregations.get(group.field);
     if (!capability)
       return [
         // With `elements`, a dimension buckets the entries of the innermost
@@ -172,8 +235,12 @@ function missingKeyAllowed(
   kinds: FieldKindRegistry,
 ): boolean {
   // The source keeps no such bucket, whatever the field holds.
-  if (scope.aggregations.get(name)?.missingKey === false) return false;
-  const field = scope.fields.get(name);
+  const capability =
+    scope.aggregations.get(name) ?? scope.rootAggregations.get(name);
+  if (capability?.missingKey === false) return false;
+  const field =
+    scope.fields.get(name) ??
+    scope.rootFields.find(field => field.name === name);
   if (!field) return true;
   return isSingleStringField(field, kinds.get(field.kind));
 }
