@@ -35,6 +35,15 @@ class InMemoryFailureLedger : FailureLedger {
         true
     }
 
+    override suspend fun repark(entry: ParkedAggregate): Boolean = lock.withLock {
+        val parked = subscriptions[entry.subscription] ?: return false
+        if (entry.ref !in parked) {
+            return false
+        }
+        parked[entry.ref] = entry
+        true
+    }
+
     override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.get(ref) }
 

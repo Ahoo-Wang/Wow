@@ -15,6 +15,9 @@ package me.ahoo.wow.mongo.log
 
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.tck.container.ContainerImages
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.utility.DockerImageName
@@ -34,6 +37,18 @@ object MongoLogFixture {
 
     fun log(partitions: Int, context: String = newContext()): MongoEventLog =
         MongoEventLog(client, DATABASE, context, partitions).also { it.createSchema() }
+
+    /** Creates [collection] the way a build without format records did: the collection alone. */
+    fun createUnrecorded(collection: String) {
+        client.getDatabase(DATABASE).createCollection(collection)
+    }
+
+    /** Moves the recorded format version of [structure] one ahead, as a newer Wow would have written it. */
+    fun bumpFormat(structure: String) {
+        val updated = client.getDatabase(DATABASE).getCollection(MongoFormat.COLLECTION)
+            .updateOne(Filters.eq("_id", structure), Updates.inc("version", 1))
+        check(updated.matchedCount == 1L) { "$structure has no recorded format." }
+    }
 
     const val DATABASE = "wow_v10_log"
 }

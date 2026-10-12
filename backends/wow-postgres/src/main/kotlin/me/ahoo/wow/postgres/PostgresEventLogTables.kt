@@ -13,9 +13,16 @@
 
 package me.ahoo.wow.postgres
 
-/** The tables and statements of one context's log. Names derive from the context and are part of the format. */
+/**
+ * The tables and statements of one context's log. Names derive from the context and are part of the format, whose
+ * version is [FORMAT] (decision D59).
+ *
+ * A stream's facts take one column each, so the log can be queried in place; the scope is two nullable columns and
+ * the causation two more, both null or both set. The transport is its own nullable `jsonb` column (decision D25):
+ * only the tail reads it.
+ */
 internal class PostgresEventLogTables(context: String) {
-    private val base = "wow_log_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
+    val base = "wow_log_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
     val log = "\"$base\""
     val partitions = "\"${base}_partition\""
     val versionKey = "${base}_version_key"
@@ -38,9 +45,15 @@ internal class PostgresEventLogTables(context: String) {
             version integer NOT NULL,
             command_id text NOT NULL,
             request_id text NOT NULL,
-            fingerprint text NOT NULL,
+            command_type text NOT NULL,
             commit_time bigint NOT NULL,
             events jsonb NOT NULL,
+            owner_id text,
+            space_id text,
+            correlation_id text,
+            causation_id text,
+            headers jsonb NOT NULL,
+            transport jsonb,
             PRIMARY KEY (partition, sequence),
             CONSTRAINT "$versionKey" UNIQUE (aggregate_id, tenant_id, aggregate_name, version),
             CONSTRAINT "$requestKey" UNIQUE (tenant_id, request_id)
@@ -76,18 +89,31 @@ internal class PostgresEventLogTables(context: String) {
             RETURNING sequence
         )
         INSERT INTO $log (partition, sequence, aggregate_name, tenant_id, aggregate_id, version, command_id, request_id,
-            fingerprint, commit_time, events)
-        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb FROM bump
+            command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport)
+        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb FROM bump
         RETURNING sequence
     """.trimIndent()
 
     val currentVersion =
         "SELECT coalesce(max(version), 0) FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND aggregate_name = ?"
 
-    val read = "SELECT * FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND aggregate_name = ? " +
+    /** The facts of a stream: every column but the transport. */
+    private val facts = "aggregate_name, tenant_id, aggregate_id, version, command_id, request_id, command_type, " +
+        "commit_time, events, owner_id, space_id, correlation_id, causation_id, headers"
+
+    val read = "SELECT $facts FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND aggregate_name = ? " +
         "AND version BETWEEN ? AND ? ORDER BY version"
 
-    val byRequest = "SELECT * FROM $log WHERE tenant_id = ? AND request_id = ?"
+    val byRequest = "SELECT $facts FROM $log WHERE tenant_id = ? AND request_id = ?"
 
-    val tail = "SELECT * FROM $log WHERE partition = ? AND sequence > ? ORDER BY sequence LIMIT ?"
+    val tail = "SELECT sequence, $facts, transport FROM $log WHERE partition = ? AND sequence > ? " +
+        "ORDER BY sequence LIMIT ?"
+
+    /** A partition's counter is the sequence of its last committed entry: the bump commits with the insert. */
+    val head = "SELECT sequence FROM $partitions WHERE partition = ?"
+
+    companion object {
+        /** The version of this layout. */
+        const val FORMAT = 1
+    }
 }

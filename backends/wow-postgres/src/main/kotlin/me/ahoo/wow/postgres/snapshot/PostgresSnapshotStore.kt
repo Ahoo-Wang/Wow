@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -43,9 +45,10 @@ class PostgresSnapshotStore(
 ) : SnapshotStore {
     private val tables = PostgresSnapshotTables(context)
 
-    /** Creates the table when missing. */
+    /** Creates the table when missing; refuses snapshots recorded in another format version ([PostgresFormat]). */
     fun createSchema() {
         dataSource.connection.use { connection ->
+            PostgresFormat.claim(connection, tables.base, PostgresSnapshotTables.FORMAT)
             connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
         }
     }
@@ -60,8 +63,8 @@ class PostgresSnapshotStore(
                 save.setInt(4, snapshot.version)
                 save.setString(5, snapshot.schemaFingerprint)
                 save.setString(6, snapshot.state)
-                save.setNullableString(7, snapshot.ownerId)
-                save.setNullableString(8, snapshot.spaceId)
+                save.setNullableString(7, snapshot.scope.ownerId)
+                save.setNullableString(8, snapshot.scope.spaceId)
                 save.setBoolean(9, snapshot.deleted)
                 save.setLong(10, snapshot.firstEventTime)
                 save.setLong(11, snapshot.lastEventTime)
@@ -89,8 +92,7 @@ class PostgresSnapshotStore(
         version = row.getInt("version"),
         schemaFingerprint = row.getString("schema_fingerprint"),
         state = row.getString("state"),
-        ownerId = row.getString("owner_id"),
-        spaceId = row.getString("space_id"),
+        scope = Scope(row.getString("owner_id"), row.getString("space_id")),
         deleted = row.getBoolean("deleted"),
         firstEventTime = row.getLong("first_event_time"),
         lastEventTime = row.getLong("last_event_time"),

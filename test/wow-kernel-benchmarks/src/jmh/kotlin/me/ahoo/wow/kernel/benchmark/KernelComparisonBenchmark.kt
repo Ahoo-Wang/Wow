@@ -35,6 +35,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.Transport
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
@@ -86,7 +87,6 @@ open class KernelComparisonBenchmark {
     @Benchmark
     fun v10SerializationFreeShare(blackhole: Blackhole) {
         blackhole.consume(serializer.encode(cart, CartItemAdded(CartItem("productId", 1))))
-        blackhole.consume(serializer.fingerprint(AddCartItem("productId")))
     }
 
     private val serializer = me.ahoo.wow.kernel.EventCodec()
@@ -130,12 +130,15 @@ open class KernelComparisonBenchmark {
         private val position = LogPosition(0, 1)
         override val partitions: Int = 1
 
-        override suspend fun append(stream: EventStreamRecord): AppendOutcome = AppendOutcome.Committed(position)
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            AppendOutcome.Committed(position)
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = emptyFlow()
 
         override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? = null
 
         override fun tail(partition: Int, after: Long?): Flow<LogEntry> = emptyFlow()
+
+        override suspend fun head(partition: Int): Long? = null
     }
 }

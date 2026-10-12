@@ -16,11 +16,13 @@ package me.ahoo.wow.kernel
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 
 class KernelHooksTest {
@@ -43,7 +45,7 @@ class KernelHooksTest {
     private val model = aggregate<Counter>("test", "counter") {
         initial { Counter(it.id) }
         decide<Open>(Creation.REQUIRED) { _, body ->
-            putResult("app", command.headers.getValue("app") + "/" + command.ownerId)
+            putResult("app", command.headers.getValue("app") + "/" + command.scope.ownerId)
             Decision.events(Opened(body.by))
         }
         decide<Touch> { _, command ->
@@ -74,7 +76,14 @@ class KernelHooksTest {
         return log
     }
 
-    private fun open() = Command("c-0", "r-0", ref, Open("me"), ownerId = "alice", headers = mapOf("app" to "console"))
+    private fun open() = Command(
+        "c-0",
+        "r-0",
+        ref,
+        Open("me"),
+        scope = Scope("alice", null),
+        headers = mapOf("app" to "console")
+    )
 
     @Test
     fun `a decide function reads the admitted command and answers the caller`() = runTest {
@@ -123,12 +132,12 @@ class KernelHooksTest {
         val log = opened()
         val racing = object : EventLog by log {
             var raced = false
-            override suspend fun append(stream: EventStreamRecord): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
                 if (!raced) {
                     raced = true
                     Kernel(log).execute(model, Command("other", "other", ref, Touch("other")))
                 }
-                return log.append(stream)
+                return log.append(stream, transport)
             }
         }
         trail.clear()
@@ -140,7 +149,7 @@ class KernelHooksTest {
     fun `an unknown outcome runs no compensation, for the events may be committed`() = runTest {
         val log = opened()
         val unknown = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord): AppendOutcome =
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
                 AppendOutcome.Unknown(IllegalStateException("timeout"))
         }
         Kernel(unknown).execute(model, command(Touch("x"))).assert().isInstanceOf(CommandOutcome.Unknown::class.java)

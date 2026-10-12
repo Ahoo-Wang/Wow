@@ -16,9 +16,11 @@ package me.ahoo.wow.kernel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -49,18 +51,28 @@ class KernelSnapshotTest {
     private val kernel = Kernel(log, codec, snapshots = snapshots)
     private val replaying = Kernel(log, codec)
 
-    private suspend fun send(kernel: Kernel, body: Any): CommandOutcome =
-        kernel.execute(cartModel, Command("c-${++sequence}", "r-$sequence", ref, body))
+    private val owned = Scope("alice", "space")
+
+    private suspend fun send(kernel: Kernel, body: Any, scope: Scope = Scope.NONE): CommandOutcome =
+        kernel.execute(cartModel, Command("c-${++sequence}", "r-$sequence", ref, body, scope = scope))
 
     /** Commits five streams and snapshots the state at version 3. */
     private suspend fun history() {
-        send(replaying, CreateCart("ahoo"))
+        send(replaying, CreateCart("ahoo"), owned)
         send(replaying, AddItem("apple", 1))
         val third = send(replaying, AddItem("pear", 2)) as CommandOutcome.Committed
         send(replaying, AddItem("apple", 3))
         send(replaying, AddItem("pear", 4))
         snapshots.save(
-            codec.snapshotOf(cartModel, ref, third.state as CartState, 3, firstEventTime = 0, lastEventTime = 0),
+            codec.snapshotOf(
+                cartModel,
+                ref,
+                third.state as CartState,
+                3,
+                third.stream.scope,
+                firstEventTime = 0,
+                lastEventTime = 0,
+            ),
         )
     }
 
@@ -84,10 +96,29 @@ class KernelSnapshotTest {
     }
 
     @Test
+    fun `the aggregate's scope comes from the creating command and is carried forward`(): Unit = runTest {
+        history()
+        // A later command's caller scope does not move the aggregate's.
+        (send(replaying, AddItem("apple", 1), Scope("bob", null)) as CommandOutcome.Committed).stream.scope
+            .assert().isEqualTo(owned)
+        log.read(ref).toList().map { it.scope }.distinct().assert().containsExactly(owned)
+    }
+
+    @Test
+    fun `a snapshot gives the scope, and a full replay the last stream's`(): Unit = runTest {
+        history()
+        (send(replaying, AddItem("apple", 1)) as CommandOutcome.Committed).stream.scope.assert().isEqualTo(owned)
+        // A snapshot whose scope differs from the log's shows that the kernel took the scope from it.
+        val marked = Scope("from-snapshot", null)
+        snapshots.save(snapshots.load(ref)!!.copy(version = 6, scope = marked))
+        (send(kernel, AddItem("apple", 1)) as CommandOutcome.Committed).stream.scope.assert().isEqualTo(marked)
+    }
+
+    @Test
     fun `a snapshot at the log's head reads no event beyond it`() = runTest {
         send(replaying, CreateCart("ahoo"))
         val head = send(replaying, AddItem("apple", 1)) as CommandOutcome.Committed
-        snapshots.save(codec.snapshotOf(cartModel, ref, head.state as CartState, 2, 0, 0))
+        snapshots.save(codec.snapshotOf(cartModel, ref, head.state as CartState, 2, head.stream.scope, 0, 0))
         log.streamsRead = 0
         send(kernel, AddItem("apple", 1)).cart().items.assert().isEqualTo(mapOf("apple" to 2))
         log.streamsRead.assert().isEqualTo(1)
@@ -186,10 +217,11 @@ class KernelSnapshotTest {
     }
 
     @Test
-    fun `the writer side records the version, times and fingerprint`() {
+    fun `the writer side records the version, scope, times and fingerprint`() {
         val state = CartState("cart-1").apply { owner = "ahoo" }
-        val snapshot = codec.snapshotOf(cartModel, ref, state, 7, firstEventTime = 1, lastEventTime = 5)
+        val snapshot = codec.snapshotOf(cartModel, ref, state, 7, owned, firstEventTime = 1, lastEventTime = 5)
         snapshot.version.assert().isEqualTo(7)
+        snapshot.scope.assert().isEqualTo(owned)
         snapshot.firstEventTime.assert().isEqualTo(1)
         snapshot.lastEventTime.assert().isEqualTo(5)
         snapshot.schemaFingerprint.assert().isEqualTo(codec.stateSchemaFingerprint(cartModel))

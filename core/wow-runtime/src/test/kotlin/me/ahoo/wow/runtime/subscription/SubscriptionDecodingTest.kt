@@ -21,6 +21,8 @@ import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.reservation.ReservationKey
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -36,6 +38,7 @@ class SubscriptionDecodingTest {
         initial { Counter() }
         evolve<Added> { total += it.amount }
         evolve<Removed> { total -= it.amount }
+        alias<Added>("shop.cart.Increased")
     }
     private val codec = EventCodec()
     private val log = InMemoryEventLog(partitions = 1)
@@ -71,6 +74,66 @@ class SubscriptionDecodingTest {
         received.single().events.assert().isEqualTo(listOf(EventRecord(ADDED, 1, "{}")))
         received.single().position!!.sequence.assert().isEqualTo(1L)
         received.single().ref.assert().isEqualTo(cart("a"))
+        received.single().transport.assert().isNull()
+    }
+
+    @Test
+    fun `a handler receives the transport appended with the stream`(): Unit = runBlocking {
+        val received = CopyOnWriteArrayList<SubscribedEntry>()
+        val runtime = runtime(Subscription("transport", SubscriptionFilter("shop")) { received += it })
+        val transport = Transport(reservations = listOf(ReservationKey("user.name", "ahoo")))
+        appender.append("a", transport = transport)
+        runtime.start(setOf(0))
+        eventually { received.size == 1 }
+        runtime.stop()
+        received.single().transport.assert().isEqualTo(transport)
+    }
+
+    @Test
+    fun `with models, an event filter matches the event's former and current names`(): Unit = runBlocking {
+        val byCurrent = Handled()
+        val byFormer = Handled()
+        val withoutModels = Handled()
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            InMemoryFailureLedger(),
+            listOf(
+                Subscription("current", SubscriptionFilter("shop", events = setOf(ADDED)), models = listOf(model)) {
+                    byCurrent.record(it)
+                },
+                Subscription(
+                    "former",
+                    SubscriptionFilter("shop", events = setOf("shop.cart.Increased")),
+                    models = listOf(model),
+                ) { byFormer.record(it) },
+                Subscription("plain", SubscriptionFilter("shop", events = setOf(ADDED))) { withoutModels.record(it) },
+            ),
+            testOptions(),
+        )
+        appender.append("a") // stored under the current name
+        appender.append("a", events = listOf(EventRecord("shop.cart.Increased", 1, "{}"))) // under the former one
+        appender.append("a", events = listOf(EventRecord("shop.cart.Removed", 1, "{}")))
+        runtime.start(setOf(0))
+        eventually { checkpoints.load("group", "current", 0) == 3L && checkpoints.load("group", "former", 0) == 3L }
+        eventually { checkpoints.load("group", "plain", 0) == 3L }
+        runtime.stop()
+        byCurrent.versionsOf("a").assert().isEqualTo(listOf(1, 2))
+        byFormer.versionsOf("a").assert().isEqualTo(listOf(1, 2))
+        withoutModels.versionsOf("a").assert().isEqualTo(listOf(1))
+    }
+
+    @Test
+    fun `resolving a filter widens only the names a model of its context knows`() {
+        val filter = SubscriptionFilter("shop", events = setOf(ADDED, "shop.cart.Unknown"))
+        filter.resolve(listOf(model)).events.assert()
+            .isEqualTo(setOf(ADDED, "shop.cart.Increased", "shop.cart.Unknown"))
+        SubscriptionFilter("billing", events = setOf(ADDED)).resolve(listOf(model)).events.assert()
+            .isEqualTo(setOf(ADDED))
+        SubscriptionFilter("shop", aggregates = setOf("order"), events = setOf(ADDED)).resolve(listOf(model))
+            .events.assert().isEqualTo(setOf(ADDED))
+        SubscriptionFilter("shop").resolve(listOf(model)).events.assert().isEmpty()
     }
 
     @Test

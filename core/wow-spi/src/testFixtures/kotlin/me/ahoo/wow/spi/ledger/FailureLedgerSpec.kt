@@ -84,6 +84,33 @@ abstract class FailureLedgerSpec {
     }
 
     @Test
+    fun `reparking replaces a parked entry, later or earlier, with its reason`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 3))
+        ledger.park(entry(ref("a"), 3, subscription = another))
+        val later = entry(ref("a"), 6, reason = "failed again: ü \" é")
+        ledger.repark(later).assert().isTrue()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(later)
+        ledger.parked(another, ref("a")).assert().isEqualTo(entry(ref("a"), 3, subscription = another))
+        val sameVersion = entry(ref("a"), 6, reason = "a newer reason")
+        ledger.repark(sameVersion).assert().isTrue()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(sameVersion)
+        val earlier = entry(ref("a"), 2)
+        ledger.repark(earlier).assert().isTrue()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier)
+        ledger.list(subscription).assert().containsExactly(earlier)
+    }
+
+    @Test
+    fun `reparking an aggregate that is not parked writes nothing`(): Unit = runBlocking {
+        ledger.repark(entry(ref("a"), 4)).assert().isFalse()
+        ledger.isParked(subscription, ref("a")).assert().isFalse()
+        ledger.park(entry(ref("a"), 2))
+        ledger.resolve(subscription, ref("a"))
+        ledger.repark(entry(ref("a"), 4)).assert().isFalse()
+        ledger.parked(subscription, ref("a")).assert().isNull()
+    }
+
+    @Test
     fun `a subscription's parked aggregates are listed in pages, in aggregate order`(): Unit = runBlocking {
         val refs = listOf(ref("b"), ref("a", tenant = "u2"), ref("a"), ref("c"), ref("a", tenant = "u1"))
         refs.forEach { ledger.park(entry(it, 1)) }

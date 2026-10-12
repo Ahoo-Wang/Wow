@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.BeanProperty
@@ -30,8 +31,8 @@ import java.util.TreeSet
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Turns events and commands into what the log stores, and back. Events are named by the model, never by class name,
- * so renaming or moving a class does not orphan its history. States go into and come out of snapshots the same way.
+ * Turns events into what the log stores, and back. Events are named by the model, never by class name, so renaming
+ * or moving a class does not orphan its history. States go into and come out of snapshots the same way.
  */
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
@@ -80,8 +81,9 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     }
 
     /**
-     * The snapshot of [state], which folds [ref]'s event streams up to [version]; [firstEventTime] and
-     * [lastEventTime] are the commit times of its first and last streams. Access facts and tags stay empty.
+     * The snapshot of [state], which folds [ref]'s event streams up to [version]; [scope] is the aggregate's, the
+     * scope of the last of them (decision D56), and [firstEventTime] and [lastEventTime] are the commit times of the
+     * first and the last. Tags stay empty.
      */
     @Suppress("LongParameterList")
     fun <S : Any> snapshotOf(
@@ -89,6 +91,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         ref: AggregateRef,
         state: S,
         version: Int,
+        scope: Scope,
         firstEventTime: Long,
         lastEventTime: Long,
     ): SnapshotRecord {
@@ -98,6 +101,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             version = version,
             schemaFingerprint = stateSchemaFingerprint(model),
             state = stateText(state),
+            scope = scope,
             firstEventTime = firstEventTime,
             lastEventTime = lastEventTime,
         )
@@ -164,15 +168,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
 
     private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
 
-    /**
-     * Identifies a command: its type and a hash of its body. A request id reused by a command with another
-     * fingerprint is a different command, not a retry (decision D46).
-     */
-    fun fingerprint(body: Any): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(body))
-        return body.javaClass.name + ":" + hex(digest.copyOf(FINGERPRINT_BYTES))
-    }
-
     /** Collects the serialized properties of a bean, or the serialized constants of an enum. */
     private class ShapeVisitor : JsonFormatVisitorWrapper.Base() {
         val properties = TreeMap<String, JavaType>()
@@ -201,7 +196,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     }
 
     private companion object {
-        const val FINGERPRINT_BYTES = 16
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
         val DEFAULT_MAPPER: JsonMapper = JsonMapper.builder()
             .addModule(KotlinModule.Builder().build())

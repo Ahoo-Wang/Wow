@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -93,9 +94,10 @@ class PartitionSequenceThroughputSpike {
                     version = 1,
                     commandId = "c-$index",
                     requestId = "r-$index",
-                    fingerprint = "f",
+                    commandType = "$type.Act",
                     commitTime = System.currentTimeMillis(),
                     events = listOf(EventRecord("$type.Happened", 1, payload)),
+                    scope = Scope.NONE,
                 )
                 val started = System.nanoTime()
                 val outcome = if (scenario.plainInsert) {
@@ -132,8 +134,8 @@ class PartitionSequenceThroughputSpike {
             PostgresFixture.dataSource.connection.use { connection ->
                 connection.prepareStatement(
                     "INSERT INTO \"wow_log_${context.replace('-', '_')}\" (partition, sequence, aggregate_name, tenant_id, " +
-                        "aggregate_id, version, command_id, request_id, fingerprint, commit_time, events) " +
-                        "VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb)",
+                        "aggregate_id, version, command_id, request_id, command_type, commit_time, events, headers) " +
+                        "VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, '{}'::jsonb)",
                 ).use { insert ->
                     insert.setLong(1, stream.requestId.removePrefix("r-").toLong())
                     insert.setString(2, stream.ref.type.name)
@@ -142,7 +144,7 @@ class PartitionSequenceThroughputSpike {
                     insert.setInt(5, stream.version)
                     insert.setString(6, stream.commandId)
                     insert.setString(7, stream.requestId)
-                    insert.setString(8, stream.fingerprint)
+                    insert.setString(8, stream.commandType)
                     insert.setLong(9, stream.commitTime)
                     insert.executeUpdate()
                 }

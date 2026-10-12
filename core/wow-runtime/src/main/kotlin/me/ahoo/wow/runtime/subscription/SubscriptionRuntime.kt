@@ -20,8 +20,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -177,7 +175,7 @@ class SubscriptionRuntime(
         val checkpoint = checkpoints.load(group, subscription.name, partition) ?: when (subscription.startFrom) {
             StartFrom.BEGINNING -> 0L
             // Saved at once, so a restart before the first entry does not move the start to a later end.
-            StartFrom.END -> endOf(partition).also {
+            StartFrom.END -> (log.head(partition) ?: 0L).also {
                 if (it > 0) {
                     checkpoints.save(group, subscription.name, partition, it)
                 }
@@ -210,22 +208,6 @@ class SubscriptionRuntime(
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
         return parked
-    }
-
-    /**
-     * The sequence of the last entry of [partition] now: the log has no call for it, so its tail is read until it
-     * stays quiet for [SubscriptionOptions.endProbe]. It runs once per subscription and partition, when a
-     * subscription starting from the end has no checkpoint yet.
-     */
-    private suspend fun endOf(partition: Int): Long = coroutineScope {
-        val sequences = Channel<Long>(Channel.CONFLATED)
-        val reader = launch { log.tail(partition).collect { sequences.send(it.position.sequence) } }
-        var end = 0L
-        while (true) {
-            end = withTimeoutOrNull(options.endProbe) { sequences.receive() } ?: break
-        }
-        reader.cancel()
-        end
     }
 
     @Suppress("TooGenericExceptionCaught") // A failed save is retried on the next tick.

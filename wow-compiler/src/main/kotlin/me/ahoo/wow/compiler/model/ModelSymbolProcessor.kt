@@ -46,6 +46,8 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
  * generates `fun <root>Model(context: String): AggregateModel<State>`, built with the kernel DSL, so the annotated
  * and the DSL style are one model and the runtime never reflects.
  *
+ * Command and event types are named `context.aggregate.Name` (decision D55): the class's simple name, or its `@Name`.
+ *
  * It recognizes the 9.x forms: a root built from its state (`ctor(state)`) or a root that is its own state, command
  * functions annotated `@OnCommand` or named `onCommand`, sourcing functions annotated `@OnSourcing` or named
  * `onSourcing`, after hooks annotated `@AfterCommand` or named `afterCommand`, `@CreateAggregate` commands and
@@ -157,6 +159,7 @@ class ModelSymbolProcessor(
         }
     }
 
+    @OptIn(KspExperimental::class)
     private fun commandBinding(
         function: KSFunctionDeclaration,
         dependencies: MutableMap<String, Dependency>,
@@ -180,6 +183,7 @@ class ModelSymbolProcessor(
         }
         return CommandBinding(
             command = commandType.render(),
+            commandName = command.getAnnotationsByType(Name::class).firstOrNull()?.value,
             function = name,
             admitted = admitted,
             arguments = parameters.drop(1).mapNotNull { argument(name, it.type.resolve(), dependencies, problems) },

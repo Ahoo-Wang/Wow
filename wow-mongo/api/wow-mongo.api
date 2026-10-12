@@ -73,6 +73,12 @@ public final class me/ahoo/wow/mongo/MongoEventStore : me/ahoo/wow/eventsourcing
 	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
 }
 
+public final class me/ahoo/wow/mongo/MongoFormat {
+	public static final field COLLECTION Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/mongo/MongoFormat;
+	public final fun claim (Lcom/mongodb/client/MongoDatabase;Ljava/lang/String;I)V
+}
+
 public final class me/ahoo/wow/mongo/MongoJacksonModule : tools/jackson/databind/module/SimpleModule {
 	public fun <init> ()V
 }
@@ -128,17 +134,19 @@ public final class me/ahoo/wow/mongo/ledger/MongoFailureLedger : me/ahoo/wow/spi
 	public fun list (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun park (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun parked (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun repark (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resolve (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/mongo/log/MongoEventLog : me/ahoo/wow/spi/log/EventLog {
 	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;ILkotlinx/coroutines/CoroutineDispatcher;JIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lcom/mongodb/client/MongoClient;Ljava/lang/String;Ljava/lang/String;ILkotlinx/coroutines/CoroutineDispatcher;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun appendAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun createSchema ()V
 	public fun findByRequestId (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getPartitions ()I
+	public fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun read (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
 	public fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
 }

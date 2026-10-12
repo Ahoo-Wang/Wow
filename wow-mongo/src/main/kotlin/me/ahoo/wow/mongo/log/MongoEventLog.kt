@@ -26,6 +26,7 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.Updates
@@ -36,6 +37,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -45,6 +49,8 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.reservation.ReservationKey
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.bson.json.JsonMode
@@ -61,6 +67,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * Two transactions bumping one counter conflict and the later one aborts and retries (the driver retries transient
  * transaction errors), so the sequence order is the order commits become visible and no sequence is skipped. That
  * abort-and-retry is why appends to one partition should come from its owner, serialized (finding F1).
+ *
+ * A stream's facts are fields of its document; the transport is a field of its own, `transport` (decision D25),
+ * which only [tail] reads: [read] and [findByRequestId] leave it out of their projection.
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
@@ -86,8 +95,12 @@ class MongoEventLog(
         require(partitions >= 1) { "There is at least one partition." }
     }
 
-    /** Creates the indexes and the partition counters when missing; refuses a different partition count. */
+    /**
+     * Creates the indexes and the partition counters when missing; refuses a different partition count, and a log
+     * recorded in another format version ([MongoFormat]).
+     */
     fun createSchema() {
+        MongoFormat.claim(database, base, FORMAT)
         log.createIndex(
             Indexes.ascending(AGGREGATE_ID, TENANT_ID, AGGREGATE_NAME, VERSION),
             IndexOptions().unique(true).name(VERSION_KEY),
@@ -103,10 +116,13 @@ class MongoEventLog(
         }
     }
 
-    override suspend fun append(stream: EventStreamRecord): AppendOutcome = withContext(dispatcher) {
+    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        withContext(dispatcher) { appendNow(stream, transport) }
+
+    private fun appendNow(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
         val partition = Partitioner.partitionOf(stream.ref, partitions)
-        try {
+        return try {
             client.startSession().use { session ->
                 session.withTransaction({
                     val current = log.find(session, refFilter(stream.ref))
@@ -123,7 +139,7 @@ class MongoEventLog(
                             Updates.inc(SEQUENCE, 1L),
                             FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
                         )!!.getLong(SEQUENCE)
-                        log.insertOne(session, documentOf(partition, sequence, stream))
+                        log.insertOne(session, documentOf(partition, sequence, stream, transport))
                         AppendOutcome.Committed(LogPosition(partition, sequence))
                     }
                 }, transaction)
@@ -147,17 +163,21 @@ class MongoEventLog(
      * fit get their conflict without a write. A duplicate key aborts the whole transaction, so the batch then falls
      * back to one append per stream, which gives each its own outcome.
      */
-    override suspend fun appendAll(streams: List<EventStreamRecord>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
-            return streams.map { append(it) }
+            return streams.map { (stream, transport) -> append(stream, transport) }
         }
-        val partition = Partitioner.partitionOf(streams.first().ref, partitions)
+        val partition = Partitioner.partitionOf(streams.first().first.ref, partitions)
         require(
-            streams.all { it.ref.type.context == context && Partitioner.partitionOf(it.ref, partitions) == partition }
+            streams.all { (stream) ->
+                stream.ref.type.context == context && Partitioner.partitionOf(stream.ref, partitions) == partition
+            }
         ) {
             "A group commit appends streams of one partition of $context."
         }
-        require(streams.map { it.ref }.toSet().size == streams.size) { "A group commit appends distinct aggregates." }
+        require(streams.map { it.first.ref }.toSet().size == streams.size) {
+            "A group commit appends distinct aggregates."
+        }
         val grouped = withContext(dispatcher) {
             try {
                 client.startSession().use { session ->
@@ -167,16 +187,17 @@ class MongoEventLog(
                 null
             }
         }
-        return grouped ?: streams.map { append(it) }
+        return grouped ?: streams.map { (stream, transport) -> append(stream, transport) }
     }
 
     private fun appendGroup(
         session: ClientSession,
         partition: Int,
-        streams: List<EventStreamRecord>,
+        appends: List<Pair<EventStreamRecord, Transport?>>,
     ): List<AppendOutcome> {
+        val streams = appends.map { it.first }
         val versions = currentVersions(session, streams.map { it.ref })
-        val fits = streams.filter { versions.getOrDefault(it.ref, 0) == it.version - 1 }
+        val fits = appends.filter { (stream) -> versions.getOrDefault(stream.ref, 0) == stream.version - 1 }
         if (fits.isEmpty()) {
             return streams.map { AppendOutcome.Conflict(versions.getOrDefault(it.ref, 0)) }
         }
@@ -187,8 +208,18 @@ class MongoEventLog(
             FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
         )!!.getLong(SEQUENCE)
         val first = last - fits.size + 1
-        val sequences = fits.withIndex().associate { (index, stream) -> stream.ref to first + index }
-        log.insertMany(session, fits.map { documentOf(partition, sequences.getValue(it.ref), it) })
+        val sequences = fits.withIndex().associate { (index, append) -> append.first.ref to first + index }
+        log.insertMany(
+            session,
+            fits.map { (stream, transport) ->
+                documentOf(
+                    partition,
+                    sequences.getValue(stream.ref),
+                    stream,
+                    transport
+                )
+            },
+        )
         return streams.map { stream ->
             sequences[stream.ref]?.let { AppendOutcome.Committed(LogPosition(partition, it)) }
                 ?: AppendOutcome.Conflict(versions.getOrDefault(stream.ref, 0))
@@ -216,6 +247,7 @@ class MongoEventLog(
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = withContext(dispatcher) {
             log.find(Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)))
+                .projection(FACTS)
                 .sort(Sorts.ascending(VERSION))
                 .map { streamOf(it) }
                 .toList()
@@ -234,7 +266,13 @@ class MongoEventLog(
                 log.find(Filters.and(Filters.eq(PARTITION, partition), Filters.gt(SEQUENCE, last)))
                     .sort(Sorts.ascending(SEQUENCE))
                     .limit(tailBatch)
-                    .map { LogEntry(LogPosition(partition, it.getLong(SEQUENCE)), streamOf(it)) }
+                    .map {
+                        LogEntry(
+                            LogPosition(partition, it.getLong(SEQUENCE)),
+                            streamOf(it),
+                            it.get(TRANSPORT, Document::class.java)?.let(::transportOf),
+                        )
+                    }
                     .toList()
             }
             batch.forEach {
@@ -247,8 +285,17 @@ class MongoEventLog(
         }
     }
 
+    override suspend fun head(partition: Int): Long? {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return withContext(dispatcher) {
+            // The counter is bumped in the transaction that inserts the entry, so it is the last committed sequence.
+            counters.find(Filters.eq(ID, partition)).firstOrNull()?.getLong(SEQUENCE)?.takeIf { it > 0 }
+        }
+    }
+
     private fun findByRequestIdNow(tenantId: String, requestId: String): EventStreamRecord? =
         log.find(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
+            .projection(FACTS)
             .firstOrNull()
             ?.let { streamOf(it) }
 
@@ -261,7 +308,7 @@ class MongoEventLog(
         Filters.eq(AGGREGATE_NAME, ref.type.name),
     )
 
-    private fun documentOf(partition: Int, sequence: Long, stream: EventStreamRecord) = Document()
+    private fun documentOf(partition: Int, sequence: Long, stream: EventStreamRecord, transport: Transport?) = Document()
         .append(PARTITION, partition)
         .append(SEQUENCE, sequence)
         .append(AGGREGATE_NAME, stream.ref.type.name)
@@ -270,7 +317,7 @@ class MongoEventLog(
         .append(VERSION, stream.version)
         .append(COMMAND_ID, stream.commandId)
         .append(REQUEST_ID, stream.requestId)
-        .append(FINGERPRINT, stream.fingerprint)
+        .append(COMMAND_TYPE, stream.commandType)
         .append(COMMIT_TIME, stream.commitTime)
         .append(
             EVENTS,
@@ -278,6 +325,33 @@ class MongoEventLog(
                 Document(NAME, it.name).append(REVISION, it.revision).append(PAYLOAD, Document.parse(it.payload))
             },
         )
+        .append(OWNER_ID, stream.scope.ownerId)
+        .append(SPACE_ID, stream.scope.spaceId)
+        .append(
+            CAUSATION,
+            stream.causation?.let { Document(CORRELATION_ID, it.correlationId).append(CAUSATION_ID, it.causationId) },
+        )
+        .append(HEADERS, Document(stream.headers))
+        .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
+
+    private fun transportDocument(transport: Transport) = Document()
+        .apply { transport.wait?.let { append(WAIT, Document(it)) } }
+        .append(RESERVATIONS, transport.reservations.map { Document(NAMESPACE, it.namespace).append(KEY, it.key) })
+        .append(TRACE, Document(transport.trace))
+
+    private fun transportOf(document: Document) = Transport(
+        wait = document.get(WAIT, Document::class.java)?.let(::strings),
+        reservations = document.getList(RESERVATIONS, Document::class.java).map {
+            ReservationKey(it.getString(NAMESPACE), it.getString(KEY))
+        },
+        trace = strings(document.get(TRACE, Document::class.java)),
+    )
+
+    private fun strings(document: Document): Map<String, String> = document.keys.associateWith {
+        document.getString(
+            it
+        )
+    }
 
     private fun streamOf(document: Document) = EventStreamRecord(
         ref = AggregateType(context, document.getString(AGGREGATE_NAME))
@@ -285,11 +359,16 @@ class MongoEventLog(
         version = document.getInteger(VERSION),
         commandId = document.getString(COMMAND_ID),
         requestId = document.getString(REQUEST_ID),
-        fingerprint = document.getString(FINGERPRINT),
+        commandType = document.getString(COMMAND_TYPE),
         commitTime = document.getLong(COMMIT_TIME),
         events = document.getList(EVENTS, Document::class.java).map {
             EventRecord(it.getString(NAME), it.getInteger(REVISION), it.get(PAYLOAD, Document::class.java).toJson(JSON))
         },
+        scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
+        causation = document.get(CAUSATION, Document::class.java)?.let {
+            Causation(it.getString(CORRELATION_ID), it.getString(CAUSATION_ID))
+        },
+        headers = strings(document.get(HEADERS, Document::class.java)),
     )
 
     private companion object {
@@ -306,8 +385,20 @@ class MongoEventLog(
         const val VERSION = "version"
         const val COMMAND_ID = "command_id"
         const val REQUEST_ID = "request_id"
-        const val FINGERPRINT = "fingerprint"
+        const val COMMAND_TYPE = "command_type"
         const val COMMIT_TIME = "commit_time"
+        const val OWNER_ID = "owner_id"
+        const val SPACE_ID = "space_id"
+        const val CAUSATION = "causation"
+        const val CORRELATION_ID = "correlation_id"
+        const val CAUSATION_ID = "causation_id"
+        const val HEADERS = "headers"
+        const val TRANSPORT = "transport"
+        const val WAIT = "wait"
+        const val RESERVATIONS = "reservations"
+        const val NAMESPACE = "namespace"
+        const val KEY = "key"
+        const val TRACE = "trace"
         const val EVENTS = "events"
         const val NAME = "name"
         const val REVISION = "revision"
@@ -315,5 +406,11 @@ class MongoEventLog(
         const val VERSION_KEY = "version_key"
         const val REQUEST_KEY = "request_key"
         const val POSITION_KEY = "position_key"
+
+        /** The version of this layout (decision D59). */
+        const val FORMAT = 1
+
+        /** A stream's facts: every field but the transport. */
+        val FACTS: Bson = Projections.exclude(TRANSPORT)
     }
 }

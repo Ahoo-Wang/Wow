@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.reservation.ReservationKey
 import org.junit.jupiter.api.Test
 
 /** Decision D38: a decide function reserves a unique key, and the kernel settles it with the append. */
@@ -40,7 +44,8 @@ class KernelReservationTest {
         evolve<Registered> { name = it.name }
     }
     private val reservations = InMemoryReservationStore()
-    private val kernel = Kernel(InMemoryEventLog(), reservations = reservations)
+    private val log = InMemoryEventLog(partitions = 1)
+    private val kernel = Kernel(log, reservations = reservations)
     private var sequence = 0
 
     private suspend fun register(user: String, name: String, refuse: Boolean = false): CommandOutcome =
@@ -75,6 +80,16 @@ class KernelReservationTest {
         register("u-1", "ahoo")
         register("u-1", "ahoo", refuse = true)
         reservations.find(NAMES, "ahoo")!!.confirmed.assert().isTrue()
+    }
+
+    @Test
+    fun `the keys an attempt reserved pending travel with its entry`(): Unit = runTest {
+        register("u-1", "ahoo")
+        register("u-1", "ahoo")
+        val entries = log.tail(0).take(2).toList()
+        // The first attempt reserved the key pending; the second found it confirmed and had nothing to confirm.
+        entries[0].transport.assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"))))
+        entries[1].transport.assert().isNull()
     }
 
     private companion object {

@@ -37,6 +37,17 @@ interface FailureLedger {
      */
     suspend fun park(entry: ParkedAggregate): Boolean
 
+    /**
+     * Replaces the entry parking [entry]'s aggregate with [entry] (its from version, reason and failure time), when
+     * the aggregate is parked; it never parks one that is not. Unlike [park] it may move the from version later: a
+     * resume that handled the aggregate's streams up to a version and failed again there records where it now stands
+     * and why, so the next resume starts at that stream rather than handling the earlier ones again. Only the
+     * subscription resuming the aggregate calls it, while no live entry of that aggregate is handled.
+     *
+     * @return true when an entry was replaced; false when the aggregate is not parked (it was resolved meanwhile).
+     */
+    suspend fun repark(entry: ParkedAggregate): Boolean
+
     /** The entry parking [ref] for [subscription], if any. */
     suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate?
 

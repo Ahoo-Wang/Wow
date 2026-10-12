@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 
 /**
  * An aggregate's latest committed state as the snapshot store keeps it: a cache derived from the log, never a fact.
@@ -22,8 +23,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  * - [schemaFingerprint] identifies the state's schema: a reader whose fingerprint differs discards the snapshot and
  *   rebuilds the state from the log;
  * - [state] is the serialized state, a JSON document;
- * - [ownerId], [spaceId] and [tags] are the access facts admission decided; the query side filters on the same
- *   fields;
+ * - [scope] is the aggregate's owner and space, the scope of the last event stream folded (decision D56), and
+ *   [tags] its access tags; the query side filters on the same fields;
  * - [deleted] marks an aggregate that is deleted; its snapshot stays, so it can be queried and restored;
  * - [firstEventTime] and [lastEventTime] are the commit times (epoch milliseconds) of its first and last streams.
  */
@@ -32,8 +33,7 @@ data class SnapshotRecord(
     val version: Int,
     val schemaFingerprint: String,
     val state: String,
-    val ownerId: String? = null,
-    val spaceId: String? = null,
+    val scope: Scope = Scope.NONE,
     val deleted: Boolean = false,
     val firstEventTime: Long,
     val lastEventTime: Long,
@@ -43,8 +43,6 @@ data class SnapshotRecord(
         require(version >= 1) { "A snapshot's version starts at 1: it folds at least one event stream." }
         require(schemaFingerprint.isNotBlank()) { "A snapshot needs its state's schema fingerprint." }
         require(state.isNotBlank()) { "A snapshot needs a state." }
-        require(ownerId == null || ownerId.isNotBlank()) { "An owner id, when present, is not blank." }
-        require(spaceId == null || spaceId.isNotBlank()) { "A space id, when present, is not blank." }
         require(firstEventTime <= lastEventTime) { "The first event is not committed after the last one." }
         require(tags.keys.none { it.isBlank() }) { "A tag needs a name." }
     }

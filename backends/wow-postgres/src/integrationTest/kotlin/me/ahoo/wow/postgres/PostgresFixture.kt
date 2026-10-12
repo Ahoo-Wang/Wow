@@ -46,5 +46,24 @@ object PostgresFixture {
     fun snapshotStore(context: String = newContext()): PostgresSnapshotStore =
         PostgresSnapshotStore(dataSource, context).also { it.createSchema() }
 
+    /** Creates [table] the way a build without format records did: the table alone. */
+    fun createUnrecorded(table: String) {
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("CREATE TABLE \"$table\" (id integer)") }
+        }
+    }
+
+    /** Moves the recorded format version of [structure] one ahead, as a newer Wow would have written it. */
+    fun bumpFormat(structure: String) {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                "UPDATE ${PostgresFormat.TABLE} SET version = version + 1 WHERE structure = ?",
+            ).use { update ->
+                update.setString(1, structure)
+                check(update.executeUpdate() == 1) { "$structure has no recorded format." }
+            }
+        }
+    }
+
     private const val POOL_SIZE = 64
 }

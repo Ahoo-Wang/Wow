@@ -34,6 +34,21 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
+    fun `snapshots recorded in another format version are refused`() {
+        val context = PostgresFixture.newContext()
+        PostgresFixture.snapshotStore(context)
+        PostgresFixture.bumpFormat("wow_snapshot_" + context.replace('-', '_'))
+        assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context) }
+    }
+
+    @Test
+    fun `snapshots created by a build without format records are refused`() {
+        val context = PostgresFixture.newContext()
+        PostgresFixture.createUnrecorded("wow_snapshot_" + context.replace('-', '_'))
+        assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context) }
+    }
+
+    @Test
     fun `a snapshot of another context is refused`(): Unit = runBlocking {
         val store = PostgresFixture.snapshotStore()
         val foreign = snapshot("a", 1).copy(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))

@@ -20,6 +20,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
@@ -43,8 +44,7 @@ abstract class SnapshotStoreSpec {
         version: Int,
         tenant: String = "tenant",
         aggregate: AggregateType = type,
-        ownerId: String? = "owner",
-        spaceId: String? = "space",
+        scope: Scope = Scope("owner", "space"),
         deleted: Boolean = false,
         tags: Map<String, List<String>> = mapOf("region" to listOf("east", "west"), "tier" to listOf("gold")),
     ) = SnapshotRecord(
@@ -52,8 +52,7 @@ abstract class SnapshotStoreSpec {
         version = version,
         schemaFingerprint = "fingerprint-$version",
         state = """{"id":"$id","version":$version,"text":"ü \" é","items":[{"sku":"a","quantity":2}],"note":null}""",
-        ownerId = ownerId,
-        spaceId = spaceId,
+        scope = scope,
         deleted = deleted,
         firstEventTime = FIRST_EVENT_TIME,
         lastEventTime = FIRST_EVENT_TIME + version,
@@ -79,9 +78,15 @@ abstract class SnapshotStoreSpec {
     @Test
     fun `absent access facts and the deleted mark load back as saved`(): Unit = runBlocking {
         val store = createStore()
-        val saved = snapshot("a", 1, ownerId = null, spaceId = null, deleted = true, tags = emptyMap())
+        val saved = snapshot("a", 1, scope = Scope.NONE, deleted = true, tags = emptyMap())
         store.save(saved).assert().isTrue()
         store.load(saved.ref).assertSameAs(saved)
+        val ownerOnly = snapshot("b", 1, scope = Scope(ownerId = "owner"))
+        val spaceOnly = snapshot("c", 1, scope = Scope(spaceId = "space"))
+        store.save(ownerOnly).assert().isTrue()
+        store.save(spaceOnly).assert().isTrue()
+        store.load(ownerOnly.ref).assertSameAs(ownerOnly)
+        store.load(spaceOnly.ref).assertSameAs(spaceOnly)
     }
 
     @Test
@@ -90,9 +95,9 @@ abstract class SnapshotStoreSpec {
         val second = snapshot("a", 2)
         store.save(second).assert().isTrue()
         store.save(snapshot("a", 1)).assert().isFalse()
-        store.save(second.copy(state = """{"changed":true}""", ownerId = "other")).assert().isFalse()
+        store.save(second.copy(state = """{"changed":true}""", scope = Scope(ownerId = "other"))).assert().isFalse()
         store.load(second.ref).assertSameAs(second)
-        val third = snapshot("a", 3, ownerId = "other", deleted = true)
+        val third = snapshot("a", 3, scope = Scope(ownerId = "other"), deleted = true)
         store.save(third).assert().isTrue()
         store.load(third.ref).assertSameAs(third)
     }

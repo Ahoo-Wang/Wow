@@ -14,11 +14,12 @@
 package me.ahoo.wow.postgres.snapshot
 
 /**
- * The table and statements of one context's snapshots. The name derives from the context and is part of the format.
- * The key leads with the tenant, so a query within one tenant and aggregate scans one key range.
+ * The table and statements of one context's snapshots. The name derives from the context and is part of the format,
+ * whose version is [FORMAT] (decision D59). The key leads with the tenant, so a query within one tenant and aggregate
+ * scans one key range. The scope is two nullable columns, the owner and the space, which the query side filters on.
  */
 internal class PostgresSnapshotTables(context: String) {
-    private val base = "wow_snapshot_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
+    val base = "wow_snapshot_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
     val snapshot = "\"$base\""
 
     fun ddl(): List<String> = listOf(
@@ -67,4 +68,9 @@ internal class PostgresSnapshotTables(context: String) {
     """.trimIndent()
 
     val load = "SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_name = ? AND aggregate_id = ?"
+
+    companion object {
+        /** The version of this layout. */
+        const val FORMAT = 1
+    }
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 
 /**
  * Where the kernel keeps aggregates' states between commands, so a command does not replay the log.
@@ -41,5 +42,8 @@ interface StateCache {
     }
 }
 
-/** An aggregate's [state] after its event stream [version]. */
-class CachedState(val state: Any, val version: Int)
+/**
+ * An aggregate's [state] after its event stream [version], with its [scope]: the owner and space it has after that
+ * stream (decision D56), which the next stream carries forward.
+ */
+class CachedState(val state: Any, val version: Int, val scope: Scope = Scope.NONE)

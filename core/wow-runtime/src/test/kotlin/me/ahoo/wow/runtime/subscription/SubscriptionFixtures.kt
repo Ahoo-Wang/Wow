@@ -18,12 +18,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -48,7 +50,6 @@ fun testOptions(
     retry = RetryPolicy(maxAttempts = maxAttempts, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
     checkpointInterval = checkpointInterval,
     stopTimeout = stopTimeout,
-    endProbe = 50.milliseconds,
     readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
 )
 
@@ -64,11 +65,13 @@ class Appender(private val log: EventLog) {
         id: String,
         type: AggregateType = CART,
         events: List<EventRecord> = listOf(EventRecord("$type.Added", 1, "{}")),
+        transport: Transport? = null,
     ): Long {
         val ref = type.ref("t", id)
         val version = versions.computeIfAbsent(ref) { AtomicInteger() }.incrementAndGet()
         val n = requests.incrementAndGet()
-        val outcome = log.append(EventStreamRecord(ref, version, "c-$n", "r-$n", "f", 0L, events))
+        val stream = EventStreamRecord(ref, version, "c-$n", "r-$n", "$type.Act", 0L, events, Scope.NONE)
+        val outcome = log.append(stream, transport)
         val position = (outcome as AppendOutcome.Committed).position
         ends.merge(position.partition, position.sequence, ::maxOf)
         return position.sequence

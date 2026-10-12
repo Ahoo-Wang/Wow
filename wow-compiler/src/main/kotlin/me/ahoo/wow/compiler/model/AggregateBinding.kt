@@ -37,6 +37,8 @@ data class Dependency(val name: String, val type: String)
 
 data class CommandBinding(
     val command: String,
+    /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
+    val commandName: String?,
     val function: String,
     /** Whether the function takes the admitted `Command<X>` rather than the body `X`. */
     val admitted: Boolean,
