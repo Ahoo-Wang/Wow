@@ -14,14 +14,13 @@
 package me.ahoo.wow.postgres.reservation
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationStore
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Clock
-import java.util.concurrent.Executors
 import javax.sql.DataSource
 import kotlin.time.Duration
 
@@ -39,7 +38,7 @@ class PostgresReservationStore(
     private val dataSource: DataSource,
     table: String = DEFAULT_TABLE,
     private val clock: Clock = Clock.systemUTC(),
-    private val dispatcher: CoroutineDispatcher = VIRTUAL_THREADS,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : ReservationStore {
     private val tables = PostgresReservationTables(table)
 
@@ -95,7 +94,6 @@ class PostgresReservationStore(
 
     private companion object {
         const val DEFAULT_TABLE = "wow_reservation"
-        val VIRTUAL_THREADS: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
 
         fun reservationOf(namespace: String, key: String, row: ResultSet) = Reservation(
             namespace = namespace,

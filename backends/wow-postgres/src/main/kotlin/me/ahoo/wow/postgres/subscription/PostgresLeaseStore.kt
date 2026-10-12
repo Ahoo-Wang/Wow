@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member

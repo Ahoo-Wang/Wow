@@ -43,7 +43,7 @@ class KernelHooksTest {
     private val model = aggregate<Counter>("test", "counter") {
         initial { Counter(it.id) }
         decide<Open>(Creation.REQUIRED) { _, body ->
-            putResult("app", command.headers.getValue("app") + "/" + command.owner)
+            putResult("app", command.headers.getValue("app") + "/" + command.ownerId)
             Decision.events(Opened(body.by))
         }
         decide<Touch> { _, command ->
@@ -74,7 +74,7 @@ class KernelHooksTest {
         return log
     }
 
-    private fun open() = Command("c-0", "r-0", ref, Open("me"), owner = "alice", headers = mapOf("app" to "console"))
+    private fun open() = Command("c-0", "r-0", ref, Open("me"), ownerId = "alice", headers = mapOf("app" to "console"))
 
     @Test
     fun `a decide function reads the admitted command and answers the caller`() = runTest {

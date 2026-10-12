@@ -39,7 +39,7 @@ The first processor bound only `onCommand(body)` with no other parameters, publi
 | Reactor returns | `wow-reactor` provides `awaitResult(Publisher)`: a `Mono` yields its value and a `Flux` yields a list of events. Generated code calls such functions through `decideSuspending` / `afterSuspending`. |
 | `@AllowCreate` | The kernel's creation semantics become `Creation { NONE, REQUIRED, ALLOWED }`. |
 | Package-private | Every non-private function is bound. The generated model lives in the root's package. |
-| Command metadata | `Command` carries what admission learned (`owner`, `space`, `headers`), excluded from the fingerprint. A handler may take `Command<X>` instead of `X`; `DecideScope.command` gives the same to the DSL. |
+| Command metadata | `Command` carries what admission learned (`ownerId`, `spaceId`, `headers`), excluded from the fingerprint. A handler may take `Command<X>` instead of `X`; `DecideScope.command` gives the same to the DSL. |
 | Extra results | `DecideScope.putResult` answers the caller with `CommandOutcome.Committed.results`. These results are not persisted. |
 | 9.x framework types | The processor reports them as errors, with the V10 form to use, instead of binding them wrongly. |
 
@@ -70,7 +70,6 @@ All 11 rewrites are mechanical, which is why they are left to the migration Skil
 | `CommandMessage<X>` | `Command<X>` |
 | `.header[k]` | `.headers[k]` |
 | `.aggregateId.id` | `.ref.id` |
-| `.ownerId` | `.owner` |
 | `ServerCommandExchange<X>`, body unused | `X` |
 | `CommandResultAccessor.setCommandResult(k, v)` | `DecideScope.putResult(k, v)` |
 

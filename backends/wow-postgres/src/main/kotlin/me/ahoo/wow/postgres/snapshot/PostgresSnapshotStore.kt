@@ -14,17 +14,16 @@
 package me.ahoo.wow.postgres.snapshot
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import tools.jackson.databind.json.JsonMapper
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
-import java.util.concurrent.Executors
 import javax.sql.DataSource
 
 /**
@@ -40,7 +39,7 @@ import javax.sql.DataSource
 class PostgresSnapshotStore(
     private val dataSource: DataSource,
     private val context: String,
-    private val dispatcher: CoroutineDispatcher = VIRTUAL_THREADS,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : SnapshotStore {
     private val tables = PostgresSnapshotTables(context)
 
@@ -103,7 +102,6 @@ class PostgresSnapshotStore(
     }
 
     private companion object {
-        val VIRTUAL_THREADS: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
         val json: JsonMapper = JsonMapper.builder().build()
 
         fun decodeTags(text: String): Map<String, List<String>> = buildMap {

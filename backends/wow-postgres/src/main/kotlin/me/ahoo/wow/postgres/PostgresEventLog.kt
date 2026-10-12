@@ -14,7 +14,6 @@
 package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -34,7 +33,6 @@ import tools.jackson.databind.node.ArrayNode
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
-import java.util.concurrent.Executors
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -54,7 +52,7 @@ class PostgresEventLog(
     private val dataSource: DataSource,
     private val context: String,
     override val partitions: Int,
-    private val dispatcher: CoroutineDispatcher = VIRTUAL_THREADS,
+    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
 ) : EventLog {
@@ -220,7 +218,6 @@ class PostgresEventLog(
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         const val DEFAULT_TAIL_BATCH = 500
-        val VIRTUAL_THREADS: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
         val json: JsonMapper = JsonMapper.builder().build()
 
         /** Events as one JSON array; each payload is stored as JSON, so the log can be queried in place. */
