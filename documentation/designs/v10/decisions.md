@@ -117,7 +117,7 @@
 | D96 | 空间取自主体；`Wow-Space` 在主体所属的空间中选择，由解析器校验成员关系 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
 | D97 | 无租户的主体用 `wow.tenant.default = "(0)"`；默认解析器为匿名（默认租户、`Scope.NONE`），启动时告警 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
 | D98 | 等待用 `Wow-Wait` 与 `Wow-Wait-Timeout`，不用 `Prefer`（修订 D16）；请求 ID 用 `Wow-Request-Id`；期望版本用 `If-Match`，读响应带 `ETag` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
-| D99 | `Wow-Wait` 语法：`plan := hop (">" hop)*`，`hop := accepted | committed["(" ctx ")"] | snapshot["(" ctx ")"] | handled(["ctx/"]订阅)`；`Hop.toString` 同形；超时写 `500ms`、`10s` 或 ISO-8601 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [04](04-subscriptions.md) |
+| D99 | `Wow-Wait` 语法：`plan := hop (">" hop)*`，`hop := accepted | committed["(" ctx ")"] | snapshot["(" ctx ")"] | handled(["ctx/"]订阅)`；`Hop.toString` 同形；超时写 `500ms`、`10s` 或 ISO-8601 ；`accepted` 也可带上下文 `accepted(ctx)`（Saga 之后的 accepted 可属另一上下文，Ahoo-Wang/Wow#4304） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [04](04-subscriptions.md) |
 | D100 | 非 Kafka 路由上的 `accepted`：准入后回 202，命令在节点的受监管作用域里脱离请求执行，不持久（D15） | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [04](04-subscriptions.md) |
 | D101 | problem+json：`type=urn:wow:error:<码>`、`code`、`violations`，完整的 `CommandResult` 嵌在 `result` 下（修订 08 §7 的展平，避免 `status` 与 RFC 9457 冲突）；有聚合引用之前的错误不带 `result`；SSE 先看第一个元素，准入拒绝走 problem+json | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [08](08-data-protocols.md) |
 | D102 | `wow.*` 错误码的 HTTP 状态表（见 05 §3）；领域拒绝默认 422，可按码配置；框架码在 Manifest 顶层 `errors`，各上下文的 `errors` 可选 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [05](05-read-and-contract.md) |
@@ -140,6 +140,7 @@
 | D119 | 注入的领域服务用参数上的 `@Name("…")` 作限定名，生成的 `ModelProvider` 按（类型，限定名）解析；同类型不同限定名可以并存 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md) |
 | D120 | `@OnCommand(produces = [...])`：返回 `Decision` 的命令可声明可能产出的事件，KSP 校验它们是本聚合的事件并写入 Manifest 的 `produces`；不声明则省略 | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md)、[05](05-read-and-contract.md) |
 | D121 | 领域拒绝码用 `@ErrorCode(description, status = 422)` 标在 `const val` 上，KSP 收集进所在上下文的 Manifest `errors`；不得以 `wow.` 开头、模块内唯一；V10 注解集增加 `@ErrorCode` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [01](01-programming-model.md)、[05](05-read-and-contract.md) |
+| D122 | JSON 数字在存储与线路上精确往返：唯一的 Wow mapper（`:spi` 的 `WowJson`，只带 Kotlin 模块、`USE_BIG_DECIMAL_FOR_FLOATS`、保留尾随零）供内核、集群编解码与各后端使用（完成 D105）；PostgreSQL 用 `jsonb` 精确读写；MongoDB 以 `Decimal128` 保存小数（保留小数位），无法精确保存的数（超过 34 位有效数字）写入即拒绝，绝不舍入；无类型值里的小数绑定为 `BigDecimal` | 2026-10-12，协调者按推荐（用户授权默认按推荐） | [08](08-data-protocols.md) |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
 | D67 | V10 注解集：约 15 个（见 01 §3），订阅处理函数统一为一个 `@OnEvent`、种类由所在类的 `@Projection` / `@Reactor` / `@Saga` 决定；KSP 只认 V10 注解，9.x 注解由迁移 Skill 映射 | 2026-10-12，用户 | [01](01-programming-model.md) |
