@@ -85,6 +85,22 @@ export type ScenePage =
   | 'pricing-snapshots'
   | 'pricing-event-streams';
 
+/** The home page and the business scenes: the retail app itself. */
+const RETAIL_SCENES: ReadonlySet<ScenePage> = new Set<ScenePage>([
+  'home',
+  'ops-daily',
+  'sales-review',
+  'fulfilment',
+  'showcase',
+  'retail-orders',
+  'retail-after-sales',
+  'retail-analysis',
+  'retail-waybills',
+  'retail-order-events',
+  'member-detail',
+  'order-detail',
+]);
+
 type NavItem = {
   page: ScenePage;
   title: string;
@@ -469,8 +485,24 @@ export function AppShell({
   const live = 'host' in service;
   const serviceLabel = live ? service.host : service.fixture;
   const ServiceIcon = live ? ServerIcon : DatabaseIcon;
+  // The retail scenes are a Chinese retail app, and read every change as
+  // its market does: rising red, falling green (R2-101: a K-line page
+  // red-up beside cards coloured by good and bad was two conventions in one
+  // app). The capability and component pages keep the package's default,
+  // which their stories test; the toolbar's pick, on `<html>` where a host
+  // puts it, wins everywhere.
+  const changeColors =
+    current !== undefined &&
+    RETAIL_SCENES.has(current) &&
+    !document.documentElement.hasAttribute('data-fve-change-colors')
+      ? 'red-up'
+      : undefined;
   return (
-    <div className="fve-tokens story-app" data-folded={folded || undefined}>
+    <div
+      className="fve-tokens story-app"
+      data-folded={folded || undefined}
+      data-fve-change-colors={changeColors}
+    >
       {/* The first stop of the page, shown once the keyboard is on it: past
           the bar and the navigation, to what the page is for (WCAG 2.4.1;
           Storybook review P2). */}
