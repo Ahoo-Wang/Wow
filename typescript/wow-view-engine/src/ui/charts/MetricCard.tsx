@@ -67,21 +67,16 @@ function TargetBar({
   value,
   target,
   show,
-  foot,
 }: {
   value: number;
   target: number;
   show: (value: number) => string;
-  foot: boolean;
 }) {
   const messages = useViewMessages();
   return (
     <div
       data-slot="metric-target"
-      className={cn(
-        'fve:flex fve:items-center fve:gap-2',
-        foot && 'fve:mt-auto',
-      )}
+      className="fve:flex fve:items-center fve:gap-2"
     >
       <Progress
         aria-label={messages.label('label.chart.target')}
@@ -408,6 +403,10 @@ export function MetricCard({
       // rather than let 「¥16,052.93」 run past its edge.
       className={cn(
         'fve:@container/metric fve:flex fve:flex-col fve:gap-2',
+        // Without a trend under them, the words stand in the middle of the
+        // card's height rather than at its top over an empty panel (R2-101:
+        // 「本月至今」 on 图型全景 was one line over 270px of white).
+        !trend?.length && 'fve:justify-center',
         className,
       )}
     >
@@ -467,13 +466,7 @@ export function MetricCard({
         </span>
       )}
       {data.target !== undefined && typeof data.value === 'number' && (
-        <TargetBar
-          value={data.value}
-          target={data.target}
-          show={show}
-          // Without a trend under it, the bar is the card's foot.
-          foot={!trend?.length}
-        />
+        <TargetBar value={data.value} target={data.target} show={show} />
       )}
       {/*
         The trend takes whatever height the card has left, so a card sized
