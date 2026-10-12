@@ -41,6 +41,9 @@ export function createAnalyticsEngine(store: ViewStore): ViewEngine {
       onError: ({ kind, error, context }) =>
         console.error(`[view-engine] ${kind} failed`, error, context),
     }),
+    // A production build drops the findings otherwise: a dataset whose
+    // definition fails admission would say only that it has problems.
+    onIssue: issue => console.warn('[view-engine]', issue.code, issue),
   });
 }
 

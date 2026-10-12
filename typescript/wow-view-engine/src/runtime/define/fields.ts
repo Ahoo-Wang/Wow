@@ -24,12 +24,14 @@ import type {
   FieldDescriptor,
   QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
-import type {
-  FieldDefinition,
-  FieldKindId,
-  FieldOption,
-  Issue,
-  PagingMode,
+import {
+  TEMPORAL_FIELD_KIND_IDS,
+  type FieldDefinition,
+  type FieldKindId,
+  type FieldOption,
+  type FieldTemporal,
+  type Issue,
+  type PagingMode,
 } from '../../model/index.js';
 import { issue } from '../../filter/index.js';
 import {
@@ -147,6 +149,14 @@ function buildField(
   const options = optionsOf(spec, described, path, findings);
   if (options) field.options = options;
 
+  // A time is written in conditions the way the model keeps it, so the field
+  // keeps the descriptor's way: a date string, or an epoch in its unit.
+  // Without it a dataset's date column read as epoch milliseconds, and the
+  // capability check refused the whole dataset (found by analytics/demo).
+  const temporal = temporalOf(described);
+  if (temporal && TEMPORAL_FIELD_KIND_IDS.includes(kind))
+    field.temporal = temporal;
+
   if (described.deprecated) {
     if (!spec.deprecated)
       findings.push(
@@ -227,6 +237,19 @@ function fieldDescriptor(
       entry =>
         entry.path === relative || (entry.aliases ?? []).includes(relative),
     );
+}
+
+/**
+ * How the descriptor says a time is kept, where it says anything a field
+ * must be told: a date string, or an epoch in seconds. Epoch milliseconds
+ * is the field's own default (`DEFAULT_TEMPORAL`), so it is left unsaid.
+ */
+function temporalOf(described: DescribedField): FieldTemporal | undefined {
+  const semantic = described.semantic;
+  if (semantic?.type === 'TEMPORAL_DATE') return { type: 'date' };
+  if (semantic?.type === 'TEMPORAL_EPOCH' && semantic.timeUnit === 'SECONDS')
+    return { type: 'epoch', timeUnit: 'SECONDS' };
+  return undefined;
 }
 
 /** The kind the descriptor says a path is; `null` where it says none. */

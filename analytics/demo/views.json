@@ -1,0 +1,142 @@
+[
+  {
+    "title": "各省 GMV 前三的城市",
+    "config": {
+      "kind": "analysis",
+      "filter": { "op": "and", "children": [] },
+      "filterMode": "simple",
+      "refresh": { "interval": null },
+      "groups": [
+        { "type": "TERMS", "field": "province", "alias": "province" },
+        { "type": "TERMS", "field": "city", "alias": "city" }
+      ],
+      "metrics": [
+        {
+          "type": "NUMERIC",
+          "alias": "gmv",
+          "label": "GMV",
+          "function": "SUM",
+          "expression": { "type": "FIELD", "field": "gmv" }
+        }
+      ],
+      "top": { "within": "province", "metric": "gmv", "count": 3 },
+      "sort": [
+        { "alias": "province", "direction": "ASC" },
+        { "alias": "gmv", "direction": "DESC" }
+      ],
+      "limit": 100,
+      "layout": "table",
+      "table": { "columns": [] },
+      "chart": {
+        "type": "bar",
+        "cartesian": {
+          "x": "province",
+          "splitBy": "city",
+          "series": [{ "metric": "gmv" }]
+        }
+      }
+    }
+  },
+  {
+    "title": "月度 GMV 较去年同期",
+    "config": {
+      "kind": "analysis",
+      "filter": { "op": "and", "children": [] },
+      "filterMode": "simple",
+      "refresh": { "interval": null },
+      "groups": [
+        {
+          "type": "DATE_HISTOGRAM",
+          "field": "order_date",
+          "alias": "month",
+          "unit": "MONTH"
+        }
+      ],
+      "metrics": [
+        {
+          "type": "NUMERIC",
+          "alias": "gmv",
+          "label": "GMV",
+          "function": "SUM",
+          "expression": { "type": "FIELD", "field": "gmv" }
+        }
+      ],
+      "sort": [{ "alias": "month", "direction": "ASC" }],
+      "limit": 100,
+      "layout": "chart",
+      "table": { "columns": [] },
+      "chart": {
+        "type": "line",
+        "cartesian": {
+          "x": "month",
+          "series": [{ "metric": "gmv" }],
+          "derived": [{ "kind": "previous-year", "metric": "gmv" }]
+        }
+      }
+    }
+  },
+  {
+    "title": "各渠道 GMV 占比",
+    "config": {
+      "kind": "analysis",
+      "filter": { "op": "and", "children": [] },
+      "filterMode": "simple",
+      "refresh": { "interval": null },
+      "groups": [{ "type": "TERMS", "field": "channel", "alias": "channel" }],
+      "metrics": [
+        {
+          "type": "NUMERIC",
+          "alias": "gmv",
+          "label": "GMV",
+          "function": "SUM",
+          "expression": { "type": "FIELD", "field": "gmv" }
+        }
+      ],
+      "sort": [{ "alias": "gmv", "direction": "DESC" }],
+      "limit": 100,
+      "layout": "chart",
+      "table": { "columns": [] },
+      "chart": {
+        "type": "pie",
+        "pie": { "category": "channel", "value": "gmv", "donut": true }
+      }
+    }
+  },
+  {
+    "title": "上月 GMV",
+    "config": {
+      "kind": "analysis",
+      "filter": { "op": "and", "children": [] },
+      "filterMode": "simple",
+      "refresh": { "interval": null },
+      "groups": [
+        {
+          "type": "DATE_HISTOGRAM",
+          "field": "order_date",
+          "alias": "month",
+          "unit": "MONTH"
+        }
+      ],
+      "metrics": [
+        {
+          "type": "NUMERIC",
+          "alias": "gmv",
+          "label": "GMV",
+          "function": "SUM",
+          "expression": { "type": "FIELD", "field": "gmv" }
+        }
+      ],
+      "sort": [{ "alias": "month", "direction": "DESC" }],
+      "limit": 100,
+      "layout": "chart",
+      "table": { "columns": [] },
+      "chart": {
+        "type": "metric",
+        "metric": {
+          "metric": "gmv",
+          "trend": { "x": "month", "against": "previous-year" }
+        }
+      }
+    }
+  }
+]

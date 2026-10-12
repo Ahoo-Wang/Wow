@@ -14,7 +14,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
-import { ViewHost } from '@ahoo-wang/wow-view-engine/ui';
+import { ViewHost, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { analyticsEngine, datasetResources } from './engine.ts';
 import { analyticsBindings } from './routes.ts';
 
@@ -51,6 +51,7 @@ export function AnalyticsHost({
       engine={engine}
       router={useReactRouter()}
       locale="zh-CN"
+      messages={zhCN}
       bindings={analyticsBindings(datasets)}
       preset="porcelain"
       brand={BRAND}

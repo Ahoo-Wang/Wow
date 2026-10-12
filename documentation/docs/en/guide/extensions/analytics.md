@@ -63,3 +63,29 @@ pnpm --filter wow-analytics-console... build
 ## Console
 
 The console reads the `cosec-token` CoSec front ends share (an enterprise single sign-on that stored it signs the console in directly), else takes a pasted access token. The home page lists the published datasets and the boards; opening a dataset starts analysing it in its workbench; a board's panels may read any dataset. Admins have a dataset management page too: draft from a table, revise the declaration (its scope's tenant column `scope.tenant` and tag columns `scope.tags`), review each field's sensitivity, publish and retire.
+
+## Demo
+
+The repository's `analytics/demo` runs the whole path on one machine: a retailer's analyst wide table in ClickHouse (two years of order lines by province, city, channel and category, made up in place), drafted, revised, reviewed (the member's phone masked) and published through the registry as the dataset 「零售订单明细」, and four analyses shared with the tenant — the top three cities of each province (a rank within a group), GMV by month against the same month last year, each channel's share, and last month's GMV as a metric card against last year. It needs no CoSec, Kafka or Redis: its script issues the tokens with the demo's secret.
+
+Build the console and the distribution the image packs, from the repository root:
+
+```bash
+pnpm --filter "wow-analytics-console..." build
+```
+
+```bash
+./gradlew :wow-analytics-server:installDist
+```
+
+Then start the demo and publish the dataset:
+
+```bash
+docker compose -f analytics/demo/compose.yaml up -d --build
+```
+
+```bash
+node analytics/demo/demo.mjs
+```
+
+Open <http://localhost:8080/> and sign in with a token the script printed: the analyst of every region reads every row, the analyst of the east the east's rows alone (ABAC), and the admin has the dataset management page too. The integration test `RetailDemoTest` runs the same SQL, declaration and review through the service and checks each analysis against ClickHouse's own SQL, so a broken demo fails the build.

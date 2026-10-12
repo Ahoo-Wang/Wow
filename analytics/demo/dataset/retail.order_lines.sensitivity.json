@@ -1,0 +1,17 @@
+{
+  "fields": {
+    "id": {},
+    "tenant_id": {},
+    "order_id": {},
+    "order_date": {},
+    "order_time": {},
+    "region": {},
+    "province": {},
+    "city": {},
+    "channel": {},
+    "category": {},
+    "brand": {},
+    "customer_type": {},
+    "member_phone": { "level": "DISPLAY", "keepPrefix": 3, "keepSuffix": 4 }
+  }
+}
