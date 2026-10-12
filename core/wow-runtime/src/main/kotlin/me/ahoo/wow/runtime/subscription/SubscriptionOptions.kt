@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
@@ -81,9 +82,12 @@ data class SubscriptionOptions(
     }
 }
 
-/** Calls [block] until it succeeds, waiting [policy]'s backoff between failures; cancellation stops it. */
+/**
+ * Calls [block] until it succeeds, waiting [policy]'s backoff between failures and logging each one as a failure
+ * to [action]; cancellation stops it.
+ */
 @Suppress("TooGenericExceptionCaught") // Whatever failed is retried; only cancellation stops.
-internal suspend fun <T> retryForever(policy: RetryPolicy, block: suspend () -> T): T {
+internal suspend fun <T> retryForever(policy: RetryPolicy, action: () -> String, block: suspend () -> T): T {
     var failures = 0
     while (true) {
         try {
@@ -92,7 +96,11 @@ internal suspend fun <T> retryForever(policy: RetryPolicy, block: suspend () -> 
             throw cancelled
         } catch (failure: Exception) {
             failures++
-            delay(policy.backoff(failures))
+            val backoff = policy.backoff(failures)
+            logger.warn(failure) { "Failed to ${action()} (attempt $failures); retrying in $backoff." }
+            delay(backoff)
         }
     }
 }
+
+private val logger = KotlinLogging.logger {}

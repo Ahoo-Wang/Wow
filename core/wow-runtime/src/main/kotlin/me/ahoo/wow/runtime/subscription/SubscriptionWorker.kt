@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -214,7 +215,11 @@ internal class SubscriptionWorker(
     /** Parks the aggregate at [stream]'s version; its later entries are skipped until the ledger entry is resolved. */
     private suspend fun park(stream: EventStreamRecord, failure: Exception) {
         val entry = ParkedAggregate(subscription.name, stream.ref, stream.version, reason(failure), clock.millis())
-        retryForever(options.readRetry) { ledger.park(entry) }
+        logger.warn(failure) {
+            "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after " +
+                "${options.retry.maxAttempts} attempts."
+        }
+        retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) { ledger.park(entry) }
         synchronized(this) {
             val state = parkStates[stream.ref]
             if (state !is ParkState.Resuming) {
@@ -359,3 +364,5 @@ internal class SubscriptionWorker(
         class Resuming(val result: CompletableDeferred<Boolean>) : ParkState
     }
 }
+
+private val logger = KotlinLogging.logger {}

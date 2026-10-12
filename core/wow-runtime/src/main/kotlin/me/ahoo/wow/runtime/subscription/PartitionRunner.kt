@@ -54,7 +54,7 @@ internal class PartitionRunner(
         joined += current
         behind.forEach(::catchUp)
         readers.launch {
-            retryForever(options.readRetry) {
+            retryForever(options.readRetry, { "read the shared tail of partition $partition" }) {
                 log.tail(partition, head.takeIf { it > 0 }).collect { entry ->
                     lock.withLock {
                         if (entry.position.sequence > head) {
@@ -80,7 +80,10 @@ internal class PartitionRunner(
     private fun catchUp(worker: SubscriptionWorker) {
         readers.launch {
             // Joins without reading when the worker is not behind.
-            retryForever(options.readRetry) {
+            retryForever(
+                options.readRetry,
+                { "read partition $partition for ${worker.subscription.name} to catch up" },
+            ) {
                 if (!tryJoin(worker)) {
                     log.tail(partition, worker.cursor.takeIf { it > 0 })
                         .takeWhile { entry ->

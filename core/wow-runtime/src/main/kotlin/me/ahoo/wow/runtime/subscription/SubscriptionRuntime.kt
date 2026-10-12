@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -235,6 +236,10 @@ class SubscriptionRuntime(
             throw cancelled
         } catch (failure: Exception) {
             // The watermark stays ahead of the stored checkpoint until a save succeeds.
+            logger.warn(failure) {
+                "Failed to save the checkpoint of ${worker.subscription.name} in partition ${worker.partition}; " +
+                    "retrying on the next tick."
+            }
         }
     }
 
@@ -247,3 +252,5 @@ class SubscriptionRuntime(
         val workers = ConcurrentHashMap<Pair<String, Int>, SubscriptionWorker>()
     }
 }
+
+private val logger = KotlinLogging.logger {}
