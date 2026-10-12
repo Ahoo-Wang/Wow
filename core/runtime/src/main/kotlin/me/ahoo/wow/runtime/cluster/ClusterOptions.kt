@@ -36,7 +36,10 @@ data class LeaseGroup(val service: String, val context: String) {
 /**
  * The tuning of partition ownership and the cluster channel on one node (design 02 §3; decisions D70–D72, D80).
  *
- * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing.
+ * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing. A
+ *   renewal round renews the held leases concurrently, at most [leaseParallelism] at a time, and acquisitions are
+ *   bounded the same way: a round then takes about `owned / leaseParallelism × store latency`, which must stay well
+ *   inside `leaseTtl − renewInterval` (spike H6).
  * - [memberTtl], refreshed every [heartbeatInterval]: how long a node stays a member after its last heartbeat.
  * - [reconcileInterval]: how often a node compares the partitions it holds with its HRW target; a change of the
  *   members it notices reconciles at once.
@@ -57,6 +60,7 @@ data class ClusterOptions(
     val forwardTimeout: Duration = 1.seconds,
     val maxInFlightPerPeer: Int = 1_024,
     val drainTimeout: Duration = 10.seconds,
+    val leaseParallelism: Int = 16,
 ) {
     init {
         require(renewInterval.isPositive() && renewInterval < leaseTtl) { "A lease is renewed before it expires." }
@@ -68,5 +72,6 @@ data class ClusterOptions(
         require(forwardTimeout.isPositive()) { "The forward timeout is positive." }
         require(maxInFlightPerPeer >= 1) { "A peer takes at least one forward." }
         require(!drainTimeout.isNegative()) { "The drain timeout is never negative." }
+        require(leaseParallelism >= 1) { "At least one lease call runs at a time." }
     }
 }
