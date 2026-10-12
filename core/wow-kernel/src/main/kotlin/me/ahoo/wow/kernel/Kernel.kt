@@ -14,10 +14,12 @@
 package me.ahoo.wow.kernel
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -54,7 +56,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped. On a miss, the state
  * comes from the aggregate's snapshot in [snapshots] and the log's tail after it when the snapshot fits the model's
- * state schema (03-log-and-snapshot.md §3), else from replaying the whole log.
+ * state schema (03-log-and-snapshot.md §3), else from replaying the whole log. A snapshot is only a cache: one that
+ * does not fit, or a store that fails, is logged and costs a full replay, never the command.
  *
  * [reservations] backs [DecideScope.reserve]; a pending reservation lives for [reservationTtl] unless the append
  * confirms it first.
@@ -194,8 +197,27 @@ class Kernel(
             @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the cached state is this model's.
             return cached.state as S to cached.version
         }
-        snapshots?.load(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it } }
+        loadSnapshot(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it } }
         return replay(model, model.initialState(command.ref), log.read(command.ref).toList(), 0)
+    }
+
+    /**
+     * The snapshot of [ref], or null when there is none or the store fails: a snapshot is only a cache, so a failing
+     * store costs a full replay, never the command. Cancellation still propagates.
+     */
+    private suspend fun loadSnapshot(ref: AggregateRef): SnapshotRecord? {
+        val store = snapshots ?: return null
+        return try {
+            store.load(ref)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever the store throws, the log still holds the state.
+            failure: Exception,
+        ) {
+            logger.warn(failure) { "Loading the snapshot of $ref failed; replaying its log." }
+            null
+        }
     }
 
     /**

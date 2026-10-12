@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
@@ -21,6 +22,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.json.JsonMapper
@@ -116,6 +119,32 @@ class KernelSnapshotTest {
         val outcome = send(kernel, AddItem("apple", 10)) as CommandOutcome.Committed
         outcome.stream.version.assert().isEqualTo(6)
         (outcome.state as CartState).items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
+    }
+
+    /** A store whose load always throws [failure]. */
+    private class FailingStore(private val failure: Exception) : SnapshotStore {
+        override suspend fun save(snapshot: SnapshotRecord): Boolean = false
+
+        override suspend fun load(ref: AggregateRef): SnapshotRecord = throw failure
+    }
+
+    @Test
+    fun `a failing snapshot store costs a full replay, not the command`() = runTest {
+        history()
+        log.streamsRead = 0
+        val failing = Kernel(log, codec, snapshots = FailingStore(IllegalStateException("store down")))
+        val outcome = failing.execute(cartModel, Command("c-down", "r-down", ref, AddItem("apple", 10)))
+        outcome.cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
+        log.streamsRead.assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `cancellation while loading a snapshot is not swallowed`() = runTest {
+        history()
+        val cancelling = Kernel(log, codec, snapshots = FailingStore(CancellationException("cancelled")))
+        assertThrows<CancellationException> {
+            cancelling.execute(cartModel, Command("c-cancel", "r-cancel", ref, AddItem("apple", 10)))
+        }
     }
 
     @Test
