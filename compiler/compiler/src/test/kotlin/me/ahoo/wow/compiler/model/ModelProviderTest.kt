@@ -282,4 +282,47 @@ class ModelProviderTest {
             )
             .contains("@AggregateRoot(lifecycle) lists sample.Post, which is not a lifecycle command")
     }
+
+    @Test
+    fun `a root in the root package should get a provider there`() {
+        val note = SourceFile.kotlin(
+            "Note.kt",
+            """
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Write(val text: String)
+            data class Written(val text: String)
+
+            @AggregateRoot
+            class Note(val id: String) {
+                fun onCommand(command: Write): Written = Written(command.text)
+                fun onSourcing(event: Written) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel(
+            "generate",
+            mapOf(
+                ModelSymbolProcessorProvider.CONTEXT_OPTION to "notes",
+                ModelSymbolProcessorProvider.MODULE_OPTION to "9-notes",
+            ),
+            note,
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        generated(compilation, ModelProviderSource.MODEL_PROVIDER)!!.readText().assert()
+            .isEqualTo("Module9NotesModelProvider\n")
+        provider(compilation, result).models(Dependencies.NONE).single().type.toString().assert()
+            .isEqualTo("notes.note")
+    }
+
+    @Test
+    fun `the provider's name should follow the module, and its package the module's common one`() {
+        ModelProviderSource.className("shop-domain").assert().isEqualTo("ShopDomainModelProvider")
+        ModelProviderSource.className("_9.x").assert().isEqualTo("Module9XModelProvider")
+        ModelProviderSource.className("--").assert().isEqualTo("ModuleModelProvider")
+        ModelProviderSource.commonPackage(listOf("a.b.c", "a.b.d", "a.b")).assert().isEqualTo("a.b")
+        ModelProviderSource.commonPackage(listOf("a.b", "c")).assert().isEqualTo("")
+        ModelProviderSource.commonPackage(listOf("a.b", "")).assert().isEqualTo("")
+        ModelProviderSource.commonPackage(emptyList()).assert().isEqualTo("")
+    }
 }
