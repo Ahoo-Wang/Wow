@@ -15,14 +15,13 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| D6 | 命令路由 | 默认 Partitioned（经集群通道转发到分区属主）；单节点或降级用 Local；需要持久摄入的异步命令用 Kafka | 待证据 H2 | M4 | [02](02-write-path.md) |
 
 ## 2. 待验证的假设
 
 | # | 假设 | spike | 放弃条件与退路 | 里程碑 | 影响的决定 |
 |---|---|---|---|---|---|
 | H1 | 分区序号的分配能满足吞吐 | PostgreSQL 两种分配方式与 MongoDB 事务；单分区与 64 分区的吞吐、p99、尾随延迟；**分别在属主串行（Partitioned）与多节点并发追加（Local、交接期）下测**，含分组提交里单条冲突的隔离；故障注入 | 单分区不足：加大 P；MongoDB 事务过贵：分组提交（同分区多次追加合并为一个事务），MongoDB 不降级（D11） | M1 | D10、D11、D27、D28；**已验证**：PostgreSQL（`wow-benchmarks/results/reports/v10-h1-postgres-partition-sequence.md`）；MongoDB（2026-10-12，`wow-benchmarks/results/reports/v10-h1-mongo-partition-sequence.md`），F1 的塌缩被测到，属主串行加分组提交可用 |
-| H2 | 亲和路由值得转发的一跳（PostgreSQL；MongoDB 已由 H1 定为必须 Partitioned，D52） | **阶段 1**：进程内 3 节点（各自的 Executor 与状态缓存），共享真实 PostgreSQL，转发注入 0.3～1 ms 延迟并真实序列化命令；每次提交后同步写快照代替 4.6。对照组：Local、Partitioned、入口按聚合哈希（无转发）。自变量：访问分布（均匀 10 万 / Zipf s=1.1 / 10 个极热）、同聚合串行或并发、开环到达率 50% 与 80% 饱和、3 与 5 节点、小状态短尾与大状态长尾。指标：吞吐、p50/p99/p999、命中率、每命令读次数、冲突与 `Contended` 比例、每命令 CPU。**阶段 2**（4.2 之后）：3 个 JVM 真实转发复测 p99，并测属主被杀时的不可用窗口 | 预先登记：Zipf 80% 负载下 Partitioned 的 p99 不差于 Local 且读次数明显更低、均匀冷负载下 p99 代价不超过一次转发 RTT（约 +1 ms），则默认 Partitioned；热点下 Partitioned 的 p99 更差则默认 Local（MongoDB 仍强制 Partitioned）。阶段 1 定 D6，阶段 2 只做确认；没有 9.x 生产数据，分布参数用上述假设 | M1 | D6、D11 |
+| H2 | 亲和路由值得转发的一跳（PostgreSQL；MongoDB 已由 H1 定为必须 Partitioned，D52） | **阶段 1**：进程内 3 节点（各自的 Executor 与状态缓存），共享真实 PostgreSQL，转发注入 0.3～1 ms 延迟并真实序列化命令；每次提交后同步写快照代替 4.6。对照组：Local、Partitioned、入口按聚合哈希（无转发）。自变量：访问分布（均匀 10 万 / Zipf s=1.1 / 10 个极热）、同聚合串行或并发、开环到达率 50% 与 80% 饱和、3 与 5 节点、小状态短尾与大状态长尾。指标：吞吐、p50/p99/p999、命中率、每命令读次数、冲突与 `Contended` 比例、每命令 CPU。**阶段 2**（4.2 之后）：3 个 JVM 真实转发复测 p99，并测属主被杀时的不可用窗口 | 预先登记：Zipf 80% 负载下 Partitioned 的 p99 不差于 Local 且读次数明显更低、均匀冷负载下 p99 代价不超过一次转发 RTT（约 +1 ms），则默认 Partitioned；热点下 Partitioned 的 p99 更差则默认 Local（MongoDB 仍强制 Partitioned）。阶段 1 定 D6，阶段 2 只做确认；没有 9.x 生产数据，分布参数用上述假设 | M1 | D6、D11；**阶段 1 已验证（2026-10-12）**，D6 定为 Partitioned；完整报告随 `claude/v10-spike-h2` 的 PR 入库 |
 | H3 | 协程内核不比 9.3 的 Reactor 内核慢 | 同一 JMH 生产链路基准的吞吐与 `gc.alloc.rate.norm`，同步与 `suspend` 处理函数分别测 | 下降超过噪声：优化热点后才进入 M2；方向已定，不回退 | M1 | D9；**已验证（2026-10-11）**：同机同 JVM 下 V10 内核约 3.5 µs、11.2 KB/次，9.3 约 26.6 µs、21.8 KB/次；V10 的成本主要是序列化与指纹（`wow-benchmarks/results/reports/v10-h3-kernel-comparison.md`） |
 | H4 | KSP 覆盖注解模型的全部语义 | example、compensation、view-store 与 transfer（Java 源码）的生成模型与 9.x 运行时解析结果比对 | 有缺口：补编译器，不回到反射 | M1 | D7、D8、D37；**已验证（2026-10-12）**：5 个领域 9 个聚合 38 个命令处理函数，27 个源码不改即可绑定、生成代码在原模块编译通过；其余 11 个只因签名用了 9.x 框架类型，有 V10 对应写法（D49），由迁移 Skill 改写（`wow-benchmarks/results/reports/v10-h4-ksp-coverage.md`） |
 | H5 | Skill 能把真实的 9.x 领域升级到 V10 | 5 个 9.x 领域（example、transfer、compensation、view-store、dataset-registry）作为 eval，各跑多次 | 门禁通不过：补参考规则与示例；反复失败的改写改为「必须问用户」 | M8 | D3、D20 |
@@ -79,6 +78,7 @@
 | D45 | 租约交接与 fencing：不做 fencing：命令靠版本唯一键，订阅副作用靠确定性 ID 幂等，检查点只前进，台账写入幂等（KaeX mvp 做过 fencing 后删除，理由相同） | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
 | D46 | 请求幂等：去重先于决定、在冲突重试之外只做一次：有 I/O 的 decide 每次走 L2（唯一索引存在性检查）；纯计算的 decide 可用 L1 轮转布隆过滤器跳过 L2，漏判由追加唯一键兜住（对抗验证 F3：布隆的「无假阴性」跨重启、跨属主、跨轮转不成立）；记录命令指纹，同一请求 ID 携带不同命令时拒绝 | 2026-10-11，用户 | [02](02-write-path.md) |
 | D47 | 跨上下文命令被拒绝的回执：目标上下文把拒绝作为 `CommandRejected` 写入发起上下文的回执主题，**之后**才确认命令消息，崩溃重投保证至少一次，回执按命令 ID 去重；发起方 Saga 可订阅并补偿；技术故障才进目标的失败台账；拒绝不写日志 | 2026-10-11，用户授权按推荐 | [04](04-subscriptions.md) |
+| D6 | 命令路由：默认 Partitioned（经集群通道转发到分区属主）；单节点、交接与属主不可达时降级 Local（D71）；需要持久摄入的异步命令用 Kafka；入口能按聚合 ID 做一致性哈希时推荐配置，省掉转发一跳。依据 H2 阶段 1（预先登记的标准全部满足）：Zipf 热点 80% 负载 p99 Local 8.95 ms、Partitioned 3.20 ms，每命令读 2.44 对 1.38 次，Local 每轮 94～141 次 `Contended`、Partitioned 为 0；均匀冷负载 50% 时 p99 代价 +0.6 ms（≤ 一次转发 RTT），80% 时 Partitioned 更低。阶段 2（真实 3 JVM，4.2 之后）只做确认 | 2026-10-12，H2 证据 | [02](02-write-path.md) |
 | D49 | 处理函数取得请求事实与依赖：`Command` 带准入得到的所有者、空间与请求头，处理函数以 `Command<X>` 为第一个参数或经 `DecideScope.command` 读取；领域服务参数成为生成工厂的参数，构造期绑定；附加结果经 `DecideScope.putResult` 返回调用方、不持久化。依据 H4：5 个 9.x 领域里 11 个命令处理函数读命令元数据或写附加结果 | 2026-10-12，H4 证据 | [01](01-programming-model.md) |
 | D50 | 预留的确认不只靠 `afterAppend`：本次尝试做过的预留（命名空间，键）随事件流写入日志条目的传输元数据；内置订阅 `reservation` 按条目确认（幂等），`afterAppend` 只是低延迟的快路径。确认失败或确认前崩溃，订阅补上；提交过的事实不会因为待确认预留过期而丢键 | 2026-10-12，用户 | [01](01-programming-model.md) |
 | D51 | 附加结果（`DecideScope.putResult`）只随本次提交返回，不持久化；同一请求的重复提交得到「已提交」而不含附加结果。需要可重取的结果应写进事件 | 2026-10-12，用户 | [01](01-programming-model.md) |
