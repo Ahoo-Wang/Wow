@@ -73,7 +73,7 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
  * The context is a parameter because a domain module rarely holds the `@BoundedContext` that names it: the runtime
  * binds it when it assembles the Manifest fragments.
  */
-class ModelSymbolProcessor(
+internal class ModelSymbolProcessor(
     private val mode: Mode,
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
@@ -429,7 +429,7 @@ class ModelSymbolProcessorProvider : SymbolProcessorProvider {
         return ModelSymbolProcessor(mode, environment.codeGenerator, environment.logger)
     }
 
-    companion object {
+    internal companion object {
         /** The KSP option: `generate`, `report`, or absent for nothing. */
         const val OPTION = "wow.model"
     }

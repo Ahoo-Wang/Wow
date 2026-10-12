@@ -14,7 +14,7 @@
 package me.ahoo.wow.compiler.model
 
 /** Renders an [AggregateBinding] as Kotlin source that builds its model with the kernel DSL. */
-object ModelSource {
+internal object ModelSource {
     fun render(binding: AggregateBinding): String = buildString {
         val functionName = binding.rootSimpleName.replaceFirstChar { it.lowercase() } + "Model"
         val state = binding.state

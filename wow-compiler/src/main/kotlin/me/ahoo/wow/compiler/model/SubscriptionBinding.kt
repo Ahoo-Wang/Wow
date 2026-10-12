@@ -17,7 +17,7 @@ package me.ahoo.wow.compiler.model
  * A subscription processor as the model processor read it: a class of one kind (`@Projection`, `@Reactor` or
  * `@Saga`) whose `@OnEvent` functions each become a subscription named `processor.function` (design 04 §1).
  */
-data class SubscriptionBinding(
+internal data class SubscriptionBinding(
     /** The processor's qualified class name. */
     val processor: String,
     /** The processor's name: its `@Name`, or its class's simple name. */
@@ -28,7 +28,7 @@ data class SubscriptionBinding(
     val problems: List<String>,
 )
 
-data class HandlerBinding(
+internal data class HandlerBinding(
     val function: String,
     /** The subscription the handler is compiled into: `processor.function`. */
     val subscription: String,
