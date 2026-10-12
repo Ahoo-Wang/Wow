@@ -15,12 +15,16 @@ package me.ahoo.wow.compiler.model
 
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
+import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.isPrivate
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Projection
@@ -42,7 +46,10 @@ import me.ahoo.wow.api.subscribe.StateEvent
  *   `SagaContext`), nothing else: the processor's dependencies are its constructor's;
  * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a `Command`,
  *   or a list of them); any of them may instead return a Reactor publisher;
- * - no annotation outside the V10 set ([V10Annotations]).
+ * - no annotation outside the V10 set ([V10Annotations]);
+ * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
+ *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
+ *   (decision D119); a handler's state type takes no type arguments.
  */
 internal object SubscriptionResolver {
     private enum class Kind(val annotation: String, val context: String, val label: String) {
@@ -61,6 +68,7 @@ internal object SubscriptionResolver {
     val ON_EVENT: String = OnEvent::class.java.name
     private const val ON_EVENT_NAME = "onEvent"
     private val STATE_EVENT = StateEvent::class.java.name
+    private val BLOCKING = Blocking::class.java.name
     private val COMMAND = Command::class.java.name
     private const val UNIT = "kotlin.Unit"
     private val COMMAND_COLLECTIONS = setOf(
@@ -101,13 +109,67 @@ internal object SubscriptionResolver {
             problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
         }
         val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
+        val isObject = processor.classKind == ClassKind.OBJECT
+        problems += constructionProblems(processor, className, isObject)
+        val dependencies = if (isObject) emptyList() else dependencies(processor, className, problems)
         return SubscriptionBinding(
             processor = processor.qualifiedName!!.asString(),
             name = name,
             kind = kind?.name,
             handlers = handlers,
             problems = problems.distinct(),
+            packageName = processor.packageName.asString(),
+            simpleNames = generateSequence<KSDeclaration>(processor) { it.parentDeclaration }
+                .map { it.simpleName.asString() }.toList().asReversed(),
+            isObject = isObject,
+            dependencies = dependencies,
         )
+    }
+
+    /** Whether the generated binding can construct [processor], or use it when it [isObject]. */
+    private fun constructionProblems(
+        processor: KSClassDeclaration,
+        className: String,
+        isObject: Boolean
+    ): List<String> =
+        buildList {
+            val concrete = processor.classKind == ClassKind.CLASS || isObject
+            if (!concrete || Modifier.ABSTRACT in processor.modifiers) {
+                add(
+                    "processor $className is not a concrete class or an object: the generated subscriptions construct it"
+                )
+            }
+            if (generateSequence<KSDeclaration>(processor) { it.parentDeclaration }.any { it.isPrivate() }) {
+                add("processor $className is private: the generated subscriptions construct it")
+            }
+            if (processor.typeParameters.isNotEmpty()) {
+                add("processor $className has type parameters: the generated subscriptions construct it")
+            }
+            if (!isObject && constructorOf(processor)?.isPrivate() == true) {
+                add("processor $className's constructor is private: the generated subscriptions construct it")
+            }
+        }
+
+    private fun constructorOf(processor: KSClassDeclaration): KSFunctionDeclaration? =
+        processor.primaryConstructor ?: processor.getConstructors().firstOrNull()
+
+    /**
+     * The constructor parameters of [processor], each a domain service the host's `Dependencies` gives by its type
+     * and, when the parameter has a `@Name`, by that qualifier (decision D119).
+     */
+    @OptIn(KspExperimental::class)
+    private fun dependencies(
+        processor: KSClassDeclaration,
+        className: String,
+        problems: MutableList<String>,
+    ): List<Dependency> = constructorOf(processor)?.parameters.orEmpty().mapIndexed { index, parameter ->
+        val type = parameter.type.resolve()
+        val qualifier = parameter.getAnnotationsByType(Name::class).firstOrNull()?.value
+        if (qualifier != null && qualifier.isBlank()) {
+            problems += "processor $className's parameter ${parameter.name?.asString()} has a blank @Name: a " +
+                "qualifier names the dependency"
+        }
+        Dependency("dependency$index", type.render(), type.declaration.qualifiedName!!.asString(), qualifier)
     }
 
     private fun handler(
@@ -135,14 +197,20 @@ internal object SubscriptionResolver {
         if (problems.size > count) {
             return null
         }
-        val state = first!!.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
+        val stateType = first!!.arguments.firstOrNull()?.type?.resolve()
+        if (stateType != null && stateType.arguments.isNotEmpty()) {
+            problems += "$where takes a StateEvent of ${stateType.render()}: an aggregate's state takes no type " +
+                "arguments"
+            return null
+        }
         return HandlerBinding(
             function = name,
             subscription = "$processor.$name",
-            state = state,
+            state = stateType?.qualifiedName(),
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
+            blocking = function.hasAnnotation(BLOCKING),
         )
     }
 
@@ -184,6 +252,16 @@ internal object SubscriptionResolver {
     }
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
+
+    private fun KSType.render(): String {
+        val name = declaration.qualifiedName!!.asString()
+        val rendered = if (arguments.isEmpty()) {
+            name
+        } else {
+            name + arguments.joinToString(", ", "<", ">") { it.type?.resolve()?.render() ?: "*" }
+        }
+        return if (isMarkedNullable) "$rendered?" else rendered
+    }
 
     private fun com.google.devtools.ksp.symbol.KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
         annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName }

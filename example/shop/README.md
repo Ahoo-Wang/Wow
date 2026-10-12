@@ -7,7 +7,7 @@ aggregates, `cart` (a customer's cart, its id the customer's user id) and
 | Module        | Holds                                                                                   |
 | ------------- | --------------------------------------------------------------------------------------- |
 | `shop-api`    | Commands, events and value types; Jakarta constraints on `AddCartItem`                  |
-| `shop-domain` | The aggregates, compiled by KSP into kernel models, a binding index and a Manifest part |
+| `shop-domain` | The aggregates and `CartSaga`, compiled by KSP to models, bindings and a Manifest part  |
 | `shop-server` | The Spring Boot application: the Wow host, stub inventory and pricing services          |
 
 The example is built and tested with the V10 modules and never published.
@@ -92,3 +92,11 @@ Without `Wow-Wait` a command waits until the snapshot holds its commit, so a
 The Manifest part `shop-domain` generates names the commands, events, routes,
 errors and lifecycle, without JSON schemas: the schemas are introspected by the
 Gradle plugin `me.ahoo.wow`, which this build cannot apply to its own projects.
+
+## Saga
+
+`CartSaga` (subscription `CartSaga.onOrderCreated`) removes the products of an
+order placed with `"fromCart":true` from the owner's cart. A wait can follow
+the order through it: `Wow-Wait: committed > handled(example/CartSaga.onOrderCreated)`
+answers once the saga's command is committed, and `... > snapshot` once the
+cart's snapshot holds it.

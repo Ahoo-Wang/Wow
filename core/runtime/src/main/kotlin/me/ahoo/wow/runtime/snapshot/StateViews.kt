@@ -60,6 +60,13 @@ class StateViews(
         views.remove(ref)
     }
 
+    /**
+     * The view of [ref] taken at [version], left in place for other readers, or null when there is none at that
+     * version: the views the subscriptions of annotated processors share
+     * ([me.ahoo.wow.runtime.binding.StateEventReader]).
+     */
+    fun peek(ref: AggregateRef, version: Int): View? = views[ref]?.takeIf { it.version == version }
+
     /** Removes and returns the view of [ref] taken at [version], or null when there is none at that version. */
     fun take(ref: AggregateRef, version: Int): View? = views.removeIf(ref) { it.version == version }
 
