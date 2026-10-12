@@ -78,3 +78,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | 4.6 内置快照订阅合入（Ahoo-Wang/Wow#4256）。发现 `v10` 的 Local Test 自 H4 起一直失败（`wow-compiler` 的 ABI 转储缺 V10 类，`--admin` 合并绕过了它），派子代理修复。用户拍板 D85：同名模块不再原地演进，V10 在新目录另起模块（项目名临时 `-v10` 后缀、artifactId 用最终名），`v10` 不发布、不校验 9.x 模块；D79 随之修订 |
 | 2026-10-12 | D50 预留确认订阅合入（Ahoo-Wang/Wow#4260），`v10` 的 Local Test 恢复（Ahoo-Wang/Wow#4261）；§5 的验证命令加入 `checkKotlinAbi` 并改跑 `:wow-compiler:check`，写明合并前必须看 `gh pr checks`；队列加入 CI 按目录分范围（D85 之后） |
 | 2026-10-12 | 用户确认降低 9.x 与 CI 拖累的三层方案：D85 之后做 CI 按目录分范围与构建按范围加载（`-Pwow.scope=v10`、`v10Check`）；回主干开发登记为待定的 D86，在第一次前向合并之前评估拍板 |
+| 2026-10-12 | Manifest v0 合入（Ahoo-Wang/Wow#4259）：实现要点记入 05 §2；为让 Worker 侧代码计入覆盖率新增孵化模块 `wow-manifest-tools`（D83 的落地方式）；`codecov/project/wow-compiler` 的失败是基线漏计 `compiler/model` 文件所致，同口径覆盖率由 85.8% 升到 86.7% |
