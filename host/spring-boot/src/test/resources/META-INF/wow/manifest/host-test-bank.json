@@ -1,0 +1,58 @@
+{
+  "format" : 1,
+  "contexts" : [ {
+    "name" : "bank",
+    "description" : "The host's test context: accounts",
+    "aggregates" : [ {
+      "name" : "account",
+      "state" : {
+        "schema" : "#/$defs/Account"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "Deposit",
+        "aliases" : [ ],
+        "schema" : "#/$defs/Deposit",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/deposit"
+        } ]
+      }, {
+        "name" : "OpenAccount",
+        "aliases" : [ ],
+        "schema" : "#/$defs/OpenAccount",
+        "creation" : "REQUIRED",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/open-account"
+        }, {
+          "method" : "POST",
+          "path" : "/bank/account/open-account"
+        } ]
+      } ],
+      "events" : [ {
+        "name" : "AccountOpened",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/AccountOpened"
+      }, {
+        "name" : "Deposited",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/Deposited"
+      } ],
+      "lifecycle" : [ ]
+    } ],
+    "subscriptions" : [ ],
+    "errors" : [ {
+      "code" : "bank.account.frozen",
+      "status" : 423,
+      "description" : "The account takes no deposit."
+    } ]
+  } ],
+  "errors" : [ ],
+  "$defs" : { }
+}
