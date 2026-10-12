@@ -82,7 +82,7 @@ flowchart TB
 | 平面 | 职责 | 关键结论 | 详见 |
 |---|---|---|---|
 | 契约 | 从领域模型生成绑定与 Manifest | 两种写法（DSL、注解）编译成同一个模型；领域事件用 revision 演进 | [01](01-programming-model.md)、[05](05-read-and-contract.md) |
-| 写 | 准入、路由、执行、追加 | 正确性靠版本唯一键，不靠单写者；亲和路由是性能手段；默认等待 `COMMITTED` | [02](02-write-path.md) |
+| 写 | 准入、路由、执行、追加 | 正确性靠版本唯一键，不靠单写者；亲和路由是性能手段；默认等待 `SNAPSHOT`，写后即可查（D69） | [02](02-write-path.md) |
 | 日志 | 唯一事实源 | 每个上下文一份；位置是按提交可见顺序分配的分区序号；PostgreSQL 与 MongoDB 都是一等后端 | [03](03-log-and-snapshot.md) |
 | 订阅 | 一切派生 | 共享尾随、按聚合停放失败、可重放；跨上下文的事件与命令都经 Kafka | [04](04-subscriptions.md) |
 | 读 | 查询与体验 | 快照是默认读模型；Manifest 驱动 REST 与客户端；身份来自主体而非路径 | [03](03-log-and-snapshot.md)、[05](05-read-and-contract.md) |

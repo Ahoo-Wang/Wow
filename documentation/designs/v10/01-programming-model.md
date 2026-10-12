@@ -70,6 +70,26 @@ class CartState(val id: String) {
 - 非 private 的函数都会被找到（Java 的包级可见函数也算），生成代码与聚合根同包。
 - 9.x 框架类型（`CommandMessage`、`ServerCommandExchange`、`CommandResultAccessor` 等）不能出现在 V10 的签名里，编译期报错，由迁移 Skill 改写成上面的形式。
 
+**V10 注解集**（D67）。H4 为了度量覆盖率，直接绑定了 9.x 的注解；V10 的注解集从 38 个收敛为下表，KSP 只认它们，9.x 注解由迁移 Skill 映射：
+
+| 注解 | 用途 | 取代 9.x 的 |
+|---|---|---|
+| `@BoundedContext` | 声明限界上下文 | 同名 |
+| `@AggregateRoot` | 聚合根；状态类可分离 | 同名 |
+| `@OnCommand`、`@OnSourcing` | 非约定命名的命令函数、溯源函数（约定名 `onCommand`、`onSourcing` 不需要注解） | 同名 |
+| `@CreateAggregate`、`@AllowCreate` | 创建语义三态（`Creation`） | 同名 |
+| `@AfterCommand` | after 钩子（D39） | 同名 |
+| `@Name`、`@Revision`、`@Alias` | 命令与事件的名字、事件的 revision 与旧名（D22、D55） | `@Name`、`Revision` |
+| `@Projection`、`@Reactor`、`@Saga` | 订阅处理器的种类 | `@ProjectionProcessor`、`@EventProcessor`、`@StatelessSaga` |
+| `@OnEvent` | 订阅处理函数，唯一一个；种类由所在类的注解决定，每个函数编成一个订阅（[04](04-subscriptions.md) §1） | `@OnEvent`、`@OnStateEvent`、`@OnMessage` |
+| `@Blocking` | 阻塞调用，派发到虚拟线程（§4） | 同名 |
+| `@Description`、`@Summary` | 写进 Manifest 的说明 | 同名 |
+| `@WowSpi` | 标注可替换的端口 | 同名 |
+
+删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Retry`（改为订阅配置）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
+
+**命令体里不放身份**（D68）：命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` 删除。聚合身份在 `Command.ref`，来自路径（HTTP）或命令消息本身（Kafka、Saga 派生），所有者与空间来自认证主体（[05](05-read-and-contract.md) §3）；命令体只放业务数据。创建命令要由客户端指定 ID 时用带 `{id}` 的路由，不带则由服务端生成。迁移 Skill 从 9.x 命令里删去这些字段，并把读取它们的代码改为读 `Command<X>.ref`。
+
 ## 4. 调用形态与快速路径
 
 很多处理函数是纯计算：一条命令只凭当前状态就能算出事件，一个投影只是把字段搬进内存结构。它们不该为协程付费。
@@ -130,7 +150,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 
 ## 9. 待细化
 
-- DSL 与注解的完整清单（守卫、创建语义）；after 钩子见 D39。
+- DSL 的完整清单（守卫）；注解集见 §3（D67）。
 - Java Builder 的形状（D8 的退路）；纯 Maven 的 Java 项目如何接入 KSP。
 - 可变状态丢弃重载的范围：只丢该聚合的实例，还是连同它所在邮箱的在途命令一起重试。
 - 升级函数能否删除字段、拆分事件、丢弃事件。

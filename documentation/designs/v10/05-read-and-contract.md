@@ -27,7 +27,7 @@
 
 - **身份来自主体，不来自路径**：租户、所有者、空间取自认证主体的作用域；管理员跨作用域时用唯一的作用域请求头。9.x 按租户、所有者变体复制的路由不再复制。
 - 命令：`POST /{context}/{aggregate}/{id}/{command}`；创建：`POST /{context}/{aggregate}/{command}`。
-- 等待：`Prefer: wait=committed`（默认）、`wait=snapshot`、`wait=handled;subscription=…`；流式等待用 SSE。
+- 等待：`Wow-Wait` 与 `Wow-Wait-Timeout` 请求头，默认 `snapshot`（D69）；链的写法与流式等待（SSE）见 [04](04-subscriptions.md) §6.1。
 - 错误：RFC 9457 `application/problem+json`，`type` 指向 Manifest 中的错误码。
 - 查询：`POST /{context}/{aggregate}/{model}/query`，`model` 为 `snapshot`、投影名或 `events`。
 - 历史状态：`GET /{context}/{aggregate}/{id}/state?version=` 或 `?at=`，以及逐事件追溯 `GET …/{id}/state/trace`（D40，[03](03-log-and-snapshot.md) §4）。
