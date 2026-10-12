@@ -21,7 +21,6 @@ import me.ahoo.wow.example.shop.api.order.OrderOverPaid
 import me.ahoo.wow.example.shop.api.order.OrderPaid
 import me.ahoo.wow.example.shop.api.order.OrderPayDuplicated
 import me.ahoo.wow.example.shop.api.order.OrderReceived
-import me.ahoo.wow.example.shop.api.order.OrderRejections
 import me.ahoo.wow.example.shop.api.order.OrderShipped
 import me.ahoo.wow.example.shop.api.order.OrderStatus
 import me.ahoo.wow.example.shop.api.order.PayOrder

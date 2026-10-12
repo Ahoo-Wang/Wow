@@ -61,7 +61,11 @@ internal data class AggregateBinding(
  * A dependency of the root's functions: a factory parameter [name] of [type], whose class (without type arguments)
  * is [erasure].
  */
-internal data class Dependency(val name: String, val type: String, val erasure: String = type)
+/**
+ * A parameter of the generated model factory: a domain service of [type], found by its class [erasure] and, when the
+ * parameter has a `@Name`, by its [qualifier] (decision D119).
+ */
+internal class Dependency(val name: String, val type: String, val erasure: String, val qualifier: String?)
 
 internal data class CommandBinding(
     val command: String,
@@ -81,8 +85,13 @@ internal data class CommandBinding(
     val creation: String,
     /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
-    /** The classes the function's return type yields as events ([EventYield]); null when it does not say. */
+    /**
+     * The classes the function's return type yields as events ([EventYield]), else those `@OnCommand(produces)`
+     * declares; null when neither says.
+     */
     val yields: List<String>?,
+    /** The events `@OnCommand(produces)` declares (decision D120), checked against the aggregate's events. */
+    val declaredProduces: List<String>,
 )
 
 internal data class SourcingBinding(

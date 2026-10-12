@@ -14,12 +14,21 @@
 package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
 /**
  * A command function of an [AggregateRoot] (V10): it takes the command, or a `Command` of it, and decides the events.
- * A function named `onCommand` needs no annotation.
+ * A function named `onCommand` needs no annotation, but only the annotation declares [produces].
+ *
+ * @param produces the events of the aggregate the function can decide, which the Manifest lists as the command's
+ *   `produces` (decision D120), for a function whose return type does not say: a `Decision`, a `Mono<Decision>`,
+ *   `Any`. Each must be an event of the aggregate. A function whose return type already names its events (an event,
+ *   a sealed type, a list of them) may not declare them again. Empty, the default, declares nothing: `produces` stays
+ *   unknown.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
-annotation class OnCommand
+annotation class OnCommand(
+    val produces: Array<KClass<*>> = [],
+)

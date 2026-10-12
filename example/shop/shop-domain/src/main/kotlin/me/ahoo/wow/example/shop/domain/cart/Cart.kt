@@ -15,6 +15,7 @@ package me.ahoo.wow.example.shop.domain.cart
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.shop.api.cart.AddCartItem
@@ -22,7 +23,6 @@ import me.ahoo.wow.example.shop.api.cart.CartItem
 import me.ahoo.wow.example.shop.api.cart.CartItemAdded
 import me.ahoo.wow.example.shop.api.cart.CartItemRemoved
 import me.ahoo.wow.example.shop.api.cart.CartQuantityChanged
-import me.ahoo.wow.example.shop.api.cart.CartRejections
 import me.ahoo.wow.example.shop.api.cart.ChangeQuantity
 import me.ahoo.wow.example.shop.api.cart.RemoveCartItem
 
@@ -40,8 +40,10 @@ const val MAX_CART_ITEM_SIZE = 100
 class Cart(private val state: CartState) {
     /**
      * Takes the admitted command, not only its body, to compare the caller's owner with the cart's id. A product
-     * already in the cart gets its quantity raised instead of a second line.
+     * already in the cart gets its quantity raised instead of a second line. A [Decision] does not say which events
+     * it holds, so `@OnCommand(produces)` declares them for the Manifest (decision D120).
      */
+    @OnCommand(produces = [CartItemAdded::class, CartQuantityChanged::class])
     fun onCommand(command: Command<AddCartItem>): Decision {
         val owner = command.scope.ownerId
         if (owner != null && owner != command.ref.id) {
@@ -59,6 +61,7 @@ class Cart(private val state: CartState) {
     }
 
     /** Removing products the cart does not hold changes nothing. */
+    @OnCommand(produces = [CartItemRemoved::class])
     fun onCommand(command: RemoveCartItem): Decision {
         val removed = command.productIds.filterTo(linkedSetOf()) { productId ->
             state.items.any { it.productId == productId }
@@ -66,6 +69,7 @@ class Cart(private val state: CartState) {
         return if (removed.isEmpty()) Decision.NoOp else Decision.events(CartItemRemoved(removed))
     }
 
+    @OnCommand(produces = [CartQuantityChanged::class])
     fun onCommand(command: ChangeQuantity): Decision {
         val item = state.items.firstOrNull { it.productId == command.productId }
             ?: return Decision.reject(

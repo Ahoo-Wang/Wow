@@ -73,8 +73,9 @@ data class Manifest(
 data class ServiceInfo(val name: String, val version: String? = null)
 
 /**
- * A bounded context. [errors] optionally documents the domain's rejection codes; they are runtime strings, so the
- * list is neither complete nor checked against what the code rejects with, and a `wow.*` code is not the context's.
+ * A bounded context. [errors] optionally documents the domain's rejection codes, the `@ErrorCode` constants of its
+ * module (decision D121); they are runtime strings, so the list is neither complete nor checked against what the code
+ * rejects with, and a `wow.*` code is not the context's.
  */
 data class ContextManifest(
     val name: String,
@@ -112,8 +113,8 @@ data class SnapshotManifest(val enabled: Boolean = true)
  *
  * [aliases] are former names, as `@Alias` declares them: one without a dot is within the aggregate, one with dots a
  * full type name. [produces] names the events of the aggregate the command's decide function and after hooks can
- * produce, as their signatures say; null when a signature does not say (a `Decision`, `Any`). [routes] are the
- * command's REST routes ([CommandRoutes], decision D104).
+ * produce, as their signatures say or `@OnCommand(produces)` declares (decision D120); null when neither says (a
+ * `Decision`, `Any`). [routes] are the command's REST routes ([CommandRoutes], decision D104).
  */
 data class CommandManifest(
     val name: String,

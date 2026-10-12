@@ -18,15 +18,3 @@ data class CartItem(
     val productId: String,
     val quantity: Int = 1,
 )
-
-/** The codes a cart rejects a command with, besides the framework's. */
-object CartRejections {
-    /** The cart already holds its maximum number of products. */
-    const val FULL = "example.cart.full"
-
-    /** The product is not in the cart. */
-    const val ITEM_NOT_FOUND = "example.cart.item-not-found"
-
-    /** The caller is not the customer whose cart this is: a cart's id is its customer's user id. */
-    const val NOT_OWNER = "example.cart.not-owner"
-}
