@@ -25,6 +25,7 @@ A green local build can close the source gate. It does not close the other four.
 | CRUD/transaction scripts/direct table writes, no Wow history | [Migrating from Traditional Architecture](./migration/traditional-architecture.md) | Establish commands, aggregates, events, import, and traffic ownership |
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Retired from this site: follow the guide kept at the v8.16.3 tag to v8.16, then [Upgrading from 8.16 to 9.0.0](#upgrading-from-8-16-to-9-0-0) |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
+| Wow 9.8.x | [Upgrading from 9.8 to 9.9.0](#upgrading-from-9-8-to-9-9-0) | Recompile: datasets, aggregation windows and root groups are additive on the wire; code that builds query backends or the Catalog by hand, reads a query model profile through its base class, or calls the changed constructors from Java needs changes |
 | Wow 9.7.x | [Upgrading from 9.7 to 9.8.0](#upgrading-from-9-7-to-9-8-0) | Recompile: classes move out of `wow-core`'s `messaging` package into their domain packages, `infra.batch` becomes `me.ahoo.wow.batch`, and the metric decorators move to `me.ahoo.wow.metrics.decorator`; integrations that build `QuerySchemaCatalog` or subclass `QueryGatewayRegistrar` themselves need changes |
 | Wow 9.6.x | [Upgrading from 9.6 to 9.7.0](#upgrading-from-9-6-to-9-7-0) | Only code that uses `wow-webflux` internals or the removed deprecated helpers needs changes; routes, REST, configuration and wire formats are unchanged, so 9.6.x and 9.7.0 nodes share one cluster |
 | Wow 9.5.x | [Upgrading from 9.5 to 9.6.0](#upgrading-from-9-5-to-9-6-0) | `wow-openapi` route contracts become pure data: the OpenAPI document is unchanged; recompile, and update custom `RouteContributor`s and callers of `mergeOpenAPIFromCatalog` |
@@ -67,6 +68,26 @@ Advance only when the current gate has reproducible evidence:
 
 Rollback must say what happens before and after the first target-version production write. Restoring only the old
 binary after a new storage-format write is not a rollback.
+
+## Upgrading from 9.8 to 9.9.0
+
+9.9.0 adds datasets to the query core: declared, table-like record sets, such as a ClickHouse wide table, that are queried, scoped, masked and audited like an aggregate and served under `/dataset/{context}/{dataset}`. It also adds aggregation windows computed over every group, and groups that read the root record while the query expands elements (`scope: ROOT`). Everything on the wire is additive. Configuration, header keys, metric names and tags, and existing REST routes and wire formats are unchanged, so 9.8.x and 9.9.0 nodes can share one cluster: a 9.8 node's descriptor offers neither windows nor root groups, and clients that read the descriptor (wow-client, the view engine) send them only where they are offered. The signature changes below are SPI or internal implementation (see the scope in `docs/compat-debt.md`), so there is no deprecation cycle. Applications that use only the starter and the public entry APIs recompile without source changes.
+
+| Change | Who is affected | What to do |
+|---|---|---|
+| `QueryModelSchema(…, profile)`, `QuerySchemaCatalog(…, datasets)`, `QueryBackendStorages(…, datasetFactory, datasets)`, `SimpleQueryBackendProvider(…, dataset)` and `QueryModelCompiler.of(…, datasets)` gain a trailing defaulted parameter | Code that builds query backends, schema providers or the Catalog by hand | Recompile |
+| On `QueryModelProfile`, `identityField`, `payloadField`, `eventTimeField` and `systemField()` are nullable; `requiredScope` and `systemField()` are abstract; `QueryModelProfile.of` returns `BuiltInQueryModelProfile`. The snapshot and event-stream profiles still return non-null values | Code that reads a profile's fields through the base class | Handle `null`, or read through `BuiltInQueryModelProfile` |
+| The `QueryModelSchema.profile` extension property is a member | Code that imports `me.ahoo.wow.query.schema.profile` | Remove the import |
+| `AnalysisDescriptor` and `AggregationSupport` gain trailing `windows` and `rootGroups` parameters; `AggregationGroup.Terms`, `.Histogram`, `.DateHistogram`, `.DatePart` and the matching `AggregationQueryDsl` functions gain a trailing `scope` | Java callers that pass every argument; binaries compiled against 9.8 | Recompile; Java callers pass `null` for `scope` |
+| `QueryAutoConfiguration.querySchemaCatalog(…)` takes the datasets and the dataset backend factory; `QueryProperties` gains `datasets` | Code that calls them directly | Recompile against the new signatures |
+| `SnapshotQueryBackendSpec` (`wow-tck`) gains two root-group cases, enabled by `elementRootGroups` (default `true`) | A query backend that runs the spec and cannot group elements by a root field | Override `elementRootGroups = false` and declare `AggregationSupport.rootGroups = SupportMode.NONE` |
+| TypeScript: `RecordLayout` gains `'kanban'`; `DERIVED_KINDS`, `DerivedKind` and `DerivedGap` gain members; `ANALYSIS_AUTO_RUN_MEMBERS` gains `'top'`; wow-client's `DerivedExpressionType` gains the window nodes; `AnalysisScope` gains `rootAggregations` | Code that switches exhaustively over these unions, or builds an `AnalysisScope` by hand | Handle the new members; build scopes with `analysisScope()` |
+
+Behaviour changes (no code change needed, but callers that match on the old text may notice):
+
+- An element-scope rejection says how to reach the field: `Field [x] requires its declared element scope: reach it through ELEMENT_MATCH in a filter, or expand it with the aggregation's elements.`
+- A command wait that runs out of time names what it waited for, for example `Waiting for stage [PROJECTED] timed out after 10000ms.`, in place of Reactor's internal text.
+- The ABAC missing-tag rejection reads `Query requires the principal's ABAC tags.` in place of `Snapshot query requires…`; the error code is unchanged.
 
 ## Upgrading from 9.7 to 9.8.0
 

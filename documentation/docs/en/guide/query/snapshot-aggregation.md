@@ -21,7 +21,7 @@ Every HTTP JSON block below is a request body for one of these `snapshot/aggrega
 
 Without `elements`, the root filter, groups, and metrics use absolute snapshot logical paths such as `state.status`; one record is one current root snapshot document. Business fields under `state` need the corresponding filter, group, or numeric capabilities from the [Query Model Schema](./query-model-schema.md).
 
-After `expand("state.items")`, the counting unit becomes one expanded order item. The first Element path remains absolute, while its filter and all following group, metric, and expression fields are relative to that element. Use `quantity`, `productId`, and `price`, not `state.items.quantity`. Groups only bucket records and do not change the counting unit; `COUNT` always counts the current innermost scope.
+After `expand("state.items")`, the counting unit becomes one expanded order item. The first Element path remains absolute, while its filter and all following group, metric, and expression fields are relative to that element. Use `quantity`, `productId`, and `price`, not `state.items.quantity`. A group can read the order itself instead with `scope = AggregationGroupScope.ROOT` and an absolute path, such as `terms("state.customerId", "customer", scope = AggregationGroupScope.ROOT)` ([Root Groups](./aggregation-query.md#root-groups)). Groups only bucket records and do not change the counting unit; `COUNT` always counts the current innermost scope.
 
 ```mermaid
 flowchart TB
