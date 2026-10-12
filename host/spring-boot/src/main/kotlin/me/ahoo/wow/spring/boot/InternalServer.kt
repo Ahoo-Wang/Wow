@@ -43,6 +43,9 @@ class InternalServer(
     /** Whether the server is bound. */
     val isRunning: Boolean get() = server != null
 
+    /** The port the server is bound at, the one the system chose for port 0; fails while it is not bound. */
+    val boundPort: Int get() = checkNotNull(server) { "The internal server is not bound." }.port()
+
     /** Binds the server, at once. */
     @Synchronized
     fun start() {

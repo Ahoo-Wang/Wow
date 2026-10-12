@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.kernel.Creation
@@ -39,6 +40,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandRewriter
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -155,6 +157,8 @@ class HttpNode(
     rewriters: List<CommandRewriter> = emptyList(),
     callers: CallerResolver = headerCallers,
     options: WowHttpOptions = WowHttpOptions(),
+    tenants: TenantPolicy = TenantPolicy.CALLERS,
+    defaultWaitTimeout: kotlin.time.Duration = WaitPlan.DEFAULT_TIMEOUT,
 ) {
     private val log = InMemoryEventLog(partitions = 2)
     val kernel = Kernel(log)
@@ -166,7 +170,7 @@ class HttpNode(
         registry,
         auditDirectory,
         LocalSignalSender(origin.node, registry),
-        WaitOptions(origin, maxTimeout = 30.seconds),
+        WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
     )
     private val models = ModelRegistry(listOf(cartModel))
     val gateway = CommandGateway(
@@ -174,6 +178,7 @@ class HttpNode(
         mapOf(CONTEXT to coordinator),
         rewriters = rewriters,
         validators = validators,
+        tenants = tenants,
     )
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
     val client: WebTestClient = WebTestClient

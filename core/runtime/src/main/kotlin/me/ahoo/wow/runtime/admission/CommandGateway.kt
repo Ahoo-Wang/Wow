@@ -43,6 +43,7 @@ import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
 /**
  * Admits commands (design 02 §1; decision D92): turns a [CommandRequest] into an immutable [Command] and hands it to
@@ -57,6 +58,8 @@ import kotlin.coroutines.CoroutineContext
  *    [FrameworkCodes.MALFORMED]:
  *    - the tenant and the scope are the caller's; a [CommandRequest.target] replaces them only for a caller with
  *      [Caller.crossScope], and is [FrameworkCodes.AUTH_FORBIDDEN] for any other, never ignored;
+ *    - an aggregate type whose tenant [tenants] fixes (decision D116) is in that tenant whoever the caller is; a target
+ *      that names another tenant for it is [FrameworkCodes.MALFORMED];
  *    - the aggregate id is the request's, or a new one from [ids] for a command that may create the aggregate;
  *    - the command id is always a new one from [ids]; the request id is the request's, or the command id;
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
@@ -66,8 +69,9 @@ import kotlin.coroutines.CoroutineContext
  * 5. Rewrite the command with each of [rewriters] in turn. A rewriter may change the body (keeping its type) and the
  *    headers only; one that changes anything else is a defect of the server, so the flow fails.
  * 6. Validate the body with every one of [validators]: their violations, together, are [FrameworkCodes.INVALID].
- * 7. Build the [Command], its wait plan the request's or [WaitPlan.DEFAULT], its timeout capped by the coordinator's
- *    [maximum][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout].
+ * 7. Build the [Command], its wait plan the request's, or [WaitPlan.DEFAULT] within the coordinator's
+ *    [default timeout][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout] ([defaultWaitTimeout]) when it names none;
+ *    its timeout capped by the coordinator's [maximum][me.ahoo.wow.runtime.wait.WaitOptions.maxTimeout].
  *
  * The coordinator then checks the plan, routes the command and waits for it; deduplication by request id and the
  * check that an existing aggregate belongs to the command's scope (decision D94) are the kernel's.
@@ -86,6 +90,8 @@ class CommandGateway(
     private val rewriters: List<CommandRewriter> = emptyList(),
     private val validators: List<CommandValidator> = emptyList(),
     private val ids: IdGenerator = IdGenerator.UUID_V7,
+    /** The tenant of each aggregate type: the caller's, unless fixed for the type (decision D116). */
+    val tenants: TenantPolicy = TenantPolicy.CALLERS,
     private val mapper: JsonMapper = ClusterCodec.mapper,
     private val clock: () -> Long = System::currentTimeMillis,
     detachedContext: CoroutineContext = Dispatchers.Default,
@@ -119,6 +125,15 @@ class CommandGateway(
             }
         }
     }
+
+    /**
+     * The timeout of a command of [context] whose request names none: its coordinator's
+     * [default][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout], capped by its maximum; [WaitPlan.DEFAULT_TIMEOUT]
+     * for a context this gateway does not admit. An edge whose request names a plan but no timeout gives the plan
+     * this timeout.
+     */
+    fun defaultWaitTimeout(context: String): Duration =
+        coordinators[context]?.options?.let { minOf(it.defaultTimeout, it.maxTimeout) } ?: WaitPlan.DEFAULT_TIMEOUT
 
     /** Admits [request] and returns the result its wait ends with: the last one [send] emits. */
     suspend fun execute(request: CommandRequest): CommandResult = send(request).last()
@@ -154,7 +169,11 @@ class CommandGateway(
         if (target != null && !request.caller.crossScope) {
             return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
         }
-        val tenantId = target?.tenantId ?: request.caller.tenantId
+        val tenantId = try {
+            tenants.tenantOf(facts.type, request.caller, target)
+        } catch (conflict: TenantConflictException) {
+            return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
+        }
         val scope = target?.scope ?: request.caller.scope
         facts.ref = facts.type.ref(tenantId, request.aggregateId ?: ids.next())
         // 3. Action-level authorization.
@@ -168,7 +187,7 @@ class CommandGateway(
             ?: return facts.refuse(FrameworkCodes.MALFORMED, "The body is not a ${commandType.name}.")
         // 5. Rewriting.
         val coordinator = coordinators.getValue(facts.type.context)
-        val plan = request.wait ?: WaitPlan.DEFAULT
+        val plan = request.wait ?: WaitPlan.DEFAULT.within(coordinator.options.defaultTimeout)
         var command: Command<*> = Command(
             id = facts.commandId,
             requestId = facts.requestId,
@@ -218,7 +237,7 @@ class CommandGateway(
         val type = AggregateType(request.context, request.aggregate)
         val requestId: String = request.requestId?.takeIf { it.isNotBlank() } ?: commandId
         var ref: AggregateRef = type.ref(
-            request.caller.tenantId,
+            tenants.fixedTenant(type) ?: request.caller.tenantId,
             request.aggregateId?.takeIf { it.isNotBlank() } ?: UNADDRESSED,
         )
         var function = FunctionInfo(

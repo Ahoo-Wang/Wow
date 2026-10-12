@@ -96,6 +96,9 @@ class ContextNode internal constructor(
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built.
  *
+ * **Internal address**: the [address] the other nodes reach this node at, given when the node is built, or learned
+ * with [bind] once the host's internal port is bound (a port the system chose, such as `0`), before [start].
+ *
  * **Lifecycle** ([state]): [start] joins every context's lease group (heartbeat, reconcile, acquire its partitions,
  * start their subscriptions), and the node is then [isReady]. [stop] leaves in this order (decision D108, refining
  * D71 to the whole node), each step after the previous one:
@@ -106,14 +109,18 @@ class ContextNode internal constructor(
  * 2. wait until no wait is registered on the node, at most [ServiceNodeOptions.maxWaitTimeout] after the stop began,
  *    which no wait outlives;
  * 3. [CommandGateway.close]: refuse new requests, finish the detached ones;
- * 4. every context's [Executor.close];
- * 5. every context's [PartitionAppendQueue.close], committing what is queued.
+ * 4. every context's [WaitCoordinator.join]: the commands still executing (a wait that timed out leaves its command
+ *    executing) settle normally, at most until the waits' bound of step 2, and at least
+ *    [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout];
+ * 5. every context's [Executor.close], then its [WaitCoordinator.close];
+ * 6. every context's [PartitionAppendQueue.close], committing what is queued.
  *
  * [listener] hears each [Step] once it is done. A step that fails is logged and the next ones still run; [stop] then
  * throws the first failure.
  *
  * **The host** does the rest around it. Starting: open the backends ([BackendFactory]) → serve the internal port
- * (forwards to [forwardHandler], signals to [waits]) → [start] → serve the public port → report ready. Stopping:
+ * (forwards to [forwardHandler], signals to [waits]) → [bind] its address, when the node was built without one →
+ * [start] → serve the public port → report ready. Stopping:
  * report not ready and shut the public port down gracefully → [stop] → stop the internal port, which serves the
  * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
  * `maxWaitTimeout + drainTimeout`.
@@ -121,8 +128,8 @@ class ContextNode internal constructor(
 class ServiceNode(
     val service: String,
     val node: String,
-    /** This node's internal address: the cluster channel and the signals reach it there. */
-    val address: String,
+    /** This node's internal address, where the cluster channel and the signals reach it; null to [bind] it later. */
+    address: String?,
     models: Collection<AggregateModel<*>>,
     val manifest: Manifest,
     backends: BackendFactory,
@@ -139,11 +146,21 @@ class ServiceNode(
     init {
         require(service.isNotBlank()) { "A node names its service." }
         require(node.isNotBlank()) { "A node has an id." }
-        require(address.isNotBlank()) { "A node has an internal address." }
+        require(address == null || address.isNotBlank()) { "A node has an internal address." }
         val named = manifest.service?.name
         require(named == null || named == service) { "The Manifest is of service $named, not $service." }
         ManifestCheck.check(manifest, models)
     }
+
+    @Volatile
+    private var bound: String? = address
+
+    /** This node's internal address: the cluster channel and the signals reach it there. Known once [hasAddress]. */
+    val address: String
+        get() = checkNotNull(bound) { "Node $node has no internal address yet: bind it before it starts." }
+
+    /** Whether the node knows its [address]: it was built with one, or [bind] gave it. */
+    val hasAddress: Boolean get() = bound != null
 
     /** The aggregate models this node serves. */
     val registry: ModelRegistry = ModelRegistry(models)
@@ -154,7 +171,12 @@ class ServiceNode(
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
     val signals: SignalSender = LocalSignalSender(node, waits, remoteSignals)
 
-    private val waitOptions = WaitOptions(Origin(node, address, service), options.maxWaitTimeout, options.maxWaitHops)
+    private val waitOptions = WaitOptions(
+        Origin(node, address.orEmpty(), service),
+        options.maxWaitTimeout,
+        options.maxWaitHops,
+        options.defaultWaitTimeout,
+    )
 
     private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec)
@@ -177,6 +199,7 @@ class ServiceNode(
         rewriters = admission.rewriters,
         validators = admission.validators,
         ids = admission.ids,
+        tenants = admission.tenants,
     )
 
     /**
@@ -205,12 +228,26 @@ class ServiceNode(
         requireNotNull(contexts[context]) { "Node $node hosts no context $context." }
 
     /**
+     * Gives the node built without an internal address the [address] its host's internal port was bound at, such as
+     * one whose port the system chose: before [start], once.
+     */
+    fun bind(address: String) {
+        require(address.isNotBlank()) { "A node has an internal address." }
+        check(state == State.NEW) { "Node $node is $state; its address is bound before it starts." }
+        check(bound == null) { "Node $node already has the address $bound." }
+        bound = address
+        val origin = Origin(node, address, service)
+        contexts.values.forEach { it.coordinator.options = it.coordinator.options.copy(origin = origin) }
+    }
+
+    /**
      * Registers the application's subscriptions and joins every context's lease group: heartbeats, reconciles, and
      * acquires its share of the partitions, starting their subscriptions. A start that fails stops what it started
      * and throws.
      */
     suspend fun start(): Unit = lifecycle.withLock {
         check(state == State.NEW) { "Node $node is $state; a node starts once." }
+        check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         state = State.STARTING
         try {
             contexts.values.forEach { context ->
@@ -269,7 +306,19 @@ class ServiceNode(
             }
         }
         step(Step.GATEWAY_CLOSED) { gateway.close() }
-        step(Step.EXECUTORS_CLOSED) { contexts.values.forEach { it.executor.close() } }
+        step(Step.EXECUTIONS_ENDED) {
+            val bound = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
+            withTimeoutOrNull(bound) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
+                val executing = contexts.values.sumOf { it.coordinator.executing }
+                "Node $node of $service closes its executors with $executing commands still executing."
+            }
+        }
+        step(Step.EXECUTORS_CLOSED) {
+            contexts.values.forEach {
+                it.executor.close()
+                it.coordinator.close()
+            }
+        }
         step(Step.LOGS_CLOSED) { contexts.values.forEach { it.log.close() } }
         state = State.STOPPED
         logger.info { "Node $node of $service stopped." }
@@ -309,7 +358,7 @@ class ServiceNode(
         val ownership = PartitionOwnership(
             group,
             node,
-            address,
+            { this.address },
             backends.log.partitions,
             backends.leases,
             options.cluster,
@@ -370,7 +419,10 @@ class ServiceNode(
         /** The gateway refuses new requests, and its detached commands have finished. */
         GATEWAY_CLOSED,
 
-        /** Every context's executor is closed, its commands finished. */
+        /** No command executes in a coordinator any more, or the bound on waiting for them has passed. */
+        EXECUTIONS_ENDED,
+
+        /** Every context's executor is closed, its commands finished, and its coordinator closed. */
         EXECUTORS_CLOSED,
 
         /** Every context's append queue is closed, what was queued committed. */

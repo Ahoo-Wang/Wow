@@ -24,6 +24,7 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.wait.Origin
@@ -144,6 +145,19 @@ class ClusterCodecTest {
         ).result.assert().isEqualTo(rejected)
         ClusterCodec.decodeReply(ClusterCodec.encode(ForwardReply.refused(Refusal.NOT_OWNER)))
             .refused.assert().isEqualTo(Refusal.NOT_OWNER)
+    }
+
+    @Test
+    fun `a wait signal round-trips its wire form, its numbers exact (D122)`() {
+        val signal = WaitSignal(
+            waitId = "w-1",
+            result = result.copy(results = mapOf("price" to BigDecimal("2.50"), "count" to Long.MAX_VALUE)),
+        )
+        val decoded = ClusterCodec.decodeSignal(ClusterCodec.encode(signal))
+        decoded.assert().isEqualTo(signal)
+        (decoded.result.results["price"] as BigDecimal).scale().assert().isEqualTo(2)
+        val newer = String(ClusterCodec.encode(signal)).replaceFirst("{", """{"next":true,""")
+        ClusterCodec.decodeSignal(newer.toByteArray()).assert().isEqualTo(signal)
     }
 
     @Test

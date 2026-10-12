@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** A real annotation instance for the constraint descriptor. */
 private class Constrained(@field:NotBlank val sku: String)
@@ -163,6 +164,28 @@ class CommandRoutesTest {
             .assertSucceeded()
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()
         waits.assert().containsExactly(WaitPlan.DEFAULT.within(1500.milliseconds), WaitPlan.DEFAULT)
+    }
+
+    @Test
+    fun `a request that names no timeout waits the node's default timeout`() {
+        val waits = CopyOnWriteArrayList<WaitPlan>()
+        val node = HttpNode(
+            rewriters = listOf(CommandRewriter { command -> command.also { waits += it.wait } }),
+            defaultWaitTimeout = 4.seconds,
+        )
+        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()
+        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.WAIT to "committed"))
+            .assertSucceeded()
+        node.post(
+            "/shop/cart/c-1/add-item",
+            """{"sku":"apple"}""",
+            headers = mapOf(WowHeaders.WAIT to "committed", WowHeaders.WAIT_TIMEOUT to "2s"),
+        ).assertSucceeded()
+        waits.assert().containsExactly(
+            WaitPlan.DEFAULT.within(4.seconds),
+            WaitPlan.COMMITTED.within(4.seconds),
+            WaitPlan.COMMITTED.within(2.seconds),
+        )
     }
 
     @Test

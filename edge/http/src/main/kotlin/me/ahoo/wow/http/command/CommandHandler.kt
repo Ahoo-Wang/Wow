@@ -45,7 +45,8 @@ internal data class CommandTarget(val context: String, val aggregate: String, va
 /**
  * Sends the command of a route through [gateway] (decisions D92, D98–D102):
  *
- * - the caller from [authenticator]; the wait, the target scope, the expected version and the request id from the Wow
+ * - the caller from [authenticator]; the wait (a plan that names no timeout waits the gateway's
+ *   [default][CommandGateway.defaultWaitTimeout]), the target scope, the expected version and the request id from the Wow
  *   headers; the request facts [WowHttpOptions.requestFacts] lists as the command's headers; an empty body is `{}`;
  * - without `Accept: text/event-stream`, the result the wait ends with: 200, or 202 for a plan that ends at ACCEPTED,
  *   with the [CommandResult]; a problem with the result when it did not succeed;
@@ -81,7 +82,7 @@ internal class CommandHandler(
             requestId = headers.requestId(request),
             expectedVersion = expectedVersion,
             headers = headers.facts(request, options.requestFacts),
-            wait = headers.wait(request),
+            wait = headers.wait(request, gateway.defaultWaitTimeout(target.context)),
         )
         val ifMatch = request.headers().firstHeader(WowHeaders.IF_MATCH) != null
         return if (eventStream) stream(command, ifMatch) else execute(command, ifMatch)
