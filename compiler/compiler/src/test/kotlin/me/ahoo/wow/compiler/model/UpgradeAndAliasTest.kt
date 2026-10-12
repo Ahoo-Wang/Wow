@@ -98,7 +98,7 @@ class UpgradeAndAliasTest {
         )
         val (compilation, result) = compileModel("generate", source, scenario)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        result.messages.assert().doesNotContain("with no @Upgrade")
+        result.messages.assert().doesNotContain("has no @Upgrade")
         result.classLoader.loadClass("sample.LedgerScenarioKt").getMethod("read").invoke(null).toString()
             .assert().isEqualTo("Entered(amount=10, currency=CNY, source=unknown)")
         val generated = compilation.workingDir.walkTopDown().single { it.name == "LedgerModel.kt" }.readText()
@@ -136,6 +136,23 @@ class UpgradeAndAliasTest {
                 "upgrade sample.current of Entered from revision 4: Entered is at revision 4, so its upgrades go from revision 1 to 3"
             )
             .contains("event Entered is at revision 4 but has no upgrade from revision 2, 3")
+    }
+
+    @Test
+    fun `an event above revision 1 with no upgrade at all is a compile error`() {
+        val messages = failed(compileModel("generate", ledger(revision = 3, extra = "")).second)
+        messages.assert().contains(
+            "event Entered is at revision 3 but has no @Upgrade: declare one from each of the revisions 1, 2, as " +
+                "@Upgrade(event = Entered::class, from = 1) on a function from JsonNode to JsonNode",
+        )
+    }
+
+    @Test
+    fun `report mode should list a missing chain as a problem`() {
+        val (compilation, result) = compileModel("report", ledger(revision = 2, extra = ""))
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        compilation.workingDir.walkTopDown().single { it.name == "model-report.json" }.readText()
+            .assert().contains("event Entered is at revision 2 but has no @Upgrade")
     }
 
     @Test

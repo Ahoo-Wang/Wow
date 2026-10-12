@@ -33,7 +33,8 @@ import me.ahoo.wow.manifest.SubscriptionSource
  * (`wow-gradle-plugin`), since only Jackson knows the JSON its serializers write.
  *
  * Names follow the generated model (decision D55): a command or an event is named by its `@Name`, or its class's
- * simple name.
+ * simple name. An aggregate lists the lifecycle commands its model handles by their system names
+ * ([AggregateBinding.lifecycle]).
  */
 internal object ManifestFragmentBuilder {
     fun build(
@@ -75,6 +76,7 @@ internal object ManifestFragmentBuilder {
                     schema = Manifest.schemaRef(sourcing.type),
                 )
             }.sortedBy { it.name },
+            lifecycle = binding.lifecycle,
         )
     }
 

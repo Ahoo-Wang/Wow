@@ -32,6 +32,8 @@ class V10AnnotationSetTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
         import me.ahoo.wow.api.annotation.Name
         import me.ahoo.wow.api.annotation.Revision
+        import me.ahoo.wow.api.annotation.Upgrade
+        import tools.jackson.databind.JsonNode
 
         @CreateAggregate
         @Name("Put")
@@ -41,6 +43,9 @@ class V10AnnotationSetTest {
         @Revision(2)
         @Alias("ItemAdded", "legacy.basket.ItemAdded")
         data class ItemPut(val item: String)
+
+        @Upgrade(event = ItemPut::class, from = 1)
+        fun itemPutFrom1(node: JsonNode): JsonNode = node
 
         @AggregateRoot
         @Name("shopping_basket")
@@ -68,10 +73,8 @@ class V10AnnotationSetTest {
             import me.ahoo.wow.kernel.InMemoryEventLog
             import me.ahoo.wow.kernel.Kernel
 
-            fun withoutUpgrades(): String = runCatching { basketModel("shop") }.exceptionOrNull()!!.message!!
-
             fun run(): String = runBlocking {
-                val model = basketModel("shop") { upgrade<ItemPut>(1) { it } }
+                val model = basketModel("shop")
                 val ref = model.type.ref("tenant", "b-1")
                 val outcome = Kernel(InMemoryEventLog()).execute(model, Command("c1", "r1", ref, PutItem("pen")))
                 val committed = outcome as CommandOutcome.Committed
@@ -94,12 +97,10 @@ class V10AnnotationSetTest {
             "shop.shopping_basket.Put | shop.shopping_basket.ItemPut#2 | shop.shopping_basket.ItemPut | " +
                 "shop.shopping_basket.ItemPut | shop.shopping_basket.Put | [pen]",
         )
-        // A revision above 1 with no @Upgrade is a warning: without upgrades from `configure`, the model does not build.
-        (kt.getMethod("withoutUpgrades").invoke(null) as String).assert().contains("lacks upgrades from revisions [1]")
-        result.messages.assert().contains("event ItemPut is at revision 2 with no @Upgrade")
-            .doesNotContain("is not bound")
+        result.messages.assert().doesNotContain("is not bound")
         val generated = compilation.workingDir.walkTopDown().single { it.name == "BasketModel.kt" }.readText()
         generated.assert().contains("revision = 2").contains("alias<sample.ItemPut>(\"\$type.ItemAdded\")")
+            .contains("upgrade<sample.ItemPut>(1) { node -> sample.itemPutFrom1(node) }")
             .contains("alias<sample.ItemPut>(\"legacy.basket.ItemAdded\")")
             .contains("alias<sample.PutItem>(\"\$type.Add\")")
     }

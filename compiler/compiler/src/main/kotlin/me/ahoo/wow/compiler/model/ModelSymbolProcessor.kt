@@ -59,10 +59,9 @@ import tools.jackson.databind.json.JsonMapper
  * migration skill, and so is an identity annotation on a command's field (decision D68). An event's `@Name`,
  * `@Revision` and `@Alias` and a command's `@Name` and `@Alias` flow into the model ([AliasCheck] checks the aliases).
  * The `@Upgrade` functions of the module (decision D82, [UpgradeResolver]) are chained per event: an event at revision
- * `n` with upgrades needs exactly one from each of the revisions 1 to `n - 1`, and an upgrade of a class that is not
- * an event of an aggregate of the module is an error. An event above revision 1 with no upgrade at all is only a
- * warning: the model fails to build unless `configure` adds them. The generated factory's last parameter,
- * `configure`, runs on the model builder after the bindings, as a general extension point.
+ * `n` needs exactly one from each of the revisions 1 to `n - 1`, none missing (no upgrade at all included), and an
+ * upgrade of a class that is not an event of an aggregate of the module is an error. The generated factory's last
+ * parameter, `configure`, runs on the model builder after the bindings, as a general extension point.
  *
  * Subscription processors (`@Projection`, `@Reactor`, `@Saga` with `@OnEvent` handlers) are checked by
  * [SubscriptionResolver]; their bindings are not generated yet, since the runtime has no annotation-facing
@@ -276,7 +275,7 @@ internal class ModelSymbolProcessor(
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         val aggregateName = root.toName()
         problems += aliasProblems(aggregateName, commands, sourcing)
-        val upgradeBindings = upgradeBindings(root, sourcing, problems)
+        val upgradeBindings = upgradeBindings(sourcing, problems)
         return AggregateBinding(
             root = rootName,
             packageName = root.packageName.asString(),
@@ -321,25 +320,15 @@ internal class ModelSymbolProcessor(
 
     /**
      * The upgrades of the aggregate's events, from the module's `@Upgrade` functions (decision D82); the problems of
-     * their chains go to [problems]. An event above revision 1 with no upgrade gets a warning: `configure` must add
-     * them, or the model does not build.
+     * their chains, a missing chain included, go to [problems].
      */
     private fun upgradeBindings(
-        root: KSClassDeclaration,
         sourcing: List<SourcingBinding>,
         problems: MutableList<String>,
     ): List<UpgradeBinding> = sourcing.flatMap { event ->
-        val simpleName = AliasCheck.simpleName(event.type)
         val functions = upgrades.filter { it.event == event.event }
         claimedUpgrades += functions
-        problems += UpgradeResolver.chainProblems(simpleName, event.revision, functions)
-        if (functions.isEmpty() && event.revision > 1 && mode == Mode.GENERATE) {
-            logger.warn(
-                "${root.qualifiedName?.asString()}: event $simpleName is at revision ${event.revision} with no " +
-                    "@Upgrade: the model does not build unless configure adds its upgrades",
-                root,
-            )
-        }
+        problems += UpgradeResolver.chainProblems(AliasCheck.simpleName(event.type), event.revision, functions)
         functions.sortedBy { it.from }.map { it.binding.copy(event = event.event) }
     }
 
