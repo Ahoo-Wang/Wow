@@ -95,11 +95,15 @@ class StateRoundTripTest {
         sameJson("[1,2]", "[2,1]").assert().isFalse()
         sameJson("[1,2]", "[1,2,3]").assert().isFalse()
         sameJson("[]", "{}").assert().isFalse()
+        sameJson("{}", "[]").assert().isFalse()
+        sameJson("""{"a":1}""", "1").assert().isFalse()
     }
 
     @Test
     fun `values other than numbers compare as they are`() {
         sameJson(""""1"""", "1").assert().isFalse()
+        sameJson("1", """"1"""").assert().isFalse()
+        sameJson("0", "null").assert().isFalse()
         sameJson("true", "true").assert().isTrue()
         sameJson("true", "false").assert().isFalse()
         sameJson("null", "null").assert().isTrue()
