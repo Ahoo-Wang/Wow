@@ -45,6 +45,7 @@ internal object V10Annotations {
         "Reactor",
         "Saga",
         "OnEvent",
+        "Upgrade",
         "Blocking",
         "Description",
         "Summary",

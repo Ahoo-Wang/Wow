@@ -57,10 +57,12 @@ import tools.jackson.databind.json.JsonMapper
  * It recognizes only the V10 annotation set (design 01 §3, decision D67; [V10Annotations]): any other annotation of
  * `me.ahoo.wow.api.annotation` on the root, its state, its commands or its events is a problem that points to the
  * migration skill, and so is an identity annotation on a command's field (decision D68). An event's `@Name`,
- * `@Revision` and `@Alias` and a command's `@Name` flow into the model; a command's `@Alias` is recorded but not bound,
- * since the kernel's command types have no former names yet. The generated factory's last parameter, `configure`,
- * runs on the model builder after the bindings, so the host can add what annotations do not bind yet, such as the
- * upgrades a `@Revision` above 1 needs.
+ * `@Revision` and `@Alias` and a command's `@Name` and `@Alias` flow into the model ([AliasCheck] checks the aliases).
+ * The `@Upgrade` functions of the module (decision D82, [UpgradeResolver]) are chained per event: an event at revision
+ * `n` with upgrades needs exactly one from each of the revisions 1 to `n - 1`, and an upgrade of a class that is not
+ * an event of an aggregate of the module is an error. An event above revision 1 with no upgrade at all is only a
+ * warning: the model fails to build unless `configure` adds them. The generated factory's last parameter,
+ * `configure`, runs on the model builder after the bindings, as a general extension point.
  *
  * Subscription processors (`@Projection`, `@Reactor`, `@Saga` with `@OnEvent` handlers) are checked by
  * [SubscriptionResolver]; their bindings are not generated yet, since the runtime has no annotation-facing
@@ -100,6 +102,11 @@ internal class ModelSymbolProcessor(
     internal data class ManifestOptions(val module: String?, val context: String?)
 
     private val bindings = mutableListOf<AggregateBinding>()
+
+    /** The module's `@Upgrade` functions, and those of them an aggregate's event has claimed. */
+    private val upgrades = mutableListOf<UpgradeFunction>()
+    private val claimedUpgrades = mutableSetOf<UpgradeFunction>()
+    private val reportedUpgrades = mutableSetOf<UpgradeFunction>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
     private val sources = mutableSetOf<KSFile>()
 
@@ -111,28 +118,53 @@ internal class ModelSymbolProcessor(
             return emptyList()
         }
         collectBoundedContexts(resolver)
+        resolver.getSymbolsWithAnnotation(UpgradeResolver.UPGRADE).filterIsInstance<KSFunctionDeclaration>().forEach {
+            it.containingFile?.let { file -> sources += file }
+            upgrades += UpgradeResolver.read(it)
+        }
         val roots = resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT).filterIsInstance<KSClassDeclaration>().toList()
         val deferred = roots.filterNot { it.validate() }
-        roots.filter { it.validate() }.forEach { root ->
+        val analyzed = roots.filter { it.validate() }.map { root ->
             root.containingFile?.let { sources += it }
-            val binding = analyze(root)
+            root to analyze(root)
+        }
+        // Former names two types claim are found across the module, the aggregates of earlier rounds included.
+        val duplicates = AliasCheck.duplicates(bindings + analyzed.map { it.second }, context())
+        analyzed.forEach { (root, analyzedBinding) ->
+            val binding = analyzedBinding.copy(
+                problems = analyzedBinding.problems + duplicates[analyzedBinding.root].orEmpty(),
+            )
             bindings += binding
             if (mode == Mode.GENERATE) {
                 if (binding.problems.isEmpty()) {
-                    binding.commands.filter { it.aliases.isNotEmpty() }.forEach {
-                        logger.warn(
-                            "${binding.root}: @Alias of ${it.command} is not bound: the kernel's command types " +
-                                "have no former names yet",
-                            root,
-                        )
-                    }
                     generate(binding, root)
                 } else {
                     binding.problems.forEach { logger.error("${binding.root}: $it", root) }
                 }
             }
         }
+        if (deferred.isEmpty()) {
+            reportUnclaimedUpgrades()
+        }
         return deferred + processSubscriptions(resolver)
+    }
+
+    /** The bounded context of the module's types, when an option or a single `@BoundedContext` names it. */
+    private fun context(): String? = manifest.context ?: boundedContexts.keys.singleOrNull()
+
+    /** An `@Upgrade` of a class that is not an event of an aggregate of the module upgrades nothing. */
+    private fun reportUnclaimedUpgrades() {
+        if (mode != Mode.GENERATE) {
+            return
+        }
+        (upgrades - claimedUpgrades - reportedUpgrades).forEach { upgrade ->
+            reportedUpgrades += upgrade
+            val event = upgrade.event ?: "an unresolved class"
+            logger.error(
+                "upgrade ${upgrade.name} upgrades $event, which is not an event of an aggregate of this module",
+                upgrade.declaration,
+            )
+        }
     }
 
     private fun processSubscriptions(resolver: Resolver): List<KSAnnotated> {
@@ -196,7 +228,7 @@ internal class ModelSymbolProcessor(
      * with problems never gets here: their errors make KSP call [onError] instead of [finish].
      */
     private fun writeManifestFragment() {
-        val context = manifest.context ?: boundedContexts.keys.singleOrNull()
+        val context = context()
         if (context == null) {
             logger.warn(
                 "No Manifest fragment: the module declares ${boundedContexts.size} @BoundedContext; set the KSP " +
@@ -242,11 +274,14 @@ internal class ModelSymbolProcessor(
         val eventTypes = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
             .mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
+        val aggregateName = root.toName()
+        problems += aliasProblems(aggregateName, commands, sourcing)
+        val upgradeBindings = upgradeBindings(root, sourcing, problems)
         return AggregateBinding(
             root = rootName,
             packageName = root.packageName.asString(),
             rootSimpleName = root.simpleName.asString(),
-            aggregateName = root.toName(),
+            aggregateName = aggregateName,
             state = state.qualifiedName!!.asString(),
             rootIsState = rootIsState,
             stateArguments = stateArguments,
@@ -254,10 +289,58 @@ internal class ModelSymbolProcessor(
             commands = commands,
             sourcing = sourcing,
             afters = afters,
+            upgrades = upgradeBindings,
             problems = problems,
             stateType = state.binaryName(),
             description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
         )
+    }
+
+    /** The problems of the `@Alias` values of the aggregate's commands and events ([AliasCheck]). */
+    private fun aliasProblems(
+        aggregateName: String,
+        commands: List<CommandBinding>,
+        sourcing: List<SourcingBinding>,
+    ): List<String> {
+        val context = context()
+        return commands.flatMap {
+            val simpleName = AliasCheck.simpleName(it.type)
+            AliasCheck.problems(
+                "command",
+                simpleName,
+                it.commandName ?: simpleName,
+                it.aliases,
+                aggregateName,
+                context
+            )
+        } + sourcing.flatMap {
+            val simpleName = AliasCheck.simpleName(it.type)
+            AliasCheck.problems("event", simpleName, it.eventName ?: simpleName, it.aliases, aggregateName, context)
+        }
+    }
+
+    /**
+     * The upgrades of the aggregate's events, from the module's `@Upgrade` functions (decision D82); the problems of
+     * their chains go to [problems]. An event above revision 1 with no upgrade gets a warning: `configure` must add
+     * them, or the model does not build.
+     */
+    private fun upgradeBindings(
+        root: KSClassDeclaration,
+        sourcing: List<SourcingBinding>,
+        problems: MutableList<String>,
+    ): List<UpgradeBinding> = sourcing.flatMap { event ->
+        val simpleName = AliasCheck.simpleName(event.type)
+        val functions = upgrades.filter { it.event == event.event }
+        claimedUpgrades += functions
+        problems += UpgradeResolver.chainProblems(simpleName, event.revision, functions)
+        if (functions.isEmpty() && event.revision > 1 && mode == Mode.GENERATE) {
+            logger.warn(
+                "${root.qualifiedName?.asString()}: event $simpleName is at revision ${event.revision} with no " +
+                    "@Upgrade: the model does not build unless configure adds its upgrades",
+                root,
+            )
+        }
+        functions.sortedBy { it.from }.map { it.binding.copy(event = event.event) }
     }
 
     private fun KSClassDeclaration.isFramework(): Boolean =
@@ -431,8 +514,13 @@ internal class ModelSymbolProcessor(
         function.returnType?.resolve()?.declaration?.qualifiedName?.asString()?.takeIf { it in REACTOR_TYPES }
 
     private fun generate(binding: AggregateBinding, root: KSClassDeclaration) {
+        val upgradeFiles = upgrades.filter { upgrade -> binding.upgrades.any { it.function == upgrade.name } }
+            .mapNotNull { it.declaration.containingFile }
         codeGenerator.createNewFile(
-            Dependencies(aggregating = false, sources = listOfNotNull(root.containingFile).toTypedArray()),
+            Dependencies(
+                aggregating = false,
+                sources = (listOfNotNull(root.containingFile) + upgradeFiles).distinct().toTypedArray(),
+            ),
             binding.packageName,
             "${binding.rootSimpleName}Model",
         ).bufferedWriter().use { it.write(ModelSource.render(binding)) }

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -203,6 +204,93 @@ class KernelTest {
             InMemoryEventLog()
         ).execute(named, command(AddItem("apple", 1))) as CommandOutcome.Committed
         outcome.stream.commandType.assert().isEqualTo("example.cart.PutItem")
+    }
+
+    /** The cart after `AddItem` was renamed `PutItem`, keeping its former name as an alias (`@Alias`, D55). */
+    private val renamed = aggregate<CartState>("example", "cart") {
+        initial { CartState(it.id) }
+        decide<CreateCart>(Creation.REQUIRED) { _, command -> Decision.events(CartCreated(command.owner)) }
+        decide<AddItem>(name = "example.cart.PutItem") { _, command ->
+            Decision.events(ItemAdded(command.productId, command.quantity))
+        }
+        decide<ClearCart> { _, _ -> Decision.NoOp }
+        alias<AddItem>("example.cart.AddItem")
+        evolve<CartCreated> { owner = it.owner }
+        evolve<ItemAdded> { items[it.productId] = (items[it.productId] ?: 0) + it.quantity }
+    }
+
+    @Test
+    fun `a request retried after its command was renamed is a duplicate, not a new command`(): Unit = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        val first = Kernel(log).execute(
+            cartModel,
+            command(AddItem("apple", 1), requestId = "same")
+        ) as CommandOutcome.Committed
+        first.stream.commandType.assert().isEqualTo("example.cart.AddItem")
+        // A fresh kernel finds the stream by its request id, recorded under the former name.
+        Kernel(log).execute(renamed, command(AddItem("apple", 1), requestId = "same"))
+            .assert().isEqualTo(CommandOutcome.AlreadyCommitted(first.stream))
+        log.read(ref).toList().size.assert().isEqualTo(2)
+        // Another command reusing the request id is still rejected.
+        val reused = Kernel(log).execute(renamed, command(ClearCart("reused"), requestId = "same"))
+        (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.REQUEST_ID_REUSED)
+    }
+
+    @Test
+    fun `a command is found under its former name`() {
+        renamed.commandType(AddItem::class.java).let {
+            it.name.assert().isEqualTo("example.cart.PutItem")
+            it.aliases.assert().containsExactly("example.cart.AddItem")
+            it.isNamed("example.cart.AddItem").assert().isTrue()
+            it.isNamed("example.cart.ClearCart").assert().isFalse()
+        }
+        renamed.findCommandType("example.cart.AddItem")?.type.assert().isEqualTo(AddItem::class.java)
+        renamed.findCommandType("example.cart.PutItem")?.type.assert().isEqualTo(AddItem::class.java)
+    }
+
+    @Test
+    fun `a command's former name cannot be another command's name`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregate<CartState>("example", "cart") {
+                initial { CartState(it.id) }
+                decide<AddItem>(name = "example.cart.PutItem") { _, _ -> Decision.NoOp }
+                decide<ClearCart> { _, _ -> Decision.NoOp }
+                alias<AddItem>("example.cart.ClearCart")
+            }
+        }
+    }
+
+    @Test
+    fun `a command's former name is not its name, not blank, and not in the system namespace`() {
+        assertThrownBy<IllegalArgumentException> {
+            CommandType("example.cart.Put", AddItem::class.java, setOf("example.cart.Put"))
+        }
+        assertThrownBy<IllegalArgumentException> {
+            aggregate<CartState>("example", "cart") {
+                initial { CartState(it.id) }
+                decide<AddItem> { _, _ -> Decision.NoOp }
+                alias<AddItem>(" ")
+            }
+        }
+        assertThrownBy<IllegalArgumentException> {
+            aggregate<CartState>("example", "cart") {
+                initial { CartState(it.id) }
+                decide<AddItem> { _, _ -> Decision.NoOp }
+                alias<AddItem>("${Lifecycle.NAMESPACE}.AddItem")
+            }
+        }
+    }
+
+    @Test
+    fun `an alias of a type that is neither a command nor an event does not build`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregate<CartState>("example", "cart") {
+                initial { CartState(it.id) }
+                decide<AddItem> { _, _ -> Decision.NoOp }
+                alias<CheckStock>("example.cart.Stock")
+            }
+        }
     }
 
     @Test

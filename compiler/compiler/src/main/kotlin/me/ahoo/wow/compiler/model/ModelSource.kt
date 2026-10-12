@@ -48,6 +48,7 @@ internal object ModelSource {
             appendLine("        }")
         }
         renderSourcing(binding.sourcing)
+        renderAliasesAndUpgrades(binding)
         binding.afters.forEach { after ->
             val dsl = if (after.suspending || after.reactor) "afterSuspending" else "after"
             val include = after.include.joinToString(", ", "setOf(", ")") { "$it::class.java" }
@@ -60,6 +61,17 @@ internal object ModelSource {
         }
         appendLine("        configure()")
         appendLine("    }")
+    }
+
+    /** The commands' former names, then the events' upgrades (D82), each a call of its `@Upgrade` function. */
+    private fun StringBuilder.renderAliasesAndUpgrades(binding: AggregateBinding) {
+        binding.commands.forEach { command ->
+            command.aliases.forEach { appendLine("        alias<${command.command}>(\"${former(it)}\")") }
+        }
+        binding.upgrades.forEach { upgrade ->
+            val node = if (upgrade.objectNode) "node as $OBJECT_NODE" else "node"
+            appendLine("        upgrade<${upgrade.event}>(${upgrade.from}) { node -> ${upgrade.function}($node) }")
+        }
     }
 
     /** The evolve functions, each with its event's name and revision, then the events' former names. */
@@ -76,18 +88,18 @@ internal object ModelSource {
             }
         }
         sourcing.forEach { binding ->
-            binding.aliases.forEach { alias ->
-                // A former name without a dot is within the aggregate; one with dots is a full type name.
-                val former = if ('.' in alias) alias else "\$type.$alias"
-                appendLine("        alias<${binding.event}>(\"$former\")")
-            }
+            binding.aliases.forEach { appendLine("        alias<${binding.event}>(\"${former(it)}\")") }
         }
     }
+
+    /** A former name without a dot is within the aggregate; one with dots is a full type name. */
+    private fun former(alias: String): String = if ('.' in alias) alias else "\$type.$alias"
 
     private fun awaited(call: String, reactor: Boolean): String =
         if (reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
 
     private const val COMMAND = "me.ahoo.wow.api.decide.Command"
+    private const val OBJECT_NODE = "tools.jackson.databind.node.ObjectNode"
 
     private fun receiver(binding: AggregateBinding): String =
         if (binding.rootIsState) "state" else "${binding.root}(state)"

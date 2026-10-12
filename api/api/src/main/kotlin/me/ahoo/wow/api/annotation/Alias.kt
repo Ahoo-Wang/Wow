@@ -23,7 +23,9 @@ package me.ahoo.wow.api.annotation
  * retried after the rename is still recognized as the same command.
  *
  * A value without a dot is a former name within the same aggregate (`context.aggregate.value`); a value with dots is
- * a full type name, for a type that moved from another aggregate or context.
+ * a full type name, for a type that moved from another aggregate or context. The model processor rejects a blank
+ * value, a value with exactly one dot (neither form), a value equal to the type's current name, and a former name
+ * that two types of the module claim.
  *
  * ```kotlin
  * @Name("ItemPut")

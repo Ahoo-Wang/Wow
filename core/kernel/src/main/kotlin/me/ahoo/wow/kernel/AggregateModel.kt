@@ -92,11 +92,18 @@ data class EventType(
  * How a command type is named (decision D55): `context.aggregate.CommandName`, the class's simple name unless the
  * model gives another. The log records it with each event stream, and a request id reused by a command of another
  * name is rejected rather than taken for a retry; renaming or moving the class does not change it.
+ *
+ * [aliases] are names the type had before (`@Alias`): a stream recorded under one of them is this command's, so a
+ * request retried after the rename is still a retry, and a command forwarded under a former name is still found.
  */
-data class CommandType(val name: String, val type: Class<*>) {
+data class CommandType(val name: String, val type: Class<*>, val aliases: Set<String> = emptySet()) {
     init {
         require(name.isNotBlank()) { "A command type needs a name." }
+        require(name !in aliases) { "$name is its own alias." }
     }
+
+    /** Whether [name] is this type's name or one of its former names. */
+    fun isNamed(name: String): Boolean = name == this.name || name in aliases
 }
 
 /**
@@ -144,7 +151,9 @@ class AggregateModel<S : Any>(
         (type.aliases + type.name).map { it to type }
     }.toMap()
     private val commandsByType: Map<Class<*>, CommandType> = this.commandTypes.associateBy { it.type }
-    private val commandsByName: Map<String, CommandType> = this.commandTypes.associateBy { it.name }
+    private val commandsByName: Map<String, CommandType> = this.commandTypes.flatMap { type ->
+        (type.aliases + type.name).map { it to type }
+    }.toMap()
     private val afterByCommand: Map<Class<*>, List<AfterFunction<S>>> =
         this.deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
 
@@ -159,12 +168,14 @@ class AggregateModel<S : Any>(
         require(names.size == names.toSet().size) { "Two event types of $type share a name or an alias." }
         val missing = this.eventTypes.map { it.type } - this.evolvers.keys
         require(missing.isEmpty()) { "Event types of $type without an evolve function: $missing" }
-        val commandNames = this.commandTypes.map { it.name }
-        require(commandNames.size == commandNames.toSet().size) { "Two command types of $type share a name." }
+        val commandNames = this.commandTypes.flatMap { it.aliases + it.name }
+        require(commandNames.size == commandNames.toSet().size) {
+            "Two command types of $type share a name or an alias."
+        }
         val unnamed = this.deciders.keys - commandsByType.keys
         require(unnamed.isEmpty()) { "Command types of $type without a name: $unnamed" }
         val named = this.eventTypes.flatMap { event -> (event.aliases + event.name).map { it to event.type } } +
-            this.commandTypes.map { it.name to it.type }
+            this.commandTypes.flatMap { command -> (command.aliases + command.name).map { it to command.type } }
         named.forEach { (name, typeClass) ->
             require(isSystemName(name) == (Lifecycle.nameOf(typeClass) != null)) {
                 "$type names ${typeClass.name} $name: only the lifecycle types have names in ${Lifecycle.NAMESPACE}."
@@ -201,8 +212,8 @@ class AggregateModel<S : Any>(
     fun findEventType(name: String): EventType? = eventsByName[name]
 
     /**
-     * The command type named [name], or null when this aggregate has none: how a command that arrives in its wire
-     * form (design 08 §3, a forwarded one) finds the class its body is read as.
+     * The command type named [name] (or formerly named so), or null when this aggregate has none: how a command that
+     * arrives in its wire form (design 08 §3, a forwarded one) finds the class its body is read as.
      */
     fun findCommandType(name: String): CommandType? = commandsByName[name]
 
