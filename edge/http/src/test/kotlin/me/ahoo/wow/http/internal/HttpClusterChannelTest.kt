@@ -23,7 +23,6 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
-import me.ahoo.wow.runtime.cluster.Refusal
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
@@ -54,7 +53,12 @@ class HttpClusterChannelTest {
         ForwardReply(result = committed(request.command.id, "slow"))
     }
     private val server = InternalServer(
-        internalRoutes(ContextDispatchingHandler(mapOf(TEST_CONTEXT to bank, "slow" to slow)), { signals += it }),
+        internalRoutes(
+            ClusterChannelHandler { request ->
+                if (request.command.ref.type.context == "slow") slow.forward(request) else bank.forward(request)
+            },
+            { signals += it },
+        ),
     )
     private val client = InternalHttp.client()
     private val channel = HttpClusterChannel(client)
@@ -85,14 +89,6 @@ class HttpClusterChannelTest {
                     .message.assert().contains("413")
             }
         }
-
-    @Test
-    fun `a context this node does not host is refused as an unknown type`(): Unit = runBlocking {
-        val reply = channel.forward(server.address, forwardCommand(context = "elsewhere"))
-        reply.refused.assert().isEqualTo(Refusal.UNKNOWN_TYPE)
-        reply.result.assert().isNull()
-        received.assert().isEmpty()
-    }
 
     @Test
     fun `a forward with fields this version does not know is read (D48)`(): Unit = runBlocking {
@@ -132,7 +128,7 @@ class HttpClusterChannelTest {
     @Test
     fun `a signal is handed over and answered 204`(): Unit = runBlocking {
         val signal = WaitSignal(waitId = "w-1", result = committed("c-1"))
-        val json = String(SignalCodec.encode(signal)).replaceFirst("{", """{"next":true,""")
+        val json = String(ClusterCodec.encode(signal)).replaceFirst("{", """{"next":true,""")
         post(InternalHttp.SIGNALS_PATH, json).statusCode().assert().isEqualTo(204)
         signals.assert().containsExactly(signal)
 

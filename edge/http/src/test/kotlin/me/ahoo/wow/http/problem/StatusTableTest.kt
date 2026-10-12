@@ -14,6 +14,7 @@
 package me.ahoo.wow.http.problem
 
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -23,6 +24,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.CART_CLOSED
 import me.ahoo.wow.http.CART_EMPTY
 import me.ahoo.wow.http.CONTEXT
@@ -35,6 +37,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -59,7 +62,11 @@ class StatusTableTest {
     @MethodSource("rows")
     fun `a result that did not succeed is answered with the status of its code`(code: String, status: Int) {
         val failed = result(code, CommandResult.Status.FAILED)
-        val gateway = mockk<CommandGateway> { coEvery { execute(any()) } returns failed }
+        val gateway = mockk<CommandGateway> {
+            coEvery { execute(any()) } returns failed
+            every { tenants } returns TenantPolicy.CALLERS
+            every { defaultWaitTimeout(any()) } returns WaitPlan.DEFAULT_TIMEOUT
+        }
         val client = WebTestClient.bindToRouterFunction(
             wowRoutes(cartManifest(), gateway, callerResolver = headerCallers)
         )

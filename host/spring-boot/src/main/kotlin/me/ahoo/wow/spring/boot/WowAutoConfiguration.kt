@@ -14,8 +14,6 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.JakartaCommandValidator
@@ -26,6 +24,7 @@ import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.http.wowRoutes
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
@@ -35,6 +34,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandRewriter
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.IdGenerator
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.AdmissionPlugins
@@ -59,14 +59,11 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
-import org.springframework.web.reactive.function.server.HandlerFilterFunction
 import org.springframework.web.reactive.function.server.RouterFunction
-import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpClient
 import javax.sql.DataSource
-import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
 import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
@@ -82,12 +79,13 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
  *   [BackendFactory] bean.
  * - **Admission**: the application's [CommandAuthorizer], [CommandRewriter]s and [CommandValidator]s, the Jakarta
- *   validator when it has a Bean Validation provider (D106), and the [IdGenerator]: CosId's shared generator when it
- *   runs CosId, UUIDv7 otherwise (D114).
+ *   validator when it has a Bean Validation provider (D106), the [IdGenerator]: CosId's shared generator when it
+ *   runs CosId, UUIDv7 otherwise (D114), the fixed tenants of `wow.aggregates.*.tenant` (D116), and
+ *   `wow.wait.default-timeout`, the node's default wait timeout for every entry (D64).
  * - **Ports**: the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
- *   [InternalServer] of their own at `wow.internal.port`, never on the public server; [HttpClusterChannel] and
- *   [HttpSignalSender] share one JDK client.
+ *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
+ *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client.
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
@@ -202,7 +200,6 @@ class WowAutoConfiguration {
         subscriptions: ObjectProvider<SubscriptionFactory>,
         listeners: ObjectProvider<ServiceNodeListener>,
     ): ServiceNode {
-        checkNoFixedTenants(properties)
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
         val stepListeners = listeners.orderedStream().toList()
@@ -224,12 +221,14 @@ class WowAutoConfiguration {
                 appendQueue = properties.log.appendQueue.options(backends.appendQueue),
                 laneCapacity = properties.executor.laneCapacity,
                 stateCacheCapacity = properties.stateCache.capacity,
+                defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
             ),
             admission = AdmissionPlugins(
                 authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
                 rewriters = rewriters.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
                 ids = ids,
+                tenants = tenants(properties, models.models),
             ),
             subscriptions = subscriptions.getIfAvailable { SubscriptionFactory.NONE },
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
@@ -248,8 +247,17 @@ class WowAutoConfiguration {
             internalRoutes(node.forwardHandler, node.waits)
         )
 
+    /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
     @Bean
-    fun wowInternalServerLifecycle(server: InternalServer): InternalServerLifecycle = InternalServerLifecycle(server)
+    fun wowInternalServerLifecycle(
+        server: InternalServer,
+        node: ServiceNode,
+        identity: NodeIdentity,
+    ): InternalServerLifecycle = InternalServerLifecycle(server) { port ->
+        if (!node.hasAddress) {
+            node.bind(identity.addressAt(port))
+        }
+    }
 
     @Bean
     fun wowServiceNodeLifecycle(
@@ -294,21 +302,12 @@ class WowAutoConfiguration {
     /** The public routes, served by the application's WebFlux server. */
     @Bean
     fun wowRouterFunction(
-        properties: WowProperties,
         manifest: Manifest,
         node: ServiceNode,
         reads: StateReads,
         callers: CallerResolver,
         options: WowHttpOptions,
-    ): RouterFunction<ServerResponse> {
-        val routes = wowRoutes(manifest, node.gateway, reads, callers, options)
-        val defaultTimeout = properties.wait.defaultTimeout.toKotlinDuration()
-        if (defaultTimeout == WaitPlan.DEFAULT_TIMEOUT) {
-            return routes
-        }
-        require(defaultTimeout.isPositive()) { "wow.wait.default-timeout is positive." }
-        return routes.filter(defaultWaitTimeout("${defaultTimeout.toJavaDuration().toMillis()}ms"))
-    }
+    ): RouterFunction<ServerResponse> = wowRoutes(manifest, node.gateway, reads, callers, options)
 
     /** Activated when the application has a Bean Validation provider (decision D106). */
     @Configuration(proxyBeanMethods = false)
@@ -357,13 +356,23 @@ class WowAutoConfiguration {
             return configured ?: Routing.PARTITIONED
         }
 
-        /** Decision D116 has no hook in the runtime's admission yet: a fixed tenant would not be served. */
-        internal fun checkNoFixedTenants(properties: WowProperties) {
-            val fixed = properties.aggregates.filterValues { it.tenant != null }.keys
-            check(fixed.isEmpty()) {
-                "wow.aggregates.<context.aggregate>.tenant is not supported yet (decision D116): the runtime's " +
-                    "admission has no hook for a fixed tenant per aggregate type. Configured for: $fixed"
-            }
+        /**
+         * The fixed tenants of `wow.aggregates.[<context>.<aggregate>].tenant` (decision D116), each of an aggregate
+         * type of [models]: a key that names no such type, or a blank tenant, is refused.
+         */
+        internal fun tenants(properties: WowProperties, models: List<AggregateModel<*>>): TenantPolicy {
+            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
+            val fixed = properties.aggregates.mapNotNull { (key, aggregate) ->
+                aggregate.tenant?.let { tenant ->
+                    val model = checkNotNull(served[key]) {
+                        "wow.aggregates.[$key].tenant names no aggregate type this node serves; it serves " +
+                            "${served.keys}."
+                    }
+                    check(tenant.isNotBlank()) { "wow.aggregates.[$key].tenant is blank." }
+                    model.type to tenant
+                }
+            }.toMap()
+            return TenantPolicy.fixed(fixed)
         }
 
         private fun checkShutdownTimeout(environment: Environment) {
@@ -376,16 +385,6 @@ class WowAutoConfiguration {
                 }
             }
         }
-
-        /** Adds `Wow-Wait-Timeout: [timeout]` to a request that names no timeout (`wow.wait.default-timeout`). */
-        internal fun defaultWaitTimeout(timeout: String): HandlerFilterFunction<ServerResponse, ServerResponse> =
-            HandlerFilterFunction { request, next ->
-                if (request.headers().firstHeader(WowHeaders.WAIT_TIMEOUT) != null) {
-                    next.handle(request)
-                } else {
-                    next.handle(ServerRequest.from(request).header(WowHeaders.WAIT_TIMEOUT, timeout).build())
-                }
-            }
     }
 }
 

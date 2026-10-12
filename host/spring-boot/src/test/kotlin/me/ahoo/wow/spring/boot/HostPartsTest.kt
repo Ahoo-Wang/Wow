@@ -14,6 +14,8 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
@@ -201,7 +203,21 @@ class WowPropertiesTest {
         properties.http.errors.getValue("shop.cart.full").status.assert().isEqualTo(409)
         properties.http.requestFacts.assert().containsExactly("X-App")
         properties.aggregates.getValue("shop.cart").tenant.assert().isEqualTo("t0")
-        assertThrows<IllegalStateException> { WowAutoConfiguration.checkNoFixedTenants(properties) }
+    }
+
+    @Test
+    fun `a fixed tenant should be of an aggregate type the node serves (D116)`() {
+        val models = BankModels().models(Dependencies.of(DecidedCommands()))
+        val account = AggregateType(BANK, "account")
+        WowAutoConfiguration.tenants(WowProperties(), models).fixedTenant(account).assert().isNull()
+        val fixed = bind("wow.aggregates.[bank.account].tenant" to "t0")
+        WowAutoConfiguration.tenants(fixed, models).fixedTenant(account).assert().isEqualTo("t0")
+        val unknown = bind("wow.aggregates.[shop.cart].tenant" to "t0")
+        assertThrows<IllegalStateException> { WowAutoConfiguration.tenants(unknown, models) }
+            .message.assert().contains("shop.cart")
+        val blank = WowProperties().apply { aggregates["bank.account"] = WowProperties.Aggregate().apply { tenant = " " } }
+        assertThrows<IllegalStateException> { WowAutoConfiguration.tenants(blank, models) }
+            .message.assert().contains("blank")
     }
 
     @Test
@@ -216,6 +232,22 @@ class WowPropertiesTest {
         NodeIdentity.of(properties, environment).node.assert().isNotEqualTo(identity.node)
         properties.internal.host = "127.0.0.1"
         NodeIdentity.of(properties, environment).address.assert().isEqualTo("127.0.0.1:9300")
+    }
+
+    @Test
+    fun `a node on a port the system chooses should learn its address once bound`() {
+        val environment = StandardEnvironment()
+        environment.propertySources.addFirst(MapPropertySource("test", mapOf("spring.application.name" to "app")))
+        val properties = WowProperties().apply {
+            internal.port = 0
+            internal.host = "127.0.0.1"
+        }
+        val identity = NodeIdentity.of(properties, environment)
+        identity.address.assert().isNull()
+        identity.host.assert().isEqualTo("127.0.0.1")
+        identity.addressAt(41234).assert().isEqualTo("127.0.0.1:41234")
+        properties.node.address = "10.0.0.1:9191"
+        NodeIdentity.of(properties, environment).addressAt(41234).assert().isEqualTo("10.0.0.1:9191")
     }
 }
 

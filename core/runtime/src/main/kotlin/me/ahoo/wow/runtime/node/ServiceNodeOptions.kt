@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.runtime.node
 
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandRewriter
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.IdGenerator
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -62,7 +64,8 @@ enum class Routing {
  * The tuning of a [ServiceNode] (decision D110 names the host's keys for them).
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
- * - [maxWaitTimeout] and [maxWaitHops]: the waits ([WaitOptions]). [ServiceNode.stop] also waits at most
+ * - [maxWaitTimeout], [maxWaitHops] and [defaultWaitTimeout]: the waits ([WaitOptions]); the default timeout is that
+ *   of every command whose request names none, whichever edge it came through, capped by [maxWaitTimeout]. [ServiceNode.stop] also waits at most
  *   [maxWaitTimeout] for the waits registered on the node to end: none of them outlives it.
  * - [subscription]: the subscriptions of every context, the built-in ones included.
  * - [appendQueue]: the partition append queue, by the log backend's preset ([AppendQueueOptions.MONGO],
@@ -79,8 +82,10 @@ data class ServiceNodeOptions(
     val appendQueue: AppendQueueOptions = AppendQueueOptions(),
     val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
     val stateCacheCapacity: Int = DEFAULT_STATE_CACHE_CAPACITY,
+    val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
 ) {
     init {
+        require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
         require(laneCapacity >= 1) { "A lane takes at least one command." }
         require(stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
     }
@@ -91,12 +96,16 @@ data class ServiceNodeOptions(
     }
 }
 
-/** The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114). */
+/**
+ * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114), and the
+ * [tenants] of its aggregate types (decision D116).
+ */
 data class AdmissionPlugins(
     val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
     val rewriters: List<CommandRewriter> = emptyList(),
     val validators: List<CommandValidator> = emptyList(),
     val ids: IdGenerator = IdGenerator.UUID_V7,
+    val tenants: TenantPolicy = TenantPolicy.CALLERS,
 )
 
 /**

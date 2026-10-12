@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.availability.AvailabilityChangeEvent
 import org.springframework.boot.availability.AvailabilityState
@@ -39,13 +40,13 @@ class WowLifecyclesTest {
     private val events = CopyOnWriteArrayList<Any>()
     private val publisher = ApplicationEventPublisher { events += it }
 
-    private fun node(): ServiceNode {
+    private fun node(address: String? = "127.0.0.1:1"): ServiceNode {
         val dependencies = Dependencies.of(DecidedCommands())
         val providers = listOf(BankModels())
         return ServiceNode(
             service = "bank-service",
             node = "node-1",
-            address = "127.0.0.1:1",
+            address = address,
             models = ServiceNode.models(dependencies, providers),
             manifest = ManifestLoader(javaClass.classLoader, WowJson.mapper).load("bank-service"),
             backends = HostBackends.memory(2).factory,
@@ -106,6 +107,22 @@ class WowLifecyclesTest {
         lifecycle.isRunning.assert().isTrue()
         lifecycle.stop()
         lifecycle.isRunning.assert().isFalse()
+        assertThrows<IllegalStateException> { server.boundPort }
+    }
+
+    @Test
+    fun `a node without an address should learn the port the internal server is bound at`() {
+        val node = node(address = null)
+        node.hasAddress.assert().isFalse()
+        val server = InternalServer(0, "127.0.0.1", internalRoutes(node.forwardHandler, node.waits))
+        val lifecycle = InternalServerLifecycle(server) { port -> node.bind("127.0.0.1:$port") }
+        lifecycle.start()
+        try {
+            server.boundPort.assert().isNotEqualTo(0)
+            node.address.assert().isEqualTo("127.0.0.1:${server.boundPort}")
+        } finally {
+            lifecycle.stop()
+        }
     }
 
     @Test

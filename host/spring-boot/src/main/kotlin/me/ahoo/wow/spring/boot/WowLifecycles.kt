@@ -27,7 +27,8 @@ import kotlin.concurrent.thread
  * The phases of the host's lifecycles (decisions D71, D108; plan P17). Spring starts the phases in ascending order
  * and stops them in descending order, so a node
  *
- * - starts: [BACKENDS_PHASE] (the stores' schemas) → [INTERNAL_SERVER_PHASE] (the internal port) → [NODE_PHASE]
+ * - starts: [BACKENDS_PHASE] (the stores' schemas) → [INTERNAL_SERVER_PHASE] (the internal port, and the node's
+ *   address when the system chose the port) → [NODE_PHASE]
  *   ([ServiceNode.start]) → [PUBLIC_SERVER_PHASE] (Spring Boot's web server) → readiness `ACCEPTING_TRAFFIC`, which
  *   Spring Boot reports once the application has started;
  * - stops: readiness `REFUSING_TRAFFIC` (Spring Boot, as the context closes) and the public server's graceful
@@ -70,10 +71,17 @@ class BackendsLifecycle(private val backends: HostBackends) : SmartLifecycle {
     override fun getPhase(): Int = WowLifecycles.BACKENDS_PHASE
 }
 
-/** Serves the internal port from before the node starts until after it stops. */
-class InternalServerLifecycle(private val server: InternalServer) : SmartLifecycle {
+/**
+ * Serves the internal port from before the node starts until after it stops; once the port is bound, tells [bound]
+ * the port it is bound at, so a node whose port the system chose learns its address ([ServiceNode.bind]).
+ */
+class InternalServerLifecycle(
+    private val server: InternalServer,
+    private val bound: (port: Int) -> Unit = {},
+) : SmartLifecycle {
     override fun start() {
         server.start()
+        bound(server.boundPort)
     }
 
     override fun stop() {

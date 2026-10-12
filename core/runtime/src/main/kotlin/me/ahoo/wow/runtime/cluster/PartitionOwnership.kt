@@ -96,10 +96,11 @@ data class RenewalRound(
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
  */
-class PartitionOwnership(
+class PartitionOwnership internal constructor(
     val group: LeaseGroup,
     val node: String,
-    val address: String,
+    /** This node's internal address, read when the node joins: a node may learn it once its port is bound. */
+    private val addressOf: () -> String,
     /** The number of partitions of the context's log. */
     val partitions: Int,
     private val leases: LeaseStore,
@@ -111,6 +112,36 @@ class PartitionOwnership(
     /** Called after every renewal round, from the renewing coroutine: a metric hook. */
     private val renewalRounds: (RenewalRound) -> Unit = {},
 ) {
+    @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
+    constructor(
+        group: LeaseGroup,
+        node: String,
+        address: String,
+        /** The number of partitions of the context's log. */
+        partitions: Int,
+        leases: LeaseStore,
+        options: ClusterOptions = ClusterOptions(),
+        subscriptions: SubscriptionRuntime? = null,
+        context: CoroutineContext = Dispatchers.Default,
+        /** Measures renewal rounds; a test passes its virtual time. */
+        timeSource: TimeSource = TimeSource.Monotonic,
+        /** Called after every renewal round, from the renewing coroutine: a metric hook. */
+        renewalRounds: (RenewalRound) -> Unit = {},
+    ) : this(
+        group,
+        node,
+        fixedAddress(address),
+        partitions,
+        leases,
+        options,
+        subscriptions,
+        context,
+        timeSource,
+        renewalRounds,
+    )
+
+    /** This node's internal address, as the other members reach it. */
+    val address: String get() = addressOf()
     private val lifecycle = Mutex()
     private val renewals = Semaphore(options.leaseParallelism)
     private val acquisitions = Semaphore(options.leaseParallelism)
@@ -127,7 +158,6 @@ class PartitionOwnership(
 
     init {
         require(node.isNotBlank()) { "A node has an id." }
-        require(address.isNotBlank()) { "A node has an internal address." }
         require(partitions >= 1) { "A log has at least one partition." }
     }
 
@@ -150,6 +180,7 @@ class PartitionOwnership(
     /** Joins the group: heartbeats, reconciles at once and keeps doing so until [stop]. */
     suspend fun start(): Unit = lifecycle.withLock {
         check(running == null) { "$node is already part of $group." }
+        requireAddress(address)
         if (subscriptions != null && !subscriptions.isRunning) {
             subscriptions.start()
         }
@@ -444,4 +475,14 @@ class PartitionOwnership(
     private companion object {
         val logger = KotlinLogging.logger {}
     }
+}
+
+private fun requireAddress(address: String): String {
+    require(address.isNotBlank()) { "A node has an internal address." }
+    return address
+}
+
+private fun fixedAddress(address: String): () -> String {
+    requireAddress(address)
+    return { address }
 }

@@ -50,7 +50,8 @@ import org.springframework.web.reactive.function.server.coRouter
  * - every route of every command (`CommandManifest.routes`, decision D104) sends that command through [gateway];
  * - the lifecycle commands each aggregate lists (decision D113): `DELETE /{context}/{aggregate}/{id}` sends
  *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
- * - `GET /{context}/{aggregate}/{id}/state` and `?version=` read [reads] (decision D112);
+ * - `GET /{context}/{aggregate}/{id}/state` and `?version=` read [reads] (decision D112), in the tenant the gateway's
+ *   [tenants][CommandGateway.tenants] decide, as for a command (decision D116);
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
  *
@@ -76,7 +77,7 @@ fun wowRoutes(
         options = options,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     )
-    val states = StateHandler(reads, authenticator, headers, statuses)
+    val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants)
     val manifestBody = HttpJson.write(ManifestTree.write(manifest))
     return coRouter {
         if (options.manifestEndpoint) {

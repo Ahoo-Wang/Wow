@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -43,9 +44,11 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -90,24 +93,29 @@ class CommandGatewayTest {
     private val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
     private val executor = Executor(Kernel(InMemoryEventLog(partitions = 2)), laneCapacity = 1)
-    private val coordinator = WaitCoordinator(
+    private val coordinator = coordinator()
+
+    private fun coordinator(defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT) = WaitCoordinator(
         executor,
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender(origin.node, registry),
-        WaitOptions(origin, maxTimeout = 30.seconds),
+        WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
     )
 
     private fun gateway(
         authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
         rewriters: List<CommandRewriter> = emptyList(),
         validators: List<CommandValidator> = emptyList(),
+        tenants: TenantPolicy = TenantPolicy.CALLERS,
+        coordinator: WaitCoordinator = this.coordinator,
     ) = CommandGateway(
         ModelRegistry(listOf(model)),
         mapOf(CONTEXT to coordinator),
         authorizer = authorizer,
         rewriters = rewriters,
         validators = validators,
+        tenants = tenants,
     )
 
     private val alice = Caller(TENANT, Scope("alice", "home"), subject = "alice")
@@ -200,6 +208,69 @@ class CommandGatewayTest {
         val own = gateway().execute(request(caller = admin))
         own.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         own.ref.tenantId.assert().isEqualTo("ops")
+    }
+
+    @Test
+    fun `a fixed tenant holds whoever the caller is, the cross-scope rules unchanged (D116)`(): Unit = runBlocking {
+        val type = AggregateType(CONTEXT, "cart")
+        val tenants = TenantPolicy.fixed(mapOf(type to "t0"))
+        val actions = CopyOnWriteArrayList<CommandAction>()
+        val gateway = gateway(
+            tenants = tenants,
+            authorizer = { _, action -> Authorization.Allowed.also { actions += action } }
+        )
+        gateway.tenants.assert().isSameAs(tenants)
+
+        val own = gateway.execute(request(wait = WaitPlan.COMMITTED))
+        own.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        own.ref.tenantId.assert().isEqualTo("t0")
+        actions.single().ref.tenantId.assert().isEqualTo("t0")
+
+        // A cross-scope caller still acts in its target's scope, in the fixed tenant, which it may name.
+        val target = TargetScope("t0", Scope("alice", "home"))
+        gateway.execute(request(caller = admin, target = target, wait = WaitPlan.COMMITTED)).ref.tenantId
+            .assert().isEqualTo("t0")
+        gateway.execute(
+            request(caller = admin, target = TargetScope(null, Scope("alice", "home")), wait = WaitPlan.COMMITTED)
+        )
+            .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        val conflict = gateway.execute(request(caller = admin, target = TargetScope("ops", Scope("admin"))))
+        conflict.assertRefused(FrameworkCodes.MALFORMED)
+        conflict.error!!.message.assert().contains("fixed to t0")
+        conflict.ref.tenantId.assert().isEqualTo("t0")
+        gateway.execute(request(caller = bob, target = target)).assertRefused(FrameworkCodes.AUTH_FORBIDDEN)
+
+        // Another aggregate type stays in its caller's tenant.
+        TenantPolicy.fixed(
+            mapOf(AggregateType(CONTEXT, "order") to "t0")
+        ).tenantOf(type, alice).assert().isEqualTo(TENANT)
+    }
+
+    @Test
+    fun `a fixed tenant is not blank, and no fixed tenant is the callers' policy`() {
+        TenantPolicy.fixed(emptyMap()).assert().isSameAs(TenantPolicy.CALLERS)
+        assertThrows<IllegalArgumentException> { TenantPolicy.fixed(mapOf(AggregateType(CONTEXT, "cart") to " ")) }
+        TenantPolicy.CALLERS.tenantOf(
+            AggregateType(CONTEXT, "cart"),
+            alice,
+            TargetScope("ops")
+        ).assert().isEqualTo("ops")
+    }
+
+    @Test
+    fun `a request that names no plan waits the coordinator's default timeout`(): Unit = runBlocking {
+        val waits = CopyOnWriteArrayList<WaitPlan>()
+        val recording = CommandRewriter { command -> command.also { waits += it.wait } }
+        val gateway = gateway(rewriters = listOf(recording), coordinator = coordinator(4.seconds))
+        gateway.defaultWaitTimeout(CONTEXT).assert().isEqualTo(4.seconds)
+        gateway.defaultWaitTimeout("elsewhere").assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
+        gateway.execute(request()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        gateway.execute(request(wait = WaitPlan.COMMITTED.within(2.seconds)))
+        waits.assert().containsExactly(WaitPlan.DEFAULT.within(4.seconds), WaitPlan.COMMITTED.within(2.seconds))
+
+        // A default longer than the maximum is capped by it.
+        val capped = gateway(coordinator = coordinator(60.seconds))
+        capped.defaultWaitTimeout(CONTEXT).assert().isEqualTo(30.seconds)
     }
 
     @Test

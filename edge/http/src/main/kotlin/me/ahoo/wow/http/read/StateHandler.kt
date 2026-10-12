@@ -25,6 +25,10 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.Caller
+import me.ahoo.wow.runtime.admission.TargetScope
+import me.ahoo.wow.runtime.admission.TenantConflictException
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -37,7 +41,8 @@ import org.springframework.web.reactive.function.server.buildAndAwait
  * `ETag: "<version>"`; 304 when `If-None-Match` names that tag.
  *
  * The ref's tenant is the caller's, or the one `Wow-Scope` names for a caller that may act across scopes (403
- * `wow.auth.forbidden` for another). A state outside the caller's scope (an owner or a space it names and the state
+ * `wow.auth.forbidden` for another), unless [tenants] fixes the aggregate type's tenant (decision D116), as admission
+ * does: then it is that tenant, and a `Wow-Scope` that names another is 400 `wow.command.malformed`. A state outside the caller's scope (an owner or a space it names and the state
  * does not have) is 403 `wow.aggregate.forbidden`, as for a command (decision D94); a missing one is 404
  * `wow.aggregate.not-found`. A deleted aggregate's state is read as any other, `deleted` set.
  */
@@ -46,6 +51,7 @@ internal class StateHandler(
     private val authenticator: Authenticator,
     private val headers: RequestHeaders,
     private val statuses: ErrorStatuses,
+    private val tenants: TenantPolicy = TenantPolicy.CALLERS,
 ) {
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
         val caller = authenticator.authenticate(request)
@@ -55,7 +61,7 @@ internal class StateHandler(
             throw problem(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not read in another scope.", type)
         }
         val scope = target?.scope ?: caller.scope
-        val ref = type.ref(target?.tenantId ?: caller.tenantId, request.pathVariable(CommandHandler.ID))
+        val ref = type.ref(tenantOf(type, caller, target), request.pathVariable(CommandHandler.ID))
         val view = read(request, ref)
         if (!scope.covers(view.scope)) {
             throw problem(FrameworkCodes.AGGREGATE_FORBIDDEN, "$ref is outside the caller's scope.", type)
@@ -66,6 +72,13 @@ internal class StateHandler(
         }
         return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON)
             .bodyValueAndAwait(HttpJson.write(view))
+    }
+
+    /** The tenant [caller] reads an aggregate of [type] in, naming [target] (decision D116). */
+    private fun tenantOf(type: AggregateType, caller: Caller, target: TargetScope?): String = try {
+        tenants.tenantOf(type, caller, target)
+    } catch (conflict: TenantConflictException) {
+        throw problem(FrameworkCodes.MALFORMED, conflict.message!!, type)
     }
 
     /** The state of [ref] the request asks for: the latest, or the one at `?version=`. */

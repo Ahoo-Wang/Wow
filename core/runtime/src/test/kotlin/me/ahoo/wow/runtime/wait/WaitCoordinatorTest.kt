@@ -50,6 +50,7 @@ import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -443,6 +444,40 @@ class WaitCoordinatorTest {
     private suspend fun retried(coordinator: WaitCoordinator, command: Command<*>): CommandResult {
         eventually { log.findByRequestId("t", command.requestId) != null }
         return coordinator.execute(order, command.copy(id = "${command.id}-retry", wait = WaitPlan.COMMITTED))
+    }
+
+    @Test
+    fun `join waits for an execution that outlived its wait, which settles normally`(): Unit = runBlocking {
+        started()
+        val command = placeSlowly(WaitPlan.COMMITTED.within(100.milliseconds))
+        coordinator.execute(order, command).hop.assert().isEqualTo(Hop.accepted("shop"))
+        coordinator.executing.assert().isEqualTo(1)
+        val joining = async(Dispatchers.Default) { coordinator.join() }
+        delay(100)
+        joining.isCompleted.assert().isFalse()
+
+        decideGate.complete(Unit)
+        withTimeout(5.seconds) { joining.await() }
+        coordinator.executing.assert().isEqualTo(0)
+        log.findByRequestId("t", command.requestId)!!.version.assert().isEqualTo(1)
+        coordinator.join()
+    }
+
+    @Test
+    fun `close cancels what still executes`(): Unit = runBlocking {
+        started()
+        val command = placeSlowly(WaitPlan.COMMITTED.within(100.milliseconds))
+        coordinator.execute(order, command).hop.assert().isEqualTo(Hop.accepted("shop"))
+        coordinator.close()
+        eventually { coordinator.executing == 0 }
+        decideGate.complete(Unit)
+        log.findByRequestId("t", command.requestId).assert().isNull()
+    }
+
+    @Test
+    fun `the default timeout is positive, and only capped by the maximum`() {
+        WaitOptions(origin, maxTimeout = 5.seconds).defaultTimeout.assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
+        assertThrows<IllegalArgumentException> { WaitOptions(origin, defaultTimeout = 0.seconds) }
     }
 
     @Test
