@@ -25,6 +25,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | CRUD/事务脚本/直接写表，没有 Wow 历史 | [传统架构迁移](./migration/traditional-architecture.md) | 建立 command、aggregate、event、导入与流量所有权 |
 | 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 已从本站下线：按 v8.16.3 标签中保存的指南升级到 v8.16，再[从 8.16 升级到 9.0.0](#从-8-16-升级到-9-0-0) |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
+| Wow 9.8.x | [从 9.8 升级到 9.9.0](#从-9-8-升级到-9-9-0) | 重新编译：数据集、聚合窗口与根分组在线上都是新增；自行构建查询后端或 Catalog、通过基类读取查询模型 profile、或从 Java 调用变更过的构造函数的代码需要修改 |
 | Wow 9.7.x | [从 9.7 升级到 9.8.0](#从-9-7-升级到-9-8-0) | 重新编译：类从 `wow-core` 的 `messaging` 包移入各自的领域包，`infra.batch` 改为 `me.ahoo.wow.batch`，指标装饰器移到 `me.ahoo.wow.metrics.decorator`；自己构建 `QuerySchemaCatalog` 或继承 `QueryGatewayRegistrar` 的集成需要修改 |
 | Wow 9.6.x | [从 9.6 升级到 9.7.0](#从-9-6-升级到-9-7-0) | 只有用到 `wow-webflux` 内部实现或已删除的弃用辅助方法的代码需要修改；路由、REST、配置与线上格式不变，9.6.x 与 9.7.0 节点可以共处一个集群 |
 | Wow 9.5.x | [从 9.5 升级到 9.6.0](#从-9-5-升级到-9-6-0) | `wow-openapi` 路由合同改为纯数据，OpenAPI 文档不变：重新编译，修改自定义 `RouteContributor` 与 `mergeOpenAPIFromCatalog` 的调用 |
@@ -65,6 +66,26 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 回滚计划必须区分“目标版本第一次生产写入之前”和“之后”。新存储格式已经写入时，只恢复旧 binary
 不是回滚。
+
+## 从 9.8 升级到 9.9.0
+
+9.9.0 给查询核心加入数据集：声明式的表状记录集（例如 ClickHouse 宽表），像聚合一样查询、限定范围、脱敏与审计，经 `/dataset/{context}/{dataset}` 提供。它还加入了在全部分组上计算的聚合窗口，以及展开元素时读取根记录的分组（`scope: ROOT`）。线上的一切变化都是新增。配置、请求头键、指标名与标签、既有的 REST 路由与线格式都不变，9.8.x 与 9.9.0 节点可以共处一个集群：9.8 节点的描述符不提供窗口与根分组，读取描述符的客户端（wow-client、视图引擎）只在提供的地方发送它们。下表的签名变化都属于 SPI 或内部实现（见 `docs/compat-debt.md` 的范围说明），没有弃用周期。只使用 starter 与公开入口 API 的应用无需修改源码，重新编译即可。
+
+| 变化 | 影响谁 | 怎么做 |
+|---|---|---|
+| `QueryModelSchema(…, profile)`、`QuerySchemaCatalog(…, datasets)`、`QueryBackendStorages(…, datasetFactory, datasets)`、`SimpleQueryBackendProvider(…, dataset)` 与 `QueryModelCompiler.of(…, datasets)` 末尾多一个带默认值的参数 | 自行构建查询后端、Schema 提供方或 Catalog 的代码 | 重新编译 |
+| `QueryModelProfile` 上的 `identityField`、`payloadField`、`eventTimeField` 与 `systemField()` 可为空；`requiredScope` 与 `systemField()` 改为抽象；`QueryModelProfile.of` 返回 `BuiltInQueryModelProfile`。快照与事件流的 profile 仍返回非空值 | 通过基类读取 profile 字段的代码 | 处理 `null`，或通过 `BuiltInQueryModelProfile` 读取 |
+| `QueryModelSchema.profile` 扩展属性改为成员 | 导入 `me.ahoo.wow.query.schema.profile` 的代码 | 删除该导入 |
+| `AnalysisDescriptor` 与 `AggregationSupport` 末尾多 `windows`、`rootGroups` 参数；`AggregationGroup.Terms`、`.Histogram`、`.DateHistogram`、`.DatePart` 及 `AggregationQueryDsl` 中对应的函数末尾多一个 `scope` | 传入全部参数的 Java 调用方；针对 9.8 编译的二进制 | 重新编译；Java 调用方给 `scope` 传 `null` |
+| `QueryAutoConfiguration.querySchemaCatalog(…)` 多接收数据集与数据集后端工厂；`QueryProperties` 多 `datasets` | 直接调用它们的代码 | 按新签名重新编译 |
+| `SnapshotQueryBackendSpec`（`wow-tck`）多两个根分组用例，由 `elementRootGroups`（默认 `true`）开启 | 运行该规范、但不能按根字段给元素分组的查询后端 | 覆盖 `elementRootGroups = false`，并声明 `AggregationSupport.rootGroups = SupportMode.NONE` |
+| TypeScript：`RecordLayout` 多 `'kanban'`；`DERIVED_KINDS`、`DerivedKind` 与 `DerivedGap` 多了成员；`ANALYSIS_AUTO_RUN_MEMBERS` 多 `'top'`；wow-client 的 `DerivedExpressionType` 多了窗口节点；`AnalysisScope` 多 `rootAggregations` | 对这些联合类型做穷举 switch、或手工构造 `AnalysisScope` 的代码 | 处理新成员；用 `analysisScope()` 构造作用域 |
+
+行为变化（不需要修改代码，但按旧文本匹配的调用方可能察觉）：
+
+- 元素作用域的拒绝说明怎样够到字段：`Field [x] requires its declared element scope: reach it through ELEMENT_MATCH in a filter, or expand it with the aggregation's elements.`
+- 命令等待超时会说明等的是什么，例如 `Waiting for stage [PROJECTED] timed out after 10000ms.`，不再是 Reactor 的内部文本。
+- 缺少 ABAC 标签的拒绝改为 `Query requires the principal's ABAC tags.`，不再是 `Snapshot query requires…`；错误码不变。
 
 ## 从 9.7 升级到 9.8.0
 
