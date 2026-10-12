@@ -21,13 +21,23 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 
 /** Compiles [sources] with the model processor in [mode] (`generate`, `report` or `off`). */
 @OptIn(ExperimentalCompilerApi::class)
-fun compileModel(mode: String, vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> {
+fun compileModel(mode: String, vararg sources: SourceFile): Pair<KotlinCompilation, JvmCompilationResult> =
+    compileModel(mode, emptyMap(), *sources)
+
+/** Compiles [sources] with the model processor in [mode] and the further KSP [options]. */
+@OptIn(ExperimentalCompilerApi::class)
+fun compileModel(
+    mode: String,
+    options: Map<String, String>,
+    vararg sources: SourceFile,
+): Pair<KotlinCompilation, JvmCompilationResult> {
     val compilation = KotlinCompilation().apply {
         inheritClassPath = true
         this.sources = sources.toList()
         configureKsp {
             symbolProcessorProviders += ModelSymbolProcessorProvider()
             processorOptions[ModelSymbolProcessorProvider.OPTION] = mode
+            processorOptions.putAll(options)
         }
         jvmTarget = "21"
     }

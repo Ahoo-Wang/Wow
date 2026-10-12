@@ -5,7 +5,7 @@ description = "Wow V10 architecture rules: module graph, forbidden dependencies 
 val v10ModuleDirs = listOf(
     "api/wow-manifest", "api/wow-query-api", "core/wow-spi", "core/wow-kernel", "core/wow-runtime",
     "core/wow-reactor", "backends/wow-postgres", "edge/wow-http", "host/wow-spring-boot",
-    "migration/wow-migrate-data", "wow-api",
+    "migration/wow-migrate-data", "compiler/wow-gradle-plugin", "wow-api",
 )
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())

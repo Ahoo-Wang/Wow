@@ -26,6 +26,7 @@ import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -35,12 +36,17 @@ import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
+import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.compiler.AggregateRootResolver.toName
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
+import tools.jackson.databind.json.JsonMapper
 
 /**
  * Compiles annotated aggregate roots into V10 aggregate models (decision D37): for each `@AggregateRoot` it
@@ -72,22 +78,40 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
  *
  * The context is a parameter because a domain module rarely holds the `@BoundedContext` that names it: the runtime
  * binds it when it assembles the Manifest fragments.
+ *
+ * With `wow.model=generate`, a model without problems also gets its Manifest fragment (decisions D73, D74,
+ * [ManifestFragmentBuilder]): `META-INF/wow/manifest/<module>.json` holds the module's aggregates and subscriptions
+ * under its bounded context, with schemas left as references for the build to fill in. The KSP option
+ * `wow.context` names the context (else the module's one `@BoundedContext` does; with neither, no fragment is
+ * written), and `wow.manifest.module` names the file (else the context does).
  */
 class ModelSymbolProcessor(
     private val mode: Mode,
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
+    private val manifest: ManifestOptions = ManifestOptions(),
 ) : SymbolProcessor {
     enum class Mode { OFF, GENERATE, REPORT }
+
+    /**
+     * Where the Manifest fragment goes: [module] names it (`META-INF/wow/manifest/<module>.json`), and [context]
+     * names the bounded context the module's aggregates and subscriptions belong to. Without [context], the one
+     * `@BoundedContext` of the module names it; without [module], the context does.
+     */
+    data class ManifestOptions(val module: String? = null, val context: String? = null)
 
     private val bindings = mutableListOf<AggregateBinding>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
     private val sources = mutableSetOf<KSFile>()
 
+    /** The `@BoundedContext`s of the module: name to description. */
+    private val boundedContexts = sortedMapOf<String, String>()
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (mode == Mode.OFF) {
             return emptyList()
         }
+        collectBoundedContexts(resolver)
         val roots = resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT).filterIsInstance<KSClassDeclaration>().toList()
         val deferred = roots.filterNot { it.validate() }
         roots.filter { it.validate() }.forEach { root ->
@@ -141,15 +165,57 @@ class ModelSymbolProcessor(
         return deferred
     }
 
+    @OptIn(KspExperimental::class)
+    private fun collectBoundedContexts(resolver: Resolver) {
+        val declarations = resolver.getSymbolsWithAnnotation(BOUNDED_CONTEXT).filterIsInstance<KSClassDeclaration>()
+        declarations.forEach { declaration ->
+            declaration.containingFile?.let { sources += it }
+            declaration.getAnnotationsByType(BoundedContext::class).forEach {
+                boundedContexts[it.name] = it.description
+            }
+        }
+    }
+
     override fun finish() {
-        if (mode != Mode.REPORT || (bindings.isEmpty() && subscriptions.isEmpty())) {
+        if (bindings.isEmpty() && subscriptions.isEmpty()) {
             return
         }
+        when (mode) {
+            Mode.REPORT -> codeGenerator.createNewFileByPath(
+                Dependencies(aggregating = true, sources = sources.toTypedArray()),
+                "META-INF/wow/model-report",
+                "json",
+            ).bufferedWriter().use { it.write(ModelReport.json(bindings, subscriptions)) }
+
+            Mode.GENERATE -> writeManifestFragment()
+            Mode.OFF -> Unit
+        }
+    }
+
+    /**
+     * Writes the module's Manifest fragment ([ManifestFragmentBuilder]) when the model compiled without problems and
+     * its bounded context is known.
+     */
+    private fun writeManifestFragment() {
+        if (bindings.any { it.problems.isNotEmpty() } || subscriptions.any { it.problems.isNotEmpty() }) {
+            return
+        }
+        val context = manifest.context ?: boundedContexts.keys.singleOrNull()
+        if (context == null) {
+            logger.warn(
+                "No Manifest fragment: the module declares ${boundedContexts.size} @BoundedContext; set the KSP " +
+                    "option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name its bounded context",
+            )
+            return
+        }
+        val module = manifest.module ?: context
+        val description = boundedContexts[context]?.ifBlank { null }
+        val fragment = ManifestFragmentBuilder.build(context, description, bindings, subscriptions)
         codeGenerator.createNewFileByPath(
             Dependencies(aggregating = true, sources = sources.toTypedArray()),
-            "META-INF/wow/model-report",
+            "${Manifest.FRAGMENT_DIRECTORY}/$module",
             "json",
-        ).bufferedWriter().use { it.write(ModelReport.json(bindings, subscriptions)) }
+        ).bufferedWriter().use { it.write(FRAGMENT_WRITER.writeValueAsString(ManifestTree.write(fragment))) }
     }
 
     @OptIn(KspExperimental::class)
@@ -193,6 +259,8 @@ class ModelSymbolProcessor(
             sourcing = sourcing,
             afters = afters,
             problems = problems,
+            stateType = state.binaryName(),
+            description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
         )
     }
 
@@ -275,6 +343,8 @@ class ModelSymbolProcessor(
                 command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
                 else -> "NONE"
             },
+            type = command.binaryName(),
+            yields = EventYield.of(function.returnType?.resolve()),
         )
     }
 
@@ -331,6 +401,7 @@ class ModelSymbolProcessor(
             aliases = event.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
             function = name,
             returnsState = returned == state.qualifiedName?.asString(),
+            type = event.binaryName(),
         )
     }
 
@@ -356,6 +427,7 @@ class ModelSymbolProcessor(
             include = classes("include"),
             exclude = classes("exclude"),
             suspending = Modifier.SUSPEND in function.modifiers,
+            yields = EventYield.of(function.returnType?.resolve()),
         )
     }
 
@@ -378,6 +450,13 @@ class ModelSymbolProcessor(
         .filter { !it.isPrivate() && (it.simpleName.asString() == conventionalName || it.hasAnnotation(annotation)) }
         .toList()
 
+    /** The JVM binary name of this class: `a.b.Outer$Inner` for a nested class. */
+    private fun KSClassDeclaration.binaryName(): String {
+        val names = generateSequence<KSDeclaration>(this) { it.parentDeclaration }.map { it.simpleName.asString() }
+        val packageName = packageName.asString()
+        return (if (packageName.isEmpty()) "" else "$packageName.") + names.toList().asReversed().joinToString("$")
+    }
+
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean = annotations.any {
         it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
     }
@@ -392,6 +471,10 @@ class ModelSymbolProcessor(
 
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
+        val BOUNDED_CONTEXT = BoundedContext::class.java.name
+
+        // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
+        val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()
         const val ON_COMMAND = "onCommand"
         const val ON_SOURCING = "onSourcing"
         const val AFTER_COMMAND = "afterCommand"
@@ -426,11 +509,21 @@ class ModelSymbolProcessorProvider : SymbolProcessorProvider {
             "report" -> ModelSymbolProcessor.Mode.REPORT
             else -> ModelSymbolProcessor.Mode.OFF
         }
-        return ModelSymbolProcessor(mode, environment.codeGenerator, environment.logger)
+        val manifest = ModelSymbolProcessor.ManifestOptions(
+            module = environment.options[MODULE_OPTION]?.ifBlank { null },
+            context = environment.options[CONTEXT_OPTION]?.ifBlank { null },
+        )
+        return ModelSymbolProcessor(mode, environment.codeGenerator, environment.logger, manifest)
     }
 
     companion object {
         /** The KSP option: `generate`, `report`, or absent for nothing. */
         const val OPTION = "wow.model"
+
+        /** The KSP option naming the module's Manifest fragment, `META-INF/wow/manifest/<module>.json`. */
+        internal const val MODULE_OPTION = "wow.manifest.module"
+
+        /** The KSP option naming the bounded context of the module's aggregates and subscriptions. */
+        internal const val CONTEXT_OPTION = "wow.context"
     }
 }

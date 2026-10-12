@@ -1,0 +1,51 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.gradle
+
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+
+/**
+ * The `wow { }` block of a module that applies `me.ahoo.wow`.
+ *
+ * ```kotlin
+ * wow {
+ *     context = "shop"
+ *     schemaOverrides.put("sample.Money", """{"type":"string"}""")
+ * }
+ * ```
+ */
+abstract class WowExtension {
+    /**
+     * The bounded context this module's aggregates and subscriptions belong to (the KSP option `wow.context`).
+     * Unset, the module's one `@BoundedContext` names it.
+     */
+    abstract val context: Property<String>
+
+    /** Whether the plugin adds `me.ahoo.wow:wow-compiler` of its own version to `ksp`; true by default. */
+    abstract val addCompilerDependency: Property<Boolean>
+
+    /**
+     * JSON Schemas (2020-12, as JSON text) that replace the introspected schema of a class, by its JVM binary name.
+     * Introspection follows Jackson's annotations, naming and Kotlin module, but cannot see inside a custom serializer:
+     * a type written by one declares its schema here.
+     */
+    abstract val schemaOverrides: MapProperty<String, String>
+
+    /** The service the merged `manifest.json` describes; the project's name by default. */
+    abstract val serviceName: Property<String>
+
+    /** The service's version in the merged `manifest.json`; the project's version by default. */
+    abstract val serviceVersion: Property<String>
+}

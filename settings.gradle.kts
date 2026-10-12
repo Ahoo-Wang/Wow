@@ -136,4 +136,6 @@ include(":wow-architecture")
 project(":wow-architecture").projectDir = file("test/wow-architecture")
 include(":wow-kernel-benchmarks")
 project(":wow-kernel-benchmarks").projectDir = file("test/wow-kernel-benchmarks")
+include(":wow-gradle-plugin")
+project(":wow-gradle-plugin").projectDir = file("compiler/wow-gradle-plugin")
 //endregion
