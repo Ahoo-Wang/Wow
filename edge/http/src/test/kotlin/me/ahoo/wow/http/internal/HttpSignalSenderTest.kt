@@ -17,8 +17,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
+import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.spi.wait.Origin
@@ -27,6 +32,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.net.ServerSocket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -67,6 +74,33 @@ class HttpSignalSenderTest {
         received.assert().containsExactlyInAnyOrderElementsOf(signals)
         sender.dropped.assert().isEqualTo(0)
         server.versions.assert().containsOnly("HTTP/2.0")
+    }
+
+    @Test
+    fun `a signal round-trips exactly over HTTP, its numbers as they were (D122)`(): Unit = runBlocking {
+        val sender = sender()
+        val signal = WaitSignal(
+            waitId = "w-exact",
+            result = committed("c-exact").copy(
+                hop = Hop.handled("order.saga", "order"),
+                status = CommandResult.Status.FAILED,
+                duplicate = true,
+                error = ErrorInfo("bank.account.frozen", "Frozen.", listOf(Violation("amount", "min", "Too low."))),
+                results = mapOf(
+                    "price" to BigDecimal("2.50"),
+                    "precise" to BigDecimal("12345678901234567890.123456789"),
+                    "count" to Long.MAX_VALUE,
+                    "huge" to BigInteger("123456789012345678901234567890"),
+                    "lines" to listOf(mapOf("sku" to "apple", "quantity" to 2)),
+                ),
+                derived = listOf("c-2", "c-3"),
+            ),
+        )
+        sender.send(origin(server.address), signal)
+        eventually { received.size == 1 }
+        received.single().assert().isEqualTo(signal)
+        (received.single().result.results["price"] as BigDecimal).scale().assert().isEqualTo(2)
+        ClusterCodec.decodeSignal(ClusterCodec.encode(signal)).assert().isEqualTo(signal)
     }
 
     @Test

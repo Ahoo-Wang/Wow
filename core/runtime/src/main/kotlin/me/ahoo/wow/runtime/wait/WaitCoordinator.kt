@@ -20,10 +20,13 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.decide.Command
@@ -53,15 +56,19 @@ import kotlin.time.Duration.Companion.seconds
  * - [origin] is this node, as signals address it (decision D65).
  * - [maxTimeout] caps the timeout a caller asks for (decision D64).
  * - [maxHops] is the longest chain a wait may follow (decision D62).
+ * - [defaultTimeout] is the timeout of a command whose caller names no wait plan (decision D64), capped by
+ *   [maxTimeout] as any other; [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
  */
 data class WaitOptions(
     val origin: Origin,
     val maxTimeout: Duration = DEFAULT_MAX_TIMEOUT,
     val maxHops: Int = DEFAULT_MAX_HOPS,
+    val defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
 ) {
     init {
         require(maxTimeout.isPositive()) { "The maximum wait timeout is positive." }
         require(maxHops >= 1) { "A wait chain has at least one hop." }
+        require(defaultTimeout.isPositive()) { "The default wait timeout is positive." }
     }
 
     companion object {
@@ -101,13 +108,16 @@ data class WaitOptions(
  * Where the command runs is [router]'s choice (design 02 §2): here, through [executeHere], or on its partition's
  * owner, which executes it with the same wait context and replies with its [Settlement]; either way the wait goes
  * on here, and the later hops are signalled here.
+ *
+ * The executions outlive their waits, so a node that stops [join]s them before it closes its executor, then [close]s
+ * the coordinator.
  */
 class WaitCoordinator(
     private val executor: Executor,
     private val registry: WaitRegistry,
     private val directory: SubscriptionDirectory,
     private val signals: SignalSender,
-    val options: WaitOptions,
+    options: WaitOptions,
     private val clock: () -> Long = System::currentTimeMillis,
     private val waitIds: () -> String = { UUID.randomUUID().toString() },
     private val router: CommandRouter = CommandRouter.LOCAL,
@@ -115,6 +125,36 @@ class WaitCoordinator(
 ) {
     /** Where the commands of [stream] execute, apart from their waits (decision D64). */
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
+
+    /**
+     * The tuning of the waits started here. A [me.ahoo.wow.runtime.node.ServiceNode] that learns its internal address
+     * only once its internal port is bound sets the origin's address then, before it starts.
+     */
+    @Volatile
+    var options: WaitOptions = options
+        internal set
+
+    /** The commands executing in this coordinator's scope, their waits ended or not. */
+    val executing: Int get() = executions.coroutineContext.job.children.count()
+
+    /**
+     * Waits until no command executes in this coordinator's scope: those whose waits ended before their outcome was
+     * known settle normally, their outcome logged. The caller bounds it; it does not stop new executions.
+     */
+    suspend fun join() {
+        while (true) {
+            val running = executions.coroutineContext.job.children.toList()
+            if (running.isEmpty()) {
+                return
+            }
+            running.joinAll()
+        }
+    }
+
+    /** Cancels what still executes in this coordinator's scope; a stopping node calls it after [join]. */
+    fun close() {
+        executions.cancel()
+    }
 
     /** Executes [command] on [model]'s aggregate and returns the result it ends its wait with. */
     suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = stream(model, command).last()

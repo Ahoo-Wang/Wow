@@ -200,7 +200,7 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
     private val endpoint: ClusterChannelHandler by lazy {
         ForwardEndpoint(coordinator, listOf(model), listOf(ownership))
     }
-    private val handler = ContextDispatchingHandler(mapOf(CONTEXT to ClusterChannelHandler { endpoint.forward(it) }))
+    private val handler = ClusterChannelHandler { endpoint.forward(it) }
     val server = InternalServer(internalRoutes(handler, registry))
     private val kernel = Kernel(cluster.log)
     private val subscriptions = SubscriptionRuntime(

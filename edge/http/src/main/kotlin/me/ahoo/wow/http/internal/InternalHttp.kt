@@ -14,9 +14,6 @@
 package me.ahoo.wow.http.internal
 
 import me.ahoo.wow.api.result.WaitSignal
-import tools.jackson.databind.DeserializationFeature
-import tools.jackson.databind.json.JsonMapper
-import tools.jackson.module.kotlin.kotlinModule
 import java.net.URI
 import java.net.http.HttpClient
 import kotlin.time.Duration
@@ -60,19 +57,4 @@ object InternalHttp {
 
     /** The URI of [path] on the internal port at [address] (`host:port`). */
     fun uri(address: String, path: String): URI = URI.create("http://$address$path")
-}
-
-/**
- * Reads and writes the [WaitSignal] wire form (design 08 §8) with a mapper configured as
- * [me.ahoo.wow.runtime.cluster.ClusterCodec]'s (decision D105): the Kotlin module only, unknown fields ignored (D48).
- */
-internal object SignalCodec {
-    private val mapper: JsonMapper = JsonMapper.builder()
-        .addModule(kotlinModule())
-        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-        .build()
-
-    fun encode(signal: WaitSignal): ByteArray = mapper.writeValueAsBytes(signal)
-
-    fun decode(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
 }

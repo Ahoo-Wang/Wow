@@ -72,6 +72,11 @@ class HostCustomizationTest {
         host.post("/bank/account/open-account", """{"owner":"erin"}""", headers = mapOf("Wow-Wait-Timeout" to "3s"))
             .status.assert().isEqualTo(200)
         customizations.timeouts.last().assert().isEqualTo(3.seconds)
+        host.post("/bank/account/open-account", """{"owner":"erin"}""", headers = mapOf("Wow-Wait" to "committed"))
+            .status.assert().isEqualTo(200)
+        customizations.timeouts.last().assert().isEqualTo(7.seconds)
+        host.node.gateway.defaultWaitTimeout(BANK).assert().isEqualTo(7.seconds)
+        host.node.options.defaultWaitTimeout.assert().isEqualTo(7.seconds)
     }
 
     @Test
@@ -132,8 +137,8 @@ class HostRefusalTest {
     }
 
     @Test
-    fun `a fixed tenant per aggregate type should be refused until the runtime serves it`() {
-        refusal("wow.aggregates.[bank.account].tenant" to "t0").assert().contains("decision D116")
+    fun `a fixed tenant of an aggregate type the node does not serve should be refused`() {
+        refusal("wow.aggregates.[bank.ledger].tenant" to "t0").assert().contains("bank.ledger")
     }
 
     @Test

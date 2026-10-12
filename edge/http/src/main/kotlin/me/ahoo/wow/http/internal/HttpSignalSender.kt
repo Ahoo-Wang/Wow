@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.wait.Origin
 import java.net.http.HttpClient
@@ -40,7 +41,8 @@ import kotlin.time.toJavaDuration
 /**
  * Sends wait signals to the internal signal entry ([InternalHttp.SIGNALS_PATH]) of the node a wait started on, at its
  * [Origin.address] (design 04 §6.3, decisions D65, D109): the `remote` of a
- * [me.ahoo.wow.runtime.wait.LocalSignalSender].
+ * [me.ahoo.wow.runtime.wait.LocalSignalSender]. A signal is written by [ClusterCodec], as every message between the
+ * nodes of a service (decision D122).
  *
  * [send] never waits: it puts the signal in its origin's queue of [queueCapacity] and returns. Each origin's queue is
  * sent from by at most [concurrency] requests at a time, each given [timeout], so an origin holds at most
@@ -141,7 +143,7 @@ class HttpSignalSender(
             val request = HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.SIGNALS_PATH))
                 .timeout(timeout.toJavaDuration())
                 .header("Content-Type", InternalHttp.JSON)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(SignalCodec.encode(signal)))
+                .POST(HttpRequest.BodyPublishers.ofByteArray(ClusterCodec.encode(signal)))
                 .build()
             val status = client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
             if (status !in SUCCESS) {

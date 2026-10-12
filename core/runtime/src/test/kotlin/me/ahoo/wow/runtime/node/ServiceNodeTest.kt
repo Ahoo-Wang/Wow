@@ -16,7 +16,11 @@ package me.ahoo.wow.runtime.node
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
@@ -55,11 +59,20 @@ import kotlin.time.Duration.Companion.seconds
 
 /** The node assembly (decision D108): admission to commit through one node, several contexts, two nodes, and stop. */
 class ServiceNodeTest {
-    private val channel = LoopbackClusterChannel()
+    /** While not null, the replies of node-2 wait for it. */
+    @Volatile
+    private var replyGate: CompletableDeferred<Unit>? = null
+
+    private val channel = LoopbackClusterChannel(latency = { address ->
+        if (address.startsWith("node-2")) {
+            replyGate?.await()
+        }
+    })
     private val nodes = ConcurrentHashMap<String, ServiceNode>()
 
     @AfterEach
     fun stop(): Unit = runBlocking {
+        replyGate?.complete(Unit)
         nodes.values.forEach { it.stop() }
     }
 
@@ -71,10 +84,11 @@ class ServiceNodeTest {
         options: ServiceNodeOptions = fastNodeOptions(),
         subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
         listener: (ServiceNode.Step) -> Unit = {},
+        address: String? = "$name.internal:9090",
     ): ServiceNode = ServiceNode(
         NODE_SERVICE,
         name,
-        "$name.internal:9090",
+        address,
         contexts.map { accountModel(it, decided) },
         accountsManifest(*contexts),
         backends,
@@ -85,7 +99,9 @@ class ServiceNodeTest {
         listener = listener,
     ).also {
         nodes[name] = it
-        channel.bind(it.address, it.forwardHandler)
+        if (it.hasAddress) {
+            channel.bind(it.address, it.forwardHandler)
+        }
     }
 
     private fun deposit(
@@ -252,6 +268,7 @@ class ServiceNodeTest {
                 "HANDED_OFF 1 STOPPING",
                 "WAITS_ENDED 0 STOPPING",
                 "GATEWAY_CLOSED 0 STOPPING",
+                "EXECUTIONS_ENDED 0 STOPPING",
                 "EXECUTORS_CLOSED 0 STOPPING",
                 "LOGS_CLOSED 0 STOPPING",
             )
@@ -264,6 +281,81 @@ class ServiceNodeTest {
             bank.coordinator.executeHere(model, late, null).committed.error!!.code
                 .assert().isEqualTo(FrameworkCodes.NODE_CLOSING)
         }
+
+    @Test
+    fun `a node stops only once the commands still executing have settled`(): Unit = runBlocking {
+        val backends = InMemoryBackends(partitions = 16)
+        val options = fastNodeOptions().copy(cluster = fastOptions(forwardTimeout = 10.seconds))
+        val decided = CopyOnWriteArrayList<String>()
+        val steps = CopyOnWriteArrayList<ServiceNode.Step>()
+        val one = node("node-1", backends = backends, options = options, listener = { steps += it })
+        val two = node("node-2", backends = backends, decided = decided, options = options)
+        one.start()
+        two.start()
+        val names = listOf("node-1", "node-2")
+        eventually(15.seconds) {
+            one.context(BANK).ownership.routes.owners.mapValues { it.value.node } == Hrw.assignment(names, 16)
+        }
+        val id = (0 until 64).map { "acc-$it" }.first {
+            Hrw.owner(Partitioner.partitionOf(AggregateType(BANK, "account").ref(TENANT, it), 16), names) == "node-2"
+        }
+        replyGate = CompletableDeferred()
+
+        // Its caller goes away while node-2's reply is held: the command goes on executing in node-1's coordinator.
+        val caller = launch(Dispatchers.Default) {
+            one.gateway.execute(deposit(id = id, wait = WaitPlan.COMMITTED.within(10.seconds)))
+        }
+        eventually { decided.isNotEmpty() }
+        caller.cancelAndJoin()
+        one.waits.size.assert().isEqualTo(0)
+        one.context(BANK).coordinator.executing.assert().isEqualTo(1)
+
+        val stopping = async(Dispatchers.Default) { one.stop() }
+        eventually { ServiceNode.Step.GATEWAY_CLOSED in steps }
+        delay(200)
+        stopping.isCompleted.assert().isFalse()
+        steps.assert().doesNotContain(ServiceNode.Step.EXECUTIONS_ENDED)
+
+        replyGate!!.complete(Unit)
+        withTimeout(10.seconds) { stopping.await() }
+        steps.takeLast(3).assert().containsExactly(
+            ServiceNode.Step.EXECUTIONS_ENDED,
+            ServiceNode.Step.EXECUTORS_CLOSED,
+            ServiceNode.Step.LOGS_CLOSED,
+        )
+        one.context(BANK).coordinator.executing.assert().isEqualTo(0)
+        decided.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a node built without an address learns it before it starts`(): Unit = runBlocking {
+        val backends = InMemoryBackends()
+        val node = node("node-1", backends = backends, address = null)
+        node.hasAddress.assert().isFalse()
+        assertThrows<IllegalStateException> { node.address }
+        assertThrows<IllegalStateException> { runBlocking { node.start() } }.message.assert().contains("bind")
+        node.state.assert().isEqualTo(ServiceNode.State.NEW)
+        assertThrows<IllegalArgumentException> { node.bind(" ") }
+
+        node.bind("127.0.0.1:41234")
+        node.address.assert().isEqualTo("127.0.0.1:41234")
+        node.context(BANK).ownership.address.assert().isEqualTo("127.0.0.1:41234")
+        node.context(BANK).coordinator.options.origin.address.assert().isEqualTo("127.0.0.1:41234")
+        assertThrows<IllegalStateException> { node.bind("127.0.0.1:41235") }
+        channel.bind(node.address, node.forwardHandler)
+        node.start()
+        backends.opened.getValue(BANK).leases.members("$NODE_SERVICE/$BANK").single().address
+            .assert().isEqualTo("127.0.0.1:41234")
+        assertThrows<IllegalStateException> { node.bind("127.0.0.1:41236") }
+        node.gateway.execute(deposit(id = "a-1")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `the node's default wait timeout is its gateway's`() {
+        val options = fastNodeOptions().copy(defaultWaitTimeout = 3.seconds)
+        node("node-1", options = options).gateway.defaultWaitTimeout(BANK).assert().isEqualTo(3.seconds)
+        assertThrows<IllegalArgumentException> { fastNodeOptions().copy(defaultWaitTimeout = Duration.ZERO) }
+    }
 
     @Test
     fun `a node whose Manifest disagrees with its models is not built`() {

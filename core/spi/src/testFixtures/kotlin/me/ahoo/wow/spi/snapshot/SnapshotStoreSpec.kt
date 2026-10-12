@@ -84,6 +84,18 @@ abstract class SnapshotStoreSpec {
     }
 
     @Test
+    fun `state numbers in exponent form load back with their value`(): Unit = runBlocking {
+        val store = createStore()
+        // How Jackson writes a double: PostgreSQL JSONB gives `1.0E10` back as `10000000000`, with the same value.
+        val state = """{"amount":1.0E10,"tiny":1.0E-7,"negative":-2.5E-3,"huge":1.0E21,"keys":{"b":1.5E2,"a":2}}"""
+        val saved = snapshot("a", 1).copy(state = state)
+        store.save(saved).assert().isTrue()
+        val loaded = checkNotNull(store.load(saved.ref))
+        ExactJson.valueOf(loaded.state).assert().isEqualTo(ExactJson.valueOf(state))
+        loaded.copy(state = state).assert().isEqualTo(saved)
+    }
+
+    @Test
     fun `absent access facts and the deleted mark load back as saved`(): Unit = runBlocking {
         val store = createStore()
         val saved = snapshot("a", 1, scope = Scope.NONE, deleted = true, tags = emptyMap())

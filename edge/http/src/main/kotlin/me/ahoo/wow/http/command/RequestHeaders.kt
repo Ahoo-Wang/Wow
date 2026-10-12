@@ -24,14 +24,18 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.InvalidMediaTypeException
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
+import kotlin.time.Duration
 
 /**
  * Reads the Wow headers of a request (decisions D95, D98, D99); a header that does not parse is answered as a problem
  * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
  */
 internal class RequestHeaders(private val statuses: ErrorStatuses) {
-    /** The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69). */
-    fun wait(request: ServerRequest): WaitPlan? {
+    /**
+     * The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69, within the
+     * node's default timeout). A plan given without a timeout waits [defaultTimeout], the node's.
+     */
+    fun wait(request: ServerRequest, defaultTimeout: Duration): WaitPlan? {
         val plan = request.header(WowHeaders.WAIT)
         val timeout = request.header(WowHeaders.WAIT_TIMEOUT)
         if (plan == null && timeout == null) {
@@ -39,7 +43,7 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
         }
         return try {
             val parsed = plan?.let(WaitHeader::parse) ?: WaitPlan.DEFAULT
-            timeout?.let { parsed.within(WaitHeader.parseTimeout(it)) } ?: parsed
+            parsed.within(timeout?.let(WaitHeader::parseTimeout) ?: defaultTimeout)
         } catch (invalid: IllegalArgumentException) {
             throw problem(FrameworkCodes.WAIT_INVALID, invalid.message ?: "The wait does not parse.")
         }

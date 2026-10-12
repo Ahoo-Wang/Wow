@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
 
 /** `GET …/{id}/state`, `?version=` (decision D112) and `GET /wow/manifest`. */
@@ -104,6 +105,43 @@ class StateAndManifestRoutesTest {
             user = "admin",
             headers = otherTenant
         ).assertCode(404, FrameworkCodes.NOT_FOUND)
+    }
+
+    @Test
+    fun `a type's fixed tenant holds for its commands and its state reads (D116)`() {
+        val type = AggregateType(CONTEXT, "cart")
+        val fixed = HttpNode(tenants = TenantPolicy.fixed(mapOf(type to "fixed")))
+        val added = fixed.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""")
+        added.status.assert().isEqualTo(200)
+        added.body!!["ref"]["tenantId"].asString().assert().isEqualTo("fixed")
+
+        val state = fixed.get("/shop/cart/c-1/state?version=1")
+        state.status.assert().isEqualTo(200)
+        state.body!!["ref"]["tenantId"].asString().assert().isEqualTo("fixed")
+        // A cross-scope caller may name the fixed tenant, never another one; the others may name none.
+        val admin = mapOf("X-Admin" to "true")
+        fixed.get(
+            "/shop/cart/c-1/state?version=1",
+            user = "admin",
+            headers = admin + (WowHeaders.SCOPE to "owner=alice")
+        )
+            .status.assert().isEqualTo(200)
+        fixed.get(
+            "/shop/cart/c-1/state?version=1",
+            user = "admin",
+            headers = admin + (WowHeaders.SCOPE to "tenant=fixed")
+        )
+            .status.assert().isEqualTo(200)
+        fixed.get(
+            "/shop/cart/c-1/state?version=1",
+            user = "admin",
+            headers = admin + (WowHeaders.SCOPE to "tenant=other")
+        )
+            .assertCode(400, FrameworkCodes.MALFORMED)
+        fixed.get("/shop/cart/c-1/state?version=1", headers = mapOf(WowHeaders.SCOPE to "tenant=fixed"))
+            .assertCode(403, FrameworkCodes.AUTH_FORBIDDEN)
+        // Without the fixed tenant, the cart would be the caller's: that tenant holds none.
+        node.get("/shop/cart/c-1/state?version=1").assertCode(404, FrameworkCodes.NOT_FOUND)
     }
 
     @Test

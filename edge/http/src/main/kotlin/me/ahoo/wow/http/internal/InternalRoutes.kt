@@ -23,7 +23,6 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
-import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
@@ -41,11 +40,12 @@ import tools.jackson.core.JacksonException
  * - `POST` [InternalHttp.FORWARD_PATH] reads a [ForwardCommand] ([ClusterCodec]) and answers [forward]'s
  *   [ForwardReply]. The forward runs in [scope], apart from the request, so a sender that gives up (its deadline
  *   passed, its stream reset) does not stop the execution it started, as on the loopback channel.
- * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal], hands it to [signals] and answers 204, whether or not a
+ * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal] ([ClusterCodec]), hands it to [signals] and answers 204, whether or not a
  *   wait took it: a signal is an observation, its sender does not act on the answer (design 04 §6.3).
  *
  * A body that is not such a message is answered 400. The routes are not authenticated: the internal port is reachable
- * only inside the cluster (D35).
+ * only inside the cluster (D35). A node's [forward] is its [me.ahoo.wow.runtime.node.ServiceNode.forwardHandler],
+ * which hands a command to the endpoint of its context.
  */
 fun internalRoutes(
     forward: ClusterChannelHandler,
@@ -58,7 +58,7 @@ fun internalRoutes(
         ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(ClusterCodec.encode(reply))
     }
     POST(InternalHttp.SIGNALS_PATH) { request ->
-        val signal = request.decode(SignalCodec::decode) ?: return@POST malformed()
+        val signal = request.decode(ClusterCodec::decodeSignal) ?: return@POST malformed()
         signals(signal)
         ServerResponse.noContent().buildAndAwait()
     }
@@ -70,17 +70,6 @@ fun internalRoutes(
     registry: WaitRegistry,
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ): RouterFunction<ServerResponse> = internalRoutes(forward, { registry.signal(it) }, scope)
-
-/**
- * The cluster channel handler of a node that hosts several contexts (decision D72): each context has its own
- * [me.ahoo.wow.runtime.cluster.ForwardEndpoint], found in [endpoints] by the context of the forwarded command's
- * aggregate. A context this node does not host is refused as [Refusal.UNKNOWN_TYPE], as an endpoint refuses an
- * aggregate it does not know: the sender then runs the command itself (decision D78).
- */
-class ContextDispatchingHandler(private val endpoints: Map<String, ClusterChannelHandler>) : ClusterChannelHandler {
-    override suspend fun forward(request: ForwardCommand): ForwardReply =
-        endpoints[request.command.ref.type.context]?.forward(request) ?: ForwardReply.refused(Refusal.UNKNOWN_TYPE)
-}
 
 private val logger = KotlinLogging.logger {}
 

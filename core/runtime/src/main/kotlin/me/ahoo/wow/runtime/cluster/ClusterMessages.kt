@@ -19,6 +19,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wait.Origin
@@ -112,8 +113,9 @@ object Refusal {
 }
 
 /**
- * Reads and writes cluster messages as JSON (decision D26), reading leniently: unknown fields are ignored at every
- * level (decision D48).
+ * Reads and writes the messages between the nodes of a service as JSON (decision D26): the cluster channel's
+ * [ForwardCommand] and [ForwardReply], and the [WaitSignal] a node sends to the origin of a wait (design 08 §8),
+ * reading leniently: unknown fields are ignored at every level (decision D48).
  *
  * The mapper is Wow's ([WowJson], decision D122): it registers a fixed set of modules, the Kotlin module only, and
  * never discovers others on the class path, since the wire form is the protocol and must not depend on what a host
@@ -132,6 +134,10 @@ object ClusterCodec {
     fun decodeCommand(bytes: ByteArray): ForwardCommand = mapper.readValue(bytes, ForwardCommand::class.java)
 
     fun decodeReply(bytes: ByteArray): ForwardReply = mapper.readValue(bytes, ForwardReply::class.java)
+
+    fun encode(signal: WaitSignal): ByteArray = mapper.writeValueAsBytes(signal)
+
+    fun decodeSignal(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
 
     /** [command], a command of [model], in its wire form. */
     fun wire(model: AggregateModel<*>, command: Command<*>): CommandWire = CommandWire(

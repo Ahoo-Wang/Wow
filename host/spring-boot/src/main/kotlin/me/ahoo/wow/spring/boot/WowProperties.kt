@@ -37,17 +37,19 @@ import kotlin.time.toKotlinDuration
  *   `spring.application.name`.
  * - `wow.node.id`, `wow.node.address`: this node's id (by default the host name and a random suffix) and the
  *   `host:port` the other nodes reach its internal port at (by default this host's address and `wow.internal.port`).
- * - `wow.internal.port` (9090) and `wow.internal.host` (every interface): the internal port (D89).
+ * - `wow.internal.port` (9090; 0 for a port the system chooses, which the node learns once bound) and
+ *   `wow.internal.host` (every interface): the internal port (D89).
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`.
  * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset.
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
- * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (4).
+ * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (4): the default timeout is the node's
+ *   ([ServiceNodeOptions.defaultWaitTimeout]), for every command whose request names none.
  * - `wow.executor.lane-capacity`, `wow.state-cache.capacity`, `wow.subscription.*`.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
- * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116); not served
- *   yet, see [Aggregate].
+ * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116), see
+ *   [Aggregate].
  */
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
@@ -78,7 +80,10 @@ class WowProperties {
     }
 
     class Internal {
-        /** The port of the internal server: the cluster channel and the wait signals (decision D89). */
+        /**
+         * The port of the internal server: the cluster channel and the wait signals (decision D89); 0 for one the
+         * system chooses, which the node advertises once the server is bound.
+         */
         var port: Int = DEFAULT_INTERNAL_PORT
 
         /** The address the internal server binds; every interface when not set. */
@@ -140,7 +145,10 @@ class WowProperties {
     }
 
     class Wait {
-        /** How long a command whose request names no timeout waits (`Wow-Wait-Timeout`). */
+        /**
+         * How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came
+         * through: at most [maxTimeout].
+         */
         var defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT.toJavaDuration()
 
         /** The longest wait; a longer timeout is capped to it, and a node stops within it. */
@@ -228,8 +236,8 @@ class WowProperties {
 
     /**
      * An aggregate type's settings. [tenant] fixes the tenant of every aggregate of the type (decision D116, replacing
-     * 9.x `@StaticTenantId`); the runtime's admission has no hook for it yet, so the host refuses to start with one
-     * rather than serve the aggregates under the callers' tenants.
+     * 9.x `@StaticTenantId`): its commands and state reads are in that tenant whoever the caller is
+     * ([me.ahoo.wow.runtime.admission.TenantPolicy]). A type the node does not serve is refused at startup.
      */
     class Aggregate {
         var tenant: String? = null
