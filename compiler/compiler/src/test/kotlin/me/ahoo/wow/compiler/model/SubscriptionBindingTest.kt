@@ -266,6 +266,39 @@ class SubscriptionBindingTest {
     }
 
     @Test
+    fun `a module without wow-runtime should only check its processors, with a warning`() {
+        val view = SourceFile.kotlin(
+            "View.kt",
+            """
+            package sample.view
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Projection
+            class View {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel(
+            "generate",
+            options,
+            { !it.invariantSeparatorsPath.contains("core/runtime/") && !it.name.startsWith("runtime") },
+            view,
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.messages.assert().contains(
+            "sample.view.View: its subscriptions are not bound: the module does not depend on wow-runtime",
+        )
+        generated(compilation, "ViewSubscriptions.kt").assert().isNull()
+        generated(compilation, SubscriptionSource.SUBSCRIPTION_PROVIDER).assert().isNull()
+        generated(compilation, ModelProviderSource.MODEL_PROVIDER).assert().isNotNull()
+    }
+
+    @Test
     fun `a processor the binding cannot construct or call should fail the compilation`() {
         val broken = SourceFile.kotlin(
             "Broken.kt",

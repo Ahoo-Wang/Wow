@@ -18,6 +18,7 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.configureKsp
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import java.io.File
 
 /** Compiles [sources] with the model processor in [mode] (`generate`, `report` or `off`). */
 @OptIn(ExperimentalCompilerApi::class)
@@ -32,9 +33,24 @@ fun compileModel(
     mode: String,
     options: Map<String, String>,
     vararg sources: SourceFile,
+): Pair<KotlinCompilation, JvmCompilationResult> = compileModel(mode, options, null, *sources)
+
+/**
+ * Compiles [sources] as [compileModel] does; when [onClasspath] is given, against only the test's class path entries
+ * it keeps: a module without some dependency.
+ */
+@OptIn(ExperimentalCompilerApi::class)
+fun compileModel(
+    mode: String,
+    options: Map<String, String>,
+    onClasspath: ((File) -> Boolean)?,
+    vararg sources: SourceFile,
 ): Pair<KotlinCompilation, JvmCompilationResult> {
     val compilation = KotlinCompilation().apply {
-        inheritClassPath = true
+        inheritClassPath = onClasspath == null
+        if (onClasspath != null) {
+            classpaths = System.getProperty("java.class.path").split(File.pathSeparator).map(::File).filter(onClasspath)
+        }
         this.sources = sources.toList() + NineXStubs.SOURCES
         configureKsp {
             symbolProcessorProviders += ModelSymbolProcessorProvider()
