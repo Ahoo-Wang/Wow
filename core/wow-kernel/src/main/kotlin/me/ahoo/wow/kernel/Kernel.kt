@@ -49,6 +49,8 @@ import kotlin.time.Duration.Companion.seconds
  * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log (F4). The
  * test DSL turns it on; it costs two serializations of the state per command.
  *
+ * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped.
+ *
  * [reservations] backs [DecideScope.reserve]; a pending reservation lives for [reservationTtl] unless the append
  * confirms it first.
  */
@@ -60,6 +62,7 @@ class Kernel(
     private val verifyDecidePurity: Boolean = false,
     private val reservations: ReservationStore? = null,
     private val reservationTtl: Duration = DEFAULT_RESERVATION_TTL,
+    private val states: StateCache = StateCache.None,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -73,7 +76,10 @@ class Kernel(
         log.findByRequestId(command.ref.tenantId, command.requestId)?.let { return settled(it, fingerprint) }
         repeat(maxAttempts) {
             val (state, version) = load(model, command)
-            admissible(decider, command, version)?.let { return it }
+            admissible(decider, command, version)?.let {
+                states.put(command.ref, CachedState(state, version))
+                return it
+            }
             val scope = AttemptScope(command, reservations, reservationTtl)
             val prepared = try {
                 prepare(model, decider, scope, state, command, version, fingerprint)
@@ -86,6 +92,8 @@ class Kernel(
             }
             val (stream, evolved) = when (prepared) {
                 is Prepared.Done -> {
+                    // Decided without evolving: the state is as loaded (decide purity is the user's contract, F4).
+                    states.put(command.ref, CachedState(state, version))
                     scope.compensate()
                     return prepared.outcome
                 }
@@ -94,6 +102,7 @@ class Kernel(
             }
             when (val appended = withContext(NonCancellable) { append(stream) }) {
                 is AppendOutcome.Committed -> {
+                    states.put(command.ref, CachedState(evolved, stream.version))
                     withContext(NonCancellable) { scope.afterAppend() }
                     return CommandOutcome.Committed(stream, appended.position, evolved, scope.results())
                 }
@@ -175,6 +184,10 @@ class Kernel(
     }
 
     private suspend fun <S : Any> load(model: AggregateModel<S>, command: Command<*>): Pair<S, Int> {
+        states.take(command.ref)?.let { cached ->
+            @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the cached state is this model's.
+            return cached.state as S to cached.version
+        }
         val streams = log.read(command.ref).toList()
         var state = model.initialState(command.ref)
         streams.forEach { stream ->
