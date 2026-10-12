@@ -93,6 +93,18 @@ class WaitStateTest {
     }
 
     @Test
+    fun `a command reaching its hop again through another function is emitted once`() {
+        val state = WaitState(listOf(saga, snapshot), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
+        state.offer(result("d-1", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-1")
+        val other = FunctionInfo(FunctionKind.SNAPSHOT, "shop", "snapshot", "other")
+        state.offer(result("d-1", snapshot, other))!!.assert().isEmpty()
+        state.outcome.assert().isNull()
+        state.offer(result("d-2", snapshot, snapshotFunction))!!.map { it.commandId }.assert().containsExactly("d-2")
+        state.outcome!!.commandId.assert().isEqualTo("d-2")
+    }
+
+    @Test
     fun `a saga hop of several commands emits each and derives from all of them`() {
         val second = Hop.handled("stock.saga", "shop")
         val state = WaitState(listOf(saga, second, committed), "root")
