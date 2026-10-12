@@ -19,12 +19,11 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript workflow scopes; `compatDebt` and `package` are derived from
-// them, and `mixedVersion` gates a Kotlin workflow; each has its own tests.
+// them, and `mixedVersion` and `v10` gate Kotlin workflows; each has its own
+// tests.
+const KOTLIN_GATES = new Set(['compatDebt', 'package', 'mixedVersion', 'v10']);
 const gates = paths =>
-  Object.entries(scopes(paths)).filter(
-    ([key]) =>
-      key !== 'compatDebt' && key !== 'package' && key !== 'mixedVersion',
-  );
+  Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
 const all = paths => gates(paths).every(([, value]) => value);
 const none = paths => gates(paths).every(([, value]) => !value);
 const on = paths =>
@@ -467,6 +466,53 @@ test('wire modules, the example cluster, dependency versions and the harness run
   assert.deepEqual(on(['wow-kafka/src/main/kotlin/A.kt']), ['contract']);
 });
 
+test('V10 modules, their tests, the platform and the root build run v10.yml', () => {
+  for (const path of [
+    'api/api/src/main/kotlin/me/ahoo/wow/api/decide/Command.kt',
+    'compiler/gradle-plugin/src/functionalTest/kotlin/A.kt',
+    'core/kernel/src/main/kotlin/A.kt',
+    'backends/mongo/src/integrationTest/kotlin/A.kt',
+    'edge/http/src/main/kotlin/A.kt',
+    'host/spring-boot/src/main/kotlin/A.kt',
+    'migration/migrate-data/build.gradle.kts',
+    'test/architecture/src/test/kotlin/A.kt',
+    'test/kernel-benchmarks/build.gradle.kts',
+    'test/routing-spike/src/integrationTest/kotlin/A.kt',
+    'test/lease-spike/src/integrationTest/kotlin/A.kt',
+    'wow-dependencies/build.gradle.kts',
+    'gradle/libs.versions.toml',
+    'build-logic/build.gradle.kts',
+    'config/detekt/detekt.yml',
+    'build.gradle.kts',
+    'settings.gradle.kts',
+    'gradle.properties',
+    'gradlew',
+    '.github/workflows/v10.yml',
+    // An unknown path or a CI script runs everything.
+    '.github/scripts/ci-scope.mjs',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).v10, path);
+  for (const path of [
+    'wow-core/src/main/kotlin/A.kt',
+    'wow-api/src/main/kotlin/A.kt',
+    'test/wow-it/src/integrationTest/kotlin/A.kt',
+    'test/code-coverage-report/build.gradle.kts',
+    'example/example-domain/src/main/kotlin/A.kt',
+    'typescript/wow-client/src/index.ts',
+    'documentation/designs/v10/roadmap.md',
+    'README.md',
+    'codecov.yml',
+    '.github/workflows/local-test.yml',
+    '.github/workflows/v10-nightly.yml',
+  ])
+    assert.ok(!scopes([path]).v10, path);
+  // A V10 path keeps the scopes its rule gives it.
+  assert.deepEqual(on(['gradle/libs.versions.toml']), ['contract']);
+  assert.ok(scopes(['gradle/libs.versions.toml']).mixedVersion);
+  assert.ok(scopes(['.github/workflows/v10.yml']).workflows);
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -529,6 +575,7 @@ test('the command reads the diff and runs everything without a base', () => {
       'compatDebt=false\n' +
       `package=${value}\n` +
       `mixedVersion=${value}\n` +
+      `v10=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(

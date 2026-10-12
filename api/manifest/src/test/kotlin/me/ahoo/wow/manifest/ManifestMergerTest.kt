@@ -41,6 +41,28 @@ class ManifestMergerTest {
     }
 
     @Test
+    fun `aggregates listing the same lifecycle commands should not conflict and keep their lists`() {
+        val basket = Manifests.cart(aggregate = "basket").let { basket ->
+            basket.copy(
+                commands = emptyList(),
+                events = emptyList(),
+                lifecycle = Manifests.LIFECYCLE.take(1),
+            )
+        }
+        val shop = ManifestFragment("shop.json", Manifests.fragment("shop", listOf(Manifests.cart(), basket)))
+        val billing = ManifestFragment("billing.json", Manifests.fragment("billing"))
+
+        val merged = ManifestMerger.merge(listOf(shop, billing))
+
+        merged.contexts.flatMap { context -> context.aggregates.map { "${context.name}.${it.name}" to it.lifecycle } }
+            .assert().containsExactly(
+                "billing.cart" to Manifests.LIFECYCLE,
+                "shop.cart" to Manifests.LIFECYCLE,
+                "shop.basket" to Manifests.LIFECYCLE.take(1),
+            )
+    }
+
+    @Test
     fun `a context declared by two fragments should conflict`() {
         val exception = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(

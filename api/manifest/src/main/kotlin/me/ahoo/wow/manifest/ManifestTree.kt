@@ -56,6 +56,7 @@ object ManifestTree {
         "events" to aggregate.events.map {
             obj("name" to it.name, "aliases" to it.aliases, "revision" to it.revision, "schema" to it.schema)
         },
+        "lifecycle" to aggregate.lifecycle,
     )
 
     private fun writeSubscription(subscription: SubscriptionManifest): Map<String, Any?> = obj(
@@ -124,6 +125,7 @@ object ManifestTree {
                     schema = it.string("schema"),
                 )
             },
+            lifecycle = node.strings("lifecycle"),
         )
     }
 

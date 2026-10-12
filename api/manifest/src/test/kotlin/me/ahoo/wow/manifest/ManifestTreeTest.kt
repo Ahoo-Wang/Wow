@@ -39,7 +39,16 @@ class ManifestTreeTest {
         val context = (tree["contexts"] as List<*>).single() as Map<*, *>
         context.keys.assert().containsExactly("name", "aggregates", "subscriptions")
         val aggregate = (context["aggregates"] as List<*>).single() as Map<*, *>
-        aggregate.keys.assert().containsExactly("name", "description", "state", "snapshot", "commands", "events")
+        aggregate.keys.assert().containsExactly(
+            "name",
+            "description",
+            "state",
+            "snapshot",
+            "commands",
+            "events",
+            "lifecycle",
+        )
+        aggregate["lifecycle"].assert().isEqualTo(Manifests.LIFECYCLE)
         aggregate["state"].assert().isEqualTo(mapOf("schema" to "#/\$defs/sample.CartState", "fingerprint" to "abc123"))
         val commands = aggregate["commands"] as List<*>
         (commands[0] as Map<*, *>)["produces"].assert().isEqualTo(listOf("CartCreated"))
@@ -94,6 +103,7 @@ class ManifestTreeTest {
                 aggregate.snapshot.enabled.assert().isTrue()
                 aggregate.commands.assert().isEmpty()
                 aggregate.events.assert().isEmpty()
+                aggregate.lifecycle.assert().isEmpty()
                 aggregate.state.fingerprint.assert().isNull()
             }
         }

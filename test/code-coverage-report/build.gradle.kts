@@ -118,3 +118,12 @@ tasks.named<JacocoReport>("codeCoverageReport") {
 registerLayerCoverageReport("localCoverageReport", localTestProjects, "test")
 registerLayerCoverageReport("contractCoverageReport", localContractTestProjects, "contractTest")
 registerLayerCoverageReport("integrationCoverageReport", integrationTestProjects, "integrationTest")
+
+// v10.yml uploads these under the `v10` Codecov flag, in either build scope (`-Pwow.scope=v10` leaves the 9.x modules
+// out): the unit tests of the V10 modules, and their container-backed tests.
+@Suppress("UNCHECKED_CAST")
+val v10Projects = rootProject.ext.get("v10Projects") as Iterable<Project>
+@Suppress("UNCHECKED_CAST")
+val v10IntegrationTestProjects = rootProject.ext.get("v10IntegrationTestProjects") as Iterable<Project>
+registerLayerCoverageReport("v10CoverageReport", v10Projects, "test")
+registerLayerCoverageReport("v10IntegrationCoverageReport", v10IntegrationTestProjects, "integrationTest")

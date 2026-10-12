@@ -42,7 +42,11 @@ object Manifests {
                 schema = Manifest.schemaRef("sample.ItemAdded"),
             ),
         ),
+        lifecycle = LIFECYCLE,
     )
+
+    /** The lifecycle commands every sample aggregate lists. */
+    val LIFECYCLE: List<String> = listOf("wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate")
 
     fun fragment(
         context: String = "shop",

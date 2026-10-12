@@ -25,8 +25,8 @@ package me.ahoo.wow.manifest
  * Names inside are relative to their parent: a command named `AddItem` of aggregate `cart` in context `shop` is the
  * command type `shop.cart.AddItem` (design 08 §2). A schema is referred to as `#/$defs/<key>` ([schemaRef]).
  *
- * v0 holds what the model declares today; errors, queries, published streams, lifecycle commands and routes come
- * with the parts of V10 that define them.
+ * v0 holds what the model declares today; errors, queries, published streams and routes come with the parts of V10
+ * that define them.
  */
 data class Manifest(
     val format: Int = FORMAT,
@@ -77,6 +77,11 @@ data class ContextManifest(
     val subscriptions: List<SubscriptionManifest> = emptyList(),
 )
 
+/**
+ * An aggregate of a context. [lifecycle] lists the system commands (design 01 §6) the aggregate's model handles, by
+ * their full names in the system namespace (`wow.lifecycle.DeleteAggregate`): they are the same types for every
+ * aggregate, so unlike [commands] they are not names within the aggregate and never conflict between aggregates.
+ */
 data class AggregateManifest(
     val name: String,
     val description: String? = null,
@@ -84,6 +89,7 @@ data class AggregateManifest(
     val snapshot: SnapshotManifest = SnapshotManifest(),
     val commands: List<CommandManifest> = emptyList(),
     val events: List<EventManifest> = emptyList(),
+    val lifecycle: List<String> = emptyList(),
 )
 
 /**

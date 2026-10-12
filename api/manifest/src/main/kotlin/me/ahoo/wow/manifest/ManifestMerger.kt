@@ -23,6 +23,8 @@ package me.ahoo.wow.manifest
  * - a command type, and an event type, `context.aggregate.Name` is declared once, counting former names (`@Alias`)
  *   as names: an alias without a dot is within its aggregate, one with dots a full type name;
  * - a subscription name is declared once within its context;
+ * - an aggregate's lifecycle commands are not names it declares: every aggregate may list the same system commands,
+ *   and an aggregate keeps its list as its one fragment declares it;
  * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules).
  *
  * The result lists contexts by name and `$defs` by key, so the same fragments always give the same Manifest.
