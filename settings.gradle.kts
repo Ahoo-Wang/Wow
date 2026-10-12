@@ -136,4 +136,6 @@ include(":wow-architecture")
 project(":wow-architecture").projectDir = file("test/wow-architecture")
 include(":wow-kernel-benchmarks")
 project(":wow-kernel-benchmarks").projectDir = file("test/wow-kernel-benchmarks")
+include(":wow-routing-spike")
+project(":wow-routing-spike").projectDir = file("test/wow-routing-spike")
 //endregion
