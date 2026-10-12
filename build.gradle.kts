@@ -55,10 +55,11 @@ val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). They build on JDK 21 (decision D29) and stay incubating
-// until their API settles; wow-architecture holds V10's dependency rules and is never published.
+// until their API settles; wow-architecture (V10's dependency rules) and wow-kernel-benchmarks (spike H3) are never
+// published.
 val v10Projects = listOf(
     "wow-manifest", "wow-query-api", "wow-spi", "wow-kernel", "wow-runtime", "wow-reactor",
-    "wow-postgres", "wow-http", "wow-spring-boot", "wow-migrate-data", "wow-architecture",
+    "wow-postgres", "wow-http", "wow-spring-boot", "wow-migrate-data", "wow-architecture", "wow-kernel-benchmarks",
 ).map { project(":$it") }.toSet()
 // Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform
 // design R1b) left with the analytics service (R5d).

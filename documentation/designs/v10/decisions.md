@@ -26,7 +26,7 @@
 |---|---|---|---|---|---|
 | H1 | 分区序号的分配能满足吞吐 | PostgreSQL 两种分配方式与 MongoDB 事务；单分区与 64 分区的吞吐、p99、尾随延迟；**分别在属主串行（Partitioned）与多节点并发追加（Local、交接期）下测**，含分组提交里单条冲突的隔离；故障注入 | 单分区不足：加大 P；MongoDB 事务过贵：分组提交（同分区多次追加合并为一个事务），MongoDB 不降级（D11） | M1 | D10、D11、D27、D28 |
 | H2 | 亲和路由值得转发的一跳 | 3 节点随机负载均衡，Local 与 Partitioned 的缓存命中率、每命令读次数、冲突率、p99 | Partitioned 的 p99 不优于 Local：默认改为 Local，并按 H1 的并发追加数据重新评估 MongoDB 后端（F1） | M1 | D6、D11 |
-| H3 | 协程内核不比 9.3 的 Reactor 内核慢 | 同一 JMH 生产链路基准的吞吐与 `gc.alloc.rate.norm`，同步与 `suspend` 处理函数分别测 | 下降超过噪声：优化热点后才进入 M2；方向已定，不回退 | M1 | D9 |
+| H3 | 协程内核不比 9.3 的 Reactor 内核慢 | 同一 JMH 生产链路基准的吞吐与 `gc.alloc.rate.norm`，同步与 `suspend` 处理函数分别测 | 下降超过噪声：优化热点后才进入 M2；方向已定，不回退 | M1 | D9；**已验证（2026-10-11）**：同机同 JVM 下 V10 内核约 3.5 µs、11.2 KB/次，9.3 约 26.6 µs、21.8 KB/次；V10 的成本主要是序列化与指纹（`wow-benchmarks/results/reports/v10-h3-kernel-comparison.md`） |
 | H4 | KSP 覆盖注解模型的全部语义 | example、compensation、view-store 与 transfer（Java 源码）的生成模型与 9.x 运行时解析结果比对 | 有缺口：补编译器，不回到反射 | M1 | D7、D8、D37 |
 | H5 | Skill 能把真实的 9.x 领域升级到 V10 | 5 个 9.x 领域（example、transfer、compensation、view-store、dataset-registry）作为 eval，各跑多次 | 门禁通不过：补参考规则与示例；反复失败的改写改为「必须问用户」 | M8 | D3、D20 |
 | H6 | 存储租约能支撑成员与再平衡 | 在 PostgreSQL 与 MongoDB 上实现分区租约：节点上下线时属主收敛时间、再平衡迁移的分区数、交接期间重复处理的比例 | 收敛过慢：缩短租约并加主动让渡；仍不足再评估外部协调器（etcd） | M1 | D6、D24、D45 |
