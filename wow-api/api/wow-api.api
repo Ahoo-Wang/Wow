@@ -747,6 +747,118 @@ public final class me/ahoo/wow/api/exception/RecoverableType : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/api/exception/RecoverableType;
 }
 
+public final class me/ahoo/wow/api/lifecycle/AggregateDeleted {
+	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/AggregateDeleted;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/AggregateRestored {
+	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/AggregateRestored;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/ApplyTags {
+	public fun <init> (Ljava/util/Map;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun copy (Ljava/util/Map;)Lme/ahoo/wow/api/lifecycle/ApplyTags;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/lifecycle/ApplyTags;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/lifecycle/ApplyTags;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTags ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/DeleteAggregate {
+	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/DeleteAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/Lifecycle {
+	public static final field AGGREGATE_DELETED Ljava/lang/String;
+	public static final field AGGREGATE_RESTORED Ljava/lang/String;
+	public static final field APPLY_TAGS Ljava/lang/String;
+	public static final field COMMANDS Ljava/util/Map;
+	public static final field DELETE_AGGREGATE Ljava/lang/String;
+	public static final field EVENTS Ljava/util/Map;
+	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/Lifecycle;
+	public static final field NAMESPACE Ljava/lang/String;
+	public static final field OWNER_TRANSFERRED Ljava/lang/String;
+	public static final field RESTORE_AGGREGATE Ljava/lang/String;
+	public static final field SPACE_TRANSFERRED Ljava/lang/String;
+	public static final field TAGS_APPLIED Ljava/lang/String;
+	public static final field TRANSFER_OWNER Ljava/lang/String;
+	public static final field TRANSFER_SPACE Ljava/lang/String;
+	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/OwnerTransferred {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/OwnerTransferred;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/lifecycle/OwnerTransferred;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/lifecycle/OwnerTransferred;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOwnerId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/RestoreAggregate {
+	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/RestoreAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/SpaceTransferred {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/SpaceTransferred;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/lifecycle/SpaceTransferred;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/lifecycle/SpaceTransferred;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSpaceId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/TagsApplied {
+	public fun <init> (Ljava/util/Map;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun copy (Ljava/util/Map;)Lme/ahoo/wow/api/lifecycle/TagsApplied;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/lifecycle/TagsApplied;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/lifecycle/TagsApplied;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTags ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/TransferOwner {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/TransferOwner;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/lifecycle/TransferOwner;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/lifecycle/TransferOwner;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOwnerId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/lifecycle/TransferSpace {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/TransferSpace;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/lifecycle/TransferSpace;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/lifecycle/TransferSpace;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSpaceId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class me/ahoo/wow/api/messaging/Header : java/util/Map, kotlin/jvm/internal/markers/KMutableMap, me/ahoo/wow/api/Copyable {
 	public abstract fun isReadOnly ()Z
 	public fun with (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/messaging/Header;

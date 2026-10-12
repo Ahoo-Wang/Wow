@@ -54,4 +54,7 @@ object KernelRejections {
     const val EXISTS = "wow.aggregate.exists"
     const val VERSION_MISMATCH = "wow.aggregate.version-mismatch"
     const val REQUEST_ID_REUSED = "wow.command.request-id-reused"
+
+    /** The aggregate is deleted: it takes no command but [me.ahoo.wow.api.lifecycle.RestoreAggregate]. */
+    const val DELETED = "wow.aggregate.deleted"
 }
