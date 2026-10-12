@@ -85,7 +85,7 @@ import tools.jackson.databind.json.JsonMapper
  * `wow.context` names the context (else the module's one `@BoundedContext` does; with neither, no fragment is
  * written), and `wow.manifest.module` names the file (else the context does).
  */
-class ModelSymbolProcessor(
+internal class ModelSymbolProcessor(
     private val mode: Mode,
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
@@ -98,7 +98,7 @@ class ModelSymbolProcessor(
      * names the bounded context the module's aggregates and subscriptions belong to. Without [context], the one
      * `@BoundedContext` of the module names it; without [module], the context does.
      */
-    data class ManifestOptions(val module: String? = null, val context: String? = null)
+    internal data class ManifestOptions(val module: String? = null, val context: String? = null)
 
     private val bindings = mutableListOf<AggregateBinding>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
@@ -516,7 +516,7 @@ class ModelSymbolProcessorProvider : SymbolProcessorProvider {
         return ModelSymbolProcessor(mode, environment.codeGenerator, environment.logger, manifest)
     }
 
-    companion object {
+    internal companion object {
         /** The KSP option: `generate`, `report`, or absent for nothing. */
         const val OPTION = "wow.model"
 

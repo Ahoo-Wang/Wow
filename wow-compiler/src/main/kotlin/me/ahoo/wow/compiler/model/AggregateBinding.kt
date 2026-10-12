@@ -14,7 +14,7 @@
 package me.ahoo.wow.compiler.model
 
 /** What `ModelSymbolProcessor` found in one aggregate root, before generating its model. */
-data class AggregateBinding(
+internal data class AggregateBinding(
     val root: String,
     val packageName: String,
     val rootSimpleName: String,
@@ -37,9 +37,9 @@ data class AggregateBinding(
 )
 
 /** A dependency of the root's functions: a factory parameter [name] of [type]. */
-data class Dependency(val name: String, val type: String)
+internal data class Dependency(val name: String, val type: String)
 
-data class CommandBinding(
+internal data class CommandBinding(
     val command: String,
     /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
     val commandName: String?,
@@ -61,7 +61,7 @@ data class CommandBinding(
     val yields: List<String>? = null,
 )
 
-data class SourcingBinding(
+internal data class SourcingBinding(
     val event: String,
     val eventName: String?,
     /** The event's `@Revision`, 1 without it. */
@@ -75,7 +75,7 @@ data class SourcingBinding(
     val type: String = event,
 )
 
-data class AfterBinding(
+internal data class AfterBinding(
     val function: String,
     val parameter: String?,
     val arguments: List<String>,

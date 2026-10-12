@@ -44,7 +44,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
  *   or a list of them); any of them may instead return a Reactor publisher;
  * - no annotation outside the V10 set ([V10Annotations]).
  */
-object SubscriptionResolver {
+internal object SubscriptionResolver {
     private enum class Kind(val annotation: String, val context: String, val label: String) {
         PROJECT(Projection::class.java.name, ProjectContext::class.java.name, "@Projection"),
         REACT(Reactor::class.java.name, ReactContext::class.java.name, "@Reactor"),
