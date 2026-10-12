@@ -29,6 +29,21 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.module.SimpleModule
+import tools.jackson.databind.ser.std.ToStringSerializer
+import tools.jackson.module.kotlin.KotlinModule
+
+/** Turns [ClusterCodecTest.Deposit] into its `toString`; registered for discovery by `ServiceLoader` in tests. */
+class DiscoverableModule : SimpleModule("discoverable") {
+    init {
+        @Suppress("UNCHECKED_CAST")
+        val serializer = ToStringSerializer.instance as ValueSerializer<ClusterCodecTest.Deposit>
+        addSerializer(ClusterCodecTest.Deposit::class.java, serializer)
+    }
+}
 
 /** The wire form of the cluster channel's forward (design 08 §3, §9; decisions D26, D48). */
 class ClusterCodecTest {
@@ -83,6 +98,19 @@ class ClusterCodecTest {
         read.wait!!.toContext().assert().isEqualTo(wait)
         val decoded = ClusterCodec.command(model, read.command)!!
         decoded.assert().isEqualTo(command.copy())
+    }
+
+    @Test
+    fun `the codec registers the Kotlin module only, whatever else is on the class path`() {
+        ClusterCodec.mapper.registeredModules().map { it.javaClass.name }
+            .assert().containsExactly(KotlinModule::class.java.name)
+        // DiscoverableModule is registered for discovery in this test class path, and would change the body.
+        val discovering = JsonMapper.builder().findAndAddModules().build()
+        discovering.registeredModules().map { it.javaClass.name }.assert().contains(DiscoverableModule::class.java.name)
+        discovering.valueToTree<JsonNode>(command.body).isString.assert().isTrue()
+        val body = ClusterCodec.wire(model, command).body
+        body.isObject.assert().isTrue()
+        body["amount"].asInt().assert().isEqualTo(5)
     }
 
     @Test

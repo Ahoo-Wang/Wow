@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 
 /**
  * A command in its wire form (design 08 §3): `{ type, id, requestId, ref, body, expectedVersion, scope, headers,
@@ -111,12 +112,15 @@ object Refusal {
 }
 
 /**
- * Reads and writes cluster messages as JSON (decision D26), with the Jackson modules on the class path (the Kotlin
- * module the kernel brings), reading leniently: unknown fields are ignored at every level (decision D48).
+ * Reads and writes cluster messages as JSON (decision D26), reading leniently: unknown fields are ignored at every
+ * level (decision D48).
+ *
+ * The mapper registers a fixed set of modules, the Kotlin module only, and never discovers others on the class path:
+ * the wire form is the protocol, so it must not depend on what a host happens to bring.
  */
 object ClusterCodec {
-    private val mapper: JsonMapper = JsonMapper.builder()
-        .findAndAddModules()
+    internal val mapper: JsonMapper = JsonMapper.builder()
+        .addModule(kotlinModule())
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .build()
 
