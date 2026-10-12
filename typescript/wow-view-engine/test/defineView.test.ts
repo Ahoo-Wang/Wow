@@ -397,6 +397,27 @@ describe('defineView', () => {
     expect(define({ analysis: false }).analysis).toBeUndefined();
   });
 
+  it('groups elements by a root field where the descriptor offers it', () => {
+    const fields = { createdAt: 'Created' };
+    // A server before 9.9 does not offer it.
+    expect(define({ fields }).analysis).not.toHaveProperty('rootGroups');
+    const offering = (analysis?: DefineViewSpec['analysis']) => {
+      const offered = descriptor();
+      offered.analysis.rootGroups = true;
+      return defineView(offered, {
+        id: 'orders',
+        source: 'orders',
+        title: 'Orders',
+        fields,
+        ...(analysis === undefined ? {} : { analysis }),
+      });
+    };
+    expect(offering().analysis?.rootGroups).toBe(true);
+    expect(offering({ rootGroups: false }).analysis).not.toHaveProperty(
+      'rootGroups',
+    );
+  });
+
   it('is admitted with what it found, and its time field checked', () => {
     const definition = define({
       fields: { id: 'Order', gone: 'Gone', createdAt: 'Created' },

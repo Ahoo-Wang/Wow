@@ -376,6 +376,36 @@ describe('narrowing by the descriptor', () => {
     expect(narrowed.analysis?.firstLastOrderBy).toBe('eventTime');
   });
 
+  it('takes the root groups the source offers, and none from an older one', () => {
+    const offered = narrowDefinition(
+      noElements,
+      described(descriptor => {
+        descriptor.analysis.rootGroups = true;
+      }),
+      builtinFieldKinds,
+    );
+    expect(offered.definition.analysis?.rootGroups).toBe(true);
+    // A definition that turns them off keeps them off.
+    const declined = narrowDefinition(
+      definition({
+        analysis: { ...capability, elements: undefined, rootGroups: false },
+      }),
+      described(descriptor => {
+        descriptor.analysis.rootGroups = true;
+      }),
+      builtinFieldKinds,
+    );
+    expect(declined.definition.analysis).not.toHaveProperty('rootGroups');
+    const older = narrowDefinition(
+      definition({
+        analysis: { ...capability, elements: undefined, rootGroups: true },
+      }),
+      described(() => {}),
+      builtinFieldKinds,
+    );
+    expect(older.definition.analysis).not.toHaveProperty('rootGroups');
+  });
+
   it('takes them away where the model or the field reads no end', () => {
     const noMetric = narrowDefinition(
       noElements,

@@ -65,10 +65,7 @@ const WINDOWED: Record<string, Record<string, string>> = {
     recovery: "eventTime",
   },
   activity: {
-    newFailures: WRITTEN,
-    prepared: WRITTEN,
-    retryFailed: WRITTEN,
-    retrySucceeded: WRITTEN,
+    outcomes: WRITTEN,
     activity: WRITTEN,
     "event-mix": WRITTEN,
     interventions: WRITTEN,

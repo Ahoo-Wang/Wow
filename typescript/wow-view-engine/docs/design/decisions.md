@@ -1038,3 +1038,16 @@
   - **许可**：`ViewPermissions.editDatasetWording?`，**缺省为 false**（与 `editSystem` 同理：措辞对本租户所有读者生效）。给了、且数据集带编辑器时，`useViewManager` 的控制器多一个 `wording`，管理器即使没有别的可管也可打开（`can.anything`）。
   - **界面**：管理器分「视图」「措辞」两个页签。措辞页：标题、记录的叫法两个输入框（空着用派生的词，派生的词作占位），字段一行一个——显示／隐藏、名称（空着用派生的口径）、上移／下移、路径；保存后状态行说「已保存。之后打开的视图使用新的措辞。」，失败说「措辞没能保存，请重试。」。保存时字段按屏上的次序**整份**写：改了名的写字符串，没改的写 `{}`（只占次序），隐藏的写 `false`，原有的收窄（`FieldSpec`）保留、改名并入它的 `label`。
 - **落点**：`src/runtime/datasetResources.ts`、`src/runtime/resources.ts`（`wordingOf`）、`src/react/manager/wording.ts`、`src/ui/manage/DatasetWordingForm.tsx`；`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings`；[host-integration.md 3.2](host-integration.md)、[management.md](management.md)。
+
+## D92 展开元素时按根字段分组：描述符给出 `rootGroups` 才放开，根维度排在前（2026-10-11，落实 H）
+
+- **来由**：展开元素后，计数单位是最内层元素，维度只能用元素里的字段；补偿控制台「补偿活动」想看「每天各种结局」，天在事件流（根）上，事件名在元素里，只能拆成四张图。Wow 9.9 给聚合分组加了 `scope: ROOT`（设计 `documentation/designs/2026-10-11-element-root-groups-design.md`，#4207、#4213），描述符用 `analysis.rootGroups` 说明能不能用。
+- **裁定**：
+  - **能力随描述符**：`AnalysisCapability.rootGroups?` 与 `AnalysisSpec.rootGroups?`，与 `windows` 同样由描述符给出；宿主写 `false` 可以关掉；9.9 之前的服务端不给，照旧报 `analysis.field.outside-scope`。
+  - **只放开维度**：作用域多一份 `rootAggregations`（根字段的聚合能力，仅在展开元素且能力给出时非空）。维度名不在最内层元素里、却在它里面时，按根字段的能力校验，编译时带 `scope: 'ROOT'`，字段写绝对路径。指标、表达式、指标条件仍只读最内层元素：根上的值会随它的元素被数多次。
+  - **编辑器**：字段选择器在能力给出时把根字段列为只能做维度的选项（没有任何指标能力，也不能进公式）。
+  - **下钻**：结果的一行打开记录时，根维度的条件加在记录上，与进入元素的 `ELEMENT_MATCH` 并列，而不放进它里面：「某天 × 某类事件」打开的是那天写入、含这类事件的事件流。
+  - **根维度排在前**（用户 2026-10-11 确认，各后端统一）：编译时根维度放在 `groupBy` 最前；显式排序把元素维度排在根维度之前时报 `analysis.sort.root-group-first`。
+  - **内存源同样支持**：`@ahoo-wang/wow-view-engine/testing` 的 `memorySource` 展开时记住每个元素所属的根记录，`ROOT` 分组按根记录取键。
+- **控制台**：「补偿活动」板上方四张结局卡换成一张「每天的结局」折线图：展开 `body` 只留四种结局事件，按天（根上的 `createTime`）× 事件类型计数，按类型分线；`limit` 用分析的行数上限 1000，按天倒序，超出时丢的是最早的日子。描述符快照（`e2e/support/descriptors/`）按本地 9.9 服务端重新核对。
+- **落点**：`src/analysis/capability.ts`（`rootAggregations`、`isRootGroup`）、`validateGroups.ts`、`compile.ts`、`src/react/analysisFields.ts`、`src/analysis/drill.ts`、`src/capabilities/analysis.ts`、`open.ts`、`src/testing/aggregate.ts`；控制台 `src/views/activityAnalyses.ts`、`overview.ts`。

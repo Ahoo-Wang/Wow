@@ -820,10 +820,7 @@ test("the analysis boards draw every panel over the service's aggregation", asyn
       "New failures by calendar day",
     ],
     activity: [
-      "New failures",
-      "Prepared",
-      "Retry failed",
-      "Retry succeeded",
+      "Outcomes per day",
       "Compensation activity per day",
       "Events by type",
       "Operator interventions",
