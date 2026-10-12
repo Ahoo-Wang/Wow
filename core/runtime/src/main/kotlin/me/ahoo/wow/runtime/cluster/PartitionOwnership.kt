@@ -31,15 +31,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import kotlin.time.TimeSource
 
 /**
  * Who owns which partition of a lease group, as one node last read it: the live [owners] by partition, each a live
@@ -53,6 +57,20 @@ data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: Li
 }
 
 /**
+ * One renewal round of [node] in [group]: the [leases] it renewed, of which [lost] were found already expired or
+ * taken and [failed] threw, and how long the round took. A round longer than `leaseTtl − renewInterval` lets the
+ * node's own leases expire between renewals (spike H6).
+ */
+data class RenewalRound(
+    val group: LeaseGroup,
+    val node: String,
+    val leases: Int,
+    val lost: Int,
+    val failed: Int,
+    val duration: Duration,
+)
+
+/**
  * This node's share of the partitions of one lease [group] (design 02 §3; decisions D70–D72), without a leader:
  *
  * - **Membership**: the node heartbeats its [address] every [ClusterOptions.heartbeatInterval].
@@ -60,7 +78,11 @@ data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: Li
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
  *   converge on the next round; a partition the old owner still holds is acquired once it is released or expires.
- * - **Leases** are renewed every [ClusterOptions.renewInterval]; a lease lost to expiry stops the partition here.
+ * - **Leases** are renewed every [ClusterOptions.renewInterval], counted from the start of the previous round, all
+ *   held leases of a round concurrently, at most [ClusterOptions.leaseParallelism] at a time, so a round does not
+ *   grow with the number held times the store's latency (spike H6). Renewing starts before the first acquisition.
+ *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
+ *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here.
  * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, wait for its commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
  *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
@@ -84,8 +106,14 @@ class PartitionOwnership(
     private val options: ClusterOptions = ClusterOptions(),
     private val subscriptions: SubscriptionRuntime? = null,
     private val context: CoroutineContext = Dispatchers.Default,
+    /** Measures renewal rounds; a test passes its virtual time. */
+    private val timeSource: TimeSource = TimeSource.Monotonic,
+    /** Called after every renewal round, from the renewing coroutine: a metric hook. */
+    private val renewalRounds: (RenewalRound) -> Unit = {},
 ) {
     private val lifecycle = Mutex()
+    private val renewals = Semaphore(options.leaseParallelism)
+    private val acquisitions = Semaphore(options.leaseParallelism)
     private val reconciling = Mutex()
     private val gates = ConcurrentHashMap<Int, Gate>()
     private val wakeReconcile = Channel<Unit>(Channel.CONFLATED)
@@ -129,6 +157,14 @@ class PartitionOwnership(
         val root = SupervisorJob()
         val run = Running(root, CoroutineScope(context + root))
         running = run
+        // Before the first acquisition: the leases acquired first must not wait for the last one to be renewed.
+        run.upkeep.launch {
+            while (true) {
+                val started = timeSource.markNow()
+                quietly("renew leases") { renew() }
+                delay(options.renewInterval - started.elapsedNow())
+            }
+        }
         refreshRoutes()
         reconcile()
         run.membership.launch { every(options.heartbeatInterval, "heartbeat") { heartbeat() } }
@@ -138,7 +174,6 @@ class PartitionOwnership(
                 withTimeoutOrNull(options.reconcileInterval) { wakeReconcile.receive() }
             }
         }
-        run.upkeep.launch { every(options.renewInterval, "renew leases") { renew() } }
         run.upkeep.launch {
             while (true) {
                 withTimeoutOrNull(options.routeRefreshInterval) { wakeRefresh.receive() }
@@ -233,10 +268,9 @@ class PartitionOwnership(
         val goal = Hrw.partitionsOf(node, members + node, partitions)
         target = goal
         handOff(gates.keys.filter { it !in goal })
-        for (partition in goal) {
-            if (!gates.containsKey(partition)) {
-                acquire(partition)
-            }
+        val missing = goal.filter { !gates.containsKey(it) }
+        coroutineScope {
+            missing.forEach { partition -> launch { acquisitions.withPermit { acquire(partition) } } }
         }
     }
 
@@ -294,14 +328,72 @@ class PartitionOwnership(
         }.awaitAll()
     }
 
+    /**
+     * Renews every held lease once, concurrently within [ClusterOptions.leaseParallelism]; a renewal that throws is
+     * retried on the next round without holding up the others.
+     */
     private suspend fun renew() {
-        for ((partition, gate) in gates) {
-            if (!gate.lost && leases.renew(group.name, partition, node, options.leaseTtl) == null) {
-                logger.warn { "$node lost the lease of partition $partition of $group." }
-                gate.lost = true
-                gate.accepting = false
-                wakeReconcile.trySend(Unit)
+        val started = timeSource.markNow()
+        val held = gates.entries.filter { !it.value.lost }.map { it.key to it.value }
+        val lost = AtomicInteger()
+        val failed = AtomicInteger()
+        coroutineScope {
+            held.forEach { (partition, gate) ->
+                launch {
+                    renewals.withPermit {
+                        when (renewOne(partition, gate)) {
+                            Renewal.LOST -> lost.incrementAndGet()
+                            Renewal.FAILED -> failed.incrementAndGet()
+                            Renewal.RENEWED -> Unit
+                        }
+                    }
+                }
             }
+        }
+        val round = RenewalRound(group, node, held.size, lost.get(), failed.get(), started.elapsedNow())
+        report(round)
+    }
+
+    @Suppress("TooGenericExceptionCaught") // A failed renewal is retried on the next round.
+    private suspend fun renewOne(partition: Int, gate: Gate): Renewal {
+        val renewed = try {
+            leases.renew(group.name, partition, node, options.leaseTtl)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "$node failed to renew partition $partition of $group; retrying on the next round." }
+            return Renewal.FAILED
+        }
+        if (renewed != null) {
+            return Renewal.RENEWED
+        }
+        if (gates[partition] !== gate) {
+            // Handed off and released meanwhile: nothing was lost.
+            return Renewal.RENEWED
+        }
+        logger.warn { "$node lost the lease of partition $partition of $group." }
+        gate.lost = true
+        gate.accepting = false
+        wakeReconcile.trySend(Unit)
+        return Renewal.LOST
+    }
+
+    private fun report(round: RenewalRound) {
+        val margin = options.leaseTtl - options.renewInterval
+        if (round.duration > margin / 2) {
+            logger.warn {
+                "$node took ${round.duration} to renew ${round.leases} leases of $group, more than half the margin " +
+                    "$margin before they expire; lost ${round.lost}, failed ${round.failed}."
+            }
+        } else {
+            logger.debug { "$node renewed ${round.leases} leases of $group in ${round.duration}." }
+        }
+        try {
+            renewalRounds(round)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            logger.warn(failure) { "The renewal round hook of $node in $group failed." }
         }
     }
 
@@ -340,6 +432,8 @@ class PartitionOwnership(
         var lost = false
         val inFlight = MutableStateFlow(0)
     }
+
+    private enum class Renewal { RENEWED, LOST, FAILED }
 
     private class Running(val root: Job, scope: CoroutineScope) {
         val membershipJob = SupervisorJob(root)
