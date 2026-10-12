@@ -225,7 +225,7 @@ The project version is the `version` property in `gradle.properties`. Maven and 
 
 A release is prepared in one pull request (`chore(release): prepare <version>`):
 
-1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `compensation/dashboard/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
+1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `compensation/dashboard/package.json`, `analytics/console/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
 2. Update the ones that track the release by hand: the version tables in `README.md` and `README.zh-CN.md`, `documentation/docs/{en,zh}/guide/existing-project.md` and `getting-started.md`, and `wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json`. A pre-release (`x.y.z-rc.n`) is published to npm only, so its PR updates the snapshot but leaves the README tables and those pages on the last stable version; they move with the stable release.
 3. `pnpm check:versions` confirms every `package.json` matches; the `quality` job of `typescript.yml` runs the same check.
 

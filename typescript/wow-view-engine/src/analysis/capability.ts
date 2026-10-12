@@ -69,6 +69,14 @@ export interface AnalysisScope {
    * are two different findings for the reader.
    */
   reachable: Map<string, FieldDefinition>;
+  /**
+   * The root fields a dimension may name while the config expands elements,
+   * and how they may be grouped: the capability's root entries where it
+   * offers `rootGroups`, otherwise none. Such a dimension groups the
+   * elements by a field of the record they belong to, and is sent with a
+   * ROOT scope; a metric still reads the innermost element only.
+   */
+  rootAggregations: Map<string, AggregationFieldCapability>;
 }
 
 /** One expanded level of the chain. */
@@ -126,20 +134,23 @@ export function analysisScope(
   });
 
   const innermost = innermostElement(elements);
+  const rootAggregations = new Map(
+    capability.fields.map(entry => [
+      entry.field,
+      offered(entry, root.get(entry.field)),
+    ]),
+  );
   return {
     fields: innermost ? innermost.fields : root,
-    aggregations: innermost
-      ? innermost.aggregations
-      : new Map(
-          capability.fields.map(entry => [
-            entry.field,
-            offered(entry, root.get(entry.field)),
-          ]),
-        ),
+    aggregations: innermost ? innermost.aggregations : rootAggregations,
     rootFields: [...rootFields],
     elements,
     declaredChain,
     reachable,
+    rootAggregations:
+      innermost && capability.rootGroups === true
+        ? rootAggregations
+        : new Map(),
   };
 }
 
@@ -156,6 +167,21 @@ function offered(
   return functions.length === entry.functions.length
     ? entry
     : { ...entry, functions };
+}
+
+/**
+ * Whether a dimension groups the elements by a root field: it names no field
+ * of the innermost element but one the scope's `rootAggregations` offer.
+ */
+export function isRootGroup(
+  scope: AnalysisScope,
+  field: string | undefined,
+): boolean {
+  return (
+    field !== undefined &&
+    !scope.aggregations.has(field) &&
+    scope.rootAggregations.has(field)
+  );
 }
 
 /**

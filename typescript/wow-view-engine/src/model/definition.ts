@@ -154,6 +154,11 @@ export interface AnalysisSpec {
   having?: boolean;
   dateDiffUnits?: AnalysisDateDiffUnit[];
   limits?: AnalysisLimits;
+  /**
+   * Whether a dimension of a config that expands elements may name a root
+   * field, where the source offers it (`analysis.rootGroups`, Wow 9.9).
+   */
+  rootGroups?: boolean;
 }
 
 /** What one narrowing found; see `DataViewDefinition.narrowing`. */
@@ -343,6 +348,13 @@ export interface AnalysisCapability {
    * computed over the rows that came back, as before.
    */
   windows?: AnalysisWindowFunction[];
+  /**
+   * Whether a dimension of a config that expands elements may name a root
+   * field, grouping the elements by a field of the record they belong to, as
+   * the descriptor says (`analysis.rootGroups`, Wow 9.9). Left out, no: such
+   * a dimension stands outside the counting unit.
+   */
+  rootGroups?: boolean;
   limits?: AnalysisLimits;
 }
 

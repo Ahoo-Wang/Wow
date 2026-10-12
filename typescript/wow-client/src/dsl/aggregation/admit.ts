@@ -17,6 +17,7 @@ import { requireValidExpressionTrees } from './expressionTrees.js';
 import { effectiveSort } from './sort.js';
 import {
   AGGREGATION_LIMITS,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   DerivedExpressionType,
@@ -106,6 +107,11 @@ function validateExpressions(
       group.expression
     ) {
       throw new TypeError('terms missingKey requires a field input.');
+    }
+    if (group.scope === AggregationGroupScope.ROOT && group.expression) {
+      throw new TypeError(
+        `${group.type} with a ROOT scope requires a field input.`,
+      );
     }
   });
 }
@@ -401,6 +407,30 @@ function validateSort(
 }
 
 /**
+ * With elements, the groups of a ROOT scope lead the effective sort: a storage
+ * reads the root records' keys before the keys of their elements.
+ */
+function requireRootGroupsFirst(
+  query: Pick<AggregationQuery<string, string>, 'groupBy' | 'sort'>,
+): void {
+  const root = new Map(
+    (query.groupBy ?? []).map(group => [
+      group.alias,
+      group.scope === AggregationGroupScope.ROOT,
+    ]),
+  );
+  const order = effectiveSort(query).flatMap(entry =>
+    root.has(entry.field) ? [root.get(entry.field)] : [],
+  );
+  const firstElement = order.indexOf(false);
+  if (firstElement >= 0 && order.slice(firstElement).includes(true)) {
+    throw new TypeError(
+      'groups with a ROOT scope must sort before the element groups.',
+    );
+  }
+}
+
+/**
  * Admits a whole aggregation query against the rules Wow enforces on arrival;
  * {@link aggregation.query} is its public face.
  */
@@ -471,6 +501,7 @@ export function admitAggregationQuery<
     throw new TypeError('aggregation aliases must be unique.');
   }
   validateSort(sort, groupBy, aliases);
+  if (elements.length > 0) requireRootGroupsFirst(query);
 
   return {
     ...query,

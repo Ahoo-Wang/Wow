@@ -610,34 +610,17 @@ function failuresBoard(t: Text): DashboardViewConfig {
 
 /**
  * 「补偿活动」: what the compensation did, out of its event streams — the
- * outcomes of the window, each a day at a time, the commands and the
+ * outcomes of the window a day at a time, a line each, the commands and the
  * executions a day, the events' make-up, and what people did.
  */
 function activityBoard(t: Text): DashboardViewConfig {
   const A = ACTIVITY_ANALYSES;
-  const outcome = (
-    id: OutcomeMetric,
-    title: string,
-    layout: PanelSize,
-  ): SizedPanel => ({
-    id,
-    kind: "view",
-    title,
-    bindings: [],
-    layout,
-    ...owned(EXECUTION_HISTORY, outcomeTrendCard(id)),
-  });
   return {
     ...emptyDashboardConfig(),
     width: "full",
     fields: [windowField(t)],
     panels: inRows(
-      [
-        outcome("newFailures", t.newFailures, size(6, 2)),
-        outcome("prepared", t.prepared, size(6, 2)),
-        outcome("retryFailed", t.retryFailed, size(6, 2)),
-        outcome("retrySucceeded", t.retrySucceeded, size(6, 2)),
-      ],
+      [analysisPanel(A.outcomes, size(24, 6), EXECUTION_HISTORY)],
       [analysisPanel(A.activity, size(24, 6), EXECUTION_HISTORY)],
       [
         analysisPanel(A.eventMix, size(12, 5), EXECUTION_HISTORY),

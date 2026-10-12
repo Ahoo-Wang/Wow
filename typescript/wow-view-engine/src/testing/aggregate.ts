@@ -16,6 +16,7 @@ import {
   AGGREGATION_LIMITS,
   AggregationExpressionType,
   AggregationFunction,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   DerivedExpressionType,
@@ -66,7 +67,8 @@ export function summarise(
   matched: readonly RecordData[],
   query: AggregationQuery,
 ): RecordData[] {
-  const units = expand(matched, query);
+  const rootOf = new Map<RecordData, RecordData>();
+  const units = expand(matched, query, rootOf);
   const groupBy = query.groupBy ?? [];
   const dense = denseGroup(groupBy);
   const metrics = query.metrics.filter(
@@ -76,7 +78,13 @@ export function summarise(
     const filter = 'filter' in metric ? metric.filter : undefined;
     return filter ? new Query(criteria(filter)) : undefined;
   });
-  const keyers = groupBy.map(keyerOf);
+  // A ROOT group keys an element by the record it was expanded from.
+  const keyers = groupBy.map(group => {
+    const keyOf = keyerOf(group);
+    return group.scope === AggregationGroupScope.ROOT
+      ? (unit: RecordData) => keyOf(rootOf.get(unit) ?? unit)
+      : keyOf;
+  });
   const groups = new Map<string, { keys: unknown[]; units: RecordData[] }>();
   if (groupBy.length === 0) groups.set('[]', { keys: [], units: [] });
   const denseAt = dense ? groupBy.indexOf(dense) : -1;
@@ -99,20 +107,27 @@ export function summarise(
   return rows.slice(0, query.limit ?? AGGREGATION_LIMITS.DEFAULT_LIMIT);
 }
 
-/** The innermost elements the aggregation counts: the records, when it names none. */
+/**
+ * The innermost elements the aggregation counts: the records, when it names
+ * none. `rootOf` learns the record each element was expanded from.
+ */
 function expand(
   matched: readonly RecordData[],
   query: AggregationQuery,
+  rootOf: Map<RecordData, RecordData>,
 ): RecordData[] {
   let scope = [...matched];
   for (const element of query.elements ?? []) {
     scope = scope.flatMap(record => {
       const items = valueAt(record, element.path);
+      const root = rootOf.get(record) ?? record;
       return Array.isArray(items)
-        ? items.filter(
-            (item): item is RecordData =>
-              item !== null && typeof item === 'object' && !Array.isArray(item),
-          )
+        ? items.filter((item): item is RecordData => {
+            const kept =
+              item !== null && typeof item === 'object' && !Array.isArray(item);
+            if (kept) rootOf.set(item as RecordData, root);
+            return kept;
+          })
         : [];
     });
     if (element.filter) scope = find(scope, criteria(element.filter)).all();

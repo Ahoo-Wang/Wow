@@ -26,10 +26,10 @@ import { textKeys, type Words } from "./textKeys.ts";
  * What the streams can be asked is set by the service's aggregation (checked
  * against it): a stream is one command's, so a day counts streams and the
  * executions they touched; an event's name is counted only with the events
- * expanded (`elements`), and an expanded event no longer reaches its
- * stream's `createTime` — so a day's make-up by event is one chart per
- * event (the overview's outcome figures), and the make-up here is of a
- * window's whole. Metric conditions cannot match an event of the stream
+ * expanded (`elements`), and the expanded events are grouped by their
+ * stream's `createTime` as a dimension over the record itself (a ROOT group,
+ * Wow 9.9) — so a day's outcomes are one chart with a line each, and the
+ * make-up here is of a window's whole. Metric conditions cannot match an event of the stream
  * (`METRIC_FILTER_ELEMENT_MATCH`), and the events' payloads are not
  * declared for aggregation in this deployment's schema.
  */
@@ -37,12 +37,21 @@ import { textKeys, type Words } from "./textKeys.ts";
 /** The ids of the analyses, as the definition's system views. */
 export const ACTIVITY_ANALYSES = {
   activity: "activity",
+  outcomes: "outcomes",
   eventMix: "event-mix",
   interventions: "interventions",
 } as const;
 
 /** Where the service's event types live (`body.bodyType`). */
 const API = "me.ahoo.wow.compensation.api";
+
+/** The outcomes of a compensation, a line each on the board. */
+export const OUTCOME_TYPES = [
+  "ExecutionFailedCreated",
+  "CompensationPrepared",
+  "ExecutionFailedApplied",
+  "ExecutionSuccessApplied",
+].map((type) => `${API}.${type}`);
 
 /** The events a person's decision appends, never the scheduler's. */
 export const INTERVENTION_EVENTS = [
@@ -54,6 +63,7 @@ export const INTERVENTION_EVENTS = [
 export const ACTIVITY_ANALYSES_WORDS = {
   en: {
     activity: "Compensation activity per day",
+    outcomes: "Outcomes per day",
     eventMix: "Events by type",
     interventions: "Operator interventions",
     streams: "Event streams",
@@ -62,6 +72,7 @@ export const ACTIVITY_ANALYSES_WORDS = {
   },
   "zh-CN": {
     activity: "每日补偿活动",
+    outcomes: "每天的结局",
     eventMix: "事件构成",
     interventions: "人工干预",
     streams: "事件流",
@@ -129,6 +140,46 @@ function activity(t: Text): AnalysisViewConfig {
   });
 }
 
+/**
+ * A day's outcomes, a line each: the outcome events, grouped by the day
+ * their stream was written — a field of the stream, not of the event — and
+ * by type, which the definition names in words (「重试失败」).
+ */
+function outcomes(t: Text): AnalysisViewConfig {
+  return analysis({
+    elements: [
+      {
+        path: "body",
+        filter: {
+          op: "and",
+          children: [
+            { field: "body.bodyType", operator: "IN", value: OUTCOME_TYPES },
+          ],
+        },
+      },
+    ],
+    groups: [
+      {
+        type: "DATE_HISTOGRAM",
+        field: "createTime",
+        alias: "day",
+        unit: "DAY",
+      },
+      { type: "TERMS", field: "body.bodyType", alias: "outcome" },
+    ],
+    metrics: [{ type: "COUNT", alias: "count", label: t.events }],
+    // A day a point for each of the four outcomes: the most rows an analysis
+    // reads covers 250 days of all four, and a longer window loses its
+    // earliest days, not its latest.
+    sort: [{ alias: "day", direction: "DESC" }],
+    limit: 1000,
+    chart: {
+      type: "line",
+      cartesian: { x: "day", splitBy: "outcome", series: [{ metric: "count" }] },
+    },
+  });
+}
+
 /** The events of a window, by type: its whole make-up. */
 function eventMix(t: Text, only?: FilterNode): AnalysisViewConfig {
   return analysis({
@@ -163,6 +214,7 @@ export const ACTIVITY_ANALYSIS_VIEWS: SystemView[] = (() => {
   const A = ACTIVITY_ANALYSES;
   return [
     { id: A.activity, title: t.activity, config: activity(t) },
+    { id: A.outcomes, title: t.outcomes, config: outcomes(t) },
     { id: A.eventMix, title: t.eventMix, config: eventMix(t) },
     {
       id: A.interventions,

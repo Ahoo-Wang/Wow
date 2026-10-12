@@ -15,6 +15,7 @@ package me.ahoo.wow.query.aggregation
 
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.spec.MetricSpec
@@ -79,10 +80,23 @@ private class Residual(val dense: Boolean, val windows: Boolean, val having: Boo
                 dense = dense,
                 windows = windows,
                 having = query.having != null && (support.having == SupportMode.RESIDUAL || after),
-                topN = query.metricSorted && (support.topN == SupportMode.RESIDUAL || after),
+                topN = query.metricSorted &&
+                    (after || support.topN == SupportMode.RESIDUAL && !query.termsTopN(support)),
             )
         }
     }
+}
+
+/**
+ * Whether the storage takes this query's top N groups by a metric itself ([AggregationSupport.termsTopN]): one TERMS
+ * group that reads the counting unit, no HAVING, and every metric the effective sort names of a type the storage
+ * orders by.
+ */
+private fun AggregationQuery.termsTopN(support: AggregationSupport): Boolean {
+    val group = groupBy.singleOrNull() as? AggregationGroup.Terms ?: return false
+    if (having != null || elements.isNotEmpty() && group.scope == AggregationGroupScope.ROOT) return false
+    val specs = metrics.associate { it.alias to it.spec }
+    return sort.mapNotNull { specs[it.field.path] }.all(support.termsTopN::contains)
 }
 
 /**
@@ -188,6 +202,10 @@ internal fun requireSupported(query: AggregationQuery, storage: StorageSupport) 
     support.having.require(query.having != null, "HAVING")
     support.denseFill.require(query.denseGroup != null, "dense DATE_HISTOGRAM")
     support.topN.require(query.metricSorted, "sorting groups by a metric")
+    support.rootGroups.require(
+        query.elements.isNotEmpty() && query.groupBy.any { it.scope == AggregationGroupScope.ROOT },
+        "grouping elements by a root field",
+    )
     val used = query.metrics.mapTo(hashSetOf()) { it.spec }
     OFFERED_METRICS.forEach { (spec, feature) ->
         requireValid(spec !in used || storage.offers(spec)) { QueryViolation.StorageUnsupported(feature) }

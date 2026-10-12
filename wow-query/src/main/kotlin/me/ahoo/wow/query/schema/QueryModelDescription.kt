@@ -360,6 +360,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 maxLimit = maxList?.let { minOf(it, AggregationQuery.MAX_LIMIT) } ?: AggregationQuery.MAX_LIMIT,
                 maxExpressionDepth = AggregationQuery.MAX_EXPRESSION_DEPTH,
                 maxExpressionNodes = AggregationQuery.MAX_EXPRESSION_NODES,
+                maxResidualGroups = budget?.maxResidualGroups?.limit(),
             ),
         )
     }
@@ -390,6 +391,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             firstLastOrderBy = schema.profile?.eventTimeField?.path?.takeIf { firstLast },
             // A window is a derived metric, an expensive one.
             windows = WindowFunction.entries.filter { allowExpensive && support.window(it) != SupportMode.NONE },
+            // Expanding elements is itself expensive (the budget refuses it otherwise).
+            rootGroups = allowExpensive && support.rootGroups != SupportMode.NONE,
         )
     }
 

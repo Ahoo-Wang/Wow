@@ -1,6 +1,6 @@
 {
   "model": "SNAPSHOT",
-  "version": "sha256:2c7e8fbe9e8d565c788220667dcff444018a67f59920c20ad25e6e439f28fddd",
+  "version": "sha256:17baf4623bbf4aef5480aca39ec200f32ed78e92201b26c67dcaba37a1242d7c",
   "timeZone": "America/Los_Angeles",
   "record": {
     "identity": "aggregateId",
@@ -70,7 +70,9 @@
       "MONTH_OF_YEAR"
     ],
     "dateDiffUnits": ["SECOND", "MINUTE", "HOUR", "DAY"],
-    "firstLastOrderBy": "eventTime"
+    "firstLastOrderBy": "eventTime",
+    "windows": ["TOTAL", "RUNNING", "PREVIOUS", "RANK"],
+    "rootGroups": true
   },
   "fields": [
     {
@@ -705,7 +707,8 @@
         { "value": "SORT_TOO_MANY" },
         { "value": "SORT_FIELD_DUPLICATE" },
         { "value": "IDENTITY_UNDEFINED" },
-        { "value": "STORAGE_UNSUPPORTED" }
+        { "value": "STORAGE_UNSUPPORTED" },
+        { "value": "PREVIOUS_UNSHIFTABLE" }
       ],
       "description": "Stable code of the failed rule. Open: codes are added over time, never renamed.",
       "project": true,

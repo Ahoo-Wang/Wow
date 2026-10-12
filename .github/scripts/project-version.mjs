@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // The one version source is `version` in gradle.properties. Every package.json
 // in the workspace follows it: the TypeScript packages (published or not), the
-// compensation dashboard and the documentation site.
+// compensation dashboard, the analytics console and the documentation site.
 //
 //   node .github/scripts/project-version.mjs set <version>   (pnpm set-version)
 //   node .github/scripts/project-version.mjs check           (pnpm check:versions)
@@ -19,7 +19,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const GRADLE_VERSION = /^version=(.*)$/m;
-const EXTRA_PACKAGES = ['compensation/dashboard', 'documentation'];
+const EXTRA_PACKAGES = [
+  'compensation/dashboard',
+  'analytics/console',
+  'documentation',
+];
 
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 

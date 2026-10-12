@@ -107,11 +107,17 @@ export function drillRecordConditions(
   kinds: FieldKindRegistry,
   drilled: readonly DrilledGroup[],
 ): FilterNode[] | null {
-  const conditions = drilled.flatMap(entry => entry.conditions);
+  const all = drilled.flatMap(entry => entry.conditions);
   const elements = config.elements ?? [];
-  if (elements.length === 0) return conditions;
+  if (elements.length === 0) return all;
   if (drillGap(config)) return null;
   const [element] = elements;
+  // A dimension over a root field (D92) selects the record itself, beside
+  // the match into its elements rather than inside it.
+  const inElement = (condition: FilterLeaf) =>
+    condition.field.startsWith(`${element.path}.`);
+  const root = all.filter(condition => !inElement(condition));
+  const conditions = all.filter(inElement);
   const holder = fields.find(field => field.name === element.path);
   const kind = holder && kinds.get(holder.kind);
   if (!holder || !kind || !operatorsOf(holder, kind).includes('ELEMENT_MATCH'))
@@ -128,6 +134,7 @@ export function drillRecordConditions(
     ? { op: 'and' as const, children: [gate, ...conditions] }
     : drillFilter(gate, conditions);
   return [
+    ...root,
     {
       field: holder.name,
       operator: 'ELEMENT_MATCH',
@@ -157,12 +164,18 @@ export function drilledFields(
     held = holder.elements;
   }
   const prefix = absolute === '' ? '' : `${absolute}.`;
-  return new Map(
+  const named = new Map(
     held.map(field => {
       const named = { ...field, name: `${prefix}${field.name}` };
       return [named.name, named] as const;
     }),
   );
+  // A dimension over a root field while elements are expanded (D92) names
+  // the root's own field; an element's names all carry the chain's prefix.
+  if (prefix !== '')
+    for (const field of fields)
+      if (!named.has(field.name)) named.set(field.name, field);
+  return named;
 }
 
 /** One dimension of a pressed row, and the conditions that select it. */

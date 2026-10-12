@@ -116,6 +116,11 @@ export function narrowAnalysis(
   if (offered.windows && offered.windows.length > 0)
     next.windows = [...offered.windows];
   else delete next.windows;
+  // Whether a dimension may group the elements by a root field is the
+  // source's to say as well: a server before 9.9 does not.
+  if (offered.rootGroups === true && capability.rootGroups !== false)
+    next.rootGroups = true;
+  else delete next.rootGroups;
   next.limits = lowered(capability.limits, descriptor);
 
   if (!constructible(next)) {

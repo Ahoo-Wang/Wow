@@ -123,6 +123,7 @@ export type IssuePath = (string | number)[];
 | `analysis.sort.duplicate` | 排序已经按「{alias}」排过了。 |
 | `analysis.sort.metric-unsupported` | 数据源只按维度给分组排序，不能按「{alias}」。 |
 | `analysis.sort.requires-group` | 排序至少需要一个维度。 |
+| `analysis.sort.root-group-first` | 排序把「{alias}」排在了按记录本身字段的维度之前；这类维度须排在最前。 |
 | `analysis.sort.too-many` | 结果最多按 {max} 个维度或指标排序。 |
 | `analysis.sort.unknown-alias` | 排序依据的「{alias}」不在这个结果里。 |
 | `analysis.split.whole-failed` | 没能把较小的系列并成「其他」，颜色会重复：{reason} |

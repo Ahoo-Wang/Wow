@@ -1,6 +1,6 @@
 {
   "model": "EVENT_STREAM",
-  "version": "sha256:c57927500a3f83b413eb018908d69c007ddf5cfc42cd5f132cf9690a5e05dbb1",
+  "version": "sha256:4c5d800f08e0a2455965aafe1693a476bf0abcc6db47c7807131401b76f16da0",
   "timeZone": "America/Los_Angeles",
   "record": {
     "identity": "id",
@@ -68,7 +68,9 @@
       "MONTH_OF_YEAR"
     ],
     "dateDiffUnits": ["SECOND", "MINUTE", "HOUR", "DAY"],
-    "firstLastOrderBy": "createTime"
+    "firstLastOrderBy": "createTime",
+    "windows": ["TOTAL", "RUNNING", "PREVIOUS", "RANK"],
+    "rootGroups": true
   },
   "fields": [
     {
@@ -3090,7 +3092,8 @@
               { "value": "SORT_TOO_MANY" },
               { "value": "SORT_FIELD_DUPLICATE" },
               { "value": "IDENTITY_UNDEFINED" },
-              { "value": "STORAGE_UNSUPPORTED" }
+              { "value": "STORAGE_UNSUPPORTED" },
+              { "value": "PREVIOUS_UNSHIFTABLE" }
             ],
             "description": "Stable code of the failed rule. Open: codes are added over time, never renamed.",
             "project": true,
@@ -3545,7 +3548,8 @@
               { "value": "SORT_TOO_MANY" },
               { "value": "SORT_FIELD_DUPLICATE" },
               { "value": "IDENTITY_UNDEFINED" },
-              { "value": "STORAGE_UNSUPPORTED" }
+              { "value": "STORAGE_UNSUPPORTED" },
+              { "value": "PREVIOUS_UNSHIFTABLE" }
             ],
             "description": "Stable code of the failed rule. Open: codes are added over time, never renamed.",
             "project": true,

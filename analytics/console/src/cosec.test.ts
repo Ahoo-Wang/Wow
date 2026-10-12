@@ -11,8 +11,16 @@
  * limitations under the License.
  */
 
+import { Fetcher } from '@ahoo-wang/fetcher';
 import { TokenStorage } from '@ahoo-wang/fetcher-cosec';
-import { ADMIN_ROLE, currentUser } from './cosec.ts';
+import {
+  ADMIN_ROLE,
+  currentUser,
+  noRefresh,
+  signIn,
+  signOut,
+  withCoSec,
+} from './cosec.ts';
 
 /** An unsigned JWT with `payload`: the console reads claims, the server verifies. */
 export function jwt(payload: Record<string, unknown>): string {
@@ -58,5 +66,39 @@ describe('currentUser', () => {
       roles: [],
       admin: false,
     });
+  });
+});
+
+describe('withCoSec', () => {
+  /** What each request carried, answered 200. */
+  function recording() {
+    const sent: Headers[] = [];
+    const target = new Fetcher({
+      baseURL: 'http://localhost',
+      fetch: (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        sent.push(new Headers(init?.headers));
+        return new Response('[]', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }) as typeof fetch,
+    } as ConstructorParameters<typeof Fetcher>[0]);
+    return { sent, target: withCoSec(target) };
+  }
+
+  it('sends the signed-in token and the application with every request', async () => {
+    const token = jwt({ sub: 'ann', tenantId: 't1' });
+    signIn(token);
+    const { sent, target } = recording();
+    await target.get('/dataset');
+    expect(sent[0]?.get('Authorization')).toBe(`Bearer ${token}`);
+    expect(sent[0]?.get('CoSec-App-Id')).toBe('analytics');
+    signOut();
+  });
+
+  it('refreshes nothing: the enterprise issues the tokens', async () => {
+    await expect(
+      noRefresh.refresh({ accessToken: 'a', refreshToken: 'r' }),
+    ).rejects.toThrow('sign in again');
   });
 });

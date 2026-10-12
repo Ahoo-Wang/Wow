@@ -36,7 +36,7 @@ flowchart LR
 - 第一个 `path` 相对查询模型根，使用绝对逻辑路径；
 - 之后的 `path` 相对当前已展开元素；
 - Element 的 `filter` 相对它自己的单个元素，且不能含 root-only 过滤器；
-- 有 Elements 时，group、metric 与数值表达式的字段相对最内层元素；没有 Elements 时，它们相对查询模型根。
+- 有 Elements 时，group、metric 与数值表达式的字段相对最内层元素；没有 Elements 时，它们相对查询模型根。分组可以用 `scope: ROOT` 改按根字段（见[按根字段分组](#root-groups)）。
 
 例如 `state.orders` → `lines` 表示先展开根上的 `state.orders`，再在每个 order 内展开 `lines`；它不是分别展开两个根数组。
 
@@ -52,6 +52,26 @@ flowchart LR
 | `DATE_PART` | `field` | `part`、可选 `timeZone`（默认 `UTC`）、可选 `dense`（默认 `false`） |
 
 `DATE_HISTOGRAM` 的日期单位为 `YEAR`、`QUARTER`、`MONTH`、`WEEK`、`DAY`、`HOUR`、`MINUTE`、`SECOND`。桶边界、时间值与字段能力由实际查询入口及后端决定；公共 AST 不承诺它们在所有后端完全一致。
+
+### 按根字段分组 {#root-groups}
+
+有 Elements 时，分组可选的 `scope` 指明 `field` 相对什么：`ELEMENT`（缺省）是最内层元素，`ROOT` 是查询模型根，字段写绝对路径。`ROOT` 分组把元素按它所属记录上的字段归组，例如按天统计各事件名的次数：展开 `state.events`，按 `createTime`（`scope: ROOT`）与 `name` 分组，再计数。没有 Elements 时，`ROOT` 与缺省相同。
+
+- `ROOT` 分组只能是字段，不能是表达式；准入照常检查根字段的分组能力与是否受保护。
+- `ROOT` 分组排在元素分组之前：有效排序（先显式排序，再按 `groupBy` 次序补上其余分组）里，`ROOT` 分组不能出现在元素分组之后。指标仍可排在最前。
+- 只有分组有 `scope`。指标仍读最内层元素：根上的值会随它的元素被数多次。
+- 它属于昂贵构造：后端能执行且允许昂贵运算符时，描述符的 `analysis.rootGroups` 为 `true`。MongoDB 与 Elasticsearch 原生执行（Elasticsearch 在一个根分组下的元素分组超过查询批大小时报错，而不是截断）；ClickHouse 回答 `StorageUnsupported`。Wow 9.9 起。
+
+```json
+{
+  "elements": [{ "path": "state.events" }],
+  "groupBy": [
+    { "type": "DATE_HISTOGRAM", "field": "createTime", "alias": "day", "unit": "DAY", "scope": "ROOT" },
+    { "type": "TERMS", "field": "name", "alias": "event" }
+  ],
+  "metrics": [{ "type": "COUNT", "alias": "count" }]
+}
+```
 
 ### 日期部分（DATE_PART） {#date-part}
 
@@ -311,6 +331,7 @@ aggregation {
 - MongoDB 在聚合投影链之后把 having 编译为一个追加的 `$match` 阶段：比较在投影后的 metric 值上进行，数值统一转换到 IEEE double 空间（Decimal128 存储值安全转换）；
 - Elasticsearch 的 composite 聚合下没有 `bucket_selector`，having 在客户端求值：metric 排序查询在 top-N 截断前先过滤行；group 排序查询按页超取，直到集满 `limit` 个存活行或桶耗尽；
 - 性能建议：聚合值不携带索引选择性，having 无法像根 filter 那样下推到索引；成本取决于所需排序语义——metric 值 Top-N 为保证全局正确性必然扫描全部 composite 桶（having 不增加额外扫描），group 排序 + 高选择性 having 收满 `limit` 个存活行即提前终止，仅当存活行稀疏时才退化为全桶扫描；
+- Elasticsearch 上不带 having 的按指标 Top-N：索引只有一个主分片时（Wow 索引模板的默认），按 `COUNT` 或 `DISTINCT_COUNT` 给单个 `TERMS` 分组取前 N 是一次 `terms` 请求，只读 `limit` 个分组；没有分片结果的合并，所以结果精确。多个主分片、别名或数据流指向多个索引、其他分组形态或其他指标时，查询服务照上文读全部分组，上限为 `wow.query.http.max-residual-groups`；描述符以 `limits.aggregation.maxResidualGroups` 公布这个上限（Wow 9.10）；
 - 两个后端均无新增存储版本要求。
 
 HTTP 查询护栏：

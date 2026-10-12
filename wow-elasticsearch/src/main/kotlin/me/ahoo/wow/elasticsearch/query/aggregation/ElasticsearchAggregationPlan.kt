@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.Script
+import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeField
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
@@ -28,6 +29,17 @@ internal data class ElasticsearchAggregationPlan(
     val metrics: List<ElasticsearchAggregationMetric>,
     val runtimeMappings: Map<String, RuntimeField>,
     val effectiveSort: List<Sort>,
+    /**
+     * The sources of the groups that read the root record while the query expands elements, in sort order. They
+     * form an outer composite over the root records, outside the nested scopes; [groupSources] then holds only the
+     * element groups, grouped inside each outer bucket.
+     */
+    val rootSources: List<NamedValue<CompositeAggregationSource>> = emptyList(),
+    /**
+     * The order of a native top-N by a metric: one TERMS group taken by `terms` ordered by these paths, its first
+     * `limit` groups in one request. Empty for every other plan.
+     */
+    val metricOrder: List<NamedValue<SortOrder>> = emptyList(),
 )
 
 internal data class ElasticsearchAggregationElement(

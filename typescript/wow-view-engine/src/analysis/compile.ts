@@ -14,6 +14,7 @@
 import {
   aggregation,
   AggregationExpressionType,
+  AggregationGroupScope,
   AggregationGroupType,
   AggregationMetricType,
   SortDirection,
@@ -53,6 +54,7 @@ import {
   analysisScope,
   elementFilterFields,
   innermostElement,
+  isRootGroup,
   relativeFields,
   relativeName,
   relativeTree,
@@ -101,9 +103,12 @@ export function compileAnalysis(
       : {}),
     ...(config.groups.length > 0
       ? {
-          groupBy: config.groups.map(group =>
-            compileGroup(group, context.timeZone, inner),
-          ),
+          groupBy: rootGroupsFirst(config.groups, scope).map(group => ({
+            ...compileGroup(group, context.timeZone, inner),
+            ...(isRootGroup(scope, group.field)
+              ? { scope: AggregationGroupScope.ROOT }
+              : {}),
+          })),
         }
       : {}),
     ...(top
@@ -284,6 +289,23 @@ function compileElement(
       context,
     ) as never,
   };
+}
+
+/**
+ * The dimensions in the order they are sent: those over a root field first.
+ * Wow reads the root records' keys before their elements' and refuses a ROOT
+ * group that sorts after an element group; the rows are keyed by alias, so
+ * the order changes nothing else. `validateSort` refuses a sort that would
+ * put an element dimension first.
+ */
+function rootGroupsFirst(
+  groups: readonly AnalysisGroup[],
+  scope: AnalysisScope,
+): AnalysisGroup[] {
+  const root = groups.filter(group => isRootGroup(scope, group.field));
+  return root.length === 0
+    ? [...groups]
+    : [...root, ...groups.filter(group => !root.includes(group))];
 }
 
 /**

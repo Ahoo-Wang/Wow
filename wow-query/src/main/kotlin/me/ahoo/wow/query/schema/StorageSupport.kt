@@ -71,8 +71,19 @@ data class AggregationSupport(
      * by the core over every group the storage returns.
      */
     val windows: Map<WindowFunction, SupportMode> = RESIDUAL_WINDOWS,
+    /**
+     * Grouping the elements of a query that expands them by a field of their root record (`scope: ROOT`). NATIVE or
+     * NONE: with NONE admission rejects such a group and the descriptor says `rootGroups: false`.
+     */
+    val rootGroups: SupportMode = SupportMode.NATIVE,
+    /**
+     * Where [topN] is RESIDUAL: the metric types the storage orders one TERMS group by itself, taking the first
+     * `limit` groups exactly, so such a query reads no more groups than it returns. Empty: [topN] alone decides.
+     */
+    val termsTopN: Set<MetricSpec> = emptySet(),
 ) {
     init {
+        require(rootGroups != SupportMode.RESIDUAL) { "Root groups have no residual implementation." }
         require(percentile != SupportMode.RESIDUAL && distinctCount != SupportMode.RESIDUAL) {
             "Percentile and distinct count have no residual implementation."
         }

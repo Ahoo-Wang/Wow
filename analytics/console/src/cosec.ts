@@ -12,7 +12,11 @@
  */
 
 import { fetcher, type Fetcher } from '@ahoo-wang/fetcher';
-import { CoSecConfigurer, TokenStorage } from '@ahoo-wang/fetcher-cosec';
+import {
+  CoSecConfigurer,
+  TokenStorage,
+  type TokenRefresher,
+} from '@ahoo-wang/fetcher-cosec';
 
 /** The application the analytics server keeps the console's views under. */
 export const APP_ID = 'analytics';
@@ -29,9 +33,27 @@ export const LOGIN_PATH = '/login';
  */
 export const tokenStorage = new TokenStorage();
 
+/**
+ * The console holds a token the enterprise's CoSec issued, and the analytics
+ * server issues none, so there is nothing to refresh it with: an expired
+ * token is refused here, which signs the console out (`onUnauthorized`).
+ *
+ * It is still a refresher: fetcher-cosec puts the token on a request only
+ * when one is configured, and without it every request went out without
+ * `Authorization` — each answered 401 by the server, which signed the
+ * console out the moment it signed in (found by the demo, analytics/demo).
+ */
+export const noRefresh: TokenRefresher = {
+  refresh: () =>
+    Promise.reject(
+      new Error('The console cannot refresh a token; sign in again.'),
+    ),
+};
+
 const coSecConfigurer = new CoSecConfigurer({
   appId: APP_ID,
   tokenStorage,
+  tokenRefresher: noRefresh,
   // An expired or refused token: sign in again.
   onUnauthorized: () => {
     tokenStorage.signOut();

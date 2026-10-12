@@ -830,6 +830,7 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun aggregation should derive ratios from filtered metrics ()V
 	public final fun aggregation should evaluate derived metrics over an empty ungrouped summary ()V
 	public final fun aggregation should filter numeric and distinct metrics by record filters ()V
+	public final fun aggregation should group the elements by a field of their root record ()V
 	public final fun aggregation should ignore invalid arithmetic values ()V
 	public final fun aggregation should propagate null from empty metrics into derived ()V
 	public final fun aggregation should return backend neutral decimal Terms keys ()V
@@ -846,9 +847,12 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun aggregation should sort groups by distinct count ()V
 	public final fun aggregation should start UTC weeks on Monday ()V
 	public final fun aggregation should summarize standard root fields with every metric ()V
+	public final fun aggregation should summarize the elements of each root group ()V
 	public final fun aggregation should support cancellation after a real result ()V
 	public final fun aggregation should support second date histograms ()V
+	public final fun aggregation should take the top N of one group by a count without reading every group ()V
 	public final fun aggregation terms missingKey should bucket missing values into the sentinel key ()V
+	protected final fun aggregationStates ()Ljava/util/List;
 	public final fun count ()V
 	public final fun createFromCache ()V
 	protected abstract fun createSnapshotQueryBackendFactory ()Lme/ahoo/wow/query/snapshot/SnapshotQueryBackendFactory;
@@ -864,7 +868,9 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun dynamicSingle ()V
 	public final fun element full text search runs inside element match only where storage grants it ()V
 	public final fun filter semantics matrix ()Ljava/util/List;
+	protected fun getBoundedTermsTopN ()Z
 	protected fun getElementFullTextSearch ()Z
+	protected fun getElementRootGroups ()Z
 	public final fun getQueryBackendBinding ()Lme/ahoo/wow/tck/query/QueryTarget;
 	public final fun getQueryModelSchemaProvider ()Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;
 	protected final fun getQuerySchemaSources ()Ljava/util/List;
@@ -883,6 +889,7 @@ public abstract class me/ahoo/wow/tck/query/SnapshotQueryBackendSpec {
 	public final fun projection should preserve scalar and object subtree semantics ()V
 	public final fun query helpers defer schema lookup until subscription ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
+	protected final fun saveAggregationStates ([Lme/ahoo/wow/tck/mock/MockStateAggregate;)V
 	public final fun schema refresh with unchanged storage keeps the published object ()V
 	public final fun schema should aggregate annotated epoch fields as time ()V
 	public final fun schema should execute exact range and sort bindings ()V

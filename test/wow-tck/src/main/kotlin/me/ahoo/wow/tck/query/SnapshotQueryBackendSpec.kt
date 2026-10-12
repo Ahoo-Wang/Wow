@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
@@ -750,6 +751,98 @@ abstract class SnapshotQueryBackendSpec {
                     ),
                 )
             }.verifyComplete()
+    }
+
+    /**
+     * Whether this storage groups the elements of an expanded query by a field of their root record
+     * (`AggregationGroup.scope` ROOT). One that cannot must not grant it: admission rejects the group instead.
+     */
+    protected open val elementRootGroups: Boolean = true
+
+    @Test
+    fun `aggregation should group the elements by a field of their root record`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val query = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+            terms("status", "status")
+            count("orders")
+            sort { "aggregate".asc() }
+        }
+        if (!elementRootGroups) {
+            queryBackendBinding.aggregate(query, false).test().expectErrorSatisfies { error ->
+                (error as QuerySchemaValidationException).violation.assert()
+                    .isInstanceOf(QueryViolation.StorageUnsupported::class.java)
+            }.verify()
+            return
+        }
+        queryBackendBinding.aggregate(query, false).collectList()
+            .test()
+            .assertNext { rows ->
+                rows.map {
+                    Triple(it.path("aggregate").asString(), it.path("status").asString(), it.path("orders").asLong())
+                }.assert().containsExactly(
+                    Triple("aggregation-a", "CANCELLED", 1L),
+                    Triple("aggregation-a", "PAID", 1L),
+                    Triple("aggregation-b", "PAID", 1L),
+                )
+            }.verifyComplete()
+    }
+
+    /**
+     * Whether the backend takes the top N of one TERMS group by a count itself, so the query reads no more groups than
+     * it returns: MongoDB natively, Elasticsearch on an index of one primary shard.
+     */
+    protected open val boundedTermsTopN: Boolean = true
+
+    @Test
+    fun `aggregation should take the top N of one group by a count without reading every group`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        // alpha 2, beta 2, gamma 1, delta 1: four groups, beyond a residual bound of two.
+        val query = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            count("lines")
+            sort { "lines".desc() }
+            limit(1)
+        }
+        val budget = QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)
+        val rows = queryBackendBinding.aggregate(query, budget = budget)
+        if (!boundedTermsTopN) {
+            rows.test().expectError().verify()
+            return
+        }
+        rows.collectList().block()!!.map { it.path("product").asString() to it.path("lines").asLong() }
+            .assert().containsExactly("alpha" to 2L)
+    }
+
+    @Test
+    fun `aggregation should summarize the elements of each root group`() {
+        if (!elementRootGroups) return
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        fun query(products: List<String>, limit: Int) = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines") { "productId" isIn products }
+            terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+            sum(field("quantity"), "quantity")
+            count("lines")
+            sort { "aggregate".desc() }
+            limit(limit)
+        }
+        fun rows(query: AggregationQuery) = queryBackendBinding.aggregate(query, false).collectList().block()!!
+            .map { Triple(it.path("aggregate").asString(), it.path("quantity").asDouble(), it.path("lines").asLong()) }
+
+        rows(query(listOf("alpha", "beta"), 10)).assert().containsExactly(
+            Triple("aggregation-b", 6.0, 2L),
+            Triple("aggregation-a", 3.0, 2L),
+        )
+        rows(query(listOf("alpha", "beta"), 1)).assert().containsExactly(Triple("aggregation-b", 6.0, 2L))
+        // A root record with no element left after the element filters forms no group.
+        rows(query(listOf("delta"), 10)).assert().containsExactly(Triple("aggregation-b", 5.0, 1L))
     }
 
     @Test
@@ -2371,7 +2464,7 @@ abstract class SnapshotQueryBackendSpec {
             .verifyComplete()
     }
 
-    private fun saveAggregationStates(vararg states: MockStateAggregate) {
+    protected fun saveAggregationStates(vararg states: MockStateAggregate) {
         states.forEachIndexed { index, state ->
             snapshotStore.save(
                 SimpleSnapshot(
@@ -2402,7 +2495,7 @@ abstract class SnapshotQueryBackendSpec {
         return states.map(MockStateAggregate::id)
     }
 
-    private fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
+    protected fun aggregationStates(): List<MockStateAggregate> = listOf(aggregationStateA(), aggregationStateB())
 
     private fun aggregationStateA(): MockStateAggregate =
         MockStateAggregate(
@@ -2596,14 +2689,19 @@ private fun QueryTarget<SnapshotQueryBackend>.count(filter: FilterExpression): M
         backend.count(QueryAdmission.Trusted.count(filter, schema))
     }
 
-/** [query]'s groups; with [residual], the core computes every window the storage would. */
+/**
+ * [query]'s groups; with [residual], the core computes every window the storage would; [budget] bounds the groups a
+ * residual operator reads.
+ */
 private fun QueryTarget<SnapshotQueryBackend>.aggregate(
     query: AggregationQuery,
     residual: Boolean = false,
+    budget: QueryBudget? = null,
 ): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.aggregate(
             QueryAdmission.Trusted.aggregate(query, if (residual) schema.withResidualWindows() else schema),
+            budget,
         )
     }
 

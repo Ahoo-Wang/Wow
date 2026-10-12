@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.spec.MetricSpec
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.query.QueryAdmission
@@ -169,6 +170,21 @@ class ElasticsearchQuerySchemaAdapterTest {
             logical,
             ElasticsearchIndexMapping.from("test", mapping, maxResultWindow = 20),
         ).storage.paging.maxOffsetWindow.assert().isEqualTo(20)
+    }
+
+    @Test
+    fun `one primary shard takes a top N by a count natively, several do not`() {
+        val logical = logical("name" to scalar(QueryValueType.STRING))
+        val mapping = TypeMapping.of { it.properties("name") { it.keyword { it } } }
+        val single = ElasticsearchIndexMapping.from("test", mapping, singleShard = true)
+
+        ElasticsearchQuerySchemaAdapter.facts(logical, single).storage.aggregation.termsTopN
+            .assert().containsExactlyInAnyOrder(MetricSpec.COUNT, MetricSpec.DISTINCT_COUNT)
+        ElasticsearchQuerySchemaAdapter.facts(logical, ElasticsearchIndexMapping.from("test", mapping))
+            .storage.aggregation.termsTopN.assert().isEmpty()
+        // A name over several physical indices merges their top buckets as shards do.
+        ElasticsearchIndexMapping.common("alias", mapOf("a" to single, "b" to single)).singleShard.assert().isFalse()
+        ElasticsearchIndexMapping.common("alias", mapOf("a" to single)).singleShard.assert().isTrue()
     }
 
     @Test

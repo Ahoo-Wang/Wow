@@ -66,6 +66,20 @@ data class AggregationQuery(
         require(effectiveSort().size <= Sort.MAX_FIELDS) {
             "effective sort must contain at most ${Sort.MAX_FIELDS} fields."
         }
+        requireRootGroupsFirst()
+    }
+
+    /**
+     * With [elements], the groups of a ROOT scope lead the effective sort: a storage reads the root records' keys
+     * before the keys of their elements, so a root key nested under an element key has no native order.
+     */
+    private fun requireRootGroupsFirst() {
+        if (elements.isEmpty()) return
+        val root = groupBy.associate { it.alias to (it.scope == AggregationGroupScope.ROOT) }
+        val order = effectiveSort().mapNotNull { root[it.field.path] }
+        require(order.dropWhile { it }.none { it }) {
+            "groups with a ROOT scope must sort before the element groups."
+        }
     }
 
     override fun withFilter(newFilter: FilterExpression): AggregationQuery = copy(filter = newFilter)
@@ -119,6 +133,13 @@ sealed interface AggregationGroup {
     val field: QueryField?
     val alias: String
 
+    /**
+     * Where [field] is read when the query expands elements: `null` (the innermost element, relative to its container)
+     * or [AggregationGroupScope.ROOT] (a root field, by its absolute path), so a count of elements can be grouped by a
+     * field of the record they belong to, such as its creation day. Without elements both read the root.
+     */
+    val scope: AggregationGroupScope?
+
     /** Groups by the value of [field], or of [expression] when the group names one instead. */
     data class Terms(
         @get:JsonInclude(JsonInclude.Include.NON_NULL)
@@ -128,10 +149,13 @@ sealed interface AggregationGroup {
         val missingKey: String? = null,
         @get:JsonInclude(JsonInclude.Include.NON_NULL)
         val expression: AggregationExpression? = null,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val scope: AggregationGroupScope? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
             requireGroupInput(field, expression, "TERMS")
+            requireGroupScope(scope, expression, "TERMS")
             if (missingKey != null) {
                 require(missingKey.isNotBlank()) { "terms missingKey must not be blank." }
                 require(expression == null) { "terms missingKey requires a field input." }
@@ -148,10 +172,13 @@ sealed interface AggregationGroup {
         val interval: Double,
         @get:JsonInclude(JsonInclude.Include.NON_NULL)
         val expression: AggregationExpression? = null,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val scope: AggregationGroupScope? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
             requireGroupInput(field, expression, "HISTOGRAM")
+            requireGroupScope(scope, expression, "HISTOGRAM")
             require(interval.isFinite() && interval > 0.0) {
                 "histogram interval must be finite and greater than 0."
             }
@@ -165,6 +192,8 @@ sealed interface AggregationGroup {
         val timeZone: String = "UTC",
         @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = FalseValueFilter::class)
         val dense: Boolean = false,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val scope: AggregationGroupScope? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
@@ -184,6 +213,8 @@ sealed interface AggregationGroup {
         val timeZone: String = "UTC",
         @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = FalseValueFilter::class)
         val dense: Boolean = false,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val scope: AggregationGroupScope? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
@@ -651,6 +682,22 @@ enum class AggregationFunction {
     MAX,
     STDDEV,
     VARIANCE,
+}
+
+/** Where a group reads its field when the query expands elements; see [AggregationGroup.scope]. */
+enum class AggregationGroupScope {
+    /** The innermost element: the field is relative to its container. The meaning of an absent scope. */
+    ELEMENT,
+
+    /** The root record: the field is its absolute path. */
+    ROOT,
+}
+
+/** An expression's fields are relative to the innermost element, so a ROOT group names a field instead. */
+private fun requireGroupScope(scope: AggregationGroupScope?, expression: AggregationExpression?, type: String) {
+    require(scope != AggregationGroupScope.ROOT || expression == null) {
+        "$type with a ROOT scope requires a field input."
+    }
 }
 
 private fun requireGroupInput(field: QueryField?, expression: AggregationExpression?, type: String) {

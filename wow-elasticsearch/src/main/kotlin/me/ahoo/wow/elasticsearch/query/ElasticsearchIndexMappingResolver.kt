@@ -89,10 +89,16 @@ class ElasticsearchIndexMappingResolver(
         Mono.defer { elasticsearchClient.indices().getSettings(maxResultWindowRequest(indexName)) },
     ).map { responses ->
         val maxResultWindow = responses.t2.maxResultWindow()
+        val singleShard = responses.t2.singleShard()
         ElasticsearchIndexMapping.common(
             indexName,
             responses.t1.mappings().mapValues { (_, record) ->
-                ElasticsearchIndexMapping.from(indexName, record.mappings(), maxResultWindow = maxResultWindow)
+                ElasticsearchIndexMapping.from(
+                    indexName,
+                    record.mappings(),
+                    maxResultWindow = maxResultWindow,
+                    singleShard = singleShard,
+                )
             },
         )
     }
@@ -111,6 +117,7 @@ class ElasticsearchIndexMappingResolver(
             template.mappings() ?: TypeMapping.of { it },
             maxResultWindow = template.settings()?.declaredMaxResultWindow() ?: DEFAULT_MAX_RESULT_WINDOW,
             provisional = true,
+            singleShard = (template.settings()?.declaredShards() ?: 1) == 1,
         )
     }.onErrorResume(Throwable::isNoTemplateMatches) {
         Mono.just(ElasticsearchIndexMapping.from(indexName, TypeMapping.of { it }, provisional = true))
@@ -150,9 +157,16 @@ private fun Throwable.isNoTemplateMatches(): Boolean =
 internal const val DEFAULT_MAX_RESULT_WINDOW = 10_000
 
 private const val MAX_RESULT_WINDOW_SETTING = "index.max_result_window"
+private const val NUMBER_OF_SHARDS_SETTING = "index.number_of_shards"
 
 private fun maxResultWindowRequest(indexName: String): GetIndicesSettingsRequest =
-    GetIndicesSettingsRequest.of { it.index(indexName).name(MAX_RESULT_WINDOW_SETTING) }
+    GetIndicesSettingsRequest.of { it.index(indexName).name(MAX_RESULT_WINDOW_SETTING, NUMBER_OF_SHARDS_SETTING) }
+
+/** Whether the name is one physical index with one primary shard (Elasticsearch's default when none is declared). */
+private fun GetIndicesSettingsResponse.singleShard(): Boolean =
+    settings().size == 1 && (settings().values.single().settings()?.declaredShards() ?: 1) == 1
+
+private fun IndexSettings.declaredShards(): Int? = (index()?.numberOfShards() ?: numberOfShards())?.toIntOrNull()
 
 /** The window the index declares, or the default when it declares none; the narrowest over several indices. */
 private fun GetIndicesSettingsResponse.maxResultWindow(): Int = settings().values.minOfOrNull { state ->
@@ -175,6 +189,11 @@ data class ElasticsearchIndexMapping private constructor(
      * query of it answers nothing.
      */
     val provisional: Boolean,
+    /**
+     * Whether the name is one physical index with one primary shard. A `terms` aggregation ordered by a metric merges
+     * each shard's top buckets, so only then are its first groups exact.
+     */
+    val singleShard: Boolean = false,
 ) {
     val fieldCount: Int
         get() = fields.size
@@ -228,6 +247,7 @@ data class ElasticsearchIndexMapping private constructor(
             require(mappings.isNotEmpty()) { "Elasticsearch index [$indexName] resolved to no physical index." }
             val first = mappings.values.first()
             if (mappings.size == 1) return first
+            // Several physical indices merge their top buckets as shards do.
             val sources = mappings.mapValues { (_, mapping) ->
                 Triple(mapping.sourceEnabled, mapping.sourceIncludes, mapping.sourceExcludes)
             }
@@ -237,7 +257,7 @@ data class ElasticsearchIndexMapping private constructor(
             val fields = first.fields.filter { (path, field) ->
                 mappings.values.all { it.fields[path]?.mapsAlike(field) == true }
             }
-            return first.copy(fields = fields)
+            return first.copy(fields = fields, singleShard = false)
         }
 
         @Suppress(
@@ -248,6 +268,7 @@ data class ElasticsearchIndexMapping private constructor(
             typeMapping: TypeMapping,
             maxResultWindow: Int = DEFAULT_MAX_RESULT_WINDOW,
             provisional: Boolean = false,
+            singleShard: Boolean = false,
         ): ElasticsearchIndexMapping {
             val fields = linkedMapOf<String, ElasticsearchMappedField>()
             val aliases = linkedMapOf<String, String>()
@@ -309,6 +330,7 @@ data class ElasticsearchIndexMapping private constructor(
                 sourceExcludes = java.util.List.copyOf(typeMapping.source()?.excludes().orEmpty()),
                 maxResultWindow = maxResultWindow,
                 provisional = provisional,
+                singleShard = singleShard,
             )
         }
     }

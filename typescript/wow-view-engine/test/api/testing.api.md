@@ -173,6 +173,7 @@ interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    rootGroups?: boolean;
     windows?: AnalysisWindowFunction[];
 }
 
@@ -367,6 +368,7 @@ interface AnalysisSpec {
     having?: boolean;
     // (undocumented)
     limits?: AnalysisLimits;
+    rootGroups?: boolean;
 }
 
 // @public (undocumented)

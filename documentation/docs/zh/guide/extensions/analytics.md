@@ -63,3 +63,29 @@ pnpm --filter wow-analytics-console... build
 ## 控制台
 
 控制台读 CoSec 前端共用的 `cosec-token`（企业的单点登录存了它就直接登录），没有时粘贴企业签发的访问令牌。首页列出已发布的数据集与看板；打开一个数据集就是在它的工作台里开始分析；看板的面板可以读任意数据集。管理员多一个「数据集管理」页：从表起草、修订声明（范围里的租户列 `scope.tenant` 与标签列 `scope.tags`）、逐字段审核敏感性、发布与下线。
+
+## 演示
+
+仓库里的 `analytics/demo` 在一台机器上把整条链路跑起来：ClickHouse 里一张零售分析宽表（两年的订单明细，按省、市、渠道、品类，原地生成），经注册表起草、修订、审核（会员手机号打码）并发布为数据集「零售订单明细」，再给租户共享四个分析——各省 GMV 前三的城市（组内排名）、月度 GMV 较去年同期、各渠道 GMV 占比、上月 GMV 指标卡（较去年同期）。不需要 CoSec、Kafka 与 Redis：脚本用演示密钥签发令牌。
+
+先在仓库根目录构建控制台与发行包（镜像打包的就是它）：
+
+```bash
+pnpm --filter "wow-analytics-console..." build
+```
+
+```bash
+./gradlew :wow-analytics-server:installDist
+```
+
+再启动演示并发布数据集：
+
+```bash
+docker compose -f analytics/demo/compose.yaml up -d --build
+```
+
+```bash
+node analytics/demo/demo.mjs
+```
+
+打开 <http://localhost:8080/>，用脚本打印的令牌登录：`Analyst, every region` 看全部数据，`Analyst, the east alone` 只看华东的行（ABAC），`Admin` 还能进数据集管理页。集成测试 `RetailDemoTest` 用同一份 SQL、声明与审核跑通服务，并把每个分析与 ClickHouse 自己的 SQL 对数，演示坏了构建就会失败。

@@ -23,7 +23,9 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
@@ -47,9 +49,11 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.dsl.AggregationQueryDsl
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.list
@@ -862,6 +866,102 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .test()
             .assertNext { row -> row.path("count").longValue().assert().isEqualTo(1L) }
             .verifyComplete()
+    }
+
+    @Test
+    fun `a top N by a filtered count or a distinct count is one terms request, by a sum it stays residual`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        // One primary shard: the index the template creates. A residual top-N would read four groups.
+        val service = ElasticsearchSnapshotQueryBackendFactory(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+        ).target(MOCK_AGGREGATE_METADATA, querySchemaSources)
+        val budget = QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)
+        fun top(metric: AggregationQueryDsl.() -> Unit, direction: Sort.Direction = Sort.Direction.DESC) =
+            aggregation {
+                filter { deletion(DeletionState.ACTIVE) }
+                expand("state.orders")
+                expand("lines")
+                terms("productId", "product")
+                metric()
+                sort { if (direction == Sort.Direction.DESC) "m".desc() else "m".asc() }
+                limit(2)
+            }.let { query ->
+                Mono.defer { service.schemaProvider.schema() }.flatMapMany { schema ->
+                    service.backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema), budget)
+                }
+            }
+        fun rows(flux: Flux<ObjectNode>) = flux.collectList().block()!!
+            .map { it.path("product").asString() to it.path("m").asLong() }
+
+        // Lines of quantity 2 or more: alpha 1, beta 2, gamma 1, delta 1.
+        rows(top({ count("m") { "quantity" gte 2 } })).assert().containsExactly("beta" to 2L, "alpha" to 1L)
+        // Distinct quantities: alpha {1, 4}, beta {2}, gamma {3}, delta {5}; ties by product ascending.
+        rows(top({ distinctCount("quantity", "m") })).assert().containsExactly("alpha" to 2L, "beta" to 1L)
+        rows(top({ distinctCount("quantity", "m") { "quantity" gte 2 } }, Sort.Direction.ASC)).assert()
+            .containsExactly("alpha" to 1L, "beta" to 1L)
+        // A sum may be null in Wow where Elasticsearch says 0: still read by the core, so the bound applies.
+        top({ sum("quantity", "m") }).test().expectError().verify()
+    }
+
+    @Test
+    fun `root groups should page the outer buckets and key the nested element groups`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        // Two rows a page: the first page probes one root bucket, the next ones are sized from the widest seen.
+        val service = ElasticsearchSnapshotQueryBackendFactory(
+            elasticsearchClient = elasticsearchClient,
+            queryBatchSize = 2,
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
+        ).target(MOCK_AGGREGATE_METADATA, querySchemaSources)
+        fun rows(query: AggregationQuery, vararg aliases: String) = query.query(service).collectList().block()!!
+            .map { row -> aliases.map { row.path(it).asString() } }
+
+        rows(
+            aggregation {
+                filter { deletion(DeletionState.ACTIVE) }
+                expand("state.orders")
+                terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+                terms("status", "status")
+                count("orders")
+            },
+            "aggregate", "status", "orders",
+        ).assert().containsExactly(
+            listOf("aggregation-a", "CANCELLED", "1"),
+            listOf("aggregation-a", "PAID", "1"),
+            listOf("aggregation-b", "PAID", "1"),
+        )
+        // A long terms group and a histogram group key their rows as their composite sources would.
+        rows(
+            aggregation {
+                filter { deletion(DeletionState.ACTIVE) }
+                expand("state.orders")
+                expand("lines") { "productId" isIn listOf("alpha", "beta") }
+                terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+                histogram("quantity", 2.0, "band")
+                terms("quantity", "quantity")
+                count("lines")
+            },
+            "aggregate", "band", "quantity", "lines",
+        ).assert().containsExactly(
+            listOf("aggregation-a", "0.0", "1", "1"),
+            listOf("aggregation-a", "2.0", "2", "1"),
+            listOf("aggregation-b", "2.0", "2", "1"),
+            listOf("aggregation-b", "4.0", "4", "1"),
+        )
+        // Three products under aggregation-a exceed the two keys a page holds: the query fails, not truncates.
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("state.id", "aggregate", scope = AggregationGroupScope.ROOT)
+            terms("productId", "product")
+            count("lines")
+        }.query(service).test()
+            .expectErrorSatisfies { error ->
+                generateSequence(error) { it.cause }.any { it.message?.contains("under one root group") == true }
+                    .assert().isTrue()
+            }.verify()
     }
 
     @Test

@@ -121,6 +121,11 @@ data class AggregationLimitsDescriptor(
     val maxLimit: Int,
     val maxExpressionDepth: Int,
     val maxExpressionNodes: Int,
+    /**
+     * The most groups an aggregation may read when the core computes part of it (HAVING, top-N by a metric, dense
+     * fill or windows the storage declares RESIDUAL), beyond which the query fails; `null` is unlimited.
+     */
+    val maxResidualGroups: Int? = null,
 )
 
 data class AnalysisDescriptor(
@@ -151,6 +156,11 @@ data class AnalysisDescriptor(
     val firstLastOrderBy: String? = null,
     /** The window functions a derived metric may compute over the groups; empty when DERIVED is not offered. */
     val windows: List<WindowFunction> = emptyList(),
+    /**
+     * Whether a group of a query that expands elements may read a root field (`scope: ROOT`); `false` where the
+     * storage cannot group elements by their record's fields.
+     */
+    val rootGroups: Boolean = false,
 )
 
 data class HavingDescriptor(val metrics: List<String>)

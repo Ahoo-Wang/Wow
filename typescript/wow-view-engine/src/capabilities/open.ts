@@ -141,6 +141,8 @@ export function describedAnalysis(
   }
   if (choose(spec.having, offered.having.metrics.length > 0, 'having'))
     capability.having = true;
+  if (choose(spec.rootGroups, offered.rootGroups === true, 'rootGroups'))
+    capability.rootGroups = true;
   if (spec.limits) capability.limits = spec.limits;
   return capability;
 }

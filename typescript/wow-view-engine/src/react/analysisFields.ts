@@ -61,6 +61,46 @@ export function fieldOptions(
   scope: AnalysisScope,
   kinds: FieldKindRegistry | undefined,
 ): AnalysisFieldOption[] {
+  return [...elementOptions(scope, kinds), ...rootGroupOptions(scope, kinds)];
+}
+
+/**
+ * The root fields a dimension may name while the config expands elements
+ * (`rootAggregations`, D92): a dimension only, never a metric's input.
+ */
+function rootGroupOptions(
+  scope: AnalysisScope,
+  kinds: FieldKindRegistry | undefined,
+): AnalysisFieldOption[] {
+  return scope.rootFields.flatMap(field => {
+    const aggregation = scope.rootAggregations.get(field.name);
+    if (!aggregation || aggregation.groups.length === 0) return [];
+    return [
+      {
+        field: field.name,
+        label: field.label,
+        groups: aggregation.groups,
+        functions: [],
+        dateUnits: aggregation.dateUnits ?? [],
+        dateParts: datePartsOf(aggregation),
+        distinctCount: false,
+        percentile: false,
+        any: false,
+        firstLast: false,
+        missingKey:
+          aggregation.missingKey !== false &&
+          isSingleStringField(field, kinds?.get(field.kind)),
+        expressionInput: false,
+        cell: field.cell ?? field.kind,
+      },
+    ];
+  });
+}
+
+function elementOptions(
+  scope: AnalysisScope,
+  kinds: FieldKindRegistry | undefined,
+): AnalysisFieldOption[] {
   return [...scope.fields.values()].map((field: FieldDefinition) => {
     const aggregation = scope.aggregations.get(field.name);
     return {

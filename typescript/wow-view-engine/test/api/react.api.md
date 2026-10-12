@@ -125,6 +125,7 @@ interface AnalysisCapability {
     // (undocumented)
     limits?: AnalysisLimits;
     metricSort?: boolean;
+    rootGroups?: boolean;
     windows?: AnalysisWindowFunction[];
 }
 
@@ -488,6 +489,7 @@ interface AnalysisScope {
     elements: AnalysisScopeElement[];
     fields: Map<string, FieldDefinition>;
     reachable: Map<string, FieldDefinition>;
+    rootAggregations: Map<string, AggregationFieldCapability>;
     rootFields: FieldDefinition[];
 }
 
@@ -520,6 +522,7 @@ interface AnalysisSpec {
     having?: boolean;
     // (undocumented)
     limits?: AnalysisLimits;
+    rootGroups?: boolean;
 }
 
 // @public (undocumented)
