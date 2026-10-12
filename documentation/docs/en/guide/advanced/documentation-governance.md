@@ -52,7 +52,7 @@ Module READMEs, package design documents and Skill instructions are not competin
 
 ### Design records
 
-A design record explains why the code is shaped the way it is: the problem, constraints, compatibility boundary, decision and rejected alternatives. Records that span JVM modules go to `documentation/designs/` as `YYYY-MM-DD-<topic>-design.md`; the design of a single TypeScript package or application stays in its `docs/design/`.
+A design record explains why the code is shaped the way it is: the problem, constraints, compatibility boundary, decision and rejected alternatives. Records that span JVM modules go to `documentation/designs/` as `YYYY-MM-DD-<topic>-design.md`; the design of a single TypeScript package or application stays in its `docs/design/`. A major version redesigned as a whole keeps its records together in `documentation/designs/v<major>/`: a `README.md` index, the architecture overview and its topic records, a `roadmap.md` of milestones, and a `decisions.md` ledger of open and settled decisions. That directory is flat.
 
 - The header states the date, the source baseline and the status: proposed, accepted, implementing, implemented, or superseded.
 - When the implementation lands, update the status, and move every user-visible contract to its site page. The site may link a record for rationale; it never depends on one for the contract itself.

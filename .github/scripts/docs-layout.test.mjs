@@ -16,6 +16,7 @@ const allowed = [
   'wow-core/README.zh-CN.md',
   'documentation/docs/en/guide/index.md',
   'documentation/designs/2026-10-09-wow-bi-refactor-design.md',
+  'documentation/designs/v10/README.md',
   'typescript/wow-view-engine/docs/design/ui/theme.md',
   'compensation/dashboard/docs/design/console-redesign.md',
   'typescript/storybook/docs/scenarios.md',
@@ -64,6 +65,7 @@ test('Markdown outside the canonical locations fails', () => {
     'typescript/storybook/docs/review2/r1.md',
     'compensation/dashboard/design-qa.md',
     'documentation/designs/archive/old-design.md',
+    'documentation/designs/v10/notes/a.md',
     'typescript/wow-client/docs/superpowers/plans/a.md',
     'wow-core/src/main/kotlin/NOTES.md',
   ])

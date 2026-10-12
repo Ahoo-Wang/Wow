@@ -29,7 +29,7 @@ export const MARKDOWN_LOCATIONS = [
   /(?:^|\/)README(?:\.zh-CN)?\.md$/,
   // The documentation site and design records spanning JVM modules.
   /^documentation\/docs\//,
-  /^documentation\/designs\/[^/]+\.md$/,
+  /^documentation\/designs\/(?:v\d+\/)?[^/]+\.md$/,
   // The design of one TypeScript package or application.
   /^(?:typescript\/[^/]+|compensation\/dashboard)\/docs\/design\//,
   // Storybook's scenario catalog, which the stories cite by section.
