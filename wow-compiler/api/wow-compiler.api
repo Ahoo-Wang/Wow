@@ -101,11 +101,6 @@ public final class me/ahoo/wow/compiler/metadata/WowMetadataMerger {
 	public final fun merge (Lme/ahoo/wow/configuration/WowMetadata;)V
 }
 
-public final class me/ahoo/wow/compiler/model/ModelSymbolProcessorProvider : com/google/devtools/ksp/processing/SymbolProcessorProvider {
-	public fun <init> ()V
-	public fun create (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)Lcom/google/devtools/ksp/processing/SymbolProcessor;
-}
-
 public final class me/ahoo/wow/compiler/query/PropertyNav {
 	public static final field Companion Lme/ahoo/wow/compiler/query/PropertyNav$Companion;
 	public static final field NAV_DELIMITER Ljava/lang/String;

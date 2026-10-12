@@ -53,7 +53,7 @@ dependencies {
     fixtureCompileClasspath(project(":kernel"))
     fixtureCompileClasspath("com.fasterxml.jackson.core:jackson-annotations")
     fixtureCompileClasspath(platform(project(":wow-dependencies")))
-    fixtureProcessorClasspath(project(":wow-compiler"))
+    fixtureProcessorClasspath(project(":compiler"))
     fixtureProcessorClasspath(platform(project(":wow-dependencies")))
     fixtureToolsClasspath(project(":manifest-tools"))
 }

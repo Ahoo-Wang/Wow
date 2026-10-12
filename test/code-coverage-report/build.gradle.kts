@@ -57,6 +57,10 @@ fun mainSourceSets(projects: Iterable<Project>) = projects.map { project ->
     project.extensions.getByType<SourceSetContainer>().named(SourceSet.MAIN_SOURCE_SET_NAME)
 }
 
+// D85: the V10 wow-api (:api) declares 14 annotations under the names 9.x wow-api keeps, and JaCoCo refuses two
+// different classes of one name. Annotations hold no code to cover, so the reports leave out :api's.
+val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/**"))
+
 fun JacocoReport.useCoverageData(
     projects: Iterable<Project>,
     testTasks: Iterable<TaskProvider<Test>>,
@@ -68,8 +72,10 @@ fun JacocoReport.useCoverageData(
         },
     )
     classDirectories.setFrom(
-        mainSourceSets(projects).map { sourceSet ->
-            sourceSet.map { it.output.classesDirs }
+        projects.map { project ->
+            val classesDirs = mainSourceSets(listOf(project)).single().map { it.output.classesDirs }
+            val shared = classesSharedWithNineX[project.path]
+            if (shared == null) classesDirs else files(classesDirs).asFileTree.matching { exclude(shared) }
         },
     )
     executionData.setFrom(

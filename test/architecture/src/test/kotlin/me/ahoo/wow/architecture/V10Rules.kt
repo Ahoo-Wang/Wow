@@ -22,6 +22,7 @@ data class V10Module(val name: String, val dir: String)
  * The V10 architecture rules (documentation/designs/v10/06-modules.md §3 and 07-migration.md §4).
  */
 object V10Rules {
+    val API = V10Module("api", "api/api")
     val MANIFEST = V10Module("manifest", "api/manifest")
     val QUERY_API = V10Module("query-api", "api/query-api")
     val SPI = V10Module("spi", "core/spi")
@@ -29,37 +30,43 @@ object V10Rules {
     val RUNTIME = V10Module("runtime", "core/runtime")
     val REACTOR = V10Module("reactor", "core/reactor")
     val POSTGRES = V10Module("postgres", "backends/postgres")
+    val MONGO = V10Module("mongo", "backends/mongo")
     val HTTP = V10Module("http", "edge/http")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
+    val COMPILER = V10Module("compiler", "compiler/compiler")
     val GRADLE_PLUGIN = V10Module("gradle-plugin", "compiler/gradle-plugin")
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
     val MODULES = listOf(
-        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, HTTP, SPRING_BOOT, MIGRATE_DATA, GRADLE_PLUGIN,
-        MANIFEST_TOOLS,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, SPRING_BOOT, MIGRATE_DATA,
+        COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
 
-    /** The modules an application runs with; the Gradle plugin and its tools run in the build only. */
-    val RUNTIME_MODULES = MODULES - GRADLE_PLUGIN - MANIFEST_TOOLS
+    /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
+    val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
 
     /**
-     * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-api, is a
-     * 9.x module V10 still builds on until it is rewritten in place.
+     * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-query, is a
+     * 9.x module V10 still builds on until its V10 module replaces it (decision D85).
      */
     val ALLOWED_PROJECT_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
+        API to emptySet(),
         MANIFEST to emptySet(),
         QUERY_API to emptySet(),
-        SPI to setOf("wow-api"),
+        SPI to setOf("api"),
         KERNEL to setOf("spi", "manifest"),
         RUNTIME to setOf("kernel"),
         REACTOR to setOf("runtime"),
         POSTGRES to setOf("spi", "wow-query"),
+        MONGO to setOf("spi"),
         HTTP to setOf("runtime", "wow-query"),
         SPRING_BOOT to setOf("runtime", "http"),
         MIGRATE_DATA to setOf("kernel"),
-        // wow-compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
-        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "wow-compiler", "wow-dependencies"),
+        // kernel and reactor only for the tests, which compile the generated models.
+        COMPILER to setOf("api", "manifest", "kernel", "reactor"),
+        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
+        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
         MANIFEST_TOOLS to setOf("manifest", "kernel"),
     )
@@ -123,28 +130,21 @@ object V10Rules {
         forbidden = listOf("com.github.victools"),
     )
 
-    /** The directory of wow-api, a 9.x module that V10 rewrites in place (06 §2.1, decision D66). */
-    const val API_DIR = "wow-api"
-
-    /** The V10 packages of wow-api; `annotation` is not one of them, since it is shared with 9.x until wow-core goes. */
-    val V10_API_PACKAGES = listOf("aggregate", "decide", "subscribe", "result").map { "me.ahoo.wow.api.$it" }
-
-    /** The 9.x parts of wow-api, deleted with wow-core (or, for `query`, moved to wow-query-api in M9). */
+    /** The 9.x parts of 9.x wow-api that the V10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9). */
     private val API_9X = listOf(
         "abac", "command", "event", "exception", "messaging", "modeling", "naming", "query", "serialization",
         "Copyable", "Identifier", "Ordered", "Version", "Wow",
     ).map { "me.ahoo.wow.api.$it" }
 
     /**
-     * wow-api's V10 packages have no runtime dependency and do not build on its 9.x parts (06 §3, decision D66): they
-     * must outlive both.
+     * wow-api has no runtime dependency (06 §3, decision D66) and does not build on the 9.x parts of 9.x wow-api,
+     * which go with 9.x.
      */
-    val V10_API_STANDS_ALONE = DependencyRule(
-        name = "the V10 packages of wow-api import no framework and no 9.x part of wow-api",
-        modules = listOf(API_DIR),
-        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS +
-            listOf("tools.jackson", "com.fasterxml", "kotlinx.coroutines") + API_9X,
-        appliesToPackage = { it in V10_API_PACKAGES },
+    val API_STANDS_ALONE = DependencyRule(
+        name = "wow-api imports no framework, no JSON library, no kotlinx and no 9.x part of wow-api",
+        modules = listOf(API.dir),
+        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS + listOf("tools.jackson", "com.fasterxml", "kotlinx") +
+            API_9X,
     )
 
     val DEPENDENCY_RULES = listOf(
@@ -153,7 +153,7 @@ object V10Rules {
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
         SCHEMA_GENERATION_AT_BUILD_TIME,
-        V10_API_STANDS_ALONE,
+        API_STANDS_ALONE,
     )
 
     private val PROJECT_DEPENDENCY = Regex("""project\(\s*":([\w-]+)"\s*\)""")
@@ -163,6 +163,93 @@ object V10Rules {
         PROJECT_DEPENDENCY.findAll(File(repositoryRoot, "${module.dir}/build.gradle.kts").readText())
             .map { it.groupValues[1] }
             .toSet()
+
+    /**
+     * The V10 modules that replace a 9.x module of the same artifact (decision D85): the V10 project and the 9.x one
+     * it replaces. Both define the same packages, so no project may reach both.
+     */
+    val REPLACED_9X: Map<String, String> = mapOf(
+        "api" to "wow-api",
+        "compiler" to "wow-compiler",
+        "mongo" to "wow-mongo",
+    )
+
+    /**
+     * Projects allowed to reach both sides of [REPLACED_9X] (decision D90): spike H3 measures the V10 kernel against
+     * the 9.x one on the same JVM.
+     */
+    val BOTH_SIDES_EXEMPT: Set<String> = setOf("kernel-benchmarks")
+
+    private val SETTINGS_INCLUDE = Regex("""include\(\s*"(:?)([\w-]+)"\s*\)""")
+    private val SETTINGS_PROJECT_DIR = Regex("""project\(":([\w-]+)"\)\.projectDir\s*=\s*file\("([^"]+)"\)""")
+
+    /** Every project `settings.gradle.kts` includes, with its directory relative to the repository root. */
+    fun settingsProjects(repositoryRoot: File): Map<String, String> {
+        val settings = File(repositoryRoot, "settings.gradle.kts").readText()
+        val dirs = SETTINGS_PROJECT_DIR.findAll(settings).associate { it.groupValues[1] to it.groupValues[2] }
+        return SETTINGS_INCLUDE.findAll(settings)
+            .map { it.groupValues[2] }
+            .associateWith { dirs[it] ?: it }
+    }
+
+    /** The project dependencies every project's build script declares, in any configuration. */
+    fun projectGraph(repositoryRoot: File): Map<String, Set<String>> =
+        settingsProjects(repositoryRoot).mapValues { (_, dir) ->
+            val buildScript = File(repositoryRoot, "$dir/build.gradle.kts")
+            if (buildScript.isFile) {
+                PROJECT_DEPENDENCY.findAll(buildScript.readText()).map { it.groupValues[1] }.toSet()
+            } else {
+                emptySet()
+            }
+        }
+
+    /** [project] and every project it reaches through [graph]. */
+    fun reachable(graph: Map<String, Set<String>>, project: String): Set<String> {
+        val reached = linkedSetOf(project)
+        val pending = ArrayDeque(listOf(project))
+        while (pending.isNotEmpty()) {
+            graph[pending.removeFirst()].orEmpty().filter { reached.add(it) }.forEach { pending.addLast(it) }
+        }
+        return reached
+    }
+
+    /**
+     * No project reaches both a V10 module and the 9.x module it replaces (decisions D85, D90), directly or
+     * transitively: their classes share names, so one would shadow the other. Only [BOTH_SIDES_EXEMPT] may.
+     */
+    fun bothSidesViolations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        return graph.keys.sorted()
+            .filterNot { it in BOTH_SIDES_EXEMPT }
+            .flatMap { project ->
+                val reached = reachable(graph, project)
+                REPLACED_9X.filter { (v10, nineX) -> v10 in reached && nineX in reached }
+                    .map { (v10, nineX) -> "$project reaches both :$v10 and :$nineX" }
+            }
+    }
+
+    private val V10_REGION = Regex("""(?ms)^//region v10\b(.*?)^//endregion""")
+
+    /** The projects `settings.gradle.kts` includes in its `//region v10`: the V10 modules, spikes and tests. */
+    fun v10SettingsProjects(repositoryRoot: File): Set<String> {
+        val settings = File(repositoryRoot, "settings.gradle.kts").readText()
+        val region = requireNotNull(V10_REGION.find(settings)) { "settings.gradle.kts has no //region v10." }
+        return SETTINGS_INCLUDE.findAll(region.groupValues[1]).map { it.groupValues[2] }.toSet()
+    }
+
+    /**
+     * No 9.x project depends on a V10 project (decision D85), directly or transitively: 9.x builds, tests and
+     * publishes as it does on main, and V10 can change without touching it.
+     */
+    fun nineXOnV10Violations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        val v10 = v10SettingsProjects(repositoryRoot)
+        return graph.keys.sorted()
+            .filterNot { it in v10 }
+            .flatMap { project ->
+                reachable(graph, project).filter { it in v10 }.sorted().map { "$project reaches :$it" }
+            }
+    }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")
 
