@@ -13,14 +13,32 @@
 
 package me.ahoo.wow.api.annotation
 
+import me.ahoo.wow.api.lifecycle.ApplyTags
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.lifecycle.RestoreAggregate
+import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.lifecycle.TransferSpace
 import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
 /**
  * An aggregate root (V10, design 01 §3): the compiler turns it into an aggregate model, with its command functions
  * ([OnCommand] or named `onCommand`), its state's sourcing functions ([OnSourcing] or named `onSourcing`) and its
  * [AfterCommand] hooks. The aggregate is named by its [Name], or by its simple name in `snake_case`.
+ *
+ * [lifecycle] lists the lifecycle commands (`me.ahoo.wow.api.lifecycle`, design 01 §6) the aggregate handles, every
+ * one by default; an empty list enables none (decision D91). The compiler rejects a class that is not a lifecycle
+ * command, passes the list to the model's `lifecycle(...)` and writes it into the Manifest.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
-annotation class AggregateRoot
+annotation class AggregateRoot(
+    val lifecycle: Array<KClass<*>> = [
+        DeleteAggregate::class,
+        RestoreAggregate::class,
+        TransferOwner::class,
+        TransferSpace::class,
+        ApplyTags::class,
+    ],
+)

@@ -39,20 +39,29 @@ internal data class AggregateBinding(
     /** The root's `@Description`. */
     val description: String?,
     /**
-     * The system names of the lifecycle commands the model handles (design 01 §6). The annotations cannot narrow
-     * them, so it is every one, as the kernel enables by default; only `configure` can call `lifecycle(...)`, which
-     * the processor cannot see.
+     * The system names of the lifecycle commands the model handles (design 01 §6), sorted: those of
+     * `@AggregateRoot(lifecycle)` (decision D91), every one by default, as the kernel enables. `configure` can still
+     * call `lifecycle(...)`, which the processor cannot see.
      */
     val lifecycle: List<String> = ALL_LIFECYCLE_COMMANDS,
 ) {
+    /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
+    val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
+
+    /** The name of the generated model factory, `<root>Model`. */
+    val factoryName: String get() = rootSimpleName.replaceFirstChar { it.lowercase() } + "Model"
+
     companion object {
         /** Every lifecycle command, by its system name, sorted. */
         val ALL_LIFECYCLE_COMMANDS: List<String> = Lifecycle.COMMANDS.keys.sorted()
     }
 }
 
-/** A dependency of the root's functions: a factory parameter [name] of [type]. */
-internal data class Dependency(val name: String, val type: String)
+/**
+ * A dependency of the root's functions: a factory parameter [name] of [type], whose class (without type arguments)
+ * is [erasure].
+ */
+internal data class Dependency(val name: String, val type: String, val erasure: String = type)
 
 internal data class CommandBinding(
     val command: String,

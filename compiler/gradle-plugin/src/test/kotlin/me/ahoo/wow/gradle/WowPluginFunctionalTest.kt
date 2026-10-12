@@ -17,7 +17,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.MissingDependencyException
+import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
@@ -34,6 +37,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.lang.reflect.Proxy
 import java.net.URLClassLoader
 import java.util.zip.ZipFile
 
@@ -124,7 +128,13 @@ class WowPluginFunctionalTest {
         result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments(":shop:${WowPlugin.MERGE_TASK}", ":shop:jar", ":shop:probeBuildClasspath", "--stacktrace")
+            .withArguments(
+                ":shop:${WowPlugin.MERGE_TASK}",
+                ":shop:jar",
+                ":billing:jar",
+                ":shop:probeBuildClasspath",
+                "--stacktrace",
+            )
             .forwardOutput()
             .build()
     }
@@ -139,6 +149,7 @@ class WowPluginFunctionalTest {
             import me.ahoo.wow.api.annotation.AggregateRoot
             import me.ahoo.wow.api.annotation.BoundedContext
             import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.lifecycle.DeleteAggregate
 
             @BoundedContext(name = "billing")
             object BillingContext
@@ -147,9 +158,15 @@ class WowPluginFunctionalTest {
             data class OpenAccount(val holder: String)
             data class AccountOpened(val holder: String)
 
-            @AggregateRoot
+            /** A domain service the host provides. */
+            interface Holders {
+                fun normalize(holder: String): String
+            }
+
+            @AggregateRoot(lifecycle = [DeleteAggregate::class])
             class Account(private val state: AccountState) {
-                fun onCommand(command: OpenAccount): AccountOpened = AccountOpened(command.holder)
+                fun onCommand(command: OpenAccount, holders: Holders): AccountOpened =
+                    AccountOpened(holders.normalize(command.holder))
             }
 
             class AccountState(val id: String) {
@@ -317,10 +334,53 @@ class WowPluginFunctionalTest {
     }
 
     @Test
-    fun `the merged manifest should list every aggregate's lifecycle commands`() {
+    fun `the merged manifest should list every aggregate's lifecycle commands, as @AggregateRoot narrows them`() {
         val lifecycle = Lifecycle.COMMANDS.keys.sorted()
         manifest().contexts.flatMap { context -> context.aggregates.map { "${context.name}.${it.name}" to it.lifecycle } }
-            .assert().containsExactly("billing.account" to lifecycle, "shop.cart" to lifecycle)
+            .assert().containsExactly(
+                "billing.account" to listOf(Lifecycle.DELETE_AGGREGATE),
+                "shop.cart" to lifecycle,
+            )
+    }
+
+    /** The modules' jars, as the service's class path holds them. */
+    private fun <T> withJars(block: (ClassLoader) -> T): T {
+        val jars = listOf("shop", "billing").map { File(projectDir, "$it/build/libs/$it.jar").toURI().toURL() }
+        return URLClassLoader(jars.toTypedArray(), javaClass.classLoader).use(block)
+    }
+
+    @Test
+    fun `the jars' model providers should build their models through ServiceLoader`() {
+        val (loaded, account) = withJars { loader ->
+            val providers = ModelProvider.load(loader)
+            // The domain service the billing model takes: it upper-cases the holder.
+            val dependencies = Dependencies { type, _ ->
+                Proxy.newProxyInstance(
+                    loader,
+                    arrayOf(type)
+                ) { _, _, arguments -> (arguments[0] as String).uppercase() }
+            }
+            val models = providers.associate { it.fragment to it.models(dependencies).map { model -> model.type.toString() } }
+            val billing = providers.single { it.context == "billing" }.models(dependencies).single()
+            models to billing.lifecycleCommands.map { it.simpleName }
+        }
+        loaded.assert().isEqualTo(
+            mapOf(
+                "${Manifest.FRAGMENT_DIRECTORY}/billing.json" to listOf("billing.account"),
+                "${Manifest.FRAGMENT_DIRECTORY}/shop.json" to listOf("shop.cart"),
+            ),
+        )
+        account.assert().containsExactly("DeleteAggregate")
+    }
+
+    @Test
+    fun `a model provider should fail without the domain service its models take`() {
+        val error = withJars { loader ->
+            val billing = ModelProvider.load(loader).single { it.context == "billing" }
+            runCatching { billing.models(Dependencies.NONE) }.exceptionOrNull()
+        }
+        error.assert().isInstanceOf(MissingDependencyException::class.java)
+        (error as MissingDependencyException).type.name.assert().isEqualTo("billing.Holders")
     }
 
     @Test

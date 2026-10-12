@@ -43,6 +43,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import tools.jackson.databind.json.JsonMapper
@@ -83,7 +84,12 @@ import tools.jackson.databind.json.JsonMapper
  * [ManifestFragmentBuilder]): `META-INF/wow/manifest/<module>.json` holds the module's aggregates and subscriptions
  * under its bounded context, with schemas left as references for the build to fill in. The KSP option
  * `wow.context` names the context (else the module's one `@BoundedContext` does; with neither, no fragment is
- * written), and `wow.manifest.module` names the file (else the context does).
+ * written), and `wow.manifest.module` names the file (else the context does). Beside the fragment goes the module's
+ * binding index (decision D107, [ModelProviderSource]): a `ModelProvider` that builds every model of the module with
+ * the factories' parameters from the host's `Dependencies`, registered in `META-INF/services` for `ServiceLoader`.
+ *
+ * `@AggregateRoot(lifecycle = [...])` narrows the lifecycle commands a model handles (decision D91): the generated
+ * model calls `lifecycle(...)` with them before `configure`, and the fragment lists them.
  */
 internal class ModelSymbolProcessor(
     private val mode: Mode,
@@ -109,6 +115,9 @@ internal class ModelSymbolProcessor(
     private val subscriptions = mutableListOf<SubscriptionBinding>()
     private val sources = mutableSetOf<KSFile>()
 
+    /** The packages of the module's aggregate roots and subscription processors, where its binding index goes. */
+    private val packages = sortedSetOf<String>()
+
     /** The `@BoundedContext`s of the module: name to description. */
     private val boundedContexts = sortedMapOf<String, String>()
 
@@ -125,6 +134,7 @@ internal class ModelSymbolProcessor(
         val deferred = roots.filterNot { it.validate() }
         val analyzed = roots.filter { it.validate() }.map { root ->
             root.containingFile?.let { sources += it }
+            packages += root.packageName.asString()
             root to analyze(root)
         }
         // Former names two types claim are found across the module, the aggregates of earlier rounds included.
@@ -178,6 +188,7 @@ internal class ModelSymbolProcessor(
         val deferred = processors.filterNot { it.validate() }
         processors.filter { it.validate() }.forEach { processor ->
             processor.containingFile?.let { sources += it }
+            packages += processor.packageName.asString()
             val binding = SubscriptionResolver.resolve(processor, REACTOR_TYPES)
             subscriptions += binding
             if (mode == Mode.GENERATE) {
@@ -230,8 +241,9 @@ internal class ModelSymbolProcessor(
         val context = context()
         if (context == null) {
             logger.warn(
-                "No Manifest fragment: the module declares ${boundedContexts.size} @BoundedContext; set the KSP " +
-                    "option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name its bounded context",
+                "No Manifest fragment and no model provider: the module declares ${boundedContexts.size} " +
+                    "@BoundedContext; set the KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name " +
+                    "its bounded context",
             )
             return
         }
@@ -243,6 +255,27 @@ internal class ModelSymbolProcessor(
             "${Manifest.FRAGMENT_DIRECTORY}/$module",
             "json",
         ).bufferedWriter().use { it.write(FRAGMENT_WRITER.writeValueAsString(ManifestTree.write(fragment))) }
+        writeModelProvider(context, "${Manifest.FRAGMENT_DIRECTORY}/$module.json", module)
+    }
+
+    /**
+     * Writes the module's binding index (decision D107, [ModelProviderSource]) beside its fragment, and registers it
+     * for `ServiceLoader` in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`.
+     */
+    private fun writeModelProvider(context: String, fragment: String, module: String) {
+        val packageName = ModelProviderSource.commonPackage(packages)
+        val className = ModelProviderSource.className(module)
+        val dependencies = Dependencies(aggregating = true, sources = sources.toTypedArray())
+        codeGenerator.createNewFile(dependencies, packageName, className).bufferedWriter().use {
+            it.write(ModelProviderSource.render(packageName, className, context, fragment, bindings))
+        }
+        codeGenerator.createNewFileByPath(
+            dependencies,
+            "META-INF/services/${ModelProviderSource.MODEL_PROVIDER}",
+            "",
+        ).bufferedWriter().use {
+            it.write((if (packageName.isEmpty()) className else "$packageName.$className") + "\n")
+        }
     }
 
     @OptIn(KspExperimental::class)
@@ -292,7 +325,30 @@ internal class ModelSymbolProcessor(
             problems = problems,
             stateType = state.binaryName(),
             description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
+            lifecycle = lifecycle(root, problems),
         )
+    }
+
+    /**
+     * The system names of the lifecycle commands `@AggregateRoot(lifecycle)` lists (decision D91), sorted; a class
+     * that is not a lifecycle command is a problem. Without the argument, every one.
+     */
+    private fun lifecycle(root: KSClassDeclaration, problems: MutableList<String>): List<String> {
+        val annotation = root.annotations.firstOrNull {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
+        }
+        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == LIFECYCLE }?.value as? List<*>
+            ?: return AggregateBinding.ALL_LIFECYCLE_COMMANDS
+        val commands = LIFECYCLE_COMMANDS
+        return listed.filterIsInstance<KSType>().mapNotNull { type ->
+            val name = type.declaration.qualifiedName?.asString()
+            commands[name].also {
+                if (it == null) {
+                    problems += "@AggregateRoot(lifecycle) lists $name, which is not a lifecycle command: one of " +
+                        commands.keys.sorted().joinToString { command -> command.substringAfterLast('.') }
+                }
+            }
+        }.distinct().sorted()
     }
 
     /** The problems of the `@Alias` values of the aggregate's commands and events ([AliasCheck]). */
@@ -437,7 +493,7 @@ internal class ModelSymbolProcessor(
         return dependencies.getOrPut(rendered) {
             val simple = type.declaration.simpleName.asString().replaceFirstChar { it.lowercase() }
             val unique = if (dependencies.values.any { it.name == simple }) simple + dependencies.size else simple
-            Dependency(unique, rendered)
+            Dependency(unique, rendered, type.declaration.qualifiedName!!.asString())
         }.name
     }
 
@@ -544,6 +600,12 @@ internal class ModelSymbolProcessor(
 
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
+        const val LIFECYCLE = "lifecycle"
+
+        /** The lifecycle commands' system names, by their classes' names. */
+        val LIFECYCLE_COMMANDS: Map<String, String> = Lifecycle.COMMANDS.entries.associate { (name, type) ->
+            type.name to name
+        }
         val BOUNDED_CONTEXT = BoundedContext::class.java.name
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
