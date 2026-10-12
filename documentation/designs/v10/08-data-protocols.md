@@ -37,7 +37,7 @@ data class Command<C : Any>(
     val scope: Scope = Scope.NONE,    // 准入得到的调用方作用域（D49、D56）
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null, // 新增：因果链（§4）
-    val wait: WaitPlan = WaitPlan.COMMITTED, // 新增：等待计划（D15、D61～D64），默认 COMMITTED；只留在发起节点
+    val wait: WaitPlan = WaitPlan.SNAPSHOT, // 新增：等待计划（D61～D64、D69），默认等快照；只留在发起节点
 )
 ```
 

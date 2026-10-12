@@ -55,10 +55,15 @@ subscription("cart-projection") {
 | 阶段 | 含义 | 9.x 对应 |
 |---|---|---|
 | `ACCEPTED` | 通过准入；只有经 Kafka 路由才表示持久 | SENT |
-| `COMMITTED`（默认） | 已追加到日志 | PROCESSED |
-| `HANDLED(context.subscription)` | 指定订阅已处理这次提交；订阅可以在任何上下文 | SNAPSHOT、PROJECTED、EVENT_HANDLED、SAGA_HANDLED |
+| `COMMITTED` | 已追加到日志 | PROCESSED |
+| `HANDLED(context.subscription)` | 指定订阅已处理这次提交；订阅可以在任何上下文。`SNAPSHOT` 即 `HANDLED(snapshot)`，**是默认**（D69） | SNAPSHOT、PROJECTED、EVENT_HANDLED、SAGA_HANDLED |
 
 - **阶段只有三个**（D61）：快照由内置订阅 `snapshot` 写入，`SNAPSHOT` 只是 `HANDLED(snapshot)` 的简写；订阅的种类（投影、React、Saga）由 Manifest 给出，不再各占一个阶段。
+- **默认等待快照**（D69）：快照是默认读模型（A6），命令返回时快照已写到这次提交的版本，调用方紧接着查询就能读到自己的写入。代价：
+  - 延迟多出快照订阅的处理时间（同批同聚合合并写入，[03](03-log-and-snapshot.md) §3）。
+  - 每条条目都要写 `WaitContext`（D25 的「只在超出 `COMMITTED` 时写」因此成为常态，约百余字节的传输段）。
+  - 快照订阅停放或落后时，默认等待会超时；超时结果说明已到 `COMMITTED`，调用方知道事实已提交。
+  - 某个聚合关闭了快照（[03](03-log-and-snapshot.md) §3「按聚合可关闭」）时，它的默认等待退回 `COMMITTED`。
 - **等待目标是一条链**（D62）：每一跳是（上下文，阶段，订阅），链上的命令用根命令 ID（`correlationId`，[08](08-data-protocols.md) §4）关联。例如「订单 `COMMITTED` → 支付上下文的 Saga 已处理 → 它派生的命令在库存上下文 `COMMITTED`」。
   - 只有 **Saga 跳**之后还能接跳，后面的跳作用于该 Saga 从这次提交派生的命令；投影与 React 跳必须是最后一跳。最多 4 跳。准入按 Manifest 校验链，不合法直接拒绝，不等到超时。
   - Saga 跳的信号带上派生命令的 ID 列表（`CommandResult.derived`），派生的命令**全部**到达下一跳才算完成；派生 0 条时这一跳直接完成。
