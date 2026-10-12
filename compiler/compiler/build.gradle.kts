@@ -1,12 +1,13 @@
 description = "Wow V10 symbol processing: aggregate models and Manifest fragments from the V10 annotations"
 
 dependencies {
-    implementation(project(":wow-api"))
+    implementation(project(":api"))
     implementation(project(":manifest"))
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(libs.ksp.symbol.processing.api)
     testImplementation(libs.kotlin.compile.testing)
     testImplementation(libs.ksp.symbol.processing)
+    // The tests compile the generated models; the 9.x types they reject are stubs (NineXStubs), never 9.x wow-api.
     testImplementation(project(":kernel"))
     testImplementation(project(":reactor"))
 }

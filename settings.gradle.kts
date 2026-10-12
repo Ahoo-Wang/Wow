@@ -112,6 +112,8 @@ project(":wow-analytics-server").projectDir = file("analytics/wow-analytics-serv
 //endregion
 
 //region v10 (documentation/designs/v10/06-modules.md)
+include(":api")
+project(":api").projectDir = file("api/api")
 include(":manifest")
 project(":manifest").projectDir = file("api/manifest")
 include(":query-api")

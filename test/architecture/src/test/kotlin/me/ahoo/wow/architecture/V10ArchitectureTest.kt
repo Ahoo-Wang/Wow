@@ -95,9 +95,9 @@ class V10ArchitectureTest {
     }
 
     @Test
-    fun `api rule should catch a 9x type or Jackson in a V10 package of wow-api only`(@TempDir root: File) {
+    fun `api rule should catch a 9x type, Jackson or kotlinx anywhere in wow-api`(@TempDir root: File) {
         root.writeSource(
-            V10Rules.API_DIR,
+            V10Rules.API.dir,
             "me/ahoo/wow/api/subscribe/Bad.kt",
             """
             package me.ahoo.wow.api.subscribe
@@ -107,17 +107,21 @@ class V10ArchitectureTest {
             """.trimIndent(),
         )
         root.writeSource(
-            V10Rules.API_DIR,
-            "me/ahoo/wow/api/messaging/Old.kt",
+            V10Rules.API.dir,
+            "me/ahoo/wow/api/annotation/Old.kt",
             """
-            package me.ahoo.wow.api.messaging
+            package me.ahoo.wow.api.annotation
 
-            import tools.jackson.databind.JsonNode
+            import kotlinx.coroutines.flow.Flow
+            import me.ahoo.wow.api.messaging.function.FunctionKind
             """.trimIndent(),
         )
-        V10Rules.V10_API_STANDS_ALONE.violations(root).assert().containsExactly(
-            "${V10Rules.API_DIR}/src/main/kotlin/me/ahoo/wow/api/subscribe/Bad.kt:3: me.ahoo.wow.api.messaging.Message",
-            "${V10Rules.API_DIR}/src/main/kotlin/me/ahoo/wow/api/subscribe/Bad.kt:4: tools.jackson.databind.JsonNode",
+        val api = "${V10Rules.API.dir}/src/main/kotlin/me/ahoo/wow/api"
+        V10Rules.API_STANDS_ALONE.violations(root).assert().containsExactly(
+            "$api/annotation/Old.kt:3: kotlinx.coroutines.flow.Flow",
+            "$api/annotation/Old.kt:4: me.ahoo.wow.api.messaging.function.FunctionKind",
+            "$api/subscribe/Bad.kt:3: me.ahoo.wow.api.messaging.Message",
+            "$api/subscribe/Bad.kt:4: tools.jackson.databind.JsonNode",
         )
     }
 
@@ -173,7 +177,9 @@ class V10ArchitectureTest {
     }
 
     @Test
-    fun `both sides rule should catch a project reaching both sides transitively`(@TempDir root: File) {
+    fun `both sides rule should catch a project reaching both sides transitively, but the exempt one`(
+        @TempDir root: File
+    ) {
         root.writeBuild(
             mapOf(
                 "compiler" to "compiler/compiler",
@@ -181,11 +187,13 @@ class V10ArchitectureTest {
                 "nine-x" to "nine-x",
                 "app" to "app",
                 "v10-only" to "v10-only",
+                "kernel-benchmarks" to "test/kernel-benchmarks",
             ),
             mapOf(
                 "nine-x" to listOf("wow-compiler"),
                 "app" to listOf("compiler", "nine-x"),
                 "v10-only" to listOf("compiler"),
+                "kernel-benchmarks" to listOf("compiler", "wow-compiler"),
             ),
         )
         V10Rules.bothSidesViolations(root).assert().containsExactly("app reaches both :compiler and :wow-compiler")

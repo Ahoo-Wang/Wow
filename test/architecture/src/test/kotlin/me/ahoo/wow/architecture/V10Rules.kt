@@ -22,6 +22,7 @@ data class V10Module(val name: String, val dir: String)
  * The V10 architecture rules (documentation/designs/v10/06-modules.md §3 and 07-migration.md §4).
  */
 object V10Rules {
+    val API = V10Module("api", "api/api")
     val MANIFEST = V10Module("manifest", "api/manifest")
     val QUERY_API = V10Module("query-api", "api/query-api")
     val SPI = V10Module("spi", "core/spi")
@@ -38,7 +39,7 @@ object V10Rules {
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
     val MODULES = listOf(
-        MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, SPRING_BOOT, MIGRATE_DATA,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, SPRING_BOOT, MIGRATE_DATA,
         COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
 
@@ -46,13 +47,14 @@ object V10Rules {
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
 
     /**
-     * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-api, is a
-     * 9.x module V10 still builds on until it is rewritten in place.
+     * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-query, is a
+     * 9.x module V10 still builds on until its V10 module replaces it (decision D85).
      */
     val ALLOWED_PROJECT_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
+        API to emptySet(),
         MANIFEST to emptySet(),
         QUERY_API to emptySet(),
-        SPI to setOf("wow-api"),
+        SPI to setOf("api"),
         KERNEL to setOf("spi", "manifest"),
         RUNTIME to setOf("kernel"),
         REACTOR to setOf("runtime"),
@@ -62,7 +64,7 @@ object V10Rules {
         SPRING_BOOT to setOf("runtime", "http"),
         MIGRATE_DATA to setOf("kernel"),
         // kernel and reactor only for the tests, which compile the generated models.
-        COMPILER to setOf("wow-api", "manifest", "kernel", "reactor"),
+        COMPILER to setOf("api", "manifest", "kernel", "reactor"),
         // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
         GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
@@ -128,28 +130,21 @@ object V10Rules {
         forbidden = listOf("com.github.victools"),
     )
 
-    /** The directory of wow-api, a 9.x module that V10 rewrites in place (06 §2.1, decision D66). */
-    const val API_DIR = "wow-api"
-
-    /** The V10 packages of wow-api; `annotation` is not one of them, since it is shared with 9.x until wow-core goes. */
-    val V10_API_PACKAGES = listOf("aggregate", "decide", "subscribe", "result").map { "me.ahoo.wow.api.$it" }
-
-    /** The 9.x parts of wow-api, deleted with wow-core (or, for `query`, moved to wow-query-api in M9). */
+    /** The 9.x parts of 9.x wow-api that the V10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9). */
     private val API_9X = listOf(
         "abac", "command", "event", "exception", "messaging", "modeling", "naming", "query", "serialization",
         "Copyable", "Identifier", "Ordered", "Version", "Wow",
     ).map { "me.ahoo.wow.api.$it" }
 
     /**
-     * wow-api's V10 packages have no runtime dependency and do not build on its 9.x parts (06 §3, decision D66): they
-     * must outlive both.
+     * wow-api has no runtime dependency (06 §3, decision D66) and does not build on the 9.x parts of 9.x wow-api,
+     * which go with 9.x.
      */
-    val V10_API_STANDS_ALONE = DependencyRule(
-        name = "the V10 packages of wow-api import no framework and no 9.x part of wow-api",
-        modules = listOf(API_DIR),
-        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS +
-            listOf("tools.jackson", "com.fasterxml", "kotlinx.coroutines") + API_9X,
-        appliesToPackage = { it in V10_API_PACKAGES },
+    val API_STANDS_ALONE = DependencyRule(
+        name = "wow-api imports no framework, no JSON library, no kotlinx and no 9.x part of wow-api",
+        modules = listOf(API.dir),
+        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS + listOf("tools.jackson", "com.fasterxml", "kotlinx") +
+            API_9X,
     )
 
     val DEPENDENCY_RULES = listOf(
@@ -158,7 +153,7 @@ object V10Rules {
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
         SCHEMA_GENERATION_AT_BUILD_TIME,
-        V10_API_STANDS_ALONE,
+        API_STANDS_ALONE,
     )
 
     private val PROJECT_DEPENDENCY = Regex("""project\(\s*":([\w-]+)"\s*\)""")
@@ -174,12 +169,16 @@ object V10Rules {
      * it replaces. Both define the same packages, so no project may reach both.
      */
     val REPLACED_9X: Map<String, String> = mapOf(
+        "api" to "wow-api",
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
     )
 
-    /** Projects allowed to reach both sides of [REPLACED_9X] (decision D90). */
-    val BOTH_SIDES_EXEMPT: Set<String> = emptySet()
+    /**
+     * Projects allowed to reach both sides of [REPLACED_9X] (decision D90): spike H3 measures the V10 kernel against
+     * the 9.x one on the same JVM.
+     */
+    val BOTH_SIDES_EXEMPT: Set<String> = setOf("kernel-benchmarks")
 
     private val SETTINGS_INCLUDE = Regex("""include\(\s*"(:?)([\w-]+)"\s*\)""")
     private val SETTINGS_PROJECT_DIR = Regex("""project\(":([\w-]+)"\)\.projectDir\s*=\s*file\("([^"]+)"\)""")

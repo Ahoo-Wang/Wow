@@ -20,11 +20,11 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 
 /**
- * The V10 annotation set (design 01 §3, decision D67). The V10 annotations share the package
- * `me.ahoo.wow.api.annotation` with 9.x's, which 9.x `wow-core` still uses; the model processor recognizes only the
- * V10 ones. Any other annotation of that package on a V10 model is a compile error that points to the migration
- * skill, and the identity annotations on a command's fields are errors too (decision D68). Attributes of reused
- * annotations that only 9.x reads (such as `AggregateRoot.commands` or `OnEvent.value`) are ignored.
+ * The V10 annotation set (design 01 §3, decision D67). The V10 annotations keep the package
+ * `me.ahoo.wow.api.annotation` and the names of 9.x's, without the attributes only 9.x reads (decision D85); the
+ * model processor recognizes only them. Any other annotation of that package on a V10 model (one compiled against 9.x
+ * `wow-api`) is a compile error that points to the migration skill, and the identity annotations on a command's fields
+ * are errors too (decision D68).
  */
 internal object V10Annotations {
     const val PACKAGE = "me.ahoo.wow.api.annotation"
