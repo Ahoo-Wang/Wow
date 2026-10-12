@@ -19,6 +19,7 @@ object SpikeReport {
     private const val PERCENT = 100.0
     private const val P95 = 0.95
 
+    @Suppress("LongMethod") // One table after another.
     fun markdown(steps: List<StepResult>, leases: List<LeaseSeries>): String = buildString {
         val changes = steps.filter { it.change != Change.START }
         appendLine("## Convergence (seconds)")
@@ -42,7 +43,9 @@ object SpikeReport {
         appendLine()
         appendLine("## Partitions moved (all backends and configurations)")
         appendLine()
-        appendLine("| P | Change | n | moved mean | moved min–max | HRW share of the node mean | P/N ideal | extra moves (sum) |")
+        appendLine(
+            "| P | Change | n | moved mean | moved min–max | HRW share of the node mean | P/N ideal | extra moves (sum) |"
+        )
         appendLine("|---:|---|---:|---:|---|---:|---:|---:|")
         changes.groupBy { Triple(it.partitions, it.change, it.transition) }.toSortedMap(
             compareBy<Triple<Int, Change, String>> { it.first }.thenBy { it.second }.thenBy { it.third },
@@ -105,7 +108,9 @@ object SpikeReport {
                 appendLine()
                 appendLine("### ${key.backend} ${key.config} P=${key.partitions} ${key.label}")
                 appendLine()
-                appendLine("| s | sent | succeeded | failed | conflicts | non-owner | forward failures | lost leases | p99 ms |")
+                appendLine(
+                    "| s | sent | succeeded | failed | conflicts | non-owner | forward failures | lost leases | p99 ms |"
+                )
                 appendLine("|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
                 cell.flatMap { it.profile }.groupBy { it.offset ?: 0 }.toSortedMap().forEach { (offset, rows) ->
                     appendLine(

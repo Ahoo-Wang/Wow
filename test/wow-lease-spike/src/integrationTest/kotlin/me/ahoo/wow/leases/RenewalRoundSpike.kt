@@ -69,7 +69,10 @@ class RenewalRoundSpike {
     }
 
     /** A lease store whose renewals take [latency] and that counts those finding the lease lost. */
-    private class SlowRenewals(private val delegate: LeaseStore, private val latency: Duration) : LeaseStore by delegate {
+    private class SlowRenewals(
+        private val delegate: LeaseStore,
+        private val latency: Duration
+    ) : LeaseStore by delegate {
         val lost = AtomicInteger()
 
         override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {

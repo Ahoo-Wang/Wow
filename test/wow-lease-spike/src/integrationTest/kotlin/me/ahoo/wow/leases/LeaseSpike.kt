@@ -11,6 +11,9 @@
  * limitations under the License.
  */
 
+// The spike runs its nodes, load and observer on the shared default dispatcher, as the runtime does.
+@file:Suppress("InjectDispatcher")
+
 package me.ahoo.wow.leases
 
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +33,6 @@ import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.ceil
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -60,7 +62,10 @@ class LeaseSpike {
             System.getProperty("wow.spike.h6") == "true" || quick,
             "Run with -Dwow.spike.h6=true",
         )
-        val factories = listOf<Pair<String, () -> Backend>>("PostgreSQL" to ::PostgresBackend, "MongoDB" to ::MongoBackend)
+        val factories = listOf<Pair<String, () -> Backend>>(
+            "PostgreSQL" to ::PostgresBackend,
+            "MongoDB" to ::MongoBackend
+        )
             .filter { only.isEmpty() || it.first.equals(only, ignoreCase = true) }
         for ((_, factory) in factories) {
             factory().use { backend ->
@@ -270,7 +275,7 @@ class LeaseSpike {
          * Runs [act] (the change) and polls, every [POLL], the observer's view of the leases and every expected
          * member's ownership and routes until all of them agree with HRW over [expected], or [STEP_TIMEOUT_MILLIS].
          */
-        @Suppress("LongMethod", "CyclomaticComplexMethod")
+        @Suppress("LongMethod", "CyclomaticComplexMethod", "ComplexCondition")
         suspend fun measure(
             change: Change,
             expected: List<String>,
@@ -318,7 +323,9 @@ class LeaseSpike {
                     break
                 }
                 if (elapsed > STEP_TIMEOUT_MILLIS) {
-                    log("  $change $node did not converge: leases $leasesOk members $membersOk held $heldOk routes $routesOk")
+                    log(
+                        "  $change $node did not converge: leases $leasesOk members $membersOk held $heldOk routes $routesOk"
+                    )
                     break
                 }
                 delay(POLL)
@@ -336,7 +343,7 @@ class LeaseSpike {
                 Change.LEAVE, Change.KILL -> expected.size + 1
             }
             log(
-                "  $change ${from}→${expected.size} converged ${converged ?: "-"} ms (members $membership, " +
+                "  $change $from→${expected.size} converged ${converged ?: "-"} ms (members $membership, " +
                     "leases $leases, held $held, routes $routes); moved ${movedSet.size}/$predicted, " +
                     "max unowned $maxUnowned",
             )
@@ -376,8 +383,14 @@ class LeaseSpike {
         val PARTITIONS = listOf(64, 256)
         const val QUICK_PARTITIONS = 64
         val PLAN = listOf(
-            Change.JOIN, Change.JOIN, Change.LEAVE, Change.LEAVE,
-            Change.JOIN, Change.JOIN, Change.KILL, Change.KILL,
+            Change.JOIN,
+            Change.JOIN,
+            Change.LEAVE,
+            Change.LEAVE,
+            Change.JOIN,
+            Change.JOIN,
+            Change.KILL,
+            Change.KILL,
         )
         val CONFIGS = linkedMapOf(
             "default" to ClusterOptions(),

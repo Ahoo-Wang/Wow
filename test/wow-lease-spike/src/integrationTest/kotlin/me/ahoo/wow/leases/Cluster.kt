@@ -11,6 +11,9 @@
  * limitations under the License.
  */
 
+// The spike runs its nodes, load and observer on the shared default dispatcher, as the runtime does.
+@file:Suppress("InjectDispatcher")
+
 package me.ahoo.wow.leases
 
 import kotlinx.coroutines.CancellationException

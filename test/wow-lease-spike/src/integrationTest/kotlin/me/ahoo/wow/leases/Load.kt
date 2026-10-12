@@ -11,6 +11,9 @@
  * limitations under the License.
  */
 
+// The spike runs its nodes, load and observer on the shared default dispatcher, as the runtime does.
+@file:Suppress("InjectDispatcher")
+
 package me.ahoo.wow.leases
 
 import kotlinx.coroutines.CancellationException
@@ -61,6 +64,7 @@ class Zipf(private val count: Int, s: Double, seed: Long = 42) {
 class LoadDriver(private val cluster: SpikeCluster, private val rate: Double, private val zipf: Zipf) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val inFlight = SupervisorJob()
+    private val sends = CoroutineScope(inFlight + Dispatchers.Default)
     private var pacing: Job? = null
 
     fun start() {
@@ -71,7 +75,7 @@ class LoadDriver(private val cluster: SpikeCluster, private val rate: Double, pr
                 val due = ((System.nanoTime() - started) / NANOS_PER_SECOND * rate).toLong()
                 while (sent < due) {
                     sent++
-                    scope.launch(inFlight) { send() }
+                    sends.launch { send() }
                 }
                 delay(TICK_MILLIS)
             }
@@ -117,6 +121,7 @@ class LoadDriver(private val cluster: SpikeCluster, private val rate: Double, pr
     }
 
     /** Stops sending and waits a while for the commands in flight. */
+    @Suppress("RedundantSuspendModifier") // cancelAndJoin suspends; detekt does not resolve it.
     suspend fun stop() {
         pacing?.cancelAndJoin()
         withTimeoutOrNull(DRAIN) {
