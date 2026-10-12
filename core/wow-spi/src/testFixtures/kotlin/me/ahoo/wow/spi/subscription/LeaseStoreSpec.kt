@@ -141,23 +141,23 @@ abstract class LeaseStoreSpec {
     @Test
     fun `members are the nodes whose heartbeat is live`(): Unit = runBlocking {
         val other = group + "_other"
-        store.heartbeat(group, "node-b", TTL)
-            .assert().isEqualTo(Member(group, "node-b", clock.millis() + TTL.inWholeMilliseconds))
-        store.heartbeat(group, "node-a", TTL)
-        store.heartbeat(other, "node-c", TTL)
+        store.heartbeat(group, "node-b", address("node-b"), TTL)
+            .assert().isEqualTo(Member(group, "node-b", address("node-b"), clock.millis() + TTL.inWholeMilliseconds))
+        store.heartbeat(group, "node-a", address("node-a"), TTL)
+        store.heartbeat(other, "node-c", address("node-c"), TTL)
         store.members(group).map { it.node }.assert().containsExactly("node-a", "node-b")
         clock.advance(TTL - 1.seconds)
-        store.heartbeat(group, "node-a", TTL)
+        store.heartbeat(group, "node-a", address("node-a"), TTL)
         clock.advance(1.seconds)
         store.members(group).map { it.node }.assert().containsExactly("node-a")
-        store.heartbeat(group, "node-b", TTL)
+        store.heartbeat(group, "node-b", address("node-b"), TTL)
         store.members(group).map { it.node }.assert().containsExactly("node-a", "node-b")
     }
 
     @Test
     fun `a node that leaves is no longer a member but keeps its leases`(): Unit = runBlocking {
-        store.heartbeat(group, "node-a", TTL)
-        store.heartbeat(group, "node-b", TTL)
+        store.heartbeat(group, "node-a", address("node-a"), TTL)
+        store.heartbeat(group, "node-b", address("node-b"), TTL)
         val lease = store.acquire(group, 0, "node-a", TTL)
         store.leave(group, "node-a")
         store.leave(group, "node-missing")
@@ -165,9 +165,24 @@ abstract class LeaseStoreSpec {
         store.owners(group).assert().containsExactly(lease)
     }
 
+    @Test
+    fun `members carry the address of their last heartbeat`(): Unit = runBlocking {
+        store.heartbeat(group, "node-a", "10.0.0.1:7070", TTL)
+        store.heartbeat(group, "node-b", "10.0.0.2:7070", TTL)
+        store.members(group).map { it.node to it.address }
+            .assert().containsExactly("node-a" to "10.0.0.1:7070", "node-b" to "10.0.0.2:7070")
+        clock.advance(1.seconds)
+        val moved = store.heartbeat(group, "node-a", "10.0.0.9:7071", TTL)
+        moved.assert().isEqualTo(Member(group, "node-a", "10.0.0.9:7071", clock.millis() + TTL.inWholeMilliseconds))
+        store.members(group).first().assert().isEqualTo(moved)
+    }
+
     protected companion object {
         const val GROUP_SUFFIX = 12
         const val CONTENDERS = 16
         val TTL = 10.seconds
+
+        /** The internal address the tests give [node]. */
+        fun address(node: String): String = "$node.internal:7070"
     }
 }

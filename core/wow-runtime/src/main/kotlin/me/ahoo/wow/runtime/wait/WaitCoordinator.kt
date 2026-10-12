@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.UUID
@@ -78,6 +79,10 @@ data class WaitOptions(
  * command's own results to the waiting node through [signals] instead of answering them.
  *
  * Which subscriptions a chain may name, and their kinds, come from [directory], until the Manifest gives them.
+ *
+ * Where the command runs is [router]'s choice (design 02 §2): here, through [executeHere], or on its partition's
+ * owner, which executes it with the same wait context and replies with its [Settlement]; either way the wait goes
+ * on here, and the later hops are signalled here.
  */
 class WaitCoordinator(
     private val executor: Executor,
@@ -87,6 +92,7 @@ class WaitCoordinator(
     private val options: WaitOptions,
     private val clock: () -> Long = System::currentTimeMillis,
     private val waitIds: () -> String = { UUID.randomUUID().toString() },
+    private val router: CommandRouter = CommandRouter.LOCAL,
 ) {
     /** Executes [command] on [model]'s aggregate and returns the result it ends its wait with. */
     suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = stream(model, command).last()
@@ -113,14 +119,14 @@ class WaitCoordinator(
         val waiting = registry.register(waitId, chain.hops, command.id)
         try {
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
-            val outcome = executor.execute(model, command, WaitContext(waitId, options.origin, chain.hops, deadline))
-            settle(
-                waiting,
-                chain,
-                command,
-                outcome,
-                outcome.toResult(command, function, Hop.committed(context), clock())
-            )
+            val wait = WaitContext(waitId, options.origin, chain.hops, deadline)
+            val settlement = router.route(model, command, wait) { executeHere(model, command, wait) }
+            waiting.offer(settlement.committed)
+            settlement.reached.forEach { waiting.offer(it) }
+            if (settlement.committed.duplicate) {
+                // A duplicate is not signalled again (D63): what it did not reach at once, it will not reach.
+                waiting.finish(settlement.committed)
+            }
             drain(waiting, deadline)
         } finally {
             registry.remove(waitId)
@@ -151,26 +157,24 @@ class WaitCoordinator(
         }
     }
 
-    /** Applies the root command's [outcome], mapped to [committed], to its wait. */
-    private suspend fun settle(
-        waiting: Waiting,
-        chain: WaitChain,
-        command: Command<*>,
-        outcome: CommandOutcome,
-        committed: CommandResult,
-    ) {
-        waiting.offer(committed)
-        when (outcome) {
-            is CommandOutcome.Unchanged -> reachVacuously(committed, chain.firstHandled) { waiting.offer(it) }
-            is CommandOutcome.AlreadyCommitted -> {
-                val handled = chain.firstHandled
-                val endsChain = handled != null && !chain.continuesAfter(handled)
-                handledBefore(command, outcome, handled, endsChain)?.let { waiting.offer(it) }
-                waiting.finish(committed)
-            }
-
-            else -> Unit
+    /**
+     * Executes [command] on [model]'s aggregate on this node, with the [wait] context it arrived with, and settles
+     * what it reaches at once: its result at COMMITTED, then its next HANDLED hop when that is already reached (a
+     * command that changed nothing appended no entry to handle; a duplicate whose subscription is past it, decision
+     * D63). The node a command arrived at runs it so when its router chooses this node, and the owner of its
+     * partition runs it so for a forward.
+     */
+    suspend fun executeHere(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
+        val function = commandFunction(model, command)
+        val outcome = executor.execute(model, command, wait)
+        val committed = outcome.toResult(command, function, Hop.committed(command.ref.type.context), clock())
+        val after = wait?.afterCommitted()?.remaining.orEmpty()
+        val reached = when (outcome) {
+            is CommandOutcome.Unchanged -> after.firstOrNull()?.let { committed.copy(hop = it, signalTime = clock()) }
+            is CommandOutcome.AlreadyCommitted -> handledBefore(command, outcome, after.firstOrNull(), after.size == 1)
+            else -> null
         }
+        return Settlement(committed, listOfNotNull(reached))
     }
 
     /**
@@ -260,3 +264,9 @@ class WaitCoordinator(
         val logger = KotlinLogging.logger {}
     }
 }
+
+/**
+ * What executing a command reached at once: its [committed] result (design 08 §7), at its COMMITTED hop, then the
+ * later hops it [reached] without waiting for a subscription. The hops after them are signalled to the wait's origin.
+ */
+data class Settlement(val committed: CommandResult, val reached: List<CommandResult> = emptyList())
