@@ -33,13 +33,10 @@ class JakartaCommandValidator(private val validator: Validator) : CommandValidat
     override fun validate(type: CommandType, body: Any): List<Violation> =
         validator.validate(body).map(::violationOf).sortedWith(compareBy({ it.path }, { it.code }))
 
+    /** The Jakarta contract gives every violation a path, a descriptor with its annotation, and a message. */
     private fun violationOf(violation: ConstraintViolation<Any>): Violation = Violation(
-        path = violation.propertyPath?.toString().orEmpty(),
-        code = violation.constraintDescriptor?.annotation?.annotationClass?.java?.simpleName ?: UNKNOWN_CONSTRAINT,
-        message = violation.message.orEmpty(),
+        path = violation.propertyPath.toString(),
+        code = violation.constraintDescriptor.annotation.annotationClass.java.simpleName,
+        message = violation.message,
     )
-
-    private companion object {
-        const val UNKNOWN_CONSTRAINT = "Constraint"
-    }
 }

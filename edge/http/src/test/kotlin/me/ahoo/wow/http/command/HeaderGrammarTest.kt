@@ -105,8 +105,42 @@ class HeaderGrammarTest {
     }
 
     @Test
+    fun `an accepted hop may name its context`() {
+        WaitHeader.parse("accepted(order)").hops.assert().containsExactly(Hop.accepted("order"))
+        WaitHeader.formatHop(Hop.accepted("order")).assert().isEqualTo("accepted(order)")
+        WaitHeader.formatHop(Hop.committed()).assert().isEqualTo("committed")
+    }
+
+    @Test
+    fun `Wow-Scope reads tokens, keys with symbols, tabs and escapes`() {
+        ScopeHeader.parse("owner=*u1/a:b,\tspace=s_1").assert().isEqualTo(TargetScope(null, Scope("*u1/a:b", "s_1")))
+        ScopeHeader.parse("owner=u1 ,space=s1").scope.assert().isEqualTo(Scope("u1", "s1"))
+        // A key RFC 8941 allows but Wow-Scope does not take.
+        assertThrownBy<IllegalArgumentException> { ScopeHeader.parse("*x.y-z_1=a") }
+        ScopeHeader.format(TargetScope("t1")).assert().isEqualTo("tenant=\"t1\"")
+        ScopeHeader.format(TargetScope(scope = Scope(spaceId = "s1"))).assert().isEqualTo("space=\"s1\"")
+        ScopeHeader.format(TargetScope(scope = Scope(ownerId = "a\\b"))).assert().isEqualTo("owner=\"a\\\\b\"")
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "owner u1", "owner=u1 space=s1", "owner=\"a\\nb\"", "owner=\"a\u0001\"", "owner=\"ü\"", "owner=@x",
+            "1owner=u1", "owner=\"a\\", " ",
+        ],
+    )
+    fun `what breaks the dictionary grammar does not parse`(value: String) {
+        assertThrownBy<IllegalArgumentException> { ScopeHeader.parse(value) }
+    }
+
+    @Test
     fun `request facts cannot take a reserved name`() {
         assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf("Wow-Tenant")) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf("wow.tenant")) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf(" ")) }
         assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 200)) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 600)) }
+        WowHttpOptions(requestFacts = setOf("X-App-Id"), errorStatuses = mapOf("x" to 400, "y" to 599))
+            .requestFacts.assert().containsExactly("X-App-Id")
     }
 }
