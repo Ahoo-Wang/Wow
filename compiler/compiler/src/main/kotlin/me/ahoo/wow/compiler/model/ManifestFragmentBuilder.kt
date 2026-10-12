@@ -15,6 +15,7 @@ package me.ahoo.wow.compiler.model
 
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.EventManifest
@@ -33,8 +34,10 @@ import me.ahoo.wow.manifest.SubscriptionSource
  * (`wow-gradle-plugin`), since only Jackson knows the JSON its serializers write.
  *
  * Names follow the generated model (decision D55): a command or an event is named by its `@Name`, or its class's
- * simple name. An aggregate lists the lifecycle commands its model handles by their system names
- * ([AggregateBinding.lifecycle]).
+ * simple name. A command's routes follow from its name and whether it creates its aggregate ([CommandRoutes], decision
+ * D104). An aggregate lists the lifecycle commands its model handles by their system names
+ * ([AggregateBinding.lifecycle]); their routes are the edge's to derive from that list (decision D113), so no command
+ * gets them here.
  */
 internal object ManifestFragmentBuilder {
     fun build(
@@ -47,25 +50,28 @@ internal object ManifestFragmentBuilder {
             ContextManifest(
                 name = context,
                 description = description,
-                aggregates = aggregates.map(::aggregate).sortedBy { it.name },
+                aggregates = aggregates.map { aggregate(context, it) }.sortedBy { it.name },
                 subscriptions = subscriptions.flatMap { subscriptions(context, it, aggregates) }.sortedBy { it.name },
             ),
         ),
     )
 
-    private fun aggregate(binding: AggregateBinding): AggregateManifest {
+    private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
         return AggregateManifest(
             name = binding.aggregateName,
             description = binding.description,
             state = StateManifest(Manifest.schemaRef(binding.stateType)),
             commands = binding.commands.map { command ->
+                val name = command.commandName ?: simpleName(command.type)
+                val creation = Creation.valueOf(command.creation)
                 CommandManifest(
-                    name = command.commandName ?: simpleName(command.type),
+                    name = name,
                     aliases = command.aliases,
                     schema = Manifest.schemaRef(command.type),
-                    creation = Creation.valueOf(command.creation),
+                    creation = creation,
                     produces = produces(command, binding.afters, eventNames),
+                    routes = CommandRoutes.of(context, binding.aggregateName, name, creation),
                 )
             }.sortedBy { it.name },
             events = binding.sourcing.map { sourcing ->

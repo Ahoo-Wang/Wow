@@ -29,6 +29,7 @@ object ManifestTree {
         "format" to manifest.format,
         "service" to manifest.service?.let { obj("name" to it.name, "version" to it.version) },
         "contexts" to manifest.contexts.map(::writeContext),
+        "errors" to manifest.errors.map(::writeError),
         DEFS to manifest.defs,
     )
 
@@ -37,7 +38,11 @@ object ManifestTree {
         "description" to context.description,
         "aggregates" to context.aggregates.map(::writeAggregate),
         "subscriptions" to context.subscriptions.map(::writeSubscription),
+        "errors" to context.errors.map(::writeError),
     )
+
+    private fun writeError(error: ErrorManifest): Map<String, Any?> =
+        obj("code" to error.code, "status" to error.status, "description" to error.description)
 
     private fun writeAggregate(aggregate: AggregateManifest): Map<String, Any?> = obj(
         "name" to aggregate.name,
@@ -51,6 +56,7 @@ object ManifestTree {
                 "schema" to it.schema,
                 "creation" to it.creation.name,
                 "produces" to it.produces,
+                "routes" to it.routes.map { route -> obj("method" to route.method, "path" to route.path) },
             )
         },
         "events" to aggregate.events.map {
@@ -90,6 +96,7 @@ object ManifestTree {
             format = format,
             service = root.objOrNull("service")?.let { ServiceInfo(it.string("name"), it.stringOrNull("version")) },
             contexts = root.objects("contexts").map(::readContext),
+            errors = root.objects("errors").map(::readError),
             defs = root.objOrNull(DEFS)?.map.orEmpty().entries.associate { (key, value) -> key.toString() to value },
         )
     }
@@ -99,7 +106,11 @@ object ManifestTree {
         description = node.stringOrNull("description"),
         aggregates = node.objects("aggregates").map(::readAggregate),
         subscriptions = node.objects("subscriptions").map(::readSubscription),
+        errors = node.objects("errors").map(::readError),
     )
+
+    private fun readError(node: Node): ErrorManifest =
+        ErrorManifest(node.string("code"), node.int("status"), node.stringOrNull("description"))
 
     private fun readAggregate(node: Node): AggregateManifest {
         val state = node.obj("state")
@@ -115,6 +126,9 @@ object ManifestTree {
                     schema = it.string("schema"),
                     creation = Creation.valueOf(it.string("creation")),
                     produces = if (it.has("produces")) it.strings("produces") else null,
+                    routes = it.objects("routes").map { route ->
+                        RouteManifest(route.string("method"), route.string("path"))
+                    },
                 )
             },
             events = node.objects("events").map {

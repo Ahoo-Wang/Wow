@@ -25,13 +25,15 @@ package me.ahoo.wow.manifest
  * Names inside are relative to their parent: a command named `AddItem` of aggregate `cart` in context `shop` is the
  * command type `shop.cart.AddItem` (design 08 §2). A schema is referred to as `#/$defs/<key>` ([schemaRef]).
  *
- * v0 holds what the model declares today; errors, queries, published streams and routes come with the parts of V10
- * that define them.
+ * [errors] lists the framework's `wow.*` error codes with their HTTP statuses ([FrameworkErrors], decision D102): a
+ * fragment leaves it empty and [ManifestMerger] writes the table. Queries, published streams and the subscriptions'
+ * derived commands come with the parts of V10 that define them.
  */
 data class Manifest(
     val format: Int = FORMAT,
     val service: ServiceInfo? = null,
     val contexts: List<ContextManifest> = emptyList(),
+    val errors: List<ErrorManifest> = emptyList(),
     /** The JSON Schemas the [schemaRef]s point to, by key, as JSON trees ([ManifestTree] describes the values). */
     val defs: Map<String, Any?> = emptyMap(),
 ) {
@@ -70,11 +72,16 @@ data class Manifest(
 /** The service a merged Manifest describes; a fragment has none. */
 data class ServiceInfo(val name: String, val version: String? = null)
 
+/**
+ * A bounded context. [errors] optionally documents the domain's rejection codes; they are runtime strings, so the
+ * list is neither complete nor checked against what the code rejects with, and a `wow.*` code is not the context's.
+ */
 data class ContextManifest(
     val name: String,
     val description: String? = null,
     val aggregates: List<AggregateManifest> = emptyList(),
     val subscriptions: List<SubscriptionManifest> = emptyList(),
+    val errors: List<ErrorManifest> = emptyList(),
 )
 
 /**
@@ -105,7 +112,8 @@ data class SnapshotManifest(val enabled: Boolean = true)
  *
  * [aliases] are former names, as `@Alias` declares them: one without a dot is within the aggregate, one with dots a
  * full type name. [produces] names the events of the aggregate the command's decide function and after hooks can
- * produce, as their signatures say; null when a signature does not say (a `Decision`, `Any`).
+ * produce, as their signatures say; null when a signature does not say (a `Decision`, `Any`). [routes] are the
+ * command's REST routes ([CommandRoutes], decision D104).
  */
 data class CommandManifest(
     val name: String,
@@ -113,7 +121,21 @@ data class CommandManifest(
     val schema: String,
     val creation: Creation = Creation.NONE,
     val produces: List<String>? = null,
+    val routes: List<RouteManifest> = emptyList(),
 )
+
+/**
+ * An HTTP route: its [method] and its [path], a template whose variables are written literally in braces
+ * (`/shop/cart/{id}/add-item`).
+ */
+data class RouteManifest(val method: String, val path: String)
+
+/**
+ * An error code a client may receive: its [code], the HTTP [status] it is answered with, and what it means. The
+ * code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is `urn:wow:error:<code>`
+ * (decision D101).
+ */
+data class ErrorManifest(val code: String, val status: Int, val description: String? = null)
 
 /** Whether a command creates its aggregate (`@CreateAggregate`, `@AllowCreate`). */
 enum class Creation {
