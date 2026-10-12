@@ -153,7 +153,7 @@ data class CommandResult(
 | `Unknown` | FAILED | `wow.command.unknown`，可以用同一请求 ID 重试，幂等保证不会写两次 |
 | 等待超时 | FAILED | `wow.wait.timeout`；只说明没等到，不代表命令失败 |
 
-- **HTTP**：成功返回 200 与 `CommandResult`。拒绝和失败返回 `application/problem+json`（RFC 9457）：`type` 指向 Manifest 的错误码，扩展成员带上 `CommandResult` 的字段，客户端只需一种解析方式。
+- **HTTP**：成功返回 200 与 `CommandResult`。拒绝和失败返回 `application/problem+json`（RFC 9457）：`type` 为 `urn:wow:error:<码>`，扩展成员有 `code`、`violations`，完整的 `CommandResult` 嵌在 `result` 下（D101；展平会让 `status` 与 RFC 9457 的整数状态冲突），客户端仍只需一种解析方式。
 - **SSE**：等待链上每一跳到达时推送一个 `CommandResult`，最后一跳之后关闭。
 - **`function` 保留**：SSE 流式推送每一跳的结果时，客户端要知道是谁处理的（命令函数、哪个投影器、哪个 Saga 函数）。`kind` 取 COMMAND、PROJECT、REACT、SAGA、SNAPSHOT；订阅由 `处理器.函数` 编成（[04](04-subscriptions.md) §1），所以 `processor` 与 `name` 直接来自订阅定义。
 - **`bindingErrors` 改名保留**：字段级校验错误是 `error.violations: List<FieldViolation(path, code, message)>`，客户端表单直接使用；HTTP 上作为 problem+json 的扩展成员 `violations` 输出。
