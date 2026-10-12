@@ -38,6 +38,13 @@ class PostgresEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `a log created by a build without format records is refused`() {
+        val context = PostgresFixture.newContext()
+        PostgresFixture.createUnrecorded("wow_log_" + context.replace('-', '_'))
+        assertThrownBy<IllegalStateException> { PostgresFixture.log(4, context) }
+    }
+
+    @Test
     fun `a different partition count is refused`() {
         val context = PostgresFixture.newContext()
         PostgresFixture.log(4, context)

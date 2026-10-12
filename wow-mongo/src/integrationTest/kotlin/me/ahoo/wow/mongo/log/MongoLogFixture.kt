@@ -38,6 +38,11 @@ object MongoLogFixture {
     fun log(partitions: Int, context: String = newContext()): MongoEventLog =
         MongoEventLog(client, DATABASE, context, partitions).also { it.createSchema() }
 
+    /** Creates [collection] the way a build without format records did: the collection alone. */
+    fun createUnrecorded(collection: String) {
+        client.getDatabase(DATABASE).createCollection(collection)
+    }
+
     /** Moves the recorded format version of [structure] one ahead, as a newer Wow would have written it. */
     fun bumpFormat(structure: String) {
         val updated = client.getDatabase(DATABASE).getCollection(MongoFormat.COLLECTION)

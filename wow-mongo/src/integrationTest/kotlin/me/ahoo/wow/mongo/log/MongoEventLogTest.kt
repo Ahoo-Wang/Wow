@@ -38,6 +38,13 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `a log created by a build without format records is refused`() {
+        val context = MongoLogFixture.newContext()
+        MongoLogFixture.createUnrecorded("wow_log_" + context.replace('-', '_'))
+        assertThrownBy<IllegalStateException> { MongoLogFixture.log(4, context) }
+    }
+
+    @Test
     fun `a different partition count is refused`() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.log(4, context)

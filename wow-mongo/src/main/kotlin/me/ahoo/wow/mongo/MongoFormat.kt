@@ -21,8 +21,9 @@ import org.bson.Document
 /**
  * The format versions of stored structures (decision D59): one document per structure (a log or a snapshot
  * collection) in [COLLECTION], keyed by the structure's name and recorded by the collection, not by each document.
- * `createSchema` claims its structure's version: the first claim records it, and a structure recorded under another
- * version is refused, so this version of Wow never reads or writes a layout it does not know. An incompatible layout
+ * `createSchema` claims its structure's version before creating it: the first claim records it, a structure recorded
+ * under another version is refused, and so is a collection that exists without a record (an earlier, incompatible
+ * build created it), so this version of Wow never reads or writes a layout it does not know. An incompatible layout
  * changes only in a major version, through the migration tool (D22); adding an optional field does not change the
  * version.
  */
@@ -33,9 +34,18 @@ object MongoFormat {
     private const val ID = "_id"
     private const val VERSION = "version"
 
-    /** Records [structure] at [version] in [database] when it has no version yet; fails when it has another one. */
+    /**
+     * Records [structure], the collection about to be created in [database], at [version] when it has no version
+     * yet. Fails when it is recorded at another version, or when the collection already exists without a record.
+     */
     fun claim(database: MongoDatabase, structure: String, version: Int) {
         val formats = database.getCollection(COLLECTION)
+        if (formats.find(Filters.eq(ID, structure)).first() == null) {
+            // The record is written before the collection is created, so one without a record predates them.
+            check(structure !in database.listCollectionNames()) {
+                "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
+            }
+        }
         try {
             formats.insertOne(Document(ID, structure).append(VERSION, version))
         } catch (failure: MongoWriteException) {
