@@ -138,4 +138,6 @@ include(":wow-kernel-benchmarks")
 project(":wow-kernel-benchmarks").projectDir = file("test/wow-kernel-benchmarks")
 include(":wow-routing-spike")
 project(":wow-routing-spike").projectDir = file("test/wow-routing-spike")
+include(":wow-lease-spike")
+project(":wow-lease-spike").projectDir = file("test/wow-lease-spike")
 //endregion
