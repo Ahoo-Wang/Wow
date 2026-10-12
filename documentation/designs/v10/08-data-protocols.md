@@ -2,7 +2,7 @@
 
 日期：2026-10-12。基线：`v10` `4224` 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51。
 
-本文定义 V10 中跨越进程、存储或版本边界的数据结构：命令、事件流、`StateEvent`、快照、命令结果、等待信号、Kafka 信封。这些结构一旦落盘或上线，就只能按 §9 的规则演进，所以在 M4（运行时）与 M6（Kafka）之前定下。
+本文定义 V10 中跨越进程、存储或版本边界的数据结构：命令、事件流、`StateEventRecord`、快照、命令结果、等待信号、Kafka 信封。这些结构一旦落盘或上线，就只能按 §9 的规则演进，所以在 M4（运行时）与 M6（Kafka）之前定下。
 
 ## 1. 原则
 
@@ -92,10 +92,12 @@ data class Transport(
 
 `EventLog.append` 改为接收 `(stream, transport)`。`findByRequestId`、`read` 只返回事实；`tail` 返回带传输段的 `LogEntry`，供订阅与信号使用。
 
-## 5. StateEvent（订阅与发布的单位）
+## 5. StateEventRecord（订阅与发布的单位）
+
+线上与存储形式叫 `StateEventRecord`，与 `EventStreamRecord`、`SnapshotRecord` 同一命名惯例；处理函数拿到的类型化形式是 `wow-api` 的 `StateEvent<S>`（D81）。
 
 ```kotlin
-data class StateEvent(
+data class StateEventRecord(
     val position: LogPosition,      // 发布到 Kafka 后，下游用偏移量；位置只在上下文内有意义
     val stream: EventStreamRecord,  // 事实
     val state: StateView,           // 提交后的状态视图
@@ -104,12 +106,12 @@ data class StateView(val version: Int, val schemaFingerprint: String, val state:
 ```
 
 - **状态视图**：提交时把状态序列化一次（[01](01-programming-model.md) §2 的版本视图）。属主节点直接使用这个视图；重放和属主切换时，由快照加尾部演化得到。
-- **进程内**：处理函数拿到解码后的事件和状态的**副本**（由视图反序列化，不是活的实例）。
-- **Kafka 上发布的是 `StateEvent`，不是单纯的事件流**（D58）：消费端拿到提交后的聚合状态，不必再去请求上游服务。
+- **进程内**：处理函数拿到 `StateEvent<S>`：事件已解码并升级到当前 revision，状态是由视图反序列化的**副本**（不是活的实例），字段展平，不带日志位置（位置只供运行时记检查点）。
+- **Kafka 上发布的是 `StateEventRecord`，不是单纯的事件流**（D58）：消费端拿到提交后的聚合状态，不必再去请求上游服务。
   - **默认总是附带状态。** 只有单个 Sink 可以为超大状态的聚合显式关闭（按聚合类型配置），关闭后 `state` 为 null。
   - **载荷是嵌入的 JSON 对象，不是转义后的字符串**：事件的 `payload`、状态都原样嵌入，人可以直接读，下游可以直接按路径取值。
   - 事件先升级到当前 revision 再发布（F10）。schema 是上下文的公开语言，登记在 Manifest 里。
-- **快照**就是最后一个 `StateEvent` 折叠成的视图加元数据（§6），两者字段同源：`state` 对应 `SnapshotRecord.state`，`stream.scope` 对应快照的作用域。
+- **快照**就是最后一个 `StateEventRecord` 折叠成的视图加元数据（§6），两者字段同源：`state` 对应 `SnapshotRecord.state`，`stream.scope` 对应快照的作用域。
 
 ## 6. 快照
 
@@ -183,7 +185,7 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 
 ## 9. 格式版本与演进（D59）
 
-- 有版本号的结构：日志条目的事实与传输段、快照记录、`StateEvent`、命令的线上形式、`CommandResult`、`WaitSignal`、Kafka 信封、集群通道消息。
+- 有版本号的结构：日志条目的事实与传输段、快照记录、`StateEventRecord`、命令的线上形式、`CommandResult`、`WaitSignal`、Kafka 信封、集群通道消息。
 - 日志与快照的格式版本按表记录（schema 元数据），不按行存；线上结构每条消息带 `format`。
 - **加法不升版本**：新增带默认值的可选字段，旧读者忽略未知字段，新读者为缺失字段取默认值（R5-1）。
 - **主版本内的混部**（D48）：写者在一个次版本里只能「开始读」新字段，下一个次版本才开始写，保证相邻两个次版本能互读。
@@ -200,7 +202,7 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 | `EventStreamRecord` 增加 `scope`、`causation`、`headers`；`SnapshotRecord` 以 `scope` 取代两个字段 | `wow-spi`、内存、PostgreSQL、MongoDB 日志、`EventLogSpec` |
 | `LogEntry.transport`、`append(stream, transport)` | 同上；D50 的预留确认依赖它 |
 | 内核维护 `scope`，生命周期命令改变 `scope` | `wow-kernel`（`CachedState`、生命周期，路线图 2.4） |
-| `StateEvent`、`StateView` | `wow-kernel`（提交时序列化），订阅运行时使用 |
+| `StateEventRecord`、`StateView` | `wow-kernel`（提交时序列化），订阅运行时使用；类型化的 `StateEvent<S>` 在 `wow-api`（已合入） |
 | 对外 `CommandResult`、`WaitSignal` | `wow-api`（M4 的等待与 `wow-http` 使用） |
 
 ## 11. 待细化
