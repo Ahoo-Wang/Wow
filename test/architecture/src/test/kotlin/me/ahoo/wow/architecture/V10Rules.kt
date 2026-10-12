@@ -181,6 +181,7 @@ object V10Rules {
      */
     val REPLACED_9X: Map<String, String> = mapOf(
         "api" to "wow-api",
+        "query-api" to "wow-api",
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
         "cosec" to "wow-cosec",

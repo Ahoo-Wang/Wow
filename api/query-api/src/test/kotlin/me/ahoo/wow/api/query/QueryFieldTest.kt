@@ -1,0 +1,52 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)]
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.api.query
+
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+
+class QueryFieldTest {
+    @Test
+    fun `should compose absolute and relative paths`() {
+        val state = QueryField("state")
+        val name = QueryField("name")
+        val absolute = state.append(name)
+
+        absolute.assert().isEqualTo(QueryField("state.name"))
+        name.absoluteTo(state).assert().isEqualTo(absolute)
+        absolute.relativeTo(state).assert().isEqualTo(name)
+        state.relativeTo(state).assert().isNull()
+    }
+
+    @Test
+    fun `should print as its path and reject backend patterns`() {
+        QueryField("state.name").toString().assert().isEqualTo("state.name")
+        assertThrows<IllegalArgumentException> { QueryField("field.*") }
+    }
+
+    @Test
+    fun `should accept exactly the paths the published pattern accepts`() {
+        val pattern = Regex(QueryField.PATTERN)
+        val alphabet = listOf("a", "Z", "_", "-", "0", "9", "@", ".", "*", " ", "é")
+        var paths = listOf("")
+        repeat(5) {
+            paths = paths.flatMap { prefix -> alphabet.map { prefix + it } }
+            paths.forEach { path ->
+                val accepted = runCatching { QueryField(path) }.isSuccess
+                accepted.assert().describedAs(path).isEqualTo(pattern.matches(path))
+            }
+        }
+    }
+}
