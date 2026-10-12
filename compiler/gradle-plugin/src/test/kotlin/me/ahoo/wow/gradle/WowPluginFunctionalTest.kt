@@ -303,6 +303,15 @@ class WowPluginFunctionalTest {
     }
 
     @Test
+    fun `a module without wow-runtime should get no subscription bindings, with a warning`() {
+        result.output.assert().contains(
+            "sample.CartSummary: its subscriptions are not bound: the module does not depend on wow-runtime",
+        )
+        File(projectDir, "shop/build/generated/ksp/main/kotlin/sample/CartSummarySubscriptions.kt").exists()
+            .assert().isFalse()
+    }
+
+    @Test
     fun `the merged manifest should hold both modules' contexts`() {
         val manifest = manifest()
         manifest.service.assert().isEqualTo(ServiceInfo("shop", "1.0.0"))

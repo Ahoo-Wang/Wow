@@ -27,6 +27,9 @@ package me.ahoo.wow.compiler.model
 internal object SubscriptionSource {
     const val SUBSCRIPTION_PROVIDER = "me.ahoo.wow.runtime.binding.SubscriptionProvider"
     private const val BINDING = "me.ahoo.wow.runtime.binding"
+
+    /** The runtime type the generated handlers are: without it on the class path, no binding is generated. */
+    const val BOUND_HANDLER = "$BINDING.BoundHandler"
     private const val DEPENDENCIES = "me.ahoo.wow.kernel.Dependencies"
     private const val STATE_EVENT = "me.ahoo.wow.api.subscribe.StateEvent"
 
