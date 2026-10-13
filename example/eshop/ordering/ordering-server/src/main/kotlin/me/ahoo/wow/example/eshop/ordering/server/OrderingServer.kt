@@ -13,15 +13,29 @@
 
 package me.ahoo.wow.example.eshop.ordering.server
 
+import me.ahoo.wow.example.eshop.ordering.domain.order.PaymentPolicy
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import org.springframework.context.annotation.Bean
+import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /**
- * The eShop's ordering service on the Wow host: the host finds the order model through `eshop-ordering-domain`'s binding
- * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend.
+ * The eShop's ordering service on the Wow host: the host finds the order model and the sagas through
+ * `eshop-ordering-domain`'s binding index and serves its routes on the public port and the cluster on the internal
+ * one. It runs on the memory backend by default and on PostgreSQL with the `postgres` profile ([PostgresDataSource]).
+ *
+ * Its sagas send the inventory's commands, so the node needs a command transport: the `kafka` profile gives it Kafka,
+ * and it does not start without one.
  */
 @SpringBootApplication(proxyBeanMethods = false)
-class OrderingServer
+class OrderingServer {
+    /** The order's payment grace period, `eshop.ordering.payment-grace-period` (30 minutes by default). */
+    @Bean
+    fun paymentPolicy(@Value("\${eshop.ordering.payment-grace-period:30m}") gracePeriod: Duration): PaymentPolicy =
+        PaymentPolicy(gracePeriod.toKotlinDuration())
+}
 
 fun main(args: Array<String>) {
     runApplication<OrderingServer>(*args)

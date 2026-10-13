@@ -13,18 +13,88 @@
 
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
-import me.ahoo.wow.example.eshop.ordering.api.order.OrderPlaced
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
+import java.math.BigDecimal
 
-/** The state of a [Order], changed in place by its events. */
+/**
+ * The state of an [Order], changed in place by its events. Every property has a value before the order is submitted:
+ * the kernel serializes the state as it is.
+ */
 class OrderState(val id: String) {
-    var productId: String = ""
+    var buyerId: String = ""
         private set
 
-    var quantity: Int = 0
+    var items: List<OrderItem> = emptyList()
         private set
 
-    fun onSourcing(event: OrderPlaced) {
-        productId = event.productId
-        quantity = event.quantity
+    var totalAmount: BigDecimal = BigDecimal.ZERO
+        private set
+
+    var status: OrderStatus = OrderStatus.SUBMITTED
+        private set
+
+    /** The products the inventory reserved so far. */
+    var confirmedProducts: Set<String> = emptySet()
+        private set
+
+    var paymentId: String? = null
+        private set
+
+    /** Why the order was cancelled; null while it is not. */
+    var cancelReason: String? = null
+        private set
+
+    /** The order's products, each once, in the order of their first line. */
+    fun products(): Set<String> = items.mapTo(linkedSetOf()) { it.productId }
+
+    /** The order's quantity of each product, its lines of one product added up. */
+    fun quantities(): Map<String, Int> = items.groupingBy { it.productId }.fold(
+        0
+    ) { total, item -> total + item.quantity }
+
+    fun onSourcing(event: OrderSubmitted) {
+        buyerId = event.buyerId
+        items = event.items
+        totalAmount = event.items.fold(BigDecimal.ZERO) { total, item ->
+            total + item.unitPrice.multiply(BigDecimal(item.quantity))
+        }
+        status = OrderStatus.SUBMITTED
+    }
+
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: OrderAwaitingValidation) {
+        status = OrderStatus.AWAITING_VALIDATION
+    }
+
+    fun onSourcing(event: OrderStockItemConfirmed) {
+        confirmedProducts = confirmedProducts + event.productId
+    }
+
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: OrderStockConfirmed) {
+        status = OrderStatus.STOCK_CONFIRMED
+    }
+
+    fun onSourcing(event: OrderPaid) {
+        paymentId = event.paymentId
+        status = OrderStatus.PAID
+    }
+
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: OrderShipped) {
+        status = OrderStatus.SHIPPED
+    }
+
+    fun onSourcing(event: OrderCancelled) {
+        cancelReason = event.reason
+        status = OrderStatus.CANCELLED
     }
 }

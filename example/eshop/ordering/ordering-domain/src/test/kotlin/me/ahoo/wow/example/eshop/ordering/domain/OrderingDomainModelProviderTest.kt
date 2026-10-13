@@ -14,18 +14,49 @@
 package me.ahoo.wow.example.eshop.ordering.domain
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.example.eshop.ordering.domain.order.PaymentPolicy
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
+import kotlin.time.Duration.Companion.minutes
 
 /** What the compiler generated for the module: its binding index, found through `ServiceLoader`, and its fragment. */
 class OrderingDomainModelProviderTest {
+    private val provider = ModelProvider.load().single()
+
     @Test
     fun `the binding index should name the context and the fragment and build the order model`() {
-        val provider = ModelProvider.load().single()
         provider.context.assert().isEqualTo("eshop-ordering")
         provider.fragment.assert().isEqualTo("META-INF/wow/manifest/eshop-ordering-domain.json")
-        javaClass.classLoader.getResource(provider.fragment).assert().isNotNull()
-        provider.models(Dependencies.of()).map { it.type.toString() }.assert().containsExactly("eshop-ordering.order")
+        provider.models(Dependencies.of(PaymentPolicy(30.minutes))).map { it.type.toString() }
+            .assert().containsExactly("eshop-ordering.order")
+        provider.processors(Dependencies.NONE).map { it.name }.assert().containsExactlyInAnyOrder(
+            "OrderProcessSaga.onOrderSubmitted",
+            "OrderProcessSaga.onOrderAwaitingValidation",
+            "OrderProcessSaga.onOrderCancelled",
+            "OrderProcessSaga.onOrderShipped",
+            "StockConfirmationSaga.onStockReserved",
+        )
+    }
+
+    @Test
+    fun `the fragment should declare the scheduled cancellation and the sagas' commands and sources`() {
+        val fragment = JsonMapper.builder().build().readTree(
+            javaClass.classLoader.getResource(provider.fragment)!!.readBytes()
+        )
+        val context = fragment["contexts"].single()
+        val order = context["aggregates"].single()
+        order["schedules"].values().map { it.asString() }.assert().containsExactly("eshop-ordering.order.CancelOrder")
+        val subscriptions = context["subscriptions"].values().associateBy { it["name"].asString() }
+        subscriptions.getValue("OrderProcessSaga.onOrderAwaitingValidation")["derives"].single().asString()
+            .assert().endsWith("ReserveStock")
+        subscriptions.getValue("StockConfirmationSaga.onStockReserved")["source"]["context"].asString()
+            .assert().isEqualTo("eshop-inventory")
+        context["errors"].values().map { it["code"].asString() }.assert().contains(
+            "eshop-ordering.order.invalid-items",
+            "eshop-ordering.order.wrong-status",
+            "eshop-ordering.order.wrong-amount",
+        )
     }
 }

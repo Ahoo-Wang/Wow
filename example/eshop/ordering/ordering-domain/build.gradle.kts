@@ -18,8 +18,12 @@ apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     api(project(":eshop-ordering-api"))
+    // The inventory's commands, which the order-process saga sends to the inventory context.
+    implementation(project(":eshop-inventory-api"))
     // The generated models and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
     ksp(project(":compiler"))
     testImplementation(testFixtures(project(":kernel")))
+    // An `@OnRejected` handler's binding is invoked from a coroutine.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
