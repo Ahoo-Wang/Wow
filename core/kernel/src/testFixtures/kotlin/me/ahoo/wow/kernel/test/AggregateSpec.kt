@@ -128,7 +128,7 @@ class AggregateSpec<S : Any>(
         }
         if (expect != null) {
             val fired = last ?: throw AssertionError("No command the aggregate scheduled was due by $now.")
-            Expectations(model, codec, fired).expect()
+            Expectations(model, codec, fired, ::currentState).expect()
         }
     }
 
@@ -182,14 +182,30 @@ class AggregateSpec<S : Any>(
             kernel.execute(model, Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope))
                 .also { record(it) }
         }
-        Expectations(model, codec, outcome).expect()
+        Expectations(model, codec, outcome, ::currentState).expect()
+    }
+
+    /** The aggregate's committed state: its initial state before the first commit. */
+    private fun currentState(version: Int): S {
+        if (version == 0) {
+            return model.initialState(ref)
+        }
+        val committed = runBlocking { kernel.stateAt(model, ref, version) }
+            ?: throw AssertionError("The log does not hold version $version of $ref.")
+        @Suppress("UNCHECKED_CAST")
+        return committed.state as S
     }
 }
 
+/**
+ * The checks of a command's [outcome]. [stateAt] reads the aggregate's committed state at a version, which
+ * [expectState] reads after a command that changed nothing; without it, [expectState] needs committed events.
+ */
 class Expectations<S : Any>(
     private val model: AggregateModel<S>,
     private val codec: EventCodec,
     val outcome: CommandOutcome,
+    private val stateAt: ((Int) -> S)? = null,
 ) {
     /** The command committed exactly [events], in order. */
     fun expectEvents(vararg events: Any) {
@@ -264,8 +280,16 @@ class Expectations<S : Any>(
         }
     }
 
-    /** Checks the state after the committed events. */
+    /**
+     * Checks the state after the committed events; after a command that changed nothing ([expectUnchanged]), the
+     * state the aggregate is in.
+     */
     fun expectState(check: S.() -> Unit) {
+        val unchanged = outcome as? CommandOutcome.Unchanged
+        if (unchanged != null && stateAt != null) {
+            stateAt(unchanged.version).check()
+            return
+        }
         @Suppress("UNCHECKED_CAST")
         (committed().state as S).check()
     }
