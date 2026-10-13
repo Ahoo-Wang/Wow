@@ -147,7 +147,9 @@ object MongoQueryIndexes {
         val binding = requireNotNull(INDEXED.firstNotNullOfOrNull(field::binding)) {
             "Index [${declaration.name}] has the key [$key], which MongoDB neither matches, ranges nor sorts."
         }
-        val path = MongoSnapshotDocuments.checked(binding.physicalField.path)
+        // A schema binding, not an admitted query: no admission resolved it, so its physical field is read directly.
+        val physical = binding.physicalField
+        val path = MongoSnapshotDocuments.checked(physical.path)
         return path to (field.value.cardinality != QueryCardinality.SINGLE)
     }
 

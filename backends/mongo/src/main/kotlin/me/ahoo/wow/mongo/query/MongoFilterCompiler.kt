@@ -236,7 +236,7 @@ internal object MongoFilterCompiler {
     private fun QueryField.resolve(admitted: AdmittedQuery<*>, scope: String?): String {
         val field = admitted.field(this)
         val path = when (scope) {
-            null -> field.physicalField.path
+            null -> admitted.physicalPath(this)
             ELEMENT -> field.relativePhysicalField.path
             else -> scope + "." + field.relativePhysicalField.path
         }
