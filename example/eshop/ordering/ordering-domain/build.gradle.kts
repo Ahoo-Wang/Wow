@@ -12,6 +12,10 @@ ksp {
     arg("wow.manifest.module", project.name)
 }
 
+// The plugin's completion of the fragment with the schemas of the types (decision D73), so the Manifest carries the
+// state schemas the snapshot queries read.
+apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
+
 dependencies {
     api(project(":eshop-ordering-api"))
     // The generated models and the binding index build on the kernel only (decision D149).

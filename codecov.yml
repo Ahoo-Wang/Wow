@@ -21,9 +21,75 @@ coverage:
       default:
         target: 80%
         threshold: 1%
+# V10 modules keep the packages and file names of 9.x ones, so a JaCoCo path
+# (`<package>/<file>`) could name a file of each, and Codecov put one's lines
+# on the other. The JVM reports name each source file by its repository path
+# instead (test/code-coverage-report), and each JVM flag counts only its own
+# directories: `v10` (v10.yml) the V10 modules, tests and example; `local`,
+# `contract`, `integration` and `full` the 9.x ones. The 9.x reports of the full
+# build also cover the V10 modules, which no 9.x flag counts.
 flag_management:
   default_rules:
     carryforward: true
+  individual_flags:
+    - name: v10
+      paths:
+        - api/**
+        - core/**
+        - compiler/**
+        - query/**
+        - backends/**
+        - edge/**
+        - host/**
+        - migration/**
+        - example/shop/**
+        - example/inventory/**
+        - example/e2e/**
+        - example/eshop/**
+        - test/architecture/**
+        - test/kernel-benchmarks/**
+        - test/routing-spike/**
+        - test/lease-spike/**
+    - name: local
+      paths:
+        - wow-*/**
+        - compensation/**
+        - view-store/**
+        - dataset-registry/**
+        - analytics/**
+        - example/example-*/**
+        - example/transfer/**
+        - test/wow-*/**
+    - name: contract
+      paths:
+        - wow-*/**
+        - compensation/**
+        - view-store/**
+        - dataset-registry/**
+        - analytics/**
+        - example/example-*/**
+        - example/transfer/**
+        - test/wow-*/**
+    - name: integration
+      paths:
+        - wow-*/**
+        - compensation/**
+        - view-store/**
+        - dataset-registry/**
+        - analytics/**
+        - example/example-*/**
+        - example/transfer/**
+        - test/wow-*/**
+    - name: full
+      paths:
+        - wow-*/**
+        - compensation/**
+        - view-store/**
+        - dataset-registry/**
+        - analytics/**
+        - example/example-*/**
+        - example/transfer/**
+        - test/wow-*/**
 ignore:
   - "test/wow-it/.*"
   - "test/wow-tck/.*"

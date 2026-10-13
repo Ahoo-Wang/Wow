@@ -18,6 +18,12 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 
 plugins {
     base
@@ -76,6 +82,9 @@ val classesSharedWithNineXWhenBoth = mapOf(
     ":clickhouse" to (":wow-clickhouse" to listOf("me/ahoo/wow/clickhouse/query/**")),
 )
 
+/** A module of a report: its main source roots, and the class files the report covers of it. */
+class CoveredModule(val sourceRoots: FileCollection, val classes: FileTree)
+
 fun JacocoReport.useCoverageData(
     projects: Iterable<Project>,
     testTasks: Iterable<TaskProvider<Test>>,
@@ -87,17 +96,19 @@ fun JacocoReport.useCoverageData(
         },
     )
     val paths = projects.map { it.path }.toSet()
-    classDirectories.setFrom(
-        projects.map { project ->
-            val classesDirs = mainSourceSets(listOf(project)).single().map { it.output.classesDirs }
-            val shared = classesSharedWithNineX[project.path].orEmpty() +
-                classesSharedWithNineXWhenBoth[project.path]
-                    ?.takeIf { (nineX, _) -> nineX in paths }
-                    ?.second
-                    .orEmpty()
-            if (shared.isEmpty()) classesDirs else files(classesDirs).asFileTree.matching { exclude(shared) }
-        },
-    )
+    val modules = projects.map { project ->
+        val main = mainSourceSets(listOf(project)).single()
+        val shared = classesSharedWithNineX[project.path].orEmpty() +
+            classesSharedWithNineXWhenBoth[project.path]
+                ?.takeIf { (nineX, _) -> nineX in paths }
+                ?.second
+                .orEmpty()
+        CoveredModule(
+            sourceRoots = files(main.map { it.allSource.srcDirs }),
+            classes = files(main.map { it.output.classesDirs }).asFileTree.matching { exclude(shared) },
+        )
+    }
+    classDirectories.setFrom(modules.map { it.classes })
     executionData.setFrom(
         testTasks.map { testTask ->
             testTask.map {
@@ -105,7 +116,80 @@ fun JacocoReport.useCoverageData(
             }
         },
     )
+    val repository = rootProject.layout.projectDirectory.asFile
+    doLast {
+        reports.xml.outputLocation.get().asFile.takeIf { it.isFile }?.let { xml ->
+            nameSourcesByRepositoryPath(xml, modules, repository)
+        }
+    }
 }
+
+/**
+ * Names every source file of the JaCoCo report [xml] by its path in the repository, so Codecov maps each to the one
+ * file it is. JaCoCo names a source file by its package, `<package>/<file>`, and Codecov resolves that path against
+ * the repository's files; the V10 modules keep the packages and file names of 9.x ones (`me.ahoo.wow.api.query`,
+ * `me.ahoo.wow.query`, `me.ahoo.wow.clickhouse.query`, ...), so such a path names a file of each, and Codecov counted
+ * the lines of one on the other. Here each source file moves, with its classes, into a package named after the source
+ * root of the module whose class files hold its classes (`query/query/src/main/kotlin/me/ahoo/wow/query`); a class is
+ * named the same way, which keeps Codecov's method complexity, keyed by class name, on its file. A source file whose
+ * module or root is not found keeps its package path.
+ */
+fun nameSourcesByRepositoryPath(xml: File, modules: List<CoveredModule>, repository: File) {
+    val classesOf = modules.map { module ->
+        module.classes.visitRelative()
+    }
+    val factory = DocumentBuilderFactory.newInstance().apply {
+        setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+    }
+    val document = factory.newDocumentBuilder().parse(xml)
+    val report = document.documentElement
+    report.childElements("package").forEach { pkg ->
+        val packagePath = pkg.getAttribute("name")
+        val classes = pkg.childElements("class")
+        val byRoot = pkg.childElements("sourcefile").groupBy { source ->
+            val name = source.getAttribute("name")
+            val owners = classes.filter { it.getAttribute("sourcefilename") == name }
+                .flatMap { type -> classesOf.indices.filter { "${type.getAttribute("name")}.class" in classesOf[it] } }
+                .distinct()
+            val candidates = (owners.singleOrNull()?.let { listOf(modules[it]) } ?: modules)
+                .flatMap { it.sourceRoots.files }
+                .filter { File(it, "$packagePath/$name").isFile }
+                .distinct()
+            candidates.singleOrNull()?.relativeTo(repository)?.invariantSeparatorsPath
+        }
+        byRoot.forEach { (root, sources) ->
+            if (root == null) return@forEach
+            val moved = document.createElement("package").apply { setAttribute("name", "$root/$packagePath") }
+            sources.forEach { source ->
+                val name = source.getAttribute("name")
+                classes.filter { it.getAttribute("sourcefilename") == name }.forEach { type ->
+                    type.setAttribute("name", "$root/${type.getAttribute("name")}")
+                    moved.appendChild(type)
+                }
+                moved.appendChild(source)
+            }
+            report.insertBefore(moved, pkg)
+        }
+        if (pkg.childElements("sourcefile").isEmpty() && pkg.childElements("class").isEmpty()) {
+            report.removeChild(pkg)
+        }
+    }
+    TransformerFactory.newInstance().newTransformer().apply {
+        document.doctype?.let { doctype ->
+            setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, doctype.publicId)
+            setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, doctype.systemId)
+        }
+    }.transform(DOMSource(document), StreamResult(xml))
+}
+
+fun FileTree.visitRelative(): Set<String> {
+    val paths = HashSet<String>()
+    visit { if (!isDirectory) paths += relativePath.pathString }
+    return paths
+}
+
+fun Element.childElements(tag: String): List<Element> =
+    (0 until childNodes.length).map(childNodes::item).filterIsInstance<Element>().filter { it.tagName == tag }
 
 fun registerLayerCoverageReport(
     taskName: String,
