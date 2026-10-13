@@ -88,7 +88,9 @@ class AbacQueryPolicy(
         if (!options.enabled) return MatchAllFilter
         val profile = context.schema.profile
         val condition: (Map<String, List<String>>) -> FilterExpression = when {
-            context.schema.model == QueryModel.SNAPSHOT -> { tags -> tags.toFilterExpression(options.matchMissingTagKey) }
+            context.schema.model == QueryModel.SNAPSHOT -> { tags ->
+                tags.toFilterExpression(options.matchMissingTagKey)
+            }
             profile is DatasetQueryModelProfile && profile.tags.isNotEmpty() -> { tags ->
                 tags.toFilterExpression(profile.tags, context.schema, options.matchMissingTagKey)
             }
