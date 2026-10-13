@@ -38,6 +38,18 @@ abstract class CheckpointStoreSpec {
     }
 
     @Test
+    fun `a checkpoint saved at 0 is kept, and saved again changes nothing`(): Unit = runBlocking {
+        // A subscription saves its start at once, 0 in an empty partition (G33).
+        val store = createStore()
+        store.save(group, "saga", 0, 0)
+        store.load(group, "saga", 0).assert().isEqualTo(0L)
+        store.save(group, "saga", 0, 0)
+        store.load(group, "saga", 0).assert().isEqualTo(0L)
+        store.save(group, "saga", 0, 3)
+        store.load(group, "saga", 0).assert().isEqualTo(3L)
+    }
+
+    @Test
     fun `a checkpoint only moves forward`(): Unit = runBlocking {
         val store = createStore()
         store.save(group, "projection", 0, 10)

@@ -56,6 +56,10 @@ import kotlin.time.Duration.Companion.seconds
  *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [maxAttempts]; an unknown append outcome is settled
  *    by reading the version slot.
+ * 4. A rejection or an unchanged outcome decided on a cached state stands only once the log holds nothing after the
+ *    state's version: one read of the next version slot, else the state is reloaded and the command decided again
+ *    (not counted as an attempt). Another node of the service may have appended (decisions D45, D71), and only an
+ *    append meets the version-unique key.
  *
  * An attempt whose events are surely not appended (rejected, conflicting, failing) runs the compensations its
  * decide functions registered ([DecideScope.onAppendFailure]); a committed one runs their after-append actions. Once
@@ -131,12 +135,10 @@ class Kernel(
             ?.let { return duplicate(it, command, commandType) }
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
-        repeat(maxAttempts) {
-            val loaded = load(model, command)
-            admissible(decider, command, loaded)?.let {
-                states.put(command.ref, loaded)
-                return it
-            }
+        var attempts = 0
+        while (attempts < maxAttempts) {
+            val (loaded, cached) = load(model, command)
+            admissible(decider, command, loaded)?.let { return standing(command.ref, loaded, cached, it) ?: continue }
             val attempt = AttemptScope(command, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
@@ -149,38 +151,51 @@ class Kernel(
             }
             val (stream, evolved) = when (prepared) {
                 is Prepared.Done -> {
-                    // Decided without evolving: the state is as loaded (decide purity is the user's contract, F4).
-                    states.put(command.ref, loaded)
                     attempt.compensate()
-                    return prepared.outcome
+                    return standing(command.ref, loaded, cached, prepared.outcome) ?: continue
                 }
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
-            when (val appended = withContext(NonCancellable) { append(stream, attempt.transport()) }) {
-                is AppendOutcome.Committed -> {
-                    states.put(command.ref, evolved)
-                    withContext(NonCancellable) { attempt.afterAppend() }
-                    return CommandOutcome.Committed(
-                        stream,
-                        appended.position,
-                        evolved.state,
-                        attempt.results(),
-                        evolved.deleted,
-                        evolved.tags,
-                    )
-                }
-
-                is AppendOutcome.AlreadyCommitted -> {
-                    attempt.compensate()
-                    return settled(appended.existing, commandType)
-                }
-
-                is AppendOutcome.Conflict -> attempt.compensate()
-                is AppendOutcome.Unknown -> return CommandOutcome.Unknown(appended.cause)
-            }
+            val appended = withContext(NonCancellable) { append(stream, attempt.transport()) }
+            settleAppend(appended, stream, evolved, attempt, commandType)?.let { return it }
+            attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
+    }
+
+    /** The outcome of an attempt whose [stream] was [appended]; null on a version conflict, decided again. */
+    private suspend fun settleAppend(
+        appended: AppendOutcome,
+        stream: EventStreamRecord,
+        evolved: CachedState,
+        attempt: AttemptScope,
+        commandType: CommandType,
+    ): CommandOutcome? = when (appended) {
+        is AppendOutcome.Committed -> {
+            states.put(stream.ref, evolved)
+            withContext(NonCancellable) { attempt.afterAppend() }
+            CommandOutcome.Committed(
+                stream,
+                appended.position,
+                evolved.state,
+                attempt.results(),
+                evolved.deleted,
+                evolved.tags,
+            )
+        }
+
+        is AppendOutcome.AlreadyCommitted -> {
+            attempt.compensate()
+            settled(appended.existing, commandType)
+        }
+
+        is AppendOutcome.Conflict -> {
+            attempt.compensate()
+            null
+        }
+
+        is AppendOutcome.Unknown -> CommandOutcome.Unknown(appended.cause)
     }
 
     /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
@@ -287,12 +302,42 @@ class Kernel(
         }
     }
 
-    /** The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed. */
-    private suspend fun <S : Any> load(model: AggregateModel<S>, command: Command<*>): CachedState {
-        states.take(command.ref)?.let { return it }
-        loadSnapshot(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it } }
-        return replay(model, CachedState(model.initialState(command.ref), 0), log.read(command.ref).toList())
+    /**
+     * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
+     * whether it came from the cache.
+     */
+    private suspend fun <S : Any> load(model: AggregateModel<S>, command: Command<*>): Pair<CachedState, Boolean> {
+        states.take(command.ref)?.let { return it to true }
+        loadSnapshot(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it to false } }
+        return replay(model, CachedState(model.initialState(command.ref), 0), log.read(command.ref).toList()) to false
     }
+
+    /**
+     * [outcome], decided on [loaded] without appending, keeping [loaded] cached: decided without evolving, the state
+     * is as loaded (decide purity is the user's contract, F4). Null when [loaded] came from the cache ([cached]) and
+     * the log has moved past it ([behindLog]): the command is decided again on a reloaded state.
+     */
+    private suspend fun standing(
+        ref: AggregateRef,
+        loaded: CachedState,
+        cached: Boolean,
+        outcome: CommandOutcome,
+    ): CommandOutcome? {
+        if (cached && behindLog(ref, loaded.version)) {
+            return null
+        }
+        states.put(ref, loaded)
+        return outcome
+    }
+
+    /**
+     * Whether the log holds a stream of [ref] after [version], the version of a cached state a command was rejected
+     * on or changed nothing on. Without fencing (decision D45), another node may have committed to the aggregate while
+     * its owner's cache held it: a command that appends meets that stream as a version conflict, but one that appends
+     * nothing must read the next version slot, or it answers from a state the log has moved past.
+     */
+    private suspend fun behindLog(ref: AggregateRef, version: Int): Boolean =
+        log.read(ref, version + 1, version + 1).firstOrNull() != null
 
     /**
      * The committed state of [ref] at [version], read-only (design 04 §1: the state a subscription hands over when

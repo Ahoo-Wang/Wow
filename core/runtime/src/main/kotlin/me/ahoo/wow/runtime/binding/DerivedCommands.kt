@@ -25,12 +25,14 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.subscription.HandlingRejectedException
+import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
  * Executes the commands a saga derived from an entry (design 01 §1; design 04 §6.1, decision D62) on the aggregates of
- * its own bounded context, the [models], through that context's [coordinator]:
+ * its own bounded context, the [models], through that context's [coordinator], which routes each to the owner of its
+ * partition as it routes an admitted command (design 02 §2; decisions D6, D71):
  *
  * - **In order**: each is executed in turn, and the saga's handling is done once every one is committed (or changed
  *   nothing, or was already committed by an earlier execution of the same commit). The commands of a context are
@@ -46,7 +48,8 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   to that context's command topic through the sender ([CommandSender]), and is done once the broker has acknowledged it, a durable
  *   ACCEPTED; its outcome is the target's, and a rejection comes back as a receipt to the [ReplyTo] the caller gives
  *   it (decision D136). It carries [wait] on, so the target signals the waiting node as this context would.
- * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, a command the broker
+ * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, or that the executor
+ *   did not take (its lane full, the node closing), a command the broker
  *   did not acknowledge, one to another context with no sender (a node without a Kafka transport), and one to an
  *   aggregate type its own context does not have. The subscription retries the handling, which derives the same
  *   requests again, then parks the aggregate.
@@ -77,14 +80,11 @@ class DerivedCommands(
                 executed += command.id
                 continue
             }
-            val outcome = coordinator.forward(model, command, wait)
-            failureOf(command, outcome)?.let { throw it }
+            val settlement = coordinator.forward(model, command, wait)
+            failureOf(command, settlement)?.let { throw it }
             executed += command.id
-            if (outcome is CommandOutcome.Rejected) {
-                return Executed(
-                    executed,
-                    Rejected(command, outcome.rejection, model.commandType(command.body.javaClass).name)
-                )
+            settlement.rejection?.let { rejection ->
+                return Executed(executed, Rejected(command, rejection, model.commandType(command.body.javaClass).name))
             }
         }
         return Executed(executed)
@@ -104,21 +104,18 @@ class DerivedCommands(
         sender.send(command, wait, replyTo)
     }
 
-    /** Why [outcome] fails the saga, or null when [command] is settled: committed, unchanged, already committed or rejected. */
-    private fun failureOf(command: Command<*>, outcome: CommandOutcome): Exception? = when (outcome) {
-        is CommandOutcome.Committed,
-        is CommandOutcome.AlreadyCommitted,
-        is CommandOutcome.Unchanged,
-        is CommandOutcome.Rejected,
-        -> null
-
-        is CommandOutcome.Contended -> IllegalStateException(
-            "The derived command ${command.id} on ${command.ref} was contended ${outcome.attempts} times.",
-        )
-
-        is CommandOutcome.Unknown -> IllegalStateException(
-            "The outcome of the derived command ${command.id} on ${command.ref} is unknown.",
-            outcome.cause,
+    /**
+     * Why [settlement] fails the saga, or null when [command] is settled: committed, unchanged, already committed or
+     * rejected, here or on its partition's owner.
+     */
+    private fun failureOf(command: Command<*>, settlement: Settlement): Exception? {
+        if (!settlement.failed) {
+            return null
+        }
+        val error = settlement.committed.error
+        return IllegalStateException(
+            "The derived command ${command.id} on ${command.ref} failed: ${error?.code} ${error?.message}",
+            (settlement.outcome as? CommandOutcome.Unknown)?.cause,
         )
     }
 

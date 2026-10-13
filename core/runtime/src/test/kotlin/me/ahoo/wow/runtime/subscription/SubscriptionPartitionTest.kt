@@ -60,8 +60,9 @@ class SubscriptionPartitionTest {
             eventually { handled.size == 2 }
             runtime.stopPartition(1)
             runtime.partitions.assert().containsExactly(0)
-            checkpoints.savesOf("s", 1).assert().containsExactly(inOne)
-            checkpoints.savesOf("s", 0).assert().isEmpty()
+            // The starting checkpoints are saved at once, 0 included (G33).
+            checkpoints.savesOf("s", 1).assert().containsExactly(0L, inOne)
+            checkpoints.savesOf("s", 0).assert().containsExactly(0L)
 
             // Partition 1 is no longer read here; partition 0 still is.
             appender.append(idIn(1, skip = 1))
@@ -72,7 +73,7 @@ class SubscriptionPartitionTest {
             runtime.startPartition(1)
             eventually { handled.size == 4 }
             runtime.stop()
-            checkpoints.savesOf("s", 0).assert().containsExactly(nextInZero)
+            checkpoints.savesOf("s", 0).assert().containsExactly(0L, nextInZero)
             runtime.stopPartition(0)
         }
 

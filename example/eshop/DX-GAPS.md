@@ -378,7 +378,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Do not ask the Manifest's state schemas about a dataset's name, or leave the warning out for one.
 - **Blocks M7**: no.
 
-### G32. With two nodes, a saga's command on another node can leave the owner deciding on a stale state
+### G32. With two nodes, a saga's command on another node can leave the owner deciding on a stale state (resolved)
 
 - **Work package**: E.6
 - **Area**: runtime
@@ -387,8 +387,9 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `EshopFullChainTest` runs the ordering on one node. `EshopStack(orderingNodes = 2)` reproduces it: the first test fails with the order `STOCK_CONFIRMED` and its payment `REFUNDED`.
 - **Proposed fix**: Route a saga's derived commands of its own context like any other (to the partition's owner, degrading to local as D71 says), and have a rejection or an unchanged outcome decided on a cached state confirm the state's version against the log before it answers.
 - **Blocks M7**: yes: a service with a saga on another context's stream cannot run on two nodes.
+- **Resolved**: by #4390. The commands a saga derives in its own context, the compensations its `@OnRejected` handler derives, a timer's command and the command intake's go through the node's router like an admitted command: to the owner of their partition, degrading to the local node when the forward fails or the owner is unknown (D6, D71). The second defect is closed in the kernel: without fencing (D45) any node may still append in the degraded case, and only an append meets the version-unique key, so a rejection or an unchanged outcome decided on a cached state stands only once the log holds nothing after that state's version (one read of the next version slot, only on those outcomes); otherwise the state is reloaded and the command decided again. `EshopFullChainTest` runs the ordering on two nodes.
 
-### G33. A saga starting at the end loses the first entries of a partition when its node is killed before its first checkpoint
+### G33. A saga starting at the end loses the first entries of a partition when its node is killed before its first checkpoint (resolved)
 
 - **Work package**: E.6
 - **Area**: runtime
@@ -397,3 +398,4 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `EshopFullChainTest` first places and waits out an order of its own in the partition, so the order process's checkpoints exist there before the kill. Setting the sagas' `start` to `beginning` would avoid it too.
 - **Proposed fix**: Save the starting checkpoint at once whatever it is, 0 included.
 - **Blocks M7**: yes: a node killed in the first moments of a partition loses its saga effects.
+- **Resolved**: by #4390. A subscription saves its starting checkpoint as it starts, 0 included. `EshopFullChainTest` no longer warms the partition up with an order of its own before the kill.
