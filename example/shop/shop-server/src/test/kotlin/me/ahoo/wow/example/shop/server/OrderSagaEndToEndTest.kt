@@ -30,12 +30,13 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** The topics of the test, in memory: one partition each. */
-@Configuration(proxyBeanMethods = false)
+/**
+ * The topics of the test, in memory: one partition each. A configuration only where a test passes it: no
+ * `@Configuration`, so the server's component scan does not give every other test of this module these topics.
+ */
 class InMemoryShopTopics {
     @Bean
     fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)

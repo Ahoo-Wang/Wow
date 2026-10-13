@@ -38,7 +38,6 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.URI
@@ -48,8 +47,10 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** The topics of the test, in memory: the inventory's command topic, the shop's receipts and its order stream. */
-@Configuration(proxyBeanMethods = false)
+/**
+ * The topics of the test, in memory: the inventory's command topic, the shop's receipts and its order stream. No
+ * `@Configuration`, so the server's component scan does not pick it up where a test does not pass it.
+ */
 class InMemoryTransport {
     @Bean
     fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(InventoryServerTest.PARTITIONS)
