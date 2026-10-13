@@ -21,14 +21,17 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryTimeoutException
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetBuilder
 import me.ahoo.wow.query.list
@@ -196,6 +199,64 @@ class ClickHouseDatasetStorageTest {
         awaitRunning { it > 0 }.assert().describedAs("the query runs on the server").isGreaterThan(0L)
         job.cancel()
         awaitRunning { it == 0L }.assert().describedAs("the query is stopped").isEqualTo(0L)
+    }
+
+    @Test
+    fun `a cursor should resume after a boolean, a float and an unsigned 64-bit key`(): Unit = runBlocking {
+        ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.positions")
+        ClickHouseContainers.execute(
+            "CREATE TABLE $database.positions (id String, tenant_id String, flag Bool, ratio Float64, big UInt64) " +
+                "ENGINE = MergeTree ORDER BY id",
+        )
+        ClickHouseContainers.execute(
+            "INSERT INTO $database.positions VALUES ('a', 't1', true, 0.5, 18446744073709551615), " +
+                "('b', 't1', false, 1.25, 1), ('c', 't1', true, 0.125, 9223372036854775808)",
+        )
+        val target = DatasetTarget(
+            dataset("positions", "NONE") {
+                field("flag") {
+                    types(QueryValueType.BOOLEAN)
+                    nullable(false)
+                }
+                field("ratio") {
+                    types(QueryValueType.DECIMAL)
+                    nullable(false)
+                }
+                field("big") {
+                    types(QueryValueType.INTEGER)
+                    nullable(false)
+                }
+            },
+            factory,
+        )
+        val schema = target.schema()
+        suspend fun walk(vararg sort: Sort): List<String> {
+            val ids = mutableListOf<String>()
+            var cursor: String? = null
+            do {
+                val query = CursorQuery(MatchAllFilter, sort = sort.toList(), size = 1, cursor = cursor)
+                val page = target.backend.cursor(QueryAdmission.Trusted.cursor(query, schema))
+                ids += page.list.map { it.get("id").stringValue() }
+                cursor = page.nextCursor
+            } while (cursor != null && ids.size < 10)
+            return ids
+        }
+        walk(Sort(QueryField("flag"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.DESC))
+            .assert().containsExactly("b", "c", "a")
+        walk(Sort(QueryField("ratio"), Sort.Direction.ASC)).assert().containsExactly("c", "a", "b")
+        walk(Sort(QueryField("big"), Sort.Direction.DESC)).assert().containsExactly("a", "c", "b")
+    }
+
+    @Test
+    fun `a refresh should read the table again`(): Unit = runBlocking {
+        ClickHouseContainers.execute("DROP TABLE IF EXISTS $database.growing")
+        ClickHouseContainers.execute("CREATE TABLE $database.growing (id String, tenant_id String) ENGINE = MergeTree ORDER BY id")
+        val declared = dataset("growing", "NONE") { field("extra") { types(QueryValueType.STRING) } }
+        val target = DatasetTarget(declared, factory)
+        assertThrows<QuerySchemaException> { target.schema() }
+        ClickHouseContainers.execute("ALTER TABLE $database.growing ADD COLUMN extra Nullable(String)")
+        target.catalog.provider(declared.name, me.ahoo.wow.query.schema.QueryModel.DATASET).refresh()
+            .field(QueryField("extra")).assert().isNotNull()
     }
 
     private fun endless() {
