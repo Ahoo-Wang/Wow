@@ -237,6 +237,23 @@ class EshopStack(
         const val PAYMENT_DATABASE = "eshop_payment"
         const val PARTITIONS = 4
         const val MAX_HOPS = 16
+
+        /** A checkout's `Wow-Wait` until the order is committed in the ordering context. */
+        const val CHECKOUT_TO_ORDER =
+            "committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)"
+
+        /**
+         * A checkout's `Wow-Wait` until the payment's `PayOrder` is committed: 15 hops, through every saga on the way,
+         * the ordering's on the inventory's stock stream included. The basket takes the inventory's and the payment's
+         * Manifests as peers only for this chain (DX gap G30), and allows [MAX_HOPS] hops.
+         */
+        const val CHECKOUT_TO_PAID = CHECKOUT_TO_ORDER +
+            " > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)" +
+            " > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)" +
+            " > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)" +
+            " > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)" +
+            " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)" +
+            " > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)"
         const val OK = 200
         const val NOT_FOUND = 404
         const val TAIL = 4_000

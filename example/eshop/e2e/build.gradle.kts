@@ -56,12 +56,32 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }
 
-tasks.named<Test>("integrationTest") {
+/** The class paths of the servers, and the directory of their output, as the services' JVMs take them. */
+fun JavaForkOptions.eshopServers() {
     servers.forEach { (context, classpath) ->
-        inputs.files(classpath).withNormalizer(ClasspathNormalizer::class).withPropertyName("${context}Server")
         jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.$context.classpath=${classpath.asPath}") })
     }
     // Each service's output, kept for a failed run.
     val logs = layout.buildDirectory.dir("eshop-logs")
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.logs=${logs.get().asFile}") })
+}
+
+tasks.named<Test>("integrationTest") {
+    servers.forEach { (context, classpath) ->
+        inputs.files(classpath).withNormalizer(ClasspathNormalizer::class).withPropertyName("${context}Server")
+    }
+    eshopServers()
+}
+
+// The load script (EshopLoad.kt), outside every check: `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad`, with the
+// properties `-Peshop.load.checkouts=200 -Peshop.load.concurrency=8 -Peshop.load.warm-up=40` (BASELINE.md).
+tasks.register<JavaExec>("eshopLoad") {
+    description = "Drives checkouts through the eShop's five services and reports their throughput and latency."
+    classpath = project.the<SourceSetContainer>()["integrationTest"].runtimeClasspath
+    mainClass.set("me.ahoo.wow.example.eshop.e2e.EshopLoadKt")
+    servers.values.forEach { dependsOn(it) }
+    eshopServers()
+    listOf("eshop.load.checkouts", "eshop.load.concurrency", "eshop.load.warm-up").forEach { name ->
+        providers.gradleProperty(name).orNull?.let { systemProperty(name, it) }
+    }
 }
