@@ -37,10 +37,10 @@
 |---|---|---|
 | 核心注解（`@AggregateRoot`、`@OnCommand`、`@OnSourcing`、`@CreateAggregate`、`@AllowCreate`、`@AfterCommand`、`@Blocking`、`@Name` 等） | `wow-api` | 已有（D79） |
 | 事件修订与升级 | `@Event(revision)`、`EventUpgrader` | 替代：`@Revision`、`@Upgrade`、`@Alias`（D22、D82） |
-| 固定租户 | `@StaticTenantId` | 替代：`wow.aggregates."ctx.agg".tenant`（D116） |
+| 固定租户 | `@StaticTenantId` | 替代：`wow.aggregates."ctx.agg".tenant`（D116）；`@StaticAggregateId` 没有单独的决定，待复核 |
 | 所有者与空间策略 | `@AggregateOwner`、`@Spaced` | 替代：作用域取自主体，内核作用域守卫（D56、D68、D94、D96） |
 | 命令字段上的身份注解 | `@AggregateId` 等 | 放弃（D68），编译报错 |
-| 标签 | 状态里提取标签 | 替代：`ApplyTags` 生命周期命令与查询 ABAC（D129）；从状态提取标签不做 |
+| 标签 | 状态里提取标签 | `ApplyTags` 生命周期命令与查询 ABAC 已有（D129）；**从状态提取标签缺失**（见 §13） |
 | 生命周期命令 | 删除、恢复、转移等 | 已有（D91、D113） |
 | `@EntityObject`、`@ValueObject`、`@Order`、`Identifier` | 注解 | 放弃（D67） |
 | `@OnError` | 注解 | 放弃（D7） |
@@ -90,7 +90,7 @@
 | 查询字段注解（含 `@QueryReference`） | `wow-api` | 已有 |
 | 数据集（目录、网关、动态注册） | `wow-query` `dataset` | 计划（6.1d） |
 | ClickHouse 数据集后端 | `wow-clickhouse` | 计划（6.4a） |
-| Kotlin 查询构建 DSL | `wow-query` DSL | **缺失**（见 §13） |
+| Kotlin 查询构建 DSL；生成的查询字段常量 | `wow-query` DSL；编译器 `<State>Properties` | **缺失**（见 §13） |
 
 ## 6. 消息与外部存储
 
@@ -140,7 +140,8 @@
 
 | 能力 | 9.x | V10 |
 |---|---|---|
-| 补偿服务与控制台 | `compensation/*` | 替代为 wow-ops（D14、D141），计划（6.3f、7.1） |
+| 补偿服务与控制台 | `compensation/*` | 替代为 wow-ops（D14、D141），计划（6.3f、7.1）；**失败通知 webhook 缺失**（见 §13） |
+| K8s 部署清单 | `deploy/*` | **缺失**（见 §13） |
 | view-store、dataset-registry、analytics | 各自目录 | 计划（7.2，D146） |
 | `wow-models`（`EnumText`、`StatusCapable` 等） | `wow-models` | **缺失**：06 §6 未定（见 §13） |
 | `wow-apiclient`（Kotlin 声明式客户端） | `wow-apiclient` | **缺失**：06 §6 未定（见 §13） |
@@ -167,6 +168,11 @@
 | 5 | 处理函数的拦截器（9.x 过滤器链） | 用过滤器做日志、指标、租户上下文的用户失去扩展点；OTel（D174）覆盖一部分 | 否 | M，或决定放弃 |
 | 6 | Kotlin 查询构建 DSL | 平台代码要手写查询数据类 | 否 | S |
 | 7 | `AggregateSpec` 分叉场景，`expectUnchanged` 后 `expectState`（G12） | 多分支测试场景要展平重写 | 否 | S |
+| 8 | 从状态提取标签（9.x `StateAggregateTagsExtractor`、`AbacTags`） | 依赖按标签做 ABAC 的服务（analytics，D129）要手发 `ApplyTags` | M7 | M |
+| 9 | wow-ops 的失败通知（9.x 补偿服务的企业微信 webhook） | 运维收不到新增或失败的告警，7.1 落后于 9.x 补偿服务 | M7 | M |
+| 10 | 跨上下文命令缺少 Kafka 时的启动检查（DX-GAPS G9） | Saga 只在运行时失败并停放 | M7 | S |
+| 11 | 生成的查询字段常量（9.x 编译器的 `<State>Properties`） | Kotlin 调用方构建查询时没有编译期安全的字段名 | M8 | S |
+| 12 | K8s 部署清单（9.x `deploy/compensation`、`deploy/example`） | 部署 ops 与示例的运维；V10 还要写明内部端口（D173） | 否 | S |
 
 计划中但同样卡在 M7 门槛上的：6.2c、6.1c、6.1d、6.4a/b、6.3f、6.9、5a.2、5a.3、6.0e、D179、6.0h。卡在 M8 的：6.0f、6.0g、6.7、6.2e、6.5。
 
