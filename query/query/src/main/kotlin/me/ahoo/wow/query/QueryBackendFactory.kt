@@ -14,6 +14,8 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageLocator
@@ -49,14 +51,18 @@ open class RoutingQueryBackendFactory<B : QueryBackend>(
 }
 
 /**
- * The storages of the snapshot backends [snapshots] creates, as the
- * [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog] locates them; `null` for any other model.
+ * The storages of the query backends, as the [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
+ * locates them: each aggregate's snapshots from [snapshots], each dataset of [datasets] from [datasetFactory]; `null`
+ * for a model without a factory, a dataset that is not declared and any other model.
  */
-class QueryBackendStorages(
+class QueryBackendStorages @JvmOverloads constructor(
     private val snapshots: QueryBackendFactory<QueryBackend>? = null,
+    private val datasetFactory: DatasetQueryBackendFactory? = null,
+    private val datasets: QueryDatasets = QueryDatasets.NONE,
 ) : QueryStorageLocator {
     override fun storage(aggregateType: AggregateType, model: QueryModel): QueryStorageAdapter? = when (model) {
         QueryModel.SNAPSHOT -> snapshots?.create(aggregateType)?.storage
+        QueryModel.DATASET -> datasets[aggregateType]?.let { datasetFactory?.create(it)?.storage }
         else -> null
     }
 }

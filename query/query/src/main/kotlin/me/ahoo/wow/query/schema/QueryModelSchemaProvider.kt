@@ -20,6 +20,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.dataset.QueryDatasets
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.LongSupplier
@@ -68,7 +69,7 @@ class DefaultQueryModelSchemaProvider(
     private val provisionalTtl: Duration = DEFAULT_PROVISIONAL_TTL,
     /** The monotonic clock, in nanoseconds, `provisionalTtl` is measured with. */
     private val nanoTime: LongSupplier = LongSupplier(System::nanoTime),
-    /** The record layout of the model: a built-in model's, or a dataset's own (6.1d). */
+    /** The record layout of the model: a built-in model's, or a dataset's own ([QueryDatasets.profile]). */
     private val profile: QueryModelProfile? = QueryModelProfile.of(context.model),
     /** Which protected values filters and sorts may still compare. */
     private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
