@@ -49,9 +49,8 @@ import kotlin.reflect.KClass
  * ```
  *
  * Each call of a handler gets a fresh [ExecutionSagaContext], as the runtime gives each handling of a commit, so the
- * ids the saga derives are the same on every call for the same commit. So are the ids it takes
- * ([me.ahoo.wow.api.subscribe.SagaContext.ids], decision D171): name-based UUIDs of the execution, as on a node
- * ([me.ahoo.wow.kernel.HandlingIds.idOf] computes the expected ones).
+ * ids the saga derives are the same on every call for the same commit. Its [ids][me.ahoo.wow.api.subscribe.SagaContext.ids]
+ * (decision D171) are [SequentialIds], counted anew for each call: `id-1`… and `<aggregate>-1`….
  */
 fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
     ProcessorSpec(handlers, FunctionKind.SAGA).block()
@@ -181,7 +180,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         val commands = ArrayList<Command<*>>()
         val schedules = ArrayList<SagaSchedule>()
         called.forEach { handler ->
-            val context = contextOf(handler.kind, handler.name, event)
+            val context = contextOf(handler.kind, handler.name, event, SequentialIds())
             val derived = runBlocking { handler.invoke(event, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             commands += derived
@@ -192,7 +191,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
 
     private fun reject(handler: RejectionBinding<*>, rejected: CommandRejected<*>): Result<Handled> =
         runCatchingAll {
-            val context = rejectionContextOf(handler, rejected)
+            val context = rejectionContextOf(handler, rejected, SequentialIds())
             val derived = runBlocking { handler.invoke(rejected, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived, emptyList())

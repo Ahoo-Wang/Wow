@@ -103,7 +103,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val derived = DerivedCommands(context.models, context.coordinator, context.sender)
-        val rejections = SagaRejections(bound, derived)
+        val rejections = SagaRejections(bound, derived, context.ids)
         return local.map { handler ->
             val name = handler.name
             val filter = SubscriptionFilter(
@@ -121,7 +121,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     retry = handler.retry
                 ) { entry ->
                     val event = stateEventOf(entry, context)
-                    val execution = contextOf(handler.kind, name, event)
+                    val execution = contextOf(handler.kind, name, event, context.ids)
                     val commands = call(handler, event, execution)
                     writeSchedules(context, name, event, execution)
                     val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
@@ -139,7 +139,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     retry = handler.retry,
                 ) { entry ->
                     val event = stateEventOf(entry, context)
-                    call(handler, event, contextOf(handler.kind, name, event))
+                    call(handler, event, contextOf(handler.kind, name, event, context.ids))
                 }
             }
         }
@@ -152,7 +152,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val derived = DerivedCommands(context.models, context.coordinator, context.sender)
-        val rejections = SagaRejections(bound, derived)
+        val rejections = SagaRejections(bound, derived, context.ids)
         return sourced.map { handler ->
             val name = handler.name
             val types = handler.aggregates.mapTo(LinkedHashSet()) {
@@ -168,7 +168,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     retry = handler.retry
                 ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
-                    val execution = contextOf(handler.kind, name, event)
+                    val execution = contextOf(handler.kind, name, event, context.ids)
                     val commands = call(handler, event, execution)
                     writeSchedules(context, name, event, execution)
                     val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
@@ -185,7 +185,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     retry = handler.retry,
                 ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
-                    call(handler, event, contextOf(handler.kind, name, event))
+                    call(handler, event, contextOf(handler.kind, name, event, context.ids))
                 }
             }
             SourcedSubscription(subscription, types)
@@ -198,7 +198,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
      */
     override fun rejections(context: ContextNode): RejectionHandler? {
         val bound = processors[context.context].orEmpty()
-        return SagaRejections(bound, DerivedCommands(context.models, context.coordinator, context.sender))
+        return SagaRejections(bound, DerivedCommands(context.models, context.coordinator, context.sender), context.ids)
             .takeUnless { it.isEmpty }
     }
 

@@ -71,6 +71,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.wait.Origin
 import java.time.Clock
@@ -117,6 +118,8 @@ class ContextNode internal constructor(
      * timer store: the runner's [TimerRunner.resume] and [TimerRunner.skip] serve an operator.
      */
     val timers: ContextTimers? = null,
+    /** The node's id generators (decision D171), the ids its sagas take. */
+    val ids: IdGenerators = IdGenerators.DEFAULT,
 ) {
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
@@ -761,6 +764,7 @@ class ServiceNode(
                 intake,
                 sender,
                 timers,
+                admission.ids,
             )
         }
     }

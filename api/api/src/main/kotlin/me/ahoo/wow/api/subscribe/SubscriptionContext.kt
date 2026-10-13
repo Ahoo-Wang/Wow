@@ -50,11 +50,9 @@ interface ReactContext : SubscriptionContext
 /** The context of a [me.ahoo.wow.api.annotation.Saga]'s handler: it derives commands from the commit. */
 interface SagaContext : SubscriptionContext {
     /**
-     * The ids this execution takes (decision D171), such as the id of an aggregate a derived command creates. They are
-     * deterministic, as the derived commands' ids are: name-based UUIDs of the execution (for an `@OnRejected`
-     * handler, of the execution and the rejected command) and the order of the calls, not the node's generators. So
-     * handling the commit again, after a redelivery, a handover or a resumed parked entry, takes the same ids, and a
-     * command creating an aggregate of a new id creates it once.
+     * The ids this execution takes (decision D171), such as the id of an aggregate a derived command creates: the
+     * node's generators, fixed ids in the test DSL. Handling the commit again takes new ones, but the derived
+     * commands keep their request ids, so the targets still decide them once (decision D162).
      */
     val ids: Ids
 
