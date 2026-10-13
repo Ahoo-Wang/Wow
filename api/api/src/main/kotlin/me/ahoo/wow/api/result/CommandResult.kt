@@ -73,6 +73,8 @@ data class ErrorInfo(val code: String, val message: String, val violations: List
  * - [error] is set when [status] is [Status.REJECTED] or [Status.FAILED].
  * - [derived] lists, on a saga's hop, the ids of the commands it derived from the commit (D62).
  * - [signalTime] is when it was produced, in epoch milliseconds.
+ * - [transformedFrom] is the command the request named when a transformer turned it into this one (decision D182);
+ *   null when none did.
  */
 data class CommandResult(
     val format: Int = FORMAT,
@@ -89,6 +91,7 @@ data class CommandResult(
     val results: Map<String, Any> = emptyMap(),
     val derived: List<String> = emptyList(),
     val signalTime: Long,
+    val transformedFrom: TransformedFrom? = null,
 ) {
     init {
         require(commandId.isNotBlank()) { "A result names its command." }
@@ -110,6 +113,17 @@ data class CommandResult(
     companion object {
         /** The format version of this structure (decision D59). */
         const val FORMAT: Int = 1
+    }
+}
+
+/**
+ * The command a request named before a transformer turned it into the one that ran (decision D182): its full type
+ * name [command] (`context.aggregate.Command`) and the aggregate id the request gave, null when it gave none.
+ */
+data class TransformedFrom(val command: String, val aggregateId: String? = null) {
+    init {
+        require(command.isNotBlank()) { "A transformed command names the command it came from." }
+        require(aggregateId == null || aggregateId.isNotBlank()) { "An aggregate id, when given, is not blank." }
     }
 }
 

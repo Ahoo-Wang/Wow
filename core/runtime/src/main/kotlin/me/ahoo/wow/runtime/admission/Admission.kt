@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.admission
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
@@ -25,6 +24,11 @@ import me.ahoo.wow.runtime.FrameworkCodes
 /**
  * What a caller asks to do, as action-level authorization sees it before the body is decoded (decision D92): a
  * command of [type] on [ref], in [scope], and whether the command may create the aggregate ([creation]).
+ *
+ * A request a transformer handles (decision D182) is authorized as it arrives, and again as the command it becomes
+ * when the transformer changed its type or its aggregate. As it arrives, its ref names the aggregate id
+ * [CommandGateway.UNADDRESSED] when the request names none, and a mounted command, which no aggregate decides, has
+ * [Creation.NONE].
  */
 data class CommandAction(val type: CommandType, val ref: AggregateRef, val scope: Scope, val creation: Creation)
 
@@ -54,17 +58,7 @@ fun interface CommandAuthorizer {
 }
 
 /**
- * Rewrites a decoded command before it is validated (decision D92, step 5), such as filling a default into its body or
- * adding a request fact to its headers. It may change only the body (keeping its type) and the headers; the gateway
- * checks after each rewriter that the ids, the ref, the scope, the expected version, the causation, the operator and
- * the wait plan are unchanged, and that no reserved header was added.
- */
-fun interface CommandRewriter {
-    suspend fun rewrite(command: Command<*>): Command<*>
-}
-
-/**
- * Validates a decoded and rewritten command body of [type][CommandType] (decision D106): the violations it finds, none
+ * Validates a decoded and transformed command body of [type][CommandType] (decision D106): the violations it finds, none
  * when it is valid. Any violation refuses the command with [FrameworkCodes.INVALID], listing them all.
  */
 fun interface CommandValidator {

@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.aggregate
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 
 const val BANK = "bank"
 const val FROZEN = "bank.account.frozen"
@@ -41,9 +42,14 @@ class Account {
     var balance: Long = 0
 }
 
-/** The aggregate ids whose commands a node decided: a bean of each application context, a model's dependency. */
+/**
+ * The aggregate ids whose commands a node decided, and the commands' wait timeouts and headers: a bean of each
+ * application context, a model's dependency.
+ */
 class DecidedCommands {
     val ids: MutableList<String> = CopyOnWriteArrayList()
+    val timeouts: MutableList<Duration> = CopyOnWriteArrayList()
+    val headers: MutableList<Map<String, String>> = CopyOnWriteArrayList()
 }
 
 /**
@@ -62,6 +68,8 @@ class BankModels : ModelProvider {
                 lifecycle()
                 decide<OpenAccount>(Creation.REQUIRED) { _, body ->
                     decided.ids += command.ref.id
+                    decided.timeouts += command.wait.timeout
+                    decided.headers += command.headers
                     Decision.events(AccountOpened(body.owner))
                 }
                 decide<Deposit> { _, body ->

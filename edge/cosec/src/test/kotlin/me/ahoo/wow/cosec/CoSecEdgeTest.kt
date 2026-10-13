@@ -17,7 +17,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.CommandRewriter
+import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.runtime.admission.CommandInput
+import me.ahoo.wow.runtime.admission.CommandTarget
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.CopyOnWriteArrayList
@@ -28,7 +31,16 @@ class CoSecEdgeTest {
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions(crossScopeRoles = setOf("admin"))),
         options = CoSecRequestFacts.addTo(WowHttpOptions(requestFacts = setOf("X-Trace"))),
-        rewriters = listOf(CommandRewriter { command -> command.also { headers += it.headers } }),
+        transformers = listOf(
+            object : CommandTransformer {
+                override val input = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
+
+                override suspend fun transform(input: CommandInput): CommandTarget {
+                    headers += input.headers
+                    return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
+                }
+            },
+        ),
     )
 
     private fun Pair<Int, JsonNode?>.assertProblem(status: Int, code: String) {

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -30,11 +31,13 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -46,30 +49,38 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 
 /**
- * Admits commands (design 02 §1; decision D92): turns a [CommandRequest] into an immutable [Command] and hands it to
- * the [WaitCoordinator] of its context, which checks its wait plan, routes it and waits for it.
+ * Admits commands (design 02 §1; decisions D92, D182): turns a [CommandRequest] into an immutable [Command] and hands
+ * it to the [WaitCoordinator] of its context, which checks its wait plan, routes it and waits for it.
  *
  * Admission runs in this order, and the first step that refuses answers the request:
  *
  * 1. Resolve the command type from [registry], by its model name or the part of it after the aggregate type
- *    (`AddItem` for `shop.cart.AddItem`): an aggregate or a command this node does not serve is
- *    [FrameworkCodes.UNHANDLED].
+ *    (`AddItem` for `shop.cart.AddItem`), among the commands the aggregate decides and those mounted under it: an
+ *    aggregate or a command this node does not serve is [FrameworkCodes.UNHANDLED].
  * 2. Decide the identity, each fact by one rule (decisions D95–D97); a fact given twice, or missing, is
  *    [FrameworkCodes.MALFORMED]:
  *    - the tenant and the scope are the caller's; a [CommandRequest.target] replaces them only for a caller with
- *      [Caller.crossScope], and is [FrameworkCodes.AUTH_FORBIDDEN] for any other, never ignored;
+ *      [Caller.crossScope][me.ahoo.wow.api.caller.Caller.crossScope], and is [FrameworkCodes.AUTH_FORBIDDEN] for any
+ *      other, never ignored;
  *    - an aggregate type whose tenant [tenants] fixes (decision D116) is in that tenant whoever the caller is; a target
  *      that names another tenant for it is [FrameworkCodes.MALFORMED];
- *    - the aggregate id is the request's, or a new one from [ids] for a command that may create the aggregate;
+ *    - the aggregate id is the request's, or a new one from [ids] for a command that may create the aggregate. A
+ *      request of a type one of [transformers] takes, a mounted command among them, may name none: its transformer
+ *      finds the aggregate;
  *    - the command id is always a new one from [ids]; the request id is the request's, or the command id;
- *    - the operator is the caller's ([Caller.toOperator], decision D163): its subject in its own tenant, marked as
- *      acting elsewhere when a target was named; none for an anonymous caller;
+ *    - the operator is the caller's ([me.ahoo.wow.api.caller.Caller.toOperator], decision D163): its subject in its
+ *      own tenant, marked as acting elsewhere when a target was named; none for an anonymous caller;
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
  * 4. Decode the body as the command type with [mapper]; one that does not decode is [FrameworkCodes.MALFORMED].
- * 5. Rewrite the command with each of [rewriters] in turn. A rewriter may change the body (keeping its type) and the
- *    headers only; one that changes anything else is a defect of the server, so the flow fails.
+ * 5. Transform the command with the one of [transformers] that takes its type, if any ([CommandTransformer]). The
+ *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.UNHANDLED] otherwise); its
+ *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
+ *    the request's. When the type or the aggregate changed, [authorizer] authorizes the result again. A result that
+ *    names no aggregate gets a new id from [ids] when it creates its aggregate, and is [FrameworkCodes.NOT_FOUND]
+ *    otherwise. The command's headers then name the input ([CommandTransformer.TRANSFORMED_FROM]), and so does every
+ *    result ([CommandResult.transformedFrom]).
  * 6. Validate the body with every one of [validators]: their violations, together, are [FrameworkCodes.INVALID].
  * 7. Build the [Command], its wait plan the request's, or [WaitPlan.DEFAULT] within the coordinator's
  *    [default timeout][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout] ([defaultWaitTimeout]) when it names none;
@@ -77,6 +88,9 @@ import kotlin.time.Duration
  *
  * The coordinator then checks the plan, routes the command and waits for it; deduplication by request id and the
  * check that an existing aggregate belongs to the command's scope (decision D94) are the kernel's.
+ *
+ * At most one of [transformers] takes a command type, each takes one this node decides or mounts (or one of a context
+ * it does not serve), and every mounted command needs one: the gateway is not built otherwise.
  *
  * A refusal is a result at ACCEPTED, REJECTED with its code, and the only result the flow emits. Until the command
  * is built, it names the facts decided so far; its ref names the aggregate id [UNADDRESSED] when none was decided.
@@ -89,7 +103,7 @@ class CommandGateway(
     private val registry: ModelRegistry,
     coordinators: Map<String, WaitCoordinator>,
     private val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
-    private val rewriters: List<CommandRewriter> = emptyList(),
+    transformers: List<CommandTransformer> = emptyList(),
     private val validators: List<CommandValidator> = emptyList(),
     private val ids: IdGenerator = IdGenerator.UUID_V7,
     /** The tenant of each aggregate type: the caller's, unless fixed for the type (decision D116). */
@@ -100,6 +114,14 @@ class CommandGateway(
 ) {
     private val coordinators: Map<String, WaitCoordinator> = coordinators.toMap()
     private val detached = CoroutineScope(SupervisorJob() + detachedContext)
+
+    /** The transformers, by the full type name of the command they take. */
+    private val transformers: Map<String, CommandTransformer> = transformersOf(registry, transformers)
+
+    /** The models that decide each command class, with the command's type. */
+    private val deciders: Map<Class<*>, List<Pair<AggregateModel<*>, CommandType>>> = registry.models.flatMap { model ->
+        model.commandTypes.map { it.type to (model to it) }
+    }.groupBy({ it.first }, { it.second })
 
     @Volatile
     private var closed = false
@@ -119,14 +141,26 @@ class CommandGateway(
             is Admission.Refused -> emit(admission.result)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
+                val transformedFrom = admission.transformedFrom
                 if (admission.command.wait.isAcceptedOnly) {
-                    emit(coordinator.accept(admission.model, admission.command, detached))
+                    val accepted = coordinator.accept(admission.model, admission.command, detached)
+                    emit(if (transformedFrom == null) accepted else accepted.copy(transformedFrom = transformedFrom))
                 } else {
-                    emitAll(coordinator.stream(admission.model, admission.command))
+                    val results = coordinator.stream(admission.model, admission.command)
+                    emitAll(
+                        if (transformedFrom == null) results else results.map { it.copy(transformedFrom = transformedFrom) }
+                    )
                 }
             }
         }
     }
+
+    /**
+     * Whether a request of [command] to [type] (its model name, or the part of it after the aggregate type) is
+     * transformed: an edge then accepts it without an aggregate id, as it accepts a creation command.
+     */
+    fun transforms(type: AggregateType, command: String): Boolean =
+        registry.find(type)?.resolve(type, command)?.let { it.name in transformers } ?: false
 
     /**
      * The timeout of a command of [context] whose request names none: its coordinator's
@@ -160,13 +194,19 @@ class CommandGateway(
         val model = registry.find(facts.type)
             ?: return facts.refuse(FrameworkCodes.UNHANDLED, "No aggregate ${facts.type} is served here.")
         val unhandled = "${facts.type} has no command ${request.command}."
-        val commandType = model.findCommandType(request.command)
-            ?: model.findCommandType("${facts.type}.${request.command}")
+        val commandType = model.resolve(facts.type, request.command)
             ?: return facts.refuse(FrameworkCodes.UNHANDLED, unhandled)
-        val decider = model.decider(commandType.type) ?: return facts.refuse(FrameworkCodes.UNHANDLED, unhandled)
-        facts.function = FunctionInfo(FunctionKind.COMMAND, facts.type.context, facts.type.name, commandType.shortName)
+        val transformer = transformers[commandType.name]
+        val decider = model.decider(commandType.type)
+        if (decider == null && transformer == null) {
+            return facts.refuse(FrameworkCodes.UNHANDLED, unhandled)
+        }
+        facts.function = functionOf(facts.type, commandType)
         // 2. The identity.
-        identityConflict(request, decider.creation)?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
+        val creation = decider?.creation ?: Creation.NONE
+        identityConflict(request, creation, transformed = transformer != null)?.let {
+            return facts.refuse(FrameworkCodes.MALFORMED, it)
+        }
         val target = request.target
         if (target != null && !request.caller.crossScope) {
             return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
@@ -177,47 +217,104 @@ class CommandGateway(
             return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
         }
         val scope = target?.scope ?: request.caller.scope
-        facts.ref = facts.type.ref(tenantId, request.aggregateId ?: ids.next())
+        val inputId = request.aggregateId ?: if (transformer == null) ids.next() else UNADDRESSED
+        facts.ref = facts.type.ref(tenantId, inputId)
         // 3. Action-level authorization.
-        val action = CommandAction(commandType, facts.ref, scope, decider.creation)
-        val authorization = authorizer.authorize(request.caller, action)
-        if (authorization is Authorization.Denied) {
-            return facts.refuse(authorization.code, authorization.message)
-        }
+        authorize(request, CommandAction(commandType, facts.ref, scope, creation))?.let { return facts.refuse(it) }
         // 4. The body.
-        val body = decode(request.body, commandType)
+        val decoded = decode(request.body, commandType)
             ?: return facts.refuse(FrameworkCodes.MALFORMED, "The body is not a ${commandType.name}.")
-        // 5. Rewriting.
-        val coordinator = coordinators.getValue(facts.type.context)
+        // 5. The transformation.
+        var command = Resolved(model, commandType, decoded.value, request.headers)
+        if (transformer != null) {
+            val input = CommandInput(
+                commandType,
+                decoded.value,
+                request.aggregateId,
+                request.headers,
+                facts.requestId,
+                request.caller,
+            )
+            val result = transformer.transform(input)
+            facts.transformedFrom = TransformedFrom(commandType.name, request.aggregateId)
+            val (targetModel, targetDecider) = decidedBy(result.type)
+                ?: return facts.refuse(
+                    FrameworkCodes.UNHANDLED,
+                    "${commandType.name} became ${result.type.name}, which no aggregate served here decides.",
+                )
+            val targetType = targetModel.type
+            facts.function = functionOf(targetType, result.type)
+            val targetTenant = try {
+                tenants.tenantOf(targetType, request.caller, target)
+            } catch (conflict: TenantConflictException) {
+                return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
+            }
+            val aggregateId = result.aggregateId ?: if (targetDecider.creation != Creation.NONE) {
+                ids.next()
+            } else {
+                facts.ref = targetType.ref(targetTenant, UNADDRESSED)
+                return facts.refuse(
+                    FrameworkCodes.NOT_FOUND,
+                    "No $targetType is found for ${commandType.name} to send ${result.type.name} to.",
+                )
+            }
+            val ref = targetType.ref(targetTenant, aggregateId)
+            if (result.type != commandType || ref != facts.ref) {
+                facts.ref = ref
+                val action = CommandAction(result.type, ref, scope, targetDecider.creation)
+                authorize(request, action)?.let { return facts.refuse(it) }
+            }
+            command = Resolved(
+                targetModel,
+                result.type,
+                result.body,
+                result.headers + provenance(commandType, request.aggregateId),
+            )
+        }
+        // 6. Validation.
+        val violations = validators.flatMap { it.validate(command.type, command.body) }
+        if (violations.isNotEmpty()) {
+            return facts.refuse(FrameworkCodes.INVALID, "${command.type.name} is invalid.", violations = violations)
+        }
+        // 7. The command.
+        val coordinator = coordinators.getValue(facts.ref.type.context)
         val plan = request.wait ?: WaitPlan.DEFAULT.within(coordinator.options.defaultTimeout)
-        var command: Command<*> = Command(
+        val admitted = Command(
             id = facts.commandId,
             requestId = facts.requestId,
             ref = facts.ref,
-            body = body.value,
+            body = command.body,
             expectedVersion = request.expectedVersion,
             scope = scope,
-            headers = request.headers,
+            headers = command.headers,
             operator = request.caller.toOperator(actingElsewhere = target != null),
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
         )
-        rewriters.forEach { rewriter -> command = rewriter.rewrite(command).also { checkRewrite(command, it) } }
-        // 6. Validation.
-        val violations = validators.flatMap { it.validate(commandType, command.body) }
-        if (violations.isNotEmpty()) {
-            return facts.refuse(FrameworkCodes.INVALID, "${commandType.name} is invalid.", violations = violations)
-        }
-        return Admission.Admitted(model, command)
+        return Admission.Admitted(command.model, admitted, facts.transformedFrom)
+    }
+
+
+    /** The authorizer's denial of [action], or null when it allows it. */
+    private suspend fun authorize(request: CommandRequest, action: CommandAction): Authorization.Denied? =
+        authorizer.authorize(request.caller, action) as? Authorization.Denied
+
+    /** The model that decides commands of [type], with its decide function; null when none does. */
+    private fun decidedBy(type: CommandType): Pair<AggregateModel<*>, DecideFunction<*>>? {
+        val (model, _) = deciders[type.type].orEmpty().singleOrNull { (_, commandType) -> commandType.name == type.name }
+            ?: return null
+        return model.decider(type.type)?.let { model to it }
     }
 
     /** Why [request]'s identity facts cannot be decided, or null when they can. */
-    private fun identityConflict(request: CommandRequest, creation: Creation): String? {
-        val reserved = request.headers.keys.firstOrNull(::isReserved)
+    private fun identityConflict(request: CommandRequest, creation: Creation, transformed: Boolean): String? {
+        val reserved = request.headers.keys.firstOrNull(::isReservedHeader)
         return when {
             reserved != null -> "Header $reserved is reserved: identity, ids and the wait have fields of their own."
             request.requestId?.isBlank() == true -> "A request id, when given, is not blank."
             request.aggregateId?.isBlank() == true -> "An aggregate id, when given, is not blank."
-            request.aggregateId == null && creation == Creation.NONE -> "${request.command} needs an aggregate id."
+            request.aggregateId == null && creation == Creation.NONE && !transformed ->
+                "${request.command} needs an aggregate id."
+
             (request.expectedVersion ?: 0) < 0 -> "An expected version is never negative."
             else -> null
         }
@@ -235,6 +332,14 @@ class CommandGateway(
 
     private class Decoded(val value: Any)
 
+    /** The command admission builds: a [body] of [type], decided by [model], with [headers]. */
+    private class Resolved(
+        val model: AggregateModel<*>,
+        val type: CommandType,
+        val body: Any,
+        val headers: Map<String, String>,
+    )
+
     /** The facts decided so far about a request, to refuse it with. */
     private inner class Facts(request: CommandRequest, val commandId: String) {
         val type = AggregateType(request.context, request.aggregate)
@@ -249,6 +354,10 @@ class CommandGateway(
             type.name,
             request.command.substringAfterLast('.').ifBlank { request.command },
         )
+        var transformedFrom: TransformedFrom? = null
+
+        fun refuse(denied: Authorization.Denied): Admission.Refused = refuse(denied.code, denied.message)
+
 
         fun refuse(
             code: String,
@@ -265,12 +374,16 @@ class CommandGateway(
                 error = ErrorInfo(code, message, violations),
                 now = clock(),
             )
-            return Admission.Refused(rejected.copy(status = status))
+            return Admission.Refused(rejected.copy(status = status, transformedFrom = transformedFrom))
         }
     }
 
     private sealed interface Admission {
-        class Admitted(val model: AggregateModel<*>, val command: Command<*>) : Admission
+        class Admitted(
+            val model: AggregateModel<*>,
+            val command: Command<*>,
+            val transformedFrom: TransformedFrom?,
+        ) : Admission
 
         class Refused(val result: CommandResult) : Admission
     }
@@ -279,32 +392,57 @@ class CommandGateway(
         /** The aggregate id a refusal's ref names when admission had decided none. */
         const val UNADDRESSED: String = "(none)"
 
-        private val RESERVED_HEADER_PREFIXES = listOf("wow-", "wow.")
-
-        private fun isReserved(header: String): Boolean =
-            RESERVED_HEADER_PREFIXES.any { header.startsWith(it, ignoreCase = true) }
-
         private val CommandType.shortName: String get() = name.substringAfterLast('.')
 
-        /** Fails when [rewritten] changed more of [command] than its body (keeping its type) and its headers. */
-        private fun checkRewrite(command: Command<*>, rewritten: Command<*>) {
-            check(
-                rewritten.id == command.id &&
-                    rewritten.requestId == command.requestId &&
-                    rewritten.ref == command.ref &&
-                    rewritten.scope == command.scope &&
-                    rewritten.expectedVersion == command.expectedVersion &&
-                    rewritten.causation == command.causation &&
-                    rewritten.operator == command.operator &&
-                    rewritten.wait == command.wait,
-            ) {
-                "A rewriter changed the identity, the ids, the operator or the wait of ${command.id}; it may change only its body and headers."
+        private fun functionOf(type: AggregateType, command: CommandType): FunctionInfo =
+            FunctionInfo(FunctionKind.COMMAND, type.context, type.name, command.shortName)
+
+        /** The command [command] of [type] names: decided by the model or mounted under it. */
+        private fun AggregateModel<*>.resolve(type: AggregateType, command: String): CommandType? =
+            findCommandType(command)
+                ?: findCommandType("$type.$command")
+                ?: findMountedCommandType(command)
+                ?: findMountedCommandType("$type.$command")
+
+        /** The headers that name the input of a transformed command (decision D182). */
+        private fun provenance(input: CommandType, aggregateId: String?): Map<String, String> = buildMap {
+            put(CommandTransformer.TRANSFORMED_FROM, input.name)
+            aggregateId?.let { put(CommandTransformer.TRANSFORMED_FROM_ID, it) }
+        }
+
+        /**
+         * [transformers] by the full type name of the command each takes; fails when two take one type, when one takes
+         * a command no model of [registry] decides or mounts under that name and class (unless the name is of a context
+         * [registry] does not serve), or when a mounted command has none.
+         */
+        private fun transformersOf(
+            registry: ModelRegistry,
+            transformers: List<CommandTransformer>,
+        ): Map<String, CommandTransformer> {
+            val ambiguous = transformers.groupBy { it.input.name }.filterValues { it.size > 1 }
+            require(ambiguous.isEmpty()) {
+                "More than one transformer takes ${ambiguous.keys.sorted().joinToString()}: at most one takes a command " +
+                    "type (decision D182): " +
+                    ambiguous.values.flatten().joinToString { it.javaClass.name }
             }
-            check(rewritten.body.javaClass == command.body.javaClass) {
-                "A rewriter changed the body of ${command.id} from ${command.body.javaClass.name} to ${rewritten.body.javaClass.name}."
+            val known = registry.models.flatMap { it.commandTypes + it.mountedCommandTypes }.associateBy { it.name }
+            transformers.forEach { transformer ->
+                val input = transformer.input
+                val type = known[input.name]
+                require(type != null || input.name.substringBefore('.') !in registry.contexts) {
+                    "${transformer.javaClass.name} takes ${input.name}, which no aggregate served here decides or mounts."
+                }
+                require(type == null || type.type == input.type) {
+                    "${transformer.javaClass.name} takes ${input.name} as ${input.type.name}, but it is a ${type!!.type.name}."
+                }
             }
-            val reserved = rewritten.headers.keys.firstOrNull(::isReserved)
-            check(reserved == null) { "A rewriter added the reserved header $reserved to ${command.id}." }
+            val byName = transformers.associateBy { it.input.name }
+            val unclaimed = registry.models.flatMap { it.mountedCommandTypes }.filterNot { it.name in byName }
+            require(unclaimed.isEmpty()) {
+                "No transformer takes the mounted commands ${unclaimed.joinToString { it.name }}: a mounted command " +
+                    "needs exactly one (decision D182)."
+            }
+            return byName
         }
     }
 }

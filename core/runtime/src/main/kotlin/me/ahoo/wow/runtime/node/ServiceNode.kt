@@ -298,7 +298,7 @@ class ServiceNode(
         registry,
         contexts.mapValues { it.value.coordinator },
         authorizer = admission.authorizer,
-        rewriters = admission.rewriters,
+        transformers = admission.transformers,
         validators = admission.validators,
         ids = admission.ids,
         tenants = admission.tenants,
