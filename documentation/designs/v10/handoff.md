@@ -2,15 +2,16 @@
 
 日期：2026-10-13（夜间更新）。状态：持续维护（每次交接前更新）。上位文档：[路线图](roadmap.md)。
 
-本文是换会话、换机器继续推进的入口：先读本文，再读[决策台账](decisions.md)（D1～D183 已定；D123 由 D124 取代）、[08 数据协议](08-data-protocols.md)与 `example/eshop/DX-GAPS.md`。已合并的明细以 `git log origin/v10` 为准。
+本文是换会话、换机器继续推进的入口：先读本文，再读[决策台账](decisions.md)（D1～D188 已定；D123 由 D124 取代）、[08 数据协议](08-data-protocols.md)与 `example/eshop/DX-GAPS.md`。已合并的明细以 `git log origin/v10` 为准。
 
 ## 1. 位置
 
-- **M1～M5 完成；M6 大半；M6e 进行中（E.0、E.D、E.R 完成）；M7～M9 未开始。** 决定 D1～D183 已定（D123 由 D124 取代）。不发预发布（D124）。
+- **M1～M5 完成；M6 大半；M6e 只差 E.6（E.0～E.5、E.D、E.R 完成）；M7～M9 未开始。** 决定 D1～D188 已定（D123 由 D124 取代）。不发预发布（D124）。
 - **M6 已合并**：6.00、6.0a～6.0d、6.1a～6.1e、6.2a～6.2c、6.3a～6.3e、6.4a～6.4c、6.6、6.8；另有 #4345（按类型查重）、#4346（Reactor Netty keep-alive 绕行，等 1.3.8 删除 `KeepAliveReads`）、#4377（示例的 Manifest schema 补全、Codecov 按模块路径）。
 - **M6e 已合并**：E.0 骨架；E.R 上下文名规则、`wow.contexts.include/exclude`、G9 启动检查、G12（#4380）；E.D V10 开发指南（`documentation/docs/{en,zh}/guide/v10/`）与 `wow-develop` 的 V10 参考（#4379）。G9 之后 shop 需要 Kafka（测试用内存 topic）。
-- **在做（子代理）**：6.0e 调用方与操作人（`claude/v10-operator`）；E.1 catalog（`claude/v10-eshop-catalog`）；E.2～E.4 basket、ordering、inventory 与下单流程（`claude/v10-eshop-order-flow`）。
-- **能力核对完成**（6.0i，#4371、#4372）：[09 能力对照](09-capability-parity.md) §13 列出 17 项缺失。**等用户逐项确认推荐**（补齐或放弃）后登记为决定与工作包；M7 入口门槛是缺失项补齐或获批豁免（D183）。
+- **M6 又合并**：6.0e 调用方与操作人（#4381）。**M6e 又合并**：E.1 catalog（#4383）、E.2～E.4 basket、ordering、inventory（#4384）、E.5 payment 与 G21 修复（#4385）。
+- **在做（子代理）**：E.6 全链路、节点被杀、销售数据集与压测基线（`claude/v10-eshop-e2e`）。
+- **能力核对完成**（6.0i，#4371、#4372）：09 §13 的去向已定（D184～D188）：补齐项为路线图 M6p 的 P.1～P.9，P.1～P.5 是 M7 入口门槛。
 - **范围冻结（D181）**：M6e 期间新议题只登记，除非阻塞 eShop E.1～E.6；E.7 移到 M7。
 - **当前协调者**：本机会话（Claude Code 桌面，原账号），自 2026-10-12；额度用完后由用户在新机器上用另一个账号接手。
 
@@ -18,10 +19,10 @@
 
 | 顺序 | 工作包 | 要点 |
 |---|---|---|
-| 1 | 审查合并 6.0e、E.1、E.2～E.4 | 本地演练后合并 |
-| 2 | E.5 payment → E.6 `:eshop-e2e` 全链路 | 5 个服务、PostgreSQL、Kafka、ClickHouse；故障场景与压测基线 |
+| 1 | 审查合并 E.6 | 本地演练后合并；M6e 出口还要求 `DX-GAPS.md` 里阻塞 M7 的条目已补（G15、G20 等） |
 | 2 | H2 阶段 2（D155） | 机器空闲时跑：3 个 JVM、持久化 PostgreSQL、属主被杀的不可用窗口 |
-| M7 前 | 6.0f、6.0g、6.0h、6.3f、6.3g、6.5、6.7、6.9、6.2d～f、5a.2～5a.4，以及 09 §13 的补齐项 | 按 09 的阻塞分级排期 |
+| 3 | M6p 的 P.1～P.5（D184）与阻塞 M7 的 DX 缺口 | M7 入口门槛 |
+| M7 前 | 6.0f、6.0g、6.0h、6.3f、6.3g、6.5、6.7、6.9、6.2d～f、5a.2～5a.4；M8 前：P.6～P.9 | 按 09 的阻塞分级排期 |
 
 待补进文档的实现偏离：6.4b 把事件存为 `Array(Tuple(name, revision, payload))`、另加 `state_numbers`（ClickHouse 的 JSON 函数把数字读成 Float64，D122），尚无 `operator` 列（待 6.0e）；6.6 新增 `Subscription.context`（来源订阅按读它的上下文发信号）。这两条应补进 D164、08 §8 与 04。
 

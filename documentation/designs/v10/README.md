@@ -115,3 +115,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-13 | 用户拍板 D182（命令转换统一为 `CommandTransformer` 与挂载命令，删除 `CommandRewriter`）与 D183（M7 前完成 v9 → V10 能力核对，产出 `09-capability-parity.md`）；路线图新增 6.0h、6.0i |
 | 2026-10-13 | D182 的签名改为 `transform(CommandInput): CommandTarget`（约束写在类型里）；D183 收紧：缺失项默认在 M7 前补齐，豁免须用户批准，写入 M7 入口门槛 |
 | 2026-10-13 | 6.0i 能力核对完成，新增 09 能力对照：七项缺失（Saga/投影测试 DSL、`wow-models`/`wow-apiclient`/`wow-cocache` 去留、按函数重试、批量命令、处理函数拦截器、Kotlin 查询 DSL、`AggregateSpec` 分叉），待用户逐项决定 |
+| 2026-10-13 | 用户按推荐确认 09 §13 的去向：D184（补齐项编为 M6p 的 P.1～P.9，P.1～P.5 为 M7 入口）、D185（放弃 `ChangeFunction` 与强制准备）、D186（放弃 6 个隐式丢弃的注解与模块）、D187（`wow-models` 迁到 V10，放弃 `wow-apiclient`、`wow-cocache`）、D188（放弃处理函数拦截器） |
