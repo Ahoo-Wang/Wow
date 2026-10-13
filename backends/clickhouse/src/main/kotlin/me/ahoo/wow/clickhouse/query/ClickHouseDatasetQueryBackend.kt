@@ -55,7 +55,7 @@ class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
 
     override fun createBinding(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend> {
         val storage = ClickHouseDatasetStorage.of(dataset, options.database)
-        val metadata = ClickHouseTableMetadata(executor, storage, options.metadataTtl)
+        val metadata = ClickHouseTableMetadata(options.metadataTtl) { executor.table(storage.database, storage.table) }
         return QueryBackendBinding(
             ClickHouseDatasetQueryBackend(dataset, storage, executor, metadata),
             ClickHouseQuerySchemaAdapter(dataset, storage, metadata),
@@ -113,11 +113,18 @@ class ClickHouseDatasetQueryBackend internal constructor(
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         val table = metadata.table()
-        emitAll(executor.rows(ClickHouseAggregationCompiler(query, table, source(table)).compile(window), query.timeout))
+        emitAll(
+            executor.rows(ClickHouseAggregationCompiler(query, table, source(table)).compile(window), query.timeout)
+        )
     }
 
     /** The matches of [filter], counting no more than `limit + 1` of them when [limit] is set (decision D150). */
-    private suspend fun count(admitted: AdmittedQuery<*>, filter: FilterExpression, limit: Int?, table: ClickHouseTable): Long {
+    private suspend fun count(
+        admitted: AdmittedQuery<*>,
+        filter: FilterExpression,
+        limit: Int?,
+        table: ClickHouseTable
+    ): Long {
         val parameters = SqlParameters()
         val where = ClickHouseFilterCompiler(admitted, table, parameters).compile(filter)
         val matches = "SELECT 1 FROM ${source(table)} WHERE $where"
@@ -160,7 +167,11 @@ class ClickHouseDatasetQueryBackend internal constructor(
         }
 
         /** The row as the dataset returns it: the projected columns, without the position columns. */
-        fun record(row: ObjectNode): ObjectNode = row.deepCopy().apply { sort.indices.forEach { remove(positionAlias(it)) } }
+        fun record(row: ObjectNode): ObjectNode {
+            val record = row.deepCopy()
+            sort.indices.forEach { record.remove(positionAlias(it)) }
+            return record
+        }
 
         fun position(row: ObjectNode): CursorPosition =
             CursorPosition(sort.indices.map { index -> row.get(positionAlias(index)).positionValue() })
@@ -176,9 +187,8 @@ class ClickHouseDatasetQueryBackend internal constructor(
                 append(" FROM ").append(source(table))
                 append(" WHERE ").append(where)
                 if (sort.isNotEmpty()) {
-                    append(" ORDER BY ").append(
-                        sort.joinToString(", ") { (column, direction) -> ordered(quoteIdentifier(column.name), direction) },
-                    )
+                    val order = sort.map { (column, direction) -> ordered(quoteIdentifier(column.name), direction) }
+                    append(" ORDER BY ").append(order.joinToString(", "))
                 }
                 limit?.let { append(" LIMIT ").append(it) }
                 if (offset > 0) append(" OFFSET ").append(offset)
@@ -189,7 +199,9 @@ class ClickHouseDatasetQueryBackend internal constructor(
         /** Rows strictly after [values] in the sort: the first differing field decides, as a tuple comparison would. */
         private fun after(values: List<Any?>): String = sort.indices.joinToString(" OR ") { index ->
             buildList {
-                repeat(index) { equal -> add("${quoteIdentifier(sort[equal].first.name)} = ${bound(equal, values[equal])}") }
+                repeat(index) { equal ->
+                    add("${quoteIdentifier(sort[equal].first.name)} = ${bound(equal, values[equal])}")
+                }
                 val (column, direction) = sort[index]
                 val operator = if (direction == Sort.Direction.ASC) ">" else "<"
                 add("${quoteIdentifier(column.name)} $operator ${bound(index, values[index])}")

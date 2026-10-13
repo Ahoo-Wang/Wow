@@ -55,6 +55,7 @@ internal class ClickHouseExecutor(
     private val settings: Map<String, String> = emptyMap(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    @Suppress("TooGenericExceptionCaught") // Any failure of the statement is translated, then rethrown.
     fun rows(statement: ClickHouseStatement, timeout: Duration? = null): Flow<ObjectNode> = flow {
         val queryId = UUID.randomUUID().toString()
         coroutineScope {
@@ -68,7 +69,11 @@ internal class ClickHouseExecutor(
                 }
             }
             try {
-                val response = client.query(statement.sql, statement.parameters, querySettings(queryId, timeout)).await()
+                val response = client.query(
+                    statement.sql,
+                    statement.parameters,
+                    querySettings(queryId, timeout)
+                ).await()
                 response.use { open ->
                     open.inputStream.bufferedReader().lineSequence().filter(String::isNotBlank).forEach { line ->
                         emit(row(line))
@@ -133,7 +138,8 @@ internal class ClickHouseExecutor(
         .setFormat(ClickHouseFormat.JSONEachRow)
         .setQueryId(queryId)
         .apply {
-            (OUTPUT_SETTINGS + settings + timeoutSettings(timeout)).forEach { (name, value) -> serverSetting(name, value) }
+            val all = OUTPUT_SETTINGS + settings + timeoutSettings(timeout)
+            all.forEach { (name, value) -> serverSetting(name, value) }
         }
 
     companion object {

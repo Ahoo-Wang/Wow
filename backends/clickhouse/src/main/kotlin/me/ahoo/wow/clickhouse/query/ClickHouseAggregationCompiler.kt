@@ -152,7 +152,9 @@ internal class ClickHouseAggregationCompiler(
             is AggregationMetric.Any -> aggregate("any", filters.column(metric.field), condition)
             is AggregationMetric.First -> positional("argMin", metric, condition)
             is AggregationMetric.Last -> positional("argMax", metric, condition)
-            is AggregationMetric.Derived -> throw QueryExecutionException("A derived metric is computed by the outer query.")
+            is AggregationMetric.Derived -> throw QueryExecutionException(
+                "A derived metric is computed by the outer query."
+            )
         }
     }
 
@@ -192,7 +194,11 @@ internal class ClickHouseAggregationCompiler(
         }
         is DerivedExpression.Constant -> expression.value.sqlLiteral()
         is DerivedExpression.Binary ->
-            ClickHouseFilterCompiler.arithmetic(expression.operator, derived(expression.left), derived(expression.right))
+            ClickHouseFilterCompiler.arithmetic(
+                expression.operator,
+                derived(expression.left),
+                derived(expression.right)
+            )
         is DerivedExpression.Window -> throw QueryExecutionException("Windows are computed by the core.")
     }
 

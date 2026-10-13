@@ -75,15 +75,18 @@ internal class TypedColumn(val column: ClickHouseColumn) {
         const val ARRAY = "Array("
         val INTEGER_TYPES = Regex("U?Int(8|16|32|64|128|256)")
 
+        val STRING_TYPES = setOf("String", "UUID")
+        val FLOAT_TYPES = setOf("Float32", "Float64")
+        val DATE_TYPES = setOf("Date", "Date32")
+
         fun familyOf(baseType: String): ClickHouseTypeFamily = when {
-            baseType == "String" || baseType.startsWith("FixedString(") || baseType == "UUID" ->
-                ClickHouseTypeFamily.STRING
+            baseType in STRING_TYPES || baseType.startsWith("FixedString(") -> ClickHouseTypeFamily.STRING
             baseType.startsWith("Enum8(") || baseType.startsWith("Enum16(") -> ClickHouseTypeFamily.ENUM
             INTEGER_TYPES.matches(baseType) -> ClickHouseTypeFamily.INTEGER
-            baseType == "Float32" || baseType == "Float64" -> ClickHouseTypeFamily.FLOAT
+            baseType in FLOAT_TYPES -> ClickHouseTypeFamily.FLOAT
             baseType.startsWith("Decimal") -> ClickHouseTypeFamily.DECIMAL
             baseType == "Bool" -> ClickHouseTypeFamily.BOOLEAN
-            baseType == "Date" || baseType == "Date32" -> ClickHouseTypeFamily.DATE
+            baseType in DATE_TYPES -> ClickHouseTypeFamily.DATE
             baseType.startsWith("DateTime") -> ClickHouseTypeFamily.DATE_TIME
             stringArray(baseType) -> ClickHouseTypeFamily.STRING_ARRAY
             else -> ClickHouseTypeFamily.UNSUPPORTED
@@ -96,8 +99,10 @@ internal class TypedColumn(val column: ClickHouseColumn) {
             return element == "String" || element.startsWith("FixedString(")
         }
 
-        fun unwrap(type: String, wrapper: String): String =
-            if (type.startsWith(wrapper) && type.endsWith(")")) type.substring(wrapper.length, type.length - 1) else type
+        fun unwrap(type: String, wrapper: String): String {
+            val wrapped = type.startsWith(wrapper) && type.endsWith(")")
+            return if (wrapped) type.substring(wrapper.length, type.length - 1) else type
+        }
     }
 }
 

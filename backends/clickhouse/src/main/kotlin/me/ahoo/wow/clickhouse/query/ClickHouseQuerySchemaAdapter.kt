@@ -39,12 +39,11 @@ import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.Temporal
 import java.time.Duration
 
-/** A table's metadata, read from `system.tables` and `system.columns` at most once per [ttl]. */
+/** A table's metadata, [load]ed (from `system.tables` and `system.columns`) at most once per [ttl]. */
 internal class ClickHouseTableMetadata(
-    private val executor: ClickHouseExecutor,
-    private val storage: ClickHouseDatasetStorage,
     private val ttl: Duration,
     private val clock: () -> Long = System::nanoTime,
+    private val load: suspend () -> ClickHouseTable,
 ) {
     private val mutex = Mutex()
 
@@ -59,7 +58,7 @@ internal class ClickHouseTableMetadata(
 
     /** The table, read now. */
     suspend fun refresh(): ClickHouseTable = mutex.withLock {
-        executor.table(storage.database, storage.table).also { cached = it to clock() }
+        load().also { cached = it to clock() }
     }
 }
 
@@ -102,7 +101,9 @@ internal class ClickHouseQuerySchemaAdapter(
         val records = (dataset.scope.fields - dataset.scope.tags.values.toSet()) + listOfNotNull(dataset.identity)
         // An array column's elements are part of the column: their path ends in an item segment.
         val paths = logicalSchema.values.filterKeys { it.segments.isNotEmpty() && it.segments.last() != ITEM }
-        if (paths.keys.any { it.segments.size > 1 }) throw invalid("declares a nested field; a dataset declares root columns only")
+        if (paths.keys.any { it.segments.size > 1 }) {
+            throw invalid("declares a nested field; a dataset declares root columns only")
+        }
         val bindings = paths.mapValues { (path, value) ->
             val name = (path.segments.single() as QueryPathSegment.Property).name
             val column = table.columns[name]
@@ -122,9 +123,13 @@ internal class ClickHouseQuerySchemaAdapter(
 
     @Suppress("ThrowsCount")
     private fun TypedColumn.requireDeclared(value: QueryValueSchema) {
-        if (family == ClickHouseTypeFamily.UNSUPPORTED) throw invalid("declares [$name] of the unsupported type [$type]")
+        if (family == ClickHouseTypeFamily.UNSUPPORTED) {
+            throw invalid("declares [$name] of the unsupported type [$type]")
+        }
         if (array) return requireDeclaredArray(value)
-        if (value.kind != QueryValueKind.SCALAR) throw invalid("declares [$name] as ${value.kind}; column [$type] is scalar")
+        if (value.kind != QueryValueKind.SCALAR) {
+            throw invalid("declares [$name] as ${value.kind}; column [$type] is scalar")
+        }
         val expected = when (family) {
             ClickHouseTypeFamily.STRING, ClickHouseTypeFamily.ENUM -> QueryValueType.STRING
             ClickHouseTypeFamily.INTEGER -> QueryValueType.INTEGER
