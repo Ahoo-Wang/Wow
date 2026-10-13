@@ -62,6 +62,14 @@ object V10Rules {
     fun isExample(project: String): Boolean =
         project.startsWith("shop-") || project.startsWith("inventory-") || project == EXAMPLE_E2E.name
 
+    /**
+     * Whether [project] is one of the example's domain or API modules: an example project that is neither a server
+     * (`*-server`) nor the end-to-end tests. Such a module is what an application's domain is, and builds on the kernel
+     * only (decision D149).
+     */
+    fun isExampleDomain(project: String): Boolean =
+        isExample(project) && !project.endsWith("-server") && project != EXAMPLE_E2E.name
+
     /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
 
@@ -76,7 +84,8 @@ object V10Rules {
         SPI to setOf("api"),
         KERNEL to setOf("spi", "manifest"),
         RUNTIME to setOf("kernel"),
-        REACTOR to setOf("runtime"),
+        // The kernel only: a domain module with Reactor handlers depends on the kernel and this (decision D149).
+        REACTOR to setOf("kernel"),
         // The query engine and its backend SPI (decision D126).
         QUERY to setOf("query-api", "spi", "manifest"),
         // query for the snapshot query backends (decision D126).
@@ -318,6 +327,17 @@ object V10Rules {
         return examples.flatMap { example ->
             reachable(graph, example).filterNot { it in allowed }.sorted().map { "$example reaches :$it" }
         }
+    }
+
+    /**
+     * The example's domain and API modules ([isExampleDomain]) do not reach `:runtime` (decision D149), directly or
+     * transitively: a domain depends on the kernel, and only a server brings the runtime that runs it.
+     */
+    fun exampleDomainOnRuntimeViolations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        return graph.keys.filter(::isExampleDomain).sorted()
+            .filter { RUNTIME.name in reachable(graph, it) }
+            .map { "$it reaches :${RUNTIME.name}" }
     }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")

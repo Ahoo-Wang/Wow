@@ -75,6 +75,11 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `the example's domain and API modules should not reach the runtime`() {
+        V10Rules.exampleDomainOnRuntimeViolations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
     fun `V10 production sources should carry no compatibility code`() {
         V10Rules.compatibilityMarkers(repositoryRoot).assert().isEmpty()
     }
@@ -278,6 +283,52 @@ class V10ArchitectureTest {
             "shop-domain reaches :routing-spike",
             "shop-server reaches :wow-spring",
         )
+    }
+
+    @Test
+    fun `example domain rule should catch a domain or API module reaching the runtime transitively`(
+        @TempDir root: File
+    ) {
+        root.writeBuild(
+            mapOf(
+                "kernel" to "core/kernel",
+                "runtime" to "core/runtime",
+                "reactor" to "core/reactor",
+                "spring-boot" to "host/spring-boot",
+                "shop-api" to "example/shop/shop-api",
+                "shop-domain" to "example/shop/shop-domain",
+                "shop-server" to "example/shop/shop-server",
+                "inventory-api" to "example/inventory/inventory-api",
+                "inventory-domain" to "example/inventory/inventory-domain",
+                "inventory-server" to "example/inventory/inventory-server",
+                "example-e2e" to "example/e2e",
+            ),
+            mapOf(
+                "runtime" to listOf("kernel"),
+                "reactor" to listOf("runtime"),
+                "spring-boot" to listOf("runtime"),
+                "shop-domain" to listOf("shop-api", "kernel"),
+                "shop-server" to listOf("shop-domain", "spring-boot"),
+                "inventory-api" to listOf("runtime"),
+                "inventory-domain" to listOf("inventory-api", "reactor"),
+                "inventory-server" to listOf("inventory-domain", "spring-boot"),
+                "example-e2e" to listOf("shop-server", "runtime"),
+            ),
+        )
+        V10Rules.exampleDomainOnRuntimeViolations(root).assert().containsExactly(
+            "inventory-api reaches :runtime",
+            "inventory-domain reaches :runtime",
+        )
+    }
+
+    @Test
+    fun `example domain modules should be the example's projects other than its servers and e2e tests`() {
+        listOf("shop-api", "shop-domain", "inventory-api", "inventory-domain").forEach {
+            V10Rules.isExampleDomain(it).assert().describedAs(it).isTrue()
+        }
+        listOf("shop-server", "inventory-server", "example-e2e", "runtime", "wow-core").forEach {
+            V10Rules.isExampleDomain(it).assert().describedAs(it).isFalse()
+        }
     }
 
     @Test
