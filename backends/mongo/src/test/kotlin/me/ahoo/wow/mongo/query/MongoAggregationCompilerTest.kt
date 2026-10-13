@@ -29,12 +29,20 @@ import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
+import me.ahoo.wow.api.query.IsNullFilter
+import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.NotExistsFilter
+import me.ahoo.wow.api.query.NotInFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.query.QueryAdmission
 import org.bson.conversions.Bson
@@ -191,6 +199,77 @@ class MongoAggregationCompilerTest {
         age.assert().contains(
             """"${'$'}divide": [{"${'$'}subtract": ["${'$'}${'$'}to", "${'$'}${'$'}from"]}, 8.64E+7]"""
         )
+    }
+
+    @Test
+    fun `metric filter guards re-express each match shape as an expression`() {
+        val compiled = json(
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Count("exists", ExistsFilter(NAME)),
+                    AggregationMetric.Count("missing", NotExistsFilter(NAME)),
+                    AggregationMetric.Count("null", IsNullFilter(NAME)),
+                    AggregationMetric.Count("notNull", IsNotNullFilter(NAME)),
+                    AggregationMetric.Count("after", GreaterThanFilter(NAME, "m")),
+                    AggregationMetric.Count("other", NotInFilter(STATUS, listOf("A"))),
+                    AggregationMetric.Count("like", ContainsFilter(NAME, "a", StringComparison.CASE_INSENSITIVE)),
+                    AggregationMetric.Count("none", NorFilter(listOf(EqualFilter(STATUS, "A")))),
+                    AggregationMetric.Count(
+                        "any",
+                        OrFilter(listOf(EqualFilter(STATUS, "A"), EqualFilter(STATUS, "B")))
+                    ),
+                ),
+            ),
+        )
+        compiled.assert().contains(""""${'$'}eq": [{"${'$'}type": "${'$'}state.name"}, {"${'$'}type": "m"}]""")
+        compiled.assert().contains(
+            """"${'$'}regexMatch": {"input": "${'$'}state.name", "regex": "a", "options": "i"}"""
+        )
+        compiled.assert().contains(""""${'$'}eq": [{"${'$'}type": "${'$'}state.name"}, "missing"]""")
+        compiled.assert().contains(""""${'$'}not": [{"${'$'}in": ["${'$'}state.status", ["A"]]}]""")
+        compiled.assert().contains(""""${'$'}not": [{"${'$'}or": [{"${'$'}eq": ["${'$'}state.status", "A"]}]}]""")
+    }
+
+    @Test
+    fun `epochs of every unit decode to a date, and a zone offset needs whole minutes`() {
+        val units = listOf(
+            "createdSeconds",
+            "createdNanos",
+            "createdMinutes",
+            "createdHours",
+            "createdDays",
+            "createdMicros"
+        )
+        val compiled = json(
+            AggregationQuery(
+                metrics = units.map { unit ->
+                    AggregationMetric.Numeric(
+                        AggregationFunction.MAX,
+                        AggregationExpression.DateDiff(QueryField("state.$unit"), CREATED, DateDiffUnit.SECOND),
+                        unit,
+                    )
+                },
+            ),
+        )
+        listOf(
+            1_000,
+            60_000,
+            3_600_000,
+            86_400_000
+        ).forEach { compiled.assert().contains("""["${'$'}${'$'}epoch", $it]""") }
+        compiled.assert().contains(""", 1000000]}""")
+        val seconds = runCatching {
+            pipeline(
+                AggregationQuery(
+                    groupBy = listOf(
+                        AggregationGroup.DateHistogram(CREATED, "day", AggregationDateUnit.DAY, "+05:30:15")
+                    ),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                ),
+            )
+        }.exceptionOrNull()
+        (seconds as me.ahoo.wow.query.schema.QuerySchemaValidationException).violation.assert()
+            .isEqualTo(me.ahoo.wow.query.schema.QueryViolation.StorageUnsupported("time zone offsets with seconds"))
     }
 
     @Test

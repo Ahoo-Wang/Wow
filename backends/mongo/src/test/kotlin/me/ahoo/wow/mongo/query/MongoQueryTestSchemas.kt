@@ -45,6 +45,30 @@ object MongoQueryTestSchemas {
             types(QueryValueType.INTEGER)
             temporalEpoch()
         }
+        field("state.createdSeconds") {
+            types(QueryValueType.INTEGER)
+            temporalEpoch(java.util.concurrent.TimeUnit.SECONDS)
+        }
+        field("state.createdNanos") {
+            types(QueryValueType.INTEGER)
+            temporalEpoch(java.util.concurrent.TimeUnit.NANOSECONDS)
+        }
+        field("state.createdMinutes") {
+            types(QueryValueType.INTEGER)
+            temporalEpoch(java.util.concurrent.TimeUnit.MINUTES)
+        }
+        field("state.createdHours") {
+            types(QueryValueType.INTEGER)
+            temporalEpoch(java.util.concurrent.TimeUnit.HOURS)
+        }
+        field("state.createdDays") {
+            types(QueryValueType.INTEGER)
+            temporalEpoch(java.util.concurrent.TimeUnit.DAYS)
+        }
+        field("state.createdMicros") {
+            types(QueryValueType.INTEGER)
+            temporalEpoch(java.util.concurrent.TimeUnit.MICROSECONDS)
+        }
         field("state.issuedAt") {
             types(QueryValueType.STRING)
             semantic(Temporal.Date)

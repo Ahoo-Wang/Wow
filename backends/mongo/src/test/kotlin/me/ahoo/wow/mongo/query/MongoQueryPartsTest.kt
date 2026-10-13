@@ -46,6 +46,19 @@ class MongoQueryPartsTest {
         decoded.assert().isEqualTo(position)
         assertThrownBy<IllegalArgumentException> { MongoCursorCodec.encode(CursorPosition(listOf(Document()))) }
         assertThrownBy<IllegalArgumentException> { MongoCursorCodec.decode(MongoCursorCodec.encode(position), 2) }
+        assertThrownBy<IllegalArgumentException> { MongoCursorCodec.decode(MongoCursorCodec.encode(position), 0) }
+        assertThrownBy<IllegalArgumentException> {
+            MongoCursorCodec.encode(
+                CursorPosition(List(Sort.MAX_FIELDS + 1) { 1 })
+            )
+        }
+        val scalar = org.bson.RawBsonDocument(
+            BsonDocument.parse("""{"values": 1}"""),
+            org.bson.codecs.BsonDocumentCodec()
+        ).byteBuffer.asNIO()
+        assertThrownBy<IllegalArgumentException> {
+            MongoCursorCodec.decode(ByteArray(scalar.remaining()).also { scalar.get(it) }, 1)
+        }
         val other = BsonDocument.parse("""{"other": [1]}""")
         val bytes = org.bson.RawBsonDocument(other, org.bson.codecs.BsonDocumentCodec()).byteBuffer.asNIO()
         assertThrownBy<IllegalArgumentException> {
