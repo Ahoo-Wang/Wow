@@ -40,6 +40,7 @@ import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
@@ -101,6 +102,12 @@ import tools.jackson.databind.json.JsonMapper
  * such as a `Decision`; a conventionally named `onCommand` needs the annotation to declare them. The module's
  * `@ErrorCode` constants (decision D121, [ErrorCodeResolver]) are the context's `errors` in the fragment.
  *
+ * A `@MountedCommand` (decision D182) of the module is mounted under the aggregate of the module it names: the
+ * generated model mounts it (`mount<C>()`), and the fragment lists it among the aggregate's commands as mounted, with
+ * its `transformsTo`. One that names no aggregate of the module, that a command function of its aggregate also takes,
+ * or whose name its aggregate's commands already use, fails the compilation, and so does a `transformsTo` entry not
+ * named `context.aggregate.Command`.
+ *
  * `@OnEvent(aggregates = ["ctx.agg"])` names the aggregates a handler reads (decision D138): of the module's context,
  * they must be aggregates of the module whose state the handler takes; of another context, the handler's binding
  * names them, and the runtime reads their published streams for it (decision D134). A handler of a nullable state,
@@ -130,6 +137,11 @@ internal class ModelSymbolProcessor(
     private val reportedUpgrades = mutableSetOf<UpgradeFunction>()
     private val subscriptions = mutableListOf<SubscriptionBinding>()
 
+    /** The module's `@MountedCommand`s, and those of them an aggregate of the module has claimed. */
+    private val mountedCommands = mutableListOf<Pair<MountedBinding, KSClassDeclaration>>()
+    private val claimedMounted = mutableSetOf<String>()
+    private val reportedMounted = mutableSetOf<String>()
+
     /** The module's `@ErrorCode` codes without problems, by code (decision D121). */
     private val errorCodes = sortedMapOf<String, ErrorCodeBinding>()
     private val sources = mutableSetOf<KSFile>()
@@ -156,6 +168,7 @@ internal class ModelSymbolProcessor(
             upgrades += UpgradeResolver.read(it)
         }
         val deferredErrorCodes = processErrorCodes(resolver)
+        val deferredMounted = collectMountedCommands(resolver)
         val roots = resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT).filterIsInstance<KSClassDeclaration>().toList()
         val deferred = roots.filterNot { it.validate() }
         val analyzed = roots.filter { it.validate() }.map { root ->
@@ -180,8 +193,80 @@ internal class ModelSymbolProcessor(
         }
         if (deferred.isEmpty()) {
             reportUnclaimedUpgrades()
+            reportUnclaimedMounted()
         }
-        return deferred + deferredErrorCodes + processSubscriptions(resolver)
+        return deferred + deferredErrorCodes + deferredMounted + processSubscriptions(resolver)
+    }
+
+    /** Collects the module's `@MountedCommand` classes (decision D182); the ones not yet valid are deferred. */
+    @OptIn(KspExperimental::class)
+    private fun collectMountedCommands(resolver: Resolver): List<KSAnnotated> {
+        val declarations = resolver.getSymbolsWithAnnotation(MOUNTED_COMMAND).filterIsInstance<KSClassDeclaration>()
+            .toList()
+        declarations.filter { it.validate() }.forEach { declaration ->
+            declaration.containingFile?.let { sources += it }
+            val annotation = declaration.getAnnotationsByType(MountedCommand::class).first()
+            val name = declaration.simpleName.asString()
+            val transformsTo = annotation.transformsTo.toList()
+            val problems = V10Annotations.problemsOfType(declaration, "mounted command") +
+                transformsTo.filterNot { COMMAND_NAME.matches(it) }.map {
+                    "mounted command $name transforms to \"$it\": @MountedCommand(transformsTo) names each command " +
+                        "as context.aggregate.Command"
+                } + listOfNotNull(
+                    "mounted command $name names no aggregate: @MountedCommand(aggregate) is its aggregate's name"
+                        .takeIf { annotation.aggregate.isBlank() },
+                )
+            mountedCommands += MountedBinding(
+                command = declaration.qualifiedName!!.asString(),
+                commandName = declaration.getAnnotationsByType(Name::class).firstOrNull()?.value,
+                aggregate = annotation.aggregate,
+                type = declaration.binaryName(),
+                transformsTo = transformsTo,
+                problems = problems,
+            ) to declaration
+        }
+        return declarations.filterNot { it.validate() }
+    }
+
+    /** The mounted commands of the aggregate [aggregateName] with [commands], and their problems in [problems]. */
+    private fun mountedOf(
+        aggregateName: String,
+        commands: List<CommandBinding>,
+        problems: MutableList<String>,
+    ): List<MountedBinding> {
+        val mounted = mountedCommands.map { it.first }.filter { it.aggregate == aggregateName }
+        claimedMounted += mounted.map { it.command }
+        val commandNames = commands.map { it.commandName ?: AliasCheck.simpleName(it.type) }.toSet()
+        mounted.forEach { binding ->
+            val name = binding.commandName ?: AliasCheck.simpleName(binding.type)
+            problems += binding.problems
+            if (commands.any { it.command == binding.command }) {
+                problems += "mounted command $name is taken by a command function: a mounted command has no @OnCommand"
+            }
+            if (name in commandNames) {
+                problems += "mounted command $name has the name of a command of the aggregate"
+            }
+        }
+        return mounted
+    }
+
+    /** A `@MountedCommand` that names no aggregate of the module is mounted nowhere. */
+    private fun reportUnclaimedMounted() {
+        if (mode != Mode.GENERATE) {
+            return
+        }
+        mountedCommands.filter { (binding, _) -> binding.command !in claimedMounted && binding.command !in reportedMounted }
+            .forEach { (binding, declaration) ->
+                reportedMounted += binding.command
+                binding.problems.forEach { logger.error(it, declaration) }
+                if (binding.aggregate.isNotBlank()) {
+                    logger.error(
+                        "mounted command ${binding.command} is mounted under ${binding.aggregate}, which is not an " +
+                            "aggregate of this module",
+                        declaration,
+                    )
+                }
+            }
     }
 
     /**
@@ -385,6 +470,7 @@ internal class ModelSymbolProcessor(
         val aggregateName = root.toName()
         problems += aliasProblems(aggregateName, commands, sourcing)
         val upgradeBindings = upgradeBindings(sourcing, problems)
+        val mounted = mountedOf(aggregateName, commands, problems)
         return AggregateBinding(
             root = rootName,
             packageName = root.packageName.asString(),
@@ -403,6 +489,7 @@ internal class ModelSymbolProcessor(
             description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
             lifecycle = lifecycle(root, problems),
             publication = publication(root, problems),
+            mounted = mounted,
         )
     }
 
@@ -770,6 +857,7 @@ internal class ModelSymbolProcessor(
             type.name to name
         }
         val BOUNDED_CONTEXT = BoundedContext::class.java.name
+        val MOUNTED_COMMAND = MountedCommand::class.java.name
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()

@@ -57,6 +57,16 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun `a mounted command should also have a route without an id`() {
+        CommandRoutes.of("shop", "customer", "ImportCustomer", Creation.NONE, mounted = true).assert().containsExactly(
+            RouteManifest("POST", "/shop/customer/{id}/import-customer"),
+            RouteManifest("POST", "/shop/customer/import-customer"),
+        )
+        CommandRoutes.unaddressed("shop", "customer", "ChangePassword")
+            .assert().isEqualTo(RouteManifest("POST", "/shop/customer/change-password"))
+    }
+
+    @Test
     fun `the framework's segments should be reserved`() {
         CommandRoutes.isReserved("query").assert().isTrue()
         CommandRoutes.isReserved("state").assert().isTrue()

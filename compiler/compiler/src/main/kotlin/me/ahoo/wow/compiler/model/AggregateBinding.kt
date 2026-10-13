@@ -46,6 +46,8 @@ internal data class AggregateBinding(
     val lifecycle: List<String> = ALL_LIFECYCLE_COMMANDS,
     /** The stream of its state events the context publishes (decision D156). */
     val publication: Publication = Publication(),
+    /** The `@MountedCommand`s mounted under it (decision D182). */
+    val mounted: List<MountedBinding> = emptyList(),
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
@@ -96,6 +98,21 @@ internal data class CommandBinding(
     val declaredProduces: List<String>,
     /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules (D166). */
     val schedules: List<String> = emptyList(),
+)
+
+/**
+ * A `@MountedCommand` (decision D182): a [command] class mounted under the aggregate named [aggregate], which no
+ * function decides; a transformer turns it into the commands of [transformsTo], by full type name, when it says.
+ */
+internal data class MountedBinding(
+    val command: String,
+    /** The command's `@Name`, which names it within its aggregate (D55); null for its class's simple name. */
+    val commandName: String?,
+    val aggregate: String,
+    /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
+    val type: String,
+    val transformsTo: List<String>,
+    val problems: List<String>,
 )
 
 internal data class SourcingBinding(

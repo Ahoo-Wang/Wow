@@ -103,6 +103,32 @@ class ManifestCheckTest {
     }
 
     @Test
+    fun `mounted commands are compared both ways (D182)`() {
+        val mounting = aggregate<Account>("bank", "account") {
+            initial { Account() }
+            decide<Deposit>(Creation.ALLOWED) { _, body -> Decision.events(Deposited(body.amount)) }
+            mount<Withdraw>()
+            evolve<Deposited> { balance += it.amount }
+        }
+        ManifestCheck.differences(manifest, listOf(mounting)).assert().containsExactly(
+            "command bank.account.Withdraw is mounted by the model of bank.account but not in the Manifest",
+        )
+        val listed = changed { aggregate ->
+            aggregate.copy(
+                commands = aggregate.commands + CommandManifest(
+                    "Withdraw",
+                    schema = Manifest.schemaRef("Withdraw"),
+                    mounted = true,
+                ),
+            )
+        }
+        ManifestCheck.differences(listed, listOf(mounting)).assert().isEmpty()
+        ManifestCheck.differences(listed, listOf(accountModel("bank"))).assert().containsExactly(
+            "command bank.account.Withdraw is mounted in the Manifest but the model of bank.account does not mount it",
+        )
+    }
+
+    @Test
     fun `a former name the model reads and the Manifest leaves out is found`() {
         val aliased = aggregate<Account>("bank", "account") {
             initial { Account() }
