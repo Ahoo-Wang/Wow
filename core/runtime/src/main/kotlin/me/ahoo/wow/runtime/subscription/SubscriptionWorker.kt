@@ -85,6 +85,7 @@ internal class SubscriptionWorker(
     private val signals: SignalSender,
     checkpoint: Long,
     parked: Map<AggregateRef, Long>,
+    private val notifier: ParkedNotifier = ParkedNotifier.NONE,
 ) {
     private val permits = Semaphore(options.maxInFlight)
     private val pending = ArrayDeque<Slot>()
@@ -390,7 +391,19 @@ internal class SubscriptionWorker(
             val after = if (failure is HandlingRejectedException) "a rejection" else "${options.retry.maxAttempts} attempts"
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
         }
-        retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) { ledger.park(entry) }
+        val changed = retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) {
+            ledger.park(entry)
+        }
+        if (changed && notifier !== ParkedNotifier.NONE) {
+            val notice = ParkedNotice(
+                ParkedNotice.Kind.PARKED,
+                group,
+                entry,
+                options.parked.specOf(entry),
+                entry.failedAt,
+            )
+            lanes.launch { notifier.notifyQuietly(notice) }
+        }
         synchronized(this) {
             val state = parkStates[stream.ref]
             if (state !is ParkState.Resuming) {

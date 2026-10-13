@@ -57,6 +57,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.ContextCommandTypes
@@ -152,8 +153,10 @@ class ContextTimers internal constructor(
  *
  * **Per node**: the [waits] registered here, the [signals] sender (a signal to this node goes straight to [waits],
  * one to another node through the host's remote sender), the [router] over every context's lease group, the
- * [gateway] that admits commands, the [registry] of models, and the [forwardHandler] that hands a forwarded command
- * to its context's endpoint.
+ * [gateway] that admits commands, the [registry] of models, the [forwardHandler] that hands a forwarded command
+ * to its context's endpoint, and the [parked] entries of every subscription as an operator acts on them; each runtime
+ * retries the entries of the partitions it runs over the long horizon and tells the [parkedNotifier] when one parks or
+ * spends its retries (roadmap P.1).
  *
  * **Per topic** read for the subscriptions of other contexts' published streams ([SubscriptionFactory.sourced],
  * decision D134): one [TopicSubscriptions] of every subscription reading it, in the lease group `(service,
@@ -226,6 +229,8 @@ class ServiceNode(
     val contracts: ContractDirectory = ContractDirectory(manifest),
     /** Where the subscriptions of other contexts' published streams read them (decision D134); none by default. */
     private val topics: SourceTopics? = null,
+    /** Hears when an entry parks and when its automatic retries are spent (roadmap P.1); nobody by default. */
+    private val parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -320,6 +325,16 @@ class ServiceNode(
      * per topic on this node.
      */
     val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions) + receipts(subscriptions)
+
+    /**
+     * The parked entries of every subscription of the node, the built-in ones, the intakes' and those of other
+     * contexts' topics included, as an operator lists and acts on them (roadmap P.1, decision D141).
+     */
+    val parked: ParkedOps = ParkedOps {
+        contexts.values.flatMap { context ->
+            listOfNotNull(context.subscriptions, context.intake).map { ParkedOps.Scope.of(it) }
+        } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
+    }
 
     /** The command intake of each context that takes commands from its topic (decision D137). */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
@@ -514,6 +529,7 @@ class ServiceNode(
                 options = options.subscription,
                 cluster = options.cluster,
                 signals = signals,
+                notifier = parkedNotifier,
             )
         }
     }
@@ -544,6 +560,7 @@ class ServiceNode(
                 clock = Clock.systemUTC(),
                 context = Dispatchers.Default,
                 signals = signals,
+                notifier = parkedNotifier,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
             )
         }.toMap()
@@ -562,6 +579,7 @@ class ServiceNode(
                 backends.ledger,
                 options = options.subscription,
                 signals = signals,
+                notifier = parkedNotifier,
             )
         }
 
@@ -592,6 +610,7 @@ class ServiceNode(
             listOfNotNull(snapshots?.subscription, reservations?.subscription, timers?.subscription?.subscription),
             options.subscription,
             signals = signals,
+            notifier = parkedNotifier,
         )
         val intake = intakeOf(context, group, backends)
         val ownership = PartitionOwnership(
