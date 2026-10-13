@@ -70,7 +70,9 @@ enum class Routing {
  * - [maxWaitTimeout], [maxWaitHops] and [defaultWaitTimeout]: the waits ([WaitOptions]); the default timeout is that
  *   of every command whose request names none, whichever edge it came through, capped by [maxWaitTimeout]. [ServiceNode.stop] also waits at most
  *   [maxWaitTimeout] for the waits registered on the node to end: none of them outlives it.
- * - [subscription]: the subscriptions of every context, the built-in ones included.
+ * - [subscription]: the subscriptions of every context, the built-in ones included, with the starts the host
+ *   configures for some of them ([SubscriptionOptions.starts], decision D154): a name no subscription of the node has
+ *   fails its assembly.
  * - [appendQueue]: the partition append queue, by the log backend's preset ([AppendQueueOptions.MONGO],
  *   [AppendQueueOptions.POSTGRES]).
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.

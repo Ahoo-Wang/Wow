@@ -189,7 +189,7 @@ class ShopDomainModelProviderTest {
     }
 
     @Test
-    fun `the fragment should list the cart saga with the command it derives and where it starts`() {
+    fun `the fragment should list the cart saga with the command it derives, where it starts and its rejections`() {
         fragment().contexts.single().subscriptions.assert().containsExactly(
             SubscriptionManifest(
                 name = "CartSaga.onOrderCreated",
@@ -198,6 +198,14 @@ class ShopDomainModelProviderTest {
                 function = FunctionManifest(FunctionKind.SAGA, "example", "CartSaga", "onOrderCreated"),
                 derives = listOf("example.cart.RemoveCartItem"),
                 start = SubscriptionStart.END,
+            ),
+            // Decisions D136, D153: the handler of the cart's refusals, which reads no log.
+            SubscriptionManifest(
+                name = "CartSaga.onRemoveRejected",
+                kind = SubscriptionKind.SAGA,
+                source = SubscriptionSource(),
+                function = FunctionManifest(FunctionKind.SAGA, "example", "CartSaga", "onRemoveRejected"),
+                rejected = listOf("example.cart.RemoveCartItem"),
             ),
         )
     }

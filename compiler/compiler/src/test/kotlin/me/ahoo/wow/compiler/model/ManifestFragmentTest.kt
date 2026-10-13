@@ -399,6 +399,90 @@ class ManifestFragmentTest {
     }
 
     @Test
+    fun `@AggregateRoot should declare the aggregate's published stream, its state and its topic`() {
+        val streams = SourceFile.kotlin(
+            "Streams.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Open(val id: String)
+            data class Opened(val id: String)
+
+            @AggregateRoot(published = false)
+            class Ledger(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+
+            @AggregateRoot(publishState = false, topic = "shop.accounts-v2")
+            class Account(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+
+            @AggregateRoot(topic = "")
+            class Wallet(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, streams)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val published = read(fragments(compilation).single()).contexts.single().published
+        // Decision D156: no stream of the ledger; the account's without its state, on its own topic.
+        published.assert().containsExactly(
+            PublishedManifest("account", "shop.accounts-v2", includeState = false),
+            PublishedManifest("wallet", "wow.shop.wallet.state", includeState = true),
+        )
+    }
+
+    @Test
+    fun `a topic Kafka refuses should fail the compilation`() {
+        val long = "t".repeat(Publication.MAX_TOPIC_LENGTH + 1)
+        val broken = SourceFile.kotlin(
+            "Topics.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Open(val id: String)
+            data class Opened(val id: String)
+
+            @AggregateRoot(topic = "shop/accounts")
+            class Account(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+
+            @AggregateRoot(topic = "$long")
+            class Wallet(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+
+            @AggregateRoot(topic = "..")
+            class Purse(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, broken)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains("@AggregateRoot(topic) \"shop/accounts\" is not a Kafka topic name")
+            .contains("@AggregateRoot(topic) is 250 characters long: a Kafka topic has at most 249")
+            .contains("@AggregateRoot(topic) \"..\" is not a Kafka topic name")
+        fragments(compilation).assert().isEmpty()
+        Publication.topicProblem("wow.shop.cart.state").assert().isNull()
+        Publication.topicProblem("t".repeat(Publication.MAX_TOPIC_LENGTH)).assert().isNull()
+    }
+
+    @Test
     fun `a model with problems should write no fragment`() {
         val brokenProcessor = SourceFile.kotlin(
             "Broken.kt",

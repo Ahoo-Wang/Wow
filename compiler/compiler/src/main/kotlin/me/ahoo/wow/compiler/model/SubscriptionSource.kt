@@ -21,14 +21,18 @@ package me.ahoo.wow.compiler.model
  *   constructed once with its constructor's parameters from the host's `Dependencies` (by type and `@Name`, decision
  *   D119), or the `object` itself, and one binding per `@OnEvent` function, each calling it directly with the typed
  *   `StateEvent<S>` and the context of its kind, its result awaited through wow-reactor when it is a Reactor
- *   publisher (decision D49), and, for a saga, read as the commands it derives (`derivedOf`). A handler of another
- *   context's aggregates (`@OnEvent(aggregates)`, decision D138) and a saga's `@OnRejected` handlers get none yet:
- *   the runtime reads neither published streams nor rejections, so a processor with only such handlers binds none;
+ *   publisher (decision D49), and, for a saga, read as the commands it derives (`derivedOf`). A saga's
+ *   `@OnRejected` handlers (decisions D136, D153) are bound once, as `RejectionBinding`s of the class their
+ *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
+ *   rejections they take. A handler of another context's aggregates (`@OnEvent(aggregates)`, decision D138) gets
+ *   none yet: the runtime does not read published streams, so a processor with only such handlers binds none;
  * - per module, the model provider's `processors` lists them all ([ModelProviderSource]).
  */
 internal object SubscriptionSource {
     private const val KERNEL = "me.ahoo.wow.kernel"
     private const val PROCESSOR_BINDING = "$KERNEL.ProcessorBinding"
+    private const val REJECTION_BINDING = "$KERNEL.RejectionBinding"
+    private const val COMMAND_REJECTED = "me.ahoo.wow.api.subscribe.CommandRejected"
     private const val DEPENDENCIES = "$KERNEL.Dependencies"
     private const val STATE_EVENT = "me.ahoo.wow.api.subscribe.StateEvent"
 
@@ -58,25 +62,55 @@ internal object SubscriptionSource {
             "$processorType(${binding.dependencies.joinToString(", ") { dependency(it) }})"
         }
         appendLine("    val processor = $instance")
+        val rejections = kind == SAGA && binding.rejections.isNotEmpty()
+        if (rejections) {
+            appendLine("    val rejections = listOf<$REJECTION_BINDING<*>>(")
+            binding.rejections.forEach { renderRejection(binding, it) }
+            appendLine("    )")
+        }
         appendLine("    return listOf(")
-        handlers.forEach { handler -> renderHandler(binding, handler, kind) }
+        handlers.forEach { handler -> renderHandler(binding, handler, kind, rejections) }
         appendLine("    )")
         appendLine("}")
     }
 
-    private fun StringBuilder.renderHandler(binding: SubscriptionBinding, handler: HandlerBinding, kind: String) {
+    private fun StringBuilder.renderHandler(
+        binding: SubscriptionBinding,
+        handler: HandlerBinding,
+        kind: String,
+        rejections: Boolean,
+    ) {
         val state = handler.state ?: "Any"
         val stateType = handler.state?.let { "$it::class.java" } ?: "null"
         val arguments = if (handler.context) "event, context" else "event"
         val call = "processor.${handler.function}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         val body = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        val rejectionArgument = if (rejections) ", rejections = rejections" else ""
         appendLine(
             "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${handler.function}\", " +
-                "$stateType, ${handler.blocking}) {",
+                "$stateType, ${handler.blocking}$rejectionArgument) {",
         )
         appendLine("                event: $STATE_EVENT<$state>, ${if (handler.context) "context" else "_"} ->")
         appendLine("            $body")
+        appendLine("        },")
+    }
+
+    /** An `@OnRejected` handler of the saga [binding]: its call, read as the commands that compensate. */
+    private fun StringBuilder.renderRejection(binding: SubscriptionBinding, rejection: RejectionBinding) {
+        val command = rejection.commandSource ?: "Any"
+        val commandType = rejection.commandSource?.let { "$it::class.java" } ?: "null"
+        val arguments = if (rejection.context) "rejected, context" else "rejected"
+        val call = "processor.${rejection.function}($arguments)"
+        val awaited = if (rejection.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        appendLine(
+            "        $REJECTION_BINDING.of<$command>(\"${escape(binding.name)}\", \"${rejection.function}\", " +
+                "$commandType, ${rejection.blocking}) {",
+        )
+        appendLine(
+            "                rejected: $COMMAND_REJECTED<$command>, ${if (rejection.context) "context" else "_"} ->",
+        )
+        appendLine("            $KERNEL.derivedOf($awaited)")
         appendLine("        },")
     }
 

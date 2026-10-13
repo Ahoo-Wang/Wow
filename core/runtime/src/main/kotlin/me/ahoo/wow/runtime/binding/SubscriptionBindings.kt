@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
@@ -29,6 +30,7 @@ import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.EntryDecoder
+import me.ahoo.wow.runtime.subscription.HandledEntry
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -51,6 +53,11 @@ import java.util.concurrent.Executors
  *   ([ProcessorBinding.blocking]).
  * - **Sagas** execute what they derive through the context's wait coordinator ([DerivedCommands]) and report the
  *   commands' ids, so a wait chain may go on after their hop (decision D62).
+ * - **Rejections** of what a saga derives are business outcomes (decision D153), neither retried nor, when the saga
+ *   handles them, parking: the first rejected command stops the execution, and the wait at the saga's hop ends
+ *   REJECTED with its error ([HandledEntry.rejection]). The saga's `@OnRejected` handler for the command, if any, gets it
+ *   ([SagaRejections], which executes what it derives to compensate); without one, the aggregate parks at once
+ *   ([DerivedCommandRejectedException]).
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]).
  */
@@ -77,6 +84,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val derived = DerivedCommands(context.models, context.coordinator)
+        val rejections = SagaRejections(bound, derived)
         return bound.map { handler ->
             val name = handler.name
             val filter = SubscriptionFilter(
@@ -87,8 +95,10 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             if (handler.kind == FunctionKind.SAGA) {
                 Subscription.saga(name, filter, handler.startFrom, decoder, context.models) { entry ->
                     val event = stateEventOf(entry, context)
-                    val commands = call(handler, event, contextOf(handler.kind, name, event))
-                    derived.execute(commands, DerivedCommands.waitOf(entry.transport?.wait, context.context, name))
+                    val execution = contextOf(handler.kind, name, event)
+                    val commands = call(handler, event, execution)
+                    val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
+                    sagaHandled(derived.execute(commands, wait), execution.executionId, rejections)
                 }
             } else {
                 Subscription(name, filter, handler.startFrom, decoder, context.models, handler.kind) { entry ->
@@ -116,7 +126,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         val NONE: SubscriptionBindings = SubscriptionBindings(emptyMap())
 
         /** Runs the `@Blocking` handlers: a virtual thread per call (decision D29: JDK 21). */
-        private val BLOCKING: CoroutineDispatcher by lazy {
+        internal val BLOCKING: CoroutineDispatcher by lazy {
             Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
         }
 
@@ -135,6 +145,22 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 .mapValues { (_, inContext) -> inContext.flatMap { it.processors(dependencies) } }
                 .filterValues { it.isNotEmpty() },
         )
+
+        /**
+         * What a saga's execution [executed] reports (decision D153): the commands it executed, or, when one was
+         * rejected, those and what the saga's `@OnRejected` handler derived for it, with the rejection; a rejection
+         * no handler takes parks the aggregate ([DerivedCommandRejectedException]).
+         */
+        internal suspend fun sagaHandled(
+            executed: DerivedCommands.Executed,
+            execution: ExecutionId,
+            rejections: SagaRejections,
+        ): HandledEntry {
+            val rejected = executed.rejected ?: return HandledEntry(executed.executed)
+            val compensations = rejections.handle(rejected.toCommandRejected(execution), rejected.command.body.javaClass)
+                ?: throw DerivedCommandRejectedException(rejected.command, rejected.rejection)
+            return HandledEntry(executed.executed + compensations, rejected.error)
+        }
 
         /** Calls [handler] with [event] and [context]: on a virtual thread when it is blocking. */
         internal suspend fun call(

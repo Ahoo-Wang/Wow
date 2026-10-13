@@ -42,6 +42,7 @@ import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
@@ -348,6 +349,19 @@ class ServiceNodeTest {
             .assert().isEqualTo("127.0.0.1:41234")
         assertThrows<IllegalStateException> { node.bind("127.0.0.1:41236") }
         node.gateway.execute(deposit(id = "a-1")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `a start configured for a subscription the node does not have is refused`() {
+        val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
+        fun starts(vararg names: String) = fastNodeOptions().let {
+            it.copy(subscription = it.subscription.copy(starts = names.associateWith { SubscriptionStart.Beginning }))
+        }
+        // The application's subscriptions and the built-in ones may be configured (decision D154).
+        node("node-1", options = starts("plain", "snapshot"), subscriptions = plain)
+        assertThrows<IllegalArgumentException> {
+            node("node-2", options = starts("Plain.typo"), subscriptions = plain)
+        }.message.assert().contains("subscription Plain.typo", "plain")
     }
 
     @Test

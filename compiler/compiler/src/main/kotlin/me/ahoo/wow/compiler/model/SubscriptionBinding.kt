@@ -34,7 +34,7 @@ internal data class SubscriptionBinding(
     val isObject: Boolean = false,
     /** The processor's constructor parameters, in order: domain services from the host's `Dependencies`. */
     val dependencies: List<Dependency> = emptyList(),
-    /** A saga's `@OnRejected` handlers (decisions D136, D153); the runtime does not bind them yet. */
+    /** A saga's `@OnRejected` handlers (decisions D136, D153): bound with each of its handlers. */
     val rejections: List<RejectionBinding> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
@@ -90,4 +90,6 @@ internal data class RejectionBinding(
     val blocking: Boolean = false,
     /** The binary names of the command classes it returns, as [HandlerBinding.derived]. */
     val derived: List<String>? = null,
+    /** The qualified name of `C`, as the generated binding writes it; null for `CommandRejected<*>`. */
+    val commandSource: String? = null,
 )

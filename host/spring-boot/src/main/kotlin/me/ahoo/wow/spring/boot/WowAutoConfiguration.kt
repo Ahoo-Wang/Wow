@@ -222,7 +222,7 @@ class WowAutoConfiguration {
                 routing = routing,
                 maxWaitTimeout = properties.wait.maxTimeout.toKotlinDuration(),
                 maxWaitHops = properties.wait.maxHops,
-                subscription = properties.subscription.options(),
+                subscription = properties.subscription.options(properties.subscriptions),
                 appendQueue = properties.log.appendQueue.options(backends.appendQueue),
                 laneCapacity = properties.executor.laneCapacity,
                 stateCacheCapacity = properties.stateCache.capacity,

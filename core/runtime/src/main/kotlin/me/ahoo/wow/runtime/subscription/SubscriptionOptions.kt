@@ -60,6 +60,9 @@ data class RetryPolicy(
  *   above the saved checkpoint, so it is handled again after the restart.
  * - [readRetry]: the backoff of a log read or a store write that failed; they are retried until the runtime stops
  *   (its [RetryPolicy.maxAttempts] is not used).
+ * - [starts]: by subscription name, where a subscription without a checkpoint in a partition starts instead of where
+ *   its handler says (decision D154: a projection from the beginning, a reactor or a saga from the end), as
+ *   `wow.subscriptions."<name>".start` configures it. A subscription with a checkpoint goes on from it.
  */
 data class SubscriptionOptions(
     val maxInFlight: Int = 1_024,
@@ -71,6 +74,7 @@ data class SubscriptionOptions(
         initialBackoff = 100.milliseconds,
         maxBackoff = 5.seconds
     ),
+    val starts: Map<String, SubscriptionStart> = emptyMap(),
 ) {
     init {
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }

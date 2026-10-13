@@ -103,7 +103,7 @@ import tools.jackson.databind.json.JsonMapper
  * `@OnEvent(aggregates = ["ctx.agg"])` names the aggregates a handler reads (decision D138): of the module's context,
  * they must be aggregates of the module whose state the handler takes; of another context, the handler is in the
  * fragment but gets no binding, with a note, until the runtime subscribes to published streams. A saga's
- * `@OnRejected` handlers (decisions D136, D153) are in the fragment too, and get no binding yet (roadmap 6.0c).
+ * `@OnRejected` handlers (decisions D136, D153) are in the fragment too, and bound with each of its handlers.
  */
 internal class ModelSymbolProcessor(
     private val mode: Mode,
@@ -256,13 +256,6 @@ internal class ModelSymbolProcessor(
                 processor,
             )
         }
-        binding.rejections.forEach {
-            logger.info(
-                "${binding.processor}: @OnRejected handler ${it.subscription} is in the Manifest; the runtime hands " +
-                    "rejections to it from roadmap 6.0c on",
-                processor,
-            )
-        }
         codeGenerator.createNewFile(
             Dependencies(aggregating = false, sources = listOfNotNull(processor.containingFile).toTypedArray()),
             binding.packageName,
@@ -398,6 +391,24 @@ internal class ModelSymbolProcessor(
             stateType = state.binaryName(),
             description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
             lifecycle = lifecycle(root, problems),
+            publication = publication(root, problems),
+        )
+    }
+
+    /**
+     * The aggregate's published stream as `@AggregateRoot(published, publishState, topic)` declares it (decision
+     * D156); a topic Kafka would refuse is a problem ([Publication.topicProblem]).
+     */
+    private fun publication(root: KSClassDeclaration, problems: MutableList<String>): Publication {
+        val arguments = root.annotations.firstOrNull {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
+        }?.arguments.orEmpty().associate { it.name?.asString() to it.value }
+        val topic = (arguments[TOPIC] as? String).orEmpty().ifEmpty { null }
+        topic?.let(Publication::topicProblem)?.let { problems += it }
+        return Publication(
+            published = arguments[PUBLISHED] as? Boolean ?: true,
+            includeState = arguments[PUBLISH_STATE] as? Boolean ?: true,
+            topic = topic,
         )
     }
 
@@ -717,6 +728,9 @@ internal class ModelSymbolProcessor(
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
         const val LIFECYCLE = "lifecycle"
+        const val PUBLISHED = "published"
+        const val PUBLISH_STATE = "publishState"
+        const val TOPIC = "topic"
         const val PRODUCES = "produces"
 
         /** The lifecycle commands' system names, by their classes' names. */

@@ -63,7 +63,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | 9.x | V10 | Rewrite |
 |---|---|---|
 | `@BoundedContext(name, alias, description, scopes, packageScopes, aggregates)` | `@BoundedContext(name, description)` | The aggregate list comes from `@AggregateRoot`; a fixed tenant moves to host configuration. The context name is part of every command, event and route name, so decide it explicitly (the shop chose the 9.x alias `example` over `example-service`) and record it in the map. |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...])` | Mounted commands have no equivalent. `lifecycle` lists the system commands kept (all five by default). |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...], published, publishState, topic)` | Mounted commands have no equivalent. `lifecycle` lists the system commands kept (all five by default). `published = false` keeps the aggregate's state events out of the context's published streams, `publishState = false` publishes them without the state, and `topic` overrides `wow.<context>.<aggregate>.state` (a Kafka topic name, at most 249 characters). |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])` | Needed only when the function returns `Decision`; a concrete or sealed return type is inferred. |
 | `@OnSourcing`, `@CreateAggregate`, `@AllowCreate`, `@AfterCommand(include, exclude)`, `@Blocking`, `@Description`, `@Summary`, `@WowSpi` | Same | Unchanged. |
 | `@Name` on a class | Same | Names an aggregate, processor, command or event. |
@@ -76,7 +76,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@ProjectionProcessor` | `@Projection` | Same. |
 | `@EventProcessor` | `@Reactor` | Same. |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent` | One handler kind, taking a `StateEvent`. `aggregates = ["ctx.agg"]` names the source only for another context's aggregates; a saga may declare `derives = ["ctx.agg.Command"]`. |
-| none | `@OnRejected` | A saga's handler for the rejection of a command it derived (`CommandRejected<C>`). |
+| none | `@OnRejected` | A saga's handler for the rejection of a command it derived (`CommandRejected<C>`, or `CommandRejected<*>` for any), returning the commands that compensate. Without one, a rejected derived command parks the aggregate at once; 9.x had no such outcome. |
 | `@Retry(...)` | Removed | Retries are subscription configuration. |
 | `@OnError` | Removed | Return a rejection; compensate in a `@Saga`. |
 | `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key)`. |

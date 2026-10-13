@@ -29,6 +29,12 @@ import kotlin.reflect.KClass
  * [lifecycle] lists the lifecycle commands (`me.ahoo.wow.api.lifecycle`, design 01 §6) the aggregate handles, every
  * one by default; an empty list enables none (decision D91). The compiler rejects a class that is not a lifecycle
  * command, passes the list to the model's `lifecycle(...)` and writes it into the Manifest.
+ *
+ * The aggregate's state events are a stream its context publishes for other contexts (decision D156), as the
+ * Manifest's `published` lists it: [published] false keeps the aggregate out of it; [publishState] false publishes
+ * its events without the state after each commit, for a state too large to send (decision D140); [topic] names the
+ * Kafka topic, `wow.<context>.<aggregate>.state` when empty. A topic is at most 249 characters of `a-z`, `A-Z`,
+ * `0-9`, `.`, `_` and `-`, and neither `.` nor `..`.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -41,4 +47,7 @@ annotation class AggregateRoot(
         TransferSpace::class,
         ApplyTags::class,
     ],
+    val published: Boolean = true,
+    val publishState: Boolean = true,
+    val topic: String = "",
 )

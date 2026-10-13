@@ -238,9 +238,10 @@ class SubscriptionManifestTest {
     }
 
     @Test
-    fun `handlers of another context and rejection handlers should get no binding yet, with a note`() {
+    fun `handlers of another context should get no binding yet, with a note, and rejection handlers one each`() {
         val (compilation, result) = compile(model, saga)
-        provider(compilation, result).processors(Dependencies.NONE).map { it.name }.assert().containsExactlyInAnyOrder(
+        val processors = provider(compilation, result).processors(Dependencies.NONE)
+        processors.map { it.name }.assert().containsExactlyInAnyOrder(
             "OrderSaga.onPlaced",
             "OrderSaga.declared",
             "OrderSaga.untyped",
@@ -251,7 +252,59 @@ class SubscriptionManifestTest {
             .doesNotContain("StockOnly()")
         result.messages.assert()
             .contains("handler StockBoard.onEvent reads inventory.stock of another context")
-            .contains("@OnRejected handler OrderSaga.onReserveRejected is in the Manifest")
+            .doesNotContain("@OnRejected handler OrderSaga.onReserveRejected is in the Manifest")
+        // Decision D153: every handler of the saga carries its @OnRejected handlers, bound once.
+        val sagas = processors.filter { it.processor == "OrderSaga" }
+        sagas.forEach { saga ->
+            saga.rejections.map { "${it.name}:${it.commandType?.name}" }.assert().containsExactlyInAnyOrder(
+                "OrderSaga.onReserveRejected:sample.ReserveStock",
+                "OrderSaga.onAnyRejected:null",
+            )
+            saga.rejections.assert().isEqualTo(sagas.first().rejections)
+        }
+        processors.single { it.processor == "StockBoard" }.rejections.assert().isEmpty()
+    }
+
+    @Test
+    fun `two @OnRejected handlers of the same command should fail the compilation`() {
+        val broken = SourceFile.kotlin(
+            "Twice.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.decide.Command
+            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Saga
+            class TwiceSaga {
+                @OnEvent
+                fun onEvent(event: StateEvent<Order>): Command<*>? = null
+
+                @OnRejected
+                fun first(rejected: CommandRejected<ReserveStock>): Command<*>? = null
+
+                @OnRejected
+                fun second(rejected: CommandRejected<ReserveStock>): Command<*>? = null
+
+                @OnRejected
+                fun any(rejected: CommandRejected<*>): Command<*>? = null
+
+                @OnRejected
+                fun anyAgain(rejected: CommandRejected<Any>): Command<*>? = null
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, model, broken)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains(
+                "processor TwiceSaga has two @OnRejected handlers of the rejections of sample.ReserveStock: first, second"
+            )
+            .contains("processor TwiceSaga has two @OnRejected handlers of the rejections of every command")
     }
 
     @Test
