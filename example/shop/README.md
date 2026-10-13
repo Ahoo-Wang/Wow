@@ -142,14 +142,15 @@ one that does not read as a query is 400 `wow.query.malformed`.
 
 The snapshots are queried on PostgreSQL (and MongoDB); on the memory backend no
 query backend serves them, and their routes answer 404 (the end-to-end tests
-give the host the in-memory reference backend). Since the Manifest part carries
-no state schema (below), a query filters and sorts by the system fields
-(`aggregateId`, `ownerId`, `version`, `lastEventTime`, `deleted`, `tags`, …)
-only; the records still carry the whole `state`.
+give the host the in-memory reference backend). A query filters and sorts by
+the system fields (`aggregateId`, `ownerId`, `version`, `lastEventTime`,
+`deleted`, `tags`, …) and by the state's fields (`state.status`, …).
 
 The Manifest part `shop-domain` generates names the commands, events, routes,
-errors and lifecycle, without JSON schemas: the schemas are introspected by the
-Gradle plugin `me.ahoo.wow`, which this build cannot apply to its own projects.
+errors and lifecycle, and carries the JSON schemas of its types: the Gradle
+plugin `me.ahoo.wow` introspects them, and since this build cannot apply the
+plugin to its own projects, `example/wow-manifest-fragment.gradle.kts` does the
+same for the domain module. The snapshot queries read the state schema from it.
 
 `:example-e2e` (`example/e2e`) runs the shop and the inventory end to end, each
 in a JVM of its own, on Kafka and PostgreSQL in containers:
