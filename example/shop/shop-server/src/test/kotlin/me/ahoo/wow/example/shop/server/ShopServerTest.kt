@@ -61,14 +61,14 @@ class ShopServerTest {
     }
 
     @Test
-    fun `the manifest should list both aggregates with their routes, errors and lifecycle`() {
+    fun `the manifest should list every aggregate with their routes, errors and lifecycle`() {
         val manifest = shop.get("/wow/manifest", "alice")
         manifest.status.assert().isEqualTo(200)
         manifest.json["service"]["name"].asString().assert().isEqualTo(SERVICE)
         val context = manifest.json["contexts"].values().single()
         context["name"].asString().assert().isEqualTo("example")
         val aggregates = context["aggregates"].values().associateBy { it["name"].asString() }
-        aggregates.keys.assert().containsExactly("cart", "order")
+        aggregates.keys.assert().containsExactly("cart", "customer", "order")
 
         aggregates.getValue("cart").routes().assert().containsExactlyInAnyOrder(
             "POST /example/cart/{id}/add-cart-item",
@@ -84,6 +84,17 @@ class ShopServerTest {
             "POST /example/order/{id}/ship-order",
             "POST /example/order/{id}/receipt-order",
             "POST /example/order/{id}/cancel-order",
+            "POST /example/order/{id}/payment-notified",
+            "POST /example/order/payment-notified",
+        )
+        // Decision D182: the server's transformer adds the route of ChangePassword without an id.
+        aggregates.getValue("customer").routes().assert().containsExactlyInAnyOrder(
+            "POST /example/customer/{id}/register-customer",
+            "POST /example/customer/register-customer",
+            "POST /example/customer/{id}/change-password",
+            "POST /example/customer/change-password",
+            "POST /example/customer/{id}/import-customer",
+            "POST /example/customer/import-customer",
         )
         aggregates.values.forEach { aggregate ->
             aggregate["lifecycle"].values().map { it.asString() }.assert().containsExactly(
@@ -148,12 +159,13 @@ class ShopServerTest {
     }
 
     @Test
-    fun `the manifest should carry the state schemas of both aggregates`() {
+    fun `the manifest should carry the state schemas of every aggregate`() {
         val manifest = shop.get("/wow/manifest", "alice").json
         val context = manifest["contexts"].values().single()
         val defs = manifest["\$defs"]
         context["aggregates"].values().map { it["state"]["schema"].asString() }.assert().containsExactly(
             "#/\$defs/me.ahoo.wow.example.shop.domain.cart.CartState",
+            "#/\$defs/me.ahoo.wow.example.shop.domain.customer.CustomerState",
             "#/\$defs/me.ahoo.wow.example.shop.domain.order.OrderState",
         )
         val cart = defs["me.ahoo.wow.example.shop.domain.cart.CartState"]

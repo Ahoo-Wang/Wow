@@ -15,10 +15,12 @@ package me.ahoo.wow.example.shop.api
 
 /**
  * The names of the shop's bounded context and its aggregates (decision D111): one context, `example`, with a cart
- * per customer and the customer's orders. Commands and events are named `example.<aggregate>.<Name>` (decision D55).
+ * per customer, the customer's orders, and the customers themselves. Commands and events are named
+ * `example.<aggregate>.<Name>` (decision D55).
  */
 object ExampleContext {
     const val NAME = "example"
     const val CART = "cart"
     const val ORDER = "order"
+    const val CUSTOMER = "customer"
 }
