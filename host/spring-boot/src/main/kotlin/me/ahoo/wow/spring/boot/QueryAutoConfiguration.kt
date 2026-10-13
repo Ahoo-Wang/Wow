@@ -29,7 +29,6 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.schema.ManifestQuerySchemaSource
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
@@ -58,7 +57,7 @@ import javax.sql.DataSource
  *   backend (or the application's own [me.ahoo.wow.runtime.node.BackendFactory]) without one, the snapshots are not
  *   queried and their routes are not served;
  * - a [QuerySchemaCatalog] compiling each aggregate's snapshot model from the Manifest
- *   ([ManifestQuerySchemaSource], with the application's [MaskStrategyResolver] and [QuerySchemaSource] beans) under
+ *   ([ManifestStateSchemas], with the application's [MaskStrategyResolver] and [QuerySchemaSource] beans) under
  *   `wow.query.sensitivity`;
  * - a gateway per aggregate type the node hosts: [DefaultQueryGateway] for its snapshots, under the
  *   [ScopeQueryPolicy] (tenant by [HostQueryTenants], D116), the [AbacQueryPolicy] (`wow.query.abac`) and the
@@ -123,10 +122,7 @@ class QueryAutoConfiguration {
             strategies: ObjectProvider<MaskStrategyResolver>,
             sources: ObjectProvider<QuerySchemaSource>,
         ): QuerySchemaCatalog {
-            val manifestSource = ManifestQuerySchemaSource(
-                manifest,
-                strategies.getIfAvailable { MaskStrategyResolver.NONE }
-            )
+            val manifestSource = ManifestStateSchemas(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
             return QuerySchemaCatalog(
                 storages = QueryBackendStorages(backend.factory),
                 compiler = QueryModelCompiler.of(

@@ -21,14 +21,21 @@ import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.AbacQueryOptions
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -200,7 +207,34 @@ class HostQueryTest {
             .manageIndexes(ACCOUNT, runBlocking { catalogSchema() }, emptyList()).assert().isEqualTo(QueryIndexReport())
     }
 
-    private suspend fun catalogSchema() = QuerySchemaCatalog(
-        me.ahoo.wow.query.QueryBackendStorages(InMemoryQueryStorage()),
-    ).schema(ACCOUNT, me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
+    @Test
+    fun `the Manifest's state schemas should declare the aggregates that carry one, no other`() {
+        fun manifest(defs: Map<String, Any?>) = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    BANK,
+                    aggregates = listOf(AggregateManifest("account", state = StateManifest("#/\$defs/Account"))),
+                ),
+            ),
+            defs = defs,
+        )
+        val context = QuerySchemaContext(ACCOUNT, QueryModel.SNAPSHOT)
+        val declared = ManifestStateSchemas(
+            manifest(
+                mapOf(
+                    "Account" to mapOf("type" to "object", "properties" to mapOf("owner" to mapOf("type" to "string")))
+                )
+            ),
+        )
+        declared.declares(ACCOUNT).assert().isTrue()
+        runBlocking { declared.load(context) }.assert().hasSize(1)
+        val undeclared = ManifestStateSchemas(manifest(emptyMap()))
+        undeclared.declares(ACCOUNT).assert().isFalse()
+        undeclared.declares(AggregateType(BANK, "other")).assert().isFalse()
+        runBlocking { undeclared.load(context) }.assert().isEmpty()
+        runBlocking { undeclared.load(context) }.assert().isEmpty()
+    }
+
+    private suspend fun catalogSchema() =
+        QuerySchemaCatalog(QueryBackendStorages(InMemoryQueryStorage())).schema(ACCOUNT, QueryModel.SNAPSHOT)
 }
