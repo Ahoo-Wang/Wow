@@ -29,6 +29,11 @@ import java.time.Duration
  *   (1000), the `non_replicated_deduplication_window` of the tables `auto` creates.
  * - `wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.enabled`: whether every commit is kept (on by
  *   default); off keeps only the current state. `...history.ttl`: how long the history is kept, forever when unset.
+ * - `wow.clickhouse.query.enabled`: whether the datasets are served from ClickHouse (decision D145); on by default.
+ * - `wow.clickhouse.query.metadata-ttl`: how long a dataset table's columns and engine are reused before
+ *   `system.columns` is read again (1m).
+ * - `wow.clickhouse.query.settings.<name>`: server settings every dataset query runs under, such as
+ *   `max_memory_usage`; the execution time comes from each query's budget (`wow.query.http.timeout`), not from here.
  */
 @ConfigurationProperties(prefix = ClickHouseProperties.PREFIX)
 class ClickHouseProperties {
@@ -37,6 +42,7 @@ class ClickHouseProperties {
     var password: String = ""
     var database: String = "default"
     var sink: Sink = Sink()
+    var query: Query = Query()
 
     class Sink {
         var enabled: Boolean = true
@@ -46,6 +52,12 @@ class ClickHouseProperties {
 
         /** By context, then by aggregate name. */
         var aggregates: MutableMap<String, MutableMap<String, Aggregate>> = LinkedHashMap()
+    }
+
+    class Query {
+        var enabled: Boolean = true
+        var metadataTtl: Duration = DEFAULT_METADATA_TTL
+        var settings: MutableMap<String, String> = LinkedHashMap()
     }
 
     class Aggregate {
@@ -61,5 +73,6 @@ class ClickHouseProperties {
         const val PREFIX: String = "wow.clickhouse"
         private const val DEFAULT_BATCH_SIZE = 1000
         private const val DEFAULT_DEDUPLICATION_WINDOW = 1000
+        private val DEFAULT_METADATA_TTL: Duration = Duration.ofMinutes(1)
     }
 }
