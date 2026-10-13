@@ -15,12 +15,15 @@ package me.ahoo.wow.spi.log
 
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 
 /**
  * The log of one bounded context: the only place a fact is written (V10 axiom A1).
  *
  * The contract every backend keeps, checked by the TCK:
- * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`); `ref` includes the tenant;
+ * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
+ *   tenant. Each aggregate type is stored apart (decision D162), so a request id reused by two aggregate types of
+ *   the context commits twice (decision D55 makes the reuse the caller's error);
  * - an aggregate's first stream is version 1 and each next stream is exactly one more;
  * - a stream lands in the partition [Partitioner] assigns its ref, and the sequence within a partition is the order
  *   in which commits became visible: [tail] never skips a committed entry and reads the same entries again from the
@@ -61,7 +64,20 @@ interface EventLog {
      */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
-    /** The stream committed for [requestId] within [tenantId], if any: facts only. */
+    /**
+     * The stream committed for [requestId] within [tenantId] in aggregate type [type], if any: facts only. The request
+     * key is unique within an aggregate type (decision D162), so this is the stream an append of the request would
+     * find already committed; it reads that type's storage alone. The kernel's dedup pre-check calls it before every
+     * command.
+     */
+    suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
+
+    /**
+     * The stream committed for [requestId] within [tenantId], in any aggregate type of the context, if any: facts
+     * only. When two aggregate types hold it, the earliest committed. It searches every aggregate type the log knows,
+     * so its cost grows with their number: for diagnostics and tests that do not know the type, not for the command
+     * path, which knows it and calls the overload taking the [AggregateType].
+     */
     suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?
 
     /**

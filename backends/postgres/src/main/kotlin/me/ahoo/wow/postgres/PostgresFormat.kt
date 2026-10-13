@@ -57,6 +57,33 @@ object PostgresFormat {
         }
     }
 
+    /**
+     * Runs [block], which claims and creates structures, in one transaction under an advisory lock, so that nodes and
+     * threads creating one structure at once neither race its format record nor `CREATE TABLE IF NOT EXISTS` (which
+     * can fail on a concurrent create). Rolls back whatever [block] did when it fails.
+     */
+    internal fun <T> creating(connection: Connection, block: () -> T): T {
+        connection.autoCommit = false
+        try {
+            connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
+                lock.setLong(1, CREATION_LOCK)
+                lock.executeQuery().close()
+            }
+            return block().also { connection.commit() }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Rolls back whatever failed, then rethrows it unchanged.
+            failure: Throwable,
+        ) {
+            connection.rollback()
+            throw failure
+        } finally {
+            connection.autoCommit = true
+        }
+    }
+
+    /** The key of the advisory lock [creating] takes. */
+    private const val CREATION_LOCK = 0x776f775f666d74L
+
     private fun recorded(connection: Connection, structure: String): Int? =
         connection.prepareStatement("SELECT version FROM $TABLE WHERE structure = ?").use { query ->
             query.setString(1, structure)

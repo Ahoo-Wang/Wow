@@ -11,20 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.postgres.snapshot
+package me.ahoo.wow.postgres
 
 import java.security.MessageDigest
 
-/** Names of the database objects this module creates. */
+/**
+ * Names of the database objects this module creates: the tables of a context's storage per aggregate type
+ * (`wow_log__<context>__<aggregate>`, `wow_snapshot__<context>__<aggregate>`; decisions D161, D162) and the names
+ * derived from them.
+ */
 internal object PostgresIdentifiers {
     /** PostgreSQL's identifier limit, in bytes; the names here are ASCII. */
     const val MAX_LENGTH = 63
     private const val HASH_LENGTH = 8
+    private val OUTSIDE = Regex("[^a-z0-9_]")
+
+    /** [name] lower-cased, each character outside `[a-z0-9_]` replaced by `_`. */
+    fun part(name: String): String = name.lowercase().replace(OUTSIDE, "_")
+
+    /** `<prefix>__<context>__<aggregate>`, each part as [part] makes it, within [MAX_LENGTH] as [limited] makes it. */
+    fun of(prefix: String, context: String, aggregate: String): String =
+        limited(prefix + "__" + part(context) + "__" + part(aggregate))
 
     /**
-     * [name] within [MAX_LENGTH]: a longer one keeps its first 54 characters and appends `_` and 8 hex digits of the
-     * SHA-256 of the whole name (the rule `manifest-tools` derives index names by), so two long names that share a
-     * prefix stay distinct, where PostgreSQL would silently truncate both to the same identifier.
+     * [name] within [MAX_LENGTH]: a longer one is cut and gets `_` and the first 8 hex digits of the SHA-256 of the
+     * whole name (the rule `manifest-tools` derives index names by), so two long names that share a prefix stay
+     * distinct, where PostgreSQL would silently truncate both to the same identifier.
      */
     fun limited(name: String): String {
         if (name.length <= MAX_LENGTH) return name

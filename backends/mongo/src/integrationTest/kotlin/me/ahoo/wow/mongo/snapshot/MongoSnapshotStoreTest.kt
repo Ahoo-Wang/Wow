@@ -30,7 +30,11 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = store(context)
 
     private fun store(context: String = MongoLogFixture.newContext()) =
-        MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context).also { it.createSchema() }
+        MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
+            .also { it.createCollection("aggregate") }
+
+    private fun collection(context: String, aggregate: String = "aggregate") =
+        "wow_snapshot__${context.replace('-', '_')}__$aggregate"
 
     @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {
@@ -44,14 +48,14 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     fun `snapshots recorded in another format version are refused`() {
         val context = MongoLogFixture.newContext()
         store(context)
-        MongoLogFixture.bumpFormat("wow_snapshot_" + context.replace('-', '_'))
+        MongoLogFixture.bumpFormat(collection(context))
         assertThrownBy<IllegalStateException> { store(context) }
     }
 
     @Test
     fun `snapshots created by a build without format records are refused`() {
         val context = MongoLogFixture.newContext()
-        MongoLogFixture.createUnrecorded("wow_snapshot_" + context.replace('-', '_'))
+        MongoLogFixture.createUnrecorded(collection(context))
         assertThrownBy<IllegalStateException> { store(context) }
     }
 
@@ -78,7 +82,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
             val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
             store.save(saved).assert().isTrue()
             val snapshots = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
-                .getCollection("wow_snapshot_" + context.replace('-', '_'))
+                .getCollection(collection(context))
             snapshots.updateOne(Filters.eq("aggregate_id", "a"), Updates.set("state", Document("price", 2.5)))
             store.load(saved.ref)!!.state.assert().isEqualTo("""{"price":2.5}""")
             // A BSON value JSON has no counterpart for is not a state Wow wrote.
@@ -99,5 +103,22 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         val foreign = snapshot("a", 1).copy(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))
         assertThrownBy<IllegalArgumentException> { runBlocking { store.save(foreign) } }
         assertThrownBy<IllegalArgumentException> { runBlocking { store.load(foreign.ref) } }
+    }
+
+    @Test
+    fun `an aggregate type's collection is created the first time it is touched`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val store = MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
+        store.createSchema()
+        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "Order-Line").ref("tenant", "a"))
+        store.save(saved).assert().isTrue()
+        store.save(saved).assert().isFalse()
+        val database = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+        database.listCollectionNames().toList().assert().contains(collection(context, "order_line"))
+        database.getCollection(collection(context, "order_line")).find().first()!!.containsKey("aggregate_name")
+            .assert().isFalse()
+        MongoLogFixture.bumpFormat(collection(context, "order_line"))
+        val reopened = MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
+        assertThrownBy<IllegalStateException> { runBlocking { reopened.load(saved.ref) } }
     }
 }
