@@ -358,6 +358,12 @@ class ServiceNode(
                 "A start is configured for the subscription $it, which node $node does not have: ${names.sorted()}.",
             )
         }
+        options.subscription.parked.specs.keys.filterNot { it in names }.forEach {
+            throw IllegalArgumentException(
+                "A parked retry spec is configured for the subscription $it, which node $node does not have: " +
+                    "${names.sorted()}.",
+            )
+        }
     }
 
     private val lifecycle = Mutex()

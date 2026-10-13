@@ -101,6 +101,9 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
  *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
  *   [SourceTopics] bean (wow-kafka's, decision D134).
+ * - **Parked entries** (roadmap P.1): retried over the long horizon by `wow.subscription.parked.*`; every
+ *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
+ *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
