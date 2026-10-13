@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -137,6 +138,46 @@ class SubscriptionCheckpointTest {
         eventually { again.size == 2 }
         restarted.stop()
         again.sequences().assert().isEqualTo(listOf(16L, 17L))
+    }
+
+    @Test
+    fun `a subscription from the end of an empty partition handles its first entries after a kill before any save`():
+        Unit = runBlocking {
+        // G33: a node killed before its first periodic save saves nothing more; its successor starts from the store.
+        val killable = object : CheckpointStore by checkpoints {
+            @Volatile
+            var killed = false
+
+            override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
+                if (!killed) checkpoints.save(group, subscription, partition, position)
+            }
+        }
+        val first = Handled()
+        val killedNode = SubscriptionRuntime(
+            "group",
+            log,
+            killable,
+            ledger,
+            listOf(Subscription("saga", SubscriptionFilter("shop"), StartFrom.END) { first.record(it) }),
+            testOptions(checkpointInterval = 1.hours),
+        )
+        killedNode.start(setOf(0))
+        // The start, 0 in an empty partition, is saved at once.
+        checkpoint("saga").assert().isEqualTo(0L)
+        repeat(2) { appender.append("order") }
+        eventually { first.size == 2 }
+        killable.killed = true
+        killedNode.stop()
+        checkpoint("saga").assert().isEqualTo(0L)
+
+        // The next owner starts at the saved 0, not at the log's end, 2 by now: nothing committed meanwhile is lost.
+        appender.append("order")
+        val next = Handled()
+        val successor = runtime(Subscription("saga", SubscriptionFilter("shop"), StartFrom.END) { next.record(it) })
+        successor.start(setOf(0))
+        eventually { next.size == 3 }
+        successor.stop()
+        next.sequences().assert().isEqualTo(listOf(1L, 2L, 3L))
     }
 
     @Test

@@ -24,16 +24,17 @@ import tools.jackson.databind.JsonNode
 import java.time.Duration
 
 /**
- * The whole eShop end to end (work package E.6): [EshopStack]'s five services on PostgreSQL, Kafka and ClickHouse.
+ * The whole eShop end to end (work package E.6): [EshopStack]'s five services on PostgreSQL, Kafka and ClickHouse,
+ * the ordering on two nodes sharing its database, so a saga's commands are routed to their partitions' owners (G32).
  *
  * - **Full chain.** Products created and published in the catalog, stock received, a basket checked out with one
  *   `Wow-Wait` chain that follows the order through the ordering, the inventory and the payment until the order's
  *   `PayOrder` is committed, then shipped, and its reservations committed.
  * - **Rejection.** A stock too short cancels the order (the receipt's `@OnRejected`), and no payment is requested.
  * - **Sales.** The sales dataset over the ClickHouse view of the order stream: the revenue by status and by day.
- * - **Node killed.** The ordering service is killed (`SIGKILL`) right after a checkout, before the payment is
- *   requested, and a node of another id started in its place; the order completes with every effect once. The test
- *   logs how long the order's partition took no command, the lease's TTL included.
+ * - **Node killed.** The ordering node owning the order's partition is killed (`SIGKILL`) right after a checkout,
+ *   before the payment is requested, and a node of another id started in its place; the order completes with every
+ *   effect once. The test logs how long the order's partition took no command, the lease's TTL included.
  *
  * The orders are read back from the ordering's state routes, which serve the snapshots: they trail the commits, so
  * every read of a state the flow is still changing is awaited.
@@ -41,7 +42,7 @@ import java.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class EshopFullChainTest {
-    private val stack = EshopStack()
+    private val stack = EshopStack(orderingNodes = 2)
 
     @AfterAll
     fun close() {
@@ -133,12 +134,9 @@ class EshopFullChainTest {
         addItem("carol", "kite", price("kite"), 2)
         val partition = stack.orderPartition("carol-1")
         val owner = awaitOwner(partition)
-        val (warmUp, probe) = probesOn(partition).take(2).toList()
-        // The order process's subscriptions first save a checkpoint in the partition: on a partition without one, a
-        // node killed before its first save leaves the next owner to start at the log's end, past the entries
-        // committed meanwhile (README, Tests: the framework issue the full chain found).
-        submitProbe(stack.anyOrdering, warmUp).assert().isTrue()
-        stack.eventually("the warm-up order $warmUp cancelled") { stack.orderStatus(warmUp) == "CANCELLED" }
+        val probe = probesOn(partition).first()
+        // The order process's subscriptions save their starting checkpoints in the partition as they start, 0 in a
+        // partition without an order yet (G33), so the next owner does not start at a later end.
         stack.eventually("the order process's checkpoints in partition $partition") {
             stack.checkpointed(EshopStack.ORDERING_DATABASE, "OrderProcessSaga.", partition) == ORDER_PROCESS_HANDLERS
         }
@@ -160,8 +158,10 @@ class EshopFullChainTest {
             submitProbe(replacement, probe, answers)
         }
         val commands = since(killedAt)
+        var successor: String? = null
         stack.eventually("the lease of partition $partition taken over", TAKEOVER_BOUND) {
-            stack.orderingOwnerOf(partition) == REPLACEMENT
+            successor = stack.orderingOwnerOf(partition)
+            successor != null && successor != owner
         }
         val lease = since(killedAt)
         stack.eventually("carol-1 paid after the kill", TAKEOVER_BOUND, { "carol-1: ${stack.order("carol-1")}" }) {
@@ -170,8 +170,8 @@ class EshopFullChainTest {
         val paid = since(killedAt)
         println(
             "[eshop-e2e] $owner killed: $REPLACEMENT served after ${started.toMillis()} ms, partition $partition took a " +
-                "command after ${commands.toMillis()} ms, its lease after ${lease.toMillis()} ms, and carol-1 was " +
-                "paid after ${paid.toMillis()} ms.",
+                "command after ${commands.toMillis()} ms, its lease ($successor) after ${lease.toMillis()} ms, and " +
+                "carol-1 was paid after ${paid.toMillis()} ms.",
         )
         lease.assert().isLessThan(TAKEOVER_BOUND)
 
@@ -307,7 +307,7 @@ class EshopFullChainTest {
         const val WAIT_TIMEOUT = "Wow-Wait-Timeout"
         const val SALES = "/wow/dataset/eshop-ordering/sales/query"
         const val REVENUE = """{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"totalAmount"},"alias":"revenue"}"""
-        const val REPLACEMENT = "ordering-2"
+        const val REPLACEMENT = "ordering-3"
         const val TO_ORDERING = EshopStack.CHECKOUT_TO_ORDER
         const val FULL_CHAIN = EshopStack.CHECKOUT_TO_PAID
         const val ANSWER = 300

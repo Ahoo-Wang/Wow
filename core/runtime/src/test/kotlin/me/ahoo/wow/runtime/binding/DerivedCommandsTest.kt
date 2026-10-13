@@ -74,11 +74,19 @@ class DerivedCommandsTest {
     fun `a command whose outcome is unknown or contended should fail the saga`(): Unit = runBlocking {
         derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), null)
         answer = AppendOutcome.Unknown(IOException("The log is gone."))
-        runCatching { derived.execute(listOf(command("c-2", AddItems(listOf("pear")))), null) }.exceptionOrNull()!!
-            .message.assert().isEqualTo("The outcome of the derived command c-2 on shop.cart/t/alice is unknown.")
+        val unknown = runCatching { derived.execute(listOf(command("c-2", AddItems(listOf("pear")))), null) }
+            .exceptionOrNull()!!
+        unknown.message.assert().isEqualTo(
+            "The derived command c-2 on shop.cart/t/alice failed: wow.command.unknown Whether the command committed " +
+                "is unknown: The log is gone.",
+        )
+        unknown.cause!!.message.assert().isEqualTo("The log is gone.")
         answer = AppendOutcome.Conflict(5)
         runCatching { derived.execute(listOf(command("c-3", AddItems(listOf("pear")))), null) }.exceptionOrNull()!!
-            .message.assert().isEqualTo("The derived command c-3 on shop.cart/t/alice was contended 2 times.")
+            .message.assert().isEqualTo(
+                "The derived command c-3 on shop.cart/t/alice failed: wow.command.contended Concurrent writers kept " +
+                    "winning the version slot for 2 attempts.",
+            )
     }
 
     @Test
