@@ -20,7 +20,9 @@ import java.lang.annotation.Inherited
  * the Manifest fragments, so a module rarely carries it; when it does, its [name] and [description] go into the
  * Manifest.
  *
- * @param name the context's name, unique within the service.
+ * @param name the context's name, unique within the service: lower-case letters, digits and hyphens, starting with a
+ *   letter (`[a-z][a-z0-9-]*`, decision D169), such as `eshop-catalog`. A dot is never part of it, since it separates
+ *   the context from the aggregate in type names (`context.aggregate.Command`); the compiler refuses such a name.
  * @param description what the context is for, for documentation.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)

@@ -542,6 +542,52 @@ class ManifestFragmentTest {
     }
 
     @Test
+    fun `a bounded context whose name breaks the rule should fail the compilation`() {
+        val dotted = SourceFile.kotlin(
+            "Catalog.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "eshop.catalog")
+            object CatalogContext
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", dotted, cart)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains("@BoundedContext: context name \"eshop.catalog\" is not valid")
+            .contains("[a-z][a-z0-9-]*")
+        fragments(compilation).assert().isEmpty()
+    }
+
+    @Test
+    fun `a context option whose name breaks the rule should fail the compilation`() {
+        val options = mapOf(ModelSymbolProcessorProvider.CONTEXT_OPTION to "Store_Front")
+        val (_, result) = compileModel("generate", options, cart)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("KSP option wow.context: context name \"Store_Front\" is not valid")
+    }
+
+    @Test
+    fun `report mode should not check the context name`() {
+        val upper = SourceFile.kotlin(
+            "Upper.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "Upper")
+            object UpperContext
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("report", upper, cart)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+    }
+
+    @Test
     fun `the options should name the context and the fragment`() {
         val options = mapOf(
             ModelSymbolProcessorProvider.CONTEXT_OPTION to "store",

@@ -101,7 +101,10 @@ object ManifestTree {
     private fun obj(vararg entries: Pair<String, Any?>): Map<String, Any?> =
         entries.filter { it.second != null }.toMap(LinkedHashMap())
 
-    /** Reads [tree], the JSON object of a Manifest; fails on a missing field or another [Manifest.FORMAT]. */
+    /**
+     * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], or a context
+     * whose name breaks [ContextName] (decision D169).
+     */
     fun read(tree: Map<*, *>): Manifest {
         val root = Node(tree, "manifest")
         val format = root.int("format")
@@ -118,7 +121,9 @@ object ManifestTree {
     }
 
     private fun readContext(node: Node): ContextManifest = ContextManifest(
-        name = node.string("name"),
+        name = node.string("name").also { name ->
+            ContextName.problem(name)?.let { throw IllegalArgumentException("${node.path}.name: $it") }
+        },
         description = node.stringOrNull("description"),
         aggregates = node.objects("aggregates").map(::readAggregate),
         subscriptions = node.objects("subscriptions").map(::readSubscription),
