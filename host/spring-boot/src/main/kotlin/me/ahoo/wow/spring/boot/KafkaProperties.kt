@@ -14,24 +14,31 @@
 package me.ahoo.wow.spring.boot
 
 import org.springframework.boot.context.properties.ConfigurationProperties
+import java.time.Duration
 
 /**
  * The Kafka transport's configuration, `wow.kafka.*` (decision D110), read when wow-kafka is on the classpath
  * ([KafkaAutoConfiguration]):
  *
- * - `wow.kafka.bootstrap-servers`: the brokers; the transport and the Kafka Sink are wired only when it is set.
+ * - `wow.kafka.bootstrap-servers`: the brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are
+ *   wired only when it is set.
  * - `wow.kafka.properties.*`: passed to every producer and consumer as they are (`security.protocol`, `client.id`,
  *   `linger.ms`, ...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`).
  * - `wow.kafka.topic-prefix`: put before every topic name, such as `staging.` for `staging.wow.shop.order.state`;
- *   none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`, decision D135).
+ *   none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`, decision D135). The sinks
+ *   write under it and the subscriptions of other contexts' streams read under it.
+ * - `wow.kafka.poll-timeout`: the longest a consumer's poll waits (200 ms by default); a read that is cancelled, and
+ *   a partition that joins or leaves a topic's shared consumer, take effect within it.
  */
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties {
     var bootstrapServers: String? = null
     var properties: MutableMap<String, String> = LinkedHashMap()
     var topicPrefix: String = ""
+    var pollTimeout: Duration = Duration.ofMillis(DEFAULT_POLL_TIMEOUT_MILLIS)
 
     companion object {
         const val PREFIX: String = "wow.kafka"
+        private const val DEFAULT_POLL_TIMEOUT_MILLIS = 200L
     }
 }
