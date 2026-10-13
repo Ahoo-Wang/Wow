@@ -332,7 +332,10 @@ class QueryAdmissionTest {
         QueryAdmission.Trusted.paged(PagedQuery(note), snapshot).query.filter
             .assert().isEqualTo(IsNullFilter(QueryField("note")))
         QueryAdmission.Trusted.cursor(CursorQuery(note), snapshot).query.sort
-            .assert().containsExactly(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+            .assert().containsExactly(
+                Sort(QueryField("tenantId"), Sort.Direction.ASC),
+                Sort(QueryField("aggregateId"), Sort.Direction.ASC),
+            )
         QueryAdmission.Trusted.aggregate(
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Terms(QueryField("note"), "note")),
@@ -368,7 +371,10 @@ class QueryAdmissionTest {
         admission.admitBlocking(QueryOperation.PAGED, PagedQuery(note) as IPagedQuery, http).query.total
             .assert().isEqualTo(TotalMode.BOUNDED)
         admission.admitBlocking(QueryOperation.CURSOR, CursorQuery(note) as ICursorQuery, http).query.sort
-            .assert().containsExactly(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+            .assert().containsExactly(
+                Sort(QueryField("tenantId"), Sort.Direction.ASC),
+                Sort(QueryField("aggregateId"), Sort.Direction.ASC),
+            )
         admission.admitBlocking(
             QueryOperation.AGGREGATION,
             AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))),

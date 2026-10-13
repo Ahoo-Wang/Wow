@@ -18,7 +18,7 @@ import me.ahoo.wow.query.filter.QueryContext
 
 /**
  * A mandatory restriction of an aggregate's queries, evaluated at admission step 2 ([QueryAdmission]); the port the
- * scope and ABAC policies of decision D129 implement (6.1c).
+ * scope and ABAC policies of decision D129 implement ([ScopeQueryPolicy], [AbacQueryPolicy]).
  *
  * Each policy reads the same query, the one every [QueryFilter][me.ahoo.wow.query.filter.QueryFilter] rewrite
  * produced with the caller's scope and route selection appended, and the [caller] (decision D126: the identity is an

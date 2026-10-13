@@ -23,6 +23,7 @@ internal class QuerySchemaMerger {
     fun merge(
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
         extensionRoot: String? = payloadRootOf(system),
     ): LogicalQuerySchema {
         extensions.forEach { extension ->
@@ -57,19 +58,19 @@ internal class QuerySchemaMerger {
                 root = root.patchAt(field.path.split('.'), declaration, field, false)
             }
         }
-        return LogicalQuerySchema(root.materialize())
+        return LogicalQuerySchema(root.materialize(), sensitivity)
     }
 
     private fun QueryFieldDeclaration.rejectSystemOverwrite(field: QueryField, extension: QueryFieldDeclaration) {
         val systemLeaves = listOf(
             title, description, enumValues, enumDescriptions, valueTypes, nullable, required, kind,
-            items, additionalProperties, alternatives, semanticType, aliases, deprecated
+            items, additionalProperties, alternatives, semanticType, maskRule, aliases, deprecated
         )
         val extensionLeaves = listOf(
             extension.title, extension.description, extension.enumValues, extension.enumDescriptions,
             extension.valueTypes,
             extension.nullable, extension.required, extension.kind, extension.items, extension.additionalProperties,
-            extension.alternatives, extension.semanticType, extension.aliases,
+            extension.alternatives, extension.semanticType, extension.maskRule, extension.aliases,
             extension.deprecated
         )
         if (systemLeaves.zip(
@@ -130,6 +131,9 @@ private fun QueryFieldDeclaration.patchAt(
 @Suppress("ThrowsCount") // Publication reports distinct declaration conflicts without changing their exception type.
 private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
     val valueKind = inferredKind()
+    if (maskRule is DeclarationValue.Set && !isMaskStringDomain()) {
+        throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
+    }
     val branches = alternatives.valueOr(emptyList()).map { it.materialize() }
     if (valueKind == QueryValueKind.UNION && nullable == DeclarationValue.Set(false) && branches.any { it.nullable }) {
         throw QuerySchemaConflictException("Union alternatives conflict with non-null query schema value.")
@@ -147,6 +151,7 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
             nullable = if (valueKind == QueryValueKind.UNION) branches.any { it.nullable } else nullable.valueOr(true),
             required = required.valueOr(false),
             semanticType = semanticType.valueOr(null),
+            maskRule = maskRule.valueOr(null),
             variant = variant.valueOr(null),
             aliases = aliases.valueOr(emptySet()),
             deprecated = deprecated.valueOr(null),

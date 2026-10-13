@@ -34,6 +34,8 @@ class QueryValueSchema(
     val nullable: Boolean = kind != QueryValueKind.UNION || alternatives.any { it.nullable },
     val required: Boolean = false,
     val semanticType: QuerySemanticType? = null,
+    /** The sensitivity of this string value: its level and how responses mask it; `null` when it is not sensitive. */
+    val maskRule: MaskRule? = null,
     /** The discriminator value when this value is one variant of a variant payload, such as an event's `bodyType`. */
     val variant: String? = null,
     aliases: Set<QueryField> = emptySet(),
@@ -93,7 +95,7 @@ class QueryValueSchema(
 
     /**
      * Whether [other] declares the same value, recursively: every fact a consumer of the logical definition reads
-     * (the masker of 6.1c reads nullability, kinds, value types, items and alternatives), including the ones the capability
+     * (the masker reads nullability, kinds, value types, items and alternatives), including the ones the capability
      * descriptor leaves out. Property order counts, as it does for the descriptor.
      */
     @Suppress("CyclomaticComplexMethod")
@@ -101,7 +103,7 @@ class QueryValueSchema(
         if (this === other) return true
         return kind == other.kind && nullable == other.nullable && required == other.required &&
             title == other.title && description == other.description && valueTypes == other.valueTypes &&
-            semanticType == other.semanticType && variant == other.variant &&
+            semanticType == other.semanticType && maskRule == other.maskRule && variant == other.variant &&
             aliases == other.aliases && deprecated == other.deprecated && enumSnapshot == other.enumSnapshot &&
             enumDescriptions == other.enumDescriptions &&
             sameDefinition(items, other.items) &&
@@ -116,11 +118,15 @@ class QueryValueSchema(
         if (value == null || other == null) value === other else value.sameDefinitionAs(other)
 }
 
-/** A native binding as a storage adapter reports it; [physicalScope] is [QueryFieldBinding.physicalScope]. */
+/**
+ * A native binding as a storage adapter reports it; [physicalScope] and [indexed] are [QueryFieldBinding.physicalScope]
+ * and [QueryFieldBinding.indexed].
+ */
 class QueryFieldBindingTemplate(
     val physicalPath: QueryPathTemplate,
     storageTypes: Set<QueryStorageType>?,
     val physicalScope: QueryField? = null,
+    val indexed: Boolean? = null,
 ) {
     val storageTypes: Set<QueryStorageType>? = storageTypes?.let {
         java.util.Collections.unmodifiableSet(LinkedHashSet(it))
@@ -132,10 +138,11 @@ class QueryFieldBindingTemplate(
 
     override fun equals(other: Any?): Boolean = other is QueryFieldBindingTemplate &&
         physicalPath == other.physicalPath && storageTypes == other.storageTypes &&
-        physicalScope == other.physicalScope
+        physicalScope == other.physicalScope && indexed == other.indexed
 
     override fun hashCode(): Int =
-        31 * (31 * physicalPath.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)
+        31 * (31 * (31 * physicalPath.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)) +
+            (indexed?.hashCode() ?: 0)
 }
 class QueryValueBindings(
     bindings: Map<QueryCapability, QueryFieldBindingTemplate> = emptyMap(),

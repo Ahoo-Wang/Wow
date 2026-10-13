@@ -175,9 +175,9 @@ internal class QueryResolver(
         return paged
     }
 
-    /** A cursor query, its sort completed by [uniqueField] as the tie-breaker ([withUniqueSort]). */
-    fun cursor(query: ICursorQuery, uniqueField: QueryField): ICursorQuery {
-        val effectiveSort = query.sort.withUniqueSort(uniqueField)
+    /** A cursor query, its sort completed by the fields of [uniqueKey] as tie-breakers ([withUniqueSort]). */
+    fun cursor(query: ICursorQuery, uniqueKey: List<QueryField>): ICursorQuery {
+        val effectiveSort = query.sort.withUniqueSort(uniqueKey)
         requireCursorSort(effectiveSort)
         val filter = filter(query.filter)
         val projection = projection(query.projection)

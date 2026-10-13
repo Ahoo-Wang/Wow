@@ -15,7 +15,7 @@ package me.ahoo.wow.query.schema
 
 /**
  * The declarations registered in code ([querySchemaRegistration]), each for the model its context names. 9.x's
- * classpath and working-directory declaration files are gone: the Manifest (6.1c) states what they supplemented.
+ * classpath and working-directory declaration files are gone: the Manifest ([ManifestQuerySchemaSource]) states what they supplemented.
  */
 class BeanQuerySchemaSource(
     registrations: List<QuerySchemaRegistration>,

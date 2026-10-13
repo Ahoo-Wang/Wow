@@ -171,7 +171,9 @@ suspend fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): CursorPage<
  * every group when an operator needs them all, and applies dense fill, windows, HAVING and top-N (or the limit) to
  * the rows that come back.
  * An aggregation without groups always has its summary row: when the backend emits none, because no record
- * matched, the core emits the empty summary ([EmptyAggregationValues]).
+ * matched, the core emits the empty summary ([EmptyAggregationValues]). Such a query has no HAVING (the protocol
+ * requires a group for one, `AggregationQuery` rejects it at construction), so a storage's native HAVING can never be
+ * what removed a summary row; with groups, rows a HAVING removes are not replaced.
  * When it reads every group, [budget]'s [QueryBudget.maxResidualGroups] bounds how many it processes, dense fill
  * rows included: HAVING can discard every fill row, so without counting them a sparse fine-grained dense histogram
  * would generate rows until the timeout.

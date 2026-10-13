@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  * What a field's value means beyond its type; a field has at most one. A `type` this version does not know reads as
  * [Unknown], so a client on an older version can still read a newer server's descriptor. The wire names (the
  * descriptor's `type`) are `TEMPORAL_DATE`, `TEMPORAL_EPOCH`, `TEMPORAL_FORMATTED`, `DECIMAL`, `MONEY`, `DURATION` and
- * `REFERENCE`; the descriptor codec is 6.1c's.
+ * `REFERENCE`, as [QueryJson][me.ahoo.wow.query.json.QueryJson] writes them.
  */
 interface QuerySemanticType {
     /**

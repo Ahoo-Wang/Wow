@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
@@ -26,9 +27,12 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.describe
 import tools.jackson.databind.node.ObjectNode
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -61,6 +65,14 @@ interface QueryGateway {
 
     /** The groups of [query], streamed. */
     fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode>
+
+    /**
+     * How this model can be queried on [entry] (decision D127, the `GET` of the query route): the capability
+     * descriptor of the schema this gateway admits against, under the budget [entryPolicy] gives [entry].
+     * [defaultListSize] is the list size the entry's adapter applies when a list query sends none, or `null`. Its
+     * [version][QueryModelDescriptor.version] is the route's `ETag`.
+     */
+    suspend fun describe(entry: QueryEntry, defaultListSize: Int? = null): QueryModelDescriptor
 }
 
 /**
@@ -80,18 +92,24 @@ class DefaultQueryGateway(
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
 
     override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? =
-        run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { backend.single(it) }
+        run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { admitted ->
+            backend.single(admitted)?.let(admitted.reader())
+        }
 
     override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> =
-        stream(QueryOperation.LIST, query, caller) { backend.list(it) }
+        stream(QueryOperation.LIST, query, caller) { admitted -> backend.list(admitted).map(admitted.reader()) }
 
     override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
         run(QueryOperation.PAGED, query, caller, rows = { it.list.size.toLong() }) { admitted ->
-            backend.paged(admitted, totalLimit(admitted.entry))
+            val page = backend.paged(admitted, totalLimit(admitted.entry))
+            page.copy(list = page.list.map(admitted.reader()))
         }
 
     override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
-        run(QueryOperation.CURSOR, query, caller, rows = { it.list.size.toLong() }) { backend.cursor(it) }
+        run(QueryOperation.CURSOR, query, caller, rows = { it.list.size.toLong() }) { admitted ->
+            val page = backend.cursor(admitted)
+            page.copy(list = page.list.map(admitted.reader()))
+        }
 
     override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult =
         run(QueryOperation.COUNT, query, caller, rows = { 1 }) { backend.countBounded(it) }
@@ -100,6 +118,15 @@ class DefaultQueryGateway(
         stream(QueryOperation.AGGREGATION, query, caller) { admitted ->
             backend.aggregate(admitted, entryPolicy.budget(admitted.entry))
         }
+
+    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
+        schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
+
+    /** Masks each backend record by the schema's response masks (every caller sees masked values). */
+    private fun AdmittedQuery<*>.reader(): (ObjectNode) -> ObjectNode {
+        val masker = SchemaMasker.create(schema) ?: return { it }
+        return masker::mask
+    }
 
     /**
      * The bound of a [BOUNDED][me.ahoo.wow.api.query.TotalMode.BOUNDED] total on [entry]: its budget's count limit,
@@ -122,6 +149,7 @@ class DefaultQueryGateway(
         val trail = trail(operation.queryType, query, caller)
         try {
             val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
+            trail?.admitted(admitted.query)
             return execute(admitted).also { result ->
                 trail?.rows(rows(result))
                 finished(operation.queryType, trail, null)
@@ -143,6 +171,7 @@ class DefaultQueryGateway(
         val trail = trail(operation.queryType, query, caller)
         try {
             val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
+            trail?.admitted(admitted.query)
             execute(admitted).collect { row ->
                 trail?.rows(1)
                 emit(row)

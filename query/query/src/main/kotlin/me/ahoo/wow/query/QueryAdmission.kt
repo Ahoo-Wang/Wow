@@ -26,13 +26,16 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.SortCapable
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
-import me.ahoo.wow.query.schema.requireIdentityField
+import me.ahoo.wow.query.schema.cursorUniqueKey
+import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.withCanonicalFields
 import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
@@ -89,7 +92,30 @@ class QueryAdmission(
         val rewritten = rewrite(query, ::context)
         val restricted = restrict(rewritten, caller, ::context, trail, appended)
         val defaulted = restricted.withDefaultScope(model.profile, appended)
-        return operation.finish(defaulted, model, entry, appended, budget).withTimeout(entryPolicy.timeout(entry))
+        return operation.finish(defaulted, model, entry, appended, budget)
+            .also { admitted -> budget?.let { requireIndexedSorts(it, query, admitted) } }
+            .withTimeout(entryPolicy.timeout(entry))
+    }
+
+    /**
+     * With [QueryBudget.unindexedSortExpensive] on an entry that refuses expensive operators, rejects a sort the caller
+     * wrote ([submitted]) whose field the storage sorts without an index. The tie-breakers admission appends are not
+     * the caller's, so they never count.
+     */
+    private fun requireIndexedSorts(budget: QueryBudget, submitted: Any, admitted: AdmittedQuery<*>) {
+        if (!budget.unindexedSortExpensive || budget.allowExpensiveOperators) return
+        val written = (submitted as? SortCapable)?.sort?.size ?: return
+        val sort = (admitted.query as? SortCapable)?.sort ?: return
+        sort.take(written).forEach { order ->
+            val field = admitted.field(order.field)
+            requireValid(field.indexed != false) {
+                QueryViolation.ExpensiveOperatorDisabled(
+                    budget.label,
+                    "unindexed sort on [${field.logicalField.path}]",
+                    location = "sort",
+                )
+            }
+        }
     }
 
     /**
@@ -105,7 +131,7 @@ class QueryAdmission(
      * of the filter semantics matrix; an operator the evaluation does not support fails closed.
      *
      * Returns [record], or `null` when the caller may not read it. Policies need the schema, so a read with policies
-     * fails when [schema] is `null`. Masking the record (9.x `maskRecord`) returns in 6.1c.
+     * fails when [schema] is `null`. The record returned is masked by [schema]'s response masks ([maskRecord]).
      */
     suspend fun admitRecord(
         selection: FilterExpression,
@@ -127,6 +153,7 @@ class QueryAdmission(
         val filter = restricted.withDefaultScope(profile, appended).filter
         val canonical = if (schema == null) filter else filter.withCanonicalFields(schema)
         return record.takeIf { RecordFilter(normalizer.normalize(canonical)).admits(it) }
+            ?.let { schema?.maskRecord(it) ?: it }
     }
 
     /** Step 1: the [QueryFilter]s in order, each seeing the query the previous one produced. */
@@ -208,7 +235,10 @@ class QueryAdmission(
         fun paged(query: IPagedQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             paged(query, schema, entry, emptyList())
 
-        /** Appends the model's identity field as the unique tie-breaker sort before resolving. */
+        /**
+         * Appends the model's unique key ([QueryModelProfile.cursorUniqueKey]: a snapshot's tenant, then its
+         * aggregate id) as the tie-breaker sort before resolving.
+         */
         @JvmStatic
         @JvmOverloads
         fun cursor(query: ICursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
@@ -257,7 +287,7 @@ class QueryAdmission(
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
         ): AdmittedQuery<ICursorQuery> = resolve(schema, entry, trusted) {
-            cursor(query.withCanonicalSort(schema), schema.requireIdentityField())
+            cursor(query.withCanonicalSort(schema), schema.cursorUniqueKey())
         }
 
         internal fun count(

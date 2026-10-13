@@ -49,6 +49,8 @@ import tools.jackson.databind.module.SimpleModule
  *   and window `within`; null `having`, `cursor`, group inputs and scopes, `orderBy`, `frame` and `period`; a false
  *   `dense`; a metric filter that matches everything.
  * - [PagedList] writes `total` (`null` when uncounted), `exact`, then `list`.
+ * - The capability descriptor ([QueryModelDescriptor][me.ahoo.wow.query.descriptor.QueryModelDescriptor], the `GET`
+ *   of the query route) as 9.x wrote it: models and value types as strings, semantic types discriminated by `type`.
  */
 object QueryJson {
     /** The Jackson module of the query protocol, to register into a WowJson builder: `WowJson.builder().addModule(QueryJson.module)`. */
@@ -91,6 +93,8 @@ private class QueryJsonModule : SimpleModule(MODULE_NAME) {
         setMixInAnnotation(DerivedExpression.Rank::class.java, WindowWithinMixin::class.java)
         setMixInAnnotation(HavingExpression::class.java, HavingExpressionMixin::class.java)
         registerSubtypes(*aggregationSubtypes.toTypedArray())
+
+        registerDescriptorJson()
     }
 
     override fun setupModule(context: SetupContext) {

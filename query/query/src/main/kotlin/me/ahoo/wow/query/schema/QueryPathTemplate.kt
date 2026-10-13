@@ -94,7 +94,7 @@ internal fun requireQueryPathSegment(value: String) {
     require(value.isValidQueryPathSegment()) { "Invalid query path segment: [$value]." }
 }
 
-private fun String.isValidQueryPathSegment(): Boolean {
+internal fun String.isValidQueryPathSegment(): Boolean {
     if (isEmpty()) return false
     val start = if (first() == '@') 1 else 0
     if (start == length) return false

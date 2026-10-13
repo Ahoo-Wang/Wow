@@ -17,9 +17,16 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 
 /**
- * A cursor's effective sort: this sort with [uniqueField] appended as the ascending tie-breaker, unless it already
- * names it. The sort rules (at most [me.ahoo.wow.api.query.Sort.MAX_FIELDS] fields, no field twice)
- * are [QueryResolver]'s, which checks the effective sort.
+ * A cursor's effective sort: this sort with each field of [uniqueKey] it does not name appended, in order, as an
+ * ascending tie-breaker, so the sort orders records totally. The sort rules (at most
+ * [me.ahoo.wow.api.query.Sort.MAX_FIELDS] fields, no field twice) are [QueryResolver]'s, which checks the effective
+ * sort.
  */
-internal fun List<Sort>.withUniqueSort(uniqueField: QueryField): List<Sort> =
-    if (any { it.field == uniqueField }) this else this + Sort(uniqueField, Sort.Direction.ASC)
+internal fun List<Sort>.withUniqueSort(uniqueKey: List<QueryField>): List<Sort> {
+    val named = mapTo(hashSetOf()) { it.field }
+    val missing = uniqueKey.filter { it !in named }
+    return if (missing.isEmpty()) this else this + missing.map { Sort(it, Sort.Direction.ASC) }
+}
+
+/** [withUniqueSort] with a single [uniqueField]. */
+internal fun List<Sort>.withUniqueSort(uniqueField: QueryField): List<Sort> = withUniqueSort(listOf(uniqueField))

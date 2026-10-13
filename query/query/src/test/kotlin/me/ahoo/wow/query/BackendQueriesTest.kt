@@ -288,6 +288,22 @@ class BackendQueriesTest {
     }
 
     @Test
+    fun `a HAVING that removes every group leaves no row, never the empty summary`() {
+        runTest {
+            // A native HAVING removed every group: the core adds nothing in their place.
+            val backend = RecordingBackend(groups = { emptyFlow() })
+            val query = AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                having = HavingExpression.Condition("count", ComparisonOperator.GTE, 1.0),
+            )
+            backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList().assert().isEmpty()
+            // A summary cannot carry a HAVING, so the empty summary is never a row a HAVING removed.
+            assertThrows<IllegalArgumentException> { query.copy(groupBy = emptyList()) }
+        }
+    }
+
+    @Test
     fun `residual HAVING asks for every group and filters them in the core`() {
         runTest {
             val backend = RecordingBackend(groups = { flowOf(group("a", 1), group("b", 3), group("c", 5)) })

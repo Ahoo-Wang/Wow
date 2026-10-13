@@ -43,8 +43,8 @@ data class QuerySchemaDeclaration(
 
 /**
  * What one source declares about one logical value, in the capability descriptor's vocabulary; each fact may be left
- * [Unset][DeclarationValue.Unset] for a source of lower priority to state. Sensitivity and masking are declared by
- * 6.1c's sources.
+ * [Unset][DeclarationValue.Unset] for a source of lower priority to state. A source of higher priority cannot drop
+ * a sensitivity a lower one declares: replacing a protected structure keeps its masks, or fails.
  */
 data class QueryFieldDeclaration(
     val title: DeclarationValue<String?> = DeclarationValue.Unset,
@@ -61,6 +61,8 @@ data class QueryFieldDeclaration(
     val additionalProperties: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset,
     val alternatives: DeclarationValue<List<QueryFieldDeclaration>> = DeclarationValue.Unset,
     val semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
+    /** The sensitivity of a string value (the Manifest's `x-wow-sensitive` and `x-wow-mask`). */
+    val maskRule: DeclarationValue<MaskRule> = DeclarationValue.Unset,
     /**
      * The discriminator value of the variant this value is, when it is one alternative of a model's variant payload,
      * such as an event's type.
@@ -74,7 +76,7 @@ data class QueryFieldDeclaration(
 
 /**
  * Where a model's field declarations come from (design §5.2): the Manifest's state schema (`$defs` plus `x-wow-*`,
- * work package 6.1c), declarations registered in code ([BeanQuerySchemaSource]), or any other source a host adds. The
+ * [ManifestQuerySchemaSource]), declarations registered in code ([BeanQuerySchemaSource]), or any other source a host adds. The
  * Catalog merges the declarations of every source by [priority], a higher one stating a fact over a lower one.
  */
 interface QuerySchemaSource {
@@ -89,7 +91,7 @@ interface QuerySchemaSource {
 
 /** The priorities of the built-in sources; a host's own source picks one between or above them. */
 object QuerySchemaSourcePriority {
-    /** The Manifest's state schema (6.1c), in place of 9.x's runtime inference. */
+    /** The Manifest's state schema ([ManifestQuerySchemaSource]), in place of 9.x's runtime inference. */
     const val MANIFEST = 100
 
     /** Declarations registered in code. */
@@ -115,15 +117,22 @@ internal fun QueryFieldDeclaration.merge(
     required = required.merge(higher.required, field, "required", rejectDifferent),
     kind = kind.merge(higher.kind, field, "kind", rejectDifferent),
     properties = mergeProperties(higher, field, rejectDifferent),
-    items = items.merge(higher.items, field, "items", rejectDifferent),
-    additionalProperties = additionalProperties.merge(
+    items = items.replaceStructure(higher.items, field, "items", rejectDifferent),
+    additionalProperties = additionalProperties.replaceStructure(
         higher.additionalProperties,
         field,
         "additionalProperties",
-        rejectDifferent,
+        rejectDifferent
     ),
-    alternatives = alternatives.merge(higher.alternatives, field, "alternatives", rejectDifferent),
+    alternatives = alternatives.merge(higher.alternatives, field, "alternatives", rejectDifferent).let { merged ->
+        if (higher.alternatives is DeclarationValue.Set && alternatives is DeclarationValue.Set) {
+            DeclarationValue.Set(preserveAlternativeMasks(alternatives.value, higher.alternatives.value, field))
+        } else {
+            merged
+        }
+    },
     semanticType = semanticType.merge(higher.semanticType, field, "semanticType", rejectDifferent),
+    maskRule = maskRule.mergeMaskRule(higher.maskRule, field),
     variant = variant.merge(higher.variant, field, "variant", rejectDifferent),
     aliases = aliases.merge(higher.aliases, field, "aliases", rejectDifferent),
     deprecated = deprecated.merge(higher.deprecated, field, "deprecated", rejectDifferent),
@@ -142,6 +151,16 @@ private fun QueryFieldDeclaration.openedValueTypes(
         kind == DeclarationValue.Set(QueryValueKind.OBJECT) &&
         lower.kind == DeclarationValue.Set(QueryValueKind.UNKNOWN)
     return if (opensOpaqueValue) DeclarationValue.Set(setOf(QueryValueType.OBJECT)) else valueTypes
+}
+
+private fun DeclarationValue<MaskRule>.mergeMaskRule(
+    higher: DeclarationValue<MaskRule>,
+    field: QueryField,
+): DeclarationValue<MaskRule> {
+    if (this is DeclarationValue.Unset) return higher
+    if (higher is DeclarationValue.Unset) return this
+    if ((this as DeclarationValue.Set).value == (higher as DeclarationValue.Set).value) return this
+    throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.maskRule].")
 }
 
 private fun <T> DeclarationValue<T>.merge(
@@ -173,15 +192,141 @@ private fun QueryFieldDeclaration.mergeProperties(
 ): DeclarationValue<Map<String, QueryFieldDeclaration>> {
     val incoming = higher.properties.valueOr(emptyMap())
     val merged = properties.valueOr(emptyMap()).toMutableMap()
+    if (rejectDifferent) {
+        // Separate declarations at the same priority must preserve protection in either source order.
+        merged.replaceAll { name, child ->
+            if (name in incoming) child else higher.inheritDynamicMasks(child, QueryField("${field.path}.$name"))
+        }
+    }
     incoming.forEach { (name, child) ->
         val childField = QueryField("${field.path}.$name")
-        merged[name] = merged[name]?.merge(child, childField, rejectDifferent) ?: child
+        merged[name] = merged[name]?.merge(child, childField, rejectDifferent) ?: inheritDynamicMasks(child, childField)
     }
     return if (merged.isEmpty() && higher.properties === DeclarationValue.Unset) {
         properties
     } else {
-        DeclarationValue.Set(merged)
+        DeclarationValue.Set(
+            merged
+        )
     }
+}
+
+private fun QueryFieldDeclaration.inheritDynamicMasks(child: QueryFieldDeclaration, field: QueryField): QueryFieldDeclaration =
+    additionalProperties.valueOr(null)?.takeIf(QueryFieldDeclaration::hasMasks)?.merge(child, field, false) ?: child
+
+private fun DeclarationValue<QueryFieldDeclaration?>.replaceStructure(
+    higher: DeclarationValue<QueryFieldDeclaration?>,
+    field: QueryField,
+    leaf: String,
+    rejectDifferent: Boolean,
+): DeclarationValue<QueryFieldDeclaration?> {
+    val merged = merge(higher, field, leaf, rejectDifferent)
+    val previous = valueOr(null) ?: return merged
+    if (higher === DeclarationValue.Unset) return merged
+    return DeclarationValue.Set(previous.preserveMasks(merged.valueOr(null), field))
+}
+
+private fun preserveAlternativeMasks(
+    previous: List<QueryFieldDeclaration>,
+    replacements: List<QueryFieldDeclaration>,
+    field: QueryField,
+): List<QueryFieldDeclaration> {
+    val result = replacements.toMutableList()
+    previous.filter(QueryFieldDeclaration::hasMasks).forEach { protected ->
+        val candidates = result.indices.filter { protected.compatibleMaskShape(result[it]) }
+        if (candidates.size != 1) {
+            throw QuerySchemaConflictException(
+                "Ambiguous or missing protected alternative: [$field]."
+            )
+        }
+        val index = candidates.single()
+        result[index] = checkNotNull(protected.preserveMasks(result[index], field))
+    }
+    return result
+}
+
+internal fun QueryFieldDeclaration.hasMasks(): Boolean = maskRule is DeclarationValue.Set ||
+    properties.valueOr(emptyMap()).values.any(QueryFieldDeclaration::hasMasks) ||
+    items.valueOr(null)?.hasMasks() == true || additionalProperties.valueOr(null)?.hasMasks() == true ||
+    alternatives.valueOr(emptyList()).any(QueryFieldDeclaration::hasMasks)
+
+private fun QueryFieldDeclaration.compatibleMaskShape(other: QueryFieldDeclaration): Boolean {
+    if (inferredKind() != other.inferredKind() || maskRule is DeclarationValue.Set && !other.isMaskStringDomain()) return false
+    if (properties.valueOr(emptyMap()).any { (name, child) ->
+            child.hasMasks() && (other.properties.valueOr(emptyMap())[name]?.let(child::compatibleMaskShape) != true)
+        }
+    ) {
+        return false
+    }
+    if (items.valueOr(null)?.takeIf { it.hasMasks() }?.let { child ->
+            other.items.valueOr(null)?.let(child::compatibleMaskShape) != true
+        } == true
+    ) {
+        return false
+    }
+    if (additionalProperties.valueOr(null)?.takeIf { it.hasMasks() }?.let { child ->
+            other.additionalProperties.valueOr(null)?.let(child::compatibleMaskShape) != true
+        } == true
+    ) {
+        return false
+    }
+    return alternatives.valueOr(emptyList()).filter(QueryFieldDeclaration::hasMasks).all { branch ->
+        other.alternatives.valueOr(emptyList()).count(branch::compatibleMaskShape) == 1
+    }
+}
+
+private fun QueryFieldDeclaration.preserveMasks(
+    replacement: QueryFieldDeclaration?,
+    field: QueryField,
+): QueryFieldDeclaration? {
+    if (!hasMasks()) return replacement
+    if (replacement == null || !compatibleMaskShape(replacement)) {
+        throw QuerySchemaConflictException("Structure replacement loses query schema protection: [$field].")
+    }
+    val children = replacement.properties.valueOr(emptyMap()).mapValues { (name, child) ->
+        if (name in properties.valueOr(emptyMap())) {
+            child
+        } else {
+            inheritDynamicMasks(
+                child,
+                QueryField("${field.path}.$name")
+            )
+        }
+    }.toMutableMap()
+    properties.valueOr(emptyMap()).forEach { (name, child) ->
+        child.preserveMasks(children[name], field)?.let { children[name] = it }
+    }
+    return replacement.copy(
+        maskRule = maskRule.mergeMaskRule(replacement.maskRule, field),
+        properties = if (children.isEmpty()) replacement.properties else DeclarationValue.Set(children),
+        items = if (items.valueOr(null)?.hasMasks() == true) {
+            DeclarationValue.Set(
+                items.valueOr(null)!!.preserveMasks(replacement.items.valueOr(null), field)
+            )
+        } else {
+            replacement.items
+        },
+        additionalProperties = if (additionalProperties.valueOr(null)?.hasMasks() == true) {
+            DeclarationValue.Set(
+                additionalProperties.valueOr(
+                    null
+                )!!.preserveMasks(replacement.additionalProperties.valueOr(null), field)
+            )
+        } else {
+            replacement.additionalProperties
+        },
+        alternatives = if (alternatives.valueOr(emptyList()).any(QueryFieldDeclaration::hasMasks)) {
+            DeclarationValue.Set(
+                preserveAlternativeMasks(
+                    alternatives.valueOr(emptyList()),
+                    replacement.alternatives.valueOr(emptyList()),
+                    field
+                )
+            )
+        } else {
+            replacement.alternatives
+        },
+    )
 }
 
 internal fun QueryFieldDeclaration.inferredKind(): QueryValueKind = kind.valueOr(
@@ -194,3 +339,12 @@ internal fun QueryFieldDeclaration.inferredKind(): QueryValueKind = kind.valueOr
         else -> QueryValueKind.UNKNOWN
     },
 )
+
+internal fun QueryFieldDeclaration.isMaskStringDomain(): Boolean = when (inferredKind()) {
+    QueryValueKind.SCALAR -> valueTypes.valueOr(emptySet()) == setOf(QueryValueType.STRING)
+    QueryValueKind.ARRAY -> items.valueOr(null)?.isMaskStringDomain() == true
+    QueryValueKind.UNION -> alternatives.valueOr(
+        emptyList()
+    ).all { it.inferredKind() == QueryValueKind.NULL || it.isMaskStringDomain() }
+    else -> false
+}

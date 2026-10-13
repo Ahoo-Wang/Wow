@@ -684,7 +684,7 @@ private fun validateQuery(query: IPagedQuery, schema: QueryModelSchema): IPagedQ
 /** The cursor's own sort: its first field stands in for the tie-breaker admission appends. */
 private fun validateQuery(query: ICursorQuery, schema: QueryModelSchema): ICursorQuery = query.also {
     val tieBreaker = it.sort.firstOrNull()?.field ?: schema.requireIdentityField()
-    QueryResolver(schema, Instant.now()).cursor(it, tieBreaker)
+    QueryResolver(schema, Instant.now()).cursor(it, listOf(tieBreaker))
 }
 
 private fun validateQuery(query: FilterExpression, schema: QueryModelSchema): FilterExpression =

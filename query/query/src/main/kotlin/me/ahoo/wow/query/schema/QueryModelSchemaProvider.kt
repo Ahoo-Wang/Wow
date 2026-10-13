@@ -70,6 +70,8 @@ class DefaultQueryModelSchemaProvider(
     private val nanoTime: LongSupplier = LongSupplier(System::nanoTime),
     /** The record layout of the model: a built-in model's, or a dataset's own (6.1d). */
     private val profile: QueryModelProfile? = QueryModelProfile.of(context.model),
+    /** Which protected values filters and sorts may still compare. */
+    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : QueryModelSchemaProvider {
     private val sources = sources.toList()
     private val published = AtomicReference<QueryModelSchema>()
@@ -149,7 +151,7 @@ class DefaultQueryModelSchemaProvider(
         }
         val profile = profile
             ?: throw QuerySchemaValidationException("Unsupported System query model: [${context.model}].")
-        val logicalSchema = merger.merge(profile.systemDeclaration, loaded, profile.payloadField?.path)
+        val logicalSchema = merger.merge(profile.systemDeclaration, loaded, sensitivity, profile.payloadField?.path)
         val facts = if (refresh) adapter.refresh(logicalSchema) else adapter.facts(logicalSchema)
         return facts.compile(context.model, logicalSchema, profile)
     }
@@ -178,9 +180,13 @@ internal suspend fun <T> awaitShared(running: Deferred<T>): T? = try {
  * map, whose keys are the caller's, are left out.
  */
 @InternalWowApi
-suspend fun QuerySchemaContext.declaredFields(sources: List<QuerySchemaSource>): Set<QueryField> {
+suspend fun QuerySchemaContext.declaredFields(
+    sources: List<QuerySchemaSource>,
+    sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+): Set<QueryField> {
     val declarations = sources.flatMap { source ->
         source.load(this).map { PrioritizedQuerySchemaDeclaration(source.priority, it) }
     }
-    return QuerySchemaMerger().merge(SystemQuerySchemaSource.declaration(model), declarations).staticMatches.keys
+    return QuerySchemaMerger().merge(SystemQuerySchemaSource.declaration(model), declarations, sensitivity)
+        .staticMatches.keys
 }
