@@ -28,6 +28,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
+import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testfixtures.ProjectBuilder
@@ -334,5 +335,35 @@ class WowPluginTest {
             "malformed.json is not a Manifest",
             "array.json is not a JSON object",
         )
+    }
+
+    @Test
+    fun `the manifest variant should be an optional variant of the java component`() {
+        val project = project()
+        val component = project.components.getByName("java") as SoftwareComponentInternal
+        component.usages.map { it.name }.assert().contains(WowPlugin.MANIFEST_ELEMENTS)
+    }
+
+    @Test
+    fun `collecting should fail on a fragment of the service that does not read`() {
+        val task = collectTask()
+        File(directory, "classes/${Manifest.FRAGMENT_DIRECTORY}/broken.json").writeText("{")
+        val jar = File(directory, "broken.jar")
+        ZipOutputStream(jar.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/broken.json"))
+            zip.write("[]".toByteArray())
+            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/notes.txt"))
+            zip.write("not a fragment".toByteArray())
+            zip.putNextEntry(ZipEntry("other/shop.json"))
+            zip.write("{".toByteArray())
+        }
+        val notes = File(directory, "notes.txt").apply { writeText("not a class path entry") }
+        task.classpath.from(jar, notes)
+        val failure = assertThrows<GradleException> { task.collect() }
+        failure.message.assert().contains(
+            "broken.json is not a Manifest",
+            "broken.jar!/${Manifest.FRAGMENT_DIRECTORY}/broken.json is not a JSON object"
+        )
+        failure.message.assert().doesNotContain("notes.txt", "other/shop.json")
     }
 }
