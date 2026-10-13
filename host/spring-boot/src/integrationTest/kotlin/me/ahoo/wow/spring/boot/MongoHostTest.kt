@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -68,5 +69,26 @@ class MongoHostTest {
         val state = host.get("/bank/account/$id/state")
         state.status.assert().isEqualTo(200)
         state.body!!["state"]["balance"].asLong().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `the snapshots should be queried over HTTP on MongoDB, the declared index created at startup`() {
+        val account = AggregateType(BANK, "account")
+        host.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account).created.assert()
+            .contains("ix_account_owner")
+        host.context.getBean(MongoClient::class.java).getDatabase("host_test")
+            .getCollection("wow_snapshot__bank__account").listIndexes().map { it.getString("name") }.toList()
+            .assert().contains("ix_account_owner")
+        val opened = host.post("/bank/account/open-account", """{"owner":"query-mona"}""")
+        opened.status.assert().isEqualTo(200)
+        val listed = host.post(
+            "/bank/account/snapshot/query",
+            """{"kind":"list","filter":{"op":"EQ","field":"state.owner","value":"query-mona"}}""",
+        )
+        listed.status.assert().isEqualTo(200)
+        listed.body!!.values().map { it["aggregateId"].asString() }.assert()
+            .containsExactly(opened.body!!["ref"]["id"].asString())
+        host.post("/bank/account/snapshot/query", """{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":1}""")
+            .body!!["count"].asLong().assert().isEqualTo(1)
     }
 }

@@ -17,8 +17,8 @@ dependencies {
     // and brings neither.
     compileOnly(project(":postgres"))
     compileOnly(project(":mongo"))
-    // The query plane, the Kafka transport and the ClickHouse Sink are wired when the application has them.
-    compileOnly(project(":query"))
+    // The Kafka transport and the ClickHouse Sink are wired when the application has them; the query plane comes
+    // with wow-http.
     compileOnly(project(":kafka"))
     compileOnly(project(":clickhouse"))
     // Activated only when the application has them: a Bean Validation provider (D106) and CosId (D114).
@@ -31,7 +31,8 @@ dependencies {
     testImplementation("me.ahoo.cosid:cosid-core")
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
-    testImplementation(project(":query"))
+    // The in-memory reference query backend, for the snapshot queries of a node on the memory backend.
+    testImplementation(testFixtures(project(":query")))
     testImplementation(project(":kafka"))
     testImplementation(project(":clickhouse"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
