@@ -18,6 +18,7 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | [07 迁移层](07-migration.md) | 源码迁移（Skill）、数据迁移（工具）、清洁度守护 | 草案 |
 | [08 数据协议](08-data-protocols.md) | 命令、事件流、`StateEventRecord`、快照、命令结果、等待信号、Kafka 信封、格式版本 | 已采纳 |
 | [路线图](roadmap.md) | 里程碑、工作包、依赖、出口门槛、分支规则 | 草案 |
+| [09 能力对照](09-capability-parity.md) | 9.x 面向用户的能力在 V10 中的状态；缺失项与 M7 门槛（D183） | 持续维护 |
 | [决策台账](decisions.md) | 待决与已决的决定、待验证的假设 | 持续维护 |
 | [交接与协调手册](handoff.md) | 当前位置、下一步队列、协调者的工作方式；换会话、换机器的入口 | 持续维护 |
 
@@ -113,3 +114,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-13 | 用户拍板 D181：M6e 期间冻结范围（新议题只登记，除非阻塞 E.1～E.6），E.7 Web UI 移到 M7 |
 | 2026-10-13 | 用户拍板 D182（命令转换统一为 `CommandTransformer` 与挂载命令，删除 `CommandRewriter`）与 D183（M7 前完成 v9 → V10 能力核对，产出 `09-capability-parity.md`）；路线图新增 6.0h、6.0i |
 | 2026-10-13 | D182 的签名改为 `transform(CommandInput): CommandTarget`（约束写在类型里）；D183 收紧：缺失项默认在 M7 前补齐，豁免须用户批准，写入 M7 入口门槛 |
+| 2026-10-13 | 6.0i 能力核对完成，新增 09 能力对照：七项缺失（Saga/投影测试 DSL、`wow-models`/`wow-apiclient`/`wow-cocache` 去留、按函数重试、批量命令、处理函数拦截器、Kotlin 查询 DSL、`AggregateSpec` 分叉），待用户逐项决定 |
