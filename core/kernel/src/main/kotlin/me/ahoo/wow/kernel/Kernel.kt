@@ -229,6 +229,7 @@ class Kernel(
             scope = metadata.scope,
             causation = command.causation,
             headers = command.headers,
+            operator = command.operator,
             schedules = schedules,
         )
         return Prepared.Append(stream, loaded.with(evolved, stream.version, metadata))

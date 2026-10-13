@@ -100,6 +100,7 @@ class SinkSubscription(
             tags = view.tags,
             causation = stream.causation,
             headers = stream.headers,
+            operator = stream.operator,
             transport = entry.transport?.let(::published),
         )
     }

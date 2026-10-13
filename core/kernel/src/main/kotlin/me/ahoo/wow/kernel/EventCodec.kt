@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -110,7 +111,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
      * The snapshot of [state], which folds [ref]'s event streams up to [version]; [scope] is the aggregate's, the
      * scope of the last of them (decision D56), and [firstEventTime] and [lastEventTime] are the commit times of the
      * first and the last. [deleted] and [tags] are the aggregate's after them, evolved by the lifecycle events
-     * (design 08 §2); a state the kernel loaded holds all three ([CachedState]).
+     * (design 08 §2); a state the kernel loaded holds all three ([CachedState]). [operator] and [firstOperator] are the
+     * operators of the last and the first of them (decision D163).
      */
     @Suppress("LongParameterList")
     fun <S : Any> snapshotOf(
@@ -123,8 +125,21 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         lastEventTime: Long,
         deleted: Boolean = false,
         tags: Map<String, List<String>> = emptyMap(),
-    ): SnapshotRecord =
-        snapshotOf(model, ref, stateText(state), version, scope, firstEventTime, lastEventTime, deleted, tags)
+        operator: Operator? = null,
+        firstOperator: Operator? = null,
+    ): SnapshotRecord = snapshotOf(
+        model,
+        ref,
+        stateText(state),
+        version,
+        scope,
+        firstEventTime,
+        lastEventTime,
+        deleted,
+        tags,
+        operator,
+        firstOperator,
+    )
 
     /**
      * The snapshot of a state this codec already serialized as [stateText]: the state view taken
@@ -142,6 +157,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         lastEventTime: Long,
         deleted: Boolean = false,
         tags: Map<String, List<String>> = emptyMap(),
+        operator: Operator? = null,
+        firstOperator: Operator? = null,
     ): SnapshotRecord {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         return SnapshotRecord(
@@ -154,6 +171,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             firstEventTime = firstEventTime,
             lastEventTime = lastEventTime,
             tags = tags,
+            operator = operator,
+            firstOperator = firstOperator,
         )
     }
 

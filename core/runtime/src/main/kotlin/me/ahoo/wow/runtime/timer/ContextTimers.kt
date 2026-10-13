@@ -76,6 +76,7 @@ class ContextTimerFirer(
             body = ClusterCodec.mapper.readTree(timer.body),
             headers = timer.headers,
             causation = timer.causation,
+            operator = timer.operator,
         )
         val model = models[timer.target.type] ?: return send(wire)
         val command = checkNotNull(ClusterCodec.command(model, wire)) {
@@ -166,6 +167,7 @@ class SagaTimers(
             body = codec.commandText(put.command),
             causation = Causation(event.correlationId, event.id),
             headers = event.headers,
+            operator = event.operator,
         )
     }
 }
