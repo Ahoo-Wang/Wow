@@ -263,7 +263,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Document the pattern for tenant-wide aggregates: a resolver that leaves the owner unset, and how command authorization (CoSec) then protects the writes. Or add a per-aggregate scope setting that makes an aggregate's owner not apply to its reads.
 - **Blocks M7**: no for the eShop. Yes before M7 puts CoSec in front of users, since a reference catalog behind CoSec needs the answer.
 
-### G21. Services on one class path read each other's peer Manifests
+### G21. Services on one class path read each other's peer Manifests (resolved)
 
 - **Work package**: E.2 to E.4
 - **Area**: host
@@ -273,6 +273,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `EshopOrderFlowTest` runs each service in a JVM of its own, on its server's runtime class path, as `EshopE2eTest` does. That also lets each service read its own `application.yaml`.
 - **Proposed fix**: Ignore a peer Manifest of the node's own service, and a peer whose contexts the node serves, or scope the peers by `wow.contexts.include`. Say in the guide that services sharing a class path share one `application.yaml`.
 - **Blocks M7**: no, but E.6 runs five services and will meet it again; the guide presents shared-JVM tests as supported.
+- **Resolved**: by #PR (work package E.5). A node reads its peers without the contexts it serves (`PeerManifests.outside`): another server's copy of its own Manifest is no peer of those contexts, and a copy left with no context is dropped. Two peers of different services that claim one context still fail the startup. `EshopSharedJvmTest` starts the ordering and inventory services on one class path. The second trap stays as it is: services on one class path share the first `application.yaml` on it, so a shared-JVM test passes each service's configuration as arguments, and `EshopOrderFlowTest` keeps a JVM per service so that each reads its own.
 
 ### G22. A saga's command cannot give the aggregate it creates an owner
 

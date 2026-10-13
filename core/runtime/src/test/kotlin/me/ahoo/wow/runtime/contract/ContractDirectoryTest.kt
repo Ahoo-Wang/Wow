@@ -269,7 +269,7 @@ class ContractDirectoryTest {
     }
 
     @Test
-    fun `peers that conflict with each other or with the service should fail`() {
+    fun `two peers of different services declaring one context should fail`() {
         val rival = ManifestFragment(
             "rival.json",
             Manifest(
@@ -281,8 +281,45 @@ class ContractDirectoryTest {
             .problems.assert().containsExactly(
                 "context inventory is declared by the peers inventory-service " +
                     "(${ContractFixtures.peers.first().source}) and rival (rival.json)",
-                "context shop is declared by service $SHOP_SERVICE and by its peer rival (rival.json)",
             )
+    }
+
+    @Test
+    fun `a copy of the service's own Manifest among the peers should be no peer of the contexts it serves`() {
+        // On a class path several servers share (DX gap G21): another server carries this service's Manifest as its
+        // peer, twice here, and a third peer declares a context the node serves besides one of its own.
+        val copy = ManifestFragment("other-server.jar!/$SHOP_SERVICE.json", shop())
+        val again = ManifestFragment("third-server.jar!/$SHOP_SERVICE.json", shop())
+        val monolith = ManifestFragment(
+            "monolith.json",
+            Manifest(
+                service = ServiceInfo("monolith"),
+                contexts = listOf(ContextManifest("shop"), ContextManifest("audit"))
+            ),
+        )
+        val contracts = ContractDirectory(shop(), ContractFixtures.peers + copy + again + monolith)
+
+        contracts.peers.map { it.manifest.service?.name }.assert()
+            .containsExactly("inventory-service", "payment-service", "monolith")
+        contracts.peers.last().manifest.contexts.map { it.name }.assert().containsExactly("audit")
+        contracts.isLocal("shop").assert().isTrue()
+        contracts.serviceOf("shop").assert().isEqualTo(SHOP_SERVICE)
+        contracts.serviceOf("audit").assert().isEqualTo("monolith")
+        contracts.serviceOf("inventory").assert().isEqualTo("inventory-service")
+    }
+
+    @Test
+    fun `a copy of the service's own Manifest should keep the contexts the node does not serve`() {
+        val own = shop()
+        val copy = ManifestFragment(
+            "other-server.jar!/$SHOP_SERVICE.json",
+            own.copy(contexts = own.contexts + ContextManifest("shop-admin")),
+        )
+        val contracts = ContractDirectory(own, ContractFixtures.peers + copy)
+
+        contracts.peers.last().manifest.contexts.map { it.name }.assert().containsExactly("shop-admin")
+        contracts.isLocal("shop-admin").assert().isFalse()
+        contracts.serviceOf("shop-admin").assert().isEqualTo(SHOP_SERVICE)
     }
 
     @Test

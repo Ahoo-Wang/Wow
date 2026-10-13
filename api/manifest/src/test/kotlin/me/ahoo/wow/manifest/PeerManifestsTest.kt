@@ -55,6 +55,35 @@ class PeerManifestsTest {
     }
 
     @Test
+    fun `the peers outside the served contexts should leave out those contexts and the peers left with none`() {
+        val own = peer("shop", "shop")
+        val outside = PeerManifests.outside(
+            listOf("shop"),
+            listOf(
+                peer("inventory", "inventory"),
+                own,
+                own.copy(source = "again.json"),
+                peer("monolith", "shop", "audit")
+            ),
+        )
+        outside.map { it.manifest.service?.name }.assert().containsExactly("inventory", "monolith")
+        outside.last().manifest.contexts.map { it.name }.assert().containsExactly("audit")
+        outside.last().source.assert().isEqualTo("monolith.json")
+        PeerManifests.conflicts(null, emptyList(), outside).assert().isEmpty()
+    }
+
+    @Test
+    fun `the peers outside the served contexts should keep their conflicts among themselves`() {
+        val outside = PeerManifests.outside(
+            listOf("shop"),
+            listOf(peer("inventory", "stock", "shop"), peer("warehouse", "stock"))
+        )
+        PeerManifests.conflicts(null, emptyList(), outside).assert().containsExactly(
+            "context stock is declared by the peers inventory (inventory.json) and warehouse (warehouse.json)",
+        )
+    }
+
+    @Test
     fun `a fragment, a repeated service or the service itself should not be a peer`() {
         PeerManifests.conflicts(
             "shop",

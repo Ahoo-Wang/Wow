@@ -4,13 +4,13 @@ description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 //
 // - EshopE2eTest runs the catalog and inventory services each in a JVM of its own, on the runtime class path of its
 //   server project alone; the class paths reach the tests as system properties (`eshop.<context>.classpath`).
-// - EshopSharedJvmTest runs the catalog and basket services in the test's own JVM, on one class path that holds both
-//   servers: each selects its own context with `wow.contexts.include` (decision D169), since the host serves every
-//   binding index on its class path by default.
+// - EshopSharedJvmTest runs services in the test's own JVM, on one class path that holds their servers: each selects
+//   its own context with `wow.contexts.include` (decision D169), since the host serves every binding index on its
+//   class path by default, and leaves out another server's copy of its own Manifest from its peers (DX gap G21).
 // - EshopOrderFlowTest runs the basket, ordering and inventory services each in a JVM of its own, on PostgreSQL and
 //   Kafka in containers: the checkout, the order flow, the stock rejection's compensation and the payment grace
-//   period. They cannot share one class path: the host reads every peer Manifest on it, and the ordering server's copy
-//   of the inventory's Manifest makes the inventory its own peer (DX-GAPS.md).
+//   period. Each JVM reads its own server's `application.yaml`, as a deployment does; on one class path, Spring Boot
+//   reads only one of them.
 //
 // The suite with all five services, ClickHouse and the failure scenarios comes with work package E.6.
 val servers = listOf("catalog", "basket", "ordering", "inventory").associateWith { context ->
@@ -38,6 +38,8 @@ dependencies {
     integrationTestImplementation("tools.jackson.core:jackson-databind")
     integrationTestImplementation(project(":eshop-catalog-server"))
     integrationTestImplementation(project(":eshop-basket-server"))
+    integrationTestImplementation(project(":eshop-ordering-server"))
+    integrationTestImplementation(project(":eshop-inventory-server"))
     // The in-memory command transport the basket needs without Kafka (InMemoryTopics, SourceTopics).
     integrationTestImplementation(project(":spring-boot"))
     integrationTestImplementation("org.springframework.boot:spring-boot")

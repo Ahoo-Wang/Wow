@@ -36,6 +36,27 @@ object PeerManifests {
     fun resource(service: String): String = "$DIRECTORY/${fileName(service)}"
 
     /**
+     * The [peers] a node reads on its class path, as the node that serves the contexts [served] sees them (DX gap
+     * G21): each peer without the contexts the node serves, and without the peers left with none. Services that share
+     * one class path (a shared-JVM test, each node selecting its contexts with `wow.contexts.include`) each carry
+     * their peers' Manifests, so a node finds copies of its own Manifest among them; the node's own class path decides
+     * the contexts it serves, never such a copy. Identical copies of one peer, from several servers, count once.
+     *
+     * What is left still has its [conflicts] among the peers: two services that both claim one context.
+     */
+    fun outside(served: Collection<String>, peers: List<ManifestFragment>): List<ManifestFragment> {
+        val own = served.toSet()
+        return peers.mapNotNull { peer ->
+            val contexts = peer.manifest.contexts.filterNot { it.name in own }
+            when {
+                contexts.size == peer.manifest.contexts.size -> peer
+                contexts.isEmpty() -> null
+                else -> peer.copy(manifest = peer.manifest.copy(contexts = contexts))
+            }
+        }.distinctBy { it.manifest }
+    }
+
+    /**
      * Every conflict between the [peers] and the service named [service] whose own contexts are [local]:
      *
      * - a peer is a service's merged Manifest, which names its service;
