@@ -16,13 +16,90 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.DecideScope
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
+import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
+import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketItemAdded
+import me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged
+import me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved
+import me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity
+import me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket
+import me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket
+import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 
-/** A buyer's basket; its id is the buyer's user id. The skeleton's one command (work package E.0). */
+/**
+ * A buyer's basket; its id is the buyer's user id, so each buyer has one. The first item creates it, and only its
+ * buyer may: a caller with an owner other than the basket's id is rejected ([BasketRejections.NOT_OWNER]). After
+ * that the kernel keeps the basket to the owner that created it.
+ *
+ * [CheckoutBasket] empties the basket into an order: [BasketCheckoutSaga] submits it to the ordering context. The
+ * order's id is the basket's id and the number of the checkout (`alice-1`, `alice-2`, ...), so deciding again gives
+ * the same event, and the caller is answered it as the result `orderId`.
+ */
 @AggregateRoot
-@Description("A buyer's basket; its id is the buyer's user id")
-class Basket(@Suppress("UnusedPrivateProperty") private val state: BasketState) {
-    @OnCommand
-    fun onCommand(command: AddBasketItem): BasketItemAdded = BasketItemAdded(command.productId, command.quantity)
+@Description("A buyer's basket before checkout; its id is the buyer's user id")
+class Basket(private val state: BasketState) {
+    @OnCommand(produces = [BasketItemAdded::class])
+    fun onCommand(command: Command<AddBasketItem>): Decision {
+        val owner = command.scope.ownerId
+        if (owner != null && owner != command.ref.id) {
+            return Decision.reject(BasketRejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+        }
+        val adding = command.body
+        if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
+            return Decision.reject(BasketRejections.INVALID_ITEM, "$adding is not a valid item.")
+        }
+        return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+    }
+
+    /** Changing a quantity to the one the basket holds changes nothing. */
+    @OnCommand(produces = [BasketItemQuantityChanged::class])
+    fun onCommand(command: ChangeBasketItemQuantity): Decision {
+        val item = state.item(command.productId) ?: return Decision.reject(
+            BasketRejections.ITEM_NOT_FOUND,
+            "The basket ${state.id} holds no ${command.productId}.",
+        )
+        return when {
+            command.quantity <= 0 -> Decision.reject(
+                BasketRejections.INVALID_ITEM,
+                "${command.quantity} is not a positive quantity.",
+            )
+
+            command.quantity == item.quantity -> Decision.NoOp
+            else -> Decision.events(BasketItemQuantityChanged(command.productId, command.quantity))
+        }
+    }
+
+    /** Removing a product the basket does not hold changes nothing. */
+    @OnCommand(produces = [BasketItemRemoved::class])
+    fun onCommand(command: RemoveBasketItem): Decision =
+        if (state.item(command.productId) == null) {
+            Decision.NoOp
+        } else {
+            Decision.events(BasketItemRemoved(command.productId))
+        }
+
+    @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+    @OnCommand(produces = [BasketCleared::class])
+    fun onCommand(command: ClearBasket): Decision =
+        if (state.items.isEmpty()) Decision.NoOp else Decision.events(BasketCleared)
+
+    @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+    @OnCommand(produces = [BasketCheckedOut::class])
+    fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+        if (state.items.isEmpty()) {
+            return Decision.reject(BasketRejections.EMPTY, "The basket ${state.id} is empty.")
+        }
+        val orderId = "${state.id}-${state.checkouts + 1}"
+        scope.putResult(ORDER_ID_RESULT, orderId)
+        return Decision.events(BasketCheckedOut(orderId, state.items))
+    }
+
+    companion object {
+        /** The result [CheckoutBasket] answers the caller with: the id of the order it submits. */
+        const val ORDER_ID_RESULT = "orderId"
+    }
 }

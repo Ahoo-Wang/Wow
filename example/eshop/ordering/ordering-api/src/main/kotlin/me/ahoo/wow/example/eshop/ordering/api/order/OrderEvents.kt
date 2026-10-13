@@ -14,9 +14,35 @@
 package me.ahoo.wow.example.eshop.ordering.api.order
 
 import me.ahoo.wow.api.annotation.Summary
+import java.math.BigDecimal
 
-@Summary("An order was placed")
-data class OrderPlaced(
+@Summary("An order was submitted")
+data class OrderSubmitted(
+    val buyerId: String,
+    val items: List<OrderItem>,
+)
+
+@Summary("The order awaits its stock validation")
+data object OrderAwaitingValidation
+
+@Summary("The inventory reserved one of the order's products")
+data class OrderStockItemConfirmed(
     val productId: String,
-    val quantity: Int,
+)
+
+@Summary("The inventory reserved every product of the order; it awaits its payment")
+data object OrderStockConfirmed
+
+@Summary("The order was paid")
+data class OrderPaid(
+    val paymentId: String,
+    val amount: BigDecimal,
+)
+
+@Summary("The order was shipped")
+data object OrderShipped
+
+@Summary("The order was cancelled")
+data class OrderCancelled(
+    val reason: String,
 )

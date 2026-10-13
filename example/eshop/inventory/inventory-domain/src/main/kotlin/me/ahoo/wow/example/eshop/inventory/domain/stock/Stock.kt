@@ -16,13 +16,68 @@ package me.ahoo.wow.example.eshop.inventory.domain.stock
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
+import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
+import me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted
+import me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased
+import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived
+import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
 
-/** A product's stock; its id is the product's id. The skeleton's one command (work package E.0). */
+/**
+ * A product's stock; its id is the product's id. The ordering context reserves units here for each order awaiting
+ * validation, commits the reservation once the order is shipped and releases it once the order is cancelled. Those
+ * commands come from another context, through this context's command topic.
+ *
+ * A short stock is a rejection ([StockRejections.INSUFFICIENT]): nothing is written, and the rejection goes back to
+ * the ordering saga that sent the reservation, as a receipt. Every command for one order is idempotent by the order's
+ * id, besides the kernel's de-duplication by request id: reserving again for an order already reserved, and releasing
+ * a reservation that is not there, change nothing.
+ */
 @AggregateRoot
-@Description("A product's stock; its id is the product's id")
-class Stock(@Suppress("UnusedPrivateProperty") private val state: StockState) {
-    @OnCommand
-    fun onCommand(command: ReceiveStock): StockReceived = StockReceived(command.quantity)
+@Description("A product's stock: units on hand, and those reserved for orders")
+class Stock(private val state: StockState) {
+    @OnCommand(produces = [StockReceived::class])
+    fun onCommand(command: ReceiveStock): Decision = whenPositive(command.quantity) {
+        Decision.events(StockReceived(command.quantity))
+    }
+
+    @OnCommand(produces = [StockReserved::class])
+    fun onCommand(command: ReserveStock): Decision = whenPositive(command.quantity) {
+        when {
+            command.orderId in state.reservations -> Decision.NoOp
+            command.quantity > state.available -> Decision.reject(
+                StockRejections.INSUFFICIENT,
+                "Only ${state.available} of ${state.id} are available, not ${command.quantity}.",
+            )
+
+            else -> Decision.events(StockReserved(command.orderId, command.quantity))
+        }
+    }
+
+    /** Commits the order's reservation. Nothing reserved for the order is a rejection: a shipped order was reserved. */
+    @OnCommand(produces = [ReservationCommitted::class])
+    fun onCommand(command: CommitReservation): Decision {
+        val quantity = state.reservations[command.orderId] ?: return Decision.reject(
+            StockRejections.NO_RESERVATION,
+            "Nothing of ${state.id} is reserved for the order ${command.orderId}.",
+        )
+        return Decision.events(ReservationCommitted(command.orderId, quantity))
+    }
+
+    /** Releasing a reservation the order does not hold changes nothing: that product may be the one that was short. */
+    @OnCommand(produces = [ReservationReleased::class])
+    fun onCommand(command: ReleaseReservation): Decision {
+        val quantity = state.reservations[command.orderId] ?: return Decision.NoOp
+        return Decision.events(ReservationReleased(command.orderId, quantity))
+    }
+
+    private inline fun whenPositive(quantity: Int, decide: () -> Decision): Decision =
+        if (quantity > 0) {
+            decide()
+        } else {
+            Decision.reject(StockRejections.INVALID_QUANTITY, "$quantity is not a positive quantity.")
+        }
 }

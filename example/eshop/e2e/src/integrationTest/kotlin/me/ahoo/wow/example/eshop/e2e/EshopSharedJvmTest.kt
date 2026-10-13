@@ -16,9 +16,13 @@ package me.ahoo.wow.example.eshop.e2e
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
+import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -27,13 +31,15 @@ import java.time.Duration
 
 /**
  * The catalog and basket services in this one JVM, on one class path that holds both domain modules (decision D169,
- * DX gap G4): each selects its own context with `wow.contexts.include`, so each serves that context alone.
+ * DX gap G4): each selects its own context with `wow.contexts.include`, so each serves that context alone. The
+ * basket's checkout saga sends the ordering context's commands, so the basket gets its command transport in memory
+ * ([InMemoryTopicsBeans]).
  */
 class EshopSharedJvmTest {
     @Test
     fun `two services on one class path should each serve the context they include`() {
         start(CatalogServer::class.java, "catalog").use { catalog ->
-            start(BasketServer::class.java, "basket").use { basket ->
+            start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java).use { basket ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 basket.contexts().assert().containsExactly("eshop-basket")
 
@@ -45,7 +51,7 @@ class EshopSharedJvmTest {
 
                 val basketItem = basket.post(
                     "/eshop-basket/basket/alice/add-basket-item",
-                    """{"productId":"${json.readTree(product.body)["ref"]["id"].asString()}","quantity":2}""",
+                    """{"productId":"${json.readTree(product.body)["ref"]["id"].asString()}","unitPrice":8.50,"quantity":2}""",
                 )
                 basketItem.status.assert().describedAs(basketItem.body).isEqualTo(OK)
             }
@@ -90,9 +96,12 @@ class EshopSharedJvmTest {
         const val NOT_FOUND = 404
         val TIMEOUT: Duration = Duration.ofSeconds(30)
 
-        /** Starts [application] as the eShop service of [context], serving the context `eshop-<context>` alone. */
-        fun start(application: Class<*>, context: String): InJvmService = InJvmService(
-            SpringApplicationBuilder(application).run(
+        /**
+         * Starts [application] as the eShop service of [context], serving the context `eshop-<context>` alone, with the
+         * further configuration [sources].
+         */
+        fun start(application: Class<*>, context: String, vararg sources: Class<*>): InJvmService = InJvmService(
+            SpringApplicationBuilder(application, *sources).run(
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",
                 "--server.address=127.0.0.1",
@@ -105,4 +114,14 @@ class EshopSharedJvmTest {
             ),
         )
     }
+}
+
+/** A command transport in memory in place of Kafka, as the guide gives it to a test. */
+@Configuration(proxyBeanMethods = false)
+class InMemoryTopicsBeans {
+    @Bean
+    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
+
+    @Bean
+    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
 }

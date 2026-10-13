@@ -18,7 +18,11 @@ import org.springframework.boot.runApplication
 
 /**
  * The eShop's basket service on the Wow host: the host finds the basket model through `eshop-basket-domain`'s binding
- * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend.
+ * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend by
+ * default and on PostgreSQL with the `postgres` profile ([PostgresDataSource]).
+ *
+ * Its checkout saga sends the ordering context's commands, so the node needs a command transport: the `kafka` profile
+ * gives it Kafka, and it does not start without one.
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class BasketServer

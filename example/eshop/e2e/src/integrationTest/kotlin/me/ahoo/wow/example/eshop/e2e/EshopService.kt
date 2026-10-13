@@ -47,11 +47,15 @@ class EshopService private constructor(
 
     fun get(path: String): Answer = send(HttpRequest.newBuilder(uri(path)).GET())
 
-    fun post(path: String, body: String): Answer = send(
+    fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = send(
         HttpRequest.newBuilder(uri(path))
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body)),
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .also { request -> headers.forEach { (name, value) -> request.header(name, value) } },
     )
+
+    /** The service's output so far. */
+    fun output(): String = log.readText()
 
     /** The names of the contexts the service's Manifest lists. */
     fun contexts(): List<String> {
@@ -96,8 +100,11 @@ class EshopService private constructor(
         private val STOP_TIMEOUT: Duration = Duration.ofSeconds(20)
         private val POLL_INTERVAL: Duration = Duration.ofMillis(200)
 
-        /** Starts the service of [context] by its [mainClass] and waits until it serves its Manifest. */
-        fun start(context: String, mainClass: String): EshopService {
+        /**
+         * Starts the service of [context] by its [mainClass], with the further command-line [arguments], and waits
+         * until it serves its Manifest.
+         */
+        fun start(context: String, mainClass: String, arguments: List<String> = emptyList()): EshopService {
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
             val java = ProcessHandle.current().info().command().orElseThrow()
@@ -114,6 +121,7 @@ class EshopService private constructor(
                 "--wow.internal.host=127.0.0.1",
                 // The node learns its internal port once bound; only the public one must be known up front.
                 "--wow.internal.port=0",
+                *arguments.toTypedArray(),
             ).redirectErrorStream(true).redirectOutput(log).start()
             val service = EshopService(context, process, log, publicPort)
             try {

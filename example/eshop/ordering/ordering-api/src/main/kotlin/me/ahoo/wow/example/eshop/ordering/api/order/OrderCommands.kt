@@ -15,11 +15,60 @@ package me.ahoo.wow.example.eshop.ordering.api.order
 
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
+import java.math.BigDecimal
 
-/** Places an order for [quantity] of [productId]. */
+/*
+ * An order's id comes from the route (`/eshop-ordering/order/{id}/...`) or, for a command a saga sends, from the
+ * aggregate reference it is sent to: no command carries an identity field.
+ */
+
+/**
+ * Submits an order of [items] for the buyer [buyerId]. The basket context sends it when its buyer checks out, with
+ * the order's id fixed by the basket.
+ *
+ * The buyer travels in the body because a saga's command carries no caller scope: the order a basket's checkout
+ * creates has no owner of its own (see `example/eshop/DX-GAPS.md`).
+ */
 @CreateAggregate
-@Summary("Place an order")
-data class PlaceOrder(
+@Summary("Submit an order")
+data class SubmitOrder(
+    val buyerId: String,
+    val items: List<OrderItem>,
+)
+
+/** Moves a submitted order on to the stock validation; the order-process saga sends it. */
+@Summary("Await the stock validation")
+data object AwaitStockValidation
+
+/**
+ * Confirms that the inventory reserved the order's units of [productId]. The stock-confirmation saga sends it for
+ * each reservation it reads from the inventory's stock stream; once every product is confirmed, the order awaits its
+ * payment.
+ */
+@Summary("Confirm a product's stock")
+data class ConfirmOrderStock(
     val productId: String,
-    val quantity: Int,
+)
+
+/**
+ * Pays [amount] of the order with the payment [paymentId]. The payment context (work package E.5) will send it; until
+ * then, a client sends it.
+ */
+@Summary("Pay the order")
+data class PayOrder(
+    val paymentId: String,
+    val amount: BigDecimal,
+)
+
+/** Ships a paid order. */
+@Summary("Ship the order")
+data object ShipOrder
+
+/**
+ * Cancels an order that is not paid yet, for [reason]. The order-process saga sends it when the inventory cannot
+ * reserve a product, and the order schedules it for itself when it is not paid within the payment grace period.
+ */
+@Summary("Cancel the order")
+data class CancelOrder(
+    val reason: String,
 )

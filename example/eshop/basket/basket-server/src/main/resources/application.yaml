@@ -5,7 +5,29 @@ server:
   port: 8082
 wow:
   service: eshop-basket-service
-  # One node, its data in memory: the skeleton's backend (work package E.0).
+  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
+  # `kafka` profile connects it to the ordering context, which the node needs to start: its checkout saga sends the
+  # ordering context's commands.
   backend: memory
   internal:
     port: 9092
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_basket
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+wow:
+  kafka:
+    # The checkout saga sends SubmitOrder to wow.eshop-ordering.commands.
+    bootstrap-servers: localhost:9092

@@ -5,7 +5,40 @@ server:
   port: 8083
 wow:
   service: eshop-ordering-service
-  # One node, its data in memory: the skeleton's backend (work package E.0).
+  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
+  # `kafka` profile connects it to the other contexts, which the node needs to start: its sagas send the inventory's
+  # commands.
   backend: memory
   internal:
     port: 9093
+eshop:
+  ordering:
+    # How long an order whose stock is confirmed waits for its payment before it cancels itself.
+    payment-grace-period: 30m
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_ordering
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+wow:
+  kafka:
+    bootstrap-servers: localhost:9092
+    # Execute the orders the basket context sends to wow.eshop-ordering.commands, which must exist with as many
+    # partitions as the context's log (wow.log.partitions, 64 by default).
+    command-intake: true
+  subscriptions:
+    # The saga on the inventory's stock stream starts at the beginning of the stream the first time it reads a
+    # partition, so no reservation published before the ordering service first started is missed.
+    "[StockConfirmationSaga.onStockReserved]":
+      start: beginning
