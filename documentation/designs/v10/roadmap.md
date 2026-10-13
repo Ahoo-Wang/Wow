@@ -182,6 +182,12 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.4b | ClickHouse Sink：基表 `_state_events` 加物化视图 `_state`、`_events` 与展平视图（D142、D164） | M | 6.0b、6.3a | Sink 的集成测试 |
 | 6.4c | 全 V10 的分析端到端（D145）：shop → Sink → 展平表 → 文件里声明的数据集 → V10 数据集查询路由；analytics 服务的端到端移到 7.2 | S | 6.4a、6.4b | `:example-e2e` 通过 |
 
+**定时命令**（D166）：
+
+| WP | 内容 | 规模 | 依赖 | 出口 |
+|---|---|---|---|---|
+| 6.8 | 持久化定时命令：`:api` 的 `schedule`/`cancelSchedule`（`DecideScope`、`SagaContext`）；事件流 `schedules`；`TimerStore` 与契约测试（内存、PostgreSQL、MongoDB）；`timers` 订阅与按分区的 `TimerRunner`；停放与重试；Manifest；配置；shop「30 分钟未支付取消」 | M | 6.3d | 交接、提交后标记前崩溃、取消竞态、晚触发、跨上下文的测试；eShop E.3 的宽限期用它 |
+
 **之后**：6.7 Elasticsearch（快照存储、查询、事件检索 Sink；3.4 的 ES 快照存储并入），L，M6 之后、M8c 之前（D131）。
 
 ### M6e eShop 验证
@@ -193,7 +199,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | E.0 | 骨架：5 个上下文的 `-api`、`-domain`、`-server` 与 `:eshop-e2e`；settings、`v10Projects`、V10Rules（D118 扩展到 `eshop-*`）、`ci-scope.mjs`、9.x workflow 的排除项 | 6.00 | `v10Check` 与架构测试通过 |
 | E.1 | `catalog`：商品、品牌、类目；`@QueryIndex`；快照查询 | E.0、6.2c | 目录查询的契约测试 |
 | E.2 | `basket`：按所有者的购物篮；结账发跨上下文命令到 `ordering` | E.0、6.3d | 结账端到端 |
-| E.3 | `ordering`：订单状态机（已提交 → 待校验 → 库存已确认 → 已支付 → 已发货 / 已取消）；下单流程 Saga 与宽限期 | E.2、6.3d、6.6 | 状态机与 Saga 测试；宽限期的实现方式记进 `DX-GAPS.md`（V10 尚无定时命令） |
+| E.3 | `ordering`：订单状态机（已提交 → 待校验 → 库存已确认 → 已支付 → 已发货 / 已取消）；下单流程 Saga 与宽限期 | E.2、6.3d、6.6、6.8 | 状态机与 Saga 测试；宽限期用定时命令（D166） |
 | E.4 | `inventory`：库存预留与确认；库存不足的拒绝经回执交给 `ordering` 的 `@OnRejected` 取消订单 | E.0、6.3d | 拒绝补偿的端到端 |
 | E.5 | `payment`：模拟支付网关的反应器，成功与失败两路 | E.3 | 支付成功与失败的端到端 |
 | E.6 | `:eshop-e2e`：5 个服务加 PostgreSQL、Kafka、ClickHouse；下单全链路的 `Wow-Wait` 等待链、跨上下文拒绝、节点被杀、销售数据集查询；压测脚本 | E.1～E.5、6.4b、6.6 | 全链路与故障场景通过；压测基线入库 |
