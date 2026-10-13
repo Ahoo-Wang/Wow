@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.api.query.annotation.QueryIndex
 import me.ahoo.wow.manifest.Manifest
 import java.security.MessageDigest
 
@@ -55,8 +56,8 @@ internal object QueryIndexes {
         propertyIndexes: List<PropertyIndex>,
         defs: Map<String, Any?>,
     ): List<Map<String, Any>> {
-        val classIndexes = QueryAnnotations.named(state, QueryAnnotations.QUERY_INDEX).map { index ->
-            val on = index.string("on")
+        val classIndexes = state.getAnnotationsByType(QueryIndex::class.java).map { index ->
+            val on = index.on
             check(on.isNotEmpty()) {
                 "@QueryIndex on the state class ${state.name} must name its leading key in on."
             }
@@ -64,8 +65,8 @@ internal object QueryIndexes {
         }
         val declared = classIndexes + propertyIndexes.map { it.index to it.path }
         return declared.map { (index, leading) ->
-            val keys = listOf(leading) + index.strings("with")
-            val declarer = "@QueryIndex(${index.string("name").ifEmpty { keys.joinToString() }}) of ${state.name}"
+            val keys = listOf(leading) + index.with
+            val declarer = "@QueryIndex(${index.name.ifEmpty { keys.joinToString() }}) of ${state.name}"
             keys.groupBy { it }.filterValues { it.size > 1 }.keys.let { repeated ->
                 check(repeated.isEmpty()) { "$declarer repeats the key ${repeated.joinToString()}." }
             }
@@ -75,7 +76,7 @@ internal object QueryIndexes {
                         "state.* path of the state schema."
                 }
             }
-            mapOf("name" to index.string("name").ifEmpty { defaultName(aggregate, keys) }, "keys" to keys)
+            mapOf("name" to index.name.ifEmpty { defaultName(aggregate, keys) }, "keys" to keys)
         }
     }
 

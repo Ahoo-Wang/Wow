@@ -19,16 +19,18 @@ import com.github.victools.jsonschema.generator.InstanceAttributeOverrideV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.TypeAttributeOverrideV2
 import com.github.victools.jsonschema.generator.TypeScope
-import me.ahoo.wow.manifest.tools.QueryAnnotations.MASK_STRATEGY
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_ALIAS
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_DECIMAL
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_DURATION
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_INDEX
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_MONEY
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_REFERENCE
-import me.ahoo.wow.manifest.tools.QueryAnnotations.QUERY_TEMPORAL
-import me.ahoo.wow.manifest.tools.QueryAnnotations.SENSITIVE
+import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.QueryAlias
+import me.ahoo.wow.api.query.annotation.QueryDecimal
+import me.ahoo.wow.api.query.annotation.QueryDuration
+import me.ahoo.wow.api.query.annotation.QueryIndex
+import me.ahoo.wow.api.query.annotation.QueryMoney
+import me.ahoo.wow.api.query.annotation.QueryReference
+import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import tools.jackson.databind.node.ObjectNode
+import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Modifier
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
@@ -84,7 +86,7 @@ internal object QueryKeywords {
 }
 
 /** A `@QueryIndex` a state property leads: [path] is the property's logical path, `state.<its JSON name>`. */
-internal data class PropertyIndex(val path: String, val index: AnnotationValues)
+internal data class PropertyIndex(val path: String, val index: QueryIndex)
 
 /**
  * Writes the query keywords of each property ([QueryKeywords]) and collects the `@QueryIndex` declarations of the
@@ -100,7 +102,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
 
     override fun overrideTypeAttributes(attributes: ObjectNode, scope: TypeScope, context: SchemaGenerationContext) {
         val type = scope.type.erasedType
-        check(type in states || QueryAnnotations.named(type, QUERY_INDEX).isEmpty()) {
+        check(type in states || type.getAnnotationsByType(QueryIndex::class.java).isEmpty()) {
             "@QueryIndex on ${type.name}: only an aggregate state class declares a query index."
         }
     }
@@ -111,52 +113,49 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
         context: SchemaGenerationContext,
     ) {
         if (scope.isFakeContainerItemScope) return
-        val annotations = scope.rawMember.annotations.asList() +
-            scope.findGetter()?.rawMember?.annotations.orEmpty()
+        val members = listOfNotNull<AnnotatedElement>(scope.rawMember, scope.findGetter()?.rawMember)
+        val annotations = members.flatMap { it.annotations.asList() }
         val field = "${scope.declaringType.erasedType.name}.${scope.declaredName}"
         writeSensitive(attributes, scope, annotations, field)
-        val aliases = QueryAnnotations.named(annotations, QUERY_ALIAS).flatMap { it.strings("value") }.distinct()
+        val aliases = annotations.filterIsInstance<QueryAlias>().flatMap { it.value.asList() }.distinct()
         if (aliases.isNotEmpty()) {
             attributes.putArray(QueryKeywords.ALIAS_KEYWORD).apply { aliases.forEach(::add) }
         }
         writeSemanticType(attributes, annotations, field)
-        collectIndexes(scope, annotations, field)
+        // A repeated @QueryIndex is held by its Kotlin-generated container, which getAnnotationsByType unwraps.
+        collectIndexes(scope, members.flatMap { it.getAnnotationsByType(QueryIndex::class.java).asList() }, field)
     }
 
     private fun writeSemanticType(attributes: ObjectNode, annotations: List<Annotation>, field: String) {
-        val declared = SEMANTIC_TYPES.flatMap { type -> QueryAnnotations.named(annotations, type) }
+        val declared = annotations.filter { annotation -> SEMANTIC_TYPES.any { it.isInstance(annotation) } }
         check(declared.size <= 1) {
-            "A field has one semantic type: $field declares ${declared.joinToString(" and ") { "@${it.simpleName}" }}."
+            "A field has one semantic type: $field declares " +
+                "${declared.joinToString(" and ") { "@${it.annotationClass.java.simpleName}" }}."
         }
-        val annotation = declared.singleOrNull() ?: return
-        when (annotation.annotation.annotationClass.java.name) {
-            QUERY_TEMPORAL -> {
+        when (val annotation = declared.singleOrNull() ?: return) {
+            is QueryTemporal -> {
                 val temporal = attributes.putObject(QueryKeywords.TEMPORAL_KEYWORD)
-                val pattern = annotation.string("pattern")
-                val unit = annotation.enum("unit")
-                if (pattern.isEmpty()) {
-                    temporal.put("unit", unit.name)
+                if (annotation.pattern.isEmpty()) {
+                    temporal.put("unit", annotation.unit.name)
                 } else {
-                    check(unit == TimeUnit.MILLISECONDS) {
+                    check(annotation.unit == TimeUnit.MILLISECONDS) {
                         "@QueryTemporal on $field declares either a unit or a pattern, not both."
                     }
-                    temporal.put("pattern", pattern)
+                    temporal.put("pattern", annotation.pattern)
                 }
             }
 
-            QUERY_DECIMAL -> attributes.putObject(QueryKeywords.DECIMAL_KEYWORD).put("scale", annotation.int("scale"))
-            QUERY_MONEY -> attributes.putObject(QueryKeywords.MONEY_KEYWORD).apply {
-                annotation.string("currency").takeIf { it.isNotEmpty() }?.let { put("currency", it) }
-                annotation.string("currencyField").takeIf { it.isNotEmpty() }?.let { put("currencyField", it) }
-                annotation.int("scale").takeIf { it >= 0 }?.let { put("scale", it) }
+            is QueryDecimal -> attributes.putObject(QueryKeywords.DECIMAL_KEYWORD).put("scale", annotation.scale)
+            is QueryMoney -> attributes.putObject(QueryKeywords.MONEY_KEYWORD).apply {
+                annotation.currency.takeIf { it.isNotEmpty() }?.let { put("currency", it) }
+                annotation.currencyField.takeIf { it.isNotEmpty() }?.let { put("currencyField", it) }
+                annotation.scale.takeIf { it >= 0 }?.let { put("scale", it) }
             }
 
-            QUERY_DURATION -> attributes.putObject(QueryKeywords.DURATION_KEYWORD)
-                .put("unit", annotation.enum("unit").name)
-
-            else -> attributes.putObject(QueryKeywords.REFERENCE_KEYWORD).apply {
-                put("aggregateName", annotation.string("aggregateName"))
-                annotation.string("contextName").takeIf { it.isNotEmpty() }?.let { put("contextName", it) }
+            is QueryDuration -> attributes.putObject(QueryKeywords.DURATION_KEYWORD).put("unit", annotation.unit.name)
+            is QueryReference -> attributes.putObject(QueryKeywords.REFERENCE_KEYWORD).apply {
+                put("aggregateName", annotation.aggregateName)
+                annotation.contextName.takeIf { it.isNotEmpty() }?.let { put("contextName", it) }
             }
         }
     }
@@ -170,8 +169,8 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
         val valueType = scope.valueType()
         val inherited = valueType.sensitiveValueType()?.let { SensitiveRule.of(it, valueType.name) }
         val declared = annotations.flatMap { annotation ->
-            QueryAnnotations.named(listOf(annotation), SENSITIVE) +
-                QueryAnnotations.named(annotation.annotationClass.java, SENSITIVE)
+            listOf(annotation).filterIsInstance<Sensitive>() +
+                annotation.annotationClass.java.annotations.filterIsInstance<Sensitive>()
         }.map { SensitiveRule.of(it, field) }.distinct()
         check(declared.size <= 1) { "$field declares several @Sensitive." }
         val own = declared.singleOrNull()
@@ -180,7 +179,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
                 "@Sensitive on $field: a sensitive field must have the String JVM type."
             }
             if (inherited != null) {
-                check(own.level.ordinal >= inherited.level.ordinal) {
+                check(own.level >= inherited.level) {
                     "@Sensitive on $field loosens its value type ${valueType.name} from ${inherited.level} to " +
                         "${own.level}."
                 }
@@ -198,8 +197,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
         }
     }
 
-    private fun collectIndexes(scope: FieldScope, annotations: List<Annotation>, field: String) {
-        val indexes = QueryAnnotations.named(annotations, QUERY_INDEX)
+    private fun collectIndexes(scope: FieldScope, indexes: List<QueryIndex>, field: String) {
         if (indexes.isEmpty()) return
         val declaringType = scope.declaringType.erasedType
         check(declaringType in states) {
@@ -207,7 +205,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
                 "the state class instead, with on = \"state.<path>\"."
         }
         indexes.forEach { index ->
-            check(index.string("on").isEmpty()) {
+            check(index.on.isEmpty()) {
                 "@QueryIndex on $field: the property leads the index, so on stays empty; list further keys in with."
             }
         }
@@ -217,17 +215,16 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
 
     /** One effective `@Sensitive`: its level and mask. */
     private data class SensitiveRule(
-        val level: Enum<*>,
+        val level: SensitivityLevel,
         val keepPrefix: Int,
         val keepSuffix: Int,
         val strategy: Class<*>?,
     ) {
         companion object {
-            fun of(sensitive: AnnotationValues, declarer: String): SensitiveRule {
-                val mask = sensitive.annotation("mask")
-                val keepPrefix = mask.int("keepPrefix")
-                val keepSuffix = mask.int("keepSuffix")
-                val strategy = mask.type("strategy").takeIf { it.name != MASK_STRATEGY }
+            fun of(sensitive: Sensitive, declarer: String): SensitiveRule {
+                val keepPrefix = sensitive.mask.keepPrefix
+                val keepSuffix = sensitive.mask.keepSuffix
+                val strategy = sensitive.mask.strategy.java.takeIf { it != MaskStrategy::class.java }
                 check(keepPrefix >= 0 && keepSuffix >= 0) {
                     "@Sensitive on $declarer: a mask keeps no negative count of code points."
                 }
@@ -240,7 +237,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
                             "public class with a public no-argument constructor."
                     }
                 }
-                return SensitiveRule(sensitive.enum("level"), keepPrefix, keepSuffix, strategy)
+                return SensitiveRule(sensitive.level, keepPrefix, keepSuffix, strategy)
             }
 
             private fun Class<*>.isInstantiable(): Boolean {
@@ -252,7 +249,13 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
     }
 
     private companion object {
-        val SEMANTIC_TYPES = listOf(QUERY_TEMPORAL, QUERY_DECIMAL, QUERY_MONEY, QUERY_DURATION, QUERY_REFERENCE)
+        val SEMANTIC_TYPES = listOf(
+            QueryTemporal::class.java,
+            QueryDecimal::class.java,
+            QueryMoney::class.java,
+            QueryDuration::class.java,
+            QueryReference::class.java,
+        )
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
 
         /**
@@ -283,9 +286,9 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
          * The `@Sensitive` of this class when it is a sensitive value type; a class carrying it must serialize as a
          * string: a Kotlin value class or a type with a `@JsonValue` member.
          */
-        fun Class<*>.sensitiveValueType(): AnnotationValues? {
+        fun Class<*>.sensitiveValueType(): Sensitive? {
             if (isPrimitive || PLATFORM_PACKAGES.any { name.startsWith(it) }) return null
-            val sensitive = QueryAnnotations.named(this, SENSITIVE).singleOrNull() ?: return null
+            val sensitive = getAnnotation(Sensitive::class.java) ?: return null
             check(runCatching { kotlin.isValue }.getOrDefault(false) || hasJsonValue()) {
                 "@Sensitive on $name: only a value type, a Kotlin value class or a class with a @JsonValue member, " +
                     "may carry it."
