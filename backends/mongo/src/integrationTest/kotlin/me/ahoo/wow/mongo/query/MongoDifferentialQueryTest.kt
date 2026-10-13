@@ -57,6 +57,8 @@ import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
@@ -77,6 +79,7 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.junit.jupiter.api.DynamicTest
@@ -160,6 +163,18 @@ class MongoDifferentialQueryTest {
         },
         same("cursor by lastEventTime") { cursorIds(listOf(Sort(QueryField("lastEventTime"), Sort.Direction.DESC)), 2) },
         same("cursor by version") { cursorIds(listOf(Sort(QueryField("version"), Sort.Direction.ASC)), 3) },
+        same("cursor by an inexact decimal") { cursorIds(listOf(Sort(AMOUNT, Sort.Direction.ASC)), 2, ACTIVE) },
+        same("cursor by tenant descending") { cursorIds(listOf(Sort(QueryField("tenantId"), Sort.Direction.DESC)), 2) },
+        // An array sorts by its least element ascending and its greatest descending. MongoDB sorts an empty array
+        // before a missing field, where the reference ties them, so the missing one is filtered out.
+        same("array field ascending") { ids(ExistsFilter(KEYWORDS), listOf(Sort(KEYWORDS, Sort.Direction.ASC), BY_ID)) },
+        same("array field descending") { ids(ExistsFilter(KEYWORDS), listOf(Sort(KEYWORDS, Sort.Direction.DESC), BY_ID)) },
+        same("offset page with a bounded total") {
+            val query = PagedQuery(ACTIVE, sort = listOf(Sort(AMOUNT, Sort.Direction.DESC)), pagination = Pagination(2, 2))
+            backend.paged(QueryAdmission.Trusted.paged(query, schema), totalLimit = 3).let { page ->
+                page.list.map { it.path("aggregateId").stringValue() } to (page.total to page.exact)
+            }
+        },
     )
 
     @TestFactory
@@ -168,6 +183,8 @@ class MongoDifferentialQueryTest {
         Projection(include = listOf(QueryField("state.lines.sku"), QueryField("state.name"))),
         Projection(exclude = listOf(QueryField("state.lines"), QueryField("tags"))),
         Projection(include = listOf(QueryField("state")), exclude = listOf(QueryField("state.keywords"))),
+        Projection(include = listOf(QueryField("state.lines.parts.name"), QueryField("tenantId"))),
+        Projection(exclude = listOf(QueryField("state.lines.parts"), QueryField("deleted"), QueryField("lastEventTime"))),
     ).mapIndexed { index, projection ->
         same("projection $index") {
             rows(ListQuery(MatchAllFilter, projection = projection, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))))
@@ -191,6 +208,7 @@ class MongoDifferentialQueryTest {
         private val CREATED = field("createdAt")
         private val REGION = QueryField("tags.region")
         private val ACTIVE = DeletionFilter(DeletionState.ACTIVE)
+        private val BY_ID = Sort(QueryField("aggregateId"), Sort.Direction.ASC)
 
         private fun JsonNode.normalized(): Any? = when {
             isObject -> properties().associate { (name, value) -> name to value.normalized() }
@@ -288,6 +306,18 @@ class MongoDifferentialQueryTest {
                 AggregationExpression.DateDiff(CREATED, QueryField("lastEventTime"), DateDiffUnit.HOUR),
                 ComparisonOperator.LT,
                 0.0,
+            ),
+            "double operand equals an inexact decimal" to EqualFilter(AMOUNT, 0.1),
+            "decimal operand of another scale" to EqualFilter(AMOUNT, BigDecimal("0.100")),
+            "inexact decimals in" to InFilter(AMOUNT, listOf(0.1, 20)),
+            "inexact decimal range" to BetweenFilter(AMOUNT, 0.05, 0.1),
+            "operator-like string" to EqualFilter(NAME, "${'$'}name"),
+            "operator-like prefix" to StartsWithFilter(NAME, "${'$'}"),
+            "regex metacharacters" to ContainsFilter(NAME, ".*"),
+            "element match through a non-object item" to ElementMatchFilter(field("lines"), EqualFilter(QueryField("sku"), "F")),
+            "nested element match in a single object" to ElementMatchFilter(
+                field("lines"),
+                NorFilter(listOf(ElementMatchFilter(QueryField("parts"), EqualFilter(QueryField("name"), "nut")))),
             ),
             "micro epoch difference" to ExpressionFilter(
                 AggregationExpression.DateDiff(field("createdMicros"), field("createdSeconds"), DateDiffUnit.SECOND),
@@ -481,6 +511,26 @@ class MongoDifferentialQueryTest {
                 elements = listOf(AggregationElement(field("lines")), AggregationElement(QueryField("parts"))),
                 groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "part")),
                 metrics = listOf(count("parts")),
+            ),
+            "terms by an array's first value" to AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(KEYWORDS, "keyword")),
+                metrics = listOf(count()),
+            ),
+            "missing key that looks like a field" to AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(STATUS, "status", missingKey = "${'$'}name")),
+                metrics = listOf(count()),
+            ),
+            "histogram of a singleton array" to AggregationQuery(
+                groupBy = listOf(AggregationGroup.Histogram(SCORES, "bucket", 5.0)),
+                metrics = listOf(count()),
+            ),
+            "exact decimal sums" to AggregationQuery(
+                elements = listOf(AggregationElement(field("lines"))),
+                groupBy = listOf(AggregationGroup.Terms(QueryField("tenantId"), "tenant", scope = AggregationGroupScope.ROOT)),
+                metrics = listOf(
+                    AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QueryField("price")), "linePrices"),
+                    AggregationMetric.Numeric(AggregationFunction.MIN, AggregationExpression.Field(QueryField("price")), "minPrice"),
+                ),
             ),
             "empty summary" to AggregationQuery(
                 filter = EqualFilter(STATUS, "NONE"),

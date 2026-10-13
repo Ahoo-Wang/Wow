@@ -70,12 +70,11 @@ internal object MongoKeyset {
         require(values.all(Any?::isMongoCursorScalar)) { "Cursor values must be BSON scalar values." }
         return Filters.or(
             sort.indices.map { index ->
-                Filters.and(
-                    buildList {
-                        repeat(index) { tie -> add(Filters.eq(sort[tie].field.path, values[tie])) }
-                        add(after(sort[index], values[index]))
-                    },
-                )
+                val terms = buildList {
+                    repeat(index) { tie -> add(Filters.eq(sort[tie].field.path, values[tie])) }
+                    add(after(sort[index], values[index]))
+                }
+                terms.singleOrNull() ?: Filters.and(terms)
             },
         )
     }

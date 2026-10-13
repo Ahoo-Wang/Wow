@@ -115,7 +115,7 @@ object QueryFixtures {
         tags = tags,
     )
 
-    /** Five orders whose values cover nulls, missing fields, unicode, wildcards and arrays. */
+    /** Six orders whose values cover nulls, missing fields, unicode, wildcards, arrays and inexact decimals. */
     fun orders(type: AggregateType): List<SnapshotRecord> = listOf(
         snapshot(
             type,
@@ -162,6 +162,19 @@ object QueryFixtures {
             deleted = true,
             version = 5,
             lastEventTime = T0 + 3 * DAY,
+        ),
+        // A decimal no double holds (decision D122), a line that is no object, keywords to group by their first.
+        snapshot(
+            type,
+            "f",
+            """{"name":"${'$'}name","status":"PAID","amount":0.10,"quantity":5,"flag":false,"createdAt":${T0 + 5 * DAY},""" +
+                """"keywords":["y_1","x"],"scores":[3],"lines":[7,{"sku":"F","price":0.1,"quantity":1,""" +
+                """"parts":[{"name":"nut"}]}]}""",
+            tenantId = "other",
+            scope = Scope("owner-1", "space-1"),
+            version = 6,
+            lastEventTime = T0 + 4 * DAY,
+            tags = mapOf("region" to listOf("north")),
         ),
     )
 }
