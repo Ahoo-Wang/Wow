@@ -19,6 +19,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryEventLog
@@ -159,8 +160,9 @@ class HttpNode(
     options: WowHttpOptions = WowHttpOptions(),
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     defaultWaitTimeout: kotlin.time.Duration = WaitPlan.DEFAULT_TIMEOUT,
+    queries: (InMemoryEventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
-    private val log = InMemoryEventLog(partitions = 2)
+    val log = InMemoryEventLog(partitions = 2)
 
     /** The commit times of the kernel: the system clock unless a test sets it. */
     var now: () -> Long = System::currentTimeMillis
@@ -185,7 +187,7 @@ class HttpNode(
     )
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
     val client: WebTestClient = WebTestClient
-        .bindToRouterFunction(wowRoutes(manifest, gateway, reads, callers, options))
+        .bindToRouterFunction(wowRoutes(manifest, gateway, reads, callers, options, queries(log)))
         .build()
         .mutate()
         .responseTimeout(Duration.ofSeconds(10))
