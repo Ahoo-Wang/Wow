@@ -129,7 +129,7 @@ class QueryAdmissionTest {
     )
     private val note = EqualFilter(QueryField("note"), null)
     private val aggregateType = AggregateType("admission", "order")
-    private val http = QueryCaller(QueryEntry.HTTP)
+    private val http = QueryCaller(entry = QueryEntry.HTTP)
 
     private fun <Q : RewritableFilter<Q>> QueryAdmission.admitBlocking(
         operation: QueryOperation<Q>,

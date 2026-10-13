@@ -22,11 +22,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.CommandAction
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono

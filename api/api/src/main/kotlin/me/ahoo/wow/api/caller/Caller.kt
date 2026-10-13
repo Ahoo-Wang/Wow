@@ -11,20 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.admission
+package me.ahoo.wow.api.caller
 
 import me.ahoo.wow.api.aggregate.Scope
 
 /**
- * Who sends a command, as the edge authenticated it (decision D93): the facts admission takes the command's identity
- * from (design 05 §3: identity comes from the principal, never from the path or the body).
+ * Who sends a command or runs a query, as the edge authenticated it (decisions D93, D165): the facts admission takes a
+ * command's identity from (design 05 §3: identity comes from the principal, never from the path or the body), and the
+ * facts a query policy restricts a query by. Commands and queries share it: the edge resolves one per request.
  *
  * - [tenantId] is the caller's tenant; a principal without one is in [DEFAULT_TENANT] (decision D97).
- * - [scope] is the caller's owner and space (decisions D56, D96): the scope its commands act in.
- * - [subject] names the principal, for authorizers and logs; null for an anonymous caller.
- * - [crossScope] says the caller may act in another tenant or scope by naming it ([CommandRequest.target], the
- *   `Wow-Scope` header, decision D95).
- * - [attributes] are further facts about the principal an authorizer may read (roles, policies, `abac.` attributes).
+ * - [scope] is the caller's owner and space (decisions D56, D96): the scope it acts in.
+ * - [subject] is the principal's opaque id, for authorizers, logs and the [Operator] of what it commits; null for an
+ *   anonymous caller.
+ * - [crossScope] says the caller may act in another tenant or scope by naming it (the `Wow-Scope` header, decision
+ *   D95).
+ * - [attributes] are further facts about the principal an authorizer or a query policy may read (roles, policies,
+ *   `abac.` attributes). They live only as long as the request: none of them is written into a fact (decision D163).
+ *
+ * A caller is the runtime's view of one request; the [Operator] is what a commit records of it ([toOperator]).
  */
 data class Caller(
     val tenantId: String = DEFAULT_TENANT,
@@ -38,6 +43,14 @@ data class Caller(
         require(subject == null || subject.isNotBlank()) { "A caller's subject, when present, is not blank." }
     }
 
+    /**
+     * The operator a command of this caller records (decision D163): its [subject] as the id and its own [tenantId];
+     * [actingElsewhere] when the command acts in another tenant or scope than the caller's own, through `Wow-Scope`.
+     * Null for an anonymous caller.
+     */
+    fun toOperator(actingElsewhere: Boolean = false): Operator? =
+        subject?.let { Operator(it, tenantId, actingElsewhere) }
+
     companion object {
         /** The tenant of a principal that has none (decision D97). */
         const val DEFAULT_TENANT: String = "(0)"
@@ -45,16 +58,5 @@ data class Caller(
         /** An unauthenticated caller: the default tenant, no scope, no subject (decision D97). */
         @JvmField
         val ANONYMOUS: Caller = Caller()
-    }
-}
-
-/**
- * The tenant and scope a caller with [Caller.crossScope] asks to act in instead of its own (decision D95; the
- * `Wow-Scope` header): [tenantId], when given, replaces the caller's tenant, and [scope] replaces the caller's scope as
- * a whole, so a part it leaves out is not checked against the aggregate (decision D94).
- */
-data class TargetScope(val tenantId: String? = null, val scope: Scope = Scope.NONE) {
-    init {
-        require(tenantId == null || tenantId.isNotBlank()) { "A target tenant, when present, is not blank." }
     }
 }

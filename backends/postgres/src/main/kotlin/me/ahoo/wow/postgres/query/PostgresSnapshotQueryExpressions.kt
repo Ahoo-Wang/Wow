@@ -87,7 +87,8 @@ enum class PostgresQueryType(val sql: String, val catalogType: String) {
  * every query on it compares. Expressions are deterministic for a physical path and a [PostgresQueryType], and
  * contain no parameter: the path segments, checked against [SEGMENT], are the only text they take from a query.
  *
- * A system field is its column (`tenantId` is `tenant_id`). A path below `state` or `tags`, both `jsonb`, is
+ * A system field is its column (`tenantId` is `tenant_id`). A path below `state`, `tags`, `operator` or
+ * `firstOperator`, all `jsonb`, is
  * - its node, `(state #> '{a,b}')`, which presence, containment and array operators read; and
  * - its typed value: the node's text cast to the type when the node holds a JSON value of that type, otherwise
  *   `NULL`, so a value of another type never matches, never fails a cast, and never fails the save of a snapshot
@@ -114,6 +115,8 @@ object PostgresSnapshotQueryExpressions {
         SnapshotFields.TAGS to "tags",
         SnapshotFields.FIRST_EVENT_TIME to "first_event_time",
         SnapshotFields.LAST_EVENT_TIME to "last_event_time",
+        SnapshotFields.OPERATOR to "operator",
+        SnapshotFields.FIRST_OPERATOR to "first_operator",
         SnapshotFields.STATE to "state",
     )
 
@@ -128,10 +131,13 @@ object PostgresSnapshotQueryExpressions {
         SnapshotFields.TAGS to PostgresQueryType.JSONB,
         SnapshotFields.FIRST_EVENT_TIME to PostgresQueryType.BIGINT,
         SnapshotFields.LAST_EVENT_TIME to PostgresQueryType.BIGINT,
+        SnapshotFields.OPERATOR to PostgresQueryType.JSONB,
+        SnapshotFields.FIRST_OPERATOR to PostgresQueryType.JSONB,
         SnapshotFields.STATE to PostgresQueryType.JSONB,
     )
 
-    private val JSONB_COLUMNS = setOf(SnapshotFields.STATE, SnapshotFields.TAGS)
+    private val JSONB_COLUMNS =
+        setOf(SnapshotFields.STATE, SnapshotFields.TAGS, SnapshotFields.OPERATOR, SnapshotFields.FIRST_OPERATOR)
 
     /** The typed value of the field at the absolute physical [path] of a snapshot row. */
     fun value(path: QueryField, type: PostgresQueryType): String {

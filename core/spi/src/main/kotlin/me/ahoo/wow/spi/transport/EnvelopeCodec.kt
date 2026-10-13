@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.transport
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.json.WowJson
@@ -40,7 +41,7 @@ import tools.jackson.databind.JsonNode
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
  *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, tags, causation,
- *   headers}` with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
+ *   headers, operator}` (`operator`, decision D163, an addition within format 1) with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
  */
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
@@ -100,6 +101,7 @@ object EnvelopeCodec {
                 tags = record.tags,
                 causation = record.causation,
                 headers = record.headers,
+                operator = record.operator,
             ),
         ),
         transport = record.transport,
@@ -123,6 +125,7 @@ object EnvelopeCodec {
             tags = wire.tags,
             causation = wire.causation,
             headers = wire.headers,
+            operator = wire.operator,
             transport = envelope.transport,
         )
     }
@@ -171,5 +174,6 @@ object EnvelopeCodec {
         val tags: Map<String, List<String>> = emptyMap(),
         val causation: Causation? = null,
         val headers: Map<String, String> = emptyMap(),
+        val operator: Operator? = null,
     )
 }

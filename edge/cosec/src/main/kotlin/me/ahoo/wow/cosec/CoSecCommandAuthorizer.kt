@@ -22,9 +22,9 @@ import me.ahoo.cosec.context.SimpleSecurityContext
 import me.ahoo.cosec.principal.SimplePrincipal
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import java.net.URI

@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
@@ -256,7 +257,7 @@ class EventQueryRoutesTest {
             entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(50))),
         )
         history()
-        val caller = QueryCaller(entry = me.ahoo.wow.query.QueryEntry.HTTP, tenantId = TENANT)
+        val caller = QueryCaller(Caller(tenantId = TENANT), entry = me.ahoo.wow.query.QueryEntry.HTTP)
         assertThrownBy<QueryTimeoutException> {
             runBlocking { slow.count(CountQuery(AggregateIdFilter("c-1")), caller) }
         }

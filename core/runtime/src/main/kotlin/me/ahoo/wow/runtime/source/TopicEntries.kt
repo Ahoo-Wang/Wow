@@ -129,6 +129,7 @@ internal class TopicEntries(
             scope = record.scope,
             causation = record.causation,
             headers = record.headers,
+            operator = record.operator,
         )
     }
 }

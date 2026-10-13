@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 import kotlinx.coroutines.flow.firstOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
@@ -47,8 +48,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   committed on this node; without one (a replay, an ownership change, a command run on another node) the stored
  *   snapshot or a nearer view evolved with the log's tail up to the stream ([Kernel.stateAt]), else the log replayed.
  * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's (decision D56), its deleted mark and
- *   tags the kernel's after the stream, its last event time the stream's commit time, its first event time that of
- *   the aggregate's first stream. The kernel reloads a deleted or tagged aggregate from it as such.
+ *   tags the kernel's after the stream, its last event time and operator the stream's, its first event time and
+ *   first operator (decision D163) those of the aggregate's first stream. The kernel reloads a deleted or tagged aggregate from it as such.
  * - **Idempotent**: [SnapshotStore.save] only ever replaces a lower version, so a replay or an old owner running
  *   alongside the new one (decision D45) never moves a snapshot back. When the store already holds the stream's
  *   version or a later one, as this subscription last wrote or loaded it, nothing is rebuilt or saved, from a view
@@ -57,7 +58,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *
  * [codec] must be the kernel's, so the views and the fingerprints are what the kernel reads back. [views] are the
  * context's, where this subscription is the reader [Hop.SNAPSHOT_SUBSCRIPTION] of the snapshotted types; by default
- * its own, bounded by [capacity]. [capacity] also bounds the versions and first event times kept per aggregate.
+ * its own, bounded by [capacity]. [capacity] also bounds the versions, first event times and first operators kept
+ * per aggregate.
  */
 @Suppress("LongParameterList")
 class SnapshotSubscription(
@@ -108,28 +110,31 @@ class SnapshotSubscription(
             return
         }
         val view = views.get(ref, version)
-        val known = if (version == 1) stream.commitTime else held?.firstEventTime
+        val known = if (version == 1) First(stream.commitTime, stream.operator) else held?.first
         if (view != null && known != null) {
             save(snapshotOf(model, stream, view.state, known, view.deleted, view.tags))
             return
         }
         val stored = store.load(ref)
         if (stored != null && stored.version >= version) {
-            remember(ref, stored.firstEventTime, stored.version)
+            remember(ref, First.of(stored), stored.version)
             return
         }
-        val first = known ?: stored?.firstEventTime ?: firstEventTime(ref)
+        val first = known ?: stored?.let(First::of) ?: firstOf(ref)
         val state = entry.state(stored)
         save(snapshotOf(model, stream, state.state, first, state.deleted, state.tags))
     }
 
-    /** The snapshot of [stream]: [state] with the kernel's [deleted] mark and [tags] after it, and its scope. */
+    /**
+     * The snapshot of [stream]: [state] with the kernel's [deleted] mark and [tags] after it, its scope and operator,
+     * and what [first] says of the aggregate's first stream.
+     */
     @Suppress("LongParameterList")
     private fun snapshotOf(
         model: AggregateModel<*>,
         stream: EventStreamRecord,
         state: String,
-        firstEventTime: Long,
+        first: First,
         deleted: Boolean,
         tags: Map<String, List<String>>,
     ): SnapshotRecord = codec.snapshotOf(
@@ -138,28 +143,39 @@ class SnapshotSubscription(
         state,
         stream.version,
         stream.scope,
-        firstEventTime,
+        first.eventTime,
         stream.commitTime,
         deleted,
         tags,
+        stream.operator,
+        first.operator,
     )
 
     /** Saves [snapshot]: written or not, the store then holds its version or a later one (a version-guarded save). */
     private suspend fun save(snapshot: SnapshotRecord) {
         store.save(snapshot)
-        remember(snapshot.ref, snapshot.firstEventTime, snapshot.version)
+        remember(snapshot.ref, First.of(snapshot), snapshot.version)
     }
 
     /** The store holds [ref] at [version] or later: this subscription is done with its views up to [version]. */
-    private fun remember(ref: AggregateRef, firstEventTime: Long, version: Int) {
-        written[ref] = Written(firstEventTime, version)
+    private fun remember(ref: AggregateRef, first: First, version: Int) {
+        written[ref] = Written(first, version)
         reader.pass(ref, version)
     }
 
     /** What this subscription knows the store holds of an aggregate: a lower bound of the stored version. */
-    private class Written(val firstEventTime: Long, val version: Int)
+    private class Written(val first: First, val version: Int)
 
-    /** The commit time of [ref]'s first stream. */
-    private suspend fun firstEventTime(ref: AggregateRef): Long =
-        checkNotNull(log.read(ref, 1, 1).firstOrNull()) { "The log does not hold $ref@1." }.commitTime
+    /** What a snapshot keeps of an aggregate's first stream: its commit time and its operator, the creator. */
+    private data class First(val eventTime: Long, val operator: Operator?) {
+        companion object {
+            fun of(snapshot: SnapshotRecord): First = First(snapshot.firstEventTime, snapshot.firstOperator)
+        }
+    }
+
+    /** What the snapshot keeps of [ref]'s first stream, read from the log. */
+    private suspend fun firstOf(ref: AggregateRef): First {
+        val stream = checkNotNull(log.read(ref, 1, 1).firstOrNull()) { "The log does not hold $ref@1." }
+        return First(stream.commitTime, stream.operator)
+    }
 }

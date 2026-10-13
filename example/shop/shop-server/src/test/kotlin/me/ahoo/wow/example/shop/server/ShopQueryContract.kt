@@ -14,12 +14,16 @@
 package me.ahoo.wow.example.shop.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.shop.testing.MemorySnapshotQueries
+import me.ahoo.wow.http.WowHeaders
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import tools.jackson.databind.JsonNode
+import java.time.Duration
 import java.util.UUID
 
 /**
@@ -185,6 +189,77 @@ abstract class ShopQueryContract {
             .assertProblem(400, "wow.query.invalid")
     }
 
+    /**
+     * The audit trail of decision D163, end to end: the caller's operator is recorded by every commit of its HTTP
+     * commands, by the command a saga derives from them (which has no caller) and, for a cross-scope caller, with its own
+     * tenant and the cross-scope mark; the snapshot keeps the last operator and the creator, and a snapshot query
+     * filters by them.
+     */
+    @Test
+    fun `an audit should follow the operator from the HTTP command through the event stream to the snapshot query`() {
+        val alice = user()
+        val admin = user()
+        listOf("apple", "pear", "durian").forEach { product ->
+            shop.post("/example/cart/$alice/add-cart-item", """{"productId":"$product"}""", alice)
+                .status.assert().isEqualTo(200)
+        }
+        // CartSaga removes the ordered products from alice's cart: a derived command, of alice's operator.
+        val placed = shop.post(
+            "/example/order/create-order",
+            """{"items":$APPLE_AND_PEAR,"address":$ADDRESS,"fromCart":true}""",
+            alice,
+            mapOf(WowHeaders.WAIT to "committed > handled(example/CartSaga.onOrderCreated)"),
+        )
+        placed.status.assert().describedAs(placed.body.toString()).isEqualTo(200)
+        placed.json["derived"].values().toList().assert().hasSize(1)
+        val order = placed.json["ref"]["id"].asString()
+
+        // The order's event stream: the HTTP command's operator, alice in her own tenant.
+        val orderEvents = query(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$order"}}""", alice)
+        orderEvents.status.assert().isEqualTo(200)
+        orderEvents.json[0]["operator"].assertOperator(alice)
+
+        // The saga's command committed the cart's fourth version in alice's name, though no one called it.
+        fun cart() = query(CARTS, """{"kind":"single","filter":{"op":"ID","value":"$alice"}}""", alice)
+        eventually { cart().json?.get("version")?.asInt() == 4 }
+        val cart = cart()
+        cart.json["state"]["items"].values().map { it["productId"].asString() }.assert().containsExactly("durian")
+        cart.json["operator"].assertOperator(alice)
+        cart.json["firstOperator"].assertOperator(alice)
+
+        // An administrator acting in alice's scope through Wow-Scope: its own tenant, marked as acting elsewhere.
+        shop.post(
+            "/example/cart/$alice/add-cart-item",
+            """{"productId":"fig"}""",
+            admin,
+            mapOf(HeaderCallers.ADMIN to "true", WowHeaders.SCOPE to "owner=\"$alice\"", WowHeaders.WAIT to "snapshot"),
+        ).status.assert().isEqualTo(200)
+
+        // The snapshot query filters by the operator and the creator.
+        fun carts(filter: String) = ids(query(CARTS, """{"kind":"list","filter":$filter}""", alice))
+        carts("""{"op":"EQ","field":"operator.id","value":"$admin"}""").assert().containsExactly(alice)
+        carts("""{"op":"EQ","field":"operator.crossScope","value":true}""").assert().containsExactly(alice)
+        carts("""{"op":"EQ","field":"firstOperator.id","value":"$alice"}""").assert().containsExactly(alice)
+        carts("""{"op":"EQ","field":"operator.id","value":"$alice"}""").assert().isEmpty()
+        val latest = query(CARTS, """{"kind":"single","filter":{"op":"ID","value":"$alice"}}""", alice).json
+        latest["operator"].assertOperator(admin, crossScope = true)
+        latest["firstOperator"].assertOperator(alice)
+    }
+
+    private fun eventually(condition: () -> Boolean) {
+        val deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos()
+        while (!condition()) {
+            check(System.nanoTime() < deadline) { "Not reached in 30 seconds." }
+            Thread.sleep(50)
+        }
+    }
+
+    private fun JsonNode.assertOperator(id: String, crossScope: Boolean = false) {
+        this["id"].asString().assert().isEqualTo(id)
+        this["tenantId"].asString().assert().isEqualTo(Caller.DEFAULT_TENANT)
+        this["crossScope"].asBoolean().assert().isEqualTo(crossScope)
+    }
+
     @Test
     fun `a query the model refuses should be wow-query-invalid, one it cannot read wow-query-malformed`() {
         val alice = user()
@@ -202,6 +277,8 @@ abstract class ShopQueryContract {
         const val ORDERS = "/example/order/snapshot/query"
         const val CARTS = "/example/cart/snapshot/query"
         const val ORDER_EVENTS = "/example/order/events/query"
+        const val APPLE_AND_PEAR =
+            """[{"productId":"apple","price":2.50,"quantity":1},{"productId":"pear","price":4.00,"quantity":1}]"""
         const val ADDRESS =
             """{"country":"China","province":"Shanghai","city":"Shanghai","district":"Pudong","detail":"1 Century Avenue"}"""
     }

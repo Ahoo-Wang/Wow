@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -25,7 +26,7 @@ import org.junit.jupiter.api.Test
 class QueryCallerTest {
     @Test
     fun `scope accumulates with AND and never changes the original caller`() {
-        val original = QueryCaller(subject = "alice")
+        val original = QueryCaller(Caller(subject = "alice"))
         val tenant = TenantIdFilter("tenant")
         val owner = OwnerIdFilter("owner")
         val scoped = original.withScope(QueryScope(declared = tenant))
@@ -60,11 +61,10 @@ class QueryCallerTest {
     }
 
     @Test
-    fun `entry is unspecified until stated and in-process queries drop the inherited scope and entry`() {
+    fun `entry is unspecified until stated and in-process queries drop the caller, scope and entry`() {
         val http = QueryCaller(
-            QueryEntry.HTTP,
-            subject = "alice",
-            attributes = mapOf("abac.dept" to listOf("eng")),
+            Caller(subject = "alice", attributes = mapOf("abac.dept" to listOf("eng"))),
+            entry = QueryEntry.HTTP,
         ).withScope(QueryScope(declared = TenantIdFilter("tenant"))).withSelection(IdFilter("a1"))
         QueryCaller().entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
         QueryCaller.UNSPECIFIED.entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
@@ -76,8 +76,11 @@ class QueryCallerTest {
         nested.entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         nested.scope.filter.assert().isSameAs(MatchAllFilter)
         nested.selection.assert().isSameAs(MatchAllFilter)
-        nested.subject.assert().isEqualTo("alice")
-        nested.attributes.assert().isEqualTo(mapOf("abac.dept" to listOf("eng")))
+        nested.caller.assert().isNull()
+        nested.subject.assert().isNull()
+        nested.attributes.assert().isEmpty()
+        http.subject.assert().isEqualTo("alice")
+        http.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
     }
 
     @Test

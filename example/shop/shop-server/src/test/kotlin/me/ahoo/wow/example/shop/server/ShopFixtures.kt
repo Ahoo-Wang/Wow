@@ -15,8 +15,8 @@ package me.ahoo.wow.example.shop.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext

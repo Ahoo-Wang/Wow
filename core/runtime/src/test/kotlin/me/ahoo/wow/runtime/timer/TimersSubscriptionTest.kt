@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
@@ -55,6 +56,7 @@ class TimersSubscriptionTest {
             scope = Scope.NONE,
             causation = Causation("root", "c-0"),
             headers = mapOf("app" to "web"),
+            operator = Operator("alice", "t"),
             schedules = schedules.toList(),
         )
 
@@ -87,6 +89,8 @@ class TimersSubscriptionTest {
         timer.partition.assert().isEqualTo(Partitioner.partitionOf(order("o-1"), PARTITIONS))
         timer.causation.assert().isEqualTo(Causation("root", "${order("o-1")}@1"))
         timer.headers.assert().isEqualTo(mapOf("app" to "web"))
+        // The scheduled command keeps the operator of the command that scheduled it (decisions D163, D166).
+        timer.operator.assert().isEqualTo(Operator("alice", "t"))
         handle(stream(2, ScheduleChange.Cancel("pay")))
         store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
         // A replay of the log from the start writes nothing back.

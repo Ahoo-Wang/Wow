@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.ApplyTags
@@ -189,6 +190,11 @@ class SnapshotSubscriptionTest {
 
     private fun ref(id: String) = counter.type.ref("t", id)
 
+    private companion object {
+        val ALICE = Operator("alice", "t")
+        val BOB = Operator("bob", "home", crossScope = true)
+    }
+
     /** A command of any [body], a lifecycle one included, to counter [id]. */
     private fun command(
         id: String,
@@ -212,7 +218,7 @@ class SnapshotSubscriptionTest {
     fun `the default wait answers once the snapshot holds the commit`(): Unit = runBlocking {
         runtime.start(setOf(0))
         val owned = Scope("alice", "space")
-        val first = coordinator.execute(counter, add("a").copy(scope = owned))
+        val first = coordinator.execute(counter, add("a").copy(scope = owned, operator = ALICE))
         first.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         first.hop.assert().isEqualTo(Hop.snapshot("shop"))
         val created = store.load(ref("a"))!!
@@ -220,8 +226,10 @@ class SnapshotSubscriptionTest {
         created.state.assert().isEqualTo("""{"total":1}""")
         created.scope.assert().isEqualTo(owned)
         created.schemaFingerprint.assert().isEqualTo(codec.stateSchemaFingerprint(counter))
+        created.operator.assert().isEqualTo(ALICE)
+        created.firstOperator.assert().isEqualTo(ALICE)
 
-        coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
+        coordinator.execute(counter, add("a").copy(operator = BOB)).hop.assert().isEqualTo(Hop.snapshot("shop"))
         val updated = store.load(ref("a"))!!
         updated.version.assert().isEqualTo(2)
         updated.state.assert().isEqualTo("""{"total":2}""")
@@ -230,6 +238,14 @@ class SnapshotSubscriptionTest {
         val streams = log.read(ref("a")).toList()
         updated.firstEventTime.assert().isEqualTo(streams[0].commitTime)
         updated.lastEventTime.assert().isEqualTo(streams[1].commitTime)
+        // The last stream's operator, and the creator's (decision D163).
+        updated.operator.assert().isEqualTo(BOB)
+        updated.firstOperator.assert().isEqualTo(ALICE)
+        coordinator.execute(counter, add("a")).hop.assert().isEqualTo(Hop.snapshot("shop"))
+        store.load(ref("a"))!!.run {
+            operator.assert().isNull()
+            firstOperator.assert().isEqualTo(ALICE)
+        }
     }
 
     @Test
@@ -315,11 +331,11 @@ class SnapshotSubscriptionTest {
     fun `without a state view the snapshot and the log's tail give the state`(): Unit = runBlocking {
         // Commands run outside the executor that records views: as on another node, or before an ownership change.
         val elsewhere = Executor(kernel)
-        repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED)) }
+        repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copy(operator = ALICE)) }
         runtime.start(setOf(0))
         eventually { store.load(ref("a"))?.version == 2 }
         runtime.stop()
-        repeat(3) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED)) }
+        repeat(3) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copy(operator = BOB)) }
         val fifth = log.read(ref("a"), 5, 5).toList().single()
         log.reads.clear()
 
@@ -334,6 +350,9 @@ class SnapshotSubscriptionTest {
         snapshot.version.assert().isEqualTo(5)
         snapshot.state.assert().isEqualTo("""{"total":5}""")
         snapshot.firstEventTime.assert().isEqualTo(log.read(ref("a"), 1, 1).toList().single().commitTime)
+        // The first operator comes from the stored snapshot too.
+        snapshot.operator.assert().isEqualTo(BOB)
+        snapshot.firstOperator.assert().isEqualTo(ALICE)
     }
 
     @Test

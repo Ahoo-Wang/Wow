@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.InFilter
@@ -96,7 +97,7 @@ class ClickHouseDatasetAbacTest {
             target.catalog.provider(dataset.name, QueryModel.DATASET),
             policies = listOf(AbacQueryPolicy(options)),
         )
-        val caller = QueryCaller(QueryEntry.HTTP, attributes = tags.mapKeys { (key, _) -> "abac.$key" })
+        val caller = QueryCaller(Caller(attributes = tags.mapKeys { (key, _) -> "abac.$key" }), entry = QueryEntry.HTTP)
         return gateway.list(ListQuery(filter, sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC)), limit = 100), caller)
             .toList().map { it.path("id").stringValue() }
     }

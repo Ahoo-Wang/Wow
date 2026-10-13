@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.transport
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.ExactJson
@@ -56,6 +57,7 @@ class EnvelopeCodecTest {
         tags = mapOf("region" to listOf("eu")),
         causation = Causation("root", "shop.cart/t1/alice@3"),
         headers = mapOf("app" to "web"),
+        operator = Operator("alice", "t0", crossScope = true),
         transport = Transport(wait, listOf(ReservationKey("email", "a@b")), mapOf("traceparent" to "00-1-2-01")),
     )
 
@@ -82,8 +84,9 @@ class EnvelopeCodecTest {
         val payload = value["payload"]
         payload.properties().map { it.key }.assert().containsExactly(
             "ref", "version", "commandId", "requestId", "commandType", "commitTime", "events", "state", "scope",
-            "deleted", "tags", "causation", "headers",
+            "deleted", "tags", "causation", "headers", "operator",
         )
+        payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "crossScope")
         payload["events"][0]["payload"]["amount"].isNumber.assert().isTrue()
         payload["state"]["schemaFingerprint"].stringValue().assert().isEqualTo("f1")
         payload["state"]["state"].isObject.assert().isTrue()
