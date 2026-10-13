@@ -25,6 +25,8 @@ dependencies {
     implementation(project(":inventory-api"))
     // The generated models, the processor bindings and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
+    // The query annotations and the query DSL; with it, the compiler generates each state's <State>Properties.
+    api(project(":query-api"))
     ksp(project(":compiler"))
     // The aggregate tests run the domain on the kernel, with its test DSL.
     testImplementation(testFixtures(project(":kernel")))
