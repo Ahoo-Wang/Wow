@@ -31,6 +31,14 @@ fun interface ParkedNotifier {
         /** Tells nobody. */
         @JvmField
         val NONE: ParkedNotifier = ParkedNotifier { }
+
+        /** Tells each of [notifiers] in turn, one that fails not keeping the others from hearing; [NONE] for none. */
+        @JvmStatic
+        fun of(notifiers: List<ParkedNotifier>): ParkedNotifier = when (notifiers.size) {
+            0 -> NONE
+            1 -> notifiers.single()
+            else -> ParkedNotifier { notice -> notifiers.forEach { it.notifyQuietly(notice) } }
+        }
     }
 }
 

@@ -180,24 +180,34 @@ private class ParkedHandler(
 
     suspend fun markRecoverable(request: ServerRequest): ServerResponse {
         val (subscription, ref) = authorized(request, OpsCommands.MARK_RECOVERABLE)
-        val body = body(request)
-        val value = body[RECOVERABLE]?.takeIf { it.isString }?.asString()
-            ?: throw badRequest("The body names the entry's \"recoverable\": ${Recoverable.entries.joinToString()}.")
-        val recoverable = Recoverable.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-            ?: throw badRequest("Not a recoverable: '$value'; one of ${Recoverable.entries.joinToString()}.")
+        val recoverable = recoverableOf(body(request))
         val view = ops.markRecoverable(subscription, ref, recoverable) ?: throw notParked(subscription, ref)
         return ok(viewOf(view))
+    }
+
+    private fun recoverableOf(body: JsonNode): Recoverable {
+        val value = body[RECOVERABLE]?.takeIf { it.isString }?.asString()
+            ?: throw badRequest("The body names the entry's \"recoverable\": ${Recoverable.entries.joinToString()}.")
+        return Recoverable.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+            ?: throw badRequest("Not a recoverable: '$value'; one of ${Recoverable.entries.joinToString()}.")
     }
 
     suspend fun applyRetrySpec(request: ServerRequest): ServerResponse {
         val (subscription, ref) = authorized(request, OpsCommands.APPLY_RETRY_SPEC)
         val body = body(request)
         val current = ops.get(subscription, ref)?.spec ?: throw notParked(subscription, ref)
-        val spec = try {
+        val view = ops.applyRetrySpec(subscription, ref, specOf(body, current)) ?: throw notParked(subscription, ref)
+        return ok(viewOf(view))
+    }
+
+    /** The spec [body] gives, each member it leaves out [current]'s. */
+    private fun specOf(body: JsonNode, current: ParkedRetrySpec): ParkedRetrySpec {
+        val maxRetries = body[MAX_RETRIES]?.let { node ->
+            node.takeIf { it.isInt }?.asInt() ?: throw badRequest("maxRetries is a whole number.")
+        }
+        return try {
             ParkedRetrySpec(
-                maxRetries = body[MAX_RETRIES]?.let { node ->
-                    node.takeIf { it.isInt }?.asInt() ?: throw badRequest("maxRetries is a whole number.")
-                } ?: current.maxRetries,
+                maxRetries = maxRetries ?: current.maxRetries,
                 minBackoff = body[MIN_BACKOFF]?.let { durationOf(MIN_BACKOFF, it) } ?: current.minBackoff,
                 executionTimeout = body[EXECUTION_TIMEOUT]?.let { durationOf(EXECUTION_TIMEOUT, it) }
                     ?: current.executionTimeout,
@@ -205,8 +215,6 @@ private class ParkedHandler(
         } catch (invalid: IllegalArgumentException) {
             throw badRequest(invalid.message ?: "Not a retry spec.")
         }
-        val view = ops.applyRetrySpec(subscription, ref, spec) ?: throw notParked(subscription, ref)
-        return ok(viewOf(view))
     }
 
     private suspend fun authenticate(request: ServerRequest): Caller {
@@ -325,8 +333,8 @@ private fun decodeCursor(cursor: String): ParkedKey {
     } catch (_: IllegalArgumentException) {
         emptyList()
     }
-    val key = parts.takeIf { it.size == CURSOR_PARTS }?.let { (subscription, context, name, tenant, id) ->
-        runCatching { ParkedKey(subscription, AggregateType(context, name).ref(tenant, id)) }.getOrNull()
+    val key = parts.takeIf { it.size == CURSOR_PARTS }?.let { part ->
+        runCatching { ParkedKey(part[0], AggregateType(part[1], part[2]).ref(part[3], part[4])) }.getOrNull()
     }
     return key ?: throw ProblemException(Problem.ofStatus(HttpStatus.BAD_REQUEST, "Not a cursor of this listing."))
 }

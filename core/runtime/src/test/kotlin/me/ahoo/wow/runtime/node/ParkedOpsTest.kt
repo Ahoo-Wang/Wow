@@ -51,7 +51,14 @@ class ParkedOpsTest {
     }
     private val spec = ParkedRetrySpec(maxRetries = 2, minBackoff = 1.hours, executionTimeout = 1.seconds)
     private val options = testOptions(maxAttempts = 1).copy(parked = ParkedRetryOptions(spec, scanInterval = 1.hours))
-    private val runtime = SubscriptionRuntime("group", log, InMemoryCheckpointStore(), ledger, listOf(subscription), options)
+    private val runtime = SubscriptionRuntime(
+        "group",
+        log,
+        InMemoryCheckpointStore(),
+        ledger,
+        listOf(subscription),
+        options
+    )
     private val ops = ParkedOps { listOf(ParkedOps.Scope.of(runtime)) }
 
     @Test

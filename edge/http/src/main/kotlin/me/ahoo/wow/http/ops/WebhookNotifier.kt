@@ -68,7 +68,9 @@ class WebhookNotifier(
         }
         if (format == Format.WECOM) {
             val code = runCatching { HttpJson.mapper.readTree(response.body())[ERRCODE]?.asInt() }.getOrNull()
-            check(code == null || code == 0) { "The WeCom robot refused the message: ${response.body().take(MAX_ANSWER)}" }
+            check(
+                code == null || code == 0
+            ) { "The WeCom robot refused the message: ${response.body().take(MAX_ANSWER)}" }
         }
     }
 
@@ -95,7 +97,7 @@ class WebhookNotifier(
         }
         val next = notice.nextRetryAt?.let { "next retry at ${Instant.ofEpochMilli(it)}" } ?: "no automatic retry left"
         return buildString {
-            append("**${entry.subscription} ${title}: ${entry.ref}**\n")
+            append("**${entry.subscription} $title: ${entry.ref}**\n")
             service?.let { append("> service: $it\n") }
             append("> group: ${notice.group}\n")
             append("> from version: ${entry.fromVersion}")
