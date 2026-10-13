@@ -28,6 +28,9 @@ import java.lang.annotation.Inherited
  *   (decision D138). A wait chain may then follow the saga's hop only into the contexts of these commands. Empty, the
  *   default, leaves it to the handler's return type (`Command<X>`, a list of them), when that names the commands; a
  *   projection or a reactor derives none.
+ * @param schedules the commands a [Saga]'s handler may schedule with `SagaContext.schedule` (decision D166), each by
+ *   its full type name `context.aggregate.Command`, which the Manifest lists as the subscription's `schedules`. Empty,
+ *   the default, declares none; a projection or a reactor schedules none.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -35,4 +38,5 @@ import java.lang.annotation.Inherited
 annotation class OnEvent(
     val aggregates: Array<String> = [],
     val derives: Array<String> = [],
+    val schedules: Array<String> = [],
 )

@@ -78,6 +78,7 @@ internal object SubscriptionResolver {
     private const val ON_EVENT_NAME = "onEvent"
     private const val AGGREGATES = "aggregates"
     private const val DERIVES = "derives"
+    private const val SCHEDULES = "schedules"
     private val STATE_EVENT = StateEvent::class.java.name
     private val COMMAND_REJECTED = CommandRejected::class.java.name
     private const val ANY = "kotlin.Any"
@@ -242,8 +243,10 @@ internal object SubscriptionResolver {
         val onEvent = function.annotations.firstOrNull { it.isOf(ON_EVENT) }
         val aggregates = onEvent.strings(AGGREGATES)
         val derives = onEvent.strings(DERIVES)
+        val schedules = onEvent.strings(SCHEDULES)
         problems += sourceProblems(where, aggregates)
         problems += derivesProblems(where, derives, kind)
+        problems += schedulesProblems(where, schedules, kind)
         if (problems.size > count) {
             return null
         }
@@ -264,6 +267,7 @@ internal object SubscriptionResolver {
             blocking = function.hasAnnotation(BLOCKING),
             aggregates = aggregates,
             derives = derives,
+            schedules = schedules,
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
         )
     }
@@ -289,6 +293,16 @@ internal object SubscriptionResolver {
         }
         derives.filterNot { COMMAND_NAME.matches(it) }.forEach {
             add("$where derives \"$it\": @OnEvent(derives) names each command as context.aggregate.Command")
+        }
+    }
+
+    /** `@OnEvent(schedules)`: a saga's, each `context.aggregate.Command` (decision D166). */
+    private fun schedulesProblems(where: String, schedules: List<String>, kind: Kind?): List<String> = buildList {
+        if (schedules.isNotEmpty() && kind != null && kind != Kind.SAGA) {
+            add("$where declares @OnEvent(schedules), but a ${kind.label} handler schedules no commands")
+        }
+        schedules.filterNot { COMMAND_NAME.matches(it) }.forEach {
+            add("$where schedules \"$it\": @OnEvent(schedules) names each command as context.aggregate.Command")
         }
     }
 

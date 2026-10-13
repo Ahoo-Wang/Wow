@@ -19,7 +19,8 @@ package me.ahoo.wow.manifest
  * library writes and reads such a tree, so the Manifest's field names are defined here once and `wow-manifest` needs
  * none.
  *
- * Absent optional values (a null description, unknown `produces` or `derives`, a fragment's service) are left out,
+ * Absent optional values (a null description, unknown `produces`, `derives` or `schedules`, a fragment's service) are
+ * left out,
  * not written as null, and so is a subscription source's `nullableState` when false.
  */
 object ManifestTree {
@@ -69,6 +70,7 @@ object ManifestTree {
         "queries" to aggregate.queries.map {
             obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
         },
+        "schedules" to aggregate.schedules,
     )
 
     private fun writeRoute(route: RouteManifest): Map<String, Any?> =
@@ -92,6 +94,7 @@ object ManifestTree {
         "derives" to subscription.derives,
         "rejected" to subscription.rejected,
         "start" to subscription.start?.name,
+        "schedules" to subscription.schedules,
     )
 
     /** A JSON object of the non-null [entries], in their order. */
@@ -163,6 +166,7 @@ object ManifestTree {
             queries = node.objects("queries").map {
                 QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
             },
+            schedules = if (node.has("schedules")) node.strings("schedules") else null,
         )
     }
 
@@ -187,6 +191,7 @@ object ManifestTree {
             derives = if (node.has("derives")) node.strings("derives") else null,
             rejected = if (node.has("rejected")) node.strings("rejected") else null,
             start = node.stringOrNull("start")?.let(SubscriptionStart::valueOf),
+            schedules = if (node.has("schedules")) node.strings("schedules") else null,
         )
     }
 

@@ -544,6 +544,7 @@ internal class ModelSymbolProcessor(
         }
         val returned = EventYield.of(function.returnType?.resolve())
         val producesListed = declaredProduces(function)
+        val schedules = declaredSchedules(function, problems)
         if (producesListed.isNotEmpty() && returned != null) {
             problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
                 "type that does not, such as a Decision"
@@ -565,6 +566,7 @@ internal class ModelSymbolProcessor(
             type = command.binaryName(),
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,
+            schedules = schedules,
         )
     }
 
@@ -576,6 +578,23 @@ internal class ModelSymbolProcessor(
         val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == PRODUCES }?.value as? List<*>
         return listed.orEmpty().filterIsInstance<KSType>().mapNotNull { it.declaration.qualifiedName?.asString() }
             .distinct()
+    }
+
+    /**
+     * The commands `@OnCommand(schedules)` lists on [function], by full type name (decision D166); one not named
+     * `context.aggregate.Command` is a problem.
+     */
+    private fun declaredSchedules(function: KSFunctionDeclaration, problems: MutableList<String>): List<String> {
+        val annotation = function.annotations.firstOrNull {
+            it.annotationType.resolve().declaration.qualifiedName?.asString() == OnCommand::class.java.name
+        }
+        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == SCHEDULES }?.value as? List<*>
+        val schedules = listed.orEmpty().filterIsInstance<String>().distinct()
+        schedules.filterNot { COMMAND_NAME.matches(it) }.forEach {
+            problems += "${function.simpleName.asString()} schedules \"$it\": @OnCommand(schedules) names each " +
+                "command as context.aggregate.Command"
+        }
+        return schedules
     }
 
     /**
@@ -724,6 +743,8 @@ internal class ModelSymbolProcessor(
         const val PUBLISH_STATE = "publishState"
         const val TOPIC = "topic"
         const val PRODUCES = "produces"
+        const val SCHEDULES = "schedules"
+        val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
 
         /** The lifecycle commands' system names, by their classes' names. */
         val LIFECYCLE_COMMANDS: Map<String, String> = Lifecycle.COMMANDS.entries.associate { (name, type) ->
