@@ -28,6 +28,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.runtime.node.ContextNode
+import me.ahoo.wow.runtime.node.SourcedSubscription
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.HandledEntry
@@ -60,6 +61,12 @@ import java.util.concurrent.Executors
  *   ([DerivedCommandRejectedException]).
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]).
+ * - **Other contexts' streams** (decisions D134, D138): a handler whose `@OnEvent(aggregates)` names another context's
+ *   ([ProcessorBinding.isSourced]) is [sourced]: its subscription reads the published streams of those aggregates
+ *   from their topics. It gets the record's facts and published events ([me.ahoo.wow.spi.state.StateEventPayload], each
+ *   its name, revision and JSON payload), and the published state decoded into its state type, or null when the
+ *   upstream publishes without it (decision D140), which only a handler of a nullable state takes. It reads no state
+ *   view of its own context.
  */
 class SubscriptionBindings(private val processors: Map<String, List<ProcessorBinding<*>>>) : SubscriptionFactory {
     init {
@@ -74,18 +81,19 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         stateReaders(context, models).values.flatMapTo(LinkedHashSet()) { it }
 
     override fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> =
-        processors[context].orEmpty().associate { handler ->
+        processors[context].orEmpty().filterNot { it.isSourced(context) }.associate { handler ->
             handler.name to read(handler, models).mapTo(LinkedHashSet()) { it.type }
         }
 
     override fun subscriptions(context: ContextNode): List<Subscription> {
         val bound = processors[context.context].orEmpty()
-        if (bound.isEmpty()) {
+        val local = bound.filterNot { it.isSourced(context.context) }
+        if (local.isEmpty()) {
             return emptyList()
         }
         val derived = DerivedCommands(context.models, context.coordinator)
         val rejections = SagaRejections(bound, derived)
-        return bound.map { handler ->
+        return local.map { handler ->
             val name = handler.name
             val filter = SubscriptionFilter(
                 context.context,
@@ -106,6 +114,38 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     call(handler, event, contextOf(handler.kind, name, event))
                 }
             }
+        }
+    }
+
+    override fun sourced(context: ContextNode): List<SourcedSubscription> {
+        val bound = processors[context.context].orEmpty()
+        val sourced = bound.filter { it.isSourced(context.context) }
+        if (sourced.isEmpty()) {
+            return emptyList()
+        }
+        val derived = DerivedCommands(context.models, context.coordinator)
+        val rejections = SagaRejections(bound, derived)
+        return sourced.map { handler ->
+            val name = handler.name
+            val types = handler.aggregates.mapTo(LinkedHashSet()) {
+                AggregateType(it.substringBefore('.'), it.substringAfter('.'))
+            }
+            val filter = SubscriptionFilter(handler.sourceContext!!, types.mapTo(LinkedHashSet()) { it.name })
+            val subscription = if (handler.kind == FunctionKind.SAGA) {
+                Subscription.saga(name, filter, handler.startFrom) { entry ->
+                    val event = publishedStateEventOf(entry, handler, context)
+                    val execution = contextOf(handler.kind, name, event)
+                    val commands = call(handler, event, execution)
+                    val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
+                    sagaHandled(derived.execute(commands, wait), execution.executionId, rejections)
+                }
+            } else {
+                Subscription(name, filter, handler.startFrom, kind = handler.kind) { entry ->
+                    val event = publishedStateEventOf(entry, handler, context)
+                    call(handler, event, contextOf(handler.kind, name, event))
+                }
+            }
+            SourcedSubscription(subscription, types)
         }
     }
 
@@ -178,6 +218,39 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
          * (the aggregate's after the commit, decision D56), causation and headers, its decoded events, and the state
          * after the commit decoded afresh from its view, so no handler sees another's changes nor the live instance.
          */
+        /**
+         * The [StateEvent] of [entry], a record read from another context's topic (decision D134): its facts, its
+         * published events, and its published state decoded into the [handler]'s state type (the JSON tree for
+         * `StateEvent<*>`), or null when the record carries none: published without it (decision D140), which a
+         * handler of a state that is not nullable cannot take.
+         */
+        internal fun publishedStateEventOf(
+            entry: SubscribedEntry,
+            handler: ProcessorBinding<*>,
+            context: ContextNode,
+        ): StateEvent<Any?> {
+            val record = checkNotNull(entry.published) { "${entry.ref}@${entry.version} was not read from a topic." }
+            val view = record.state
+            check(view != null || handler.nullableState) {
+                "${record.id} carries no state, but ${handler.name} takes a state that is not nullable."
+            }
+            val type = handler.stateType
+            val state: Any? = view?.let { if (type == null) it.state else context.codec.decodeTree(it.state, type) }
+            return StateEvent(
+                ref = record.ref,
+                version = record.version,
+                commandId = record.commandId,
+                requestId = record.requestId,
+                commandType = record.commandType,
+                commitTime = record.commitTime,
+                events = record.events,
+                state = state,
+                scope = record.scope,
+                causation = record.causation,
+                headers = record.headers,
+            )
+        }
+
         private suspend fun stateEventOf(entry: SubscribedEntry, context: ContextNode): StateEvent<Any> {
             val stream = entry.stream
             val model = context.models.first { it.type == stream.ref.type }

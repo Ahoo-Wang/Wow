@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.transport.PartitionedSource
 import kotlin.time.Duration
 
 /**
@@ -121,9 +122,19 @@ data class AdmissionPlugins(
  * so a saga can [forward][me.ahoo.wow.runtime.wait.WaitCoordinator.forward] through its coordinator; the
  * subscriptions are registered when the node starts. The annotated processors' come from
  * [me.ahoo.wow.runtime.binding.SubscriptionBindings].
+ *
+ * [sourced] are the context's subscriptions of other contexts' published streams (decision D134): the node reads
+ * each stream's topic ([SourceTopics]) for them instead of the log.
  */
 fun interface SubscriptionFactory {
     fun subscriptions(context: ContextNode): List<Subscription>
+
+    /**
+     * The subscriptions of [context] that read the published streams of other contexts' aggregates (design 04 §5,
+     * decision D134), each with the aggregate types it reads. The node finds each type's topic in its contracts
+     * ([me.ahoo.wow.runtime.contract.ContractDirectory.publishedOf]) and reads it ([SourceTopics]). None by default.
+     */
+    fun sourced(context: ContextNode): List<SourcedSubscription> = emptyList()
 
     /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
@@ -151,6 +162,9 @@ fun interface SubscriptionFactory {
             override fun subscriptions(context: ContextNode): List<Subscription> =
                 first.subscriptions(context) + other.subscriptions(context)
 
+            override fun sourced(context: ContextNode): List<SourcedSubscription> =
+                first.sourced(context) + other.sourced(context)
+
             override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
                 first.viewTypes(context, models) + other.viewTypes(context, models)
 
@@ -169,5 +183,33 @@ fun interface SubscriptionFactory {
 
     companion object {
         val NONE: SubscriptionFactory = SubscriptionFactory { emptyList() }
+
+        /** [factories] in their order, as [plus] combines two; [NONE] when there are none. */
+        @JvmStatic
+        fun of(factories: List<SubscriptionFactory>): SubscriptionFactory =
+            factories.reduceOrNull { all, factory -> all + factory } ?: NONE
     }
+}
+
+/**
+ * A [subscription] that reads the published streams of [types], aggregates of another context (decision D134): its
+ * filter is of that context, and it handles the records read from each type's topic.
+ */
+data class SourcedSubscription(val subscription: Subscription, val types: Set<AggregateType>) {
+    init {
+        require(types.isNotEmpty()) { "${subscription.name} reads no published stream." }
+        require(types.all { it.context == subscription.filter.context }) {
+            "${subscription.name} reads $types, not all of its filter's context ${subscription.filter.context}."
+        }
+    }
+}
+
+/**
+ * Where a node reads other contexts' published streams (decision D134): the topics of [source], each named as the
+ * publishing context's Manifest names it (`PublishedManifest.topic`) after [prefix], the prefix the publisher's sinks
+ * write under too.
+ */
+data class SourceTopics(val source: PartitionedSource, val prefix: String = "") {
+    /** The topic of a stream the Manifest publishes on [topic]. */
+    fun topicOf(topic: String): String = prefix + topic
 }

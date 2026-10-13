@@ -20,6 +20,9 @@ import kotlin.time.Duration.Companion.seconds
  * The lease group of one bounded context in one service (decision D72): the nodes of [service] share the partitions
  * of [context]'s log, and command routing and every subscription of the context share their owners. A service that
  * hosts several contexts has one group, with its own partitions and leases, per context.
+ *
+ * The partitions of another context's published topic that the service's subscriptions read are leased the same way,
+ * in the group [topic] names, `(service, "topic:<name>")` (decision D134).
  */
 data class LeaseGroup(val service: String, val context: String) {
     init {
@@ -31,6 +34,12 @@ data class LeaseGroup(val service: String, val context: String) {
     val name: String get() = "$service/$context"
 
     override fun toString(): String = name
+
+    companion object {
+        /** The lease group of the partitions of [topic] that [service]'s subscriptions read (decision D134). */
+        @JvmStatic
+        fun topic(service: String, topic: String): LeaseGroup = LeaseGroup(service, "topic:$topic")
+    }
 }
 
 /**

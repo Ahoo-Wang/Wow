@@ -71,7 +71,9 @@ data class RenewalRound(
 )
 
 /**
- * This node's share of the partitions of one lease [group] (design 02 §3; decisions D70–D72), without a leader:
+ * This node's share of the partitions of one lease [group] (design 02 §3; decisions D70–D72), without a leader: a
+ * context's log, or another context's published topic that the service's subscriptions read (decision D134), whose
+ * [subscriptions] runtime then reads the topic instead of the log:
  *
  * - **Membership**: the node heartbeats its [address] every [ClusterOptions.heartbeatInterval].
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
@@ -102,7 +104,7 @@ class PartitionOwnership internal constructor(
     val node: String,
     /** This node's internal address, read when the node joins: a node may learn it once its port is bound. */
     private val addressOf: () -> String,
-    /** The number of partitions of the context's log. */
+    /** The number of partitions of the context's log, or of the topic the group reads (decision D134). */
     val partitions: Int,
     private val leases: LeaseStore,
     private val options: ClusterOptions = ClusterOptions(),
@@ -120,7 +122,7 @@ class PartitionOwnership internal constructor(
         group: LeaseGroup,
         node: String,
         address: String,
-        /** The number of partitions of the context's log. */
+        /** The number of partitions of the context's log, or of the topic the group reads (decision D134). */
         partitions: Int,
         leases: LeaseStore,
         options: ClusterOptions = ClusterOptions(),
