@@ -20,17 +20,21 @@ The example is built and tested with the V10 modules and never published.
 From the repository root, with JDK 21:
 
 ```bash
-./gradlew -Pwow.scope=v10 :shop-server:run
+./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=kafka'
 ```
 
 It serves the public routes on port 8080 and the internal port (the cluster
-channel and the wait signals) on 9090, one node with its data in memory.
+channel and the wait signals) on 9090, one node with its data in memory. The
+order saga sends the inventory's commands to its command topic, so the shop
+needs Kafka, at `localhost:9092` with the `kafka` profile (any other broker
+through `wow.kafka.bootstrap-servers`). Without it the shop does not start: the
+node names the saga and the context it cannot reach.
 
 On PostgreSQL, as many nodes as share the database, each command routed to the
 node that owns its partition:
 
 ```bash
-./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=postgres'
+./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=postgres,kafka'
 ```
 
 The `postgres` profile reads `spring.datasource.url`, `username` and `password`
@@ -38,15 +42,9 @@ The `postgres` profile reads `spring.datasource.url`, `username` and `password`
 Give each further node its own `server.port`, `wow.internal.port` and
 `wow.node.id`.
 
-With the inventory, on Kafka at `localhost:9092` (the `kafka` profile; any
-other broker through `wow.kafka.bootstrap-servers`):
-
-```bash
-./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=postgres,kafka'
-```
-
-Without Kafka the order saga cannot reach the inventory: each placed order
-parks `OrderSaga.onOrderCreated` in the failure ledger after its retries.
+Run the inventory beside it on the same broker
+([`example/inventory`](../inventory/README.md)) to have the orders' stock
+reserved.
 
 With ClickHouse at `localhost:8123` (the `clickhouse` profile; any other server
 through `wow.clickhouse.endpoint`), the ClickHouse Sink writes the order stream
@@ -55,7 +53,7 @@ to `example_order_state_flat`, and the dataset `example.orders`, which
 at `/wow/dataset/example/orders/query`:
 
 ```bash
-./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=postgres,clickhouse'
+./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=postgres,kafka,clickhouse'
 ```
 
 The server declares no `CallerResolver`, so every request is served as the
