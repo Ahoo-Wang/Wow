@@ -18,6 +18,8 @@ apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     api(project(":eshop-basket-api"))
+    // The ordering context's commands, which the checkout saga sends to it.
+    implementation(project(":eshop-ordering-api"))
     // The generated models and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
     ksp(project(":compiler"))

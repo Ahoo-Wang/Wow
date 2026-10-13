@@ -21,11 +21,14 @@ import org.junit.jupiter.api.Test
 /** What the compiler generated for the module: its binding index, found through `ServiceLoader`, and its fragment. */
 class BasketDomainModelProviderTest {
     @Test
-    fun `the binding index should name the context and the fragment and build the basket model`() {
+    fun `the binding index should name the context and the fragment and build the basket model and its checkout saga`() {
         val provider = ModelProvider.load().single()
         provider.context.assert().isEqualTo("eshop-basket")
         provider.fragment.assert().isEqualTo("META-INF/wow/manifest/eshop-basket-domain.json")
         javaClass.classLoader.getResource(provider.fragment).assert().isNotNull()
         provider.models(Dependencies.of()).map { it.type.toString() }.assert().containsExactly("eshop-basket.basket")
+        provider.processors(
+            Dependencies.NONE
+        ).map { it.name }.assert().containsExactly("BasketCheckoutSaga.onBasketCheckedOut")
     }
 }
