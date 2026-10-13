@@ -24,6 +24,10 @@ dependencies {
     // the basket stream is published.
     implementation(project(":kafka"))
     "wowPeers"(project(":eshop-ordering-server"))
+    // The basket sends nothing to the inventory or the payment, but a checkout's Wow-Wait follows the order through
+    // them: a wait chain names only contexts the node knows from its peers' Manifests (DX gap G30).
+    "wowPeers"(project(":eshop-inventory-server"))
+    "wowPeers"(project(":eshop-payment-server"))
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
