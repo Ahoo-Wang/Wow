@@ -51,7 +51,8 @@ class KafkaPartitionedSource(
     private var metadata: Consumer<String, ByteArray>? = null
 
     override suspend fun partitions(topic: String): List<Int> = metadata { consumer ->
-        consumer.partitionsFor(topic).orEmpty().map { it.partition() }.sorted()
+        // Empty for a topic the broker does not know.
+        consumer.partitionsFor(topic).map { it.partition() }.sorted()
     }
 
     override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = metadata { consumer ->

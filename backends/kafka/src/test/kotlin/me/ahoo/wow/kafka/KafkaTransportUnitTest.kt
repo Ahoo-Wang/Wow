@@ -142,7 +142,8 @@ class KafkaTransportUnitTest {
             mock.updateBeginningOffsets(mapOf(partition to 0L))
             mock.updateEndOffsets(mapOf(partition to 2L))
             // Past the end: the read seeks to the end and skips what lies before the offset asked for.
-            mock.schedulePollTask { (2L..6L).forEach { mock.addRecord(record(it, "v$it")) } }
+            mock.schedulePollTask { (2L..4L).forEach { mock.addRecord(record(it, "v$it")) } }
+            mock.schedulePollTask { (5L..6L).forEach { mock.addRecord(record(it, "v$it")) } }
             val source = KafkaPartitionedSource({ mock }, pollTimeout = 1.milliseconds)
             val read = withTimeout(10.seconds) { source.read(topic, 0, 4).take(3).toList() }
             read.map { it.offset }.assert().containsExactly(4L, 5L, 6L)

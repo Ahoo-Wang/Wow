@@ -95,8 +95,10 @@ class HostKafkaSinkTest {
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
             .run { context ->
                 context.getBean(TopicProducer::class.java).assert().isInstanceOf(KafkaTopicProducer::class.java)
-                context.getBean(SubscriptionFactory::class.java)
-                    .assert().isInstanceOf(KafkaAutoConfiguration.SinksAndApplication::class.java)
+                val factory = context.getBean(SubscriptionFactory::class.java)
+                factory.assert().isInstanceOf(KafkaAutoConfiguration.SinksAndApplication::class.java)
+                // The Manifest publishes nothing: no sink reads any state.
+                factory.viewTypes(BANK, emptyList()).assert().isEmpty()
                 context.getBean(KafkaProperties::class.java).properties.assert().isEqualTo(mapOf("client.id" to "bank"))
             }
         KafkaAutoConfiguration.options(KafkaProperties().apply { bootstrapServers = "b:9092" })
