@@ -1,0 +1,356 @@
+---
+title: V10 编程模型
+description: Wow V10 的聚合、命令、事件与拒绝；Saga、投影与反应器；定时命令与其他上下文。
+outline: deep
+---
+
+# V10 编程模型
+
+V10 的领域模块是普通的 Kotlin（或 Java）代码，加上 `me.ahoo.wow.api.annotation` 的注解。编译器在构建期把它编译成内核模型：运行时不扫描、不反射。每个注解沿用 9.x 同名注解的包名，但注解集是重新设计的、更小的：V10 模型上出现 9.x 独有的注解会编译报错，并指向迁移 Skill（`wow-migrate`）。
+
+## 五类函数
+
+| 函数 | 形态 | 可否 I/O | 失败时 |
+| --- | --- | --- | --- |
+| Decide | 聚合根的命令函数：命令（或 `Command<X>`），其后是服务与 `DecideScope` | 可以，经由它的服务 | 命令被拒绝或失败；不写入 |
+| Evolve | 状态的溯源函数：一个事件 | 不可以 | 模型缺陷：立即失败 |
+| React | `@Reactor` 的处理函数：一个 `StateEvent`，可选 `ReactContext` | 可以，自行幂等 | 重试，之后为该处理函数停放这个聚合 |
+| Saga | `@Saga` 的处理函数：一个 `StateEvent`，可选 `SagaContext`；返回命令 | 可以 | 重试，之后停放 |
+| Project | `@Projection` 的处理函数：一个 `StateEvent`，可选 `ProjectContext` | 可以，按版本守卫写入 | 重试，之后停放 |
+
+Decide、React、Saga、Project 函数可以是同步函数、`suspend` 函数，或返回 Reactor 的 `Mono`、`Flux`、`Publisher`；编译器按签名选择调用方式。同步函数被视为纯计算、内联执行；做阻塞调用（例如 JDBC 写入）的同步函数要标 `@Blocking`，它会被派发到阻塞调度器，运行在虚拟线程上。返回 Reactor 类型的函数需要类路径上有 `me.ahoo.wow:wow-reactor`，否则模块编译失败。
+
+## 聚合
+
+聚合由标注 `@AggregateRoot` 的根类与它的状态组成。根由状态构造（`class Order(private val state: OrderState)`），或者根本身就是状态。
+
+```kotlin
+@AggregateRoot
+class Order(private val state: OrderState) {
+    @OnCommand(produces = [OrderCreated::class])
+    suspend fun onCommand(
+        command: Command<CreateOrder>,
+        pricingService: PricingService,
+        scope: DecideScope,
+    ): Decision { /* ... */ }
+
+    fun onCommand(command: PayOrder): List<OrderPayment> { /* ... */ }
+}
+```
+
+### 命令函数
+
+编译器找出每个标注 `@OnCommand` 或名为 `onCommand` 的非 private 函数。
+
+- **第一个参数**是命令体 `X`；需要准入得到的信息时取被准入的 `Command<X>`：`command.ref`（聚合的上下文、名字、租户与 ID）、`command.scope`（调用方的所有者与空间）、`command.headers`（宿主保留的请求事实，`wow.http.request-facts`）与 `command.causation`。
+- **其后的参数**是领域服务或 `DecideScope`。服务成为生成的模型工厂的参数，宿主在构建模型时绑定一次：取应用中该类型唯一的 Bean，或其中的 primary Bean。参数上的 `@Name("…")` 是限定符：宿主取该名字的 Bean，所以同一类型的两个参数可以取两个 Bean。
+- **返回值**就是决定：
+
+| 返回 | 含义 |
+| --- | --- |
+| `Decision.events(e1, e2, …)` | 这些事件，作为一条事件流一起追加 |
+| `Decision.NoOp` | 接受，但不改变任何东西，不写入 |
+| `Decision.reject(code, message)` | 拒绝：不写入，调用方收到错误码 |
+| 一个事件、事件的列表或数组 | 这些事件 |
+| `Unit`、`null`、空列表 | 不改变任何东西 |
+
+返回 `Decision`（或 `Any`、`Mono<Decision>`）的函数无法让编译器知道它会产生哪些事件：用 `@OnCommand(produces = [...])` 列出，Manifest 才知道。返回类型已经说明事件的函数（一个事件类型、一个 sealed 类型、它们的列表）不能再次声明。
+
+### 创建聚合
+
+| 命令类 | 何时接受 |
+| --- | --- |
+| `@CreateAggregate` | 聚合尚不存在；否则 `wow.aggregate.exists` |
+| `@AllowCreate` | 聚合存在与否都接受 |
+| 都没有 | 聚合已存在；否则 `wow.aggregate.not-found` |
+
+创建类命令（`@CreateAggregate` 或 `@AllowCreate`）有两条路由：带 `{id}` 的由客户端指定 ID，不带的由服务端生成 ID。
+
+命令不带身份字段（命令体里没有聚合 ID、租户、所有者或版本）：ID 来自路由或发送命令的 Saga，租户、所有者与空间来自调用方，期望版本来自 `If-Match`。
+
+### `DecideScope` 提供什么
+
+| 成员 | 作用 |
+| --- | --- |
+| `command` | 正在决定的命令，带准入得到的事实 |
+| `putResult(key, value)` | 在事件追加后给调用方的回答里加一个值；不持久化，所以重复请求不会再得到它 |
+| `reserve(namespace, key)` | 为本聚合预留一个唯一键（例如用户名）；被其他聚合占用时返回 `false`。事件确定未追加时释放 |
+| `onAppendFailure { … }` | 事件确定未追加时撤销一次外部动作 |
+| `afterAppend { … }` | 事件追加后执行；失败只记日志，不抛出 |
+| `schedule(key, at / after, command, target)` | 定时发送一条命令，默认发给本聚合（见[定时命令](#定时命令)） |
+| `cancelSchedule(key)` | 取消 `key` 下的定时 |
+
+### after 钩子
+
+标注 `@AfterCommand(include = [...], exclude = [...])` 或名为 `afterCommand` 的函数，在它适用的命令函数（`include` 为空时是全部）之后执行。它看到的状态与命令函数相同，返回事件，这些事件接在命令自己的事件之后，组成同一条事件流。它不能拒绝；它失败时整条命令失败，不写入。
+
+### 溯源函数
+
+状态类持有溯源函数，标注 `@OnSourcing` 或名为 `onSourcing`，每个事件一个。可变状态是默认写法：函数原地修改状态，不返回值。返回状态类型的函数是不可变写法：它返回新的状态。
+
+```kotlin
+class CartState(val id: String) {
+    var items: List<CartItem> = emptyList()
+        private set
+
+    fun onSourcing(event: CartItemAdded) {
+        items = items + event.added
+    }
+}
+```
+
+- 模型要演化它的命令产生的每一个事件，所以每个事件都需要溯源函数，哪怕它什么也不改（`fun onSourcing(event: OrderShipped) = Unit`）。
+- 溯源函数不接收服务，不做 I/O。
+- 第一个事件之前，每个属性都要有值：内核按原样序列化状态，用于快照与测试 DSL 的纯度检查。
+- 命令函数与 after 钩子绝不修改状态。测试 DSL 在每次决定前后比较状态，状态被改了就让测试失败。
+
+### 拒绝与错误码
+
+拒绝码是一个 `String` 类型的 `const val`，顶层的或在 `object` 里，标注 `@ErrorCode`，放在领域模块里、用它拒绝的函数旁边：
+
+```kotlin
+object OrderRejections {
+    @ErrorCode(description = "The order has no item.")
+    const val NO_ITEMS = "example.order.no-items"
+
+    @ErrorCode(description = "The order's status does not allow the command.", status = 409)
+    const val WRONG_STATUS = "example.order.wrong-status"
+}
+```
+
+编译器把模块的错误码列入 Manifest 中该上下文的 `errors`，带上 HTTP 状态码（400 至 599，默认 422）与说明。错误码不能以框架的 `wow.` 开头，一个模块里每个错误码只声明一次。内核自己的错误码有 `wow.command.unhandled`、`wow.aggregate.not-found`、`wow.aggregate.exists`、`wow.aggregate.version-mismatch`、`wow.command.request-id-reused`、`wow.aggregate.deleted` 与 `wow.aggregate.forbidden`（`KernelRejections`）。
+
+### 生命周期命令
+
+每个聚合都处理 `me.ahoo.wow.api.lifecycle` 的五个系统命令，除非 `@AggregateRoot(lifecycle = [...])` 缩小了范围（空列表表示一个都不启用）：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner`、`TransferSpace` 与 `ApplyTags`。它们作用于快照的元数据；已删除的聚合拒绝除 `RestoreAggregate` 之外的所有命令。它们的路由见 [HTTP API](./http-api.md#生命周期路由)。
+
+### 所有者、空间与租户
+
+聚合的作用域是它的所有者与空间。第一条命令的调用方给出作用域；此后，调用方的所有者或空间与聚合不同的命令会被内核拒绝（`wow.aggregate.forbidden`）。调用方没有值的那一部分不检查。需要把调用方与聚合 ID 比较的命令函数（例如购物车 ID 就是顾客的用户 ID）取 `Command<X>`，读取 `command.scope.ownerId`。为某个聚合类型固定租户属于宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant`。
+
+### 发布的流
+
+每个聚合的状态事件都是它的上下文为其他上下文发布的一条流，由 Manifest 的 `published` 列出。`@AggregateRoot(published = false)` 不发布该聚合；`publishState = false` 发布事件但每次提交后不带状态；`topic` 指定 Kafka 主题，为空时是 `wow.<context>.<aggregate>.state`。
+
+### 事件演进
+
+- `@Revision(n)` 给出事件当前的 revision；没有它的事件是 revision 1。新增带默认值的可选字段不算新的 revision。
+- 顶层函数（或 `object` 的成员）上的 `@Upgrade(event = X::class, from = n)` 把 revision `n` 存储的 JSON 升级到 `n + 1`。它接收并返回 Jackson 3 的 `JsonNode` 或 `ObjectNode`（`tools.jackson.databind`），是纯函数，不挂起。处于 revision `n` 的事件需要从 1 到 `n - 1` 每个 revision 各一个升级函数；缺档或重复都会让编译失败。
+- `@Alias("OldName")` 让改名后的命令或事件仍可读取：不带点的值是同一聚合内的旧名，带点的值是完整类型名。
+
+```kotlin
+@Revision(2)
+data class OrderCreated(val items: List<OrderItem>, val address: ShippingAddress, val fromCart: Boolean)
+
+@Upgrade(event = OrderCreated::class, from = 1)
+fun upgradeOrderCreatedFrom1(node: ObjectNode): ObjectNode {
+    node.remove("orderId")
+    return node
+}
+```
+
+### Decider DSL
+
+注解写法的聚合根会被编译成内核的 Kotlin DSL，测试与库也可以直接手写它：
+
+```kotlin
+val productModel = aggregate<ProductState>("catalog", "product") {
+    initial { ref -> ProductState(ref.id) }
+    decide<ChangePrice> { state, command -> Decision.events(PriceChanged(command.price)) }
+    evolve<PriceChanged> { event -> price = event.price }
+}
+```
+
+`decide` 以 `DecideScope` 为接收者；另有 `decideSuspending`、`after`、`evolveTo`（不可变状态）、`upgrade`、`alias` 与 `lifecycle`。这样写的模型没有生成的绑定索引与 Manifest 片段，宿主不会提供它；服务请用注解写法。
+
+## 处理器：Saga、投影与反应器
+
+处理器是恰好标注了 `@Saga`、`@Projection` 或 `@Reactor` 之一的类。它的每个处理函数（标注 `@OnEvent` 或名为 `onEvent`）各自是一个订阅，名为 `<processor>.<function>`。处理器的依赖是它构造函数的参数，像命令函数的服务一样从应用的 Bean 中获取。
+
+处理函数接收 `StateEvent<S>`：一个聚合的一条已提交事件流，以及提交之后的状态。
+
+| 属性 | 内容 |
+| --- | --- |
+| `ref`、`version` | 聚合及其提交后的版本；`id` 是 `ref@version` |
+| `events` | 这条流的事件，已解码并升级到当前 revision |
+| `state` | 提交后状态的副本，绝不是活的实例 |
+| `commandId`、`requestId`、`commandType`、`commitTime` | 产生它的命令及时间（毫秒时间戳） |
+| `scope` | 提交后聚合的所有者与空间，不是调用方的 |
+| `causation`、`headers` | 命令所属的链路，以及它携带的请求事实；`correlationId` 是根命令的 ID |
+
+`S` 决定读哪些聚合：处理函数读取本模块上下文中状态类型为 `S` 的聚合，除非 `@OnEvent(aggregates = ["<context>.<aggregate>"])` 指定了它们。处理函数自己筛选关心的事件（`event.events.filterIsInstance<OrderCreated>()`）。
+
+处理函数的上下文提供 `executionId`，即 `subscription:ref@version`：同一订阅每次处理同一次提交都相同，所以它就是外部调用的幂等键。
+
+### 投影
+
+投影从已提交的事件写出读模型。它不返回值；它的写入按版本守卫，因为同一次提交可能被处理不止一次。
+
+```kotlin
+@Projection
+class ProductSummaryProjection(private val summaries: ProductSummaries) {
+    @Blocking
+    @OnEvent
+    fun onEvent(event: StateEvent<ProductState>) {
+        summaries.upsert(event.ref.id, event.state.name, event.state.price, ifNewer = event.version)
+    }
+}
+```
+
+快照本身已经是读模型：每个聚合都有快照，可在 `/{context}/{aggregate}/snapshot/query` 查询。读模型形状不同或要放到别的存储时，才写投影。
+
+### 反应器
+
+反应器对已提交的事件做动作（发通知、调用其他系统），不返回值。用 `context.executionId.toString()` 作为外部调用的幂等键：
+
+```kotlin
+@Reactor
+class OrderNotifier(private val mail: Mail) {
+    @OnEvent
+    suspend fun onEvent(event: StateEvent<OrderState>, context: ReactContext) {
+        if (event.events.any { it is OrderShipped }) {
+            mail.send(event.state.customer, "Order shipped", key = context.executionId.toString())
+        }
+    }
+}
+```
+
+反应器不能发送命令：发送命令的处理器就是 Saga。
+
+### Saga
+
+Saga 从已提交的事件派生命令。它的处理函数返回一个 `Command`、它们的列表，或者 `null`、空列表表示没有命令；每条命令由 `SagaContext.command(ref, body)` 构造：
+
+```kotlin
+@Saga
+class CartSaga {
+    @OnEvent
+    fun onOrderCreated(event: StateEvent<OrderState>, context: SagaContext): Command<RemoveCartItem>? {
+        val created = event.events.filterIsInstance<OrderCreated>().firstOrNull() ?: return null
+        val owner = event.scope.ownerId ?: return null
+        return context.command(
+            AggregateType("example", "cart").ref(event.ref.tenantId, owner),
+            RemoveCartItem(created.items.mapTo(linkedSetOf()) { it.productId }),
+        )
+    }
+}
+```
+
+- 派生命令的 ID 与请求 ID 由这次执行和调用顺序确定，所以再次处理同一次提交会派生出相同的请求，它们只被决定一次。
+- 同上下文的命令提交后、跨上下文的命令被 broker 接收后，Saga 的这一跳完成。
+- 派生命令不带调用方作用域，所以目标的作用域守卫不会拒绝它；它的租户取自 Saga 给出的 `ref`。
+- 处理函数的返回类型没有说明命令时（例如 `List<Command<*>>`），用 `@OnEvent(derives = ["<context>.<aggregate>.<Command>"])` 声明，等待链才能跟随 Saga 的这一跳进入那些上下文。
+
+### Saga 预期的拒绝：`@OnRejected`
+
+派生命令可能被拒绝：购物车已被删除、库存不足。拒绝是业务结果，所以 Saga 在 `@OnRejected` 处理函数里处理它。该函数接收该命令类型的 `CommandRejected<C>`（或 `CommandRejected<*>`，接收 Saga 派生的所有命令），可选 `SagaContext`，返回用于补偿的命令：
+
+```kotlin
+@OnRejected
+fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
+    context.command(rejected.executionId.ref, CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"))
+```
+
+`CommandRejected` 给出命令（`commandId`、`commandType`、`ref`）、`error`（错误码、消息、字段违例）、`causation`，以及派生它的那次 Saga 执行的 `executionId`；它不带命令体。运行时对每个拒绝只交付一次。Saga 没有处理函数的拒绝，会像失败一样为该 Saga 的订阅停放这个聚合。处理函数返回 `null` 表示接受拒绝、不做补偿。
+
+### 订阅从哪里开始
+
+在某个分区没有检查点的订阅按种类决定起点：投影从日志开头开始（补齐历史），反应器与 Saga 从日志末尾开始（上线不对历史事件补发命令）。可以在宿主里按订阅覆盖：
+
+```yaml
+wow:
+  subscriptions:
+    "[OrderStockSaga.onOrderShipped]":
+      start: beginning # 或 end，或一个 ISO-8601 时刻
+```
+
+这个设置只在订阅还没有检查点时生效；之后它从检查点继续。
+
+### 失败
+
+抛出异常的处理函数会被重试（`wow.subscription.retry`：默认 5 次，退避从 100 ms 到 5 s）。最后一次之后，这个聚合在失败台账里为该订阅停放：订阅继续处理其他聚合，被停放的聚合等待恢复（resume）或跳过（skip）。运行时提供这两个操作，目前还没有路由或控制台暴露它们。
+
+## 定时命令
+
+命令函数或 Saga 可以定时发送一条命令：未支付的订单自动取消、提醒。定时是提交的一部分：它与事件一起写入，或者都不写入。
+
+```kotlin
+@OnCommand(schedules = ["shop.order.CancelOrder"])
+fun onCommand(command: PlaceOrder, scope: DecideScope): OrderPlaced {
+    scope.schedule("pay-timeout", 30.minutes, CancelOrder("unpaid"))
+    return OrderPlaced(command.items)
+}
+
+@OnCommand(produces = [OrderPaid::class])
+fun onCommand(command: PayOrder, scope: DecideScope): Decision {
+    scope.cancelSchedule("pay-timeout")
+    return Decision.events(OrderPaid(command.amount))
+}
+```
+
+- `schedule(key, at, command, target)` 或 `schedule(key, after, command, target)`：`key` 在聚合内命名这个定时，再次定时同一个 key 即改期；`target` 默认是本聚合。
+- Saga 中用 `SagaContext.schedule(key, at / after, target, command)` 与 `cancel(key, target)`。
+- 在 `@OnCommand(schedules = [...])` 或 `@OnEvent(schedules = [...])` 中声明被定时命令的完整名字：编译器读不到函数体里的调用，Manifest 要列出它们。
+- 命令至少发送一次，绝不早于到期时间，可能略晚（交接或积压之后），精度取决于 `wow.timers.poll-interval`。它的请求 ID 是定时器的 ID，所以只被决定一次。
+- 到期时，目标按当时的状态决定它。拒绝是正常的守卫（例如订单在此期间已支付）：定时器完成，拒绝不会交给 `@OnRejected`。技术故障会重试（`wow.timers.max-attempts`），之后停放在 `wow.timers` 下。
+- 删除聚合会取消它待执行的定时。定时命令不在发起它的那条命令的等待链里。
+
+## 其他上下文
+
+每个上下文由自己的服务提供；服务之间经 Kafka 通信，从不访问对方的数据库或集群通道。
+
+### 读取其他上下文的流
+
+处理函数在 `@OnEvent(aggregates = [...])` 中写出其他上下文的聚合，并声明自己对状态的视图：
+
+```kotlin
+@Saga
+class OrderStockSaga {
+    @OnEvent(aggregates = ["example.order"])
+    fun onOrderShipped(event: StateEvent<OrderView>, context: SagaContext): List<Command<CommitReservation>> =
+        if (event.events.any { it is StateEventPayload && it.name == "example.order.OrderShipped" }) {
+            event.state.items.map { context.command(STOCK.ref(event.ref.tenantId, it.productId), CommitReservation(event.ref.id)) }
+        } else {
+            emptyList()
+        }
+}
+
+data class OrderView(val items: List<Item> = emptyList()) {
+    data class Item(val productId: String, val quantity: Int)
+}
+```
+
+- 处理函数读取上游发布的主题 `wow.<context>.<aggregate>.state`，偏移量记在本服务的检查点里。节点需要 `wow-kafka` 与 `wow.kafka.bootstrap-servers`。
+- 它的 `events` 是 `StateEventPayload`（`me.ahoo.wow.spi.state`）：每个带 `name`（`example.order.OrderShipped`）、`revision` 与 JSON 载荷。按名字匹配。
+- 它的 `state` 从发布的状态解码成处理函数自己的类型。上游发布事件但不带状态（`publishState = false`）时，把它声明为可空（`StateEvent<OrderView?>`）：对不带状态的流声明不可空的视图会在启动时失败。
+- 读取其他上下文流的 Saga 或反应器默认从末尾开始。不能漏掉自己首次启动之前已发布内容的服务，要为该处理函数设置 `start: beginning`（见[订阅从哪里开始](#订阅从哪里开始)）。
+- 服务把上游的 Manifest 作为对端（见下文）。
+
+### 向其他上下文发送命令
+
+Saga 像发送其他命令一样发送其他上下文的命令，类路径上要有那个上下文的 API 模块：
+
+```kotlin
+context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, productId), ReserveStock(event.ref.id, quantity))
+```
+
+- 命令写入目标上下文的命令主题 `wow.<target>.commands`。broker 收到后，Saga 的这一跳完成。
+- 目标服务设置 `wow.kafka.command-intake: true` 后执行它的命令主题。主题必须已存在，且分区数恰好等于目标的日志分区数（`wow.log.partitions`，默认 64），否则那个节点无法启动。
+- 拒绝以回执的形式写回发送方的 `wow.<sender>.receipts`，交给 Saga 的 `@OnRejected` 处理函数。
+- 发送方从目标的 Manifest 中找到命令的类型名，该 Manifest 是发送服务的对端。
+- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。
+
+没有 Kafka 时，发往其他上下文的命令在运行时失败：Saga 重试，然后停放。目前启动时不会给出警告。
+
+### 对端
+
+发送其他上下文命令或读取其流的服务，把那个服务合并后的 Manifest 作为对端。使用插件时，在服务端模块中：
+
+```kotlin
+dependencies {
+    wowPeers(project(":inventory-server"))            // 同一构建中的项目
+    wowPeers("com.example:inventory-server:1.0.0")    // 或已发布的服务
+}
+```
+
+`collectWowPeers` 把每个对端的 Manifest 复制到模块资源的 `META-INF/wow/peers/<service>.json`，旁边附一个索引。两个服务可以互为对端。
