@@ -41,6 +41,8 @@ import kotlin.time.toKotlinDuration
  *   `host:port` the other nodes reach its internal port at (by default this host's address and `wow.internal.port`).
  * - `wow.internal.port` (9090; 0 for a port the system chooses, which the node learns once bound) and
  *   `wow.internal.host` (every interface): the internal port (D89).
+ * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
+ *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`.
  * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset.
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
@@ -64,6 +66,7 @@ class WowProperties {
     var service: String? = null
     var node: Node = Node()
     var internal: Internal = Internal()
+    var contexts: Contexts = Contexts()
     var backend: BackendKind = BackendKind.AUTO
     var mongo: Mongo = Mongo()
     var log: Log = Log()
@@ -105,6 +108,18 @@ class WowProperties {
 
         /** The signals queued per origin node before they are dropped (decision D109). */
         var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
+    }
+
+    /**
+     * The bounded contexts the node serves (decision D169, [ContextSelection]): every context of the domain modules
+     * on the class path by default; only those [include] names when set; less those [exclude] names. A name that is
+     * no context on the class path is refused at startup.
+     */
+    class Contexts {
+        var include: MutableSet<String> = LinkedHashSet()
+        var exclude: MutableSet<String> = LinkedHashSet()
+
+        fun selection(): ContextSelection = ContextSelection(include.toSet(), exclude.toSet())
     }
 
     class Mongo {

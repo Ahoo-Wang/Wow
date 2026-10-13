@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.contract
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.manifest.AggregateManifest
@@ -193,6 +194,27 @@ class ContractDirectory(
         }
     }
 
+    /**
+     * The commands the subscriptions of [local] send outside [hosted], the contexts a node serves (DX gap G9): for
+     * each subscription (`context/processor.function`), the contexts of the commands its saga derives
+     * ([SubscriptionManifest.derives]), handles the rejections of ([SubscriptionManifest.rejected]) or schedules
+     * ([SubscriptionManifest.schedules]) that [hosted] does not hold. Such a command goes through a command topic
+     * (decision D33). A command referred to by a schema no Manifest decides is another context's too, named
+     * [UNKNOWN_CONTEXT]; a lifecycle command (design 01 §6) is no context's and is left out.
+     */
+    fun commandsOutside(hosted: Set<String>): Map<String, Set<String>> = local.contexts.flatMap { context ->
+        context.subscriptions.mapNotNull { subscription ->
+            val references = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
+                subscription.schedules.orEmpty()
+            val outside = references.filterNot { it in LIFECYCLE_COMMANDS }.mapNotNullTo(sortedSetOf()) { reference ->
+                val type = if (reference.startsWith(DEFS_PREFIX)) commandTypeOf(reference) else reference
+                val target = type?.substringBefore('.') ?: UNKNOWN_CONTEXT
+                target.takeUnless { it in hosted }
+            }
+            outside.takeIf { it.isNotEmpty() }?.let { "${context.name}/${subscription.name}" to it }
+        }
+    }.toMap()
+
     /** A Manifest says nothing of a subscription's progress (decision D63: a hop of another context is not checked). */
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
 
@@ -257,6 +279,14 @@ class ContractDirectory(
 
     companion object {
         private const val DEFS_PREFIX = "#/\$defs/"
+
+        /** What [commandsOutside] names the context of a command no Manifest of the service or its peers decides. */
+        const val UNKNOWN_CONTEXT: String = "(a context no Manifest declares)"
+
+        /** The lifecycle commands by their names and their schemas: no context's. */
+        private val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.flatMapTo(HashSet()) { (name, type) ->
+            listOf(name, Manifest.schemaRef(type.name))
+        }
 
         /**
          * The directory of [local] and the peer Manifests on [classLoader] ([PeerManifestReader]); fails with a

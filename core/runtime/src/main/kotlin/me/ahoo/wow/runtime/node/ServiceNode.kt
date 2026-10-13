@@ -170,7 +170,9 @@ class ContextTimers internal constructor(
  * the topic has as many partitions as the log.
  *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
- * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. The [contracts] are
+ * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
+ * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
+ * commands of a context the node does not serve ([ContractDirectory.commandsOutside]). The [contracts] are
  * those of this [manifest] and its peers (decision D139), checked when they were built; each context's waits name
  * subscriptions through them, so a chain may name one of another context.
  *
@@ -263,6 +265,20 @@ class ServiceNode(
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
+
+    init {
+        // A saga that sends to another context needs a producer: without one, each of its executions would retry and
+        // park at run time while the node looked healthy (DX gap G9).
+        if (sender == null) {
+            val outside = contracts.commandsOutside(models.mapTo(HashSet()) { it.type.context })
+            require(outside.isEmpty()) {
+                "Node $node has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but " +
+                    outside.entries.joinToString("; ") { (subscription, contexts) ->
+                        "$subscription sends commands to ${contexts.joinToString()}"
+                    } + ": a command across contexts goes through its context's command topic (decision D33)."
+            }
+        }
+    }
 
     private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec, subscriptions)

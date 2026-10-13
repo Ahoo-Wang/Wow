@@ -21,6 +21,7 @@ import me.ahoo.wow.runtime.node.Routing
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.boot.builder.SpringApplicationBuilder
 import tools.jackson.databind.JsonNode
 
 /** The shop server as `application.yaml` configures it, and the Manifest it serves at `/wow/manifest`. */
@@ -41,6 +42,22 @@ class ShopServerTest {
         node.contexts.keys.assert().containsExactly("example")
         node.options.routing.assert().isEqualTo(Routing.LOCAL)
         node.address.assert().isEqualTo("127.0.0.1:${shop.internalPort}")
+    }
+
+    @Test
+    fun `the server should not start without a command transport for the order saga`() {
+        val failure = runCatching {
+            SpringApplicationBuilder(ShopServer::class.java).run(
+                "--spring.main.banner-mode=off",
+                "--server.port=0",
+                "--server.address=127.0.0.1",
+                "--wow.internal.port=0",
+                "--wow.internal.host=127.0.0.1",
+            ).close()
+        }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.last().message.assert()
+            .contains("has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)")
+            .contains("example/OrderSaga.onOrderCreated sends commands to inventory")
     }
 
     @Test

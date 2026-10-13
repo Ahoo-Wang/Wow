@@ -45,6 +45,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import tools.jackson.databind.json.JsonMapper
@@ -136,8 +137,14 @@ internal class ModelSymbolProcessor(
     /** The packages of the module's aggregate roots and subscription processors, where its binding index goes. */
     private val packages = sortedSetOf<String>()
 
-    /** The `@BoundedContext`s of the module: name to description. */
+    /**
+     * The `@BoundedContext`s of the module: name to description. In generate mode, a name that breaks the rule of a
+     * context name ([ContextName], decision D169), the annotation's or the KSP option's, fails the compilation.
+     */
     private val boundedContexts = sortedMapOf<String, String>()
+
+    /** Whether the KSP option naming the context was checked against the rule of a context name, once per build. */
+    private var optionChecked = false
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (mode == Mode.OFF) {
@@ -262,6 +269,18 @@ internal class ModelSymbolProcessor(
             declaration.containingFile?.let { sources += it }
             declaration.getAnnotationsByType(BoundedContext::class).forEach {
                 boundedContexts[it.name] = it.description
+                if (mode == Mode.GENERATE) {
+                    val problem = ContextName.problem(it.name)
+                    if (problem != null) {
+                        logger.error("@BoundedContext: $problem", declaration)
+                    }
+                }
+            }
+        }
+        if (mode == Mode.GENERATE && !optionChecked) {
+            optionChecked = true
+            manifest.context?.let(ContextName::problem)?.let {
+                logger.error("KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION}: $it")
             }
         }
     }

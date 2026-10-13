@@ -154,6 +154,15 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `reading should refuse a context whose name breaks the rule`() {
+        listOf("eshop.catalog", "Shop", "my_shop", "1shop", "-shop", "").forEach { name ->
+            val tree = ManifestTree.write(manifest) + ("contexts" to listOf(mapOf("name" to name)))
+            assertThrows<IllegalArgumentException> { ManifestTree.read(tree) }
+                .message.assert().startsWith("manifest.contexts[0].name: context name \"$name\" is not valid")
+        }
+    }
+
+    @Test
     fun `a minimal manifest should read with every default`() {
         val tree = mapOf(
             "format" to 1,
