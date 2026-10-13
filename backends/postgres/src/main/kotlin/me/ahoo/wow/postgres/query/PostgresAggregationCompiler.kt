@@ -33,7 +33,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 
 /**
- * Compiles an admitted aggregation of one aggregate type to SQL over its context's snapshot table (decision D131),
+ * Compiles an admitted aggregation of one aggregate type to SQL over its own snapshot table (decisions D131, D161),
  * whose columns are `g0`, `g1`, ... for the groups and `m0`, `m1`, ... for the metrics, in the query's order.
  * Three layers, each only when needed:
  * 1. the groups: each record, or each element of the expanded paths (`CROSS JOIN LATERAL jsonb_array_elements`),
@@ -46,7 +46,7 @@ import java.time.ZoneOffset
  * matched. Dense fill and the windows are the core's (`StorageSupport` RESIDUAL): they never arrive here. The columns
  * carry generated names, so no alias of the query reaches the SQL text.
  */
-internal class PostgresAggregationCompiler(private val table: String, private val aggregateName: String) {
+internal class PostgresAggregationCompiler(private val table: String) {
     @Suppress("LongMethod")
     fun compile(admitted: AdmittedQuery<AggregationQuery>, window: GroupWindow): SqlStatement {
         val query = admitted.query
@@ -87,7 +87,6 @@ internal class PostgresAggregationCompiler(private val table: String, private va
         }
 
         val where = ArrayList<String>()
-        where += "t.aggregate_name = " + parameters.bind(SqlParameter.Text(aggregateName))
         where += compiler.filter(query.filter)
         elementFilters.forEach { (alias, filter) ->
             where += "jsonb_typeof($alias.v) = 'object'"

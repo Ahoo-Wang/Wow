@@ -26,22 +26,22 @@ import me.ahoo.wow.query.schema.operationValues
  * The SQL type a query field is compared, sorted and aggregated as: the storage type of its bindings
  * ([PostgresSnapshotStorageAdapter]), and the cast of its expression ([PostgresSnapshotQueryExpressions]).
  */
-enum class PostgresQueryType(val sql: String) {
+enum class PostgresQueryType(val sql: String, val catalogType: String) {
     /** A string, compared by code point (`COLLATE "C"`). */
-    TEXT("text"),
+    TEXT("text", "text"),
 
     /** Any JSON number, integral or not: `numeric` holds every one exactly. */
-    NUMERIC("numeric"),
-    BOOLEAN("boolean"),
+    NUMERIC("numeric", "numeric"),
+    BOOLEAN("boolean", "bool"),
 
     /** The `integer` column `version`. */
-    INTEGER("integer"),
+    INTEGER("integer", "int4"),
 
     /** The `bigint` columns of the event times. */
-    BIGINT("bigint"),
+    BIGINT("bigint", "int8"),
 
     /** An object, an array, or a value of mixed types: compared as `jsonb`. */
-    JSONB("jsonb"),
+    JSONB("jsonb", "jsonb"),
     ;
 
     /** This type as the storage type of a binding. */

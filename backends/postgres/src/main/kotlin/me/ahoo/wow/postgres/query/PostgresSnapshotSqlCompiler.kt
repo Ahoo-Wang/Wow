@@ -26,22 +26,22 @@ import me.ahoo.wow.query.schema.SnapshotFields
 import java.math.BigDecimal
 
 /**
- * Compiles the record primitives of one aggregate type over its context's snapshot table (`table`, quoted): a list, an
- * offset page, a keyset page and a bounded count. Every statement restricts to the aggregate (`aggregate_name = ?`,
- * decision D131); admission has already added the tenant, the caller's scope and the deletion state to the filter.
+ * Compiles the record primitives of one aggregate type over its own snapshot table (`table`, quoted, decision D161):
+ * a list, an offset page, a keyset page and a bounded count. The table holds that aggregate type alone, so no
+ * statement names it; admission has already added the tenant, the caller's scope and the deletion state to the filter.
  *
  * Sorts read the typed value of each field, ascending with `NULLS FIRST` and descending with `NULLS LAST`: a missing
  * field and `null` sort lowest, as in MongoDB. A list and an offset page end with the aggregate ID and the tenant, so
  * their order is total; a keyset page orders by the cursor's sort alone, which admission ended with the identity.
  */
-internal class PostgresSnapshotSqlCompiler(private val table: String, private val aggregateName: String) {
+internal class PostgresSnapshotSqlCompiler(private val table: String) {
     /** The rows of a list: all of them when its limit is `0`. */
     fun list(query: AdmittedQuery<IListQuery>): SqlStatement {
         val parameters = SqlParameters()
         val compiler = PostgresFilterCompiler(query, parameters)
         val sql = StringBuilder(select(query.query.projection))
             .append(" FROM ").append(table)
-            .append(" WHERE ").append(where(compiler, parameters, query.query.filter))
+            .append(" WHERE ").append(compiler.filter(query.query.filter))
             .append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = true))
         if (query.query.limit > 0) {
             sql.append(
@@ -57,7 +57,7 @@ internal class PostgresSnapshotSqlCompiler(private val table: String, private va
         val compiler = PostgresFilterCompiler(query, parameters)
         val sql = StringBuilder(select(query.query.projection))
             .append(" FROM ").append(table)
-            .append(" WHERE ").append(where(compiler, parameters, query.query.filter))
+            .append(" WHERE ").append(compiler.filter(query.query.filter))
             .append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = true))
             .append(" LIMIT ").append(parameters.bind(SqlParameter.Int8(window.limit.toLong())))
             .append(" OFFSET ").append(parameters.bind(SqlParameter.Int8(window.offset.toLong())))
@@ -76,7 +76,7 @@ internal class PostgresSnapshotSqlCompiler(private val table: String, private va
         val sql = StringBuilder(select(query.query.projection))
         keys.forEachIndexed { index, (value, _) -> sql.append(", ").append(value).append(" AS ").append(key(index)) }
         sql.append(" FROM ").append(table)
-            .append(" WHERE ").append(where(compiler, parameters, query.query.filter))
+            .append(" WHERE ").append(compiler.filter(query.query.filter))
         window.after?.let { after -> sql.append(" AND ").append(after(parameters, query.query.sort, keys, after)) }
         sql.append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = false))
             .append(" LIMIT ").append(parameters.bind(SqlParameter.Int8(window.limit.toLong())))
@@ -90,14 +90,11 @@ internal class PostgresSnapshotSqlCompiler(private val table: String, private va
     fun count(query: AdmittedQuery<*>, filter: FilterExpression, limit: Long?): SqlStatement {
         val parameters = SqlParameters()
         val compiler = PostgresFilterCompiler(query, parameters)
-        val where = where(compiler, parameters, filter)
+        val where = compiler.filter(filter)
         if (limit == null) return parameters.statement("SELECT count(*) FROM $table WHERE $where")
         val bound = parameters.bind(SqlParameter.Int8(limit))
         return parameters.statement("SELECT count(*) FROM (SELECT 1 FROM $table WHERE $where LIMIT $bound) AS bounded")
     }
-
-    private fun where(compiler: PostgresFilterCompiler, parameters: SqlParameters, filter: FilterExpression): String =
-        "aggregate_name = " + parameters.bind(SqlParameter.Text(aggregateName)) + " AND " + compiler.filter(filter)
 
     private fun order(query: AdmittedQuery<*>, compiler: PostgresFilterCompiler, sort: List<Sort>, total: Boolean): String {
         val terms = sort.mapTo(

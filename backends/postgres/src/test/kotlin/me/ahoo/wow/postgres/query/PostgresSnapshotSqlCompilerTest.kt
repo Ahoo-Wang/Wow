@@ -56,8 +56,8 @@ import java.math.BigDecimal
 
 class PostgresSnapshotSqlCompilerTest {
     private val schema = QueryTestSchemas.SCHEMA
-    private val compiler = PostgresSnapshotSqlCompiler(QueryTestSchemas.TABLE, "order")
-    private val aggregations = PostgresAggregationCompiler(QueryTestSchemas.TABLE, "order")
+    private val compiler = PostgresSnapshotSqlCompiler(QueryTestSchemas.TABLE)
+    private val aggregations = PostgresAggregationCompiler(QueryTestSchemas.TABLE)
 
     private fun list(filter: FilterExpression, sort: List<Sort> = emptyList(), limit: Int = 10, projection: Projection = Projection.ALL) =
         compiler.list(
@@ -72,13 +72,12 @@ class PostgresSnapshotSqlCompilerTest {
         )
         statement.sql.assert().isEqualTo(
             "SELECT tenant_id, aggregate_id, version, owner_id, space_id, deleted, tags, first_event_time, last_event_time, state " +
-                "FROM \"wow_snapshot_shop\" WHERE aggregate_name = ? AND (tenant_id = ? AND " +
+                "FROM \"wow_snapshot__shop__order\" WHERE (tenant_id = ? AND " +
                 "(((CASE WHEN jsonb_typeof((state #> '{name}')) = 'string' THEN state #>> '{name}' END) COLLATE \"C\") = ?)) " +
                 "ORDER BY (CASE WHEN jsonb_typeof((state #> '{amount}')) = 'number' THEN (state #>> '{amount}')::numeric END) " +
                 "DESC NULLS LAST, aggregate_id ASC, tenant_id ASC LIMIT ?",
         )
         statement.parameters.assert().containsExactly(
-            SqlParameter.Text("order"),
             SqlParameter.Text("t"),
             SqlParameter.Text("Wow"),
             SqlParameter.Int8(10),
@@ -87,7 +86,7 @@ class PostgresSnapshotSqlCompilerTest {
 
     @Test
     fun `values never reach the SQL text`() {
-        val injection = "x'); DROP TABLE \"wow_snapshot_shop\"; --"
+        val injection = "x'); DROP TABLE \"wow_snapshot__shop__order\"; --"
         val statements = listOf(
             list(EqualFilter(NAME, injection)),
             list(ContainsFilter(NAME, injection, StringComparison.CASE_INSENSITIVE)),
@@ -174,8 +173,8 @@ class PostgresSnapshotSqlCompilerTest {
         }
         list(InFilter(QueryField("lastEventTime"), listOf(1, 2))).parameters.assert()
             .contains(SqlParameter.Array("numeric", listOf(BigDecimal.ONE, BigDecimal.valueOf(2))))
-        list(DeletionFilter(DeletionState.DELETED)).sql.assert().contains("AND deleted ORDER BY")
-        list(DeletionFilter(DeletionState.ALL)).sql.assert().contains("AND TRUE ORDER BY")
+        list(DeletionFilter(DeletionState.DELETED)).sql.assert().contains("WHERE deleted ORDER BY")
+        list(DeletionFilter(DeletionState.ALL)).sql.assert().contains("WHERE TRUE ORDER BY")
     }
 
     @Test
@@ -197,12 +196,12 @@ class PostgresSnapshotSqlCompilerTest {
         val admitted = QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 5), schema)
         compiler.count(admitted, admitted.query.filter, 6).let { statement ->
             statement.sql.assert().isEqualTo(
-                "SELECT count(*) FROM (SELECT 1 FROM \"wow_snapshot_shop\" WHERE aggregate_name = ? AND TRUE LIMIT ?) AS bounded",
+                "SELECT count(*) FROM (SELECT 1 FROM \"wow_snapshot__shop__order\" WHERE TRUE LIMIT ?) AS bounded",
             )
-            statement.parameters.assert().containsExactly(SqlParameter.Text("order"), SqlParameter.Int8(6))
+            statement.parameters.assert().containsExactly(SqlParameter.Int8(6))
         }
         compiler.count(admitted, admitted.query.filter, null).sql.assert()
-            .isEqualTo("SELECT count(*) FROM \"wow_snapshot_shop\" WHERE aggregate_name = ? AND TRUE")
+            .isEqualTo("SELECT count(*) FROM \"wow_snapshot__shop__order\" WHERE TRUE")
     }
 
     @Test
@@ -230,7 +229,7 @@ class PostgresSnapshotSqlCompilerTest {
             )
             statement.sql.assert().contains("$name AS k0, $amount AS k1, aggregate_id AS k2")
                 .endsWith("aggregate_id ASC NULLS FIRST LIMIT ?")
-            statement.parameters.drop(1).assert().containsExactly(
+            statement.parameters.assert().containsExactly(
                 SqlParameter.Text("n"),
                 SqlParameter.Text("n"),
                 SqlParameter.Numeric(BigDecimal.TEN),
@@ -292,15 +291,14 @@ class PostgresSnapshotSqlCompilerTest {
         statement.sql.assert().isEqualTo(
             "SELECT * FROM (SELECT a.*, (a.m0 * ?::numeric) AS m1 FROM (SELECT " +
                 "(extract(epoch from (date_trunc('day', to_timestamp($created / 1000.0) AT TIME ZONE ?::interval) " +
-                "AT TIME ZONE ?::interval)) * 1000)::bigint AS g0, count(*) AS m0 FROM \"wow_snapshot_shop\" AS t " +
-                "WHERE t.aggregate_name = ? AND TRUE AND $created IS NOT NULL GROUP BY 1) AS a) AS h " +
+                "AT TIME ZONE ?::interval)) * 1000)::bigint AS g0, count(*) AS m0 FROM \"wow_snapshot__shop__order\" AS t " +
+                "WHERE TRUE AND $created IS NOT NULL GROUP BY 1) AS a) AS h " +
                 "WHERE h.m1 > ? ORDER BY h.g0 ASC NULLS FIRST LIMIT ?",
         )
         statement.parameters.assert().containsExactly(
             SqlParameter.Numeric(BigDecimal.valueOf(2.0)),
             SqlParameter.Text("28800 seconds"),
             SqlParameter.Text("28800 seconds"),
-            SqlParameter.Text("order"),
             SqlParameter.Numeric(BigDecimal.valueOf(1.0)),
             SqlParameter.Int8(7),
         )

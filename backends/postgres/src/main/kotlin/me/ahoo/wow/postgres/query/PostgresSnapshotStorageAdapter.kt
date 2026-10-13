@@ -34,8 +34,9 @@ import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
 
 /**
- * What the PostgreSQL snapshot table proves about a snapshot query model (decision D131). Every logical path is
- * stored under its own name, a system field in its column and anything else in the `state` or `tags` `jsonb`; each
+ * What a PostgreSQL snapshot table proves about a snapshot query model (decision D131), from the types of its columns
+ * ([facts] with the catalog's column types; [PostgresQuerySchemaAdapter] reads them). This object's own [facts] assume
+ * the table this module creates. Every logical path is stored under its own name, a system field in its column and anything else in the `state` or `tags` `jsonb`; each
  * binding states its [PostgresQueryType] as its storage type, which the SQL compiler and the expression indexes read.
  *
  * A path is granted the capabilities the storage-family table ([storageFamilies]) allows for its values and its type
@@ -46,7 +47,13 @@ import me.ahoo.wow.query.schema.storageFamilies
  *   (its fraction and offset vary), and the cast from text to `timestamptz` depends on the session's `DateStyle` and
  *   `TimeZone`, so it is not immutable and cannot be indexed. An epoch is a number and supports everything;
  * - a multi-valued path (an array) is not sortable or aggregatable: its elements have no single value;
- * - a value of mixed types (`jsonb`) only exists.
+ * - a value of mixed types (`jsonb`) only exists;
+ * - a path whose column does not have the type this module creates it with (a system column of another type, a
+ *   `state` or `tags` column that is not `jsonb`) only exists: its values may not be what the compiler casts.
+ *
+ * `jsonb` states no type per path, so a `state.*` path is typed from its declared value types, as 9.x MongoDB typed a
+ * path its collection's validator did not declare. Indexes prove no capability: PostgreSQL sorts, ranges and
+ * aggregates every typed expression with or without one; an index only makes it fast (D151, [PostgresQueryIndexes]).
  */
 object PostgresSnapshotStorageAdapter : QueryStorageAdapter {
     /** The storage-family rules of this storage: a date string is no operand (see the class). */
@@ -86,18 +93,45 @@ object PostgresSnapshotStorageAdapter : QueryStorageAdapter {
         QueryCapability.AGGREGATE_TEMPORAL,
     )
 
-    override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = QueryStorageFacts(
+    /** The catalog type (`pg_type.typname`) of each column, as this module creates the snapshot table. */
+    val COLUMNS: Map<String, String> = PostgresSnapshotQueryExpressions.COLUMNS.entries.associate { (field, column) ->
+        column to PostgresSnapshotQueryExpressions.COLUMN_TYPES.getValue(field).catalogType
+    }
+
+    override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = facts(logicalSchema, COLUMNS)
+
+    /**
+     * The facts of a table whose columns have the catalog types [columns]; [provisional] for a table that does not
+     * exist yet, described by the one it will be created as.
+     */
+    fun facts(
+        logicalSchema: LogicalQuerySchema,
+        columns: Map<String, String>,
+        provisional: Boolean = false,
+    ): QueryStorageFacts = QueryStorageFacts(
         bindings = logicalSchema.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, value) ->
             val type = typeOf(path, value)
             val storageTypes = setOf(type.storageType)
-            QueryValueBindings(
-                capabilitiesOf(value, type).associateWith { QueryFieldBindingTemplate(path, storageTypes) },
-                path,
-                path,
-            )
+            val capabilities = if (proven(
+                    path,
+                    columns
+                )
+            ) {
+                capabilitiesOf(value, type)
+            } else {
+                setOf(QueryCapability.PRESENCE)
+            }
+            QueryValueBindings(capabilities.associateWith { QueryFieldBindingTemplate(path, storageTypes) }, path, path)
         },
         storage = SUPPORT,
+        provisional = provisional,
     )
+
+    /** Whether the column [path] is stored in has the type this module creates it with. */
+    private fun proven(path: QueryPathTemplate, columns: Map<String, String>): Boolean {
+        val column = PostgresSnapshotQueryExpressions.COLUMNS[(path.segments.first() as? QueryPathSegment.Property)?.name]
+        return column != null && columns[column] == COLUMNS[column]
+    }
 
     /** The type of [path]: its column's, for a system field, else derived from its [value]. */
     fun typeOf(path: QueryPathTemplate, value: QueryValueSchema): PostgresQueryType {

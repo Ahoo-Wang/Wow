@@ -29,7 +29,7 @@ import me.ahoo.wow.query.schema.querySchema
 /** The order model of the unit tests, compiled over [PostgresSnapshotStorageAdapter]. */
 object QueryTestSchemas {
     val TYPE = AggregateType("shop", "order")
-    const val TABLE = "\"wow_snapshot_shop\""
+    const val TABLE = "\"wow_snapshot__shop__order\""
 
     val SCHEMA: QueryModelSchema by lazy {
         val context = QuerySchemaContext(TYPE, QueryModel.SNAPSHOT)

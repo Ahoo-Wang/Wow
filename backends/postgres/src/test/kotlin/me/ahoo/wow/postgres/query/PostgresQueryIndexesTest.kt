@@ -31,22 +31,23 @@ class PostgresQueryIndexesTest {
     fun `an index leads with the scope and keys the compiler's expressions`() {
         val index = PostgresQueryIndexes.plan(
             "shop",
+            "order",
             schema,
             listOf(QueryIndexDeclaration("ix_order_state_name", listOf("state.name", "ownerId", "state.amount"))),
         ).single()
-        index.name.assert().isEqualTo("wow_snapshot_shop_ix_order_state_name")
+        index.name.assert().isEqualTo("wow_snapshot__shop__order_ix_order_state_name")
         val name = PostgresSnapshotQueryExpressions.value(QueryField("state.name"), PostgresQueryType.TEXT)
         val amount = PostgresSnapshotQueryExpressions.value(QueryField("state.amount"), PostgresQueryType.NUMERIC)
         index.ddl.assert().isEqualTo(
-            "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_snapshot_shop_ix_order_state_name\" ON \"wow_snapshot_shop\" " +
-                "(tenant_id, aggregate_name, ($name) NULLS FIRST, owner_id NULLS FIRST, ($amount) NULLS FIRST) WHERE NOT deleted",
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_snapshot__shop__order_ix_order_state_name\" ON \"wow_snapshot__shop__order\" " +
+                "(tenant_id, ($name) NULLS FIRST, owner_id NULLS FIRST, ($amount) NULLS FIRST) WHERE NOT deleted",
         )
     }
 
     @Test
     fun `a key the backend cannot index is refused`() {
         fun refuses(key: String) = assertThrownBy<IllegalArgumentException> {
-            PostgresQueryIndexes.plan("shop", schema, listOf(QueryIndexDeclaration("ix", listOf(key))))
+            PostgresQueryIndexes.plan("shop", "order", schema, listOf(QueryIndexDeclaration("ix", listOf(key))))
         }
         refuses("state.unknown")
         refuses("state.keywords")
@@ -61,7 +62,7 @@ class PostgresQueryIndexesTest {
         PostgresIdentifiers.limited(long).length.assert().isEqualTo(PostgresIdentifiers.MAX_LENGTH)
         PostgresIdentifiers.limited(long + "a").assert().isNotEqualTo(PostgresIdentifiers.limited(long + "b"))
         PostgresIdentifiers.limited("short").assert().isEqualTo("short")
-        PostgresSnapshotTables("a".repeat(60)).let { tables ->
+        PostgresSnapshotTables("a".repeat(60), "order").let { tables ->
             tables.ownerIndex.length.assert().isEqualTo(PostgresIdentifiers.MAX_LENGTH)
             tables.ownerIndex.assert().isNotEqualTo(tables.spaceIndex)
         }

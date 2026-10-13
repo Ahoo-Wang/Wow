@@ -49,15 +49,17 @@ import java.time.Duration
 import javax.sql.DataSource
 
 /**
- * The snapshot query backend of one aggregate type on PostgreSQL (decision D131): the four primitives over its
- * context's snapshot table, compiled to parameterized SQL ([PostgresSnapshotSqlCompiler],
+ * The snapshot query backend of one aggregate type on PostgreSQL (decision D131): the four primitives over the
+ * aggregate type's own snapshot table (decision D161), compiled to parameterized SQL ([PostgresSnapshotSqlCompiler],
  * [PostgresAggregationCompiler]) on the bindings of [PostgresSnapshotStorageAdapter]. Records have the shape of
  * `SnapshotRecord.toQueryRecord()`; a projection is applied to each record as it is read, and a row without any
  * kept state field does not read the state at all.
  *
  * Every statement runs in its own read transaction under `SET LOCAL statement_timeout` of the admitted timeout
  * (decision D150); PostgreSQL cancelling it there is a [QueryTimeoutException]. JDBC calls run on [dispatcher],
- * virtual threads by default (decision D29).
+ * virtual threads by default (decision D29). A table not created yet (no snapshot of the aggregate type was saved)
+ * holds no records: every primitive answers as over an empty table, as the provisional facts of
+ * [PostgresQuerySchemaAdapter] describe it.
  */
 class PostgresSnapshotQueryBackend internal constructor(
     override val aggregateType: AggregateType,
@@ -68,13 +70,13 @@ class PostgresSnapshotQueryBackend internal constructor(
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = PostgresCursorPositionCodec
 
-    private val records = PostgresSnapshotSqlCompiler(tables.snapshot, aggregateType.name)
-    private val aggregations = PostgresAggregationCompiler(tables.snapshot, aggregateType.name)
+    private val records = PostgresSnapshotSqlCompiler(tables.snapshot)
+    private val aggregations = PostgresAggregationCompiler(tables.snapshot)
 
     override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
         val statement = records.list(query)
         val state = query.query.projection.keepsState()
-        transaction(query.timeout) { connection ->
+        transaction(query.timeout, {}) { connection ->
             statement.prepare(connection).use { prepared ->
                 prepared.fetchSize = options.fetchSize
                 prepared.executeQuery().use { rows ->
@@ -104,7 +106,7 @@ class PostgresSnapshotQueryBackend internal constructor(
             null
         }
         val state = query.query.projection.keepsState()
-        return transaction(query.timeout) { connection ->
+        return transaction(query.timeout, { BackendPage(emptyList(), count?.let { 0L }) }) { connection ->
             val rows = read(connection, statement) { project(query, record(it, state)) }
             BackendPage(rows, count?.let { count(connection, it) })
         }
@@ -114,7 +116,7 @@ class PostgresSnapshotQueryBackend internal constructor(
         val statement = records.keyset(query, window)
         val state = query.query.projection.keepsState()
         val keys = query.query.sort.size
-        return transaction(query.timeout) { connection ->
+        return transaction(query.timeout, { BackendPage(emptyList(), positions = emptyList()) }) { connection ->
             val positions = ArrayList<CursorPosition>()
             val rows = read(connection, statement) { row ->
                 positions += CursorPosition((0 until keys).map { position(row.getObject(PostgresSnapshotSqlCompiler.key(it))) })
@@ -126,14 +128,14 @@ class PostgresSnapshotQueryBackend internal constructor(
 
     override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = withContext(dispatcher) {
         val statement = records.count(query, query.query.filter, query.query.limit?.let { it + 1L })
-        transaction(query.timeout) { connection -> count(connection, statement) }
+        transaction(query.timeout, { 0L }) { connection -> count(connection, statement) }
     }
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         val statement = aggregations.compile(query, window)
         val groups = query.query.groupBy.map { it.alias }
         val metrics = query.query.metrics.map { it.alias }
-        transaction(query.timeout) { connection ->
+        transaction(query.timeout, {}) { connection ->
             statement.prepare(connection).use { prepared ->
                 prepared.executeQuery().use { rows ->
                     while (rows.next()) emit(group(rows, groups, metrics))
@@ -165,9 +167,9 @@ class PostgresSnapshotQueryBackend internal constructor(
     /**
      * Runs [block] in a transaction of its own under [timeout]: a statement PostgreSQL cancels for it fails as the
      * core's [QueryTimeoutException]. The transaction only reads; it commits when [block] returns and rolls back
-     * when it throws.
+     * when it throws. A table that does not exist yet is empty: the answer is [missing]'s.
      */
-    private inline fun <T> transaction(timeout: Duration?, block: (Connection) -> T): T = try {
+    private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
         dataSource.connection.use { connection ->
             connection.autoCommit = false
             var committed = false
@@ -189,7 +191,11 @@ class PostgresSnapshotQueryBackend internal constructor(
             }
         }
     } catch (error: SQLException) {
-        throw if (timeout != null && error.sqlState == QUERY_CANCELED) QueryTimeoutException(timeout, error) else error
+        when {
+            error.sqlState == UNDEFINED_TABLE -> missing()
+            timeout != null && error.sqlState == QUERY_CANCELED -> throw QueryTimeoutException(timeout, error)
+            else -> throw error
+        }
     }
 
     private fun <T> read(connection: Connection, statement: SqlStatement, map: (ResultSet) -> T): List<T> =
@@ -212,6 +218,9 @@ class PostgresSnapshotQueryBackend internal constructor(
     internal companion object {
         /** PostgreSQL's SQLSTATE of a statement cancelled, by `statement_timeout` among others. */
         const val QUERY_CANCELED = "57014"
+
+        /** PostgreSQL's SQLSTATE of a table that does not exist. */
+        const val UNDEFINED_TABLE = "42P01"
         private val nodes: JsonNodeFactory = JsonNodeFactory.instance
 
         /** [timeout] in whole milliseconds, rounded up and at least 1, since `0` would disable the limit. */

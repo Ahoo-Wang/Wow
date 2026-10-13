@@ -54,8 +54,8 @@ data class QueryIndexDeclaration(val name: String, val keys: List<String>) {
     }
 }
 
-/** A planned expression index: its physical name and the statement that creates it. */
-data class PostgresQueryIndex(val name: String, val ddl: String)
+/** A planned expression index: its physical name, its table (quoted) and the statement that creates it. */
+data class PostgresQueryIndex(val name: String, val table: String, val ddl: String)
 
 /** What [PostgresSnapshotQueryStorage.manageIndexes] did: the indexes it created, and the ones it found missing or invalid. */
 data class PostgresQueryIndexReport(
@@ -65,15 +65,16 @@ data class PostgresQueryIndexReport(
 )
 
 /**
- * The expression indexes of the snapshot table (decision D151). Each index declared in the Manifest becomes
+ * The expression indexes of an aggregate type's snapshot table (decisions D151, D161). Each index the aggregate
+ * declares in the Manifest becomes
  *
  * ```sql
- * CREATE INDEX CONCURRENTLY IF NOT EXISTS "<table>_<name>" ON "<table>"
- *     (tenant_id, aggregate_name, <key> NULLS FIRST, ...) WHERE NOT deleted
+ * CREATE INDEX CONCURRENTLY IF NOT EXISTS "<table>_<name>" ON "<table>" (tenant_id, <key> NULLS FIRST, ...)
+ *     WHERE NOT deleted
  * ```
  *
- * led by the tenant and the aggregate, which admission adds to every query, and partial on the snapshots that are not
- * deleted, its default scope. A key is a system column or the typed expression of a `state.*` path, exactly the text
+ * on that aggregate's own table, led by the tenant, which admission adds to every query, and partial on the snapshots
+ * that are not deleted, its default scope. A key is a system column or the typed expression of a `state.*` path, exactly the text
  * the SQL compiler compares and sorts by ([PostgresSnapshotQueryExpressions.value], with the type of the binding the
  * query model compiles for it), so the planner matches the two; `NULLS FIRST` is the compiler's ascending order. The
  * name is [PostgresIdentifiers.limited], since PostgreSQL index names are unique per schema, not per table.
@@ -85,23 +86,25 @@ object PostgresQueryIndexes {
     private val INDEXED = listOf(QueryCapability.SORT, QueryCapability.RANGE, QueryCapability.EXACT_MATCH)
 
     /**
-     * The indexes of [declarations] on the snapshot table of [context], keyed by the expressions of [schema], the
-     * snapshot query model of the declaring aggregate on this backend. Fails on a key the model does not know or
+     * The indexes of [declarations] on the snapshot table of [aggregate] in [context], keyed by the expressions of
+     * [schema], the aggregate's snapshot query model on this backend. Fails on a key the model does not know or
      * cannot index: one without an exact match, a range or a sort, or one with many values (an array).
      */
     fun plan(
         context: String,
+        aggregate: String,
         schema: QueryModelSchema,
-        declarations: List<QueryIndexDeclaration>
+        declarations: List<QueryIndexDeclaration>,
     ): List<PostgresQueryIndex> {
-        val tables = PostgresSnapshotTables(context)
+        val tables = PostgresSnapshotTables(context, aggregate)
         return declarations.map { declaration ->
             val keys = declaration.keys.map { key(schema, declaration, it) }
             val name = PostgresIdentifiers.limited(tables.base + "_" + declaration.name)
             PostgresQueryIndex(
                 name,
+                tables.snapshot,
                 "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"$name\" ON ${tables.snapshot} " +
-                    "(tenant_id, aggregate_name, ${keys.joinToString(", ")}) WHERE NOT deleted",
+                    "(tenant_id, ${keys.joinToString(", ")}) WHERE NOT deleted",
             )
         }
     }
@@ -122,55 +125,63 @@ object PostgresQueryIndexes {
         return "$column NULLS FIRST"
     }
 
-    /** Manages [indexes] on [tables] as [mode] says; see [QueryIndexDdl]. */
+    /** Manages [indexes] as [mode] says, table by table; see [QueryIndexDdl]. */
     internal fun manage(
         dataSource: DataSource,
-        tables: PostgresSnapshotTables,
         mode: QueryIndexDdl,
-        indexes: List<PostgresQueryIndex>,
+        indexes: List<PostgresQueryIndex>
     ): PostgresQueryIndexReport {
-        if (mode == QueryIndexDdl.NONE || indexes.isEmpty()) return PostgresQueryIndexReport()
-        return dataSource.connection.use { connection ->
-            val valid = connection.prepareStatement(
-                "SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid " +
-                    "WHERE i.indrelid = ?::regclass AND c.relname = ANY(?)",
-            ).use { query ->
-                query.setString(1, tables.snapshot)
-                query.setArray(2, connection.createArrayOf("text", indexes.map { it.name }.toTypedArray()))
-                query.executeQuery().use { rows ->
-                    buildMap { while (rows.next()) put(rows.getString(1), rows.getBoolean(2)) }
-                }
+        if (mode == QueryIndexDdl.NONE) return PostgresQueryIndexReport()
+        val reports = indexes.groupBy { it.table }.map { (table, planned) -> manage(dataSource, mode, table, planned) }
+        return PostgresQueryIndexReport(
+            created = reports.flatMap { it.created },
+            missing = reports.flatMap { it.missing },
+            invalid = reports.flatMap { it.invalid },
+        )
+    }
+
+    private fun manage(
+        dataSource: DataSource,
+        mode: QueryIndexDdl,
+        table: String,
+        indexes: List<PostgresQueryIndex>,
+    ): PostgresQueryIndexReport = dataSource.connection.use { connection ->
+        val valid = connection.prepareStatement(
+            "SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid " +
+                "WHERE i.indrelid = to_regclass(?) AND c.relname = ANY(?)",
+        ).use { query ->
+            query.setString(1, table)
+            query.setArray(2, connection.createArrayOf("text", indexes.map { it.name }.toTypedArray()))
+            query.executeQuery().use { rows ->
+                buildMap { while (rows.next()) put(rows.getString(1), rows.getBoolean(2)) }
             }
-            val missing = indexes.filter { it.name !in valid }
-            val invalid = indexes.filter { valid[it.name] == false }
-            if (mode == QueryIndexDdl.VALIDATE) {
-                if (missing.isNotEmpty() || invalid.isNotEmpty()) {
-                    log.warn(
-                        "Query indexes of {} are missing {} and invalid {} ({}=validate).",
-                        tables.snapshot,
-                        missing.map { it.name },
-                        invalid.map { it.name },
-                        QueryIndexDdl.PROPERTY,
-                    )
-                }
-                return@use PostgresQueryIndexReport(
-                    missing = missing.map { it.name },
-                    invalid = invalid.map { it.name }
+        }
+        val missing = indexes.filter { it.name !in valid }
+        val invalid = indexes.filter { valid[it.name] == false }
+        if (mode == QueryIndexDdl.VALIDATE) {
+            if (missing.isNotEmpty() || invalid.isNotEmpty()) {
+                log.warn(
+                    "Query indexes of {} are missing {} and invalid {} ({}=validate).",
+                    table,
+                    missing.map { it.name },
+                    invalid.map { it.name },
+                    QueryIndexDdl.PROPERTY,
                 )
             }
-            // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds.
-            connection.createStatement().use { statement ->
-                invalid.forEach { statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${it.name}\"") }
-                (invalid + missing).forEach { index ->
-                    log.info("Creating the query index {} on {}.", index.name, tables.snapshot)
-                    statement.execute(index.ddl)
-                }
-            }
-            PostgresQueryIndexReport(
-                created = (invalid + missing).map { it.name },
-                missing = missing.map { it.name },
-                invalid = invalid.map { it.name },
-            )
+            return@use PostgresQueryIndexReport(missing = missing.map { it.name }, invalid = invalid.map { it.name })
         }
+        // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds.
+        connection.createStatement().use { statement ->
+            invalid.forEach { statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${it.name}\"") }
+            (invalid + missing).forEach { index ->
+                log.info("Creating the query index {} on {}.", index.name, table)
+                statement.execute(index.ddl)
+            }
+        }
+        PostgresQueryIndexReport(
+            created = (invalid + missing).map { it.name },
+            missing = missing.map { it.name },
+            invalid = invalid.map { it.name },
+        )
     }
 }

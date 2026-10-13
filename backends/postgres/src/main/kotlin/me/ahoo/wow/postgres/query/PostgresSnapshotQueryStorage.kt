@@ -23,9 +23,9 @@ import javax.sql.DataSource
 
 /**
  * The snapshot query storage of one bounded context on PostgreSQL: the [PostgresSnapshotQueryBackend] of each of its
- * aggregate types, over the snapshot table `PostgresSnapshotStore` writes, with the facts of
- * [PostgresSnapshotStorageAdapter]; and the management of the expression indexes its aggregates declare
- * ([manageIndexes], decision D151).
+ * aggregate types, over that aggregate's own snapshot table, which `PostgresSnapshotStore` writes (decision D161), with
+ * the facts [PostgresQuerySchemaAdapter] reads from the table; and the management of the expression indexes its
+ * aggregates declare ([manageIndexes], decision D151).
  */
 class PostgresSnapshotQueryStorage @JvmOverloads constructor(
     private val dataSource: DataSource,
@@ -33,24 +33,22 @@ class PostgresSnapshotQueryStorage @JvmOverloads constructor(
     val options: PostgresQueryOptions = PostgresQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : AbstractQueryBackendFactory<PostgresSnapshotQueryBackend>() {
-    private val tables = PostgresSnapshotTables(context)
-
-    /** The snapshot table, quoted. */
-    val table: String
-        get() = tables.snapshot
+    /** The snapshot table of [aggregateName], quoted. */
+    fun table(aggregateName: String): String = PostgresSnapshotTables(context, aggregateName).snapshot
 
     override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<PostgresSnapshotQueryBackend> {
         require(aggregateType.context == context) { "$aggregateType is not in context $context." }
+        val tables = PostgresSnapshotTables(context, aggregateType.name)
         return QueryBackendBinding(
             PostgresSnapshotQueryBackend(aggregateType, dataSource, tables, options, dispatcher),
-            PostgresSnapshotStorageAdapter,
+            PostgresQuerySchemaAdapter(dataSource, tables, dispatcher),
         )
     }
 
     /**
-     * Manages [indexes] (planned by [PostgresQueryIndexes.plan] for this context) as [PostgresQueryOptions.indexDdl]
-     * says. Blocking: a host calls it once at startup, after the snapshot table exists.
+     * Manages [indexes] (planned by [PostgresQueryIndexes.plan] for aggregates of this context) as
+     * [PostgresQueryOptions.indexDdl] says. Blocking: a host calls it once at startup, after the tables exist.
      */
     fun manageIndexes(indexes: List<PostgresQueryIndex>): PostgresQueryIndexReport =
-        PostgresQueryIndexes.manage(dataSource, tables, options.indexDdl, indexes)
+        PostgresQueryIndexes.manage(dataSource, options.indexDdl, indexes)
 }

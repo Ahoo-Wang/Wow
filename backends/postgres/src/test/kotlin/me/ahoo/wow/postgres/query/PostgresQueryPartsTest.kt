@@ -32,6 +32,8 @@ import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
@@ -151,11 +153,11 @@ class PostgresQueryPartsTest {
             CursorQuery(MatchAllFilter, sort = sort, size = 1),
             QueryTestSchemas.SCHEMA
         )
-        PostgresSnapshotSqlCompiler(QueryTestSchemas.TABLE, "order")
+        PostgresSnapshotSqlCompiler(QueryTestSchemas.TABLE)
             .keyset(
                 admitted,
                 PageWindow.Keyset(CursorPosition(listOf(null)), 2)
-            ).sql.assert().contains("AND TRUE AND FALSE ORDER BY")
+            ).sql.assert().contains("WHERE TRUE AND FALSE ORDER BY")
     }
 
     @Test
@@ -177,5 +179,19 @@ class PostgresQueryPartsTest {
             .assert().isEqualTo("""{"lines":[{"sku":"A"},2,{}],"name":"x"}""")
         record.deepCopy().also { PostgresSnapshotQueryBackend.exclude(it, listOf("missing", "n")) }.toString()
             .assert().isEqualTo(record.toString())
+    }
+
+    @Test
+    fun `a column of another type than this module creates proves only presence`() {
+        val logical = QueryTestSchemas.SCHEMA.definition
+        val columns = PostgresSnapshotStorageAdapter.COLUMNS + ("version" to "text") + ("state" to "json")
+        val facts = PostgresSnapshotStorageAdapter.facts(logical, columns, provisional = true)
+        fun capabilities(vararg path: String) =
+            facts.bindings.getValue(QueryPathTemplate(path.map(QueryPathSegment::Property))).bindings.keys
+        facts.provisional.assert().isTrue()
+        capabilities("version").assert().containsExactly(QueryCapability.PRESENCE)
+        capabilities("state", "name").assert().containsExactly(QueryCapability.PRESENCE)
+        capabilities("ownerId").assert().contains(QueryCapability.EXACT_MATCH, QueryCapability.CURSOR_SORT)
+        PostgresSnapshotStorageAdapter.COLUMNS.assert().containsEntry("version", "int4").containsEntry("state", "jsonb")
     }
 }
