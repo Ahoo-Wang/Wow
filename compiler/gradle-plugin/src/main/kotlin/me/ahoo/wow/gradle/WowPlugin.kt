@@ -20,13 +20,16 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.DocsType
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
 import java.util.Properties
@@ -42,10 +45,14 @@ import java.util.Properties
  *   schemas Jackson introspection gives (decision D73); the completed fragment is part of the module's resources in
  *   place of the compiler's;
  * - registers [MERGE_TASK] ([MergeManifest]), which merges every fragment on the runtime class path into
- *   `build/wow/manifest.json`.
+ *   `build/wow/manifest.json`, and exposes that file as the outgoing variant [MANIFEST_ELEMENTS], published with
+ *   the `java` component;
+ * - registers [COLLECT_PEERS_TASK] ([CollectPeerManifests]), which copies the merged Manifests of the services the
+ *   [PEERS_CONFIGURATION] names into the module's resources, `META-INF/wow/peers/<service>.json` (decision D139).
  *
- * Both tasks run their work in workers with an isolated class loader over [TOOLS_CONFIGURATION]: the plugin itself
- * depends on KSP and `wow-manifest` only, so it brings no Jackson, victools or Kotlin reflection to the build script.
+ * The fragment and merge tasks run their work in workers with an isolated class loader over [TOOLS_CONFIGURATION]:
+ * the plugin itself depends on KSP and `wow-manifest` only, so it brings no Jackson, victools or Kotlin reflection to
+ * the build script.
  */
 class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -97,14 +104,83 @@ class WowPlugin : Plugin<Project> {
             it.exclude("${Manifest.FRAGMENT_DIRECTORY}/**")
         }
 
-        project.tasks.register(MERGE_TASK, MergeManifest::class.java) { task ->
+        val merge = project.tasks.register(MERGE_TASK, MergeManifest::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Merges the Manifest fragments on the runtime class path into the service's manifest.json."
-            task.classpath.from(main.output, runtimeClasspath)
+            // The module's own completed fragment and its dependencies': not its peers, which it may not resolve.
+            task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
             task.tools.from(tools)
             task.serviceName.set(extension.serviceName)
             task.serviceVersion.set(extension.serviceVersion)
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
+        }
+        manifestElements(project, merge)
+
+        val peers = peersConfiguration(project)
+        val peersDirectory = project.layout.buildDirectory.dir("wow/peers")
+        val collect = project.tasks.register(COLLECT_PEERS_TASK, CollectPeerManifests::class.java) { task ->
+            task.group = GROUP_NAME
+            task.description = "Copies the merged Manifests of the wowPeers services into META-INF/wow/peers."
+            task.peers.from(peers)
+            task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
+            task.serviceName.set(extension.serviceName)
+            task.outputDirectory.set(peersDirectory)
+        }
+        main.output.dir(mapOf("builtBy" to collect), peersDirectory)
+    }
+
+    /**
+     * [MANIFEST_ELEMENTS]: the outgoing variant of the service's merged `manifest.json`, what a consumer's
+     * [PEERS_CONFIGURATION] selects (decision D139). Its attributes are those of a documentation variant (like the
+     * sources and Javadoc ones Gradle defines) of the docs type [MANIFEST_DOCS_TYPE], so no other variant matches a
+     * request for it. It is added to the `java` component as an optional variant: a publication carries the Manifest
+     * as the artifact of classifier [MANIFEST_CLASSIFIER] (`<name>-<version>-wow-manifest.json`), and Gradle Module
+     * Metadata lets a consumer select it by the same attributes.
+     */
+    private fun manifestElements(project: Project, merge: TaskProvider<MergeManifest>) {
+        val elements = project.configurations.create(MANIFEST_ELEMENTS) { configuration ->
+            configuration.description = "The service's merged Wow Manifest, for the services that take it as a peer."
+            configuration.isCanBeConsumed = true
+            configuration.isCanBeResolved = false
+            configuration.isVisible = false
+            manifestAttributes(project, configuration)
+        }
+        project.artifacts.add(elements.name, merge.flatMap { it.outputFile }) { artifact ->
+            artifact.builtBy(merge)
+            artifact.type = MANIFEST_EXTENSION
+            artifact.extension = MANIFEST_EXTENSION
+            artifact.classifier = MANIFEST_CLASSIFIER
+        }
+        project.pluginManager.withPlugin("java") {
+            val component = project.components.getByName("java") as AdhocComponentWithVariants
+            component.addVariantsFromConfiguration(elements) { it.mapToOptional() }
+        }
+    }
+
+    /**
+     * [PEERS_CONFIGURATION]: the services whose merged Manifests this one takes as peers, a project
+     * (`wowPeers(project(":inventory-server"))`) or the coordinates of a published service
+     * (`wowPeers("com.example:inventory-server:1.0.0")`); it resolves their [MANIFEST_ELEMENTS] variant only, without
+     * their dependencies.
+     */
+    private fun peersConfiguration(project: Project): Configuration =
+        project.configurations.create(PEERS_CONFIGURATION) { configuration ->
+            configuration.description = "The services whose merged Wow Manifests this service takes as peers."
+            configuration.isCanBeConsumed = false
+            configuration.isTransitive = false
+            manifestAttributes(project, configuration)
+        }
+
+    private fun manifestAttributes(project: Project, configuration: Configuration) {
+        val objects = project.objects
+        configuration.attributes { attributes ->
+            attributes.attribute(
+                Category.CATEGORY_ATTRIBUTE,
+                objects.named(Category::class.java, Category.DOCUMENTATION)
+            )
+            attributes.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, MANIFEST_DOCS_TYPE))
+            attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+            attributes.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))
         }
     }
 
@@ -149,6 +225,14 @@ class WowPlugin : Plugin<Project> {
         const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
         const val MERGE_TASK = "mergeWowManifest"
         const val TOOLS_CONFIGURATION = "wowManifestTools"
+        const val COLLECT_PEERS_TASK = "collectWowPeers"
+        const val PEERS_CONFIGURATION = "wowPeers"
+        const val MANIFEST_ELEMENTS = "wowManifestElements"
+
+        /** The docs type of the merged Manifest's variant, and the classifier of its published artifact. */
+        const val MANIFEST_DOCS_TYPE = "wow-manifest"
+        const val MANIFEST_CLASSIFIER = "wow-manifest"
+        private const val MANIFEST_EXTENSION = "json"
         private const val GROUP_NAME = "wow"
         private const val GROUP = "me.ahoo.wow"
         private const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.InMemoryLeaseStore
+import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.CommandBody
@@ -40,6 +41,8 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.RecordingLeases
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.fastOptions
+import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.contract.ContractFixtures
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
@@ -86,6 +89,7 @@ class ServiceNodeTest {
         subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
         listener: (ServiceNode.Step) -> Unit = {},
         address: String? = "$name.internal:9090",
+        peers: List<ManifestFragment> = emptyList(),
     ): ServiceNode = ServiceNode(
         NODE_SERVICE,
         name,
@@ -98,6 +102,7 @@ class ServiceNodeTest {
         options = options,
         subscriptions = subscriptions,
         listener = listener,
+        contracts = ContractDirectory(accountsManifest(*contexts), peers),
     ).also {
         nodes[name] = it
         if (it.hasAddress) {
@@ -388,6 +393,40 @@ class ServiceNodeTest {
             "aggregate $AUDIT.account has a model but is not in the Manifest",
             "aggregate $LEDGER.account is in the Manifest but has no model",
         )
+    }
+
+    @Test
+    fun `a wait chain may name a subscription of a peer's context through the node's contracts`(): Unit = runBlocking {
+        val peer = WaitPlan.of(Hop.handled("StockProjector.onStock", "inventory")).within(200.milliseconds)
+        val alone = node("node-1")
+        alone.start()
+        val refused = alone.gateway.execute(deposit(id = "a-1", wait = peer))
+        refused.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+        alone.stop()
+
+        val node = node("node-2", backends = InMemoryBackends(), peers = ContractFixtures.peers)
+        node.contracts.serviceOf("inventory").assert().isEqualTo("inventory-service")
+        node.start()
+        // Admitted and committed; no signal comes from the peer here, so the wait ends at COMMITTED.
+        val result = node.gateway.execute(deposit(id = "a-2", wait = peer))
+        result.error!!.code.assert().isNotEqualTo(ResultCodes.WAIT_INVALID)
+        result.hop.assert().isEqualTo(Hop.committed(BANK))
+    }
+
+    @Test
+    fun `a node refuses contracts of another Manifest`() {
+        assertThrows<IllegalArgumentException> {
+            ServiceNode(
+                NODE_SERVICE,
+                "node-1",
+                "node-1.internal:9090",
+                listOf(accountModel(BANK)),
+                accountsManifest(BANK),
+                InMemoryBackends(),
+                channel,
+                contracts = ContractDirectory(accountsManifest(BANK, LEDGER)),
+            )
+        }.message.assert().contains("contracts")
     }
 
     @Test

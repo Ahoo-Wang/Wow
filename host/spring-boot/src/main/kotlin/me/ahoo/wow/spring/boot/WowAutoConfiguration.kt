@@ -37,6 +37,7 @@ import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterChannel
+import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.AdmissionPlugins
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -75,7 +76,8 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *
  * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]), the models' parameters from the
  *   application's beans ([BeanFactoryDependencies]), the Manifest merged from the modules' fragments
- *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper).
+ *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peers' Manifests on the
+ *   classpath ([ContractDirectory], decision D139).
  * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
  *   [BackendFactory] bean.
@@ -131,6 +133,16 @@ class WowAutoConfiguration {
     @ConditionalOnMissingBean
     fun wowManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
         loader.load(ServiceInfo(identity.service), models.providers)
+
+    /** The contracts of the service's Manifest and of its peers on the class path (decision D139). */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowContractDirectory(manifest: Manifest, beanFactory: ConfigurableListableBeanFactory): ContractDirectory =
+        ContractDirectory.load(
+            manifest,
+            beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!,
+            WowJson.mapper
+        )
 
     @Bean
     @ConditionalOnMissingBean
@@ -193,6 +205,7 @@ class WowAutoConfiguration {
         identity: NodeIdentity,
         models: WowModels,
         manifest: Manifest,
+        contracts: ContractDirectory,
         backends: HostBackends,
         beanFactory: ConfigurableListableBeanFactory,
         dependencies: Dependencies,
@@ -237,6 +250,7 @@ class WowAutoConfiguration {
             ),
             subscriptions = bindings(beanFactory, dependencies, subscriptions.ifAvailable),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
+            contracts = contracts,
         )
     }
 
