@@ -18,12 +18,12 @@ import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -174,7 +174,10 @@ class WowPlugin : Plugin<Project> {
     private fun manifestAttributes(project: Project, configuration: Configuration) {
         val objects = project.objects
         configuration.attributes { attributes ->
-            attributes.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.DOCUMENTATION))
+            attributes.attribute(
+                Category.CATEGORY_ATTRIBUTE,
+                objects.named(Category::class.java, Category.DOCUMENTATION)
+            )
             attributes.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, MANIFEST_DOCS_TYPE))
             attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
             attributes.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))

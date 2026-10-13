@@ -138,7 +138,11 @@ class WowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun wowContractDirectory(manifest: Manifest, beanFactory: ConfigurableListableBeanFactory): ContractDirectory =
-        ContractDirectory.load(manifest, beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!, WowJson.mapper)
+        ContractDirectory.load(
+            manifest,
+            beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!,
+            WowJson.mapper
+        )
 
     @Bean
     @ConditionalOnMissingBean

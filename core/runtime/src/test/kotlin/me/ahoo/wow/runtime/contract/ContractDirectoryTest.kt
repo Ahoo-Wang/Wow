@@ -81,7 +81,10 @@ class ContractDirectoryTest {
 
     @Test
     fun `subscriptions should resolve by context and name with their kinds`() {
-        directory.subscriptionOf("inventory", "StockProjector.onStock")!!.kind.assert().isEqualTo(SubscriptionKind.PROJECTION)
+        directory.subscriptionOf(
+            "inventory",
+            "StockProjector.onStock"
+        )!!.kind.assert().isEqualTo(SubscriptionKind.PROJECTION)
         directory.subscriptionOf("shop", "OrderSaga.onStock")!!.kind.assert().isEqualTo(SubscriptionKind.SAGA)
         directory.subscriptionOf("inventory", "OrderSaga.onStock").assert().isNull()
         directory.kindOf("inventory", "StockProjector.onStock").assert().isEqualTo(FunctionKind.PROJECT)
@@ -189,7 +192,9 @@ class ContractDirectoryTest {
         val billing = ContextManifest("billing")
         problems(
             shop(
-                subscriptions = listOf(subscription("A.onAccount", source = SubscriptionSource("billing", listOf("account")))),
+                subscriptions = listOf(
+                    subscription("A.onAccount", source = SubscriptionSource("billing", listOf("account")))
+                ),
                 contexts = listOf(billing),
             ),
         ).assert().containsExactly(
@@ -201,7 +206,10 @@ class ContractDirectoryTest {
     fun `peers that conflict with each other or with the service should fail`() {
         val rival = ManifestFragment(
             "rival.json",
-            Manifest(service = ServiceInfo("rival"), contexts = listOf(ContextManifest("inventory"), ContextManifest("shop"))),
+            Manifest(
+                service = ServiceInfo("rival"),
+                contexts = listOf(ContextManifest("inventory"), ContextManifest("shop"))
+            ),
         )
         assertThrows<ContractException> { ContractDirectory(shop(), ContractFixtures.peers + rival) }
             .problems.assert().containsExactly(

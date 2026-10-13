@@ -157,7 +157,11 @@ class WowPeersFunctionalTest {
         context(directory, "shop", "shop", "cart")
         module(directory, "warehouse", dependencies = """wowPeers(project(":inventory"))""")
         context(directory, "warehouse", "inventory", "bin")
-        module(directory, "clash", dependencies = """wowPeers(project(":inventory")); wowPeers(project(":warehouse"))""")
+        module(
+            directory,
+            "clash",
+            dependencies = """wowPeers(project(":inventory")); wowPeers(project(":warehouse"))"""
+        )
         context(directory, "clash", "clash", "thing")
         result = runner(directory, ":shop:jar", ":inventory:publish").build()
     }

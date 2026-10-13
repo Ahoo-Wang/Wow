@@ -30,7 +30,11 @@ class PeerManifestsTest {
 
     @Test
     fun `peers of other contexts should not conflict`() {
-        PeerManifests.conflicts("shop", listOf("shop"), listOf(peer("inventory", "inventory"), peer("billing", "billing")))
+        PeerManifests.conflicts(
+            "shop",
+            listOf("shop"),
+            listOf(peer("inventory", "inventory"), peer("billing", "billing"))
+        )
             .assert().isEmpty()
     }
 
@@ -45,12 +49,18 @@ class PeerManifestsTest {
     @Test
     fun `a peer declaring a context of the service should conflict`() {
         PeerManifests.conflicts("shop", listOf("shop"), listOf(peer("inventory", "inventory", "shop")))
-            .assert().containsExactly("context shop is declared by service shop and by its peer inventory (inventory.json)")
+            .assert().containsExactly(
+                "context shop is declared by service shop and by its peer inventory (inventory.json)"
+            )
     }
 
     @Test
     fun `a fragment, a repeated service or the service itself should not be a peer`() {
-        PeerManifests.conflicts("shop", emptyList(), listOf(peer(null, "a"), peer("b", "b"), peer("b", "c"), peer("shop", "d")))
+        PeerManifests.conflicts(
+            "shop",
+            emptyList(),
+            listOf(peer(null, "a"), peer("b", "b"), peer("b", "c"), peer("shop", "d"))
+        )
             .assert().containsExactly(
                 "peer fragment.json is not a service's merged Manifest: it names no service",
                 "service b is the peer of b.json and b.json",

@@ -64,7 +64,12 @@ class ContractDirectory(
     /** Every context by its name; on a conflict, which fails the build, the service's own or the first peer's. */
     private val contexts: Map<String, Owned> = HashMap<String, Owned>().also { contexts ->
         manifests.forEach { manifest ->
-            manifest.contexts.forEach { contexts.putIfAbsent(it.name, Owned(manifest.service?.name, it, manifest === local)) }
+            manifest.contexts.forEach {
+                contexts.putIfAbsent(
+                    it.name,
+                    Owned(manifest.service?.name, it, manifest === local)
+                )
+            }
         }
     }
 
@@ -115,7 +120,11 @@ class ContractDirectory(
      * name is itself when a context decides it. Null when no context of the service or its peers decides it.
      */
     fun commandTypeOf(reference: String): String? =
-        if (reference.startsWith(DEFS_PREFIX)) commandsBySchema[reference] else reference.takeIf { it in schemasByCommand }
+        if (reference.startsWith(DEFS_PREFIX)) {
+            commandsBySchema[reference]
+        } else {
+            reference.takeIf { it in schemasByCommand }
+        }
 
     /** The schema reference of the command type [commandType] (`ctx.agg.Command`), as its context's Manifest gives it. */
     fun schemaOf(commandType: String): String? = schemasByCommand[commandType]
@@ -166,7 +175,10 @@ class ContractDirectory(
      * answered by [runtime], which knows the subscriptions the node runs and their progress; a hop of any other
      * context, this service's or a peer's, by the Manifests.
      */
-    fun over(runtime: SubscriptionDirectory, ownContext: String): SubscriptionDirectory = object : SubscriptionDirectory {
+    fun over(
+        runtime: SubscriptionDirectory,
+        ownContext: String
+    ): SubscriptionDirectory = object : SubscriptionDirectory {
         override fun kindOf(context: String, subscription: String): FunctionKind? =
             if (context == ownContext) {
                 runtime.kindOf(context, subscription)
