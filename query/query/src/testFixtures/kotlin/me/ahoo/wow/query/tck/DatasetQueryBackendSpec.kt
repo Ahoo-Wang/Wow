@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -443,7 +444,7 @@ abstract class DatasetQueryBackendSpec {
         val datasets = QueryDatasets(listOf(orders.dataset))
         val gateways = DatasetQueryGateways.of(datasets, catalog(datasets), factory, policies = listOf(ScopeQueryPolicy()))
         val gateway = checkNotNull(gateways[orders.dataset.name])
-        val t2 = QueryCaller(QueryEntry.HTTP, tenantId = "t2")
+        val t2 = QueryCaller(Caller(tenantId = "t2"), entry = QueryEntry.HTTP)
         gateway.count(CountQuery(MatchAllFilter), t2).assert().isEqualTo(CountResult(1, exact = true))
         gateway.list(ListQuery(MatchAllFilter, limit = 10), t2).toList().map { it.path(ID).stringValue() }
             .assert().containsExactly("o6")

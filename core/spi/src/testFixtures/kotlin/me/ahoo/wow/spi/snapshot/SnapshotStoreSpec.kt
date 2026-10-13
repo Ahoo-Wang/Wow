@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.spi.ExactJson
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -47,6 +48,8 @@ abstract class SnapshotStoreSpec {
         scope: Scope = Scope("owner", "space"),
         deleted: Boolean = false,
         tags: Map<String, List<String>> = mapOf("region" to listOf("east", "west"), "tier" to listOf("gold")),
+        operator: Operator? = Operator("bob", tenant),
+        firstOperator: Operator? = Operator("alice ü", "home", crossScope = true),
     ) = SnapshotRecord(
         ref = aggregate.ref(tenant, id),
         version = version,
@@ -57,6 +60,8 @@ abstract class SnapshotStoreSpec {
         firstEventTime = FIRST_EVENT_TIME,
         lastEventTime = FIRST_EVENT_TIME + version,
         tags = tags,
+        operator = operator,
+        firstOperator = firstOperator,
     )
 
     private fun SnapshotRecord?.assertSameAs(expected: SnapshotRecord) {
@@ -98,7 +103,15 @@ abstract class SnapshotStoreSpec {
     @Test
     fun `absent access facts and the deleted mark load back as saved`(): Unit = runBlocking {
         val store = createStore()
-        val saved = snapshot("a", 1, scope = Scope.NONE, deleted = true, tags = emptyMap())
+        val saved = snapshot(
+            "a",
+            1,
+            scope = Scope.NONE,
+            deleted = true,
+            tags = emptyMap(),
+            operator = null,
+            firstOperator = null,
+        )
         store.save(saved).assert().isTrue()
         store.load(saved.ref).assertSameAs(saved)
         val ownerOnly = snapshot("b", 1, scope = Scope(ownerId = "owner"))

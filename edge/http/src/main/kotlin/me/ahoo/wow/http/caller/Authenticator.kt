@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.http.caller
 
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.Caller
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**

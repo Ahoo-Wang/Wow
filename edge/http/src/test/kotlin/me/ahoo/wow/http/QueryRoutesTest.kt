@@ -323,7 +323,7 @@ class QueryRoutesTest {
 
     @Test
     fun `the HTTP caller should map onto the query caller`() {
-        val caller = me.ahoo.wow.runtime.admission.Caller(
+        val caller = me.ahoo.wow.api.caller.Caller(
             tenantId = TENANT,
             scope = me.ahoo.wow.api.aggregate.Scope("alice", "s-1"),
             subject = "alice",

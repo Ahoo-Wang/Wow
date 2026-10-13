@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -255,7 +256,7 @@ class AbacQueryPolicyTest {
     )
 
     private fun caller(entry: QueryEntry, vararg attributes: Pair<String, List<String>>) =
-        QueryCaller(entry, attributes = attributes.toMap())
+        QueryCaller(Caller(attributes = attributes.toMap()), entry = entry)
 
     private fun context(entry: QueryEntry = QueryEntry.HTTP) =
         QueryContext<FilterExpression>(MatchAllFilter, TYPE, SNAPSHOT_SCHEMA, QueryType.LIST, entry)

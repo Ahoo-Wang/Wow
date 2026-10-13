@@ -110,6 +110,8 @@ class MongoQuerySchemaAdapter internal constructor(
             "first_event_time" to setOf("long"),
             "last_event_time" to setOf("long"),
             "tags" to OBJECT_TYPES,
+            "operator" to OBJECT_TYPES,
+            "first_operator" to OBJECT_TYPES,
             "state" to OBJECT_TYPES,
         )
 

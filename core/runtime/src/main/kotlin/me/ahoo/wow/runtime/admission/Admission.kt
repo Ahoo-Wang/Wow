@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
@@ -55,8 +56,8 @@ fun interface CommandAuthorizer {
 /**
  * Rewrites a decoded command before it is validated (decision D92, step 5), such as filling a default into its body or
  * adding a request fact to its headers. It may change only the body (keeping its type) and the headers; the gateway
- * checks after each rewriter that the ids, the ref, the scope, the expected version, the causation and the wait plan
- * are unchanged, and that no reserved header was added.
+ * checks after each rewriter that the ids, the ref, the scope, the expected version, the causation, the operator and
+ * the wait plan are unchanged, and that no reserved header was added.
  */
 fun interface CommandRewriter {
     suspend fun rewrite(command: Command<*>): Command<*>

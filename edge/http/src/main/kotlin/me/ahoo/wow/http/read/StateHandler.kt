@@ -16,6 +16,7 @@ package me.ahoo.wow.http.read
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
@@ -25,7 +26,6 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy

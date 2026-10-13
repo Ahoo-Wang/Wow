@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean

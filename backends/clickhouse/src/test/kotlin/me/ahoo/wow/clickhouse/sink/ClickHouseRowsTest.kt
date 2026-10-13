@@ -39,6 +39,9 @@ class ClickHouseRowsTest {
         row.get("correlation_id").asString().assert().isEqualTo("correlation-1")
         row.get("causation_id").asString().assert().isEqualTo("upstream@1")
         WowJson.mapper.writeValueAsString(row.get("headers")).assert().isEqualTo("""{"app":"web"}""")
+        row.get("operator_id").asString().assert().isEqualTo("alice")
+        row.get("operator_tenant_id").asString().assert().isEqualTo("tenant-0")
+        row.get("operator_cross_scope").asBoolean().assert().isTrue()
         row.get("state_fingerprint").asString().assert().isEqualTo("fingerprint-1")
     }
 
@@ -57,6 +60,14 @@ class ClickHouseRowsTest {
         ClickHouseRows.rowOf(SinkFixtures.recordOf(state = """{"tiny":1E-7,"huge":1E+3}"""))
             .get("state_numbers").let { WowJson.mapper.writeValueAsString(it) }
             .assert().isEqualTo("""{"tiny":"0.0000001","huge":"1000"}""")
+    }
+
+    @Test
+    fun `a record without an operator should leave the operator columns empty`() {
+        val row = ClickHouseRows.rowOf(SinkFixtures.recordOf(operator = null))
+        row.get("operator_id").asString().assert().isEmpty()
+        row.get("operator_tenant_id").asString().assert().isEmpty()
+        row.get("operator_cross_scope").asBoolean().assert().isFalse()
     }
 
     @Test

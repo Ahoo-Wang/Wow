@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.http.query.HttpQueries
@@ -36,7 +37,6 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -150,7 +150,7 @@ class HostQueryTest {
             runBlocking {
                 queries.events(ACCOUNT)!!.list(
                     ListQuery(AggregateIdFilter(listed.body!![0]["aggregateId"].asString())),
-                    QueryCaller.IN_PROCESS.copy(tenantId = Caller.DEFAULT_TENANT),
+                    QueryCaller.IN_PROCESS.copy(caller = Caller()),
                 ).toList()
             }.assert().hasSize(1)
         }
@@ -169,8 +169,11 @@ class HostQueryTest {
     fun `a fixed tenant should restrict the queries of its aggregate type`() {
         startHost("wow.aggregates.[bank.account].tenant" to "platform").use { host ->
             val tenants = host.context.getBean(QueryTenantPolicy::class.java)
-            tenants.tenantOf(ACCOUNT, QueryCaller(tenantId = "acme")).assert().isEqualTo("platform")
-            tenants.tenantOf(AggregateType(BANK, "other"), QueryCaller(tenantId = "acme")).assert().isEqualTo("acme")
+            tenants.tenantOf(ACCOUNT, QueryCaller(Caller(tenantId = "acme"))).assert().isEqualTo("platform")
+            tenants.tenantOf(
+                AggregateType(BANK, "other"),
+                QueryCaller(Caller(tenantId = "acme"))
+            ).assert().isEqualTo("acme")
         }
     }
 
@@ -178,7 +181,10 @@ class HostQueryTest {
     fun `the host tenant policy should fix a tenant or keep the caller's`() {
         val tenants = HostQueryTenants(TenantPolicy.fixed(mapOf(ACCOUNT to "platform")))
         tenants.tenantOf(ACCOUNT, QueryCaller()).assert().isEqualTo("platform")
-        tenants.tenantOf(AggregateType(BANK, "other"), QueryCaller(tenantId = "acme")).assert().isEqualTo("acme")
+        tenants.tenantOf(
+            AggregateType(BANK, "other"),
+            QueryCaller(Caller(tenantId = "acme"))
+        ).assert().isEqualTo("acme")
         tenants.tenantOf(AggregateType(BANK, "other"), QueryCaller()).assert().isNull()
     }
 

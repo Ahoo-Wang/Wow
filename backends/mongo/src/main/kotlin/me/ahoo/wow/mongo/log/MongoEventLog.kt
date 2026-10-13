@@ -46,6 +46,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -516,6 +517,7 @@ class MongoEventLog(
             stream.causation?.let { Document(CORRELATION_ID, it.correlationId).append(CAUSATION_ID, it.causationId) },
         )
         .append(HEADERS, Document(stream.headers))
+        .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
         .apply { if (stream.schedules.isNotEmpty()) append(SCHEDULES, stream.schedules.map(::scheduleDocument)) }
         .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
 
@@ -629,6 +631,7 @@ class MongoEventLog(
         },
         headers = strings(document.get(HEADERS, Document::class.java)),
         schedules = document.getList(SCHEDULES, Document::class.java)?.map(::scheduleOf).orEmpty(),
+        operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
     )
 
     private companion object {
@@ -665,6 +668,7 @@ class MongoEventLog(
         const val CORRELATION_ID = "correlation_id"
         const val CAUSATION_ID = "causation_id"
         const val HEADERS = "headers"
+        const val OPERATOR = "operator"
         const val TRANSPORT = "transport"
         const val SCHEDULES = "schedules"
         const val DUE_AT = "due_at"

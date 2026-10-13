@@ -62,6 +62,8 @@ import kotlin.time.Duration
  *      that names another tenant for it is [FrameworkCodes.MALFORMED];
  *    - the aggregate id is the request's, or a new one from [ids] for a command that may create the aggregate;
  *    - the command id is always a new one from [ids]; the request id is the request's, or the command id;
+ *    - the operator is the caller's ([Caller.toOperator], decision D163): its subject in its own tenant, marked as
+ *      acting elsewhere when a target was named; none for an anonymous caller;
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
@@ -196,6 +198,7 @@ class CommandGateway(
             expectedVersion = request.expectedVersion,
             scope = scope,
             headers = request.headers,
+            operator = request.caller.toOperator(actingElsewhere = target != null),
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
         )
         rewriters.forEach { rewriter -> command = rewriter.rewrite(command).also { checkRewrite(command, it) } }
@@ -292,8 +295,11 @@ class CommandGateway(
                     rewritten.scope == command.scope &&
                     rewritten.expectedVersion == command.expectedVersion &&
                     rewritten.causation == command.causation &&
+                    rewritten.operator == command.operator &&
                     rewritten.wait == command.wait,
-            ) { "A rewriter changed the identity, the ids or the wait of ${command.id}; it may change only its body and headers." }
+            ) {
+                "A rewriter changed the identity, the ids, the operator or the wait of ${command.id}; it may change only its body and headers."
+            }
             check(rewritten.body.javaClass == command.body.javaClass) {
                 "A rewriter changed the body of ${command.id} from ${command.body.javaClass.name} to ${rewritten.body.javaClass.name}."
             }

@@ -15,6 +15,7 @@ package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.WaitPlan
 
 /**
@@ -32,6 +33,10 @@ import me.ahoo.wow.api.result.WaitPlan
  *
  * [causation] links the command to the chain it belongs to; a command a user sends directly has none.
  *
+ * [operator] is whose name the command and what it commits are recorded in (decision D163): admission takes it from
+ * the caller ([me.ahoo.wow.api.caller.Caller.toOperator]), null for an anonymous one; a command a saga derives, a
+ * compensation and a scheduled command keep the root command's.
+ *
  * [wait] is what the caller waits for before it is answered (design 04 §6), by default until the snapshot holds the
  * commit (decision D69). It stays on the node that took the command: only a wait context travels with it.
  */
@@ -44,6 +49,7 @@ data class Command<C : Any>(
     val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null,
+    val operator: Operator? = null,
     val wait: WaitPlan = WaitPlan.DEFAULT,
 ) {
     init {

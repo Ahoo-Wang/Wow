@@ -113,7 +113,7 @@ class IndexedSortTest {
                 FixedQueryModelSchemaProvider(schema),
                 entryPolicy = QueryEntryPolicy(http = budget),
             )
-            val http = QueryCaller(QueryEntry.HTTP)
+            val http = QueryCaller(entry = QueryEntry.HTTP)
             val byBuyer = listOf(Sort(BUYER, Sort.Direction.ASC))
             // Permissive by default, even on an entry that refuses expensive operators.
             gateway(QueryBudget("HTTP", allowExpensiveOperators = false))

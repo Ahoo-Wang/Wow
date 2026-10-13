@@ -15,6 +15,7 @@ package me.ahoo.wow.http.read
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
@@ -77,8 +78,8 @@ data class StateView(
 
 /**
  * One commit of a trace (decision D40): the stream at [version], committed at [commitTime] (epoch milliseconds) for
- * the command [commandId] of type [commandType] sent with [requestId], its [events], and the aggregate after it: its
- * [scope], [deleted] mark, [tags] and [state].
+ * the command [commandId] of type [commandType] sent with [requestId] in the name of [operator] (decision D163), its
+ * [events], and the aggregate after it: its [scope], [deleted] mark, [tags] and [state].
  */
 data class CommitView(
     val version: Int,
@@ -91,6 +92,7 @@ data class CommitView(
     val deleted: Boolean,
     val tags: Map<String, List<String>>,
     val state: JsonNode,
+    val operator: Operator? = null,
 )
 
 /** An event of a commit: its [name] and [body] as the model reads it now, upgraded to [revision] (decision D82). */
@@ -152,6 +154,7 @@ class KernelStateReads(private val registry: ModelRegistry, contexts: Map<String
                 deleted = commit.deleted,
                 tags = commit.tags,
                 state = commit.state,
+                operator = stream.operator,
             )
         }
     }

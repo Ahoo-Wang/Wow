@@ -18,10 +18,10 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.Caller
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.ServerRequest

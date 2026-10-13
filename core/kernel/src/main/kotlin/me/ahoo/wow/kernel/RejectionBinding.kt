@@ -111,7 +111,8 @@ fun rejectionContextOf(handler: RejectionBinding<*>, rejected: CommandRejected<*
  * The context of an `@OnRejected` handler for the rejection [rejected] (decisions D136, D153). Handling the same
  * rejection again, after a retry or a second delivery of its receipt, derives the same requests, which the kernel does
  * not decide twice: the n-th [command]'s id and request id are [compensationId] of the rejected command, this
- * execution and the call's index. Each command's causation is the rejected command, in the chain of its root.
+ * execution and the call's index. Each command's causation is the rejected command, in the chain of its root, and its
+ * operator the rejected command's (decision D163).
  */
 class RejectionSagaContext(override val executionId: ExecutionId, private val rejected: CommandRejected<*>) :
     SagaContext {
@@ -125,6 +126,7 @@ class RejectionSagaContext(override val executionId: ExecutionId, private val re
             ref = ref,
             body = body,
             causation = Causation(rejected.causation.correlationId, rejected.commandId),
+            operator = rejected.operator,
         )
     }
 

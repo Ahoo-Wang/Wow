@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -173,19 +174,29 @@ class KernelTest {
     }
 
     @Test
-    fun `the stream records the command's model name, causation and headers`(): Unit = runTest {
+    fun `the stream records the command's model name, causation, headers and operator`(): Unit = runTest {
         val kernel = Kernel(InMemoryEventLog())
         val causation = Causation("root-command", "example.cart/tenant/other@2")
         val created = kernel.execute(
             cartModel,
-            Command("c-1", "r-1", ref, CreateCart("ahoo"), headers = mapOf("app" to "console"), causation = causation),
+            Command(
+                "c-1",
+                "r-1",
+                ref,
+                CreateCart("ahoo"),
+                headers = mapOf("app" to "console"),
+                causation = causation,
+                operator = Operator("ahoo", "tenant"),
+            ),
         ) as CommandOutcome.Committed
         created.stream.commandType.assert().isEqualTo("example.cart.CreateCart")
         created.stream.causation.assert().isEqualTo(causation)
         created.stream.headers.assert().isEqualTo(mapOf("app" to "console"))
+        created.stream.operator.assert().isEqualTo(Operator("ahoo", "tenant"))
         val added = kernel.execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Committed
         added.stream.causation.assert().isNull()
         added.stream.headers.assert().isEmpty()
+        added.stream.operator.assert().isNull()
     }
 
     @Test

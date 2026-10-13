@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.cluster
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -31,11 +32,12 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * A command in its wire form (design 08 §3): `{ type, id, requestId, ref, body, expectedVersion, scope, headers,
- * causation, replyTo }`. [type] is the command type's model name, which the receiver reads [body] by; the wait plan
+ * causation, operator, replyTo }`. [type] is the command type's model name, which the receiver reads [body] by; the wait plan
  * does not travel, only a wait context does.
  *
  * [replyTo] is set only on a command a saga sends to another context (decision D136, an addition within format 1):
- * where the target sends the receipt of a rejection.
+ * where the target sends the receipt of a rejection. [operator] (decision D163, an addition within format 1 too) is the
+ * command's operator; a reader of an older version ignores it, and one reading an older writer's command has none.
  */
 data class CommandWire(
     val type: String,
@@ -47,6 +49,7 @@ data class CommandWire(
     val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null,
+    val operator: Operator? = null,
     val replyTo: ReplyTo? = null,
 )
 
@@ -181,6 +184,7 @@ object ClusterCodec {
         scope = command.scope,
         headers = command.headers,
         causation = command.causation,
+        operator = command.operator,
         replyTo = replyTo,
     )
 
@@ -196,6 +200,7 @@ object ClusterCodec {
             scope = wire.scope,
             headers = wire.headers,
             causation = wire.causation,
+            operator = wire.operator,
         )
     }
 }
