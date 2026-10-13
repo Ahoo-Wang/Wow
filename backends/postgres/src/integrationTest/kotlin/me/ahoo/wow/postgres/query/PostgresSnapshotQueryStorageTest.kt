@@ -23,6 +23,8 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
@@ -48,11 +50,11 @@ import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.index.QueryIndexDdl
+import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryCapability
-import me.ahoo.wow.api.query.CountResult
-import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation

@@ -16,47 +16,14 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.IndexOptions
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.query.index.QueryIndexDdl
+import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.Document
 import org.slf4j.LoggerFactory
-
-/**
- * One `x-wow-index` entry of an aggregate's state schema (decision D151): its name and its keys, logical paths. The
- * same reading as the PostgreSQL backend's, whose type lives in `:postgres` (a backend may not depend on another).
- */
-data class QueryIndexDeclaration(val name: String, val keys: List<String>) {
-    init {
-        require(name.isNotEmpty()) { "An index needs a name." }
-        require(keys.isNotEmpty()) { "Index [$name] needs at least one key." }
-    }
-
-    companion object {
-        /** The keyword `manifest-tools` writes the indexes under, at the root of the state schema. */
-        const val KEYWORD: String = "x-wow-index"
-
-        /** The indexes the state of [aggregate] in [context] declares in [manifest]; none when it declares none. */
-        fun of(manifest: Manifest, context: String, aggregate: String): List<QueryIndexDeclaration> {
-            val state = manifest.contexts.firstOrNull { it.name == context }
-                ?.aggregates?.firstOrNull { it.name == aggregate }?.state ?: return emptyList()
-            val schema = manifest.defs[Manifest.schemaKey(state.schema)] as? Map<*, *> ?: return emptyList()
-            val entries = schema[KEYWORD] ?: return emptyList()
-            require(entries is List<*>) { "$KEYWORD of $context.$aggregate must be an array." }
-            return entries.map { entry ->
-                require(entry is Map<*, *>) { "An entry of $KEYWORD of $context.$aggregate must be an object." }
-                val name = entry["name"]
-                val keys = entry["keys"]
-                require(name is String && keys is List<*> && keys.all { it is String }) {
-                    "An entry of $KEYWORD of $context.$aggregate needs a name and string keys."
-                }
-                QueryIndexDeclaration(name, keys.map { it as String })
-            }
-        }
-    }
-}
 
 /**
  * A planned query index of the snapshot collection of [aggregate] in [context]: its [name], unique within its

@@ -54,6 +54,8 @@ import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.index.QueryIndexDdl
+import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryCapability
