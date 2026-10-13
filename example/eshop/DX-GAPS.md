@@ -173,3 +173,77 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: Both services run with the default tenant.
 - **Proposed fix**: Document how a tenant crosses contexts. Have the target's admission check a cross-context command's tenant against its tenant policy, with a clear rejection.
 - **Blocks M7**: no, but it needs settling before multi-tenant users go cross-context.
+
+### G14. Services on one class path read each other's peer Manifests
+
+- **Work package**: E.2 to E.4
+- **Area**: host
+- **What happened**: The order flow's end-to-end test first ran the basket, ordering and inventory services in the test's JVM, as `EshopSharedJvmTest` runs two, each selecting its context with `wow.contexts.include`. The inventory node did not start: "peer …/eshop-ordering-server.jar!/META-INF/wow/peers/eshop-inventory-service.json is of service eshop-inventory-service itself", and its context "is declared by service eshop-inventory-service and by its peer". The host reads every `META-INF/wow/peers/` on the class path, so the ordering server's copy of the inventory's Manifest becomes a peer of the inventory itself. `wow.contexts.include` narrows the models, fragments, routes and processors, but not the peers. A second, related trap: with several servers on one class path, Spring Boot reads only the first `application.yaml` on it, whichever server's that is, so each service's own configuration (profiles, `wow.subscriptions.*`, `wow.kafka.command-intake`) has to be passed again as arguments.
+- **Minimal reproduction**: one class path with `:eshop-ordering-server` (whose peer is the inventory) and `:eshop-inventory-server`; start `InventoryServer` with `--wow.contexts.include=eshop-inventory`.
+- **Where they looked**: `guide/v10/configuration` (`wow.contexts.include`, which names shared-JVM end-to-end tests as its use); `guide/v10/programming-model` (Peers); `guide/v10/testing`.
+- **Workaround**: `EshopOrderFlowTest` runs each service in a JVM of its own, on its server's runtime class path, as `EshopE2eTest` does. That also lets each service read its own `application.yaml`.
+- **Proposed fix**: Ignore a peer Manifest of the node's own service, and a peer whose contexts the node serves, or scope the peers by `wow.contexts.include`. Say in the guide that services sharing a class path share one `application.yaml`.
+- **Blocks M7**: no, but E.6 runs five services and will meet it again; the guide presents shared-JVM tests as supported.
+
+### G15. A saga's command cannot give the aggregate it creates an owner
+
+- **Work package**: E.2
+- **Area**: kernel, docs
+- **What happened**: The basket, whose owner is its buyer, submits an order to the ordering context on checkout. The order should belong to the buyer too, but "a derived command carries no caller scope" (`guide/v10/programming-model`, Sagas), and `SagaContext.command(ref, body)` takes no scope. The order the saga creates has no owner, so the kernel's scope guard does not keep it to the buyer, and nothing can query the buyer's orders by owner.
+- **Where they looked**: `guide/v10/programming-model` (Owners, spaces and tenants; Sagas); the KDoc of `SagaContext`.
+- **Workaround**: `SubmitOrder` carries `buyerId` in its body, against the rule that a command carries no identity field, and the order keeps it in its state.
+- **Proposed fix**: Let a saga give a derived command a scope (`context.command(ref, body, scope = event.scope)`), at least for a creating command, or document the intended way (a `TransferOwner` after creation, a business field).
+- **Blocks M7**: no, but every checkout-like flow across contexts meets it.
+
+### G16. An accepted command to another context has no receipt
+
+- **Work package**: E.3, E.4
+- **Area**: kernel, docs
+- **What happened**: The ordering saga reserves stock in the inventory and must learn when every reservation is accepted, to move the order on. A rejection comes back as a receipt to `@OnRejected`; an accepted command has nothing. The only way is to read the inventory's published stock stream, match `eshop-inventory.stock.StockReserved` by name and read `orderId` out of the payload's JSON (G7), and to set that subscription to `start: beginning` (G10). The guide shows reading another context's stream and sending to it, but not this round trip.
+- **Where they looked**: `guide/v10/programming-model` (Other contexts, `@OnRejected`); `guide/v10/http-api` (`Wow-Wait`, which follows the hop for a client but not for a saga).
+- **Workaround**: `StockConfirmationSaga` reads the stock stream and sends `ConfirmOrderStock` to the order; the inventory's `StockReserved` carries the order's id as part of the contract.
+- **Proposed fix**: Document the pattern (accepted outcomes come back through the target's stream), or offer an `@OnAccepted` (or `@OnCommitted`) counterpart of `@OnRejected` for commands a saga derives.
+- **Blocks M7**: no.
+
+### G17. The testing guide's saga example derives other ids the second time
+
+- **Work package**: E.3
+- **Area**: docs, testing
+- **What happened**: `guide/v10/testing` (Testing sagas) calls the handler twice with one `ExecutionSagaContext` to show that "handling the commit again derives the same requests". Written that way, the test fails: the context numbers the commands it derives, so the second call continues the numbering and derives other ids. A fresh context per call, as the runtime gives each handling, derives the same ones.
+- **Where they looked**: `guide/v10/testing`; `skills/wow-develop/references/v10-service.md` (Tests).
+- **Workaround**: The eShop's saga tests build a fresh context for each call.
+- **Proposed fix**: Build the context twice in the example, and say why.
+- **Blocks M7**: no, but the first saga test a user copies fails.
+
+### G18. Smaller gaps of the test DSL
+
+- **Work package**: E.2, E.3
+- **Area**: testing, docs
+- **What happened**:
+  - `expectEventTypes(vararg types)` takes `Class<*>`; the guide does not say so, and a Kotlin user writes `X::class` first.
+  - `expectState` after `expectRejected` fails with "Expected committed events but got Rejected": G12 lets it follow `expectUnchanged` only, and the guide's sentence covers only that case.
+  - `advanceTime(d) { … }` fails with "No command the aggregate scheduled was due by …" when nothing is due, so a spec cannot show that a cancelled schedule does not fire; the guide does not mention it.
+- **Where they looked**: `guide/v10/testing`.
+- **Workaround**: `.java` classes; no state check after a rejection; the cancelled schedule is checked with `expectScheduleCancelled`, and the late command is sent by hand to show the order rejects it.
+- **Proposed fix**: Accept `KClass` too; let `expectState` read the current state after a rejection; let `advanceTime` take a block that expects nothing due (or document the failure).
+- **Blocks M7**: no.
+
+### G19. An `@OnRejected` handler that only accepts a rejection must still name a command
+
+- **Work package**: E.3
+- **Area**: compiler, docs
+- **What happened**: A release of a reservation the inventory rejects (for a product it has no stock of) needs no compensation, but without a handler the order parks. The guide says to "return `null` from the handler to accept a rejection". The handler then needs a command return type all the same (`Command<CancelOrder>?`), so the Manifest lists `CancelOrder` among its `derives`, and detekt flags the function (`FunctionOnlyReturningConstant`).
+- **Where they looked**: `guide/v10/programming-model` (`@OnRejected`).
+- **Workaround**: `OrderProcessSaga.onReleaseRejected` returns `Command<CancelOrder>?` and is always null, with the detekt rule suppressed.
+- **Proposed fix**: Allow `Unit` (or `Nothing?`) as the return type of an `@OnRejected` handler that never compensates, or a declarative way to accept the rejections of a command type (`@OnRejected(accept = [...])`).
+- **Blocks M7**: no.
+
+### G20. A service whose saga sends to another context cannot run locally without Kafka
+
+- **Work package**: E.2, E.3
+- **Area**: host, docs
+- **What happened**: The quick start runs a new service on the memory backend with `./gradlew :<svc>-server:run`. Since G9's check, the basket and ordering services refuse to start that way: their sagas send other contexts' commands. The guide gives an in-memory transport only for tests (`InMemoryTopics` and `SourceTopics` beans), not a switch for trying a service out.
+- **Where they looked**: `guide/v10/index` (Run it and send a command); `guide/v10/programming-model` (Sending a command to another context).
+- **Workaround**: The servers keep Kafka in a `kafka` profile, like the shop; the README says to start Kafka and create the topics first.
+- **Proposed fix**: A host property for in-memory topics on the memory backend (`wow.kafka.in-memory`, say), or a note in the quick start.
+- **Blocks M7**: no.

@@ -15,10 +15,10 @@ package me.ahoo.wow.example.eshop.basket.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.AfterAll
