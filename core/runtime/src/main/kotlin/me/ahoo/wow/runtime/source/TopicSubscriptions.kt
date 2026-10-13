@@ -28,6 +28,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.subscription.EntrySource
+import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -71,7 +72,7 @@ class TopicSubscriptions internal constructor(
     private val source: PartitionedSource,
     private val checkpoints: CheckpointStore,
     private val leases: LeaseStore,
-    private val ledger: FailureLedger,
+    internal val ledger: FailureLedger,
     subscriptions: Collection<Subscription>,
     private val options: SubscriptionOptions,
     private val cluster: ClusterOptions,
@@ -80,6 +81,8 @@ class TopicSubscriptions internal constructor(
     private val signals: SignalSender,
     /** How the topic's partitions are read, given their number: as published streams, or commands, or receipts. */
     private val entries: (Int) -> EntrySource,
+    /** Hears what the parked entries come to (roadmap P.1). */
+    private val notifier: ParkedNotifier = ParkedNotifier.NONE,
 ) {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -97,6 +100,7 @@ class TopicSubscriptions internal constructor(
         clock: Clock = Clock.systemUTC(),
         context: CoroutineContext = Dispatchers.Default,
         signals: SignalSender = SignalSender.NONE,
+        notifier: ParkedNotifier = ParkedNotifier.NONE,
     ) : this(
         service,
         topic,
@@ -113,6 +117,7 @@ class TopicSubscriptions internal constructor(
         context,
         signals,
         { partitions -> TopicEntries(topic, source, partitions) },
+        notifier,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -171,6 +176,7 @@ class TopicSubscriptions internal constructor(
                 clock,
                 context,
                 signals,
+                notifier,
             )
             val ownership =
                 PartitionOwnership(group, node, addressOf, partitions.size, leases, cluster, runtime, context)

@@ -17,16 +17,21 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
+import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.subscription.ParkedNotice
+import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.springframework.boot.context.properties.ConfigurationProperties
+import java.net.URI
 import java.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
@@ -53,6 +58,12 @@ import kotlin.time.toKotlinDuration
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
  *   kind's default (decision D154), see [SubscriptionSettings].
+ * - `wow.subscription.parked.max-retries` (10), `min-backoff` (3m), `execution-timeout` (2m), `scan-interval` (10s):
+ *   the long-horizon retries of parked entries (roadmap P.1), see [Parked]; per subscription,
+ *   `wow.subscriptions.[<subscription>].parked.max-retries`, `min-backoff` and `execution-timeout`, see [ParkedSpec].
+ * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
+ *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
+ *   entry parks or spends its retries, see [Ops] and [Webhook].
  * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none): the timer runner
  *   of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
@@ -81,6 +92,7 @@ class WowProperties {
     var timers: Timers = Timers()
     var tenant: Tenant = Tenant()
     var http: Http = Http()
+    var ops: Ops = Ops()
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
@@ -205,9 +217,13 @@ class WowProperties {
         /** How a failing read of the log is retried. */
         var readRetry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.readRetry)
 
-        /** These options, with the starts [subscriptions] configure. */
-        fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions =
-            SubscriptionOptions(
+        /** How the parked entries are retried over the long horizon (roadmap P.1). */
+        var parked: Parked = Parked()
+
+        /** These options, with the starts and the parked retry specs [subscriptions] configure. */
+        fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
+            val spec = parked.spec()
+            return SubscriptionOptions(
                 maxInFlight = maxInFlight,
                 retry = retry.policy(),
                 checkpointInterval = checkpointInterval.toKotlinDuration(),
@@ -216,18 +232,89 @@ class WowProperties {
                 starts = subscriptions.mapNotNull { (name, settings) ->
                     settings.start?.takeIf { it.isNotBlank() }?.let { name to SubscriptionStart.parse(it) }
                 }.toMap(),
+                parked = ParkedRetryOptions(
+                    spec = spec,
+                    specs = subscriptions.mapNotNull { (name, settings) ->
+                        settings.parked.specOver(
+                            spec
+                        )?.let { name to it }
+                    }
+                        .toMap(),
+                    scanInterval = parked.scanInterval.toKotlinDuration(),
+                ),
             )
+        }
+    }
+
+    /**
+     * The long-horizon retries of parked entries (roadmap P.1, 9.x `@Retry` and `CompensationScheduler`): at most
+     * [maxRetries] automatic retries (0 turns them off), the first [minBackoff] after the failure and each next one
+     * twice as long after the previous one started; [executionTimeout] is how long a retry may run before the
+     * partition's next owner may start another. Each node scans its subscriptions' entries every [scanInterval].
+     */
+    class Parked {
+        var maxRetries: Int = DEFAULT_PARKED.spec.maxRetries
+        var minBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
+        var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
+        var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
+
+        fun spec(): ParkedRetrySpec =
+            ParkedRetrySpec(maxRetries, minBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
+    }
+
+    /**
+     * One subscription's retry spec of its parked entries, each setting not given being `wow.subscription.parked`'s.
+     */
+    class ParkedSpec {
+        var maxRetries: Int? = null
+        var minBackoff: Duration? = null
+        var executionTimeout: Duration? = null
+
+        /** The spec these settings give over [base], null when none is given. */
+        fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
+            if (maxRetries == null && minBackoff == null && executionTimeout == null) {
+                return null
+            }
+            return ParkedRetrySpec(
+                maxRetries ?: base.maxRetries,
+                minBackoff?.toKotlinDuration() ?: base.minBackoff,
+                executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
+            )
+        }
     }
 
     /**
      * One subscription's settings. [start] is where it starts in a partition it has no checkpoint in yet (decision
      * D154): `beginning`, `end`, or an ISO-8601 instant (`2026-10-01T00:00:00Z`), the first entry committed at or
      * after it; unset, its kind's default (a projection from the beginning, a reactor or a saga from the end). A
-     * subscription that has a checkpoint goes on from it. A name the node has no subscription of is refused at
-     * startup.
+     * subscription that has a checkpoint goes on from it. [parked] is how its parked entries are retried, over
+     * `wow.subscription.parked` (roadmap P.1). A name the node has no subscription of is refused at startup.
      */
     class SubscriptionSettings {
         var start: String? = null
+        var parked: ParkedSpec = ParkedSpec()
+    }
+
+    /**
+     * The operator's side of the parked entries (roadmap P.1): [enabled] serves their routes under `/wow/ops/parked`
+     * on the public port, off by default; [webhook] tells a URL when an entry parks or spends its retries.
+     */
+    class Ops {
+        var enabled: Boolean = false
+        var webhook: Webhook = Webhook()
+    }
+
+    /**
+     * The webhook of the parked entries, posted to [url] when set: in Wow's JSON (`generic`) or as a WeCom robot's
+     * Markdown message (`wecom`) ([format]), for the [events] listed (`parked`, `exhausted`; both by default), within
+     * [timeout], with [headers] added to each request.
+     */
+    class Webhook {
+        var url: URI? = null
+        var format: WebhookNotifier.Format = WebhookNotifier.Format.GENERIC
+        var events: MutableSet<ParkedNotice.Kind> = ParkedNotice.Kind.entries.toCollection(LinkedHashSet())
+        var timeout: Duration = WebhookNotifier.DEFAULT_TIMEOUT.toJavaDuration()
+        var headers: MutableMap<String, String> = LinkedHashMap()
     }
 
     /**
@@ -313,6 +400,7 @@ class WowProperties {
         private val DEFAULT_CLUSTER = ClusterOptions()
         private val DEFAULT_SUBSCRIPTION = SubscriptionOptions()
         private val DEFAULT_TIMERS = TimerOptions()
+        private val DEFAULT_PARKED = ParkedRetryOptions()
     }
 }
 

@@ -22,6 +22,8 @@ import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.internal.internalRoutes
+import me.ahoo.wow.http.ops.WebhookNotifier
+import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.http.read.StateReads
@@ -47,6 +49,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.beans.factory.ObjectProvider
@@ -56,6 +59,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.reactor.netty.NettyServerCustomizer
@@ -97,6 +101,9 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
  *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
  *   [SourceTopics] bean (wow-kafka's, decision D134).
+ * - **Parked entries** (roadmap P.1): retried over the long horizon by `wow.subscription.parked.*`; every
+ *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
+ *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
@@ -227,6 +234,7 @@ class WowAutoConfiguration {
         subscriptions: ObjectProvider<SubscriptionFactory>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
+        notifiers: ObjectProvider<ParkedNotifier>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
@@ -263,6 +271,7 @@ class WowAutoConfiguration {
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
             topics = topics.ifAvailable,
+            parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
         )
     }
 
@@ -347,6 +356,41 @@ class WowAutoConfiguration {
         queries: ObjectProvider<HttpQueries>,
     ): RouterFunction<ServerResponse> =
         wowRoutes(manifest, node.gateway, reads, callers, options, queries.getIfAvailable { HttpQueries.NONE })
+
+    /**
+     * The operator's routes over the parked entries (roadmap P.1), when `wow.ops.enabled`: authenticated by the
+     * application's [CallerResolver], their actions authorized by its [CommandAuthorizer] (decision D141).
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.ops", name = ["enabled"], havingValue = "true")
+    fun wowParkedRouterFunction(
+        manifest: Manifest,
+        node: ServiceNode,
+        callers: CallerResolver,
+        options: WowHttpOptions,
+        authorizers: ObjectProvider<CommandAuthorizer>,
+    ): RouterFunction<ServerResponse> = parkedRoutes(
+        node.parked,
+        manifest,
+        authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
+        callers,
+        options,
+    )
+
+    /** Tells `wow.ops.webhook.url` when an entry parks or spends its retries (roadmap P.1). */
+    @Bean
+    @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.ops.webhook", name = ["url"])
+    fun wowWebhookNotifier(properties: WowProperties, identity: NodeIdentity): WebhookNotifier {
+        val webhook = properties.ops.webhook
+        return WebhookNotifier(
+            uri = checkNotNull(webhook.url) { "wow.ops.webhook.url is not set." },
+            format = webhook.format,
+            kinds = webhook.events.toSet(),
+            service = identity.service,
+            headers = webhook.headers.toMap(),
+            timeout = webhook.timeout.toKotlinDuration(),
+        )
+    }
 
     /** Activated when the application has a Bean Validation provider (decision D106). */
     @Configuration(proxyBeanMethods = false)
