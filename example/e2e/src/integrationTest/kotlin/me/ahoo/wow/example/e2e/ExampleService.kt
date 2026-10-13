@@ -36,7 +36,8 @@ data class Answer(val status: Int, val json: JsonNode)
  * its public and internal ports on the loopback interface. Its output goes to [log].
  *
  * [restart] stops the JVM at once, as a crash would (no graceful hand-off, no last checkpoint), and starts it again
- * with the same arguments and public port.
+ * with the same arguments and public port; [kill] and [relaunch] do the same in two steps. [pause] and [resume] stop
+ * and continue the JVM (`SIGSTOP`, `SIGCONT`): a node that hangs, holding its connections.
  */
 class ExampleService private constructor(
     private val name: String,
@@ -59,6 +60,26 @@ class ExampleService private constructor(
             .apply { headers.forEach { (header, value) -> header(header, value) } }
             .POST(HttpRequest.BodyPublishers.ofString(body)),
     )
+
+    /**
+     * Posts [body] to [path] asking for `text/event-stream`, and hands each event's data, as JSON, to [onEvent] as it
+     * arrives, until the stream ends; throws when the connection breaks first.
+     */
+    fun stream(path: String, body: String, headers: Map<String, String>, onEvent: (JsonNode) -> Unit) {
+        val request = HttpRequest.newBuilder(uri(path))
+            .header("Content-Type", "application/json")
+            .header("Accept", "text/event-stream")
+            .apply { headers.forEach { (header, value) -> header(header, value) } }
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build()
+        val response = http.send(request, HttpResponse.BodyHandlers.ofLines())
+        check(response.statusCode() == OK) { "The event stream answered ${response.statusCode()}." }
+        response.body().use { lines ->
+            lines.forEach { line ->
+                if (line.startsWith(DATA)) onEvent(json.readTree(line.removePrefix(DATA).trim()))
+            }
+        }
+    }
 
     /** The state of the aggregate [aggregate] [id] of [context], or null when it has none yet. */
     fun state(context: String, aggregate: String, id: String): Answer? =
@@ -108,9 +129,31 @@ class ExampleService private constructor(
 
     /** Kills the service's JVM and starts it again, waiting until it serves its Manifest. */
     fun restart() {
+        kill()
+        relaunch()
+    }
+
+    /** Kills the service's JVM at once, as a crash would. */
+    fun kill() {
         process.destroyForcibly().waitFor()
+    }
+
+    /** Starts the service's JVM again after [kill], waiting until it serves its Manifest. */
+    fun relaunch() {
+        check(!process.isAlive) { "The $name service is running." }
         process = launch()
         awaitReady()
+    }
+
+    /** Stops the service's JVM without ending it: it holds its connections and does nothing until [resume]. */
+    fun pause() = signal("STOP")
+
+    /** Continues the service's JVM after [pause]. */
+    fun resume() = signal("CONT")
+
+    private fun signal(name: String) {
+        val kill = ProcessBuilder("kill", "-$name", process.pid().toString()).inheritIO().start()
+        check(kill.waitFor() == 0) { "kill -$name ${process.pid()} failed." }
     }
 
     override fun close() {
@@ -123,6 +166,7 @@ class ExampleService private constructor(
 
     companion object {
         private const val OK = 200
+        private const val DATA = "data:"
         private const val TAIL_LINES = 80
         private val START_TIMEOUT: Duration = Duration.ofSeconds(120)
         private val STOP_TIMEOUT: Duration = Duration.ofSeconds(20)
