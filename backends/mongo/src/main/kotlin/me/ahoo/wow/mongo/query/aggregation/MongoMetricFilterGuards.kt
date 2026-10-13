@@ -81,7 +81,10 @@ private fun toGuardCondition(path: String, operator: String, value: BsonValue): 
         Document("\$ne", listOf(fieldRef(path), value.literalOperand()))
     }
 
-    "\$gt", "\$gte", "\$lt", "\$lte" -> Document(operator, listOf(fieldRef(path), value.literalOperand()))
+    "\$gt", "\$gte", "\$lt", "\$lte" -> Document(
+        "\$and",
+        listOf(sameType(path, value), Document(operator, listOf(fieldRef(path), value.literalOperand()))),
+    )
     "\$in" -> inGuard(path, value.asArray())
     "\$nin" -> Document("\$not", listOf(inGuard(path, value.asArray())))
     "\$exists" -> if (value.asBoolean().value) {
@@ -91,6 +94,17 @@ private fun toGuardCondition(path: String, operator: String, value: BsonValue): 
     }
 
     else -> throw QueryViolation.StorageUnsupported("operator [$operator] in a metric filter").rejection()
+}
+
+/**
+ * A range in a match document compares only values of the operand's type (type bracketing: a number never orders
+ * against a string, and a missing field orders against nothing), where an aggregation comparison orders every BSON
+ * value; so a range guard also requires a value of the operand's type, any number for a number.
+ */
+private fun sameType(path: String, value: BsonValue): Document = if (value.isNumber || value.isDecimal128) {
+    Document("\$isNumber", fieldRef(path))
+} else {
+    Document("\$eq", listOf(typeOf(path), Document("\$type", value.literalOperand())))
 }
 
 private fun matchesNull(path: String): Any = Document(
