@@ -156,6 +156,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.1d | 数据集模型（目录、网关、动态注册） | M | 6.1b | 数据集测试 |
 | 6.2a | PostgreSQL 快照查询（D131）；固定部分索引与 `x-wow-index` 表达式索引（D151）；快照表改为按上下文与聚合（D161） | L | 6.1b | `QueryBackendSpec` 全绿 |
 | 6.2c | HTTP 查询路由（D127）、`events` 模型、宿主装配、shop 端到端 | M | 6.1c、6.2a | shop 的查询契约测试 |
+| 6.2e | 快照重建、修复与回填（D172）：`stateRevision` 与表的修订号认领、后台就地重建、`wow.snapshot.Rebuild`、多快照目标与回填、`primary` 切换、查询的 `rebuilding` 标记；兼容门禁对状态结构（与 5a.4 衔接） | M | 6.2c | 修订号升高后的就地重建、滚动升级与回滚、换存储回填与切换的测试 |
+| 6.2f | 创建时客户端带 ID（D176）：路由与准入，`wow.aggregate.exists` | S | 6.2c | 自带 ID 创建、重复创建拒绝的测试 |
 | 6.2d | 计数缓存：以快照写入检查点为校验值，结合查询指纹与调用方作用域（D152） | S | 6.2c | 重复计数命中缓存、写入后失效 |
 
 **K 路**（运行时、`:spi`、`:kafka`、编译器绑定、示例、`KafkaAutoConfiguration`）：
@@ -188,6 +190,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 规模 | 依赖 | 出口 |
 |---|---|---|---|---|
 | 6.3g | Kafka 主题管理（D168）：`wow.kafka.topics.ddl` 三态与分区数校验；消费中扩分区的元数据刷新 | S | 6.3d | 主题自动创建与校验测试；扩分区后新分区被消费 |
+| 6.9 | 可观测性 `:opentelemetry`（D174）：追踪传播、各环节 span、Micrometer 指标 | M | 6.3d、6.8 | 端到端追踪贯穿 HTTP → 提交 → 订阅 → Kafka；指标测试 |
 | 6.8 | 持久化定时命令：`:api` 的 `schedule`/`cancelSchedule`（`DecideScope`、`SagaContext`）；事件流 `schedules`；`TimerStore` 与契约测试（内存、PostgreSQL、MongoDB）；`timers` 订阅与按分区的 `TimerRunner`；停放与重试；Manifest；配置；shop「30 分钟未支付取消」 | M | 6.3d | 交接、提交后标记前崩溃、取消竞态、晚触发、跨上下文的测试；eShop E.3 的宽限期用它 |
 
 **发版前必做**（D167）：6.7 Elasticsearch（快照存储、查询、事件检索 Sink；3.4 的 ES 快照存储并入），L，M6 之后、M8c 之前（D131）。
