@@ -6,7 +6,7 @@ dependencies {
     api(project(":query"))
     api(libs.clickhouse.client.v2)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    integrationTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    integrationTestImplementation(sourceSets["test"].output)
     // Managed by the Testcontainers BOM that wow-dependencies imports; the 9.x wow-clickhouse tests use it too.
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }

@@ -70,7 +70,13 @@ class ClickHouseSinkSchema(
             if (aggregate.history) {
                 add(createTable(stateEvents, BASE_COLUMNS, mergeTree(BASE_ORDER)))
             }
-            add(createTable(state, BASE_COLUMNS, "ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" + settings()))
+            add(
+                createTable(
+                    state,
+                    BASE_COLUMNS,
+                    "ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" + settings()
+                )
+            )
             if (aggregate.history) {
                 add(createTable(events, EVENT_COLUMNS, mergeTree(EVENT_ORDER)))
                 add(
@@ -101,7 +107,12 @@ class ClickHouseSinkSchema(
                 add(ClickHouseObject(stateView, null))
                 add(ClickHouseObject(eventsView, null))
             }
-            add(ClickHouseObject(stateFlat, FLAT_SYSTEM_COLUMNS + flatColumns.map { ClickHouseColumn(it.name, it.type) }))
+            add(
+                ClickHouseObject(
+                    stateFlat,
+                    FLAT_SYSTEM_COLUMNS + flatColumns.map { ClickHouseColumn(it.name, it.type) }
+                )
+            )
         }
 
     private fun createTable(name: String, columns: List<ClickHouseColumn>, engine: String): String =

@@ -52,36 +52,35 @@ object FlatColumns {
     }
 
     private fun columnOf(name: String, property: Map<*, *>, reserved: Set<String>): FlatColumn? {
-        val types = when (val type = property["type"]) {
-            is String -> listOf(type)
-            is List<*> -> type.filterIsInstance<String>()
-            else -> return null
-        }
+        val types = typesOf(property["type"]) ?: return null
         val nullable = "null" in types
         val scalar = (types - "null").singleOrNull() ?: return null
-        val column = if (name in reserved) "state_$name" else name
         val key = ClickHouseSql.literal(name)
-        val decimalScale = if (scalar == "number") scaleOf(property) else null
-        val (base, expression) = when {
-            decimalScale != null -> {
-                val function = if (nullable) "toDecimal128OrNull" else "toDecimal128OrZero"
-                "Decimal($DECIMAL_PRECISION, $decimalScale)" to "$function(state_numbers[$key], $decimalScale)"
-            }
+        val (base, expression) = when (scalar) {
+            "number" -> scaleOf(property)?.let { scale -> decimalOf(key, scale, nullable) }
+                ?: extracted(key, "Float64", nullable)
 
-            scalar == "string" && !nullable -> "String" to "JSONExtractString(state, $key)"
-            else -> {
-                val type = when (scalar) {
-                    "string" -> "String"
-                    "integer" -> "Int64"
-                    "number" -> "Float64"
-                    "boolean" -> "Bool"
-                    else -> return null
-                }
-                type to "JSONExtract(state, $key, '${nullableOf(type, nullable)}')"
-            }
+            "string" -> if (nullable) extracted(key, "String", true) else "String" to "JSONExtractString(state, $key)"
+            "integer" -> extracted(key, "Int64", nullable)
+            "boolean" -> extracted(key, "Bool", nullable)
+            else -> return null
         }
-        return FlatColumn(column, nullableOf(base, nullable), expression)
+        return FlatColumn(if (name in reserved) "state_$name" else name, nullableOf(base, nullable), expression)
     }
+
+    private fun typesOf(type: Any?): List<String>? = when (type) {
+        is String -> listOf(type)
+        is List<*> -> type.filterIsInstance<String>()
+        else -> null
+    }
+
+    private fun decimalOf(key: String, scale: Int, nullable: Boolean): Pair<String, String> {
+        val function = if (nullable) "toDecimal128OrNull" else "toDecimal128OrZero"
+        return "Decimal($DECIMAL_PRECISION, $scale)" to "$function(state_numbers[$key], $scale)"
+    }
+
+    private fun extracted(key: String, type: String, nullable: Boolean): Pair<String, String> =
+        type to "JSONExtract(state, $key, '${nullableOf(type, nullable)}')"
 
     private fun nullableOf(type: String, nullable: Boolean): String = if (nullable) "Nullable($type)" else type
 

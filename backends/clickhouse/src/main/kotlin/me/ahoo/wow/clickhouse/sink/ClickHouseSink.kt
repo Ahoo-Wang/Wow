@@ -89,7 +89,9 @@ class ClickHouseSink internal constructor(
             }
         }
         check(problems.isEmpty()) {
-            "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: ${problems.joinToString("; ")}."
+            "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: ${problems.joinToString(
+                "; "
+            )}."
         }
     }
 
