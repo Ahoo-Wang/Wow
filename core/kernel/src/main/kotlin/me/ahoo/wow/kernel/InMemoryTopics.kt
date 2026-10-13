@@ -29,7 +29,8 @@ import kotlin.concurrent.withLock
 /**
  * Topics in memory, a [TopicProducer] and a [PartitionedSource] at once, for tests and samples, as the other
  * in-memory backends: a topic is [create]d, or created with [partitions] partitions when it is first written or read;
- * a message goes to the partition its key's hash picks ([partitionOf]), and every partition keeps all it was sent,
+ * a message goes to the partition it names, else to the one its key's hash picks ([partitionOf]), and every partition
+ * keeps all it was sent,
  * from offset 0, until [retain] drops its oldest messages as a broker's retention would.
  *
  * [failure], when set, makes every [send] throw it without writing anything, as a broker that does not acknowledge.
@@ -105,7 +106,8 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
         fun append(messages: List<TopicMessage>) {
             lock.withLock {
                 messages.forEach { message ->
-                    val index = Math.floorMod(message.key.hashCode(), partitions.size)
+                    val index = message.partition?.also(::requirePartition)
+                        ?: Math.floorMod(message.key.hashCode(), partitions.size)
                     val partition = partitions[index]
                     val offset = starts[index] + partition.size
                     partition += SourceMessage(offset, message.key, message.headers, message.value)
