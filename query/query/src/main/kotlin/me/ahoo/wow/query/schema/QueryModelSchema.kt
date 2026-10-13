@@ -1,0 +1,386 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.schema
+
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
+
+private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
+
+private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
+
+/** A storage's own name for a native type, such as a PostgreSQL `jsonb` cast or a MongoDB BSON type. */
+data class QueryStorageType(val value: String) {
+    init {
+        require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) { "Query storage type is invalid: [$value]." }
+    }
+}
+
+/**
+ * Where a logical field is stored for one capability. [physicalScope] is the physical container [physicalField] lies
+ * in whose elements storage indexes as separate documents, such as an Elasticsearch `nested` mapping, so a backend
+ * addresses the field through it; `null` when there is none.
+ */
+class QueryFieldBinding(
+    val physicalField: QueryField,
+    storageTypes: Set<QueryStorageType>?,
+    val physicalScope: QueryField? = null,
+) {
+    val storageTypes: Set<QueryStorageType>? = storageTypes?.let { Collections.unmodifiableSet(LinkedHashSet(it)) }
+
+    init {
+        require(this.storageTypes == null || this.storageTypes.isNotEmpty()) { "Known storage types cannot be empty." }
+    }
+
+    override fun equals(other: Any?): Boolean = other is QueryFieldBinding &&
+        physicalField == other.physicalField && storageTypes == other.storageTypes &&
+        physicalScope == other.physicalScope
+
+    override fun hashCode(): Int =
+        31 * (31 * physicalField.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)
+}
+
+/**
+ * The logical definition of a model (design §5.2): the merged value tree of every source, shared unchanged with every
+ * native binding snapshot. Sensitivity (which fields are masked or protected) joins it in 6.1c.
+ */
+class LogicalQuerySchema(
+    val root: QueryValueSchema,
+) {
+    val values: Map<QueryPathTemplate, QueryValueSchema>
+    internal val staticMatches: Map<QueryField, List<QueryValueMatch>>
+
+    /** Each alias and the canonical logical field it names. */
+    val aliases: Map<QueryField, QueryField>
+
+    /** The deprecated logical fields. */
+    val deprecations: Map<QueryField, QueryDeprecation>
+
+    init {
+        root.requireSemanticTypes()
+        val paths = root.valuePaths()
+        val hasUnions = paths.any { it.second.kind == QueryValueKind.UNION }
+        values = Collections.unmodifiableMap(
+            linkedMapOf<QueryPathTemplate, QueryValueSchema>().apply {
+                paths.forEach { (path, value) -> putIfAbsent(path, value) }
+                if (hasUnions) replaceAll { path, _ -> checkNotNull(mergeQueryValues(root.lookup(path))) }
+            },
+        )
+        staticMatches = buildMap {
+            this@LogicalQuerySchema.values.forEach { (path, value) ->
+                if (path.keyCount != 0 || path.segments.none { it is QueryPathSegment.Property }) return@forEach
+                val field = path.field(emptyList())
+                if (containsKey(field)) return@forEach
+                val matches = if (hasUnions) {
+                    root.lookup(field.toPathTemplate())
+                } else {
+                    val ancestors = path.segments.mapIndexedNotNull { index, segment ->
+                        if (segment == QueryPathSegment.Item) QueryPathTemplate(path.segments.subList(0, index)) else null
+                    }
+                    listOf(QueryValueMatch(value, emptyList(), ancestors, true, path))
+                }
+                put(field, matches)
+            }
+        }
+        val named = paths.filter { (_, value) -> value.aliases.isNotEmpty() || value.deprecated != null }
+        named.forEach { (path, _) ->
+            if (path.keyCount != 0) {
+                throw QuerySchemaConflictException("Aliases and deprecation cannot apply under a dynamic key.")
+            }
+        }
+        deprecations = named.mapNotNull { (path, value) -> value.deprecated?.let { path.field(emptyList()) to it } }
+            .toMap()
+        aliases = buildMap {
+            named.forEach { (path, value) ->
+                val canonical = path.field(emptyList())
+                value.aliases.forEach { alias ->
+                    if (alias in staticMatches || putIfAbsent(alias, canonical)?.takeIf { it != canonical } != null) {
+                        throw QuerySchemaConflictException("Query field alias [$alias] names another field.")
+                    }
+                }
+            }
+        }
+    }
+
+    fun value(path: QueryPathTemplate): QueryValueSchema? = values[path] ?: mergeQueryValues(root.lookup(path))
+
+    /** The canonical form of [field], which is relative to [parent] (an absolute canonical field) when given. */
+    internal fun canonical(field: QueryField, parent: QueryField?): QueryField {
+        if (parent == null) return canonical(field)
+        return canonical(parent.append(field)).relativeTo(parent) ?: field
+    }
+
+    /**
+     * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
+     * starts with (`state.oldName.city` → `state.newName.city`).
+     */
+    fun canonical(field: QueryField): QueryField {
+        if (aliases.isEmpty()) return field
+        aliases[field]?.let { return it }
+        var end = field.path.lastIndexOf('.')
+        while (end > 0) {
+            val prefix = field.path.substring(0, end)
+            aliases[QueryField(prefix)]?.let { return QueryField(it.path + field.path.substring(end)) }
+            end = field.path.lastIndexOf('.', end - 1)
+        }
+        return field
+    }
+}
+
+/** Published facts only: model values and operation-specific native locations. */
+class QueryModelSchema(
+    val model: QueryModel,
+    capabilities: Set<QueryCapability>,
+    val definition: LogicalQuerySchema,
+    bindings: Map<QueryPathTemplate, QueryValueBindings>,
+    /** Whether native storage can deliver an unrestricted source projection. */
+    val fullProjectionAvailable: Boolean = true,
+    /**
+     * The metric types (`DISTINCT_COUNT`, `PERCENTILE`) the backend estimates rather than computes exactly, published
+     * so consumers can label their results.
+     */
+    approximateMetrics: Set<String> = emptySet(),
+    /** How the storage pages and aggregates, as its adapter declares it. */
+    val storage: StorageSupport = StorageSupport.NATIVE,
+    /** Compiled from [QueryStorageFacts.provisional] facts: the storage does not exist yet. */
+    val provisional: Boolean = false,
+    /** The record layout of [model]: a built-in model's, a dataset's own, or `null` for another custom model. */
+    val profile: QueryModelProfile? = QueryModelProfile.of(model),
+) {
+    val approximateMetrics: Set<String> = Collections.unmodifiableSet(LinkedHashSet(approximateMetrics))
+    val capabilities: Set<QueryCapability> = Collections.unmodifiableSet(LinkedHashSet(capabilities))
+    val root: QueryValueSchema
+        get() = definition.root
+    val bindings: Map<QueryPathTemplate, QueryValueBindings> = Collections.unmodifiableMap(
+        LinkedHashMap<QueryPathTemplate, QueryValueBindings>().apply {
+            definition.values.keys.forEach { put(it, bindings[it] ?: EMPTY_VALUE_BINDINGS) }
+            putAll(bindings)
+        },
+    )
+    private val bindingIndex = QueryBindingIndex(this.bindings)
+    private val dynamicFields = ConcurrentHashMap<QueryField, QueryFieldSchema>()
+    private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
+        resolveField(field, matches)
+    }
+
+    /**
+     * Whether some field's raw value must not be compared. Model-wide search then cannot be admitted: it matches
+     * every searchable field, and storage decides which fields those are. Always `false` until sensitivity joins the
+     * logical definition (6.1c).
+     */
+    val hasIncomparableFields: Boolean = false
+
+    init {
+        require(APPROXIMABLE_METRICS.containsAll(approximateMetrics)) {
+            "Only $APPROXIMABLE_METRICS can be approximate: $approximateMetrics."
+        }
+        bindings.forEach { (path, native) ->
+            require(definition.value(path) != null) { "Native binding has no logical value: [${path.segments}]." }
+            val keyCount = path.keyCount
+            native.bindings.values.forEach { requireNativeKeyCount(it.physicalPath, keyCount) }
+            native.projectionPath?.let { requireNativeKeyCount(it, keyCount) }
+            native.responsePath?.let { requireNativeKeyCount(it, keyCount) }
+        }
+        // Compiles the capability record of every static field with the schema.
+        staticFields.values.forEach { it?.effective }
+    }
+
+    private fun requireNativeKeyCount(path: QueryPathTemplate, keyCount: Int) {
+        require(path.keyCount == keyCount) { "Native path must retain each logical map key." }
+    }
+
+    fun supports(capability: QueryCapability): Boolean = capability in capabilities
+
+    /**
+     * The content hash of what this schema states: its model, capabilities, storage support and every logical value
+     * with its native bindings. 9.x hashed its capability descriptor; the descriptor joins in 6.1c, which may make it
+     * the descriptor's version again.
+     */
+    val version: String by lazy { queryModelSchemaVersion(this) }
+
+    /**
+     * Whether [other] is the same schema as this one, so a refresh can keep this instance: the same native facts —
+     * bindings, storage support — and the same logical definition, compared structurally.
+     */
+    internal fun compilesSameAs(other: QueryModelSchema): Boolean =
+        model == other.model && profile == other.profile && provisional == other.provisional &&
+            fullProjectionAvailable == other.fullProjectionAvailable && storage == other.storage &&
+            capabilities == other.capabilities && approximateMetrics == other.approximateMetrics &&
+            definition.root.sameDefinitionAs(other.definition.root) &&
+            bindings.keys == other.bindings.keys &&
+            bindings.all { (path, native) -> native.sameAs(other.bindings.getValue(path)) } &&
+            version == other.version
+
+    /** Whether some field has an alias a query may use instead of its canonical path. */
+    val hasAliases: Boolean
+        get() = definition.aliases.isNotEmpty()
+
+    @InternalWowApi
+    fun field(field: QueryField): QueryFieldSchema? =
+        if (staticFields.containsKey(field)) staticFields[field] else dynamicField(field)
+
+    /**
+     * A field outside the static paths (a map key such as ABAC `tags.<key>`, or an unknown path), resolved once and
+     * kept with its compiled capability record. Every query naming such a field looks it up, so a lookup takes no
+     * lock. Keys come from callers, so only fields that resolve are kept, and the cache starts over once it holds
+     * [MAX_CACHED_DYNAMIC_FIELDS]: unknown paths cannot fill it, and no run of distinct keys can pin it.
+     */
+    private fun dynamicField(field: QueryField): QueryFieldSchema? {
+        dynamicFields[field]?.let { return it }
+        val resolved = resolveField(field) ?: return null
+        if (dynamicFields.size >= MAX_CACHED_DYNAMIC_FIELDS) dynamicFields.clear()
+        return dynamicFields.putIfAbsent(field, resolved) ?: resolved
+    }
+
+    private fun resolveField(field: QueryField): QueryFieldSchema? = resolveField(
+        field,
+        root.lookup(field.toPathTemplate())
+    )
+
+    private fun resolveField(field: QueryField, matches: List<QueryValueMatch>): QueryFieldSchema? {
+        if (matches.size == 1) return resolveSingleField(field, matches.single())
+        val value = mergeQueryValues(matches) ?: return null
+        val locations = matches.map { match ->
+            if (!match.complete) return@map null
+            bindingIndex.locate(match.path)
+        }
+        val fields = locations.map { located ->
+            located?.let { (native, keys) ->
+                native.bindings.mapValues { (_, binding) ->
+                    QueryFieldBinding(binding.physicalPath.field(keys), binding.storageTypes, binding.physicalScope)
+                }
+            }.orEmpty()
+        }
+        val common = fields.firstOrNull().orEmpty().mapNotNull { (capability, first) ->
+            val alternatives = fields.map { it[capability] ?: return@mapNotNull null }
+            if (alternatives.any { it.physicalField != first.physicalField || it.physicalScope != first.physicalScope }) {
+                return@mapNotNull null
+            }
+            val types = if (alternatives.any { it.storageTypes == null }) {
+                null
+            } else {
+                alternatives.flatMapTo(linkedSetOf()) { checkNotNull(it.storageTypes) }
+            }
+            capability to QueryFieldBinding(first.physicalField, types, first.physicalScope)
+        }.toMap()
+        val scopes = matches.map { it.elementAncestors.map { ancestor -> ancestor.field(emptyList()) } }.distinct()
+        return QueryFieldSchema(
+            schema = this,
+            logicalField = field,
+            value = value,
+            elementAncestors = scopes.singleOrNull(),
+            bindings = common,
+            projectionField = locations.map { it?.let { (native, keys) -> native.projectionPath?.field(keys) } }
+                .distinct().singleOrNull(),
+            responseField = locations.map { it?.let { (native, keys) -> native.responsePath?.field(keys) } }
+                .distinct().singleOrNull(),
+        )
+    }
+
+    private fun resolveSingleField(field: QueryField, match: QueryValueMatch): QueryFieldSchema? {
+        if (!match.complete) return null
+        val location = bindingIndex.locate(match.path)
+        val native = location?.first
+        val keys = location?.second.orEmpty()
+        val shared = HashMap<QueryFieldBindingTemplate, QueryFieldBinding>()
+        val bindings = native?.bindings?.mapValues { (_, template) ->
+            shared.getOrPut(template) {
+                QueryFieldBinding(template.physicalPath.field(keys), template.storageTypes, template.physicalScope)
+            }
+        }.orEmpty()
+        return QueryFieldSchema(
+            this,
+            field,
+            match.value,
+            match.elementAncestors.map { it.field(emptyList()) },
+            bindings,
+            native?.projectionPath?.field(keys),
+            native?.responsePath?.field(keys),
+        )
+    }
+}
+
+/**
+ * One resolved field of a [QueryModelSchema] with its capability facts. Facts that depend only on the field and its
+ * schema are computed once per instance; static fields are resolved once per schema.
+ */
+@InternalWowApi
+class QueryFieldSchema internal constructor(
+    private val schema: QueryModelSchema,
+    val logicalField: QueryField,
+    val value: QueryValueSchema,
+    elementAncestors: List<QueryField>?,
+    bindings: Map<QueryCapability, QueryFieldBinding>,
+    val projectionField: QueryField?,
+    val responseField: QueryField?,
+) {
+    val elementAncestors: List<QueryField>? = elementAncestors?.let { java.util.List.copyOf(it) }
+    val bindings: Map<QueryCapability, QueryFieldBinding> = Collections.unmodifiableMap(LinkedHashMap(bindings))
+    val capabilities: Set<QueryCapability>
+        get() = bindings.keys
+
+    fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
+
+    /**
+     * The strongest sensitivity level protecting any source of this field, or `null` when none does. Protected fields
+     * cannot be aggregated or cursor-sorted. Always `null` until sensitivity joins the logical definition (6.1c), whose
+     * policy then decides [comparable] too; admission already applies both.
+     */
+    val protection: SensitivityLevel?
+        get() = null
+
+    /** Whether a sensitivity level protects any source of this field. */
+    val protected: Boolean
+        get() = protection != null
+
+    /** Whether filters and paged sorts may compare this field's raw value. */
+    val comparable: Boolean
+        get() = !protected
+
+    /**
+     * The field's effective capabilities, the one record admission and entry gates read. A static field's record is
+     * compiled with its schema; a dynamic key's when admission first resolves it.
+     */
+    val effective: QueryFieldCapabilities by lazy(LazyThreadSafetyMode.PUBLICATION) { capabilitiesFor(value) }
+
+    /** The record of this field's capabilities as if it held [value]. */
+    internal fun capabilitiesFor(value: QueryValueSchema): QueryFieldCapabilities = QueryFieldCapabilities(
+        value = value,
+        granted = capabilities,
+        comparable = comparable,
+        protected = protected,
+        scopeGranted = elementAncestors.orEmpty().all { ancestor ->
+            schema.field(ancestor)?.capabilities?.contains(QueryCapability.ELEMENT_SCOPE) == true
+        },
+        topLevel = elementAncestors?.isEmpty() == true,
+        storage = schema.storage,
+    )
+}
+
+internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema? {
+    if (matches.none { it.complete }) return null
+    val values = matches.map { it.value }.distinct()
+    if (values.size == 1) return values.single()
+    return QueryValueSchema(kind = QueryValueKind.UNION, alternatives = values)
+}
+
+/** The metric types whose results a backend may estimate. */
+private val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
+private const val MAX_CACHED_DYNAMIC_FIELDS = 1024
+
+private fun QueryValueBindings.sameAs(other: QueryValueBindings): Boolean =
+    bindings == other.bindings && projectionPath == other.projectionPath && responsePath == other.responsePath

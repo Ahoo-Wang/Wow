@@ -1,0 +1,190 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query
+
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import kotlinx.coroutines.CancellationException
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.slf4j.LoggerFactory
+
+class QueryObserversTest {
+    private val aggregate = AggregateType("context", "aggregate")
+
+    @Test
+    fun `a delegate that throws an Error does not stop the other delegates`() {
+        val calls = mutableListOf<String>()
+        val broken = object : QueryObserver {
+            override val audits: Boolean = true
+            override fun onComplete(aggregateType: AggregateType, queryType: QueryType) = TODO()
+            override fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) = TODO()
+            override fun onCancel(aggregateType: AggregateType, queryType: QueryType) = TODO()
+            override fun onAudit(audit: QueryAudit) = TODO()
+        }
+        val recording = object : QueryObserver {
+            override val audits: Boolean = true
+            override fun onComplete(aggregateType: AggregateType, queryType: QueryType) {
+                calls += "complete"
+            }
+
+            override fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) {
+                calls += "error"
+            }
+
+            override fun onCancel(aggregateType: AggregateType, queryType: QueryType) {
+                calls += "cancel"
+            }
+
+            override fun onAudit(audit: QueryAudit) {
+                calls += "audit"
+            }
+        }
+        val composite = QueryObserver.of(listOf(broken, recording))
+        composite.audits.assert().isTrue()
+
+        composite.onComplete(aggregate, QueryType.LIST)
+        composite.onError(aggregate, QueryType.LIST, IllegalStateException())
+        composite.onCancel(aggregate, QueryType.LIST)
+        composite.onAudit(
+            QueryAuditTrail(aggregate, QueryType.LIST, Unit, QueryCaller.IN_PROCESS).audit(QueryAudit.Outcome.COMPLETE)
+        )
+
+        calls.assert().containsExactly("complete", "error", "cancel", "audit")
+    }
+
+    @Test
+    fun `only the delegates that audit see an audit`() {
+        val audited = mutableListOf<String>()
+        fun observer(name: String, audits: Boolean) = object : QueryObserver {
+            override val audits: Boolean = audits
+            override fun onAudit(audit: QueryAudit) {
+                audited += name
+            }
+        }
+        val composite = QueryObserver.of(listOf(observer("quiet", false), observer("auditing", true)))
+        composite.onAudit(
+            QueryAuditTrail(aggregate, QueryType.COUNT, Unit, QueryCaller.IN_PROCESS).audit(QueryAudit.Outcome.ERROR)
+        )
+        audited.assert().containsExactly("auditing")
+        QueryObserver.of(listOf(observer("quiet", false), observer("other", false))).audits.assert().isFalse()
+    }
+
+    @Test
+    fun `none and a single observer need no composite`() {
+        QueryObserver.of(emptyList()).assert().isSameAs(QueryObserver.NONE)
+        val single = QueryLogObserver()
+        QueryObserver.of(listOf(single)).assert().isSameAs(single)
+        QueryObserver.NONE.audits.assert().isFalse()
+        QueryObserver.NONE.onComplete(aggregate, QueryType.LIST)
+        QueryObserver.NONE.onError(aggregate, QueryType.LIST, IllegalStateException())
+        QueryObserver.NONE.onCancel(aggregate, QueryType.LIST)
+        QueryObserver.NONE.onAudit(
+            QueryAuditTrail(aggregate, QueryType.LIST, Unit, QueryCaller.IN_PROCESS).audit(QueryAudit.Outcome.CANCEL)
+        )
+    }
+
+    @Test
+    fun `a cancellation or a virtual machine error escapes the isolation`() {
+        val cancelling = object : QueryObserver {
+            override fun onComplete(aggregateType: AggregateType, queryType: QueryType) =
+                throw CancellationException("cancelled")
+        }
+        assertThrows<CancellationException> { cancelling.isolated { onComplete(aggregate, QueryType.LIST) } }
+        val exhausted = object : QueryObserver {
+            override fun onComplete(aggregateType: AggregateType, queryType: QueryType) =
+                throw OutOfMemoryError("exhausted")
+        }
+        assertThrows<OutOfMemoryError> { exhausted.isolated { onComplete(aggregate, QueryType.LIST) } }
+    }
+
+    @Test
+    fun `a missing scope rejection is logged below ERROR whatever rejects it`() {
+        val forbidden = object : RuntimeException("principal tags required"), QueryError {
+            override val errorCode: String = QueryErrors.FORBIDDEN
+            override val errorMsg: String = "principal tags required"
+        }
+        val errors = captureErrors {
+            QueryLogObserver().onError(aggregate, QueryType.LIST, forbidden)
+            QueryLogObserver().onError(
+                aggregate,
+                QueryType.LIST,
+                QueryScopeRequiredException(QueryModel.SNAPSHOT, QueryField("tenantId")),
+            )
+            QueryLogObserver().onError(aggregate, QueryType.LIST, QueryViolation.InvalidCursor.rejection())
+            QueryLogObserver().onError(
+                aggregate,
+                QueryType.LIST,
+                QuerySchemaValidationException(QueryViolation.UnknownField(QueryField("missing"))),
+            )
+        }
+        errors.assert().isEmpty()
+    }
+
+    @Test
+    fun `a server fault is logged at ERROR with every cause message redacted`() {
+        val secret = IllegalStateException("driver echoed secret-value", IllegalArgumentException("nested secret"))
+        val errors = captureErrors {
+            QueryLogObserver().onError(
+                aggregate,
+                QueryType.LIST,
+                QueryExecutionException("Query storage failed.", secret)
+            )
+            QueryLogObserver().onError(aggregate, QueryType.LIST, QueryExecutionException("Backend count failed."))
+            QueryLogObserver().onError(aggregate, QueryType.LIST, IllegalStateException("unexpected"))
+        }
+        errors.map { it.formattedMessage }.assert()
+            .containsExactly("Query storage failed.", "Backend count failed.", "unexpected")
+        val cause = errors.first().throwableProxy
+        cause.message.assert().isEqualTo(IllegalStateException::class.java.name)
+        cause.cause.message.assert().isEqualTo(IllegalArgumentException::class.java.name)
+        errors.first().throwableProxy.stackTraceElementProxyArray.assert().isNotEmpty()
+        errors[1].throwableProxy.assert().isNull()
+        errors[2].throwableProxy.message.assert().isEqualTo("unexpected")
+    }
+
+    @Test
+    fun `a redacted cause chain stops at a cycle and at its depth bound`() {
+        val looping = IllegalStateException("loop")
+        val self = object : RuntimeException("self") {
+            override val cause: Throwable get() = this
+        }
+        self.redacted().cause.assert().isNull()
+        var deep: Throwable = looping
+        repeat(40) { deep = IllegalStateException("level $it", deep) }
+        generateSequence(deep.redacted()) { it.cause }.count().assert().isEqualTo(17)
+    }
+
+    private fun captureErrors(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        return try {
+            block()
+            appender.list.filter { it.level == Level.ERROR }
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+    }
+}
