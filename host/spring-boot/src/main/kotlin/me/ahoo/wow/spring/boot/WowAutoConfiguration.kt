@@ -56,6 +56,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.reactor.netty.NettyServerCustomizer
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -317,6 +318,12 @@ class WowAutoConfiguration {
         errorStatuses = properties.http.errors.mapValues { it.value.status },
         manifestEndpoint = properties.http.manifest.enabled,
     )
+
+    /** The public server keeps reading its HTTP/1.1 keep-alive connections ([KeepAliveReads]). */
+    @Bean
+    fun wowKeepAliveReads(): NettyServerCustomizer = NettyServerCustomizer { server ->
+        server.doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
+    }
 
     /** The public routes, served by the application's WebFlux server. */
     @Bean

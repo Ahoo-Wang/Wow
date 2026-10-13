@@ -13,6 +13,4 @@ application {
 dependencies {
     implementation(project(":eshop-basket-domain"))
     implementation(project(":spring-boot"))
-    // application.yaml needs SnakeYAML, which the host does not bring (DX-GAPS.md, G2).
-    runtimeOnly("org.yaml:snakeyaml")
 }
