@@ -15,6 +15,7 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
+| T1 | 跨上下文取得对方生成的聚合 ID（DX G23）：发起方的 Saga 如何知道目标上下文为它派生的创建命令分配的单号 | 一对一关系沿用来源 ID；需要对方新单号时，补与 `@OnRejected` 对称的成功回执 `@OnCommitted`（经回执主题返回 `CommandCommitted`：`ref`、版本、`CommandResult`，只对声明了的命令发）；按 `causation` 读对方状态流只用于关心后续状态。待讨论：回执时机（提交即发还是对方某订阅处理后）、是否带状态、由谁声明、与等待链的关系、需求是否足够多 | 待讨论（用户 2026-10-13 要求先记录） | M7 前 | [04](04-subscriptions.md) |
 
 ## 2. 待验证的假设
 
@@ -208,6 +209,7 @@
 | D188 | 放弃处理函数拦截器 SPI 与排序：横切关注点由 `:opentelemetry`（D174）的追踪与指标、准入与订阅的现有端口承担 | 2026-10-13，用户确认（按推荐） | [09](09-capability-parity.md) |
 | D189 | 聚合归属与两级调用方（DX G20、G22）：聚合一律属于租户，有所有者、空间时也属于它们（如订单、view 同时属于租户与所有者）。调用方分两级，由 `CallerResolver`（接 CoSec 时按权限）决定：所有者级（作用域带所有者，只能读写自己的聚合）与租户级（作用域不带所有者，可读写本租户全部聚合，如员工给订单发货），具体动作由动作级授权（CoSec）保护；这沿用 D94「命令作用域为空的字段不检查」与 D129「只追加非空的作用域条件」。新增聚合声明 `@AggregateRoot(ownership = Ownership.OWNER | TENANT)`，默认 `OWNER`（现状：有所有者即记录）；`TENANT` 用于全租户可读的资源（如商品）：不记所有者，读取不按所有者过滤，写由动作级授权保护；写进 Manifest，查询准入按它追加条件。派生、补偿与定时命令继承根命令的作用域（所有者、空间），与继承操作人（D163）一致，Saga 创建的聚合因此属于根命令的所有者 | 2026-10-13，用户确认（讨论后） | [01](01-programming-model.md)、[02](02-write-path.md)、[05](05-read-and-contract.md) |
 | D190 | 等待链的校验与跳数（DX G30，修订 D62）：发起节点只严格校验它认识的上下文；不认识的上下文名字合法（D169）即放行，到达处再校验，写错则超时并带最后到达的跳（D64）；开关 `wow.wait.unknown-contexts: allow \| reject`，默认 `allow`；默认最多 16 跳（`wow.wait.max-hops`），服务端上限 32；指南写明每个 Saga 加两跳（`handled` 与下游 `committed`）。「只写终点」的等待（中间跳按因果链推导）留到 10.x | 2026-10-13，用户确认（按推荐） | [04](04-subscriptions.md) |
+| D191 | 聚合 ID 作为单据号须稳定（如销售订单 `SO-20261013-001`）：已提交的聚合 ID 永不改变；业务单号由目标聚合配置的 `AggregateIdGenerator`（D171，`wow.aggregates.<ctx.agg>.id-generator`）在准入时分配；创建类命令（含 Saga 派生的）可不带 ID，准入先按 `(租户, 请求 ID)` 查已提交的结果，命中即返回原单号、不再取号，故重试与重放单号不变、不跳号（并发重复时可能浪费一个号）；`SagaContext.ids` 保留（用聚合配置的生成器），KDoc 写明重放会取新号、只可用于同一条创建命令（请求去重保证不重复创建）；`DecideScope.ids` 不变；不保证连号，严格连号由专门的计数聚合发号 | 2026-10-13，用户确认（讨论后） | [02](02-write-path.md) |
 | D86 | 保留 `v10` 长期分支（维持 D2），不回主干：第一次前向合并只有 4 个冲突（都在工作流路径过滤），按目录分范围的 CI 与 D85 拆分已把分支成本降到每周一次合并；回主干则 main 须同时承载 9.x 与 10.0 的版本线，且工具链为 JDK 17 对 21（D29）。前向合并的提交由用户推送（自动权限分类器拦截直接推送）。M9 合入 main 前再评估 | 2026-10-12，用户 | [roadmap](roadmap.md) §1 |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
