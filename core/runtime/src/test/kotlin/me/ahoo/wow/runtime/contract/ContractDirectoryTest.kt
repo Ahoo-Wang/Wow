@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
@@ -31,6 +32,7 @@ import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.runtime.contract.ContractFixtures.shop
 import me.ahoo.wow.runtime.contract.ContractFixtures.subscription
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
+import me.ahoo.wow.runtime.wait.WaitChain
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -139,6 +141,51 @@ class ContractDirectoryTest {
             over.covers("StockProjector.onStock", AggregateType("inventory", "stock")).assert().isTrue()
             over.hasHandled("Live.onCart", stream).assert().isTrue()
         }
+
+    @Test
+    fun `a saga's derives should resolve to the contexts of its commands`() {
+        directory.hasContext("payment").assert().isTrue()
+        directory.hasContext("nowhere").assert().isFalse()
+        directory.derivedContextsOf("shop", "OrderSaga.onStock").assert().containsExactly("inventory", "shop")
+        directory.derivedContextsOf("inventory", "RestockSaga.onReserved").assert().containsExactly("inventory")
+        // Not declared, an @OnRejected handler, or not known: unchecked.
+        directory.derivedContextsOf("shop", "CartProjector.onCart").assert().isNull()
+        directory.derivedContextsOf("inventory", "RestockSaga.onRejected").assert().isNull()
+        directory.derivedContextsOf("shop", "Unknown.onCart").assert().isNull()
+        // A schema reference no Manifest declares cannot be placed in a context: unchecked too.
+        val unresolved = ContractDirectory(
+            shop(subscriptions = listOf(subscription("Lost.onCart", derives = listOf(Manifest.schemaRef("sample.Lost"))))),
+            ContractFixtures.peers,
+        )
+        unresolved.derivedContextsOf("shop", "Lost.onCart").assert().isNull()
+        val over = directory.over(SubscriptionDirectory.NONE, "own")
+        over.hasContext("own").assert().isTrue()
+        over.hasContext("inventory").assert().isTrue()
+        over.hasContext("nowhere").assert().isFalse()
+        over.derivedContextsOf("shop", "OrderSaga.onStock").assert().containsExactly("inventory", "shop")
+    }
+
+    @Test
+    fun `a chain should follow a saga's hop only into a known context it derives commands of`() {
+        val cart = AggregateType("shop", "cart")
+        fun check(vararg hops: Hop): Any = WaitChain.of(WaitPlan.of(*hops), cart, directory, 4).let {
+            (it as? WaitChain.Invalid)?.reason ?: it
+        }
+        val saga = Hop.handled("OrderSaga.onStock")
+        check(Hop.committed(), saga, Hop.committed("inventory")).assert().isInstanceOf(WaitChain::class.java)
+        check(Hop.committed(), saga, Hop.accepted("shop"), Hop.committed("shop"))
+            .assert().isInstanceOf(WaitChain::class.java)
+        check(Hop.committed(), saga, Hop.committed("payment")).toString().assert()
+            .contains("derives commands of [inventory, shop] only").contains("D138")
+        check(Hop.committed(), saga, Hop.committed("nowhere")).toString().assert().contains("unknown context")
+        // A hop of another context's saga, then into what it derives.
+        val restock = Hop.handled("RestockSaga.onReserved", "inventory")
+        check(Hop.committed(), restock, Hop.committed("inventory")).assert().isInstanceOf(WaitChain::class.java)
+        check(Hop.committed(), restock, Hop.committed("shop")).toString().assert().contains("[inventory] only")
+        // The root command's own hops are of its context.
+        check(Hop.committed("inventory")).toString().assert().contains("not of the command's context shop")
+        check(Hop.accepted("payment"), Hop.committed()).toString().assert().contains("not of the command's context")
+    }
 
     @Test
     fun `a directory without peers should know the service's own contexts only`() {
