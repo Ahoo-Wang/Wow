@@ -35,7 +35,8 @@ class CatalogServerTest {
             node.isReady.assert().isTrue()
             node.contexts.keys.assert().containsExactly("eshop-catalog")
             val manifest = context.getBean(Manifest::class.java)
-            manifest.contexts.single().aggregates.map { it.name }.assert().containsExactly("product")
+            manifest.contexts.single().aggregates.map { it.name }.assert()
+                .containsExactlyInAnyOrder("product", "brand", "category")
         }
     }
 }

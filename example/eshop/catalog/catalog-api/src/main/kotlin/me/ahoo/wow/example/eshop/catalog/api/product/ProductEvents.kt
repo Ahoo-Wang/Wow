@@ -16,8 +16,29 @@ package me.ahoo.wow.example.eshop.catalog.api.product
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
 
+/** The skeleton's event (E.0) with the fields E.1 adds; optional fields with defaults are not a new revision. */
 @Summary("A product was added to the catalog")
 data class ProductCreated(
     val name: String,
     val price: BigDecimal,
+    val description: String = "",
+    val brandId: String? = null,
+    val categoryId: String? = null,
 )
+
+@Summary("A product's name, description, brand or category changed")
+data class ProductUpdated(
+    val name: String,
+    val description: String,
+    val brandId: String?,
+    val categoryId: String?,
+)
+
+@Summary("A product's price changed")
+data class ProductPriceChanged(val price: BigDecimal, val previous: BigDecimal)
+
+@Summary("A product was published on the storefront")
+data object ProductPublished
+
+@Summary("A product was taken off the storefront")
+data class ProductDelisted(val reason: String)

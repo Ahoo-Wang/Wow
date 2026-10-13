@@ -30,6 +30,8 @@ dependencies {
     integrationTestImplementation(project(":eshop-catalog-server"))
     integrationTestImplementation(project(":eshop-basket-server"))
     integrationTestImplementation("org.springframework.boot:spring-boot")
+    // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
+    integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
 }
 
 tasks.named<Test>("integrationTest") {

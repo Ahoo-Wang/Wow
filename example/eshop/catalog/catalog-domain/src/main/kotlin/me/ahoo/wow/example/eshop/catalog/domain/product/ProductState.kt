@@ -13,19 +13,69 @@
 
 package me.ahoo.wow.example.eshop.catalog.domain.product
 
+import me.ahoo.wow.api.query.annotation.QueryIndex
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductUpdated
 import java.math.BigDecimal
 
-/** The state of a [Product], changed in place by its events. */
+/**
+ * The state of a [Product], changed in place by its events. It is the storefront's read model too: the snapshot
+ * queries filter it by category, brand and status and sort it by price, so each of those leads an index whose further
+ * keys are the storefront's usual filter and sort ("the published products of a category, cheapest first").
+ */
 class ProductState(val id: String) {
     var name: String = ""
         private set
 
+    var description: String = ""
+        private set
+
+    @field:QueryIndex
     var price: BigDecimal = BigDecimal.ZERO
+        private set
+
+    @field:QueryIndex(with = ["state.status", "state.price"])
+    var brandId: String? = null
+        private set
+
+    @field:QueryIndex(with = ["state.status", "state.price"])
+    var categoryId: String? = null
+        private set
+
+    @field:QueryIndex(with = ["state.price"])
+    var status: ProductStatus = ProductStatus.DRAFT
         private set
 
     fun onSourcing(event: ProductCreated) {
         name = event.name
         price = event.price
+        description = event.description
+        brandId = event.brandId
+        categoryId = event.categoryId
+    }
+
+    fun onSourcing(event: ProductUpdated) {
+        name = event.name
+        description = event.description
+        brandId = event.brandId
+        categoryId = event.categoryId
+    }
+
+    fun onSourcing(event: ProductPriceChanged) {
+        price = event.price
+    }
+
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: ProductPublished) {
+        status = ProductStatus.PUBLISHED
+    }
+
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: ProductDelisted) {
+        status = ProductStatus.DELISTED
     }
 }

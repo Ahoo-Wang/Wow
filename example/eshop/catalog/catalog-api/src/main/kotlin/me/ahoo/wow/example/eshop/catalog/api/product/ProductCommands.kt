@@ -17,10 +17,37 @@ import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
 
-/** Adds a product named [name] at [price] to the catalog. */
+/**
+ * Adds a draft product named [name] at [price] to the catalog. The [brandId] and [categoryId] name a brand and a
+ * category of this context; a product can be created without them, but is published only with both.
+ */
 @CreateAggregate
 @Summary("Create a product")
 data class CreateProduct(
     val name: String,
     val price: BigDecimal,
+    val description: String = "",
+    val brandId: String? = null,
+    val categoryId: String? = null,
 )
+
+/** Replaces the product's name, description, brand and category. */
+@Summary("Update a product")
+data class UpdateProduct(
+    val name: String,
+    val description: String = "",
+    val brandId: String? = null,
+    val categoryId: String? = null,
+)
+
+/** Changes the product's price. */
+@Summary("Change a product's price")
+data class ChangeProductPrice(val price: BigDecimal)
+
+/** Puts the product on the storefront; a delisted product can be published again. */
+@Summary("Publish a product")
+data object PublishProduct
+
+/** Takes a published product off the storefront. */
+@Summary("Delist a product")
+data class DelistProduct(val reason: String = "")

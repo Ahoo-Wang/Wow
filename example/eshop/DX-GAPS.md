@@ -173,3 +173,92 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: Both services run with the default tenant.
 - **Proposed fix**: Document how a tenant crosses contexts. Have the target's admission check a cross-context command's tenant against its tenant policy, with a clear rejection.
 - **Blocks M7**: no, but it needs settling before multi-tenant users go cross-context.
+
+### G14. The in-memory query backend on the test class path does not serve the snapshot queries
+
+- **Work package**: E.1
+- **Area**: testing, host, docs
+- **What happened**: The catalog's query tests run on the memory backend. `guide/v10/testing` says a test that queries the snapshots "puts the in-memory reference backend on its class path: `testImplementation(testFixtures("me.ahoo.wow:wow-query:$wowVersion"))`". With it on the class path, `GET` and `POST /eshop-catalog/product/snapshot/query` still answer 404 ("No route"). The shop's tests make them work with a configuration of their own, `MemorySnapshotQueries`. It replaces the host's backends with `HostBackends.memory(partitions) { … }` and wraps the snapshot store so each saved snapshot is also written to an `InMemoryQueryStorage`. None of these types (`HostBackends`, `InMemorySnapshotStore`, `InMemoryQueryStorage`, `SnapshotStore`, `SnapshotRecord`) appears in the guide or the Skill.
+  - **A trap.** Put in the server's package, such a `@Configuration` is picked up by `@SpringBootApplication`'s component scan, so every test of the module runs with it, and a test of the plain memory backend no longer sees the 404 the guide describes.
+- **Where they looked**: `guide/v10/testing` (Testing the server); `guide/v10/http-api` (Queries); `v10-service.md` (Tests); the shop's tests, which the guide links.
+- **Workaround**: `catalog-server`'s tests copy the shop's `MemorySnapshotQueries` into a package of their own (`me.ahoo.wow.example.eshop.catalog.testing`). `CatalogQueryMemoryTest` passes it as a source, and `CatalogPostgresTest` in `:eshop-e2e` runs the storefront queries on PostgreSQL.
+- **Proposed fix**: When the reference backend is on the class path and the backend is `memory`, have the host wire it behind the snapshot queries, so the guide's sentence holds. Failing that, document the wiring with public types.
+- **Blocks M7**: no. There is a workaround, but every service that tests its queries without a container meets it.
+
+### G15. The query language has no reference: filters, combinators, value shapes, results
+
+- **Work package**: E.1
+- **Area**: edge, docs, Skills
+- **What happened**: The storefront needs "the published products of a category, cheapest first", paged. The guide's only filters are `{"op":"MATCH_ALL"}` and `{"op":"ID","value":…}`. The capability descriptor (`GET …/snapshot/query`) lists each field's operators (`EQ`, `GTE`, `IN`, `BETWEEN`, …) and the root operators, but it does not give the shape of a filter node. It names no combinator (`AND`, `OR`, `NOT`) and no value shape. Each of these was found by trial and error against the `wow.query.malformed` messages:
+  - **A field.** A field filter is `{"op":"EQ","field":"state.categoryId","value":"…"}`.
+  - **Combinators.** `AND` takes `operands`. A guessed `children`, `filters` or `conditions` is answered "Invalid or missing value at [filter.operands]".
+  - **Value lists.** `IN` takes `values`, not `value`.
+  - **`BETWEEN`.** No shape for it was found. `value: [1, 5]` and `from`/`to` are both "Comparison filter value cannot be null", so the catalog uses `GTE` with `LTE`.
+  - **Results.** The guide does not describe the answers. `list` is a JSON array, `paged` is `{list, total}`, `cursor` is `{list, nextCursor}`, and `single` is one record.
+- **Where they looked**: `guide/v10/http-api` (Queries); `v10-service.md`; the descriptor of the product's snapshot model.
+- **Workaround**: The shapes above, which `CatalogQueryContract` exercises.
+- **Proposed fix**:
+  - Add a query reference to the HTTP API page: the filter node per operator with its value shape, the combinators, `sort`, `pagination`, `size` and `cursor`, and each kind's answer.
+  - List the combinators in the descriptor's `record`.
+  - Name the expected shape in the `wow.query.malformed` message for a known `op`.
+- **Blocks M7**: yes. A client cannot write anything beyond `MATCH_ALL` without guessing, and generated clients (5a.3) need the same reference.
+
+### G16. `@QueryIndex` and the query annotations are named in the guide but not described
+
+- **Work package**: E.1
+- **Area**: docs, Skills
+- **What happened**: The guide gives `@QueryIndex` one sentence: its package, its module and "declares an index the backend creates". Writing the product's indexes took the annotation's KDoc, as an IDE shows it. That is where these facts are:
+  - **The attributes.** `@QueryIndex` has `name`, `on` and `with`.
+  - **Where it goes.** It goes on a Kotlin property with the `@field:` use-site target. Placed on the class, it needs `on`.
+  - **Keys.** Keys are full logical paths, such as `state.status`.
+  - **Implicit keys.** Every index starts with the tenant and the aggregate.
+  - **Dependency.** The domain module needs `wow-query-api` (`:query-api` in the repository) beside the kernel. Neither the quick start's dependency lists nor `v10-service.md` mentions it.
+  - **Other annotations.** The same package holds `@QueryDecimal`, `@QueryMoney`, `@QueryTemporal`, `@QueryReference`, `@QueryAlias` and `@Sensitive`, which the guide does not mention at all.
+  - **Index names.** The completed fragment names each index (`ix_product_state_brand_id_state_status_state_price`), but PostgreSQL's index is named `wow_snapshot__eshop_catalog__product_ix_product_state_<hash>`. So an operator cannot match a Manifest index to the database by name.
+- **Where they looked**: `guide/v10/http-api` (Queries); `guide/v10/configuration` (`wow.query.index.ddl`); `v10-service.md`; the KDoc of `QueryIndex` and `QueryDecimal`.
+- **Workaround**: Follow the KDoc. `CatalogPostgresTest` checks the PostgreSQL indexes by their definitions.
+- **Proposed fix**: Add a "Query model" section to the programming model page: the query annotations with an example on a state, the `wow-query-api` dependency, what the backends build, and how the index names map.
+- **Blocks M7**: no.
+
+### G17. The guide sends container tests to an `integrationTest` source set it does not show how to declare
+
+- **Work package**: E.1
+- **Area**: build, testing, docs
+- **What happened**: `guide/v10/testing` says that tests against PostgreSQL "run in containers (Testcontainers), in the module's `integrationTest` source set". Neither the quick start's build scripts nor the Testing page declares that source set. Inside the repository it comes from the root build's `v10IntegrationTestProjects` list, which a context's own build script cannot join. `catalog-server` has no `integrationTest`, so its query contract cannot run there on PostgreSQL.
+- **Where they looked**: `guide/v10/index` (Set up Gradle); `guide/v10/testing`; the shop server's build script.
+- **Workaround**: The contract runs on the memory backend in `catalog-server`'s `test` (G14). The PostgreSQL case is `CatalogPostgresTest` in `:eshop-e2e`, whose `integrationTest` exists.
+- **Proposed fix**: Show an `integrationTest` suite in the guide, with Gradle's JVM Test Suite plugin and the Testcontainers dependency. Inside the repository, register the eShop servers in `v10IntegrationTestProjects`, so E.2 to E.5 can test their own servers on PostgreSQL.
+- **Blocks M7**: no.
+
+### G18. `expectEventTypes` takes Java classes
+
+- **Work package**: E.1
+- **Area**: testing, docs
+- **What happened**: The guide's table says `expectEventTypes(vararg types)` passes when the command "committed events of exactly these classes". The natural Kotlin call, `expectEventTypes(ProductUpdated::class)`, does not compile ("actual type is 'KClass<ProductUpdated>', but 'Class<*>' was expected"). The repository's `AGENTS.md` example passes a `KClass` too.
+- **Where they looked**: `guide/v10/testing` (Expectations); `v10-service.md` (Tests).
+- **Workaround**: `expectEventTypes(ProductUpdated::class.java)`.
+- **Proposed fix**: Add a `KClass` overload, or a reified `expectEventType<E>()`. At least, show the parameter type in the guide.
+- **Blocks M7**: no.
+
+### G19. A rename cannot give back the unique name it leaves
+
+- **Work package**: E.1
+- **Area**: kernel, docs
+- **What happened**: Brand and category names are unique. `DecideScope.reserve(namespace, key)` reserves the name as a brand takes it, and a second brand of the same name is refused. When a brand is renamed it reserves the new name, but the old one stays reserved for it forever: no other brand can take "Contoso" after the brand called Contoso is renamed. The KDoc of `reserve` says "releasing or moving a confirmed key, as a rename does, is a saga's work", but neither the guide nor the Skill names a way to release a key, from a decide function or a saga.
+- **Where they looked**: `guide/v10/programming-model` (What `DecideScope` offers); `v10-service.md`; the KDoc of `DecideScope.reserve`.
+- **Workaround**: None. A renamed brand keeps its old name reserved. The catalog's README says so.
+- **Proposed fix**: Add `DecideScope.release(namespace, key)`, which releases the key once the events are appended, as `reserve` confirms one. Or document the saga that moves a key, with the API it calls.
+- **Blocks M7**: no.
+
+### G20. Nothing says how to serve aggregates every caller of a tenant may read
+
+- **Work package**: E.1
+- **Area**: host, edge, docs
+- **What happened**: Every shopper reads the catalog. The guide says that a query sees "only its own aggregates: its tenant, and its owner and space when it has them", and that an aggregate takes its owner from its first command's caller. With a `CallerResolver` that gives each user an owner, as the shop's does:
+  - **Queries.** A shopper would see only the products they created.
+  - **Commands.** Only the administrator who created a product could change it; another one gets `wow.aggregate.forbidden`.
+  The guide offers no setting for an aggregate whose read scope is the tenant, nor a pattern for a resolver that leaves the owner unset on some routes.
+- **Where they looked**: `guide/v10/http-api` (Callers, Queries); `guide/v10/programming-model` (Owners, spaces and tenants); `guide/v10/configuration` (`wow.query.*`).
+- **Workaround**: The catalog declares no `CallerResolver`. Every request is the anonymous caller of the default tenant, with no owner, so every product belongs to the tenant and every caller sees it. The host warns about the anonymous caller at startup.
+- **Proposed fix**: Document the pattern for tenant-wide aggregates: a resolver that leaves the owner unset, and how command authorization (CoSec) then protects the writes. Or add a per-aggregate scope setting that makes an aggregate's owner not apply to its reads.
+- **Blocks M7**: no for the eShop. Yes before M7 puts CoSec in front of users, since a reference catalog behind CoSec needs the answer.

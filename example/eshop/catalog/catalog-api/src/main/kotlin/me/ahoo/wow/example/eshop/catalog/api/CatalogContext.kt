@@ -20,4 +20,6 @@ package me.ahoo.wow.example.eshop.catalog.api
 object CatalogContext {
     const val NAME = "eshop-catalog"
     const val PRODUCT = "product"
+    const val BRAND = "brand"
+    const val CATEGORY = "category"
 }
