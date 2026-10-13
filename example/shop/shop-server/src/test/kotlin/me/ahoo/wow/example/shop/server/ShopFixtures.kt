@@ -24,11 +24,13 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.http.client.reactive.JdkClientHttpConnector
 import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
-import java.net.ServerSocket
+import java.net.http.HttpClient
 import java.time.Duration
+import java.util.concurrent.TimeoutException
 
 /**
  * The callers of the tests: the user the `X-User` header names owns what it creates, the scope of its commands
@@ -46,9 +48,6 @@ class HeaderCallers {
         const val USER: String = "X-User"
     }
 }
-
-/** A port no server listens on now. */
-fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
 /** The response: its status, its headers and its body as JSON (null when it has none). */
 class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
@@ -68,7 +67,13 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
 val json: JsonMapper = JsonMapper.builder().build()
 
 fun WebTestClient.RequestHeadersSpec<*>.answer(): Answer {
-    val result = exchange().expectBody(String::class.java).returnResult()
+    val result = try {
+        exchange().expectBody(String::class.java).returnResult()
+    } catch (timeout: IllegalStateException) {
+        // A request that is never answered: the threads of this JVM say where it is held up.
+        if (timeout.cause !is TimeoutException) throw timeout
+        throw AssertionError("No answer in time; the threads of the test JVM:\n${threadDump()}", timeout)
+    }
     return Answer(
         status = result.status.value(),
         headers = result.responseHeaders,
@@ -76,12 +81,32 @@ fun WebTestClient.RequestHeadersSpec<*>.answer(): Answer {
     )
 }
 
-/** A shop server started in this JVM: its public port at [publicPort], its internal one at [internalPort]. */
-class ShopNode(val context: ConfigurableApplicationContext, val internalPort: Int) : AutoCloseable {
+/** Every live thread with its state and the top of its stack. */
+fun threadDump(): String = Thread.getAllStackTraces().entries.sortedBy { it.key.name }.joinToString(
+    "\n"
+) { (t, stack) ->
+    "\"${t.name}\" ${t.state}" + stack.take(DUMP_FRAMES).joinToString("") { "\n    at $it" }
+}
+
+private const val DUMP_FRAMES = 30
+
+/**
+ * A shop server started in this JVM: its public port at [publicPort], its internal one at [internalPort].
+ *
+ * Its [client] is the JDK's HTTP client, with threads and connections of its own: the server, its internal port and
+ * WebTestClient's default Reactor Netty client would all run on Reactor Netty's global event loops and connection
+ * pool, so a request held up on the client's side could not be told from one the server never answered.
+ */
+class ShopNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     val publicPort: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     val node: ServiceNode get() = context.getBean(ServiceNode::class.java)
 
-    val client: WebTestClient = WebTestClient.bindToServer()
+    /** The internal port the node is bound at. */
+    val internalPort: Int get() = node.address.substringAfterLast(':').toInt()
+
+    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
+
+    val client: WebTestClient = WebTestClient.bindToServer(JdkClientHttpConnector(http))
         .baseUrl("http://127.0.0.1:$publicPort")
         .responseTimeout(Duration.ofSeconds(30))
         .build()
@@ -115,13 +140,18 @@ class ShopNode(val context: ConfigurableApplicationContext, val internalPort: In
             .answer()
 
     override fun close() {
-        context.close()
+        try {
+            context.close()
+        } finally {
+            http.shutdownNow()
+        }
     }
 }
 
 /**
  * Starts the shop server with the test callers, its public port on a random port of the loopback interface and its
- * internal port at [internalPort], with [properties] over its `application.yaml`, in [profiles] and with the further
+ * internal port at [internalPort] (by default one the system chooses as it binds, so no other process can take it
+ * between choosing and binding), with [properties] over its `application.yaml`, in [profiles] and with the further
  * configuration [sources]. The properties are passed as command-line arguments, which take precedence over the
  * application's own configuration.
  */
@@ -129,7 +159,7 @@ fun startShop(
     vararg properties: Pair<String, Any>,
     profiles: List<String> = emptyList(),
     sources: List<Class<*>> = emptyList(),
-    internalPort: Int = freePort(),
+    internalPort: Int = 0,
 ): ShopNode {
     val arguments = mapOf(
         "spring.main.banner-mode" to "off",
@@ -144,5 +174,5 @@ fun startShop(
     val context = SpringApplicationBuilder(ShopServer::class.java, HeaderCallers::class.java, *sources.toTypedArray())
         .profiles(*profiles.toTypedArray())
         .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
-    return ShopNode(context, internalPort)
+    return ShopNode(context)
 }

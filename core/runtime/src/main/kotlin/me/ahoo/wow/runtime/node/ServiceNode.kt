@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
@@ -45,7 +47,8 @@ import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
-import me.ahoo.wow.runtime.snapshot.StateViews
+import me.ahoo.wow.runtime.state.StateViewReader
+import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -64,7 +67,9 @@ import kotlin.time.TimeSource
  * nodes forward to it.
  *
  * The application's subscriptions read the context's [backends], the kernel's [codec], and the state [views] the
- * executor takes of the aggregate types they asked for ([SubscriptionFactory.viewTypes]); null when none did.
+ * executor takes of the aggregate types its state consumers read: the snapshot subscription and the readers the
+ * application's subscriptions name ([SubscriptionFactory.stateReaders]), each reading through its [stateReader]
+ * (decision D133).
  */
 class ContextNode internal constructor(
     val context: String,
@@ -81,8 +86,16 @@ class ContextNode internal constructor(
     val endpoint: ForwardEndpoint,
     val backends: ContextBackends,
     val codec: EventCodec,
-    val views: StateViews?,
-)
+    val views: StateViews,
+) {
+    /**
+     * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
+     * context's snapshots when its views miss: what [me.ahoo.wow.runtime.subscription.EntryDecoder.stateEvents]
+     * decodes with.
+     */
+    fun stateReader(reader: String): StateViewReader =
+        StateViewReader(reader, models, kernel, codec, views, backends.snapshots)
+}
 
 /**
  * One node of a service, assembled without a host (decision D108; roadmap 4.8): what a host (Spring Boot, a test, a
@@ -90,8 +103,9 @@ class ContextNode internal constructor(
  *
  * **Per bounded context** of the [models] ([contexts]): a [PartitionAppendQueue] over the context's log, configured by
  * [ServiceNodeOptions.appendQueue] → a [Kernel] with its state cache, snapshot and reservation stores → an [Executor]
- * recording the snapshot subscription's state views; the built-in [SnapshotSubscription] (for the aggregates whose
- * Manifest enables snapshots) and [ReservationSubscription], with the application's subscriptions, in a
+ * recording the state views the context's state consumers share (decision D133); the built-in
+ * [SnapshotSubscription] (for the aggregates whose Manifest enables snapshots) and [ReservationSubscription], with
+ * the application's subscriptions, in a
  * [SubscriptionRuntime]; a [PartitionOwnership] of the lease group `(service, context)`; a [WaitCoordinator]; a
  * [ForwardEndpoint].
  *
@@ -348,9 +362,10 @@ class ServiceNode(
             states = states,
             snapshots = backends.snapshots,
         )
-        val snapshotted = models.filter { snapshotEnabled(it) }
+        val snapshotted = if (backends.snapshots == null) emptyList() else models.filter { snapshotEnabled(it) }
+        val views = StateViews(codec, stateReaders(context, models, snapshotted, application), options.stateViews)
         val snapshots = backends.snapshots?.takeIf { snapshotted.isNotEmpty() }?.let {
-            SnapshotSubscription(context, snapshotted, it, kernel, backends.log, codec)
+            SnapshotSubscription(context, snapshotted, it, kernel, backends.log, codec, views)
         }
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
         val group = LeaseGroup(service, context)
@@ -374,8 +389,7 @@ class ServiceNode(
             // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
             peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
         )
-        val views = application.viewTypes(context, models).takeIf { it.isNotEmpty() }?.let { StateViews(codec, it) }
-        val executor = Executor(kernel, options.laneCapacity, snapshots?.views, views)
+        val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() })
         return Parts(
             context,
             models,
@@ -391,6 +405,26 @@ class ServiceNode(
             codec,
             views,
         )
+    }
+
+    /**
+     * The state consumers of [context] (decision D133): the snapshot subscription of the [snapshotted] types, and the
+     * readers the [application]'s subscriptions name.
+     */
+    private fun stateReaders(
+        context: String,
+        models: List<AggregateModel<*>>,
+        snapshotted: List<AggregateModel<*>>,
+        application: SubscriptionFactory,
+    ): Map<String, Set<AggregateType>> {
+        val readers = LinkedHashMap<String, Set<AggregateType>>()
+        if (snapshotted.isNotEmpty()) {
+            readers[Hop.SNAPSHOT_SUBSCRIPTION] = snapshotted.mapTo(LinkedHashSet()) { it.type }
+        }
+        application.stateReaders(context, models).forEach { (reader, types) ->
+            readers.merge(reader, types) { left, right -> left + right }
+        }
+        return readers
     }
 
     private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
@@ -411,7 +445,7 @@ class ServiceNode(
         val ownership: PartitionOwnership,
         val backends: ContextBackends,
         val codec: EventCodec,
-        val views: StateViews?,
+        val views: StateViews,
     ) {
         fun complete(): ContextNode {
             val coordinator = WaitCoordinator(executor, waits, subscriptions, signals, waitOptions, router = router)

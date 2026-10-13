@@ -303,12 +303,13 @@ class WowPluginFunctionalTest {
     }
 
     @Test
-    fun `a module without wow-runtime should get no subscription bindings, with a warning`() {
-        result.output.assert().contains(
-            "sample.CartSummary: its subscriptions are not bound: the module does not depend on wow-runtime",
-        )
-        File(projectDir, "shop/build/generated/ksp/main/kotlin/sample/CartSummarySubscriptions.kt").exists()
-            .assert().isFalse()
+    fun `a module on wow-kernel alone should get its subscription bindings`() {
+        // Decision D149: the fixture compiles against wow-kernel, not the runtime.
+        result.output.assert().doesNotContain("not bound")
+        File(projectDir, "shop/build/generated/ksp/main/kotlin/sample/CartSummarySubscriptions.kt").readText()
+            .assert().contains("me.ahoo.wow.kernel.ProcessorBinding.project<sample.CartState>(")
+        File(projectDir, "shop/build/generated/ksp/main/kotlin/sample/ShopModelProvider.kt").readText()
+            .assert().contains("override fun processors(", "sample.cartSummaryHandlers(dependencies),")
     }
 
     @Test
@@ -401,6 +402,14 @@ class WowPluginFunctionalTest {
             ),
         )
         account.assert().containsExactly("DeleteAggregate")
+    }
+
+    @Test
+    fun `the jars' model providers should list their processors`() {
+        val processors = withJars { loader ->
+            ModelProvider.load(loader).associate { it.context to it.processors(Dependencies.NONE).map { p -> p.name } }
+        }
+        processors.assert().isEqualTo(mapOf("billing" to emptyList(), "shop" to listOf("CartSummary.onEvent")))
     }
 
     @Test

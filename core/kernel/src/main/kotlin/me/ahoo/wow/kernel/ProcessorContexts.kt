@@ -11,32 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.binding
+package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The context of a projection's handler for one execution (design 01 §1). */
-data class RuntimeProjectContext(override val executionId: ExecutionId) : ProjectContext
+data class ExecutionProjectContext(override val executionId: ExecutionId) : ProjectContext
 
 /** The context of a reactor's handler for one execution (design 01 §1). */
-data class RuntimeReactContext(override val executionId: ExecutionId) : ReactContext
+data class ExecutionReactContext(override val executionId: ExecutionId) : ReactContext
 
 /**
  * The context of a saga's handler for one execution of the commit [event] (design 01 §1, design 04 §1). Each
  * execution, a retry included, gets a new one, so the n-th [command] of every execution of the same commit by the
  * same subscription is the same request: handling the commit again derives the same commands, which the kernel does
- * not decide twice (it deduplicates by request id).
+ * not decide twice (it deduplicates by request id). A domain module's tests build one to call a saga directly.
  */
-class RuntimeSagaContext(override val executionId: ExecutionId, private val event: StateEvent<*>) : SagaContext {
+class ExecutionSagaContext(override val executionId: ExecutionId, private val event: StateEvent<*>) : SagaContext {
     private val calls = AtomicInteger()
 
     init {
@@ -71,5 +73,19 @@ class RuntimeSagaContext(override val executionId: ExecutionId, private val even
             require(index >= 0) { "A call index is never negative." }
             return UUID.nameUUIDFromBytes("$execution#$index".toByteArray(Charsets.UTF_8)).toString()
         }
+    }
+}
+
+/**
+ * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
+ * [ExecutionId] is (subscription, aggregate, version).
+ */
+fun contextOf(kind: FunctionKind, subscription: String, event: StateEvent<*>): SubscriptionContext {
+    val execution = ExecutionId(subscription, event.ref, event.version)
+    return when (kind) {
+        FunctionKind.PROJECT -> ExecutionProjectContext(execution)
+        FunctionKind.REACT -> ExecutionReactContext(execution)
+        FunctionKind.SAGA -> ExecutionSagaContext(execution, event)
+        else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }

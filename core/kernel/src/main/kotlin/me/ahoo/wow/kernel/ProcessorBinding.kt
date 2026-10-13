@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.binding
+package me.ahoo.wow.kernel
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ProjectContext
@@ -23,28 +20,33 @@ import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
-import java.util.concurrent.Executors
 
 /**
- * One handler of an annotated subscription processor, bound to its processor instance (design 04 §1, decision D37):
- * what the compiler generates for each `@OnEvent` function of a `@Projection`, `@Reactor` or `@Saga`, and what
- * [SubscriptionBindings] compiles into one subscription named [name], `processor.function`.
+ * One handler of an annotated subscription processor, bound to its processor instance (design 04 §1, decisions D37,
+ * D149): what the compiler generates for each `@OnEvent` function of a `@Projection`, `@Reactor` or `@Saga`, exposed
+ * by its module's [ModelProvider.processors]. It knows no runtime: the runtime compiles each into one subscription
+ * named [name], `processor.function`.
  *
  * - [stateType] is the state of the `StateEvent<S>` the handler takes: the subscription reads the aggregates of its
  *   context whose state is one, and hands each commit over with the state after it. Null for `StateEvent<*>`: every
  *   aggregate of the context.
- * - [blocking] (`@Blocking`, design 01 §4) dispatches the call to virtual threads instead of running it inline.
- * - The call returns the commands a saga derives; a projection's or a reactor's none.
+ * - [startFrom] is where the subscription starts in a partition it has no checkpoint in yet: by default a
+ *   projection from the beginning of the log, so it builds its read model from the whole history, and a reactor or a
+ *   saga from its end (04 §3: a new subscription chooses), so deploying one does not replay side effects or derive
+ *   commands for the history.
+ * - [blocking] (`@Blocking`, design 01 §4) asks the runtime to run the call on virtual threads instead of inline.
+ * - [invoke] calls the handler directly and returns the commands a saga derives; a projection's or a reactor's none.
  *
  * Built with [project], [react] or [saga], one per kind.
  */
-class BoundHandler<S : Any> private constructor(
+class ProcessorBinding<S : Any> private constructor(
     /** The processor's name: its `@Name`, or its class's simple name. */
     val processor: String,
     /** The handler function's name. */
     val function: String,
     val kind: FunctionKind,
     val stateType: Class<S>?,
+    val startFrom: StartFrom,
     val blocking: Boolean,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
@@ -57,61 +59,77 @@ class BoundHandler<S : Any> private constructor(
     val name: String = "$processor.$function"
 
     /**
-     * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind; on virtual threads
-     * when it is [blocking].
+     * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind ([contextOf]), in
+     * the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
      */
     @Suppress("UNCHECKED_CAST") // The subscription reads only the aggregates whose state is a stateType.
-    suspend fun handle(event: StateEvent<*>, context: SubscriptionContext): List<Command<*>> {
-        val typed = event as StateEvent<S>
-        return if (blocking) withContext(BLOCKING) { call(typed, context) } else call(typed, context)
-    }
+    suspend fun invoke(event: StateEvent<*>, context: SubscriptionContext): List<Command<*>> =
+        call(event as StateEvent<S>, context)
 
-    override fun toString(): String = "BoundHandler($name, $kind)"
+    override fun toString(): String = "ProcessorBinding($name, $kind)"
 
     companion object {
-        /** Runs the `@Blocking` handlers: a virtual thread per call (decision D29: JDK 21). */
-        private val BLOCKING: CoroutineDispatcher by lazy {
-            Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
-        }
+        /** A projection starts from the beginning of the log; a reactor or a saga from its end. */
+        @JvmStatic
+        fun defaultStartFrom(kind: FunctionKind): StartFrom =
+            if (kind == FunctionKind.PROJECT) StartFrom.BEGINNING else StartFrom.END
 
         /** A `@Projection`'s handler [function] of [processor]. */
         @JvmStatic
+        @Suppress("LongParameterList")
         fun <S : Any> project(
             processor: String,
             function: String,
             stateType: Class<S>?,
             blocking: Boolean = false,
+            startFrom: StartFrom = defaultStartFrom(FunctionKind.PROJECT),
             handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
-        ): BoundHandler<S> = BoundHandler(processor, function, FunctionKind.PROJECT, stateType, blocking) { e, c ->
-            handle(e, c as ProjectContext)
-            emptyList()
-        }
+        ): ProcessorBinding<S> =
+            ProcessorBinding(processor, function, FunctionKind.PROJECT, stateType, startFrom, blocking) { e, c ->
+                handle(e, c as ProjectContext)
+                emptyList()
+            }
 
         /** A `@Reactor`'s handler [function] of [processor]. */
         @JvmStatic
+        @Suppress("LongParameterList")
         fun <S : Any> react(
             processor: String,
             function: String,
             stateType: Class<S>?,
             blocking: Boolean = false,
+            startFrom: StartFrom = defaultStartFrom(FunctionKind.REACT),
             handle: suspend (StateEvent<S>, ReactContext) -> Unit,
-        ): BoundHandler<S> = BoundHandler(processor, function, FunctionKind.REACT, stateType, blocking) { e, c ->
-            handle(e, c as ReactContext)
-            emptyList()
-        }
+        ): ProcessorBinding<S> =
+            ProcessorBinding(processor, function, FunctionKind.REACT, stateType, startFrom, blocking) { e, c ->
+                handle(e, c as ReactContext)
+                emptyList()
+            }
 
         /** A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]). */
         @JvmStatic
+        @Suppress("LongParameterList")
         fun <S : Any> saga(
             processor: String,
             function: String,
             stateType: Class<S>?,
             blocking: Boolean = false,
+            startFrom: StartFrom = defaultStartFrom(FunctionKind.SAGA),
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
-        ): BoundHandler<S> = BoundHandler(processor, function, FunctionKind.SAGA, stateType, blocking) { e, c ->
-            handle(e, c as SagaContext)
-        }
+        ): ProcessorBinding<S> =
+            ProcessorBinding(processor, function, FunctionKind.SAGA, stateType, startFrom, blocking) { e, c ->
+                handle(e, c as SagaContext)
+            }
     }
+}
+
+/** Where a subscription without a checkpoint in a partition starts. */
+enum class StartFrom {
+    /** From the first entry of the partition: a new projection, or a replay under a new name. */
+    BEGINNING,
+
+    /** After the entries already committed when the subscription first starts in the partition (its log head). */
+    END,
 }
 
 /**
