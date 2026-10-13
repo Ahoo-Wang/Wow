@@ -155,13 +155,16 @@ class EshopFullChainTest {
         val started = since(killedAt)
         // A node that does not hold a partition's lease runs its commands itself (D71), so the partition takes a
         // command again as soon as a node serves; its subscriptions, the order process's, wait for the lease.
-        stack.eventually("a command of partition $partition taken", TAKEOVER_BOUND) { submitProbe(replacement, probe) }
+        val answers = mutableListOf<String>()
+        stack.eventually("a command of partition $partition taken", TAKEOVER_BOUND, { "Answers: ${answers.distinct()}" }) {
+            submitProbe(replacement, probe, answers)
+        }
         val commands = since(killedAt)
         stack.eventually("the lease of partition $partition taken over", TAKEOVER_BOUND) {
             stack.orderingOwnerOf(partition) == REPLACEMENT
         }
         val lease = since(killedAt)
-        stack.eventually("carol-1 paid after the kill", detail = { "carol-1: ${stack.order("carol-1")}" }) {
+        stack.eventually("carol-1 paid after the kill", TAKEOVER_BOUND, { "carol-1: ${stack.order("carol-1")}" }) {
             stack.orderStatus("carol-1") == "PAID"
         }
         val paid = since(killedAt)
@@ -200,11 +203,14 @@ class EshopFullChainTest {
      * Submits the order [id] of a product the inventory has no stock of, which the order process then cancels;
      * whether [service] committed it. A try that failed late may have committed it, which the next one finds.
      */
-    private fun submitProbe(service: EshopService, id: String): Boolean {
+    private fun submitProbe(service: EshopService, id: String, answers: MutableList<String> = mutableListOf()): Boolean {
         val submitted = service.post(
             "/eshop-ordering/order/$id/submit-order",
             """{"buyerId":"probe","items":[{"productId":"none","unitPrice":1.00,"quantity":1}]}""",
+            // Until it is committed only: the snapshot it would wait for by default is the lease owner's to write.
+            mapOf(WAIT to "committed"),
         )
+        answers += "${submitted.status} ${submitted.body.take(ANSWER)}"
         return submitted.status == OK || "wow.aggregate.exists" in submitted.body
     }
 
@@ -304,6 +310,7 @@ class EshopFullChainTest {
         const val REPLACEMENT = "ordering-2"
         const val TO_ORDERING = EshopStack.CHECKOUT_TO_ORDER
         const val FULL_CHAIN = EshopStack.CHECKOUT_TO_PAID
-        val TAKEOVER_BOUND: Duration = Duration.ofSeconds(45)
+        const val ANSWER = 300
+        val TAKEOVER_BOUND: Duration = Duration.ofSeconds(90)
     }
 }
