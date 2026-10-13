@@ -34,8 +34,9 @@ package me.ahoo.wow.api.annotation
  *
  * A handler may be `suspend` or return a Reactor `Mono` or `Flux`. Derived commands have deterministic request ids,
  * so handling a commit again derives the same requests. The saga is done when its commands are committed (or, across
- * contexts, durably accepted, decision D33); a derived command that is rejected fails the handler, which parks the
- * aggregate in the failure ledger (design 01 §1). The processor's dependencies are its constructor's parameters.
+ * contexts, durably accepted, decision D33); a derived command that is rejected goes to the saga's [OnRejected]
+ * handler of its type, and parks the aggregate in the failure ledger only when the saga has none (decision D153).
+ * The processor's dependencies are its constructor's parameters.
  *
  * A processor is of exactly one kind: [Projection], [Reactor] or [Saga].
  */

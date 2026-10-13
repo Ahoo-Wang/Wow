@@ -8,7 +8,7 @@
 
 例外（D10）：Wow 仓库内的视图定义可以激活 `wow-view-definition`，即 Storybook 场景中的定义、系统视图与故事（`typescript/storybook/stories/view-engine/`），以及补偿控制台的视图定义（`compensation/dashboard/src/views/`）；这两处的宿主接线（引擎与资源、`ViewHost`、路由、存储与声明式操作，如控制台的 `src/views/engine.ts`、`routes.ts`、`executionActions.ts`、`viewStore.ts` 与 `src/features/App/ConsoleHost.tsx`）可以激活 `wow-view-host`。修改视图引擎本身（`typescript/wow-view-engine/`）或 `@ahoo-wang/wow-view-store` 包仍不激活任何 Skill。
 
-V9 是当前维护基线和默认术语。`wow-develop` 仍可服务 V8 下游应用，但必须先从目标构建与解析依赖确认实际 Wow 版本，再应用精确符号、默认值或 V9 规则；无法确认时标记版本结论未验证。V8 到 V9 的旧类型、配置和行为映射只保存在 `wow-migrate`。
+V9 是当前维护基线和默认术语。`wow-develop` 仍可服务 V8 下游应用，但必须先从目标构建与解析依赖确认实际 Wow 版本，再应用精确符号、默认值或 V9 规则；无法确认时标记版本结论未验证。V8 到 V9 的旧类型、配置和行为映射只保存在 `wow-migrate`。V10（`v10` 分支，尚未发布）是另一套编程模型、模块与配置：`wow-develop` 先按目标构建判断是 V10 还是 9.x，V10 目标只加载 `references/v10-service.md`，9.x 目标只加载其余领域 references；从零编写的 V10 服务属于首次采用，由 `wow-develop` 负责，9.x 到 V10 的改写属于 `wow-migrate`。
 
 同一主版本也可能有实现 SPI 变更。查询参考按目标是否具备 `QueryFilter.prepare`、`QueryPolicy.evaluate` 和 `QueryAdmission`（Backend 原语接收 `AdmittedQuery`）区分固定管道与历史实现；Backend 仍接收 `(query, schema)` 的中间目标只共享阶段顺序，不能把 around chain、验证模式或旧构造器套到所有 V9 目标。评估用例中的固定 commit 是源码基线，不是已发布制品证明；带明确历史版本的案例继续按其原始合同评估。
 

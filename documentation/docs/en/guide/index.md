@@ -23,6 +23,10 @@ See [Getting Started](./getting-started.md) for the complete steps and completio
 
 The functional gates are verified; 30 minutes remains a target because first-time developer wall-clock completion has not been measured.
 
+## Preview Wow V10
+
+V10 is developed on the `v10` branch and not released yet. The [V10 Quick Start](./v10/index.md) and the pages beside it describe how to write a V10 service; the rest of this guide describes 9.x.
+
 ## Continue Building
 
 Continue from the three entry points: [Domain Model](./domain/), [Commands](./command/), and [Events and Collaboration](./event/). Then use [Projection](./projection.md) and [Query](./query.md) for the read side.
