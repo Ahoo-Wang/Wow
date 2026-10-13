@@ -20,6 +20,8 @@ dependencies {
     api(project(":eshop-catalog-api"))
     // The generated models and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
+    // @QueryIndex on the product's state: the storefront's filters and sorts stay index scans.
+    implementation(project(":query-api"))
     ksp(project(":compiler"))
     testImplementation(testFixtures(project(":kernel")))
 }

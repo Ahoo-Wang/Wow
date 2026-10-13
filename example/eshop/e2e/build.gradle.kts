@@ -44,6 +44,7 @@ dependencies {
     // The order flow's test creates the Kafka topics and runs PostgreSQL and Kafka in containers.
     integrationTestImplementation("org.apache.kafka:kafka-clients")
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
+    // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
 }
 
