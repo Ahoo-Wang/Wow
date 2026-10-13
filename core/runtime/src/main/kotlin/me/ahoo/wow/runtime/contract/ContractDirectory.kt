@@ -46,8 +46,9 @@ import tools.jackson.databind.json.JsonMapper
  * - the peers conflict ([PeerManifests.conflicts]): a context belongs to one service;
  * - a subscription of [local] reads another context (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138) that no
  *   Manifest declares, an aggregate the context does not have, or one it does not publish;
- * - such a subscription reads a stream published without the state (`includeState = false`) but is not among
- *   [nullableStates], the subscriptions whose handler declares a nullable state, `StateEvent<S?>` (decision D140).
+ * - such a subscription reads a stream published without the state (`includeState = false`) but its handler takes a
+ *   state that is not nullable (decision D140): its Manifest source does not say `nullableState`, which the compiler
+ *   records for `StateEvent<S?>` and `StateEvent<*>`, and it is not among the [nullableStates] given.
  *
  * A command a saga refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected]) is resolved
  * ([commandTypeOf]) but not checked here: a lifecycle command (design 01 §6) is no context's, and whether a chain may
@@ -56,9 +57,17 @@ import tools.jackson.databind.json.JsonMapper
 class ContractDirectory(
     val local: Manifest,
     val peers: List<ManifestFragment> = emptyList(),
-    /** The subscriptions (`processor.function`) whose handler takes a `StateEvent` of a nullable state (D140). */
-    val nullableStates: Set<String> = emptySet(),
+    /**
+     * The subscriptions (`processor.function`) whose handler takes a `StateEvent` of a nullable state (D140), besides
+     * those [local]'s Manifest marks so ([me.ahoo.wow.manifest.SubscriptionSource.nullableState]).
+     */
+    nullableStates: Set<String> = emptySet(),
 ) : SubscriptionDirectory {
+    /** Every subscription of [local] whose handler takes a nullable state: given, or as the Manifest says. */
+    val nullableStates: Set<String> = nullableStates + local.contexts.flatMap { context ->
+        context.subscriptions.filter { it.source.nullableState }.map { it.name }
+    }
+
     private val manifests: List<Manifest> = listOf(local) + peers.map { it.manifest }
 
     /** Every context by its name; on a conflict, which fails the build, the service's own or the first peer's. */

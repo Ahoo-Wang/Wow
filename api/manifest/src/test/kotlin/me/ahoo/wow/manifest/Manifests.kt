@@ -72,7 +72,12 @@ object Manifests {
                     SubscriptionManifest(
                         name = "CheckoutSaga.onOrderPaid",
                         kind = SubscriptionKind.SAGA,
-                        source = SubscriptionSource(context = "sales", aggregates = listOf("order")),
+                        // Decision D140: the saga takes a nullable state, so it may read a stream without it.
+                        source = SubscriptionSource(
+                            context = "sales",
+                            aggregates = listOf("order"),
+                            nullableState = true
+                        ),
                         function = FunctionManifest(FunctionKind.SAGA, context, "CheckoutSaga", "onOrderPaid"),
                         derives = listOf("$context.cart.PutItem", Manifest.schemaRef("sales.Refund")),
                         start = SubscriptionStart.END,

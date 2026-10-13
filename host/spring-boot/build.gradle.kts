@@ -38,5 +38,6 @@ dependencies {
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-mongodb")
+    integrationTestImplementation("org.testcontainers:testcontainers-kafka")
     integrationTestImplementation("com.zaxxer:HikariCP")
 }

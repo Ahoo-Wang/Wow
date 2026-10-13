@@ -44,6 +44,7 @@ import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.json.WowJson
@@ -91,7 +92,9 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
- *   from the application's beans), then the application's own [SubscriptionFactory] bean.
+ *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
+ *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
+ *   [SourceTopics] bean (wow-kafka's, decision D134).
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
@@ -218,6 +221,7 @@ class WowAutoConfiguration {
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
         listeners: ObjectProvider<ServiceNodeListener>,
+        topics: ObjectProvider<SourceTopics>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
@@ -249,9 +253,10 @@ class WowAutoConfiguration {
                 ids = ids,
                 tenants = tenants(properties, models.models),
             ),
-            subscriptions = bindings(beanFactory, dependencies, subscriptions.ifAvailable),
+            subscriptions = bindings(beanFactory, dependencies, subscriptions.orderedStream().toList()),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
+            topics = topics.ifAvailable,
         )
     }
 
@@ -403,16 +408,16 @@ class WowAutoConfiguration {
 
         /**
          * The subscriptions of the annotated processors on the class path (their modules' generated
-         * [ModelProvider.processors]), their processors built from [dependencies], then the application's own
-         * [SubscriptionFactory] bean, when it has one.
+         * [ModelProvider.processors]), their processors built from [dependencies], then those of every
+         * [SubscriptionFactory] bean in [factories], in their order.
          */
         internal fun bindings(
             beanFactory: ConfigurableListableBeanFactory,
             dependencies: Dependencies,
-            application: SubscriptionFactory?,
+            factories: List<SubscriptionFactory>,
         ): SubscriptionFactory {
             val bindings = SubscriptionBindings.of(dependencies, ModelProvider.load(beanFactory.beanClassLoader))
-            return if (application == null) bindings else bindings + application
+            return SubscriptionFactory.of(listOf(bindings) + factories)
         }
 
         private fun checkShutdownTimeout(environment: Environment) {

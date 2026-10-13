@@ -33,7 +33,6 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -55,10 +54,15 @@ import kotlin.coroutines.CoroutineContext
  * It takes part in waits (design 04 §6): a subscription signals, through [signals], the wait an entry carries when
  * the wait's next hop is that subscription; and as the [SubscriptionDirectory] of its group it tells a wait which
  * subscriptions there are, of what kind, and whether one has handled a stream.
+ *
+ * The same runtime reads another context's published topic instead of the log (decision D134,
+ * [me.ahoo.wow.runtime.source.TopicSubscriptions]): its partitions are leased the same way, its entries fanned out
+ * through one shared tail per partition, its checkpoints (the offset after the last record completed) kept in the
+ * same store, and its parked aggregates in the same ledger, each with the offset to re-scan from.
  */
-class SubscriptionRuntime(
+class SubscriptionRuntime internal constructor(
     val group: String,
-    private val log: EventLog,
+    private val source: EntrySource,
     private val checkpoints: CheckpointStore,
     private val ledger: FailureLedger,
     subscriptions: Collection<Subscription> = emptyList(),
@@ -67,6 +71,19 @@ class SubscriptionRuntime(
     private val context: CoroutineContext = Dispatchers.Default,
     private val signals: SignalSender = SignalSender.NONE,
 ) : SubscriptionDirectory {
+    @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
+    constructor(
+        group: String,
+        log: EventLog,
+        checkpoints: CheckpointStore,
+        ledger: FailureLedger,
+        subscriptions: Collection<Subscription> = emptyList(),
+        options: SubscriptionOptions = SubscriptionOptions(),
+        clock: Clock = Clock.systemUTC(),
+        context: CoroutineContext = Dispatchers.Default,
+        signals: SignalSender = SignalSender.NONE,
+    ) : this(group, LogSource(log), checkpoints, ledger, subscriptions, options, clock, context, signals)
+
     private val lifecycle = Mutex()
     private val subscriptions = LinkedHashMap<String, Subscription>()
 
@@ -146,8 +163,7 @@ class SubscriptionRuntime(
         }
     }
 
-    private fun requirePartition(partition: Int) =
-        require(partition in 0 until log.partitions) { "The log has ${log.partitions} partitions." }
+    private fun requirePartition(partition: Int) = source.requirePartition(partition)
 
     private suspend fun open(run: Running, partition: Int, parked: Map<String, Map<Int, Map<AggregateRef, Int>>>) {
         val part = PartitionRun(partition, run)
@@ -237,7 +253,7 @@ class SubscriptionRuntime(
         if (kindOf(stream.ref.type.context, subscription) == null) {
             return false
         }
-        val position = log.positionOf(stream.ref, stream.version) ?: return false
+        val position = source.positionOf(stream.ref, stream.version) ?: return false
         val progress = running?.workers?.get(subscription to position.partition)?.watermark
             ?: checkpoints.load(group, subscription, position.partition)
             ?: 0L
@@ -248,8 +264,10 @@ class SubscriptionRuntime(
     private fun startOf(subscription: Subscription): SubscriptionStart =
         options.starts[subscription.name] ?: SubscriptionStart.of(subscription.startFrom)
 
-    private fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? =
-        running?.workers?.get(subscription to Partitioner.partitionOf(ref, log.partitions))
+    private suspend fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? {
+        val workers = running?.workers ?: return null
+        return workers[subscription to source.partitionOf(ref)]
+    }
 
     private suspend fun worker(
         run: Running,
@@ -258,8 +276,8 @@ class SubscriptionRuntime(
         parked: Map<Int, Map<AggregateRef, Int>>,
     ): SubscriptionWorker {
         val partition = part.partition
-        val checkpoint = checkpoints.load(group, subscription.name, partition) ?: startOf(subscription)
-            .checkpointIn(log, partition).also {
+        val checkpoint = checkpoints.load(group, subscription.name, partition) ?: source
+            .checkpointOf(startOf(subscription), partition).also {
                 // Saved at once, so a restart before the first entry does not move the start to a later end.
                 if (it > 0) {
                     checkpoints.save(group, subscription.name, partition, it)
@@ -269,7 +287,7 @@ class SubscriptionRuntime(
             group = group,
             subscription = subscription,
             partition = partition,
-            log = log,
+            source = source,
             checkpoints = checkpoints,
             ledger = ledger,
             options = options,
@@ -291,7 +309,7 @@ class SubscriptionRuntime(
         do {
             val page = ledger.list(subscription.name, after)
             page.forEach {
-                parked.getOrPut(Partitioner.partitionOf(it.ref, log.partitions)) { HashMap() }[it.ref] = it.fromVersion
+                parked.getOrPut(source.partitionOf(it.ref)) { HashMap() }[it.ref] = it.fromVersion
             }
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
@@ -324,7 +342,12 @@ class SubscriptionRuntime(
         val readersJob = SupervisorJob(run.root)
         val lanesJob = SupervisorJob(run.root)
         val lanes = CoroutineScope(run.scope.coroutineContext + lanesJob)
-        val runner = PartitionRunner(partition, log, CoroutineScope(run.scope.coroutineContext + readersJob), options)
+        val runner = PartitionRunner(
+            partition,
+            source,
+            CoroutineScope(run.scope.coroutineContext + readersJob),
+            options
+        )
         val workers = ArrayList<SubscriptionWorker>()
     }
 }

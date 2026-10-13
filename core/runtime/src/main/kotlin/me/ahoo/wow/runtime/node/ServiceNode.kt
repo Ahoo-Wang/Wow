@@ -48,8 +48,10 @@ import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
+import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -115,6 +117,12 @@ class ContextNode internal constructor(
  * [gateway] that admits commands, the [registry] of models, and the [forwardHandler] that hands a forwarded command
  * to its context's endpoint.
  *
+ * **Per topic** read for the subscriptions of other contexts' published streams ([SubscriptionFactory.sourced],
+ * decision D134): one [TopicSubscriptions] of every subscription reading it, in the lease group `(service,
+ * "topic:<topic>")`, keeping its checkpoints and parked aggregates in the stores of the first context (in the order
+ * of the models) that reads it. The topic is the publishing context's ([contracts], [ContractDirectory.publishedOf])
+ * in [topics]; a node with such subscriptions and no [topics] is not built.
+ *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. The [contracts] are
  * those of this [manifest] and its peers (decision D139), checked when they were built; each context's waits name
@@ -168,6 +176,8 @@ class ServiceNode(
     codec: EventCodec = EventCodec(),
     /** The contracts of the [manifest] and its peers ([ContractDirectory.load] reads the peers on the class path). */
     val contracts: ContractDirectory = ContractDirectory(manifest),
+    /** Where the subscriptions of other contexts' published streams read them (decision D134); none by default. */
+    private val topics: SourceTopics? = null,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -240,12 +250,19 @@ class ServiceNode(
 
     private val applicationSubscriptions = contexts.values.associateWith { subscriptions.subscriptions(it) }
 
+    /**
+     * The subscriptions of other contexts' published streams (decision D134), by the topic they read: one runtime
+     * per topic on this node.
+     */
+    val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions)
+
     init {
         // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
         val names = contexts.values.flatMapTo(HashSet()) { context ->
             applicationSubscriptions.getValue(context).map { it.name } +
                 listOfNotNull(context.snapshots?.subscription?.name, context.reservations?.subscription?.name)
         }
+        topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.name } }
         options.subscription.starts.keys.filterNot { it in names }.forEach {
             throw IllegalArgumentException(
                 "A start is configured for the subscription $it, which node $node does not have: ${names.sorted()}.",
@@ -294,6 +311,7 @@ class ServiceNode(
                 applicationSubscriptions.getValue(context).forEach { context.subscriptions.add(it) }
                 context.ownership.start()
             }
+            topicSubscriptions.values.forEach { it.start() }
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             // Whatever failed, what started is stopped; the failure is the start's.
             try {
@@ -332,9 +350,7 @@ class ServiceNode(
             }
             listener(step)
         }
-        step(Step.HANDED_OFF) {
-            coroutineScope { contexts.values.forEach { launch { it.ownership.stop() } } }
-        }
+        step(Step.HANDED_OFF) { handOff() }
         step(Step.WAITS_ENDED) {
             val ended = withTimeoutOrNull(-waitsEnd.elapsedNow()) {
                 while (waits.size > 0) {
@@ -363,6 +379,55 @@ class ServiceNode(
         state = State.STOPPED
         logger.info { "Node $node of $service stopped." }
         failure?.let { throw it }
+    }
+
+    /** Hands off every context's partitions and every topic's, concurrently. */
+    private suspend fun handOff() = coroutineScope {
+        contexts.values.forEach { launch { it.ownership.stop() } }
+        topicSubscriptions.values.forEach { launch { it.stop() } }
+    }
+
+    /**
+     * The runtimes of the topics the [application]'s sourced subscriptions read: each type's published stream, by its
+     * topic in [topics].
+     */
+    private fun topicSubscriptions(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
+        val readers = LinkedHashMap<String, MutableList<Pair<ContextNode, Subscription>>>()
+        contexts.values.forEach { context ->
+            application.sourced(context).forEach { sourced ->
+                sourced.types.forEach { type ->
+                    val name = sourced.subscription.name
+                    val published = requireNotNull(contracts.publishedOf(type)) {
+                        "$name of ${context.context} reads $type, which no Manifest of the service or its peers publishes."
+                    }
+                    val sources = requireNotNull(topics) {
+                        "$name of ${context.context} reads the topic ${published.topic} of $type, but node $node reads " +
+                            "no topics: give it their source (with Spring Boot, set wow.kafka.bootstrap-servers)."
+                    }
+                    val readersOfTopic = readers.getOrPut(sources.topicOf(published.topic)) { ArrayList() }
+                    if (readersOfTopic.none { it.second === sourced.subscription }) {
+                        readersOfTopic += context to sourced.subscription
+                    }
+                }
+            }
+        }
+        return readers.mapValues { (topic, read) ->
+            val backends = read.first().first.backends
+            TopicSubscriptions(
+                service = service,
+                topic = topic,
+                node = node,
+                addressOf = { address },
+                source = topics!!.source,
+                checkpoints = backends.checkpoints,
+                leases = backends.leases,
+                ledger = backends.ledger,
+                subscriptions = read.map { it.second },
+                options = options.subscription,
+                cluster = options.cluster,
+                signals = signals,
+            )
+        }
     }
 
     private fun assemble(

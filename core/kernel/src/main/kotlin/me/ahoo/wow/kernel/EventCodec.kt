@@ -79,6 +79,12 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     fun stateTree(state: Any): JsonNode = mapper.valueToTree(state)
 
     /**
+     * [tree] read as a [type]: a state or an event another context published (decision D134), into the subscriber's
+     * own class, with no model of the publisher's aggregate to check it against.
+     */
+    fun <T : Any> decodeTree(tree: JsonNode, type: Class<T>): T = mapper.treeToValue(tree, type)
+
+    /**
      * The state [text] of a snapshot, read as [model]'s state class: a Jackson exception when it does not parse, an
      * [IllegalArgumentException] when the state read does not write back as the same JSON. A state that silently
      * dropped what it could not take back (a read-only property Jackson does not fill) would decide on lost data;

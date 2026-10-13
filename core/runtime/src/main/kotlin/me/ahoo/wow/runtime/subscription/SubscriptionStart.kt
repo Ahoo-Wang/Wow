@@ -58,20 +58,26 @@ sealed interface SubscriptionStart {
     data class At(val instant: Instant) : SubscriptionStart {
         override suspend fun checkpointIn(log: EventLog, partition: Int): Long {
             val head = log.head(partition) ?: return 0L
+            return search(0L, head) { log.tail(partition, it.takeIf { after -> after > 0 }).first().stream.commitTime }
+        }
+
+        /**
+         * The smallest checkpoint in [low]..[high] whose next entry is committed at or after the instant; [high] when
+         * none is. [commitTimeAfter] reads the commit time of the first entry after a checkpoint below [high].
+         */
+        internal suspend fun search(low: Long, high: Long, commitTimeAfter: suspend (Long) -> Long): Long {
             val millis = instant.toEpochMilli()
-            // The smallest checkpoint whose next entry is committed at or after the instant; head when none is.
-            var low = 0L
-            var high = head
-            while (low < high) {
-                val middle = low + (high - low) / 2
-                val next = log.tail(partition, middle.takeIf { it > 0 }).first()
-                if (next.stream.commitTime >= millis) {
-                    high = middle
+            var from = low
+            var to = high
+            while (from < to) {
+                val middle = from + (to - from) / 2
+                if (commitTimeAfter(middle) >= millis) {
+                    to = middle
                 } else {
-                    low = middle + 1
+                    from = middle + 1
                 }
             }
-            return low
+            return from
         }
 
         override fun toString(): String = instant.toString()

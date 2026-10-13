@@ -257,6 +257,7 @@ internal object SubscriptionResolver {
             function = name,
             subscription = "$processor.$name",
             state = stateType?.qualifiedName(),
+            nullableState = stateType == null || stateType.isMarkedNullable,
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,

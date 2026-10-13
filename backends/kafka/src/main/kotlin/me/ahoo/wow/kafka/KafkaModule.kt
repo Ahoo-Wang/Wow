@@ -16,7 +16,7 @@ package me.ahoo.wow.kafka
 /**
  * The Kafka module (wow-kafka): the transport ([KafkaTopicProducer], [KafkaPartitionedSource]) over `kafka-clients`
  * (decision D31). The host's `KafkaAutoConfiguration` conditions on this class by name, and wires the Kafka Sink over
- * the producer.
+ * the producer and the Kafka-sourced subscriptions over the source (decision D134).
  */
 internal object KafkaModule {
     override fun toString(): String = "wow-kafka"

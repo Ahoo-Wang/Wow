@@ -130,7 +130,7 @@ class SubscriptionManifestTest {
         @Projection
         class StockOnly {
             @OnEvent(aggregates = ["inventory.stock"])
-            fun onEvent(event: StateEvent<StockView>) = Unit
+            fun onEvent(event: StateEvent<StockView?>) = Unit
         }
         """.trimIndent(),
     )
@@ -230,7 +230,8 @@ class SubscriptionManifestTest {
             SubscriptionManifest(
                 name = "StockOnly.onEvent",
                 kind = SubscriptionKind.PROJECTION,
-                source = stock,
+                // Decision D140: a handler of a nullable state may read a stream published without it.
+                source = stock.copy(nullableState = true),
                 function = FunctionManifest(FunctionKind.PROJECT, "shop", "StockOnly", "onEvent"),
                 start = SubscriptionStart.BEGINNING,
             ),
@@ -238,20 +239,35 @@ class SubscriptionManifestTest {
     }
 
     @Test
-    fun `handlers of another context should get no binding yet, with a note, and rejection handlers one each`() {
+    fun `handlers of another context should be bound with their source and state nullability, rejections one each`() {
         val (compilation, result) = compile(model, saga)
         val processors = provider(compilation, result).processors(Dependencies.NONE)
         processors.map { it.name }.assert().containsExactlyInAnyOrder(
             "OrderSaga.onPlaced",
             "OrderSaga.declared",
             "OrderSaga.untyped",
+            "OrderSaga.onStock",
+            "StockBoard.onEvent",
             "StockBoard.onOrder",
+            "StockOnly.onEvent",
         )
+        // Decisions D134, D138: a handler of another context's aggregates reads their published streams.
+        val stockOnly = processors.single { it.name == "StockOnly.onEvent" }
+        stockOnly.aggregates.assert().containsExactly("inventory.stock")
+        stockOnly.isSourced("shop").assert().isTrue()
+        stockOnly.stateType!!.name.assert().isEqualTo("sample.StockView")
+        // Decision D140: StateEvent<StockView?> is recorded, StateEvent<StockView> is not nullable.
+        stockOnly.nullableState.assert().isTrue()
+        processors.single { it.name == "StockBoard.onEvent" }.nullableState.assert().isFalse()
+        processors.single { it.name == "StockBoard.onOrder" }.isSourced("shop").assert().isFalse()
+        processors.single { it.name == "OrderSaga.onStock" }.aggregates.assert().containsExactly("inventory.stock")
         generated(compilation, "StockOnlySubscriptions.kt")!!.readText().assert()
-            .contains("): List<me.ahoo.wow.kernel.ProcessorBinding<*>> = emptyList()")
-            .doesNotContain("StockOnly()")
+            .contains(
+                "ProcessorBinding.project<sample.StockView?>(\"StockOnly\", \"onEvent\", sample.StockView::class.java"
+            )
+            .contains("aggregates = listOf(\"inventory.stock\"), nullableState = true)")
         result.messages.assert()
-            .contains("handler StockBoard.onEvent reads inventory.stock of another context")
+            .doesNotContain("of another context")
             .doesNotContain("@OnRejected handler OrderSaga.onReserveRejected is in the Manifest")
         // Decision D153: every handler of the saga carries its @OnRejected handlers, bound once.
         val sagas = processors.filter { it.processor == "OrderSaga" }
@@ -262,7 +278,7 @@ class SubscriptionManifestTest {
             )
             saga.rejections.assert().isEqualTo(sagas.first().rejections)
         }
-        processors.single { it.processor == "StockBoard" }.rejections.assert().isEmpty()
+        processors.filter { it.processor == "StockBoard" }.forEach { it.rejections.assert().isEmpty() }
     }
 
     @Test

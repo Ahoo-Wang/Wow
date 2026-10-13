@@ -80,6 +80,29 @@ abstract class TopicTransportSpec {
     }
 
     @Test
+    fun `a key's partition should be the one its messages land in`(): Unit = runBlocking {
+        val topic = newTopic(3)
+        val keys = (0 until 12).map { "order-$it" }
+        producer.send(topic, keys.map { message(it, it) })
+        val landed = source.partitions(topic).flatMap { partition ->
+            val end = source.offsets(topic, partition).end
+            read(topic, partition, 0, end.toInt()).map { it.key to partition }
+        }.toMap()
+        keys.forEach { key -> source.partitionOf(topic, key).assert().isEqualTo(landed.getValue(key)) }
+    }
+
+    @Test
+    fun `a bounded read should complete after the messages before its bound`(): Unit = runBlocking {
+        val topic = newTopic(1)
+        producer.send(topic, (0 until 5).map { message("k", "v-$it") })
+        withTimeout(readTimeout) { source.read(topic, 0, 1, 4).toList() }
+            .map { it.text }.assert().containsExactly("v-1", "v-2", "v-3")
+        withTimeout(readTimeout) { source.read(topic, 0, 3, 3).toList() }.assert().isEmpty()
+        withTimeout(readTimeout) { source.read(topic, 0, 0, source.offsets(topic, 0).end).toList() }
+            .size.assert().isEqualTo(5)
+    }
+
+    @Test
     fun `the offsets should run from the first message retained to the next one written`(): Unit = runBlocking {
         val topic = newTopic(1)
         source.offsets(topic, 0).assert().isEqualTo(PartitionOffsets(0, 0))

@@ -28,6 +28,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.state.StateEventRecord
 
 /**
  * A subscription (design 04 §1): a [name], a [filter] and exactly one handler. The checkpoint belongs to the
@@ -227,6 +228,11 @@ data class SubscriptionFilter(
  * An entry made by [EntryDecoder.stateEvents] also reads the aggregate's [state] after the stream, when its handler
  * asks for it: a handler that does not need it (the snapshot subscription, when the store already holds the version)
  * never rebuilds it.
+ *
+ * An entry read from another context's published topic (decision D134) carries the record it was read as,
+ * [published]: the state after the stream (null when the upstream publishes without it, decision D140) and the
+ * events as published. [stream] holds the same facts; [position] is then the record's partition and its offset plus
+ * one.
  */
 data class SubscribedEntry(
     val stream: EventStreamRecord,
@@ -234,6 +240,7 @@ data class SubscribedEntry(
     val events: List<Any>,
     val transport: Transport? = null,
     private val states: StateViewReader? = null,
+    val published: StateEventRecord? = null,
 ) {
     val ref: AggregateRef get() = stream.ref
     val version: Int get() = stream.version
