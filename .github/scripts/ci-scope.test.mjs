@@ -417,6 +417,11 @@ test('V10 modules skip the TypeScript workflow jobs and the mixed-version test',
     'edge/cosec/build.gradle.kts',
     'example/shop/shop-domain/src/main/kotlin/A.kt',
     'example/shop/shop-server/build.gradle.kts',
+    'query/query/src/main/kotlin/A.kt',
+    'backends/kafka/build.gradle.kts',
+    'backends/clickhouse/src/main/kotlin/A.kt',
+    'example/e2e/src/integrationTest/kotlin/A.kt',
+    'example/inventory/inventory-domain/src/main/kotlin/A.kt',
   ]) {
     assert.ok(none([path]), path);
     assert.ok(!scopes([path]).mixedVersion, path);
@@ -485,6 +490,11 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'edge/cosec/src/main/kotlin/A.kt',
     'example/shop/shop-api/src/main/kotlin/A.kt',
     'example/shop/shop-server/build.gradle.kts',
+    'query/query/src/main/kotlin/A.kt',
+    'backends/kafka/src/main/kotlin/A.kt',
+    'backends/clickhouse/build.gradle.kts',
+    'example/e2e/build.gradle.kts',
+    'example/inventory/inventory-server/src/main/kotlin/A.kt',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'build-logic/build.gradle.kts',

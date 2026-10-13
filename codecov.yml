@@ -241,6 +241,12 @@ component_management:
         - core/reactor/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-query
+      name: v10-query
+      paths:
+        - query/query/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-postgres
       name: v10-postgres
       paths:
@@ -251,6 +257,18 @@ component_management:
       name: v10-mongo
       paths:
         - backends/mongo/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-kafka
+      name: v10-kafka
+      paths:
+        - backends/kafka/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-clickhouse
+      name: v10-clickhouse
+      paths:
+        - backends/clickhouse/src/main/**
       flag_regexes:
         - "^v10$"
     - component_id: v10-http

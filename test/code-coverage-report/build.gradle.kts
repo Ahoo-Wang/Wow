@@ -61,6 +61,11 @@ fun mainSourceSets(projects: Iterable<Project>) = projects.map { project ->
 // different classes of one name. Annotations hold no code to cover, so the reports leave out :api's.
 val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/**"))
 
+// D125: the V10 query protocol (:query-api) keeps the package and class names of 9.x wow-api's `query`, code included.
+// A report that covers both (the full build's 9.x reports) leaves out :query-api's; the V10 reports, which have no
+// 9.x wow-api, keep them.
+val classesSharedWithNineXWhenBoth = mapOf(":query-api" to (":wow-api" to listOf("me/ahoo/wow/api/query/**")))
+
 fun JacocoReport.useCoverageData(
     projects: Iterable<Project>,
     testTasks: Iterable<TaskProvider<Test>>,
@@ -71,11 +76,16 @@ fun JacocoReport.useCoverageData(
             sourceSet.map { it.allSource.srcDirs }
         },
     )
+    val paths = projects.map { it.path }.toSet()
     classDirectories.setFrom(
         projects.map { project ->
             val classesDirs = mainSourceSets(listOf(project)).single().map { it.output.classesDirs }
-            val shared = classesSharedWithNineX[project.path]
-            if (shared == null) classesDirs else files(classesDirs).asFileTree.matching { exclude(shared) }
+            val shared = classesSharedWithNineX[project.path].orEmpty() +
+                classesSharedWithNineXWhenBoth[project.path]
+                    ?.takeIf { (nineX, _) -> nineX in paths }
+                    ?.second
+                    .orEmpty()
+            if (shared.isEmpty()) classesDirs else files(classesDirs).asFileTree.matching { exclude(shared) }
         },
     )
     executionData.setFrom(

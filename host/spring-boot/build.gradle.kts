@@ -15,6 +15,10 @@ dependencies {
     // and brings neither.
     compileOnly(project(":postgres"))
     compileOnly(project(":mongo"))
+    // The query plane, the Kafka transport and the ClickHouse Sink are wired when the application has them.
+    compileOnly(project(":query"))
+    compileOnly(project(":kafka"))
+    compileOnly(project(":clickhouse"))
     // Activated only when the application has them: a Bean Validation provider (D106) and CosId (D114).
     compileOnly("jakarta.validation:jakarta.validation-api")
     compileOnly("me.ahoo.cosid:cosid-core")
@@ -25,6 +29,9 @@ dependencies {
     testImplementation("me.ahoo.cosid:cosid-core")
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
+    testImplementation(project(":query"))
+    testImplementation(project(":kafka"))
+    testImplementation(project(":clickhouse"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
