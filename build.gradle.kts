@@ -46,8 +46,8 @@ val exampleLibraries =
 val viewStoreServerProject = includedProjects(":wow-view-store-server")
 val analyticsServerProject = findProject(":wow-analytics-server")
 // The V10 example (decision D111): built and checked with the V10 modules, never published, and named like the 9.x
-// examples, without the `wow-` prefix of a V10 artifact.
-val v10ExampleProjects = includedProjects(":shop-api", ":shop-domain", ":shop-server")
+// examples, without the `wow-` prefix of a V10 artifact. :example-e2e holds the example's end-to-end tests (D144).
+val v10ExampleProjects = includedProjects(":shop-api", ":shop-domain", ":shop-server", ":example-e2e")
 val exampleProjects =
     exampleLibraries + includedProjects(":example-server", ":example-transfer-server", ":wow-compensation-server") +
         viewStoreServerProject + listOfNotNull(analyticsServerProject) + v10ExampleProjects
@@ -56,13 +56,13 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = includedProjects(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3),
-// :routing-spike (spike H2), :lease-spike (spike H6) and the example (:shop-*) are never published.
+// :routing-spike (spike H2), :lease-spike (spike H6) and the example (:shop-*, :example-e2e) are never published.
 val v10Projects = listOf(
-    "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor",
-    "postgres", "mongo", "http", "cosec", "spring-boot", "migrate-data", "architecture", "kernel-benchmarks",
-    "compiler", "gradle-plugin", "manifest-tools",
+    "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
+    "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "migrate-data", "architecture",
+    "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
-    "shop-api", "shop-domain", "shop-server",
+    "shop-api", "shop-domain", "shop-server", "example-e2e",
 ).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
@@ -129,10 +129,13 @@ val localContractTestProjects = includedProjects(
 val v10IntegrationTestProjects = includedProjects(
     ":postgres",
     ":mongo",
+    ":kafka",
+    ":clickhouse",
     ":spring-boot",
     ":routing-spike",
     ":lease-spike",
     ":shop-server",
+    ":example-e2e",
 )
 val integrationTestProjects = includedProjects(
     ":wow-bi",

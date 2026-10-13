@@ -150,6 +150,28 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `query-api rule should catch a JSON library`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.QUERY_API.dir,
+            "me/ahoo/wow/api/query/Bad.kt",
+            """
+            package me.ahoo.wow.api.query
+
+            import com.fasterxml.jackson.annotation.JsonProperty
+            import kotlinx.serialization.Serializable
+            import tools.jackson.databind.JsonNode
+            import java.time.Duration
+            """.trimIndent(),
+        )
+        val bad = "${V10Rules.QUERY_API.dir}/src/main/kotlin/me/ahoo/wow/api/query/Bad.kt"
+        V10Rules.QUERY_API_IS_PLAIN_DATA.violations(root).assert().containsExactly(
+            "$bad:3: com.fasterxml.jackson.annotation.JsonProperty",
+            "$bad:4: kotlinx.serialization.Serializable",
+            "$bad:5: tools.jackson.databind.JsonNode",
+        )
+    }
+
+    @Test
     fun `module graph should read the project dependencies of a build script`(@TempDir root: File) {
         File(root, V10Rules.KERNEL.dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
             """
@@ -231,16 +253,28 @@ class V10ArchitectureTest {
                 "shop-api" to "example/shop/shop-api",
                 "shop-domain" to "example/shop/shop-domain",
                 "shop-server" to "example/shop/shop-server",
+                "inventory-domain" to "example/inventory/inventory-domain",
+                "example-e2e" to "example/e2e",
+                "wow-core" to "wow-core",
+                "lease-spike" to "test/lease-spike",
             ),
             mapOf(
                 "spring-boot" to listOf("wow-spring"),
                 "shop-api" to listOf("api"),
                 "shop-domain" to listOf("shop-api", "routing-spike"),
                 "shop-server" to listOf("shop-api", "spring-boot"),
+                "inventory-domain" to listOf("api", "wow-core"),
+                "example-e2e" to listOf("shop-api", "inventory-domain", "lease-spike"),
             ),
-            v10 = setOf("api", "spring-boot", "routing-spike", "shop-api", "shop-domain", "shop-server"),
+            v10 = setOf(
+                "api", "spring-boot", "routing-spike", "lease-spike", "shop-api", "shop-domain", "shop-server",
+                "inventory-domain", "example-e2e",
+            ),
         )
         V10Rules.exampleOutsideV10Violations(root).assert().containsExactly(
+            "example-e2e reaches :lease-spike",
+            "example-e2e reaches :wow-core",
+            "inventory-domain reaches :wow-core",
             "shop-domain reaches :routing-spike",
             "shop-server reaches :wow-spring",
         )

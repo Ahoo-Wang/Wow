@@ -29,8 +29,11 @@ object V10Rules {
     val KERNEL = V10Module("kernel", "core/kernel")
     val RUNTIME = V10Module("runtime", "core/runtime")
     val REACTOR = V10Module("reactor", "core/reactor")
+    val QUERY = V10Module("query", "query/query")
     val POSTGRES = V10Module("postgres", "backends/postgres")
     val MONGO = V10Module("mongo", "backends/mongo")
+    val KAFKA = V10Module("kafka", "backends/kafka")
+    val CLICKHOUSE = V10Module("clickhouse", "backends/clickhouse")
     val HTTP = V10Module("http", "edge/http")
     val COSEC = V10Module("cosec", "edge/cosec")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
@@ -40,16 +43,24 @@ object V10Rules {
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, POSTGRES, MONGO, HTTP, COSEC, SPRING_BOOT,
-        MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
+        COSEC, SPRING_BOOT, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
 
     val SHOP_API = V10Module("shop-api", "example/shop/shop-api")
     val SHOP_DOMAIN = V10Module("shop-domain", "example/shop/shop-domain")
     val SHOP_SERVER = V10Module("shop-server", "example/shop/shop-server")
+    val EXAMPLE_E2E = V10Module("example-e2e", "example/e2e")
 
-    /** The V10 example (decision D111): an application of the V10 modules, not one of them. */
-    val EXAMPLES = listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER)
+    /**
+     * The V10 example (decisions D111, D144): applications of the V10 modules, not ones of them, and the end-to-end
+     * tests across them.
+     */
+    val EXAMPLES = listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER, EXAMPLE_E2E)
+
+    /** Whether [project] belongs to the V10 example: the shop, the inventory context (decision D144) or its e2e tests. */
+    fun isExample(project: String): Boolean =
+        project.startsWith("shop-") || project.startsWith("inventory-") || project == EXAMPLE_E2E.name
 
     /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
@@ -66,13 +77,20 @@ object V10Rules {
         KERNEL to setOf("spi", "manifest"),
         RUNTIME to setOf("kernel"),
         REACTOR to setOf("runtime"),
-        POSTGRES to setOf("spi", "wow-query"),
-        MONGO to setOf("spi"),
+        // The query engine and its backend SPI (decision D126).
+        QUERY to setOf("query-api", "spi", "manifest"),
+        // query for the snapshot query backends (decision D126).
+        POSTGRES to setOf("spi", "query"),
+        MONGO to setOf("spi", "query"),
+        KAFKA to setOf("spi"),
+        // query for the dataset backend (decision D142).
+        CLICKHOUSE to setOf("spi", "query"),
         // runtime only until the V10 query module exists (decision D118).
         HTTP to setOf("runtime"),
         COSEC to setOf("http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
-        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo"),
+        // query, kafka and clickhouse compileOnly too: each is wired when the application has it.
+        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse"),
         MIGRATE_DATA to setOf("kernel"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
@@ -83,6 +101,16 @@ object V10Rules {
     )
 
     private val SPRING = listOf("org.springframework")
+    private val JSON_LIBRARIES = listOf(
+        "tools.jackson",
+        "com.fasterxml",
+        "kotlinx.serialization",
+        "com.google.gson",
+        "com.squareup.moshi",
+        "org.json",
+        "jakarta.json",
+        "javax.json",
+    )
     private val REACTOR_TYPES = listOf(
         "reactor.core",
         "reactor.util",
@@ -109,7 +137,7 @@ object V10Rules {
     /** The contract and core modules carry no runtime framework: no Spring, Reactor, HTTP or driver types. */
     val CORE_IS_FRAMEWORK_FREE = DependencyRule(
         name = "contract and core modules import no Spring, Reactor, HTTP or driver types",
-        modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME).map { it.dir },
+        modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY).map { it.dir },
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
     )
 
@@ -132,6 +160,16 @@ object V10Rules {
         name = "wow-manifest imports no JSON library and no coroutines",
         modules = listOf(MANIFEST.dir),
         forbidden = listOf("tools.jackson", "com.fasterxml", "kotlinx"),
+    )
+
+    /**
+     * The query protocol is plain data (decision D125): JSON libraries read and write it (`QueryJson` in wow-query), it
+     * imports none.
+     */
+    val QUERY_API_IS_PLAIN_DATA = DependencyRule(
+        name = "wow-query-api imports no JSON library",
+        modules = listOf(QUERY_API.dir),
+        forbidden = JSON_LIBRARIES,
     )
 
     /** Schemas are introspected at build time only (decision D73): no runtime module generates one. */
@@ -163,6 +201,7 @@ object V10Rules {
         KERNEL_IGNORES_RUNTIME,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
+        QUERY_API_IS_PLAIN_DATA,
         SCHEMA_GENERATION_AT_BUILD_TIME,
         API_STANDS_ALONE,
     )
@@ -182,6 +221,9 @@ object V10Rules {
     val REPLACED_9X: Map<String, String> = mapOf(
         "api" to "wow-api",
         "query-api" to "wow-api",
+        "query" to "wow-query",
+        "kafka" to "wow-kafka",
+        "clickhouse" to "wow-clickhouse",
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
         "cosec" to "wow-cosec",
@@ -265,13 +307,15 @@ object V10Rules {
     }
 
     /**
-     * The example builds on the V10 modules only (decision D118), directly or transitively: it shows V10 as an
-     * application uses it, with no 9.x module, spike or test project on its classpath.
+     * The example builds on the V10 modules only (decisions D118, D144), directly or transitively: it shows V10 as an
+     * application uses it, with no 9.x module, spike or test project on its classpath. The example is every project
+     * [isExample] names (`:shop-*`, `:inventory-*` and `:example-e2e`), which may build on each other.
      */
     fun exampleOutsideV10Violations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
-        val allowed = (MODULES + EXAMPLES).map { it.name }.toSet()
-        return EXAMPLES.map { it.name }.flatMap { example ->
+        val examples = graph.keys.filter(::isExample).sorted()
+        val allowed = MODULES.map { it.name }.toSet() + examples
+        return examples.flatMap { example ->
             reachable(graph, example).filterNot { it in allowed }.sorted().map { "$example reaches :$it" }
         }
     }
