@@ -16,6 +16,8 @@ package me.ahoo.wow.kafka
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -26,6 +28,8 @@ import me.ahoo.wow.spi.transport.SourceMessage
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.utils.Utils
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
@@ -35,12 +39,16 @@ import kotlin.time.toJavaDuration
  *
  * - [partitions] and [offsets] ask one consumer of their own ([consumers] makes it on the first call), one call at a
  *   time, since a Kafka consumer is not safe for concurrent use.
- * - [read] runs a consumer of its own for as long as its flow is collected: assigned the one partition, it seeks to
+ * - [partitionOf] is the producer's default partitioner: murmur2 of the key over the partition count.
+ * - [read] of a partition the source does not read yet joins the topic's shared consumer ([SharedTopicConsumer]): the
+ *   tails of every partition of a topic this node owns go through one consumer, assigned those partitions by hand
+ *   (decision D134). A second read of a partition already joined, such as a subscription catching up, and a bounded
+ *   read run a consumer of their own for as long as their flow is collected: assigned the one partition, it seeks to
  *   `from` and polls, each poll at most [pollTimeout] on a virtual thread, emitting what it got; the consumer closes
- *   when the flow is cancelled. An offset no longer retained reads from the earliest one retained; one past the end
- *   waits for the messages to reach it.
+ *   when the flow ends or is cancelled. Either way, an offset no longer retained reads from the earliest one
+ *   retained; one past the end waits for the messages to reach it.
  *
- * [close] closes the consumer of [partitions] and [offsets]; the reads close their own.
+ * [close] closes the consumer of [partitions] and [offsets] and the shared consumers; the other reads close their own.
  */
 class KafkaPartitionedSource(
     private val consumers: () -> Consumer<String, ByteArray>,
@@ -49,10 +57,21 @@ class KafkaPartitionedSource(
 ) : PartitionedSource, AutoCloseable {
     private val lock = Mutex()
     private var metadata: Consumer<String, ByteArray>? = null
+    private val shared = ConcurrentHashMap<String, SharedTopicConsumer>()
 
     override suspend fun partitions(topic: String): List<Int> = metadata { consumer ->
         // Empty for a topic the broker does not know.
         consumer.partitionsFor(topic).map { it.partition() }.sorted()
+    }
+
+    /**
+     * The partition the producer's default partitioner puts a message keyed [key] in: murmur2 of the key's UTF-8
+     * bytes over the topic's partition count, as [KafkaTopicProducer] sends with no partition of its own.
+     */
+    override suspend fun partitionOf(topic: String, key: String): Int {
+        val count = partitions(topic).size
+        check(count > 0) { "Topic $topic has no partitions." }
+        return Utils.toPositive(Utils.murmur2(key.toByteArray(Charsets.UTF_8))) % count
     }
 
     override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = metadata { consumer ->
@@ -64,6 +83,29 @@ class KafkaPartitionedSource(
 
     override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = flow {
         require(from >= 0) { "An offset is never negative." }
+        val topicConsumer = shared.computeIfAbsent(topic) {
+            SharedTopicConsumer(it, consumers, pollTimeout, dispatcher)
+        }
+        val reader = topicConsumer.join(partition, from)
+        if (reader == null) {
+            emitAll(poll(topic, partition, from, Long.MAX_VALUE))
+            return@flow
+        }
+        try {
+            for (message in reader.channel) {
+                emit(message)
+            }
+        } finally {
+            topicConsumer.leave(reader)
+        }
+    }
+
+    /** Polls a consumer of its own until its position reaches [until], so a partition ending in a gap completes too. */
+    override fun read(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> =
+        if (from >= until) emptyFlow() else poll(topic, partition, from, until)
+
+    private fun poll(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> = flow {
+        require(from >= 0) { "An offset is never negative." }
         val target = TopicPartition(topic, partition)
         val consumer = withContext(dispatcher) { consumers() }
         try {
@@ -73,9 +115,15 @@ class KafkaPartitionedSource(
                 consumer.seek(target, minOf(from, consumer.endOffsets(listOf(target)).values.single()))
             }
             val timeout = pollTimeout.toJavaDuration()
-            while (true) {
-                val records = withContext(dispatcher) { consumer.poll(timeout) }
+            var position = 0L
+            while (position < until) {
+                val records = withContext(dispatcher) {
+                    consumer.poll(timeout).also { position = consumer.position(target) }
+                }
                 for (record in records) {
+                    if (record.offset() >= until) {
+                        return@flow
+                    }
                     if (record.offset() >= from) {
                         emit(
                             SourceMessage(
@@ -100,6 +148,8 @@ class KafkaPartitionedSource(
     }
 
     override fun close() {
+        shared.values.forEach { it.close() }
+        shared.clear()
         metadata?.close()
         metadata = null
     }

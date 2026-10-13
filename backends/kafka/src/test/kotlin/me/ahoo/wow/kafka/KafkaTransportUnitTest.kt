@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kafka
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -152,5 +153,95 @@ class KafkaTransportUnitTest {
             read[0].headers.assert().isEqualTo(mapOf("wow-kind" to "state-event"))
             mock.closed().assert().isTrue()
             assertThrows<IllegalArgumentException> { runBlocking { source.read(topic, 0, -1).toList() } }
+        }
+
+    private suspend fun eventually(condition: () -> Boolean) {
+        withTimeout(10.seconds) {
+            while (!condition()) {
+                delay(1)
+            }
+        }
+    }
+
+    @Test
+    fun `the tails of a topic should share one consumer, and a second read of a partition have its own`(): Unit =
+        runBlocking {
+            val shared = MockConsumer<String, ByteArray>("earliest")
+            val own = MockConsumer<String, ByteArray>("earliest")
+            val zero = TopicPartition(topic, 0)
+            val one = TopicPartition(topic, 1)
+            shared.updateEndOffsets(mapOf(zero to 0L, one to 0L))
+            own.updateEndOffsets(mapOf(zero to 0L))
+            val made = ArrayDeque(listOf(shared, own))
+            val source = KafkaPartitionedSource({ made.removeFirst() }, pollTimeout = 1.milliseconds)
+            val first = async(Dispatchers.Default) { source.read(topic, 0, 0).take(2).toList() }
+            eventually { shared.assignment() == setOf(zero) }
+            // Already joined: its own consumer, from its own offset.
+            val again = async(Dispatchers.Default) { source.read(topic, 0, 5).take(1).toList() }
+            eventually { own.assignment() == setOf(zero) }
+            val second = async(Dispatchers.Default) { source.read(topic, 1, 0).take(1).toList() }
+            eventually { shared.assignment() == setOf(zero, one) }
+            shared.addRecord(record(0, "a0"))
+            shared.addRecord(record(1, "a1"))
+            shared.addRecord(record(0, "b0", partition = 1))
+            own.addRecord(record(5, "c5"))
+            withTimeout(10.seconds) {
+                first.await().map { String(it.value) }.assert().containsExactly("a0", "a1")
+                second.await().map { String(it.value) }.assert().containsExactly("b0")
+                again.await().map { it.offset }.assert().containsExactly(5L)
+            }
+            made.assert().isEmpty()
+            // The last tail to leave closes the shared consumer.
+            shared.closed().assert().isTrue()
+            own.closed().assert().isTrue()
+            source.close()
+        }
+
+    @Test
+    fun `a full channel should pause its partition until it has room, and a failing consumer fail its tails`(): Unit =
+        runBlocking {
+            val mock = MockConsumer<String, ByteArray>("earliest")
+            val zero = TopicPartition(topic, 0)
+            mock.updateEndOffsets(mapOf(zero to 0L))
+            val source = KafkaPartitionedSource({ mock }, pollTimeout = 1.milliseconds)
+            val gate = CompletableDeferred<Unit>()
+            val reading = async(Dispatchers.Default) {
+                runCatching { source.read(topic, 0, 0).collect { gate.await() } }.exceptionOrNull()
+            }
+            eventually { mock.assignment() == setOf(zero) }
+            // More than a channel holds, to a reader that does not take: the rest waits, the partition paused.
+            (0L until 600L).forEach { mock.addRecord(record(it, "v$it")) }
+            eventually { mock.paused() == setOf(zero) }
+            mock.setPollException(org.apache.kafka.common.KafkaException("broker gone"))
+            eventually { mock.closed() }
+            gate.complete(Unit)
+            reading.await().assert().isInstanceOf(org.apache.kafka.common.KafkaException::class.java)
+            eventually { mock.closed() }
+            source.close()
+        }
+
+    @Test
+    fun `a bounded read should complete once its consumer passed the bound, and a key map to its partition`(): Unit =
+        runBlocking {
+            val mock = MockConsumer<String, ByteArray>("earliest")
+            val zero = TopicPartition(topic, 0)
+            mock.updateEndOffsets(mapOf(zero to 3L))
+            mock.schedulePollTask { (0L..2L).forEach { mock.addRecord(record(it, "v$it")) } }
+            val metadata = MockConsumer<String, ByteArray>("earliest")
+            metadata.updatePartitions(topic, listOf(0, 1, 2).map { PartitionInfo(topic, it, null, null, null) })
+            val made = ArrayDeque(listOf(mock, metadata))
+            val source = KafkaPartitionedSource({ made.removeFirst() }, pollTimeout = 1.milliseconds)
+            withTimeout(10.seconds) { source.read(topic, 0, 1, 3).toList() }.map { it.offset }
+                .assert().containsExactly(1L, 2L)
+            source.read(topic, 0, 3, 3).toList().assert().isEmpty()
+            mock.closed().assert().isTrue()
+            val key = "shop.order/t/o-1"
+            source.partitionOf(topic, key).assert().isEqualTo(
+                org.apache.kafka.common.utils.Utils.toPositive(
+                    org.apache.kafka.common.utils.Utils.murmur2(key.toByteArray()),
+                ) % 3,
+            )
+            assertThrows<IllegalStateException> { runBlocking { source.partitionOf("unknown", key) } }
+            source.close()
         }
 }
