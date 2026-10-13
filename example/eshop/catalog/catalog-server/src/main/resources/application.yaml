@@ -5,7 +5,19 @@ server:
   port: 8081
 wow:
   service: eshop-catalog-service
-  # One node, its data in memory: the skeleton's backend (work package E.0).
+  # One node, its data in memory: the default, for trying the catalog out. The memory backend serves no snapshot
+  # queries; the `postgres` profile below serves the catalog, and its queries, from PostgreSQL.
   backend: memory
   internal:
     port: 9091
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_catalog
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
