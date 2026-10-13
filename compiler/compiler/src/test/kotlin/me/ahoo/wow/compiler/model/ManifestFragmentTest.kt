@@ -26,11 +26,14 @@ import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SubscriptionStart
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -241,6 +244,22 @@ class ManifestFragmentTest {
                                 "wow.lifecycle.TransferOwner",
                                 "wow.lifecycle.TransferSpace",
                             ),
+                            queries = listOf(
+                                QueryManifest(
+                                    "snapshot",
+                                    listOf(
+                                        RouteManifest("POST", "/shop/cart/snapshot/query"),
+                                        RouteManifest("GET", "/shop/cart/snapshot/query"),
+                                    ),
+                                ),
+                                QueryManifest(
+                                    "events",
+                                    listOf(
+                                        RouteManifest("POST", "/shop/cart/events/query"),
+                                        RouteManifest("GET", "/shop/cart/events/query"),
+                                    ),
+                                ),
+                            ),
                         ),
                     ),
                     subscriptions = listOf(
@@ -249,14 +268,19 @@ class ManifestFragmentTest {
                             kind = SubscriptionKind.PROJECTION,
                             source = SubscriptionSource(context = "shop", aggregates = listOf("cart")),
                             function = FunctionManifest(FunctionKind.PROJECT, "shop", "CartSummary", "onEvent"),
+                            start = SubscriptionStart.BEGINNING,
                         ),
                         SubscriptionManifest(
                             name = "checkout.onEvent",
                             kind = SubscriptionKind.SAGA,
                             source = SubscriptionSource(),
                             function = FunctionManifest(FunctionKind.SAGA, "shop", "checkout", "onEvent"),
+                            // List<Command<*>> does not say which commands.
+                            derives = null,
+                            start = SubscriptionStart.END,
                         ),
                     ),
+                    published = listOf(PublishedManifest("cart", "wow.shop.cart.state")),
                 ),
             ),
         )

@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import me.ahoo.wow.api.annotation.Name
 import java.util.regex.Pattern
 
@@ -34,3 +35,10 @@ internal fun String.pascalToSnake(): String =
 internal fun KSClassDeclaration.toName(): String =
     getAnnotationsByType(Name::class).firstOrNull()?.value
         ?: simpleName.asString().pascalToSnake()
+
+/** The JVM binary name of the class (`sample.Commands$Clear`), which keys its schema in the Manifest fragment. */
+internal fun KSDeclaration.binaryName(): String {
+    val names = generateSequence(this) { it.parentDeclaration }.map { it.simpleName.asString() }
+    val packageName = packageName.asString()
+    return (if (packageName.isEmpty()) "" else "$packageName.") + names.toList().asReversed().joinToString("$")
+}

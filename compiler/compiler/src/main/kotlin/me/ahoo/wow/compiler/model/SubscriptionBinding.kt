@@ -34,6 +34,8 @@ internal data class SubscriptionBinding(
     val isObject: Boolean = false,
     /** The processor's constructor parameters, in order: domain services from the host's `Dependencies`. */
     val dependencies: List<Dependency> = emptyList(),
+    /** A saga's `@OnRejected` handlers (decisions D136, D153); the runtime does not bind them yet. */
+    val rejections: List<RejectionBinding> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String
@@ -53,4 +55,39 @@ internal data class HandlerBinding(
     val reactor: Boolean,
     /** Whether it is annotated `@Blocking`: the runtime calls it on virtual threads (design 01 §4). */
     val blocking: Boolean = false,
+    /** `@OnEvent(aggregates)`: the aggregates it reads, each `context.aggregate`, all of one context (decision D138). */
+    val aggregates: List<String> = emptyList(),
+    /** `@OnEvent(derives)`: the full type names of the commands a saga's handler declares it derives. */
+    val derives: List<String> = emptyList(),
+    /**
+     * The binary names of the command classes a saga's handler returns, as its return type says (`Command<X>`, a
+     * list of them); null when it does not say (`Command<*>`), and for a projection or a reactor.
+     */
+    val derived: List<String>? = null,
+) {
+    /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
+    val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
+
+    /**
+     * Whether it reads another context than [context], the module's: the runtime does not subscribe to another
+     * context's published streams yet, so such a handler is in the Manifest but gets no binding.
+     */
+    fun isForeign(context: String?): Boolean = sourceContext != null && sourceContext != context
+}
+
+/**
+ * An `@OnRejected` handler of a saga (decisions D136, D153): it takes a `CommandRejected<C>` and, optionally, the
+ * `SagaContext`, and returns the commands that compensate. Its subscription is named `processor.function` too.
+ */
+internal data class RejectionBinding(
+    val function: String,
+    val subscription: String,
+    /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
+    val command: String?,
+    val context: Boolean,
+    val suspending: Boolean,
+    val reactor: Boolean,
+    val blocking: Boolean = false,
+    /** The binary names of the command classes it returns, as [HandlerBinding.derived]. */
+    val derived: List<String>? = null,
 )

@@ -19,8 +19,8 @@ package me.ahoo.wow.manifest
  * library writes and reads such a tree, so the Manifest's field names are defined here once and `wow-manifest` needs
  * none.
  *
- * Absent optional values (a null description, unknown `produces`, a fragment's service) are left out, not written as
- * null.
+ * Absent optional values (a null description, unknown `produces` or `derives`, a fragment's service) are left out,
+ * not written as null.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -38,6 +38,9 @@ object ManifestTree {
         "description" to context.description,
         "aggregates" to context.aggregates.map(::writeAggregate),
         "subscriptions" to context.subscriptions.map(::writeSubscription),
+        "published" to context.published.map {
+            obj("aggregate" to it.aggregate, "topic" to it.topic, "includeState" to it.includeState)
+        },
         "errors" to context.errors.map(::writeError),
     )
 
@@ -56,14 +59,20 @@ object ManifestTree {
                 "schema" to it.schema,
                 "creation" to it.creation.name,
                 "produces" to it.produces,
-                "routes" to it.routes.map { route -> obj("method" to route.method, "path" to route.path) },
+                "routes" to it.routes.map(::writeRoute),
             )
         },
         "events" to aggregate.events.map {
             obj("name" to it.name, "aliases" to it.aliases, "revision" to it.revision, "schema" to it.schema)
         },
         "lifecycle" to aggregate.lifecycle,
+        "queries" to aggregate.queries.map {
+            obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
+        },
     )
+
+    private fun writeRoute(route: RouteManifest): Map<String, Any?> =
+        obj("method" to route.method, "path" to route.path)
 
     private fun writeSubscription(subscription: SubscriptionManifest): Map<String, Any?> = obj(
         "name" to subscription.name,
@@ -79,6 +88,9 @@ object ManifestTree {
             "processor" to subscription.function.processor,
             "name" to subscription.function.name,
         ),
+        "derives" to subscription.derives,
+        "rejected" to subscription.rejected,
+        "start" to subscription.start?.name,
     )
 
     /** A JSON object of the non-null [entries], in their order. */
@@ -106,8 +118,17 @@ object ManifestTree {
         description = node.stringOrNull("description"),
         aggregates = node.objects("aggregates").map(::readAggregate),
         subscriptions = node.objects("subscriptions").map(::readSubscription),
+        published = node.objects("published").map {
+            PublishedManifest(
+                aggregate = it.string("aggregate"),
+                topic = it.string("topic"),
+                includeState = it.booleanOrNull("includeState") ?: true,
+            )
+        },
         errors = node.objects("errors").map(::readError),
     )
+
+    private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
 
     private fun readError(node: Node): ErrorManifest =
         ErrorManifest(node.string("code"), node.int("status"), node.stringOrNull("description"))
@@ -126,9 +147,7 @@ object ManifestTree {
                     schema = it.string("schema"),
                     creation = Creation.valueOf(it.string("creation")),
                     produces = if (it.has("produces")) it.strings("produces") else null,
-                    routes = it.objects("routes").map { route ->
-                        RouteManifest(route.string("method"), route.string("path"))
-                    },
+                    routes = it.objects("routes").map(::readRoute),
                 )
             },
             events = node.objects("events").map {
@@ -140,6 +159,9 @@ object ManifestTree {
                 )
             },
             lifecycle = node.strings("lifecycle"),
+            queries = node.objects("queries").map {
+                QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
+            },
         )
     }
 
@@ -160,6 +182,9 @@ object ManifestTree {
                 processor = function.string("processor"),
                 name = function.string("name"),
             ),
+            derives = if (node.has("derives")) node.strings("derives") else null,
+            rejected = if (node.has("rejected")) node.strings("rejected") else null,
+            start = node.stringOrNull("start")?.let(SubscriptionStart::valueOf),
         )
     }
 

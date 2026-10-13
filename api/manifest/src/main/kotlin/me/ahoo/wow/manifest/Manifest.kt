@@ -26,8 +26,12 @@ package me.ahoo.wow.manifest
  * command type `shop.cart.AddItem` (design 08 §2). A schema is referred to as `#/$defs/<key>` ([schemaRef]).
  *
  * [errors] lists the framework's `wow.*` error codes with their HTTP statuses ([FrameworkErrors], decision D102): a
- * fragment leaves it empty and [ManifestMerger] writes the table. Queries, published streams and the subscriptions'
- * derived commands come with the parts of V10 that define them.
+ * fragment leaves it empty and [ManifestMerger] writes the table.
+ *
+ * A command another part of the Manifest refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected])
+ * is named by its full type name (`shop.cart.RemoveCartItem`) when the module that wrote it decides the command; else
+ * by the schema reference of its class (`#/$defs/<binary name>`, [schemaRef]): [defs] holds its schema like any other,
+ * and the Manifest of the context that decides it (a peer Manifest, decision D139) names it by the same schema.
  */
 data class Manifest(
     val format: Int = FORMAT,
@@ -37,11 +41,16 @@ data class Manifest(
     /** The JSON Schemas the [schemaRef]s point to, by key, as JSON trees ([ManifestTree] describes the values). */
     val defs: Map<String, Any?> = emptyMap(),
 ) {
-    /** Every schema reference of the contexts, in declaration order. */
+    /**
+     * Every schema reference of the contexts, in declaration order: those of the aggregates, then the commands the
+     * subscriptions refer to by their schemas.
+     */
     val schemaRefs: List<String>
         get() = contexts.flatMap { context ->
             context.aggregates.flatMap { aggregate ->
                 listOf(aggregate.state.schema) + aggregate.commands.map { it.schema } + aggregate.events.map { it.schema }
+            } + context.subscriptions.flatMap { subscription ->
+                (subscription.derives.orEmpty() + subscription.rejected.orEmpty()).filter { it.startsWith(DEFS_PREFIX) }
             }
         }
 
@@ -82,6 +91,7 @@ data class ContextManifest(
     val description: String? = null,
     val aggregates: List<AggregateManifest> = emptyList(),
     val subscriptions: List<SubscriptionManifest> = emptyList(),
+    val published: List<PublishedManifest> = emptyList(),
     val errors: List<ErrorManifest> = emptyList(),
 )
 
@@ -89,6 +99,7 @@ data class ContextManifest(
  * An aggregate of a context. [lifecycle] lists the system commands (design 01 §6) the aggregate's model handles, by
  * their full names in the system namespace (`wow.lifecycle.DeleteAggregate`): they are the same types for every
  * aggregate, so unlike [commands] they are not names within the aggregate and never conflict between aggregates.
+ * [queries] are the read models of the aggregate a client queries ([QueryManifest], decision D128).
  */
 data class AggregateManifest(
     val name: String,
@@ -98,6 +109,7 @@ data class AggregateManifest(
     val commands: List<CommandManifest> = emptyList(),
     val events: List<EventManifest> = emptyList(),
     val lifecycle: List<String> = emptyList(),
+    val queries: List<QueryManifest> = emptyList(),
 )
 
 /**
@@ -107,6 +119,15 @@ data class AggregateManifest(
 data class StateManifest(val schema: String, val fingerprint: String? = null)
 
 data class SnapshotManifest(val enabled: Boolean = true)
+
+/**
+ * A query model of an aggregate (decisions D127, D128): [model] is [QueryRoutes.SNAPSHOT], the aggregate's snapshots,
+ * when it keeps them, or [QueryRoutes.EVENTS], its event streams; [routes] are the model's query route and the route
+ * of its capability descriptor ([QueryRoutes]). What a model can do (its operations, fields, limits) is not here: it
+ * depends on the query backend the service runs on, which the build does not know (decision D110), and the
+ * descriptor route answers it.
+ */
+data class QueryManifest(val model: String, val routes: List<RouteManifest> = emptyList())
 
 /**
  * A command the aggregate decides.
@@ -158,26 +179,77 @@ data class EventManifest(
     val schema: String,
 )
 
-/** A subscription: one handler of a processor, named `processor.function` (design 04 §1). */
+/**
+ * A subscription: one handler of a processor, named `processor.function` (design 04 §1).
+ *
+ * - [derives] names the commands a saga's handler may derive (decision D138): those `@OnEvent(derives)` declares, else
+ *   those its return type names (`Command<X>`, a list of them); null when neither says (a `Command<*>`), and always
+ *   for a projection or a reactor. When it is set, a wait chain may follow the saga's hop only into the contexts of
+ *   these commands.
+ * - [rejected] is set on an `@OnRejected` handler of a saga (decisions D136, D153) and on no other: the commands whose
+ *   rejections it handles, the one its `CommandRejected<C>` names, or empty for any command the saga derives. Such a
+ *   handler reads rejections, not state events: its [source] is empty and not read.
+ * - [start] is where a new subscription starts in the log (decision D154): [SubscriptionStart.defaultFor] its kind,
+ *   unless the host configures another. Null on an `@OnRejected` handler, which reads no log.
+ */
 data class SubscriptionManifest(
     val name: String,
     val kind: SubscriptionKind,
     val source: SubscriptionSource,
     val function: FunctionManifest,
+    val derives: List<String>? = null,
+    val rejected: List<String>? = null,
+    val start: SubscriptionStart? = null,
 )
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }
+
+/** Where a new subscription, one without a checkpoint, starts reading the log (decision D154). */
+enum class SubscriptionStart {
+    /** From the first entry: a projection builds its read model from the whole history. */
+    BEGINNING,
+
+    /** From the entries committed after it starts: a reactor or a saga does not act on the history again. */
+    END,
+    ;
+
+    companion object {
+        /** A projection starts from the [BEGINNING], a reactor or a saga from the [END]. */
+        fun defaultFor(kind: SubscriptionKind): SubscriptionStart =
+            if (kind == SubscriptionKind.PROJECTION) BEGINNING else END
+    }
+}
 
 /**
  * What a subscription reads: the aggregates (by name) of [context] whose state events it receives, and the event
  * names it is limited to. Empty [aggregates] or [events] mean no limit; a null [context] means the handler's state
  * type is not an aggregate of the module that declares it.
+ *
+ * [context] may be another context than the subscription's (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138):
+ * the subscription then reads that context's published state events ([PublishedManifest]) instead of the log.
  */
 data class SubscriptionSource(
     val context: String? = null,
     val aggregates: List<String> = emptyList(),
     val events: List<String> = emptyList(),
 )
+
+/**
+ * A stream of state events a context publishes for other contexts (decisions D58, D135): those of its [aggregate], on
+ * the Kafka [topic] ([defaultTopic] unless overridden), each with the aggregate's state after the commit unless
+ * [includeState] is false, for an aggregate whose state is too large (decision D140: a subscriber of such a stream
+ * declares a nullable state).
+ */
+data class PublishedManifest(
+    val aggregate: String,
+    val topic: String,
+    val includeState: Boolean = true,
+) {
+    companion object {
+        /** The topic of the state events of [aggregate] of [context]: `wow.<context>.<aggregate>.state`. */
+        fun defaultTopic(context: String, aggregate: String): String = "wow.$context.$aggregate.state"
+    }
+}
 
 /** The function a subscription runs, as `CommandResult.function` names it. */
 data class FunctionManifest(

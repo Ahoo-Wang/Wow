@@ -19,6 +19,7 @@ import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
@@ -27,10 +28,12 @@ import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Projection
 import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -46,6 +49,10 @@ import me.ahoo.wow.api.subscribe.StateEvent
  *   `SagaContext`), nothing else: the processor's dependencies are its constructor's;
  * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a `Command`,
  *   or a list of them); any of them may instead return a Reactor publisher;
+ * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
+ *   declares `@OnEvent(derives)`, each a full command type name `context.aggregate.Command` (decision D138);
+ * - an `@OnRejected` handler (decisions D136, D153) is a saga's, takes a `CommandRejected` and, optionally, the
+ *   `SagaContext`, returns what a saga's handler returns, and is not an `@OnEvent` handler too;
  * - no annotation outside the V10 set ([V10Annotations]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
  *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
@@ -66,8 +73,15 @@ internal object SubscriptionResolver {
         .map { "${V10Annotations.PACKAGE}.$it" }
 
     val ON_EVENT: String = OnEvent::class.java.name
+    val ON_REJECTED: String = OnRejected::class.java.name
     private const val ON_EVENT_NAME = "onEvent"
+    private const val AGGREGATES = "aggregates"
+    private const val DERIVES = "derives"
     private val STATE_EVENT = StateEvent::class.java.name
+    private val COMMAND_REJECTED = CommandRejected::class.java.name
+    private const val ANY = "kotlin.Any"
+    private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
+    private val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
     private val BLOCKING = Blocking::class.java.name
     private val COMMAND = Command::class.java.name
     private const val UNIT = "kotlin.Unit"
@@ -96,19 +110,23 @@ internal object SubscriptionResolver {
             problems += "processor $className is ${kinds.joinToString(" and ") { it.label }}: a processor is of " +
                 "exactly one kind"
         }
+        val rejectionFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ON_REJECTED) }.toList()
         val functions = processor.getAllFunctions().filter {
-            it.hasAnnotation(ON_EVENT) || (it.simpleName.asString() == ON_EVENT_NAME && !it.isPrivate())
+            !it.hasAnnotation(ON_REJECTED) &&
+                (it.hasAnnotation(ON_EVENT) || (it.simpleName.asString() == ON_EVENT_NAME && !it.isPrivate()))
         }.toList()
         if (functions.isEmpty()) {
             problems += "processor $className declares no @OnEvent function"
         }
+        problems += rejectionProblems(className, name, kind, rejectionFunctions)
         processor.getDeclaredFunctions().forEach {
             problems += V10Annotations.problemsOfFunction(it, "processor $className")
         }
-        functions.groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.forEach {
+        (functions + rejectionFunctions).groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.forEach {
             problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
         }
         val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
+        val rejections = rejectionFunctions.mapNotNull { rejection(it, name, reactorTypes, problems) }
         val isObject = processor.classKind == ClassKind.OBJECT
         problems += constructionProblems(processor, className, isObject)
         val dependencies = if (isObject) emptyList() else dependencies(processor, className, problems)
@@ -123,7 +141,29 @@ internal object SubscriptionResolver {
                 .map { it.simpleName.asString() }.toList().asReversed(),
             isObject = isObject,
             dependencies = dependencies,
+            rejections = rejections,
         )
+    }
+
+    /** `@OnRejected` handlers that are `@OnEvent` handlers too, or of a processor that is not a saga. */
+    private fun rejectionProblems(
+        className: String,
+        name: String,
+        kind: Kind?,
+        functions: List<KSFunctionDeclaration>,
+    ): List<String> = buildList {
+        functions.filter { it.hasAnnotation(ON_EVENT) }.forEach {
+            add(
+                "handler $name.${it.simpleName.asString()} is both @OnEvent and @OnRejected: a handler takes " +
+                    "either a state event or a rejection",
+            )
+        }
+        if (functions.isNotEmpty() && kind != null && kind != Kind.SAGA) {
+            add(
+                "processor $className is a ${kind.label} with @OnRejected handlers: only a @Saga derives commands, " +
+                    "whose rejections it handles",
+            )
+        }
     }
 
     /** Whether the generated binding can construct [processor], or use it when it [isObject]. */
@@ -194,6 +234,11 @@ internal object SubscriptionResolver {
         if (kind != null && returned != null && !reactor) {
             returnProblem(kind, returned)?.let { problems += "$where $it" }
         }
+        val onEvent = function.annotations.firstOrNull { it.isOf(ON_EVENT) }
+        val aggregates = onEvent.strings(AGGREGATES)
+        val derives = onEvent.strings(DERIVES)
+        problems += sourceProblems(where, aggregates)
+        problems += derivesProblems(where, derives, kind)
         if (problems.size > count) {
             return null
         }
@@ -211,8 +256,113 @@ internal object SubscriptionResolver {
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
             blocking = function.hasAnnotation(BLOCKING),
+            aggregates = aggregates,
+            derives = derives,
+            derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
         )
     }
+
+    /** `@OnEvent(aggregates)`: each `context.aggregate`, all of one context (decision D138). */
+    private fun sourceProblems(where: String, aggregates: List<String>): List<String> = buildList {
+        aggregates.filterNot { AGGREGATE_NAME.matches(it) }.forEach {
+            add("$where reads the aggregate \"$it\": @OnEvent(aggregates) names each as context.aggregate")
+        }
+        val contexts = aggregates.map { it.substringBefore('.') }.distinct()
+        if (contexts.size > 1) {
+            add(
+                "$where reads aggregates of the contexts ${contexts.joinToString(" and ")}: a handler reads the " +
+                    "aggregates of one context",
+            )
+        }
+    }
+
+    /** `@OnEvent(derives)`: a saga's, each `context.aggregate.Command` (decision D138). */
+    private fun derivesProblems(where: String, derives: List<String>, kind: Kind?): List<String> = buildList {
+        if (derives.isNotEmpty() && kind != null && kind != Kind.SAGA) {
+            add("$where declares @OnEvent(derives), but a ${kind.label} handler derives no commands")
+        }
+        derives.filterNot { COMMAND_NAME.matches(it) }.forEach {
+            add("$where derives \"$it\": @OnEvent(derives) names each command as context.aggregate.Command")
+        }
+    }
+
+    /**
+     * The binary names of the command classes a saga's handler returns ([returned], or what the Reactor publisher it
+     * returns emits): `X` of a `Command<X>` or of a list of them; null when the type does not name the class
+     * (`Command<*>`, `Command<Any>`).
+     */
+    private fun derivedClasses(returned: KSType, reactor: Boolean): List<String>? {
+        val emitted = if (reactor) returned.arguments.firstOrNull()?.type?.resolve() ?: return null else returned
+        val command = if (emitted.qualifiedName() == COMMAND) {
+            emitted
+        } else {
+            emitted.arguments.firstOrNull()?.type?.resolve()?.takeIf { it.qualifiedName() == COMMAND } ?: return null
+        }
+        return commandClass(command)?.let(::listOf)
+    }
+
+    /** The binary name of the class [type], a `Command<X>` or a `CommandRejected<X>`, takes; null for `*` or `Any`. */
+    private fun commandClass(type: KSType): String? {
+        val argument = type.arguments.firstOrNull()?.type?.resolve() ?: return null
+        val declaration = argument.declaration as? KSClassDeclaration ?: return null
+        return declaration.takeUnless { it.qualifiedName?.asString() == ANY }?.binaryName()
+    }
+
+    /** An `@OnRejected` handler [function] of the saga [processor] (decisions D136, D153). */
+    private fun rejection(
+        function: KSFunctionDeclaration,
+        processor: String,
+        reactorTypes: Set<String>,
+        problems: MutableList<String>,
+    ): RejectionBinding? {
+        val name = function.simpleName.asString()
+        val where = "handler $processor.$name"
+        val count = problems.size
+        if (function.isPrivate()) {
+            problems += "$where is private: the generated subscription calls it"
+        }
+        val parameters = function.parameters.map { it.type.resolve() }
+        val first = parameters.firstOrNull()
+        if (first == null || first.qualifiedName() != COMMAND_REJECTED) {
+            problems += "$where must take a $COMMAND_REJECTED first, not ${first?.qualifiedName() ?: "nothing"}: an " +
+                "@OnRejected handler receives the rejection of a command the saga derived"
+        }
+        val context = parameters.getOrNull(1)?.qualifiedName()
+        if (context != null && context != Kind.SAGA.context) {
+            problems += "$where takes $context: an @OnRejected handler takes a ${Kind.SAGA.context} after the " +
+                "rejection, if anything"
+        }
+        if (parameters.size > 2) {
+            problems += "$where takes ${parameters.size} parameters: an @OnRejected handler takes " +
+                "(CommandRejected[, SagaContext])"
+        }
+        val returned = function.returnType?.resolve()
+        val reactor = returned?.qualifiedName() in reactorTypes
+        if (returned != null && !reactor) {
+            returnProblem(Kind.SAGA, returned)?.let { problems += "$where $it" }
+        }
+        if (problems.size > count) {
+            return null
+        }
+        return RejectionBinding(
+            function = name,
+            subscription = "$processor.$name",
+            command = commandClass(first!!),
+            context = context != null,
+            suspending = Modifier.SUSPEND in function.modifiers,
+            reactor = reactor,
+            blocking = function.hasAnnotation(BLOCKING),
+            derived = returned?.let { derivedClasses(it, reactor) },
+        )
+    }
+
+    /** The string array argument [name] of this annotation, empty without the annotation or the argument. */
+    private fun KSAnnotation?.strings(name: String): List<String> =
+        (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
+            .filterIsInstance<String>()
+
+    private fun KSAnnotation.isOf(qualifiedName: String): Boolean =
+        annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
 
     private fun parameterProblems(where: String, parameters: List<KSType>, kind: Kind?): List<String> = buildList {
         val first = parameters.firstOrNull()

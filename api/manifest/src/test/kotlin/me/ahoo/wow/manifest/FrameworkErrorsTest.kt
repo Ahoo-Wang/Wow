@@ -39,6 +39,10 @@ class FrameworkErrorsTest {
                 "wow.node.closing" to 503,
                 "wow.subscription.parked" to 500,
                 "wow.wait.timeout" to 504,
+                "wow.query.malformed" to 400,
+                "wow.query.invalid" to 400,
+                "wow.query.failed" to 500,
+                "wow.query.timeout" to 503,
             ),
         )
         FrameworkErrors.DOMAIN_REJECTION_STATUS.assert().isEqualTo(422)

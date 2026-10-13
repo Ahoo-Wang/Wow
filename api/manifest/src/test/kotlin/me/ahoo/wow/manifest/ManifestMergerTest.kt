@@ -228,13 +228,75 @@ class ManifestMergerTest {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
             fragment.copy(
-                contexts = listOf(context.copy(subscriptions = context.subscriptions + context.subscriptions))
+                contexts = listOf(context.copy(subscriptions = context.subscriptions + context.subscriptions.first()))
             )
         }
         assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
         }.conflicts.assert().containsExactly(
             "subscription CartSummary.onEvent of context shop is declared twice in a.json"
+        )
+    }
+
+    @Test
+    fun `a query model declared twice, or on a route another declares, should conflict`() {
+        val cart = Manifests.cart()
+        val twice = cart.copy(queries = cart.queries + cart.queries.last())
+        val clash = Manifests.cart(aggregate = "basket").let { basket ->
+            basket.copy(
+                events = emptyList(),
+                queries = basket.queries.map { it.copy(routes = QueryRoutes.of("shop", "cart", it.model)) },
+            )
+        }
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(
+                listOf(ManifestFragment("a.json", Manifests.fragment(aggregates = listOf(twice, clash)))),
+            )
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "query model events of aggregate shop.cart is declared twice in a.json",
+            "route POST /shop/cart/snapshot/query is declared by query shop.cart.snapshot (a.json) and " +
+                "query shop.basket.snapshot (a.json)",
+            "route GET /shop/cart/snapshot/query is declared by query shop.cart.snapshot (a.json) and " +
+                "query shop.basket.snapshot (a.json)",
+            "route POST /shop/cart/events/query is declared by query shop.cart.events (a.json) and " +
+                "query shop.cart.events (a.json) and query shop.basket.events (a.json)",
+            "route GET /shop/cart/events/query is declared by query shop.cart.events (a.json) and " +
+                "query shop.cart.events (a.json) and query shop.basket.events (a.json)",
+        )
+    }
+
+    @Test
+    fun `a published stream should be of an aggregate of its context, once, on a topic of its own`() {
+        val shop = Manifests.fragment().let { fragment ->
+            val context = fragment.contexts.single()
+            val published = context.published + PublishedManifest("cart", "wow.shop.cart.v2") +
+                PublishedManifest("order", "wow.billing.cart.state")
+            fragment.copy(contexts = listOf(context.copy(published = published)))
+        }
+        val conflicts = assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(
+                listOf(ManifestFragment("a.json", shop), ManifestFragment("b.json", Manifests.fragment("billing"))),
+            )
+        }.conflicts
+        conflicts.assert().containsExactly(
+            "context shop in a.json publishes order, which is not one of its aggregates",
+            "aggregate shop.cart is published twice in a.json",
+            "topic wow.billing.cart.state is published by shop.order (a.json) and billing.cart (b.json)",
+        )
+    }
+
+    @Test
+    fun `only a saga should handle rejections`() {
+        val fragment = Manifests.fragment().let { fragment ->
+            val context = fragment.contexts.single()
+            val projection = context.subscriptions.first().copy(rejected = emptyList())
+            fragment.copy(contexts = listOf(context.copy(subscriptions = listOf(projection))))
+        }
+        assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts.assert().containsExactly(
+            "subscription CartSummary.onEvent of context shop in a.json handles rejections but is a PROJECTION",
         )
     }
 

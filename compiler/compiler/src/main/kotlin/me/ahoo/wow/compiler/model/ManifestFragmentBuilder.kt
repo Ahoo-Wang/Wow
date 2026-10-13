@@ -23,10 +23,14 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SubscriptionStart
 
 /**
  * The Manifest fragment of a module (decisions D73, D74): the structure and the type list the model processor read,
@@ -39,6 +43,18 @@ import me.ahoo.wow.manifest.SubscriptionSource
  * D104). An aggregate lists the lifecycle commands its model handles by their system names
  * ([AggregateBinding.lifecycle]); their routes are the edge's to derive from that list (decision D113), so no command
  * gets them here.
+ *
+ * What M6 adds (decision D148):
+ *
+ * - an aggregate's `queries` (decision D128): `snapshot` when it keeps snapshots, which nothing declared in the model
+ *   turns off yet, and `events`, each with its routes ([QueryRoutes], decision D127);
+ * - the context's `published` streams (decisions D58, D135): every aggregate's state events, with its state, on
+ *   `wow.<context>.<aggregate>.state`, since nothing declares another topic or a stream without the state yet;
+ * - a subscription's `start` (decision D154), its kind's default;
+ * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
+ *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
+ * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
+ * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`.
  */
 internal object ManifestFragmentBuilder {
     fun build(
@@ -47,24 +63,74 @@ internal object ManifestFragmentBuilder {
         aggregates: List<AggregateBinding>,
         subscriptions: List<SubscriptionBinding>,
         errors: List<ErrorManifest>,
-    ): Manifest = Manifest(
-        contexts = listOf(
-            ContextManifest(
-                name = context,
-                description = description,
-                aggregates = aggregates.map { aggregate(context, it) }.sortedBy { it.name },
-                subscriptions = subscriptions.flatMap { subscriptions(context, it, aggregates) }.sortedBy { it.name },
-                errors = errors.sortedBy { it.code },
+    ): Manifest {
+        val aggregateManifests = aggregates.map { aggregate(context, it) }.sortedBy { it.name }
+        val commands = CommandNames(context, aggregates)
+        return Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = context,
+                    description = description,
+                    aggregates = aggregateManifests,
+                    subscriptions = subscriptions.flatMap { subscriptions(context, it, aggregates, commands) }
+                        .sortedBy { it.name },
+                    published = aggregateManifests.map {
+                        PublishedManifest(it.name, PublishedManifest.defaultTopic(context, it.name))
+                    },
+                    errors = errors.sortedBy { it.code },
+                ),
             ),
-        ),
-    )
+        )
+    }
+
+    /**
+     * What the fragment of [context] cannot say of [subscriptions]: an `@OnEvent(aggregates)` of [context] that is not
+     * an aggregate of the module whose state the handler takes, and a command a saga's return type derives, which a
+     * module's aggregate decides, that its `@OnEvent(derives)` does not list.
+     */
+    fun problems(
+        context: String,
+        aggregates: List<AggregateBinding>,
+        subscriptions: List<SubscriptionBinding>,
+    ): List<String> {
+        val commands = CommandNames(context, aggregates)
+        return subscriptions.flatMap { binding ->
+            binding.handlers.flatMap { handler ->
+                val where = "handler ${handler.subscription} of ${binding.processor}"
+                val local = handler.aggregates.takeIf { handler.sourceContext == context }.orEmpty()
+                local.map { it.substringAfter('.') }.mapNotNull { name ->
+                    val aggregate = aggregates.firstOrNull { it.aggregateName == name }
+                    when {
+                        aggregate == null ->
+                            "$where reads $context.$name, which is not an aggregate of this module"
+
+                        handler.state != null && aggregate.state != handler.state ->
+                            "$where reads $context.$name, whose state is ${aggregate.state}, not ${handler.state}"
+
+                        else -> null
+                    }
+                } + undeclaredDerives(where, handler, commands)
+            }
+        }
+    }
+
+    private fun undeclaredDerives(where: String, handler: HandlerBinding, commands: CommandNames): List<String> {
+        if (handler.derives.isEmpty()) {
+            return emptyList()
+        }
+        return handler.derived.orEmpty().mapNotNull { commands.nameOf(it) }.filterNot { it in handler.derives }.map {
+            "$where returns $it, which its @OnEvent(derives) does not list"
+        }
+    }
 
     private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
+        val snapshot = SnapshotManifest()
         return AggregateManifest(
             name = binding.aggregateName,
             description = binding.description,
             state = StateManifest(Manifest.schemaRef(binding.stateType)),
+            snapshot = snapshot,
             commands = binding.commands.map { command ->
                 val name = command.commandName ?: simpleName(command.type)
                 val creation = Creation.valueOf(command.creation)
@@ -86,6 +152,7 @@ internal object ManifestFragmentBuilder {
                 )
             }.sortedBy { it.name },
             lifecycle = binding.lifecycle,
+            queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
         )
     }
 
@@ -103,27 +170,80 @@ internal object ManifestFragmentBuilder {
         return classes.map { eventNames[it] ?: return null }.distinct().sorted()
     }
 
-    /** Each handler of [binding] is a subscription (design 04 §1). */
+    /** Each handler of [binding] is a subscription (design 04 §1), and so is each of its `@OnRejected` handlers. */
     private fun subscriptions(
         context: String,
         binding: SubscriptionBinding,
         aggregates: List<AggregateBinding>,
+        commands: CommandNames,
     ): List<SubscriptionManifest> {
         // A processor without exactly one kind is a problem, and a model with problems gets no fragment.
         val (kind, functionKind) = KINDS.getValue(requireNotNull(binding.kind))
-        return binding.handlers.map { handler ->
-            val aggregate = aggregates.firstOrNull { it.state == handler.state }
+        val handlers = binding.handlers.map { handler ->
+            val derives = derives(handler.derives, handler.derived, commands)
             SubscriptionManifest(
                 name = handler.subscription,
                 kind = kind,
-                source = if (aggregate == null) {
-                    SubscriptionSource()
-                } else {
-                    SubscriptionSource(context = context, aggregates = listOf(aggregate.aggregateName))
-                },
+                source = source(context, handler, aggregates),
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
+                derives = derives.takeIf { kind == SubscriptionKind.SAGA },
+                start = SubscriptionStart.defaultFor(kind),
             )
         }
+        val rejections = binding.rejections.map { rejection ->
+            SubscriptionManifest(
+                name = rejection.subscription,
+                kind = kind,
+                source = SubscriptionSource(),
+                function = FunctionManifest(functionKind, context, binding.name, rejection.function),
+                derives = derives(emptyList(), rejection.derived, commands),
+                rejected = listOfNotNull(rejection.command?.let(commands::referenceOf)),
+            )
+        }
+        return handlers + rejections
+    }
+
+    /**
+     * What [handler] reads: the aggregates `@OnEvent(aggregates)` names, of this context or another, else the module's
+     * aggregate whose state it takes; nothing it can name for another state type.
+     */
+    private fun source(
+        context: String,
+        handler: HandlerBinding,
+        aggregates: List<AggregateBinding>,
+    ): SubscriptionSource {
+        if (handler.aggregates.isNotEmpty()) {
+            return SubscriptionSource(handler.sourceContext, handler.aggregates.map { it.substringAfter('.') })
+        }
+        val aggregate = aggregates.firstOrNull { it.state == handler.state } ?: return SubscriptionSource()
+        return SubscriptionSource(context = context, aggregates = listOf(aggregate.aggregateName))
+    }
+
+    /** The declared [derives], else the [derived] classes by [commands]' references; null when neither says. */
+    private fun derives(derives: List<String>, derived: List<String>?, commands: CommandNames): List<String>? =
+        if (derives.isNotEmpty()) {
+            derives.distinct().sorted()
+        } else {
+            derived?.map(commands::referenceOf)?.distinct()?.sorted()
+        }
+
+    /**
+     * The full type names of the commands the module's aggregates decide, by their classes' binary names: a class two
+     * aggregates decide has none.
+     */
+    private class CommandNames(context: String, aggregates: List<AggregateBinding>) {
+        private val names: Map<String, String> = aggregates.flatMap { aggregate ->
+            aggregate.commands.map {
+                it.type to "$context.${aggregate.aggregateName}.${it.commandName ?: simpleName(it.type)}"
+            }
+        }.groupBy({ it.first }, { it.second }).mapNotNull { (type, names) -> names.singleOrNull()?.let { type to it } }
+            .toMap()
+
+        /** The full type name of the command class [type], when an aggregate of the module decides it. */
+        fun nameOf(type: String): String? = names[type]
+
+        /** The command class [type] as the Manifest refers to it: its full type name, else its schema reference. */
+        fun referenceOf(type: String): String = nameOf(type) ?: Manifest.schemaRef(type)
     }
 
     private val KINDS = mapOf(

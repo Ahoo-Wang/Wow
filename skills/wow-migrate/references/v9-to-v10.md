@@ -75,7 +75,8 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@StatelessSaga` | `@Saga` | See [Sagas, projections, reactors](#sagas-projections-reactors). |
 | `@ProjectionProcessor` | `@Projection` | Same. |
 | `@EventProcessor` | `@Reactor` | Same. |
-| `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent` (no attributes) | One handler kind, taking a `StateEvent`. |
+| `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent` | One handler kind, taking a `StateEvent`. `aggregates = ["ctx.agg"]` names the source only for another context's aggregates; a saga may declare `derives = ["ctx.agg.Command"]`. |
+| none | `@OnRejected` | A saga's handler for the rejection of a command it derived (`CommandRejected<C>`). |
 | `@Retry(...)` | Removed | Retries are subscription configuration. |
 | `@OnError` | Removed | Return a rejection; compensate in a `@Saga`. |
 | `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key)`. |
