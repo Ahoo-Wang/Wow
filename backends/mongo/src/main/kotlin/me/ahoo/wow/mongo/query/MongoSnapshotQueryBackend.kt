@@ -34,7 +34,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.ExactBson
-import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
+import me.ahoo.wow.mongo.query.pipeline.MongoAggregationCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.CursorPosition
@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit
 /**
  * The snapshot query backend of one aggregate type on MongoDB (decision D131): the four primitives over the aggregate
  * type's own snapshot collection (decision D161), which `MongoSnapshotStore` writes, compiled by the 9.x filter, sort
- * and aggregation compilers ([MongoFilterCompiler], [MongoAggregationCompiler]) on the bindings of
+ * and aggregation compilers ([MongoMatchCompiler], [MongoAggregationCompiler]) on the bindings of
  * [MongoQuerySchemaAdapter]. Records have the shape of `SnapshotRecord.toQueryRecord()` ([MongoSnapshotDocuments]),
  * projected as [MongoProjections] says.
  *
@@ -72,7 +72,7 @@ class MongoSnapshotQueryBackend internal constructor(
     override val cursorPositions: CursorPositionCodec = MongoCursorCodec
 
     override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
-        val find = collection.find(MongoFilterCompiler.compile(query.query.filter, query))
+        val find = collection.find(MongoMatchCompiler.compile(query.query.filter, query))
             .projection(MongoProjections.native(query))
             .sort(totalSort(query))
             .batchSize(options.fetchSize)
@@ -96,7 +96,7 @@ class MongoSnapshotQueryBackend internal constructor(
         }
 
     private fun offset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Offset): BackendPage {
-        val filter = MongoFilterCompiler.compile(query.query.filter, query)
+        val filter = MongoMatchCompiler.compile(query.query.filter, query)
         val rows = if (window.limit == 0) {
             emptyList()
         } else {
@@ -121,7 +121,7 @@ class MongoSnapshotQueryBackend internal constructor(
     private fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): BackendPage {
         val sort = physicalSort(query, query.query.sort)
         val paths = sort.map { it.field.path }
-        val match = MongoFilterCompiler.compile(query.query.filter, query)
+        val match = MongoMatchCompiler.compile(query.query.filter, query)
         val filter = window.after?.let { Filters.and(match, MongoKeyset.after(sort, it.values)) } ?: match
         val positions = ArrayList<CursorPosition>()
         val rows = collection.find(filter)
@@ -141,7 +141,7 @@ class MongoSnapshotQueryBackend internal constructor(
     override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = withContext(dispatcher) {
         timed(query.timeout) {
             count(
-                MongoFilterCompiler.compile(query.query.filter, query),
+                MongoMatchCompiler.compile(query.query.filter, query),
                 query.query.limit?.let { it + 1L },
                 query.timeout,
             )

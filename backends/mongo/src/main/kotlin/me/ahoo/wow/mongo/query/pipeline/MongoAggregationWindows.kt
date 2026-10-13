@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.aggregation
+package me.ahoo.wow.mongo.query.pipeline
 
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery

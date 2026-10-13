@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.aggregation
+package me.ahoo.wow.mongo.query.pipeline
 
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
@@ -26,7 +26,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.mongo.query.MongoFilterCompiler
+import me.ahoo.wow.mongo.query.MongoMatchCompiler
 import me.ahoo.wow.mongo.query.MongoSnapshotDocuments
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
@@ -39,20 +39,21 @@ import java.time.ZoneId
 internal fun AdmittedQuery<*>.path(field: QueryField): String = MongoSnapshotDocuments.checked(physicalPath(field))
 
 /**
- * Compiles an admitted aggregation to a MongoDB pipeline over the aggregate's snapshot collection (the 9.x compiler,
- * decision D131): `$match`, one `$unwind` per element scope, `$group`, the fill and metric projection, the native
- * windows, HAVING, the sort and the limit. Every path is a physical path admission resolved; every value is a literal.
+ * Compiles an admitted aggregation to a MongoDB pipeline over the aggregate's snapshot collection (the 9.x compiler
+ * of `query.aggregation`, in a package of its own so that its source paths differ from the 9.x module's; decision
+ * D131): `$match`, one `$unwind` per element scope, `$group`, the fill and metric projection, the native windows,
+ * HAVING, the sort and the limit. Every path is a physical path admission resolved; every value is a literal.
  */
 internal object MongoAggregationCompiler {
     /** Compiles [admitted] to a pipeline that ends with `$limit` [limit], or returns every group when it is `null`. */
     fun compile(admitted: AdmittedQuery<AggregationQuery>, limit: Int? = admitted.query.limit): List<Bson> = buildList {
         val query = admitted.query
-        add(Aggregates.match(MongoFilterCompiler.compile(query.filter, admitted)))
+        add(Aggregates.match(MongoMatchCompiler.compile(query.filter, admitted)))
 
         query.elements.forEach { element ->
             add(Aggregates.unwind("\$${admitted.path(element.path)}"))
             if (element.filter !== MatchAllFilter) {
-                add(Aggregates.match(MongoFilterCompiler.compileScoped(element.filter, admitted)))
+                add(Aggregates.match(MongoMatchCompiler.compileScoped(element.filter, admitted)))
             }
         }
 
@@ -229,9 +230,9 @@ internal object MongoAggregationCompiler {
             return null
         }
         if (admitted.query.elements.isEmpty()) {
-            return MongoFilterCompiler.compile(filter, admitted)
+            return MongoMatchCompiler.compile(filter, admitted)
         }
-        return MongoFilterCompiler.compileScoped(filter, admitted)
+        return MongoMatchCompiler.compileScoped(filter, admitted)
     }
 
     /** Wraps a participating value so records rejected by the filter contribute `null` instead. */

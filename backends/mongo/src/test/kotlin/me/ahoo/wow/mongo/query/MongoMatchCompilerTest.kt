@@ -67,12 +67,12 @@ import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
-class MongoFilterCompilerTest {
+class MongoMatchCompilerTest {
     private val schema = MongoQueryTestSchemas.SCHEMA
 
     private fun compile(filter: FilterExpression, schema: QueryModelSchema = this.schema): BsonDocument {
         val admitted = QueryAdmission.Trusted.list(ListQuery(filter), schema)
-        return MongoFilterCompiler.compile(admitted.query.filter, admitted).toBsonDocument()
+        return MongoMatchCompiler.compile(admitted.query.filter, admitted).toBsonDocument()
     }
 
     private fun json(filter: FilterExpression): String = compile(filter).toJson()
@@ -132,10 +132,10 @@ class MongoFilterCompilerTest {
         json(GreaterThanFilter(amount, 2)).assert().isEqualTo("""{"state.amount": {"${'$'}gt": 2}}""")
         json(InFilter(amount, listOf(1.5, 2L))).assert()
             .isEqualTo("""{"state.amount": {"${'$'}in": [{"${'$'}numberDecimal": "1.5"}, 2]}}""")
-        MongoFilterCompiler.stored(java.math.BigInteger.TWO.pow(70)).toString().assert()
+        MongoMatchCompiler.stored(java.math.BigInteger.TWO.pow(70)).toString().assert()
             .isEqualTo("1180591620717411303424")
-        MongoFilterCompiler.stored(java.math.BigInteger.TEN).assert().isEqualTo(10L)
-        MongoFilterCompiler.stored(1.5f).toString().assert().isEqualTo("1.5")
+        MongoMatchCompiler.stored(java.math.BigInteger.TEN).assert().isEqualTo(10L)
+        MongoMatchCompiler.stored(1.5f).toString().assert().isEqualTo("1.5")
         violation { compile(EqualFilter(amount, BigDecimal("1." + "1".repeat(40)))) }
             .assert().isEqualTo(QueryViolation.StorageUnsupported("numeric operands beyond 34 significant digits"))
     }

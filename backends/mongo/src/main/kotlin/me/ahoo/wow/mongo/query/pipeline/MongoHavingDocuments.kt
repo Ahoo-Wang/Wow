@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.aggregation
+package me.ahoo.wow.mongo.query.pipeline
 
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.HavingExpression

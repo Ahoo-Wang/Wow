@@ -54,7 +54,7 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.ExactBson
-import me.ahoo.wow.mongo.query.aggregation.toMongoExpression
+import me.ahoo.wow.mongo.query.pipeline.toMongoExpression
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.ignoreCase
@@ -82,7 +82,8 @@ internal val ComparisonOperator.mongoOperator: String
     }
 
 /**
- * Compiles an admitted filter to a MongoDB match document (the 9.x compiler, decision D131). Admission has resolved
+ * Compiles an admitted filter to a MongoDB match document (decision D131): the 9.x `MongoFilterCompiler`, named apart
+ * so that its source path differs from the 9.x module's, which coverage reports match files by. Admission has resolved
  * every field to its physical path in the snapshot document ([MongoSnapshotDocuments]), so nothing here depends on
  * the record's names; each path is [checked][MongoSnapshotDocuments.checked] before it enters a document.
  *
@@ -91,7 +92,7 @@ internal val ComparisonOperator.mongoOperator: String
  * a `Decimal128` of its decimal digits (decision D122), so it compares with the stored decimals exactly: a `double`
  * `0.1` would never equal the stored `Decimal128` 0.1.
  */
-internal object MongoFilterCompiler {
+internal object MongoMatchCompiler {
     private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
 
     /**

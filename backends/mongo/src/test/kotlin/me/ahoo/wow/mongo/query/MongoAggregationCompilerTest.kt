@@ -43,7 +43,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
-import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
+import me.ahoo.wow.mongo.query.pipeline.MongoAggregationCompiler
 import me.ahoo.wow.query.QueryAdmission
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -284,7 +284,7 @@ class MongoAggregationCompilerTest {
             ),
         )
         queries.forEach { query ->
-            MongoFilterCompilerTest.keys(pipeline(query)).filter { it in MongoFilterCompilerTest.CODE_OPERATORS }
+            MongoMatchCompilerTest.keys(pipeline(query)).filter { it in MongoMatchCompilerTest.CODE_OPERATORS }
                 .assert().isEmpty()
         }
     }

@@ -232,7 +232,7 @@ class MongoSnapshotQueryStorageTest {
             AndFilter(listOf(TenantIdFilter("t3"), DeletionFilter(DeletionState.ACTIVE)) + filters)
         fun filter(filter: FilterExpression): Bson {
             val admitted = QueryAdmission.Trusted.list(ListQuery(filter, limit = 10), schema)
-            return MongoFilterCompiler.compile(admitted.query.filter, admitted)
+            return MongoMatchCompiler.compile(admitted.query.filter, admitted)
         }
         fun plan(filter: FilterExpression): String = collection.find(filter(filter)).limit(10).explain().winningPlan()
 
