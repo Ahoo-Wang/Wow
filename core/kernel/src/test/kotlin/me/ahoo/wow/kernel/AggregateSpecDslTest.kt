@@ -1,0 +1,257 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.kernel
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.kernel.test.ForkAssertionError
+import me.ahoo.wow.kernel.test.aggregateSpec
+import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.minutes
+
+/** The test DSL's additions of P.5 (decision D184): givenState, forks, errors by type, and the G18/G25 gaps. */
+class AggregateSpecDslTest {
+    data class Open(val limit: Int)
+    data class Deposit(val amount: Int)
+    data class Withdraw(val amount: Int)
+    data class Close(val reason: String)
+    data class Opened(val limit: Int)
+    data class Deposited(val amount: Int)
+    data class Withdrawn(val amount: Int)
+    data class Closed(val reason: String)
+
+    class Account(val id: String) {
+        var balance = 0
+        var limit = 0
+        var closed = false
+    }
+
+    private val model = aggregate<Account>("bank", "account") {
+        initial { Account(it.id) }
+        decide<Open>(Creation.REQUIRED) { _, body ->
+            schedule("dormant", 30.minutes, Close("dormant"))
+            Decision.events(Opened(body.limit))
+        }
+        decide<Deposit> { state, body ->
+            require(body.amount > 0) { "A deposit is positive, not ${body.amount}." }
+            if (state.balance + body.amount > state.limit) {
+                Decision.reject("account.over-limit", "The limit is ${state.limit}.")
+            } else {
+                cancelSchedule("dormant")
+                Decision.events(Deposited(body.amount))
+            }
+        }
+        decide<Withdraw> { state, body ->
+            if (body.amount > state.balance) {
+                Decision.reject("account.insufficient", "Only ${state.balance}.")
+            } else {
+                Decision.events(Withdrawn(body.amount))
+            }
+        }
+        decide<Close> { state, body -> if (state.closed) Decision.NoOp else Decision.events(Closed(body.reason)) }
+        evolve<Opened> { limit = it.limit }
+        evolve<Deposited> { balance += it.amount }
+        evolve<Withdrawn> { balance -= it.amount }
+        evolve<Closed> { closed = true }
+    }
+
+    @Test
+    fun `a given state is where the commands start`() = aggregateSpec(model) {
+        givenState(
+            Account(ref.id).apply {
+                balance = 50
+                limit = 100
+            },
+            version = 7,
+        )
+        whenCommand(Withdraw(20), expectedVersion = 7) {
+            expectEvents(Withdrawn(20))
+            outcome.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            (outcome as CommandOutcome.Committed).stream.version.assert().isEqualTo(8)
+            expectState { balance.assert().isEqualTo(30) }
+        }
+        given(Deposited(5))
+        whenCommand(Withdraw(35)) {
+            expectEventTypes(Withdrawn::class)
+            expectState { balance.assert().isZero() }
+        }
+        whenCommand(Withdraw(1)) {
+            expectRejected("account.insufficient") { message.assert().isEqualTo("Only 0.") }
+            expectState { balance.assert().isZero() }
+        }
+    }
+
+    @Test
+    fun `a given state built from the initial one keeps its scope`() = aggregateSpec(model) {
+        givenState(version = 3, scope = Scope("ahoo", null)) { limit = 10 }
+        whenCommand(Close("done"), scope = Scope("bob", null)) { expectRejected(KernelRejections.FORBIDDEN) }
+        whenCommand(Close("done"), scope = Scope("ahoo", null)) {
+            expectEvent<Closed> { reason.assert().isEqualTo("done") }
+            expectScope(Scope("ahoo", null))
+        }
+        whenCommand(Close("again")) {
+            expectUnchanged()
+            expectState { closed.assert().isTrue() }
+        }
+    }
+
+    @Test
+    fun `the state given changes nothing when the caller changes it later`() = aggregateSpec(model) {
+        val account = Account(ref.id).apply { limit = 10 }
+        givenState(account)
+        account.limit = 0
+        whenCommand(Deposit(10)) { expectState { balance.assert().isEqualTo(10) } }
+    }
+
+    @Test
+    fun `a given state comes first`() {
+        assertThrownBy<IllegalStateException> {
+            aggregateSpec(model) {
+                given(Opened(10))
+                givenState(Account(ref.id))
+            }
+        }
+    }
+
+    @Test
+    fun `an exception of the decide function is expected by its type`() = aggregateSpec(model) {
+        given(Opened(100))
+        whenCommand(Deposit(-1)) {
+            error.assert().isInstanceOf(IllegalArgumentException::class.java)
+            expectError<IllegalArgumentException> { message.assert().isEqualTo("A deposit is positive, not -1.") }
+            expectState { balance.assert().isZero() }
+        }
+        whenCommand(Deposit(1)) {
+            expectNoError()
+            expectEventTypes(Deposited::class.java)
+        }
+    }
+
+    @Test
+    fun `an exception nobody expects fails the specification`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(model) {
+                given(Opened(100))
+                whenCommand(Deposit(-1)) { }
+            }
+        }
+    }
+
+    @Test
+    fun `an error of another type fails the expectation`() {
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model) {
+                given(Opened(100))
+                whenCommand(Deposit(-1)) { expectError<IllegalStateException>() }
+            }
+        }
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model) {
+                given(Opened(100))
+                whenCommand(Deposit(1)) { expectError<IllegalArgumentException>() }
+            }
+        }
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model) {
+                given(Opened(100))
+                whenCommand(Deposit(-1)) { outcome }
+            }
+        }
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model) {
+                given(Opened(1))
+                whenCommand(Deposit(2)) { expectNoError() }
+            }
+        }
+    }
+
+    @Test
+    fun `scenarios fork from a shared prefix`() = aggregateSpec(model) {
+        whenCommand(Open(100)) { expectEventTypes(Opened::class) }
+        ref("opened")
+        whenCommand(Deposit(40)) { expectEvents(Deposited(40)) }
+        fork("withdrawn") {
+            whenCommand(Withdraw(40)) { expectState { balance.assert().isZero() } }
+            fork("then closed") {
+                whenCommand(Close("empty")) { expectEventTypes(Closed::class) }
+            }
+            whenCommand(Close("empty")) { expectEventTypes(Closed::class) }
+        }
+        fork("too much") {
+            whenCommand(Withdraw(41)) { expectRejected("account.insufficient") }
+        }
+        fork(from = "opened") {
+            whenCommand(Withdraw(1)) { expectRejected("account.insufficient") }
+            advanceTime(30.minutes) { expectEvents(Closed("dormant")) }
+        }
+        // The forks changed nothing here: the deposit stays, and cancelled the dormancy schedule.
+        whenCommand(Withdraw(40)) { expectState { balance.assert().isZero() } }
+        expectNothingDue(within = 60.minutes)
+    }
+
+    @Test
+    fun `a failure in a fork names it`() {
+        assertThrownBy<ForkAssertionError> {
+            aggregateSpec(model) {
+                whenCommand(Open(100)) { expectEventTypes(Opened::class) }
+                fork("outer") {
+                    fork("inner") { whenCommand(Withdraw(1)) { expectEventTypes(Withdrawn::class) } }
+                }
+            }
+        }.hasMessageStartingWith("In fork \"outer > inner\": Expected committed events")
+    }
+
+    @Test
+    fun `a fork from an unknown ref fails`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(model) { fork(from = "nowhere") { } }
+        }
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(model) {
+                ref("a")
+                ref("a")
+            }
+        }
+    }
+
+    @Test
+    fun `a fork keeps the time and the ids of its prefix`() = aggregateSpec(model) {
+        whenCommand(Open(100)) { }
+        advanceTime(10.minutes)
+        fork {
+            now.assert().isEqualTo(this@aggregateSpec.now)
+            whenCommand(Deposit(1)) { expectEvents(Deposited(1)) }
+            expectNothingDue(within = 30.minutes)
+        }
+        advanceTime(20.minutes) { expectEvents(Closed("dormant")) }
+    }
+
+    @Test
+    fun `nothing due is checked without sending anything`() {
+        aggregateSpec(model) {
+            whenCommand(Open(100)) { }
+            advanceTime(10.minutes)
+            assertThrownBy<AssertionError> { expectNothingDue(within = 20.minutes) }.hasMessageContaining("dormant")
+            advanceTime(5.minutes)
+        }
+        assertThrownBy<AssertionError> {
+            aggregateSpec(model) {
+                whenCommand(Open(100)) { }
+                advanceTime(1.minutes) { }
+            }
+        }
+    }
+}
