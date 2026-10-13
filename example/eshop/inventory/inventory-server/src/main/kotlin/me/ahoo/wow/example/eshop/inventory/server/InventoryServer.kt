@@ -18,7 +18,9 @@ import org.springframework.boot.runApplication
 
 /**
  * The eShop's inventory service on the Wow host: the host finds the stock model through `eshop-inventory-domain`'s binding
- * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend.
+ * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend by
+ * default, on PostgreSQL with the `postgres` profile ([PostgresDataSource]), and takes the ordering context's commands
+ * from Kafka with the `kafka` profile.
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class InventoryServer

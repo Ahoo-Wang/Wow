@@ -19,3 +19,26 @@ import me.ahoo.wow.api.annotation.Summary
 data class StockReceived(
     val quantity: Int,
 )
+
+/**
+ * Units were reserved for an order. The ordering context reads it from this context's published stream,
+ * `wow.eshop-inventory.stock.state`, and confirms the order's product: the event's name and [orderId] are part of the
+ * contract between the two contexts.
+ */
+@Summary("Stock was reserved for an order")
+data class StockReserved(
+    val orderId: String,
+    val quantity: Int,
+)
+
+@Summary("An order's reservation was committed")
+data class ReservationCommitted(
+    val orderId: String,
+    val quantity: Int,
+)
+
+@Summary("An order's reservation was released")
+data class ReservationReleased(
+    val orderId: String,
+    val quantity: Int,
+)

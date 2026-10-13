@@ -5,7 +5,30 @@ server:
   port: 8084
 wow:
   service: eshop-inventory-service
-  # One node, its data in memory: the skeleton's backend (work package E.0).
+  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
+  # `kafka` profile connects it to the other contexts.
   backend: memory
   internal:
     port: 9094
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_inventory
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+wow:
+  kafka:
+    bootstrap-servers: localhost:9092
+    # Execute the commands the ordering context sends to wow.eshop-inventory.commands, which must exist with as many
+    # partitions as the context's log (wow.log.partitions, 64 by default).
+    command-intake: true
