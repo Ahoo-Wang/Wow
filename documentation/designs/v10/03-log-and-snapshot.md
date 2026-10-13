@@ -62,6 +62,7 @@ sealed interface AppendOutcome {
 - **日志的物理存储也按（上下文，聚合）划分**（D162）：每个聚合类型一张日志表 `wow_log__<ctx>__<agg>`；分区、序列号与租约仍按上下文，尾部读取按 `(partition, sequence)` 归并各聚合表。
 - **存储按（上下文，聚合）划分**（D161）：每个聚合类型一张快照表（或一个集合）`wow_snapshot__<ctx>__<agg>`，主键 `(tenant_id, aggregate_id)`：类型转换不会落在别的聚合的行上，权限、CDC 与重建都按聚合。事件日志仍按上下文分区。
 - **按聚合可关闭**：只写不查、状态很大的聚合可以不写快照。
+- **重建、修复与回填**（D172）：写侧不需要重建；读侧在状态修订号（`stateRevision`）升高时就地重建，个别快照用 `wow.snapshot.Rebuild` 修复，换快照存储时新目标从日志回填、追平后切换 `primary`；期间查询带 `rebuilding: true`。
 - **后端**：快照存储即查询后端（Mongo、Elasticsearch、PostgreSQL JSONB），可与日志放在不同后端。
 
 ## 4. 历史状态
