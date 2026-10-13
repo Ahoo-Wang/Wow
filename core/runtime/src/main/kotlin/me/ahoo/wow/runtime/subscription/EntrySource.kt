@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -28,12 +29,17 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * One entry a [SubscriptionRuntime] hands its subscriptions: a committed [stream] at its [position] in the source's
  * partition, with its [transport]. [published] is the record it was read as when the source is another context's
  * topic (decision D134); the stream is then that record's facts, its events' payloads as JSON text.
+ *
+ * [message] is what an entry of a topic that holds no state events was read as: a command of a context's command
+ * topic, or a receipt of its receipts topic (decisions D135–D137). Its [stream] then only names the aggregate whose
+ * lane it runs in and the command it is about: nothing was committed.
  */
 internal class SourcedEntry(
     val position: LogPosition,
     val stream: EventStreamRecord,
     val transport: Transport?,
     val published: StateEventRecord? = null,
+    val message: Any? = null,
 ) {
     constructor(entry: LogEntry) : this(entry.position, entry.stream, entry.transport)
 }
@@ -76,6 +82,17 @@ internal interface EntrySource {
 
     /** Whether the source may deliver an entry twice, so a subscription drops the copies it can recognize. */
     val repeats: Boolean get() = false
+
+    /**
+     * Where [entry] stands among the entries of its aggregate, the order a subscription runs them in: its version,
+     * unless the source orders them otherwise (a topic of commands or receipts: by offset). While the aggregate is
+     * parked, an entry at or after the parked one's ordinal is skipped; one at or before the last a resume handled is
+     * a copy.
+     */
+    fun ordinalOf(entry: SourcedEntry): Long = entry.stream.version.toLong()
+
+    /** The ordinal ([ordinalOf]) of the entry [parked] is parked from. */
+    fun ordinalOf(parked: ParkedAggregate): Long = parked.fromVersion.toLong()
 }
 
 /** The source no longer holds what a parked aggregate is resumed from: it can only be skipped. */

@@ -34,10 +34,6 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 
@@ -71,6 +67,10 @@ import java.time.Clock
  * so it can only be skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
  * an aggregate's version it handled already, as long as it remembers the aggregate ([REMEMBERED] of them, the most
  * recently handled).
+ *
+ * An aggregate's entries are compared by their ordinal ([EntrySource.ordinalOf]): their version, or, in a topic of
+ * commands or receipts (decisions D135–D137), whose entries commit nothing, their offset. Parking, copies and
+ * resumes go by it.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -84,7 +84,7 @@ internal class SubscriptionWorker(
     private val lanes: CoroutineScope,
     private val signals: SignalSender,
     checkpoint: Long,
-    parked: Map<AggregateRef, Int>,
+    parked: Map<AggregateRef, Long>,
 ) {
     private val permits = Semaphore(options.maxInFlight)
     private val pending = ArrayDeque<Slot>()
@@ -92,13 +92,13 @@ internal class SubscriptionWorker(
     private val active = HashMap<AggregateRef, Lane>()
     private val parkStates = HashMap<AggregateRef, ParkState>(parked.mapValues { ParkState.Parked(it.value) })
 
-    /** Per aggregate, the last version [resume] handled: a later copy of one of those streams is skipped. */
-    private val resumedThrough = HashMap<AggregateRef, Int>()
+    /** Per aggregate, the ordinal of the last entry [resume] handled: a later copy of one of those is skipped. */
+    private val resumedThrough = HashMap<AggregateRef, Long>()
 
-    /** Of a source that [EntrySource.repeats], the last version handled of the aggregates handled most recently. */
-    private val handledThrough: LinkedHashMap<AggregateRef, Int>? = if (source.repeats) {
-        object : LinkedHashMap<AggregateRef, Int>(REMEMBERED, LOAD_FACTOR, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, Int>?): Boolean =
+    /** Of a source that [EntrySource.repeats], the last ordinal handled of the aggregates handled most recently. */
+    private val handledThrough: LinkedHashMap<AggregateRef, Long>? = if (source.repeats) {
+        object : LinkedHashMap<AggregateRef, Long>(REMEMBERED, LOAD_FACTOR, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, Long>?): Boolean =
                 size > REMEMBERED
         }
     } else {
@@ -147,10 +147,10 @@ internal class SubscriptionWorker(
         val slot = Slot(entry.position.sequence)
         pending.addLast(slot)
         outstanding.value = pending.size
-        if (!subscription.filter.matches(stream) || skippedOnAdmit(stream)) {
+        if (!subscription.takes(stream) || skippedOnAdmit(entry)) {
             complete(slot)
             if (waitsHere(entry)) {
-                val parked = parkedAt(stream)
+                val parked = parkedAt(entry)
                 lanes.launch { signal(entry, Result.success(HandledEntry.NOTHING), parked) }
             }
         } else {
@@ -158,20 +158,21 @@ internal class SubscriptionWorker(
         }
     }
 
-    /** A parked aggregate's entries from its parked version on, and copies of what a resume handled, are skipped. */
-    private fun skippedOnAdmit(stream: EventStreamRecord): Boolean {
-        val state = parkStates[stream.ref]
-        if (parkedAt(stream)) {
+    /** A parked aggregate's entries from its parked one on, and copies of what a resume handled, are skipped. */
+    private fun skippedOnAdmit(entry: SourcedEntry): Boolean {
+        val ref = entry.stream.ref
+        val state = parkStates[ref]
+        if (parkedAt(entry)) {
             return true
         }
-        val resumed = resumedThrough[stream.ref]
-        return state == null && resumed != null && stream.version <= resumed
+        val resumed = resumedThrough[ref]
+        return state == null && resumed != null && source.ordinalOf(entry) <= resumed
     }
 
-    /** Called under the monitor: whether [stream]'s aggregate is parked at or before its version. */
-    private fun parkedAt(stream: EventStreamRecord): Boolean {
-        val state = parkStates[stream.ref]
-        return state is ParkState.Parked && stream.version >= state.fromVersion
+    /** Called under the monitor: whether [entry]'s aggregate is parked at or before it. */
+    private fun parkedAt(entry: SourcedEntry): Boolean {
+        val state = parkStates[entry.stream.ref]
+        return state is ParkState.Parked && source.ordinalOf(entry) >= state.fromOrdinal
     }
 
     /** Whether a wait on [entry] waits for this subscription next. */
@@ -261,8 +262,7 @@ internal class SubscriptionWorker(
 
     private suspend fun runLive(item: Item.Live) {
         val entry = item.entry
-        val stream = entry.stream
-        val (skipped, parked) = synchronized(this) { skippedInLane(stream) to parkedAt(stream) }
+        val (skipped, parked) = synchronized(this) { skippedInLane(entry) to parkedAt(entry) }
         val handled = if (skipped) {
             Result.success(HandledEntry.NOTHING)
         } else {
@@ -271,7 +271,7 @@ internal class SubscriptionWorker(
         handled.exceptionOrNull()?.let { park(entry, it as Exception) }
         synchronized(this) {
             if (!skipped && handled.isSuccess) {
-                remember(stream)
+                remember(entry)
             }
             complete(item.slot)
         }
@@ -291,14 +291,14 @@ internal class SubscriptionWorker(
                 items += lane.items.removeFirst() as Item.Live
             }
             // In version order, as skippedInLane expects.
-            items.map { Batched(it, skippedInLane(it.entry.stream), parkedAt(it.entry.stream)) }
+            items.map { Batched(it, skippedInLane(it.entry), parkedAt(it.entry)) }
         }
         val handled = batch.filterNot { it.skipped }
         val result = handled.lastOrNull()?.let { latest -> handle(latest.item.entry) } ?: Result.success(HandledEntry.NOTHING)
         result.exceptionOrNull()?.let { park(handled.first().item.entry, it as Exception) }
         synchronized(this) {
             if (result.isSuccess) {
-                handled.forEach { remember(it.item.entry.stream) }
+                handled.forEach { remember(it.item.entry) }
             }
             batch.forEach { complete(it.item.slot) }
         }
@@ -314,51 +314,50 @@ internal class SubscriptionWorker(
     private class Batched(val item: Item.Live, val skipped: Boolean, val parked: Boolean)
 
     /**
-     * Called under the monitor. Within a lane, entries arrive in version order, except a copy a source that
-     * [EntrySource.repeats] delivers again: a version at or below the last one handled of the aggregate.
+     * Called under the monitor. Within a lane, entries arrive in their ordinal order ([EntrySource.ordinalOf]), except
+     * a copy a source that [EntrySource.repeats] delivers again: an ordinal at or below the last one handled of the
+     * aggregate.
      */
-    private fun skippedInLane(stream: EventStreamRecord): Boolean {
-        val state = parkStates[stream.ref]
-        if (state is ParkState.Parked && stream.version >= state.fromVersion) {
+    private fun skippedInLane(entry: SourcedEntry): Boolean {
+        val ref = entry.stream.ref
+        val ordinal = source.ordinalOf(entry)
+        val state = parkStates[ref]
+        if (state is ParkState.Parked && ordinal >= state.fromOrdinal) {
             return true
         }
-        val handled = handledThrough?.get(stream.ref)
-        if (handled != null && stream.version <= handled) {
+        val handled = handledThrough?.get(ref)
+        if (handled != null && ordinal <= handled) {
             return true
         }
-        val resumed = resumedThrough[stream.ref] ?: return false
-        if (stream.version <= resumed) {
+        val resumed = resumedThrough[ref] ?: return false
+        if (ordinal <= resumed) {
             return true
         }
-        // Every later stream of the aggregate is newer than what the resume read.
-        resumedThrough.remove(stream.ref)
+        // Every later entry of the aggregate is newer than what the resume read.
+        resumedThrough.remove(ref)
         return false
     }
 
-    /** Called under the monitor: [stream] is handled, so a copy of it, or of an earlier version, is dropped. */
-    private fun remember(stream: EventStreamRecord) {
-        handledThrough?.merge(stream.ref, stream.version, ::maxOf)
+    /** Called under the monitor: [entry] is handled, so a copy of it, or of an earlier one, is dropped. */
+    private fun remember(entry: SourcedEntry) {
+        handledThrough?.merge(entry.stream.ref, source.ordinalOf(entry), ::maxOf)
     }
 
     /**
      * Runs the handler with retries; returns what it did, or the last failure once the retries are spent. A
      * [HandlingRejectedException] is not retried: a business outcome does not change.
      */
-    private suspend fun handle(entry: SourcedEntry): Result<HandledEntry> =
-        handle(entry.stream, entry.position, entry.transport, entry.published)
-
     @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
-    private suspend fun handle(
-        stream: EventStreamRecord,
-        position: LogPosition?,
-        transport: Transport?,
-        published: StateEventRecord?,
-    ): Result<HandledEntry> {
+    private suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
         var failures = 0
         while (true) {
             try {
-                val decoded = subscription.decoder.decode(stream, position, transport)
-                val entry = if (published == null) decoded else decoded.copy(published = published)
+                val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
+                val entry = if (sourced.published == null && sourced.message == null) {
+                    decoded
+                } else {
+                    decoded.copy(published = sourced.published, message = sourced.message)
+                }
                 return Result.success(subscription.handle(entry))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -396,7 +395,8 @@ internal class SubscriptionWorker(
         synchronized(this) {
             val state = parkStates[stream.ref]
             if (state !is ParkState.Resuming) {
-                val from = (state as? ParkState.Parked)?.fromVersion?.coerceAtMost(stream.version) ?: stream.version
+                val ordinal = source.ordinalOf(sourced)
+                val from = (state as? ParkState.Parked)?.fromOrdinal?.coerceAtMost(ordinal) ?: ordinal
                 parkStates[stream.ref] = ParkState.Parked(from)
             }
         }
@@ -427,7 +427,7 @@ internal class SubscriptionWorker(
                     if (entry.unrecoverable) {
                         return false
                     }
-                    val item = Item.Resume(entry.fromVersion, entry.fromPosition, CompletableDeferred())
+                    val item = Item.Resume(entry, CompletableDeferred())
                     parkStates[ref] = ParkState.Resuming(item.result)
                     enqueue(ref, item, first = true)
                     item.result
@@ -439,48 +439,45 @@ internal class SubscriptionWorker(
 
     @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of resume; the aggregate stays parked.
     private suspend fun runResume(ref: AggregateRef, item: Item.Resume) {
-        var from = item.fromVersion
-        var position = item.fromPosition
+        var parked = item.parked
         try {
             // A lower entry may have failed and been parked while this resume waited in the lane.
-            ledger.parked(subscription.name, ref)?.takeIf { it.fromVersion < from }?.let {
-                from = it.fromVersion
-                position = it.fromPosition
+            ledger.parked(subscription.name, ref)?.takeIf { source.ordinalOf(it) < source.ordinalOf(parked) }?.let {
+                parked = it
             }
             val entries = try {
-                source.resume(ref, from, position).toList()
+                source.resume(ref, parked.fromVersion, parked.fromPosition).toList()
             } catch (gone: UnrecoverableException) {
-                unrecoverable(ref, from, position, gone)
-                restoreParked(ref, item, from)
+                unrecoverable(parked, gone)
+                restoreParked(ref, item, parked)
                 item.result.complete(false)
                 return
             }
-            var last: Int? = null
+            var last: Long? = null
             for (entry in entries) {
-                val stream = entry.stream
-                if (last != null && stream.version <= last) {
+                val ordinal = source.ordinalOf(entry)
+                if (last != null && ordinal <= last) {
                     // A copy the topic holds twice.
                     continue
                 }
-                val failure = if (subscription.filter.matches(stream)) {
+                val failure = if (subscription.takes(entry.stream)) {
                     handle(entry).exceptionOrNull() as Exception?
                 } else {
                     null
                 }
                 if (failure != null) {
-                    // Still failing: the streams before this one are handled, so the aggregate stays parked from
+                    // Still failing: the entries before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
-                    from = stream.version
-                    repark(entry, failure)
+                    parked = repark(entry, failure)
                     if (last != null) {
-                        // Copies of the streams handled here that the tail delivers later are skipped.
+                        // Copies of the entries handled here that the tail delivers later are skipped.
                         synchronized(this) { resumedThrough[ref] = last }
                     }
-                    restoreParked(ref, item, from)
+                    restoreParked(ref, item, parked)
                     item.result.complete(false)
                     return
                 }
-                last = stream.version
+                last = ordinal
             }
             ledger.resolve(subscription.name, ref)
             synchronized(this) {
@@ -491,50 +488,53 @@ internal class SubscriptionWorker(
             }
             item.result.complete(true)
         } catch (cancelled: CancellationException) {
-            restoreParked(ref, item, from)
+            restoreParked(ref, item, parked)
             item.result.cancel(cancelled)
             throw cancelled
         } catch (failure: Exception) {
-            restoreParked(ref, item, from)
+            restoreParked(ref, item, parked)
             item.result.completeExceptionally(failure)
         }
     }
 
-    /** Records in the ledger that a resume failed again at [sourced], from where the aggregate is now parked. */
-    private suspend fun repark(sourced: SourcedEntry, failure: Exception) {
+    /**
+     * Records in the ledger that a resume failed again at [sourced], from where the aggregate is now parked; returns
+     * the entry.
+     */
+    private suspend fun repark(sourced: SourcedEntry, failure: Exception): ParkedAggregate {
         val stream = sourced.stream
         logger.warn(failure) {
             "Subscription ${subscription.name} keeps ${stream.ref} parked, now from version ${stream.version}."
         }
-        repark(
-            ParkedAggregate(
-                subscription.name,
-                stream.ref,
-                stream.version,
-                reason(failure),
-                clock.millis(),
-                source.sourcePosition(sourced),
-            ),
-        )
+        return ParkedAggregate(
+            subscription.name,
+            stream.ref,
+            stream.version,
+            reason(failure),
+            clock.millis(),
+            source.sourcePosition(sourced),
+        ).also { repark(it) }
     }
 
     /**
-     * Records in the ledger that [ref] can no longer be resumed, only skipped: the source does not hold what it is
-     * parked from any more ([gone]).
+     * Records in the ledger that [parked]'s aggregate can no longer be resumed, only skipped: the source does not
+     * hold what it is parked from any more ([gone]).
      */
-    private suspend fun unrecoverable(ref: AggregateRef, from: Int, position: Long?, gone: UnrecoverableException) {
-        logger.error { "Subscription ${subscription.name} cannot resume $ref: ${gone.message} It can only be skipped." }
+    private suspend fun unrecoverable(parked: ParkedAggregate, gone: UnrecoverableException) {
+        logger.error {
+            "Subscription ${subscription.name} cannot resume ${parked.ref}: ${gone.message} It can only be skipped."
+        }
         val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
-        repark(ParkedAggregate(subscription.name, ref, from, reason, clock.millis(), position))
+        repark(parked.copy(reason = reason, failedAt = clock.millis()))
     }
 
     private suspend fun repark(entry: ParkedAggregate) {
         retryForever(options.readRetry, { "repark ${entry.ref} for ${subscription.name}" }) { ledger.repark(entry) }
     }
 
-    private fun restoreParked(ref: AggregateRef, item: Item.Resume, from: Int) = synchronized(this) {
+    private fun restoreParked(ref: AggregateRef, item: Item.Resume, parked: ParkedAggregate) = synchronized(this) {
         if ((parkStates[ref] as? ParkState.Resuming)?.result === item.result) {
-            parkStates[ref] = ParkState.Parked(from)
+            parkStates[ref] = ParkState.Parked(source.ordinalOf(parked))
         }
     }
 
@@ -591,11 +591,11 @@ internal class SubscriptionWorker(
 
     private sealed interface Item {
         class Live(val entry: SourcedEntry, val slot: Slot) : Item
-        class Resume(val fromVersion: Int, val fromPosition: Long?, val result: CompletableDeferred<Boolean>) : Item
+        class Resume(val parked: ParkedAggregate, val result: CompletableDeferred<Boolean>) : Item
     }
 
     private sealed interface ParkState {
-        class Parked(val fromVersion: Int) : ParkState
+        class Parked(val fromOrdinal: Long) : ParkState
         class Resuming(val result: CompletableDeferred<Boolean>) : ParkState
     }
 }
