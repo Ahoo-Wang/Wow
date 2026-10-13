@@ -40,7 +40,6 @@ import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Description
-import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
@@ -199,31 +198,12 @@ internal class ModelSymbolProcessor(
     }
 
     /** Collects the module's `@MountedCommand` classes (decision D182); the ones not yet valid are deferred. */
-    @OptIn(KspExperimental::class)
     private fun collectMountedCommands(resolver: Resolver): List<KSAnnotated> {
-        val declarations = resolver.getSymbolsWithAnnotation(MOUNTED_COMMAND).filterIsInstance<KSClassDeclaration>()
-            .toList()
+        val declarations = resolver.getSymbolsWithAnnotation(MountedCommandResolver.MOUNTED_COMMAND)
+            .filterIsInstance<KSClassDeclaration>().toList()
         declarations.filter { it.validate() }.forEach { declaration ->
             declaration.containingFile?.let { sources += it }
-            val annotation = declaration.getAnnotationsByType(MountedCommand::class).first()
-            val name = declaration.simpleName.asString()
-            val transformsTo = annotation.transformsTo.toList()
-            val problems = V10Annotations.problemsOfType(declaration, "mounted command") +
-                transformsTo.filterNot { COMMAND_NAME.matches(it) }.map {
-                    "mounted command $name transforms to \"$it\": @MountedCommand(transformsTo) names each command " +
-                        "as context.aggregate.Command"
-                } + listOfNotNull(
-                    "mounted command $name names no aggregate: @MountedCommand(aggregate) is its aggregate's name"
-                        .takeIf { annotation.aggregate.isBlank() },
-                )
-            mountedCommands += MountedBinding(
-                command = declaration.qualifiedName!!.asString(),
-                commandName = declaration.getAnnotationsByType(Name::class).firstOrNull()?.value,
-                aggregate = annotation.aggregate,
-                type = declaration.binaryName(),
-                transformsTo = transformsTo,
-                problems = problems,
-            ) to declaration
+            mountedCommands += MountedCommandResolver.read(declaration) to declaration
         }
         return declarations.filterNot { it.validate() }
     }
@@ -236,17 +216,7 @@ internal class ModelSymbolProcessor(
     ): List<MountedBinding> {
         val mounted = mountedCommands.map { it.first }.filter { it.aggregate == aggregateName }
         claimedMounted += mounted.map { it.command }
-        val commandNames = commands.map { it.commandName ?: AliasCheck.simpleName(it.type) }.toSet()
-        mounted.forEach { binding ->
-            val name = binding.commandName ?: AliasCheck.simpleName(binding.type)
-            problems += binding.problems
-            if (commands.any { it.command == binding.command }) {
-                problems += "mounted command $name is taken by a command function: a mounted command has no @OnCommand"
-            }
-            if (name in commandNames) {
-                problems += "mounted command $name has the name of a command of the aggregate"
-            }
-        }
+        mounted.forEach { problems += MountedCommandResolver.problems(it, commands) }
         return mounted
     }
 
@@ -857,7 +827,6 @@ internal class ModelSymbolProcessor(
             type.name to name
         }
         val BOUNDED_CONTEXT = BoundedContext::class.java.name
-        val MOUNTED_COMMAND = MountedCommand::class.java.name
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()

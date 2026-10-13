@@ -160,7 +160,10 @@ class CommandRoutesTest {
         )
             .assertSucceeded()
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()
-        node.commands.map { it.wait }.assert().containsExactly(WaitPlan.DEFAULT.within(1500.milliseconds), WaitPlan.DEFAULT)
+        node.commands.map { it.wait }.assert().containsExactly(
+            WaitPlan.DEFAULT.within(1500.milliseconds),
+            WaitPlan.DEFAULT
+        )
     }
 
     @Test

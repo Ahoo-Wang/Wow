@@ -239,4 +239,3 @@ class TransformationAuthorizationTest {
         }
     }
 }
-

@@ -146,7 +146,9 @@ class MountedCommandTest {
                     "context.aggregate.Command",
             )
             .contains("mounted command Open has the name of a command of the aggregate")
-            .contains("mounted command sample.Nowhere is mounted under ledger, which is not an aggregate of this module")
+            .contains(
+                "mounted command sample.Nowhere is mounted under ledger, which is not an aggregate of this module"
+            )
             .contains("mounted command Blank names no aggregate")
     }
 }

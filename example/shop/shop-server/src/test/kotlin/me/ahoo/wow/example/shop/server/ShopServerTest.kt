@@ -87,15 +87,6 @@ class ShopServerTest {
             "POST /example/order/{id}/payment-notified",
             "POST /example/order/payment-notified",
         )
-        // Decision D182: the server's transformer adds the route of ChangePassword without an id.
-        aggregates.getValue("customer").routes().assert().containsExactlyInAnyOrder(
-            "POST /example/customer/{id}/register-customer",
-            "POST /example/customer/register-customer",
-            "POST /example/customer/{id}/change-password",
-            "POST /example/customer/change-password",
-            "POST /example/customer/{id}/import-customer",
-            "POST /example/customer/import-customer",
-        )
         aggregates.values.forEach { aggregate ->
             aggregate["lifecycle"].values().map { it.asString() }.assert().containsExactly(
                 "wow.lifecycle.ApplyTags",
@@ -123,6 +114,24 @@ class ShopServerTest {
                 FrameworkCodes.WAIT_TIMEOUT to 504,
             ),
         )
+    }
+
+    @Test
+    fun `the manifest should list the mounted commands and the route the server's transformer adds (D182)`() {
+        val context = shop.get("/wow/manifest", "alice").json["contexts"].values().single()
+        val customer = context["aggregates"].values().single { it["name"].asString() == "customer" }
+        customer.routes().assert().containsExactlyInAnyOrder(
+            "POST /example/customer/{id}/register-customer",
+            "POST /example/customer/register-customer",
+            "POST /example/customer/{id}/change-password",
+            "POST /example/customer/change-password",
+            "POST /example/customer/{id}/import-customer",
+            "POST /example/customer/import-customer",
+        )
+        val import = customer["commands"].values().single { it["name"].asString() == "ImportCustomer" }
+        import["mounted"].asBoolean().assert().isTrue()
+        import["transformsTo"].values().map { it.asString() }.assert()
+            .containsExactly("example.customer.RegisterCustomer")
     }
 
     @Test

@@ -69,7 +69,10 @@ class AggregateModelTest {
     @Test
     fun `a mounted command is mounted once, is not decided, and takes no name of another command`() {
         listOf<AggregateModelBuilder<Cart>.() -> Unit>(
-            { mount<ImportCart>(); mount<ImportCart>(name = "shop.cart.Other") },
+            {
+                mount<ImportCart>()
+                mount<ImportCart>(name = "shop.cart.Other")
+            },
             { mount<AddItem>() },
             { mount<ImportCart>(name = "shop.cart.AddItem") },
             { mount<ImportCart>(name = "${Lifecycle.NAMESPACE}.Import") },

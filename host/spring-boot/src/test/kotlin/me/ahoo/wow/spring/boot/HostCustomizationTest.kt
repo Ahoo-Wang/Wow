@@ -18,13 +18,13 @@ import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
-import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.IdGenerator
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -187,6 +187,7 @@ class OwnerDefault : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as OpenAccount
-        return CommandTarget(input.type, input.aggregateId, body.copy(owner = body.owner.ifEmpty { "anonymous" }), input.headers)
+        val owner = body.owner.ifEmpty { "anonymous" }
+        return CommandTarget(input.type, input.aggregateId, body.copy(owner = owner), input.headers)
     }
 }

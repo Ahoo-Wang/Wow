@@ -141,15 +141,13 @@ class CommandGateway(
             is Admission.Refused -> emit(admission.result)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
-                val transformedFrom = admission.transformedFrom
+                val from = admission.transformedFrom
                 if (admission.command.wait.isAcceptedOnly) {
                     val accepted = coordinator.accept(admission.model, admission.command, detached)
-                    emit(if (transformedFrom == null) accepted else accepted.copy(transformedFrom = transformedFrom))
+                    emit(if (from == null) accepted else accepted.copy(transformedFrom = from))
                 } else {
                     val results = coordinator.stream(admission.model, admission.command)
-                    emitAll(
-                        if (transformedFrom == null) results else results.map { it.copy(transformedFrom = transformedFrom) }
-                    )
+                    emitAll(if (from == null) results else results.map { it.copy(transformedFrom = from) })
                 }
             }
         }
@@ -293,7 +291,6 @@ class CommandGateway(
         return Admission.Admitted(command.model, admitted, facts.transformedFrom)
     }
 
-
     /** The authorizer's denial of [action], or null when it allows it. */
     private suspend fun authorize(request: CommandRequest, action: CommandAction): Authorization.Denied? =
         authorizer.authorize(request.caller, action) as? Authorization.Denied
@@ -357,7 +354,6 @@ class CommandGateway(
         var transformedFrom: TransformedFrom? = null
 
         fun refuse(denied: Authorization.Denied): Admission.Refused = refuse(denied.code, denied.message)
-
 
         fun refuse(
             code: String,

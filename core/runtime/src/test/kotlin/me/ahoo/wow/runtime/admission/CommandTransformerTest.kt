@@ -199,7 +199,9 @@ class CommandTransformerTest {
         result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.Import"))
         val command = decided.single()
         command.body.assert().isEqualTo(Register("carol"))
-        command.headers.assert().isEqualTo(mapOf("Source" to "v9", CommandTransformer.TRANSFORMED_FROM to "$TYPE.Import"))
+        command.headers.assert().isEqualTo(
+            mapOf("Source" to "v9", CommandTransformer.TRANSFORMED_FROM to "$TYPE.Import")
+        )
         // The mounted input is authorized as no creation; the creation command it becomes as one.
         actions.map { it.type to it.creation }.assert().containsExactly(
             import to Creation.NONE,
@@ -272,13 +274,27 @@ class CommandTransformerTest {
         // A mounted command no transformer claims.
         fails(listOf(byUsername, importer, callbacks))
         // An input no aggregate served here decides or mounts, in a context served here.
-        fails(listOf(importer, callbacks, notes, transformer(CommandType("$CONTEXT.other.Thing", Note::class.java)) {
-            error("unused")
-        }))
+        fails(
+            listOf(
+                importer,
+                callbacks,
+                notes,
+                transformer(CommandType("$CONTEXT.other.Thing", Note::class.java)) {
+                    error("unused")
+                }
+            )
+        )
         // An input of a served name but another class.
-        fails(listOf(importer, callbacks, notes, transformer(CommandType(register.name, Note::class.java)) {
-            error("unused")
-        }))
+        fails(
+            listOf(
+                importer,
+                callbacks,
+                notes,
+                transformer(CommandType(register.name, Note::class.java)) {
+                    error("unused")
+                }
+            )
+        )
         // An input of a context this node does not serve is left to the nodes that serve it.
         gateway(
             transformers = listOf(
