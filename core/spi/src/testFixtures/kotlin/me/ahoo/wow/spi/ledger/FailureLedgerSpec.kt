@@ -23,6 +23,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import org.junit.jupiter.api.Test
 import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The [FailureLedger] contract (documentation/designs/v10/04-subscriptions.md §2) every backend passes. A backend's
@@ -163,8 +166,124 @@ abstract class FailureLedgerSpec {
         ledger.parked(subscription, ref("a")).assert().isEqualTo(later)
     }
 
+    @Test
+    fun `a new entry's retry state reads back with it, in its page and when resolved`(): Unit = runBlocking {
+        val parked = entry(ref("a"), 3).copy(
+            retries = 2,
+            retryAt = FAILED_AT + 100,
+            retrySpec = SPEC,
+            recoverable = Recoverable.RECOVERABLE,
+            request = LedgerRequest.RESUME,
+        )
+        ledger.park(parked).assert().isTrue()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(parked)
+        ledger.list(subscription).assert().containsExactly(parked)
+        ledger.resolve(subscription, ref("a")).assert().isEqualTo(parked)
+    }
+
+    @Test
+    fun `parking from an earlier version and reparking keep the retry state`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 5))
+        val claimed = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 50))!!
+        ledger.amend(subscription, ref("a"), ParkedAmendment.ApplyRetrySpec(SPEC))
+        ledger.amend(subscription, ref("a"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
+        ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.SKIP))
+        val state = claimed.copy(
+            retrySpec = SPEC,
+            recoverable = Recoverable.RECOVERABLE,
+            request = LedgerRequest.SKIP,
+        )
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(state)
+
+        // The earlier entry's own retry state is not taken: the parked one keeps its own.
+        ledger.park(entry(ref("a"), 2).copy(retries = 7, recoverable = Recoverable.UNRECOVERABLE)).assert().isTrue()
+        val earlier = entry(ref("a"), 2)
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(
+            state.copy(fromVersion = 2, reason = earlier.reason, failedAt = earlier.failedAt),
+        )
+        val reparked = entry(ref("a"), 4, reason = "failed again").copy(fromPosition = 44, retries = 9)
+        ledger.repark(reparked).assert().isTrue()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(
+            state.copy(fromVersion = 4, reason = "failed again", failedAt = reparked.failedAt, fromPosition = 44),
+        )
+    }
+
+    @Test
+    fun `a retry is claimed only from the retries read, once among concurrent claims`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 1))
+        ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(1, FAILED_AT)).assert().isNull()
+        val first = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 10))!!
+        first.retries.assert().isEqualTo(1)
+        first.retryAt.assert().isEqualTo(FAILED_AT + 10)
+        ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 20)).assert().isNull()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(first)
+
+        val claims = coroutineScope {
+            (1..CONCURRENT_PARKS).map { attempt ->
+                async(Dispatchers.Default) {
+                    ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(1, FAILED_AT + 100 + attempt))
+                }
+            }.awaitAll()
+        }
+        val won = claims.filterNotNull()
+        won.size.assert().isEqualTo(1)
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(won.single())
+        won.single().retries.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `an operator's retry spec and recoverability are applied and cleared`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 1))
+        ledger.amend(subscription, ref("a"), ParkedAmendment.ApplyRetrySpec(SPEC))!!.retrySpec.assert().isEqualTo(SPEC)
+        val zero = ParkedRetrySpec(0, Duration.ZERO, Duration.ZERO)
+        ledger.amend(subscription, ref("a"), ParkedAmendment.ApplyRetrySpec(zero))!!.retrySpec.assert().isEqualTo(zero)
+        ledger.parked(subscription, ref("a"))!!.retrySpec.assert().isEqualTo(zero)
+        ledger.amend(subscription, ref("a"), ParkedAmendment.ApplyRetrySpec(null))!!.retrySpec.assert().isNull()
+        ledger.parked(subscription, ref("a"))!!.retrySpec.assert().isNull()
+        Recoverable.entries.forEach { recoverable ->
+            ledger.amend(subscription, ref("a"), ParkedAmendment.MarkRecoverable(recoverable))!!
+                .recoverable.assert().isEqualTo(recoverable)
+            ledger.parked(subscription, ref("a"))!!.recoverable.assert().isEqualTo(recoverable)
+        }
+        ledger.parked(subscription, ref("a")).assert()
+            .isEqualTo(entry(ref("a"), 1).copy(recoverable = Recoverable.UNRECOVERABLE))
+    }
+
+    @Test
+    fun `a request is left for the owner and taken once`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 1))
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RESUME)).assert().isNull()
+        ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.RESUME))!!
+            .request.assert().isEqualTo(LedgerRequest.RESUME)
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
+        ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.SKIP))!!
+            .request.assert().isEqualTo(LedgerRequest.SKIP)
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP))!!
+            .request.assert().isNull()
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(entry(ref("a"), 1))
+    }
+
+    @Test
+    fun `amending an aggregate that is not parked writes nothing`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 1, subscription = another))
+        listOf(
+            ParkedAmendment.ClaimRetry(0, FAILED_AT),
+            ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
+            ParkedAmendment.ApplyRetrySpec(SPEC),
+            ParkedAmendment.Request(LedgerRequest.RESUME),
+            ParkedAmendment.TakeRequest(LedgerRequest.RESUME),
+        ).forEach { amendment ->
+            ledger.amend(subscription, ref("a"), amendment).assert().isNull()
+            ledger.amend(subscription, ref("b"), amendment).assert().isNull()
+        }
+        ledger.isParked(subscription, ref("a")).assert().isFalse()
+        ledger.parked(another, ref("a")).assert().isEqualTo(entry(ref("a"), 1, subscription = another))
+    }
+
     protected companion object {
         const val FAILED_AT = 1_700_000_000_000L
         const val CONCURRENT_PARKS = 12
+        val SPEC = ParkedRetrySpec(maxRetries = 4, minBackoff = 1500.milliseconds, executionTimeout = 2.minutes)
     }
 }
