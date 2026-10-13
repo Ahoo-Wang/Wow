@@ -128,14 +128,20 @@ cart's snapshot holds it.
    product to `wow.inventory.commands`. The inventory is another context, so
    the saga's hop ends once the broker has the commands:
    `Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated)` answers
-   then, not when the inventory has decided them (waits across contexts come
-   with work package 6.6).
+   then. A wait can follow the commands into the inventory:
+   `Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inventory)`
+   answers once the inventory has committed every reservation, or at once with
+   its refusal. The inventory signals the shop node the wait started on, on its
+   internal port; a signal to a node that is gone is dropped, and the wait
+   ends at its deadline at the latest.
 2. A reservation the inventory rejects (`inventory.stock.insufficient`) comes
    back as a receipt on `wow.example.receipts`. `OrderSaga.onReserveRejected`
    takes it and sends `CancelOrder`; the order becomes `CANCELLED`, with the
    reason in `cancelReason`.
 3. The inventory reads the order stream, `wow.example.order.state`: a shipped
    order commits its reservations, a cancelled one releases them.
+   `Wow-Wait: handled(inventory/OrderStockSaga.onOrderShipped) > committed(inventory)`
+   on `ship-order` answers once they are committed.
 
 The saga finds the inventory's commands in the inventory's Manifest, a peer of
 this service (decision D139). The Gradle plugin's `wowPeers` puts a peer's

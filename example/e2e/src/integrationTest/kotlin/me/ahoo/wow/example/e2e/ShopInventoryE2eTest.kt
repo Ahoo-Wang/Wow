@@ -33,6 +33,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * The example's two services end to end (decision D144): the shop and the inventory, each in a JVM of its own on
@@ -45,9 +49,12 @@ import java.time.Duration
  * - The inventory's `OrderStockSaga` reads `wow.example.order.state` (decisions D134, D156) and commits the
  *   reservations of a shipped order, or releases those of a cancelled one.
  *
- * A wait follows the order only within the shop: `committed > handled(example/OrderSaga.onOrderCreated)` ends once
- * the reservations are on the inventory's topic. What happens in the inventory is read from its state, polled until a
- * deadline; waits across contexts are work package 6.6.
+ * Waits follow the order across the two services (design 04 §6.3, work package 6.6): `create-order` waits for
+ * `committed > handled(example/OrderSaga.onOrderCreated) > committed(inventory)`, so it answers once the inventory has
+ * committed every reservation, or at once with the inventory's refusal; `ship-order` waits for the inventory's saga
+ * on the order stream and the commit it derives. The inventory signals the shop node the wait started on through its
+ * internal port (`/wow/internal/signals`). Effects the waits do not cover, such as a cancellation by receipt, are read
+ * from the state, polled until a deadline.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ShopInventoryE2eTest {
@@ -96,18 +103,27 @@ class ShopInventoryE2eTest {
         "--wow.cluster.reconcile-interval=200ms",
         "--wow.cluster.route-refresh-interval=200ms",
         "--wow.subscription.checkpoint-interval=100ms",
+        // The signals a sender drops are logged at DEBUG.
+        "--logging.level.me.ahoo.wow.http.internal.HttpSignalSender=DEBUG",
     )
 
     @Test
     fun `an order in stock should be reserved, and shipping it should commit the reservation`() {
         receive("apple", 10)
         val before = stock("apple")
+        // The wait ends once the inventory committed the reservation; its state is read from the snapshot, written next.
         val id = placeOrder(line("apple", APPLE, 2))
         eventually("apple reserved for $id") { stock("apple").reserved(id) == 2 }
         stock("apple").available.assert().isEqualTo(before.available - 2)
 
         pay(id, APPLE.multiply(BigDecimal(2)))
-        shop.post("/example/order/$id/ship-order").status.assert().isEqualTo(OK)
+        // The inventory's saga reads the shipped order from the order stream and commits the reservation.
+        val shipped = shop.post("/example/order/$id/ship-order", headers = mapOf(WAIT to SHIP_CHAIN))
+        shipped.status.assert().describedAs(shipped.json.toString()).isEqualTo(OK)
+        shipped.json["status"].asString().assert().isEqualTo("SUCCEEDED")
+        shipped.json["hop"]["context"].asString().assert().isEqualTo("inventory")
+        shipped.json["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        shipped.json["ref"]["id"].asString().assert().isEqualTo("apple")
         eventually("the reservation of $id committed") { stock("apple").reserved(id) == null }
         val after = stock("apple")
         after.onHand.assert().isEqualTo(before.onHand - 2)
@@ -120,7 +136,16 @@ class ShopInventoryE2eTest {
         receive("durian", 1)
         val pear = stockVersion("pear")
         val durian = stock("durian")
-        val id = placeOrder(line("pear", PEAR, 1), line("durian", DURIAN, durian.available + 1))
+        val began = System.nanoTime()
+        val events = placeStreaming(line("pear", PEAR, 1), line("durian", DURIAN, durian.available + 1))
+        // The inventory's refusal ends the wait at once, well before its deadline.
+        Duration.ofNanos(System.nanoTime() - began).assert().isLessThan(Duration.ofSeconds(15))
+        val id = events.first()["ref"]["id"].asString()
+        val refused = events.last()
+        refused["status"].asString().assert().isEqualTo("REJECTED")
+        refused["error"]["code"].asString().assert().isEqualTo("inventory.stock.insufficient")
+        refused["hop"]["context"].asString().assert().isEqualTo("inventory")
+        refused["ref"]["id"].asString().assert().isEqualTo("durian")
 
         eventually("$id cancelled") { order(id)?.get("status")?.asString() == "CANCELLED" }
         order(id)!!["cancelReason"].asString().assert().contains("durian").contains("are available")
@@ -137,7 +162,7 @@ class ShopInventoryE2eTest {
         receive("durian", 1)
         val reserved = placeOrder(line("apple", APPLE, 1))
         eventually("apple reserved for $reserved") { stock("apple").reserved(reserved) == 1 }
-        val cancelled = placeOrder(line("durian", DURIAN, stock("durian").available + 1))
+        val cancelled = refuseOrder(line("durian", DURIAN, stock("durian").available + 1))
         eventually("$cancelled cancelled") { order(cancelled)?.get("status")?.asString() == "CANCELLED" }
         val apple = stockVersion("apple")
 
@@ -150,9 +175,9 @@ class ShopInventoryE2eTest {
         val next = placeOrder(line("apple", APPLE, 1))
         eventually("apple reserved for $next") { stock("apple").reserved(next) == 1 }
         stockVersion("apple").assert().isEqualTo(apple + 1)
-        stock("apple").reserved(reserved).assert().isEqualTo(1)
+        eventually("apple reserved for $reserved") { stock("apple").reserved(reserved) == 1 }
         // Likewise for the receipts: a later refusal handled means the copies ahead of it were handled.
-        val later = placeOrder(line("durian", DURIAN, stock("durian").available + 1))
+        val later = refuseOrder(line("durian", DURIAN, stock("durian").available + 1))
         eventually("$later cancelled") { order(later)?.get("status")?.asString() == "CANCELLED" }
         orderVersion(cancelled).assert().isEqualTo(2)
     }
@@ -177,22 +202,86 @@ class ShopInventoryE2eTest {
         stockVersion("apple").assert().isEqualTo(version + 2)
     }
 
+    @Test
+    fun `a wait should end by its deadline, and a signal to a node killed mid-wait should be dropped`() {
+        receive("apple", 10)
+        val body = orderBody(line("apple", APPLE, 1))
+        // The inventory hangs: the reservations wait on its topic.
+        inventory.pause()
+        val id = try {
+            // A wait that cannot complete answers at its deadline, at the last hop it reached.
+            val began = System.nanoTime()
+            val timedOut = shop.post(CREATE_ORDER, body, mapOf(WAIT to CREATE_CHAIN, WAIT_TIMEOUT to "2s"))
+            val waited = Duration.ofNanos(System.nanoTime() - began)
+            waited.assert().isGreaterThanOrEqualTo(Duration.ofMillis(1_900)).isLessThan(Duration.ofSeconds(10))
+            timedOut.json["code"].asString().assert().describedAs(timedOut.json.toString()).isEqualTo("wow.wait.timeout")
+            timedOut.json["result"]["hop"]["subscription"].asString().assert().isEqualTo("OrderSaga.onOrderCreated")
+
+            // A wait whose node is killed once the saga's hop is reached: its caller learns at once, not at the
+            // deadline, and the inventory's signal finds no one.
+            val events = CopyOnWriteArrayList<JsonNode>()
+            val sagaReached = CountDownLatch(1)
+            val caller = thread {
+                runCatching {
+                    shop.stream(CREATE_ORDER, body, mapOf(WAIT to CREATE_CHAIN, WAIT_TIMEOUT to "60s")) { event ->
+                        events.add(event)
+                        if (event["hop"]["subscription"]?.asString() == "OrderSaga.onOrderCreated") sagaReached.countDown()
+                    }
+                }
+            }
+            sagaReached.await(30, TimeUnit.SECONDS).assert().describedAs("the saga's hop reached").isTrue()
+            shop.kill()
+            caller.join(Duration.ofSeconds(10).toMillis())
+            caller.isAlive.assert().describedAs("the caller still waits for its killed node").isFalse()
+            events.map { it["hop"]["stage"].asString() }.assert().containsExactly("COMMITTED", "HANDLED")
+            events.first()["ref"]["id"].asString()
+        } finally {
+            inventory.resume()
+        }
+        // The inventory goes on: it reserves the order and drops its signal to the killed node, without retrying.
+        eventually("apple reserved for $id") { stock("apple").reserved(id) == 1 }
+        eventually("the signal to the killed shop dropped") { inventory.log.readText().contains("Dropped the signal of wait") }
+
+        // The shop again: a fresh order's wait goes through as before.
+        shop.relaunch()
+        val next = placeOrder(line("apple", APPLE, 1))
+        eventually("apple reserved for $next") { stock("apple").reserved(next) == 1 }
+    }
+
     private fun receive(product: String, quantity: Int) {
         val received = inventory.post("/inventory/stock/$product/receive-stock", """{"quantity":$quantity}""")
         received.status.assert().describedAs(received.json.toString()).isEqualTo(OK)
     }
 
-    /** Places an order of [lines], waiting until the saga's reservations are on the inventory's topic. */
+    private fun orderBody(vararg lines: String) = """{"items":[${lines.joinToString(",")}],"address":$ADDRESS}"""
+
+    /** Places an order of [lines], waiting until the inventory committed its reservations; returns the order's id. */
     private fun placeOrder(vararg lines: String): String {
-        val placed = shop.post(
-            "/example/order/create-order",
-            """{"items":[${lines.joinToString(",")}],"address":$ADDRESS}""",
-            mapOf("Wow-Wait" to "committed > handled(example/OrderSaga.onOrderCreated)"),
-        )
-        placed.status.assert().describedAs(placed.json.toString()).isEqualTo(OK)
-        placed.json["status"].asString().assert().isEqualTo("SUCCEEDED")
-        placed.json["hop"]["subscription"].asString().assert().isEqualTo("OrderSaga.onOrderCreated")
-        return placed.json["ref"]["id"].asString()
+        val events = placeStreaming(*lines)
+        val reserved = events.last()
+        reserved["status"].asString().assert().describedAs(reserved.toString()).isEqualTo("SUCCEEDED")
+        reserved["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
+        reserved["hop"]["context"].asString().assert().isEqualTo("inventory")
+        reserved["function"]["context"].asString().assert().isEqualTo("inventory")
+        return events.first()["ref"]["id"].asString()
+    }
+
+    /** Places an order of [lines] that the inventory refuses; returns the order's id. */
+    private fun refuseOrder(vararg lines: String): String {
+        val events = placeStreaming(*lines)
+        events.last()["status"].asString().assert().describedAs(events.last().toString()).isEqualTo("REJECTED")
+        return events.first()["ref"]["id"].asString()
+    }
+
+    /**
+     * Places an order of [lines] with the cross-context wait, as an event stream: each hop's result in order, the
+     * order's commit first (its ref is the order's), the reservations' commits or the refusal last.
+     */
+    private fun placeStreaming(vararg lines: String): List<JsonNode> {
+        val events = ArrayList<JsonNode>()
+        shop.stream(CREATE_ORDER, orderBody(*lines), mapOf(WAIT to CREATE_CHAIN, WAIT_TIMEOUT to "30s")) { events.add(it) }
+        events.first()["hop"]["context"].asString().assert().describedAs(events.toString()).isEqualTo("example")
+        return events
     }
 
     private fun pay(id: String, amount: BigDecimal) {
@@ -278,6 +367,11 @@ class ShopInventoryE2eTest {
 
     private companion object {
         const val OK = 200
+        const val CREATE_ORDER = "/example/order/create-order"
+        const val WAIT = "Wow-Wait"
+        const val WAIT_TIMEOUT = "Wow-Wait-Timeout"
+        const val CREATE_CHAIN = "committed > handled(example/OrderSaga.onOrderCreated) > committed(inventory)"
+        const val SHIP_CHAIN = "handled(inventory/OrderStockSaga.onOrderShipped) > committed(inventory)"
         const val PARTITIONS = 4
         const val SHOP_DATABASE = "shop"
         const val INVENTORY_DATABASE = "inventory"

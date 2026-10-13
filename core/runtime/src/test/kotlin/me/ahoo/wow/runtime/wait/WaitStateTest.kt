@@ -81,6 +81,28 @@ class WaitStateTest {
     }
 
     @Test
+    fun `signals should be deduplicated by hop, command and source context`() {
+        val reserved = Hop.committed("inventory")
+        val reserve = FunctionInfo(FunctionKind.COMMAND, "inventory", "stock", "Reserve")
+        val state = WaitState(listOf(committed, saga, reserved), "root")
+        state.offer(result("root", committed))
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))!!.assert().hasSize(1)
+        val first = result("d-1", reserved, reserve)
+        state.offer(first)!!.assert().containsExactly(first)
+        // The same signal again, another delivery of it: dropped.
+        state.offer(first.copy(signalTime = 2L)).assert().isNull()
+        SignalKey.of(first.copy(signalTime = 2L)).assert().isEqualTo(SignalKey.of(first))
+        // The same hop of the same command from another source is not taken for a copy of it.
+        val elsewhere = result("d-1", reserved, reserve.copy(context = "shop"))
+        SignalKey.of(elsewhere).assert().isNotEqualTo(SignalKey.of(first))
+        state.offer(elsewhere)!!.assert().isEmpty()
+        state.outcome.assert().isNull()
+        val second = result("d-2", reserved, reserve)
+        state.offer(second)!!.assert().containsExactly(second)
+        state.outcome.assert().isEqualTo(second)
+    }
+
+    @Test
     fun `a saga hop waits for every derived command, whatever order their signals come in`() {
         val state = WaitState(listOf(committed, saga, committed), "root")
         // The derived commands commit before the saga's own signal arrives: they are buffered.

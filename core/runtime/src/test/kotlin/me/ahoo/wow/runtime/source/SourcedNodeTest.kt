@@ -224,6 +224,19 @@ class SourcedNodeTest {
         assertThrows<IllegalArgumentException> {
             SourcedSubscription(Subscription("A.b", SubscriptionFilter("bank")) {}, setOf(ORDER))
         }
+        // A sourced subscription belongs to the context that reads: its hops and signals are of that context.
+        val foreign = object : SubscriptionFactory {
+            override fun subscriptions(context: me.ahoo.wow.runtime.node.ContextNode) = emptyList<Subscription>()
+
+            override fun sourced(context: me.ahoo.wow.runtime.node.ContextNode) =
+                listOf(
+                    SourcedSubscription(Subscription("Foreign.onOrder", SubscriptionFilter("sales")) {}, setOf(ORDER))
+                )
+        }
+        assertThrows<IllegalArgumentException> { node(bindings = foreign) }.message.assert()
+            .contains("belongs to sales")
+        Subscription("Own.onOrder", SubscriptionFilter("sales"), context = BANK) {}.function.context
+            .assert().isEqualTo(BANK)
         // Decision D140: a handler of a state that is not nullable cannot read a stream published without it.
         assertThrows<ContractException> { node(manifest = manifest(nullable = false)) }
     }

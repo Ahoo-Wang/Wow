@@ -35,6 +35,18 @@ interface SubscriptionDirectory {
     fun covers(subscription: String, type: AggregateType): Boolean = kindOf(type.context, subscription) != null
 
     /**
+     * Whether [context] is a bounded context this directory knows, so a hop may name it. True by default: a directory
+     * that knows only subscriptions cannot tell.
+     */
+    fun hasContext(context: String): Boolean = true
+
+    /**
+     * The contexts of the commands the saga [subscription] of [context] declares it derives (decision D138), or null
+     * when it declares none, or they cannot all be resolved: then a chain may follow its hop into any context.
+     */
+    fun derivedContextsOf(context: String, subscription: String): Set<String>? = null
+
+    /**
      * Whether [subscription] has handled [stream] for good: its checkpoint is past the stream's position and its
      * aggregate is not parked (decision D63). False when that cannot be told.
      */

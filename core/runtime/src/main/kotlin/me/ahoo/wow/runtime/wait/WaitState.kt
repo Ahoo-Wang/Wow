@@ -32,7 +32,9 @@ import me.ahoo.wow.api.result.Stage
  *
  * A result that cannot be applied yet, because its command belongs to a generation not known yet or its hop comes
  * later in the current generation, is buffered and applied again, in arrival order, whenever the chain moves. Results
- * are deduplicated by (hop, command, function).
+ * are deduplicated by their [SignalKey] (design 08 §8): the hop, the command, and the source, the context and function
+ * that produced the result. A copy from the same source is dropped, whichever node or delivery sent it, while the same
+ * hop reported by another context's function is not taken for it.
  *
  * The results a command's decide function put ([me.ahoo.wow.api.decide.DecideScope.putResult], decision D49) are
  * answered with its commit only, at COMMITTED, and are not persisted, so a subscription that handles the commit
@@ -46,7 +48,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     private val past = HashSet<String>()
     private val reached = LinkedHashMap<String, CommandResult>()
     private val buffered = ArrayList<CommandResult>()
-    private val seen = HashSet<Triple<Hop, String, FunctionInfo>>()
+    private val seen = HashSet<SignalKey>()
     private val committedResults = HashMap<String, Map<String, Any>>()
     private var hopCompleted = false
 
@@ -67,7 +69,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         if (result.hop.stage == Stage.COMMITTED && result.results.isNotEmpty()) {
             committedResults.putIfAbsent(result.commandId, result.results)
         }
-        if (outcome != null || !seen.add(Triple(result.hop, result.commandId, result.function))) {
+        if (outcome != null || !seen.add(SignalKey.of(result))) {
             return null
         }
         val completed = ArrayList<CommandResult>()
@@ -180,5 +182,16 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         if (index == hops.size || (saga && derived.isEmpty())) {
             outcome = result
         }
+    }
+}
+
+/**
+ * What identifies a signal of a wait (design 08 §8, the wait itself aside): the [hop] reached, by which [commandId], and
+ * its [source], the function that produced the result, of the context that signalled ([FunctionInfo.context]): a
+ * subscription, or the decide function of a command that another context executed.
+ */
+internal data class SignalKey(val hop: Hop, val commandId: String, val source: FunctionInfo) {
+    companion object {
+        fun of(result: CommandResult): SignalKey = SignalKey(result.hop, result.commandId, result.function)
     }
 }
