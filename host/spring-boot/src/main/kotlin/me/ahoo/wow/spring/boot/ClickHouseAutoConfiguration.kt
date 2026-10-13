@@ -13,16 +13,90 @@
 
 package me.ahoo.wow.spring.boot
 
+import com.clickhouse.client.api.Client
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
+import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
+import me.ahoo.wow.clickhouse.sink.ClickHouseSinks
+import me.ahoo.wow.clickhouse.sink.DdlMode
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.sink.PublishedSinks
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import kotlin.time.toKotlinDuration
 
 /**
- * The ClickHouse Sink and dataset backend (wow-clickhouse, decision D142), active when the application has
- * wow-clickhouse on its classpath. Empty until they are wired (work packages 6.4a and 6.4b).
+ * The ClickHouse Sink (wow-clickhouse, decisions D142, D164), active when the application has wow-clickhouse on its
+ * classpath and sets `wow.clickhouse.endpoint` ([ClickHouseProperties]); the dataset backend comes with 6.4a.
+ *
+ * - **Client**: a client-v2 [Client] of the endpoint and credentials, unless the application has one of its own;
+ *   closed with the context.
+ * - **Sink** (unless `wow.clickhouse.sink.enabled=false`): one [ClickHouseSinks] sink per stream the Manifest
+ *   publishes (`ContextManifest.published`), as subscriptions named `clickhouse-sink.<aggregate>`: a
+ *   [SubscriptionFactory] bean ([PublishedSinks]), which the node takes with every other one. Each sink creates or
+ *   validates its tables before its first write, as `wow.clickhouse.sink.ddl` says.
  */
 @AutoConfiguration
 @ConditionalOnClass(name = [CLICKHOUSE_MODULE])
-class ClickHouseAutoConfiguration
+@EnableConfigurationProperties(ClickHouseProperties::class)
+class ClickHouseAutoConfiguration {
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(prefix = ClickHouseProperties.PREFIX, name = ["endpoint"])
+    class ClickHouseEndpoint {
+        @Bean(destroyMethod = "close")
+        @ConditionalOnMissingBean(Client::class)
+        fun wowClickHouseClient(properties: ClickHouseProperties): Client = Client.Builder()
+            .addEndpoint(checkNotNull(properties.endpoint) { "wow.clickhouse.endpoint is not set." })
+            .setUsername(properties.username)
+            .setPassword(properties.password)
+            .build()
+
+        @Bean(CLICKHOUSE_SINKS)
+        @ConditionalOnProperty(
+            prefix = "${ClickHouseProperties.PREFIX}.sink",
+            name = ["enabled"],
+            matchIfMissing = true
+        )
+        fun wowClickHouseSinks(manifest: Manifest, client: Client, properties: ClickHouseProperties): PublishedSinks {
+            val sinks = ClickHouseSinks(client, manifest, options(properties))
+            return PublishedSinks(PublishedSinks.publishedOf(manifest), ClickHouseSinks.PROCESSOR) { context, stream ->
+                sinks.sinkOf(context, stream.aggregate)
+            }
+        }
+    }
+
+    companion object {
+        /** The name of the ClickHouse Sink's [SubscriptionFactory] bean. */
+        const val CLICKHOUSE_SINKS: String = "wowClickHouseSinks"
+
+        /** The Sink's options from [properties]. */
+        fun options(properties: ClickHouseProperties): ClickHouseSinkOptions {
+            val sink = properties.sink
+            val ddl = DdlMode.entries.firstOrNull { it.name.equals(sink.ddl, ignoreCase = true) }
+            requireNotNull(ddl) { "wow.clickhouse.sink.ddl is auto, validate or none, not ${sink.ddl}." }
+            return ClickHouseSinkOptions(
+                database = properties.database,
+                ddl = ddl,
+                batchSize = sink.batchSize,
+                deduplicationWindow = sink.deduplicationWindow,
+                aggregates = sink.aggregates.flatMap { (context, aggregates) ->
+                    aggregates.map { (name, aggregate) ->
+                        AggregateType(context, name) to AggregateSinkOptions(
+                            history = aggregate.history.enabled,
+                            historyTtl = aggregate.history.ttl?.toKotlinDuration(),
+                        )
+                    }
+                }.toMap(),
+            )
+        }
+    }
+}
 
 /** A class of wow-clickhouse, present only when the application has the module. */
 internal const val CLICKHOUSE_MODULE = "me.ahoo.wow.clickhouse.ClickHouseModule"
