@@ -219,7 +219,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ### M6p 能力补齐
 
-来自 [09 能力对照](09-capability-parity.md) §13 的补齐项（D184）；放弃的项见 D185～D188。P.1～P.5 是 M7 的入口门槛（D183），P.6～P.9 在 M8 之前。
+来自 [09 能力对照](09-capability-parity.md) §13 的补齐项（D184）；放弃的项见 D185～D188。P.1～P.5 与 P.10 是 M7 的入口门槛（D183），P.6～P.9 在 M8 之前。
 
 | WP | 内容 | 规模 | 时机 | 出口 |
 |---|---|---|---|---|
@@ -232,6 +232,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.7 | 从状态提取 ABAC 标签（9.x `StateAggregateTagsExtractor`） | S～M | M8 前 | 标签随状态变化的查询策略测试 |
 | P.8 | `wow-models` 迁到 V10（`EnumText`、`StatusCapable`、`Tree` 聚合） | M | M8 前 | 各自的 V10 测试 |
 | P.9 | `TestValidator`、Testcontainers 夹具、发布 `wow-tck` | S | M8 前 | 外部项目可依赖 TCK 跑后端契约 |
+| P.10 | 聚合归属与作用域继承（D189）：`Ownership` 声明、Manifest、查询准入；派生、补偿、定时命令继承根命令作用域；指南写两级调用方与 CoSec 解析；等待链放宽（D190）；编译器支持 `@Retry`（P.3 的后续） | M | M7 前 | catalog 接上带所有者的解析器后买家能读商品、员工能改；结账产生的订单属于买家（去掉 `buyerId` 绕行）；eShop 结账等待不再需要多余 peer 与跳数配置 |
 
 ### M7 平台迁移
 
