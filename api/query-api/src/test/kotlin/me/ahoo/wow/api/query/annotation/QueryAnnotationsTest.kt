@@ -37,14 +37,32 @@ class QueryAnnotationsTest {
 
     @Test
     fun `query index is retained on fields`() {
-        field("status").getAnnotation(QueryIndex::class.java).let {
-            it.name.assert().isEmpty()
-            it.with.toList().assert().containsExactly("state.createdAt", "state.amount")
-        }
         field("buyer").getAnnotation(QueryIndex::class.java).let {
             it.name.assert().isEqualTo("idx_order_buyer")
+            it.on.assert().isEmpty()
             it.with.toList().assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `one field leads several repeated query indexes`() {
+        val indexes = field("status").getAnnotationsByType(QueryIndex::class.java)
+
+        indexes.map { it.with.toList() }.assert().containsExactly(
+            listOf("state.createdAt", "state.amount"),
+            listOf("ownerId"),
+        )
+        indexes.map { it.on }.assert().containsOnly("")
+    }
+
+    @Test
+    fun `query indexes on the state class name their leading key`() {
+        val indexes = Fixture::class.java.getAnnotationsByType(QueryIndex::class.java)
+
+        indexes.map { it.on to it.with.toList() }.assert().containsExactly(
+            "ownerId" to listOf("lastEventTime"),
+            "state.status" to emptyList(),
+        )
     }
 
     @Test
@@ -60,6 +78,8 @@ class QueryAnnotationsTest {
     @Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))
     private value class PhoneNumber(val value: String)
 
+    @QueryIndex(on = "ownerId", with = ["lastEventTime"])
+    @QueryIndex(on = "state.status")
     private data class Fixture(
         @field:QueryAlias("state.customer")
         @field:QueryIndex(name = "idx_order_buyer")
@@ -73,6 +93,7 @@ class QueryAnnotationsTest {
         @field:QueryReference("member")
         val memberId: String,
         @field:QueryIndex(with = ["state.createdAt", "state.amount"])
+        @field:QueryIndex(with = ["ownerId"])
         val status: String,
     )
 }
