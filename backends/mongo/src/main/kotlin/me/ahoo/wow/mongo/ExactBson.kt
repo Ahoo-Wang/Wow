@@ -96,7 +96,8 @@ internal object ExactBson {
         return decimal
     }
 
-    private fun node(value: Any?): JsonNode = when (value) {
+    /** A stored BSON [value] as JSON: a document as an object, a list as an array, a decimal as written. */
+    fun node(value: Any?): JsonNode = when (value) {
         null -> NullNode.instance
         is Document -> mapper.createObjectNode().apply {
             for ((name, field) in value) {
@@ -117,7 +118,14 @@ internal object ExactBson {
         is Int -> IntNode.valueOf(value)
         is Long -> LongNode.valueOf(value)
         is Double -> DoubleNode.valueOf(value)
-        is Decimal128 -> DecimalNode.valueOf(value.bigDecimalValue())
+        // A NaN or an infinity has no JSON number; an aggregation computes them only from values that are not JSON.
+        is Decimal128 -> if (value.isNaN || value.isInfinite) {
+            NullNode.instance
+        } else {
+            DecimalNode.valueOf(
+                value.bigDecimalValue()
+            )
+        }
         else -> throw IllegalStateException("A stored ${value.javaClass.name} is not JSON.")
     }
 }
