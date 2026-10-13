@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
@@ -31,6 +32,7 @@ import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.ScheduleChange
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -84,6 +86,12 @@ import kotlin.time.Duration.Companion.seconds
  * aggregate the creating command's scope. A transfer of the owner or the space is guarded like any other command: its
  * scope is the caller's, so the current owner (or a member of the current space) transfers, and the new owner or space
  * is in its body.
+ *
+ * A decide function's schedules ([DecideScope.schedule], [DecideScope.cancelSchedule], decision D166) go into the
+ * stream it commits ([EventStreamRecord.schedules]), the last change of each key: they commit with its events, or not
+ * at all, and a decision that only schedules commits a stream with no event (on an aggregate that exists). The
+ * command a schedule sends is stored by its type name and JSON: [commandTypes] names a command of an aggregate type
+ * other than the deciding one; `after` counts from the stream's commit time.
  */
 class Kernel(
     private val log: EventLog,
@@ -95,6 +103,7 @@ class Kernel(
     private val reservationTtl: Duration = DEFAULT_RESERVATION_TTL,
     private val states: StateCache = StateCache.None,
     private val snapshots: SnapshotStore? = null,
+    private val commandTypes: CommandTypes = CommandTypes.NONE,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -121,13 +130,14 @@ class Kernel(
         log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
             ?.let { return duplicate(it, command, commandType) }
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
+        val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         repeat(maxAttempts) {
             val loaded = load(model, command)
             admissible(decider, command, loaded)?.let {
                 states.put(command.ref, loaded)
                 return it
             }
-            val attempt = AttemptScope(command, loaded, reservations, reservationTtl, waitBeyondCommitted)
+            val attempt = AttemptScope(command, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
             } catch (
@@ -198,8 +208,13 @@ class Kernel(
                 "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
             }
         }
-        if (events.isEmpty()) {
+        val commitTime = clock()
+        val schedules = scope.schedules(commitTime)
+        if (events.isEmpty() && schedules.isEmpty()) {
             return Prepared.Done(CommandOutcome.Unchanged(version))
+        }
+        check(events.isNotEmpty() || version > 0) {
+            "${command.ref} does not exist: a decision that only schedules needs an aggregate that exists."
         }
         val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
         val metadata = metadataAfter(loaded, command, events)
@@ -209,13 +224,30 @@ class Kernel(
             commandId = command.id,
             requestId = command.requestId,
             commandType = commandType,
-            commitTime = clock(),
+            commitTime = commitTime,
             events = events.map { codec.encode(model, it) },
             scope = metadata.scope,
             causation = command.causation,
             headers = command.headers,
+            schedules = schedules,
         )
         return Prepared.Append(stream, loaded.with(evolved, stream.version, metadata))
+    }
+
+    /**
+     * The type name and JSON of [body], a command [model]'s aggregate schedules for [target] (decision D166): the
+     * model names its own commands, [commandTypes] those of other aggregate types.
+     */
+    private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, String> {
+        val type = if (target.type == model.type) {
+            model.commandType(body.javaClass).name
+        } else {
+            requireNotNull(commandTypes.nameOf(target.type, body.javaClass)) {
+                "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
+                    "its peers names (decision D139)."
+            }
+        }
+        return type to codec.commandText(body)
     }
 
     /**
@@ -578,17 +610,76 @@ class Kernel(
     }
 
     /** One attempt's registrations. Allocates its lists only when a decide function registers something. */
+    @Suppress("LongParameterList")
     private class AttemptScope(
         override val command: Command<*>,
         override val loaded: CachedState,
         private val reservations: ReservationStore?,
         private val reservationTtl: Duration,
         private val wait: WaitContext?,
+        /** The type name and JSON of a command scheduled for a target. */
+        private val encode: (AggregateRef, Any) -> Pair<String, String>,
     ) : DecideScope, KernelLifecycle.MetadataScope {
         private var compensations: MutableList<suspend () -> Unit>? = null
         private var afterAppendActions: MutableList<suspend () -> Unit>? = null
         private var results: MutableMap<String, Any>? = null
         private var reserved: MutableList<ReservationKey>? = null
+        private var scheduled: LinkedHashMap<String, Scheduled>? = null
+
+        override fun schedule(key: String, at: Instant, command: Any, target: AggregateRef) =
+            putSchedule(key, at.epochMillis(), null, command, target)
+
+        override fun schedule(key: String, after: Duration, command: Any, target: AggregateRef) {
+            require(!after.isNegative()) { "A schedule is not due before its commit." }
+            putSchedule(key, null, after, command, target)
+        }
+
+        private fun putSchedule(key: String, at: Long?, after: Duration?, command: Any, target: AggregateRef) {
+            require(key.isNotBlank()) { "A schedule needs a key." }
+            val (type, body) = encode(target, command)
+            changes().apply {
+                remove(key)
+                put(key, Scheduled.Put(at, after, target, type, body))
+            }
+        }
+
+        override fun cancelSchedule(key: String) {
+            require(key.isNotBlank()) { "A schedule needs a key." }
+            changes().apply {
+                remove(key)
+                put(key, Scheduled.Cancel)
+            }
+        }
+
+        private fun changes() = scheduled ?: LinkedHashMap<String, Scheduled>().also { scheduled = it }
+
+        /** The schedule changes, in the order their keys were last changed; `after` counts from [commitTime]. */
+        fun schedules(commitTime: Long): List<ScheduleChange> = scheduled?.map { (key, change) ->
+            when (change) {
+                is Scheduled.Put -> ScheduleChange.Put(
+                    key,
+                    change.at ?: commitTime.plusMillis(checkNotNull(change.after)),
+                    change.target,
+                    change.type,
+                    change.body,
+                )
+
+                Scheduled.Cancel -> ScheduleChange.Cancel(key)
+            }
+        }.orEmpty()
+
+        private sealed interface Scheduled {
+            class Put(
+                val at: Long?,
+                val after: Duration?,
+                val target: AggregateRef,
+                val type: String,
+                val body: String
+            ) :
+                Scheduled
+
+            data object Cancel : Scheduled
+        }
 
         override fun putResult(key: String, value: Any) {
             (results ?: LinkedHashMap<String, Any>().also { results = it })[key] = value
@@ -655,6 +746,12 @@ class Kernel(
     private companion object {
         const val DEFAULT_MAX_ATTEMPTS = 3
 
+        /** [this] plus [duration] in epoch milliseconds, the last one when it would overflow. */
+        fun Long.plusMillis(duration: Duration): Long {
+            val millis = duration.inWholeMilliseconds
+            return if (this > Long.MAX_VALUE - millis) Long.MAX_VALUE else this + millis
+        }
+
         /** [this] in epoch milliseconds, the unit of commit times; an instant beyond them is the first or the last. */
         fun Instant.epochMillis(): Long = try {
             toEpochMilli()
@@ -663,5 +760,20 @@ class Kernel(
         }
         val DEFAULT_RESERVATION_TTL = 30.seconds
         val logger = KotlinLogging.logger {}
+    }
+}
+
+/**
+ * Names the commands a decide function schedules for an aggregate of another type than its own (decision D166): the
+ * full type name (`context.aggregate.Command`) of the [command] class sent to an aggregate of [target], or null when
+ * none is known. The runtime names them from the context's models and the Manifests of the service and its peers.
+ */
+fun interface CommandTypes {
+    fun nameOf(target: AggregateType, command: Class<*>): String?
+
+    companion object {
+        /** Names none: a decide function schedules commands of its own aggregate type only. */
+        @JvmField
+        val NONE: CommandTypes = CommandTypes { _, _ -> null }
     }
 }

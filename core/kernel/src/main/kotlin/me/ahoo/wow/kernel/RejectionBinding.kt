@@ -19,8 +19,10 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 
 /**
  * One `@OnRejected` handler of a saga, bound to its processor instance (decisions D136, D149, D153): what the compiler
@@ -125,6 +127,18 @@ class RejectionSagaContext(override val executionId: ExecutionId, private val re
             causation = Causation(rejected.causation.correlationId, rejected.commandId),
         )
     }
+
+    /** An `@OnRejected` handler compensates now; it does not schedule (decision D166). */
+    override fun schedule(key: String, at: Instant, target: AggregateRef, command: Any) = unsupported()
+
+    /** An `@OnRejected` handler compensates now; it does not schedule (decision D166). */
+    override fun schedule(key: String, after: Duration, target: AggregateRef, command: Any) = unsupported()
+
+    /** An `@OnRejected` handler compensates now; it does not schedule (decision D166). */
+    override fun cancel(key: String, target: AggregateRef) = unsupported()
+
+    private fun unsupported(): Nothing =
+        throw UnsupportedOperationException("An @OnRejected handler derives commands; it does not schedule them.")
 
     companion object {
         /**

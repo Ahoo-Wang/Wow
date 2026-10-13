@@ -23,8 +23,11 @@ import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.spi.timer.Timers
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 
 /** The context of a projection's handler for one execution (design 01 §1). */
 data class ExecutionProjectContext(override val executionId: ExecutionId) : ProjectContext
@@ -37,9 +40,18 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
  * execution, a retry included, gets a new one, so the n-th [command] of every execution of the same commit by the
  * same subscription is the same request: handling the commit again derives the same commands, which the kernel does
  * not decide twice (it deduplicates by request id). A domain module's tests build one to call a saga directly.
+ *
+ * Its schedules (decision D166) are recorded in [schedules], the last change of each target and key, each with the id
+ * [Timers.sagaTimerId] gives the call, so handling the commit again records the same: the runtime writes them to the
+ * timer store before the saga's checkpoint passes the commit. `after` counts from the commit's time.
  */
 class ExecutionSagaContext(override val executionId: ExecutionId, private val event: StateEvent<*>) : SagaContext {
     private val calls = AtomicInteger()
+    private val scheduleCalls = AtomicInteger()
+    private val scheduled = LinkedHashMap<Pair<AggregateRef, String>, SagaSchedule>()
+
+    /** The schedules this execution changed, the last change of each target and key, in the order of those changes. */
+    val schedules: List<SagaSchedule> get() = synchronized(scheduled) { scheduled.values.toList() }
 
     init {
         require(event.ref == executionId.ref && event.version == executionId.version) {
@@ -63,6 +75,27 @@ class ExecutionSagaContext(override val executionId: ExecutionId, private val ev
         )
     }
 
+    override fun schedule(key: String, at: Instant, target: AggregateRef, command: Any) =
+        record(SagaSchedule.Put(nextId(), key, target, at.toEpochMilli(), command))
+
+    override fun schedule(key: String, after: Duration, target: AggregateRef, command: Any) {
+        require(!after.isNegative()) { "A schedule is not due before the commit." }
+        record(SagaSchedule.Put(nextId(), key, target, event.commitTime + after.inWholeMilliseconds, command))
+    }
+
+    override fun cancel(key: String, target: AggregateRef) = record(SagaSchedule.Cancel(nextId(), key, target))
+
+    private fun nextId(): String = Timers.sagaTimerId(executionId, scheduleCalls.getAndIncrement())
+
+    private fun record(schedule: SagaSchedule) {
+        require(schedule.key.isNotBlank()) { "A schedule needs a key." }
+        synchronized(scheduled) {
+            val key = schedule.target to schedule.key
+            scheduled.remove(key)
+            scheduled[key] = schedule
+        }
+    }
+
     companion object {
         /**
          * The id, and request id, of the [index]-th command (from 0) derived by [execution]: a name-based UUID of
@@ -74,6 +107,29 @@ class ExecutionSagaContext(override val executionId: ExecutionId, private val ev
             return UUID.nameUUIDFromBytes("$execution#$index".toByteArray(Charsets.UTF_8)).toString()
         }
     }
+}
+
+/**
+ * A schedule a saga changed in one execution (decision D166): its timer [id] (`executionId#n`), its [key] among the
+ * saga's schedules of [target].
+ */
+sealed interface SagaSchedule {
+    val id: String
+    val key: String
+    val target: AggregateRef
+
+    /** Sends [command] to [target] at [dueAt] (epoch milliseconds). */
+    data class Put(
+        override val id: String,
+        override val key: String,
+        override val target: AggregateRef,
+        val dueAt: Long,
+        val command: Any,
+    ) : SagaSchedule
+
+    /** Cancels the saga's schedule of [target] under [key]. */
+    data class Cancel(override val id: String, override val key: String, override val target: AggregateRef) :
+        SagaSchedule
 }
 
 /**

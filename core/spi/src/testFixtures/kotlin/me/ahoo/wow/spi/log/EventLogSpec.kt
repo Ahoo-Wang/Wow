@@ -136,6 +136,37 @@ abstract class EventLogSpec {
     }
 
     @Test
+    fun `schedules read back as appended, with the events and alone`(): Unit = runBlocking {
+        val log = createLog(partitions = 1)
+        val target = AggregateType("other_context", "order").ref("tenant", "o-1")
+        val put = ScheduleChange.Put(
+            key = "pay-timeout",
+            dueAt = 1_700_000_600_000L,
+            target = target,
+            commandType = "other_context.order.CancelOrder",
+            body = """{"reason":"unpaid ü","amount":2.50,"lines":[1,2]}""",
+        )
+        val withEvents = stream("a", 1).copy(schedules = listOf(put, ScheduleChange.Cancel("remind")))
+        val alone = stream("a", 2).copy(events = emptyList(), schedules = listOf(ScheduleChange.Cancel("pay-timeout")))
+        log.append(withEvents)
+        log.append(alone)
+        val read = log.read(withEvents.ref).toList()
+        read.map { it.schedules.withExactBodies() }.assert()
+            .containsExactly(withEvents.schedules.withExactBodies(), alone.schedules)
+        read.last().events.assert().isEmpty()
+        read.first().copy(schedules = withEvents.schedules).assertSameAs(withEvents)
+        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        tailed.map { it.stream.schedules.withExactBodies() }.assert()
+            .containsExactly(withEvents.schedules.withExactBodies(), alone.schedules)
+        checkNotNull(log.findByRequestId(type, "tenant", alone.requestId)).schedules.assert().isEqualTo(alone.schedules)
+    }
+
+    /** The schedules with each body as exact JSON: a backend may store it as JSON and reformat it. */
+    private fun List<ScheduleChange>.withExactBodies(): List<Any> = map {
+        if (it is ScheduleChange.Put) it.copy(body = "") to ExactJson.of(it.body) else it
+    }
+
+    @Test
     fun `a request id reused by another command type finds the stream committed for it`(): Unit = runBlocking {
         val log = createLog()
         log.append(stream("a", 1, requestId = "request", commandType = "$context.aggregate.Open"))

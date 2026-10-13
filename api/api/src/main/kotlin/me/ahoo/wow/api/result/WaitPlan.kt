@@ -76,6 +76,9 @@ data class Hop @JvmOverloads constructor(
         /** The name of the built-in subscription that confirms reservations (decision D50). */
         const val RESERVATION_SUBSCRIPTION: String = "reservation"
 
+        /** The name of the built-in subscription that writes the timers of scheduled commands (decision D166). */
+        const val TIMERS_SUBSCRIPTION: String = "timers"
+
         /** [Stage.ACCEPTED] in [context]. */
         @JvmStatic
         @JvmOverloads
