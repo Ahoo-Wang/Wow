@@ -27,12 +27,14 @@ import tools.jackson.databind.json.JsonMapper
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
+import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
  * The [SnapshotStore] of one bounded context on PostgreSQL (documentation/designs/v10/03-log-and-snapshot.md §3).
  *
- * One table holds one row per aggregate. The state and the tags are `jsonb`, so the snapshot can be queried in place
+ * Each aggregate type has a table of its own (decision D161, [PostgresSnapshotTables]), created on its first save or
+ * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and the tags are `jsonb`, so the snapshot can be queried in place
  * as the default read model. A save is one autocommitted statement that carries its own version guard (see
  * [PostgresSnapshotTables.save]).
  *
@@ -44,32 +46,46 @@ class PostgresSnapshotStore(
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : SnapshotStore {
-    private val tables = PostgresSnapshotTables(context)
+    private val created = ConcurrentHashMap<String, PostgresSnapshotTables>()
 
-    /** Creates the table when missing; refuses snapshots recorded in another format version ([PostgresFormat]). */
-    fun createSchema() {
-        dataSource.connection.use { connection ->
-            PostgresFormat.claim(connection, tables.base, PostgresSnapshotTables.FORMAT)
-            connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+    /**
+     * Nothing to create up front: each aggregate type's table is created on its first use ([createTable]), since the
+     * store does not know the context's aggregate types. Kept for the host, which calls it at startup.
+     */
+    fun createSchema() = Unit
+
+    /**
+     * Creates the table of [aggregateName] when missing, once per store; refuses snapshots recorded in another format
+     * version ([PostgresFormat]).
+     */
+    fun createTable(aggregateName: String) {
+        tables(aggregateName)
+    }
+
+    private fun tables(aggregateName: String): PostgresSnapshotTables = created.computeIfAbsent(aggregateName) {
+        PostgresSnapshotTables(context, it).also { tables ->
+            dataSource.connection.use { connection ->
+                PostgresFormat.claim(connection, tables.base, PostgresSnapshotTables.FORMAT)
+                connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+            }
         }
     }
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = withContext(dispatcher) {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         dataSource.connection.use { connection ->
-            connection.prepareStatement(tables.save).use { save ->
+            connection.prepareStatement(tables(snapshot.ref.type.name).save).use { save ->
                 save.setString(1, snapshot.ref.tenantId)
-                save.setString(2, snapshot.ref.type.name)
-                save.setString(3, snapshot.ref.id)
-                save.setInt(4, snapshot.version)
-                save.setString(5, snapshot.schemaFingerprint)
-                save.setString(6, snapshot.state)
-                save.setNullableString(7, snapshot.scope.ownerId)
-                save.setNullableString(8, snapshot.scope.spaceId)
-                save.setBoolean(9, snapshot.deleted)
-                save.setLong(10, snapshot.firstEventTime)
-                save.setLong(11, snapshot.lastEventTime)
-                save.setString(12, json.writeValueAsString(snapshot.tags))
+                save.setString(2, snapshot.ref.id)
+                save.setInt(3, snapshot.version)
+                save.setString(4, snapshot.schemaFingerprint)
+                save.setString(5, snapshot.state)
+                save.setNullableString(6, snapshot.scope.ownerId)
+                save.setNullableString(7, snapshot.scope.spaceId)
+                save.setBoolean(8, snapshot.deleted)
+                save.setLong(9, snapshot.firstEventTime)
+                save.setLong(10, snapshot.lastEventTime)
+                save.setString(11, json.writeValueAsString(snapshot.tags))
                 save.executeQuery().use { rows -> rows.next() }
             }
         }
@@ -78,18 +94,16 @@ class PostgresSnapshotStore(
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = withContext(dispatcher) {
         require(ref.type.context == context) { "$ref is not in context $context." }
         dataSource.connection.use { connection ->
-            connection.prepareStatement(tables.load).use { query ->
+            connection.prepareStatement(tables(ref.type.name).load).use { query ->
                 query.setString(1, ref.tenantId)
-                query.setString(2, ref.type.name)
-                query.setString(3, ref.id)
-                query.executeQuery().use { rows -> if (rows.next()) snapshotOf(rows) else null }
+                query.setString(2, ref.id)
+                query.executeQuery().use { rows -> if (rows.next()) snapshotOf(ref.type, rows) else null }
             }
         }
     }
 
-    private fun snapshotOf(row: ResultSet) = SnapshotRecord(
-        ref = AggregateType(context, row.getString("aggregate_name"))
-            .ref(row.getString("tenant_id"), row.getString("aggregate_id")),
+    private fun snapshotOf(type: AggregateType, row: ResultSet) = SnapshotRecord(
+        ref = type.ref(row.getString("tenant_id"), row.getString("aggregate_id")),
         version = row.getInt("version"),
         schemaFingerprint = row.getString("schema_fingerprint"),
         state = row.getString("state"),

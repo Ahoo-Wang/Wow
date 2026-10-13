@@ -2,9 +2,13 @@ description = "Wow PostgreSQL: log, snapshots, query, checkpoints, leases, failu
 
 dependencies {
     api(project(":spi"))
+    // The snapshot query backend (decision D131).
+    api(project(":query"))
     api("org.postgresql:postgresql")
     implementation("tools.jackson.core:jackson-databind")
+    testImplementation(testFixtures(project(":query")))
     integrationTestImplementation(testFixtures(project(":spi")))
+    integrationTestImplementation(testFixtures(project(":query")))
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("com.zaxxer:HikariCP")
 }

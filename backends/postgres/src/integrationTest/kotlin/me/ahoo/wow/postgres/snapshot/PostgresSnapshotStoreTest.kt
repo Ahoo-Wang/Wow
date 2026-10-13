@@ -34,18 +34,34 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
-    fun `snapshots recorded in another format version are refused`() {
+    fun `snapshots recorded in another format version are refused`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
-        PostgresFixture.snapshotStore(context)
-        PostgresFixture.bumpFormat("wow_snapshot_" + context.replace('-', '_'))
-        assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context) }
+        PostgresFixture.snapshotStore(context).createTable("aggregate")
+        PostgresFixture.bumpFormat(table(context, "aggregate"))
+        assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context).createTable("aggregate") }
+        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        assertThrownBy<IllegalStateException> { runBlocking { PostgresFixture.snapshotStore(context).save(saved) } }
     }
 
     @Test
     fun `snapshots created by a build without format records are refused`() {
         val context = PostgresFixture.newContext()
-        PostgresFixture.createUnrecorded("wow_snapshot_" + context.replace('-', '_'))
-        assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context) }
+        PostgresFixture.createUnrecorded(table(context, "aggregate"))
+        assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context).createTable("aggregate") }
+    }
+
+    @Test
+    fun `each aggregate type has a table of its own`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val store = PostgresFixture.snapshotStore(context)
+        val order = snapshot("a", 1).copy(ref = AggregateType(context, "Order-Item").ref("tenant", "a"))
+        val cart = snapshot("a", 2).copy(ref = AggregateType(context, "cart").ref("tenant", "a"))
+        store.save(order).assert().isTrue()
+        store.save(cart).assert().isTrue()
+        store.load(order.ref)?.version.assert().isEqualTo(1)
+        store.load(cart.ref)?.version.assert().isEqualTo(2)
+        PostgresSnapshotTables(context, "Order-Item").base.assert().isEqualTo(table(context, "order_item"))
+        PostgresSnapshotTables("c".repeat(40), "a".repeat(40)).base.length.assert().isEqualTo(PostgresIdentifiers.MAX_LENGTH)
     }
 
     @Test
@@ -55,4 +71,6 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         assertThrownBy<IllegalArgumentException> { runBlocking { store.save(foreign) } }
         assertThrownBy<IllegalArgumentException> { runBlocking { store.load(foreign.ref) } }
     }
+
+    private fun table(context: String, aggregate: String) = "wow_snapshot__" + context.replace('-', '_') + "__" + aggregate
 }
