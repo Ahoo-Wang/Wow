@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -60,19 +61,24 @@ class HostBackends(
     companion object {
         /**
          * In memory, each context its own log, snapshots and timers: for one node, whose data does not outlive it.
+         * [snapshots] opens each context's snapshot store, an [InMemorySnapshotStore] unless a test wraps it (to
+         * query the snapshots on the memory backend, say).
          */
-        fun memory(partitions: Int): HostBackends {
+        fun memory(
+            partitions: Int,
+            snapshots: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
+        ): HostBackends {
             val checkpoints = InMemoryCheckpointStore()
             val leases = InMemoryLeaseStore()
             val ledger = InMemoryFailureLedger()
             val reservations = InMemoryReservationStore()
-            return HostBackends(BackendKind.MEMORY, AppendQueueOptions()) { _, _ ->
+            return HostBackends(BackendKind.MEMORY, AppendQueueOptions()) { context, _ ->
                 ContextBackends(
                     log = InMemoryEventLog(partitions),
                     checkpoints = checkpoints,
                     leases = leases,
                     ledger = ledger,
-                    snapshots = InMemorySnapshotStore(),
+                    snapshots = snapshots(context),
                     reservations = reservations,
                     timers = InMemoryTimerStore(),
                 )

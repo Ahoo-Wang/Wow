@@ -49,14 +49,15 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
         }
     }
 
-    /** The target scope of `Wow-Scope`, or null without it. */
-    fun target(request: ServerRequest): TargetScope? = request.header(WowHeaders.SCOPE)?.let {
-        try {
-            ScopeHeader.parse(it)
-        } catch (malformed: IllegalArgumentException) {
-            throw problem(FrameworkCodes.MALFORMED, malformed.message ?: "Wow-Scope does not parse.")
+    /** The target scope of `Wow-Scope`, or null without it; one that does not parse is a problem with [malformed]. */
+    fun target(request: ServerRequest, malformed: String = FrameworkCodes.MALFORMED): TargetScope? =
+        request.header(WowHeaders.SCOPE)?.let {
+            try {
+                ScopeHeader.parse(it)
+            } catch (invalid: IllegalArgumentException) {
+                throw problem(malformed, invalid.message ?: "Wow-Scope does not parse.")
+            }
         }
-    }
 
     /**
      * The expected version of `If-Match`: one entity tag, the version (`"3"`, or `3`), or null without it or for
@@ -103,8 +104,8 @@ internal object Negotiation {
         }
     }
 
-    /** Fails with 415 when the request body is given as another type than JSON. */
-    fun checkJsonBody(request: ServerRequest) {
+    /** Fails with 415 when the request body is given as another type than JSON; [what] names what the body is. */
+    fun checkJsonBody(request: ServerRequest, what: String = "A command") {
         val type = try {
             request.headers().contentType().orElse(null)
         } catch (_: InvalidMediaTypeException) {
@@ -112,7 +113,7 @@ internal object Negotiation {
         } ?: return
         if (!type.isCompatibleWith(MediaType.APPLICATION_JSON) && !type.subtype.endsWith("+json")) {
             throw ProblemException(
-                Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "A command is sent as application/json."),
+                Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "$what is sent as application/json."),
             )
         }
     }

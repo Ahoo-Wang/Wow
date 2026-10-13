@@ -2,6 +2,8 @@ description = "Wow HTTP: routes materialized from the Manifest, problem+json, SS
 
 dependencies {
     api(project(":runtime"))
+    // The query routes (decision D127) run the query engine's gateways and read its protocol with QueryJson.
+    api(project(":query"))
     api("org.springframework:spring-webflux")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // The wait signal's wire form on the internal port, read like the cluster messages (decision D105).
@@ -17,4 +19,6 @@ dependencies {
     // The default handler strategies of a router function served without Spring Boot read the locale context.
     testImplementation("org.springframework:spring-context")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    // The in-memory reference query backend, behind the snapshot query routes.
+    testImplementation(testFixtures(project(":query")))
 }

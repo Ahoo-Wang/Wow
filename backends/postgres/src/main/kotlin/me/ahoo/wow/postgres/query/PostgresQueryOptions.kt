@@ -13,30 +13,7 @@
 
 package me.ahoo.wow.postgres.query
 
-/**
- * How the backend manages the expression indexes the Manifest declares (`x-wow-index`, decision D151), the setting
- * `wow.query.index.ddl`.
- */
-enum class QueryIndexDdl(val value: String) {
-    /** Creates the missing indexes, and rebuilds one a failed build left invalid. */
-    AUTO("auto"),
-
-    /** Reports the missing and invalid indexes, and changes nothing. */
-    VALIDATE("validate"),
-
-    /** Does nothing. */
-    NONE("none"),
-    ;
-
-    companion object {
-        /** The setting's name. */
-        const val PROPERTY: String = "wow.query.index.ddl"
-
-        /** The mode named [value] (`auto`, `validate` or `none`, in any case). */
-        fun of(value: String): QueryIndexDdl = entries.firstOrNull { it.value.equals(value, ignoreCase = true) }
-            ?: throw IllegalArgumentException("$PROPERTY must be one of auto, validate or none, not [$value].")
-    }
-}
+import me.ahoo.wow.query.index.QueryIndexDdl
 
 /** The options of the PostgreSQL snapshot query backend. The host maps its configuration onto them (6.2c). */
 data class PostgresQueryOptions(

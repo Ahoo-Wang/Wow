@@ -44,7 +44,26 @@
         "revision" : 1,
         "schema" : "#/$defs/Deposited"
       } ],
-      "lifecycle" : [ ]
+      "lifecycle" : [ ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/snapshot/query"
+        }, {
+          "method" : "GET",
+          "path" : "/bank/account/snapshot/query"
+        } ]
+      }, {
+        "model" : "events",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/events/query"
+        }, {
+          "method" : "GET",
+          "path" : "/bank/account/events/query"
+        } ]
+      } ]
     } ],
     "subscriptions" : [ ],
     "errors" : [ {
@@ -54,5 +73,22 @@
     } ]
   } ],
   "errors" : [ ],
-  "$defs" : { }
+  "$defs" : {
+    "Account" : {
+      "type" : "object",
+      "properties" : {
+        "owner" : {
+          "type" : "string"
+        },
+        "balance" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "x-wow-index" : [ {
+        "name" : "ix_account_owner",
+        "keys" : [ "state.owner" ]
+      } ]
+    }
+  }
 }

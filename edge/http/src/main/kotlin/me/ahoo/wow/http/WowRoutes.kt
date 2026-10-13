@@ -27,12 +27,16 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.query.QueryHandler
+import me.ahoo.wow.http.query.QueryTarget
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.runtime.admission.CommandGateway
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -53,6 +57,8 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads]
  *   (decisions D40, D112), in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command
  *   (decision D116);
+ * - `POST /{context}/{aggregate}/{model}/query` and its `GET` (decisions D127, D131) query the models of
+ *   [AggregateManifest.queries] that [queries] serves, the snapshots and the events of each aggregate type;
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
  *
@@ -66,18 +72,21 @@ fun wowRoutes(
     reads: StateReads = StateReads.NONE,
     callerResolver: CallerResolver = CallerResolver.ANONYMOUS,
     options: WowHttpOptions = WowHttpOptions(),
+    queries: HttpQueries = HttpQueries.NONE,
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val authenticator = Authenticator(callerResolver, statuses)
     val headers = RequestHeaders(statuses)
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val commands = CommandHandler(
         gateway = gateway,
         authenticator = authenticator,
         headers = headers,
         statuses = statuses,
         options = options,
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        scope = scope,
     )
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants)
     val manifestBody = HttpJson.write(ManifestTree.write(manifest))
     return coRouter {
@@ -97,6 +106,7 @@ fun wowRoutes(
                 val state = "/${context.name}/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
                 GET(state) { request -> answering { states.handle(request, type) } }
                 GET("$state/${WowPaths.TRACE}") { request -> answering { states.trace(request, type) } }
+                queryRoutes(type, aggregate, queries, queryHandler)
             }
         }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
@@ -124,6 +134,33 @@ private fun CoRouterFunctionDsl.commandRoutes(context: String, aggregate: Aggreg
             DELETE(base) { request -> answering { handler.handle(request, target) } }
         } else {
             POST("$base/${CommandRoutes.segment(name)}") { request -> answering { handler.handle(request, target) } }
+        }
+    }
+}
+
+/**
+ * The query routes of [aggregate]'s query models ([AggregateManifest.queries], decision D127) that [queries] serves:
+ * `POST` runs a query, `GET` answers the descriptor.
+ */
+private fun CoRouterFunctionDsl.queryRoutes(
+    type: AggregateType,
+    aggregate: AggregateManifest,
+    queries: HttpQueries,
+    handler: QueryHandler,
+) {
+    aggregate.queries.forEach { query ->
+        val served = when (query.model) {
+            QueryRoutes.SNAPSHOT -> queries.snapshots(type) != null
+            QueryRoutes.EVENTS -> queries.events(type) != null
+            else -> false
+        }
+        if (!served) return@forEach
+        val target = QueryTarget(type, query.model)
+        query.routes.forEach { route ->
+            when (route.method) {
+                QueryRoutes.GET -> GET(route.path) { request -> handler.describe(request, target) }
+                else -> POST(route.path) { request -> handler.query(request, target) }
+            }
         }
     }
 }

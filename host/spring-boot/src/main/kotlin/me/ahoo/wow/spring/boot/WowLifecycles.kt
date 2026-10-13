@@ -50,6 +50,9 @@ object WowLifecycles {
 
     /** [BackendsLifecycle]: first of all. */
     const val BACKENDS_PHASE: Int = INTERNAL_SERVER_PHASE - 1024
+
+    /** [QueryIndexesLifecycle]: after the backends' schemas exist, before the internal server starts. */
+    const val QUERY_INDEXES_PHASE: Int = BACKENDS_PHASE + 512
 }
 
 /** Creates the schemas of the backends the node opened, where they are missing, before anything uses them. */

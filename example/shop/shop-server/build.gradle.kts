@@ -30,6 +30,8 @@ dependencies {
     "wowPeers"(project(":inventory-server"))
     testImplementation("org.springframework:spring-test")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    // The in-memory reference query backend, behind the snapshot queries of the memory backend's tests (6.2c).
+    testImplementation(testFixtures(project(":query")))
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")

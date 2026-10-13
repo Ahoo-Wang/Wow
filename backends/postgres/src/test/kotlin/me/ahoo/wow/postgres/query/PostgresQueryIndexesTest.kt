@@ -16,12 +16,10 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.manifest.AggregateManifest
-import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
+import me.ahoo.wow.query.index.QueryIndexDdl
+import me.ahoo.wow.query.index.QueryIndexDeclaration
 import org.junit.jupiter.api.Test
 
 class PostgresQueryIndexesTest {
@@ -69,48 +67,7 @@ class PostgresQueryIndexesTest {
     }
 
     @Test
-    fun `declarations are read from the state schema of the Manifest`() {
-        fun manifest(state: Map<String, Any?>) = Manifest(
-            contexts = listOf(
-                ContextManifest(
-                    "shop",
-                    aggregates = listOf(AggregateManifest("order", state = StateManifest("#/\$defs/Order")))
-                )
-            ),
-            defs = mapOf("Order" to state),
-        )
-        val declared = manifest(
-            mapOf(
-                QueryIndexDeclaration.KEYWORD to listOf(
-                    mapOf("name" to "ix_order_state_name", "keys" to listOf("state.name", "ownerId")),
-                ),
-            ),
-        )
-        QueryIndexDeclaration.of(declared, "shop", "order").assert()
-            .containsExactly(QueryIndexDeclaration("ix_order_state_name", listOf("state.name", "ownerId")))
-        QueryIndexDeclaration.of(declared, "shop", "cart").assert().isEmpty()
-        QueryIndexDeclaration.of(declared, "other", "order").assert().isEmpty()
-        QueryIndexDeclaration.of(manifest(emptyMap()), "shop", "order").assert().isEmpty()
-        QueryIndexDeclaration.of(Manifest(contexts = declared.contexts), "shop", "order").assert().isEmpty()
-        listOf<Any>(
-            "ix",
-            listOf("ix"),
-            listOf(mapOf("name" to "ix")),
-            listOf(mapOf("name" to "ix", "keys" to listOf(1))),
-            listOf(mapOf("name" to 1, "keys" to listOf("state.name"))),
-        ).forEach { malformed ->
-            assertThrownBy<IllegalArgumentException> {
-                QueryIndexDeclaration.of(manifest(mapOf(QueryIndexDeclaration.KEYWORD to malformed)), "shop", "order")
-            }
-        }
-    }
-
-    @Test
-    fun `the index mode is read from its setting`() {
-        QueryIndexDdl.of("AUTO").assert().isEqualTo(QueryIndexDdl.AUTO)
-        QueryIndexDdl.of("validate").assert().isEqualTo(QueryIndexDdl.VALIDATE)
-        QueryIndexDdl.of("none").assert().isEqualTo(QueryIndexDdl.NONE)
-        assertThrownBy<IllegalArgumentException> { QueryIndexDdl.of("create") }
+    fun `the options default to managing the indexes`() {
         PostgresQueryOptions().indexDdl.assert().isEqualTo(QueryIndexDdl.AUTO)
         assertThrownBy<IllegalArgumentException> { PostgresQueryOptions(fetchSize = 0) }
     }

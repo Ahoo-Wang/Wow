@@ -21,6 +21,7 @@ import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.internal.internalRoutes
+import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.http.wowRoutes
@@ -331,7 +332,7 @@ class WowAutoConfiguration {
         server.doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
     }
 
-    /** The public routes, served by the application's WebFlux server. */
+    /** The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration] gives them. */
     @Bean
     fun wowRouterFunction(
         manifest: Manifest,
@@ -339,7 +340,9 @@ class WowAutoConfiguration {
         reads: StateReads,
         callers: CallerResolver,
         options: WowHttpOptions,
-    ): RouterFunction<ServerResponse> = wowRoutes(manifest, node.gateway, reads, callers, options)
+        queries: ObjectProvider<HttpQueries>,
+    ): RouterFunction<ServerResponse> =
+        wowRoutes(manifest, node.gateway, reads, callers, options, queries.getIfAvailable { HttpQueries.NONE })
 
     /** Activated when the application has a Bean Validation provider (decision D106). */
     @Configuration(proxyBeanMethods = false)

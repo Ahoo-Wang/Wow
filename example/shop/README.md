@@ -69,6 +69,8 @@ header instead.
 | `POST`   | `/example/{aggregate}/{id}/wow.lifecycle.transfer-owner`, `-space`    | Gives the aggregate another owner or space        |
 | `POST`   | `/example/{aggregate}/{id}/wow.lifecycle.apply-tags`                  | Replaces the aggregate's tags                     |
 | `GET`    | `/example/{aggregate}/{id}/state`, `?version=n`                       | The latest state, or the one at version `n`       |
+| `POST`   | `/example/{aggregate}/snapshot/query`, `/events/query`                | A query of the snapshots or of one's events       |
+| `GET`    | `/example/{aggregate}/snapshot/query`, `/events/query`                | The model's capability descriptor, with an ETag   |
 | `GET`    | `/wow/manifest`                                                       | The Manifest the routes are built from            |
 
 A command answers its `CommandResult` (200, or 202 for a wait that ends at
@@ -102,6 +104,37 @@ order must quote the current price. Their stock is the inventory's.
 Without `Wow-Wait` a command waits until the snapshot holds its commit, so a
 `GET …/state` right after it reads its own write. A state read answers
 `ETag: "<version>"` and honours `If-None-Match`.
+
+## Queries
+
+A query names its operation in `kind` (`list`, `paged`, `cursor`, `single`,
+`count`, `aggregate`) beside the query itself; `Accept: text/event-stream`
+streams a `list`. The caller sees only its own aggregates (its tenant, owner and
+space), and the ones not deleted unless the query names its deletion state:
+
+```bash
+curl -X POST localhost:8080/example/order/snapshot/query \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"cursor","filter":{"op":"MATCH_ALL"},"sort":[{"field":"lastEventTime","direction":"DESC"}],"size":20}'
+curl -X POST localhost:8080/example/order/snapshot/query \
+  -H 'Content-Type: application/json' -d '{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":1000}'
+curl -X POST localhost:8080/example/order/events/query \
+  -H 'Content-Type: application/json' -d '{"kind":"list","filter":{"op":"ID","value":"<order id>"}}'
+```
+
+A count answers `{count, exact}`: `exact` is `false` when there are more than
+its `limit` (at most `wow.query.http.count-limit`, 10000). The `events` model
+reads one aggregate's event streams by version: the filter names its id, and
+may bound `version` or `commitTime`, nothing else. A query the model refuses is
+400 `wow.query.invalid`, its violations naming each rule (`UNKNOWN_FIELD`, …);
+one that does not read as a query is 400 `wow.query.malformed`.
+
+The snapshots are queried on PostgreSQL (and MongoDB); on the memory backend no
+query backend serves them, and their routes answer 404 (the end-to-end tests
+give the host the in-memory reference backend). Since the Manifest part carries
+no state schema (below), a query filters and sorts by the system fields
+(`aggregateId`, `ownerId`, `version`, `lastEventTime`, `deleted`, `tags`, …)
+only; the records still carry the whole `state`.
 
 The Manifest part `shop-domain` generates names the commands, events, routes,
 errors and lifecycle, without JSON schemas: the schemas are introspected by the
