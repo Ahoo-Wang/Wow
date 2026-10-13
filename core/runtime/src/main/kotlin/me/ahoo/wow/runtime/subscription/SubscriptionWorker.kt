@@ -178,8 +178,7 @@ internal class SubscriptionWorker(
     /** Whether a wait on [entry] waits for this subscription next. */
     private fun waitsHere(entry: SourcedEntry): Boolean {
         val hop = entry.transport?.wait?.nextHandled ?: return false
-        return hop.subscription == subscription.name && (hop.context ?: subscription.filter.context) ==
-            subscription.filter.context
+        return hop.subscription == subscription.name && (hop.context ?: subscription.context) == subscription.context
     }
 
     /**

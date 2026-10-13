@@ -52,7 +52,7 @@ import tools.jackson.databind.json.JsonMapper
  *
  * A command a saga refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected]) is resolved
  * ([commandTypeOf]) but not checked here: a lifecycle command (design 01 §6) is no context's, and whether a chain may
- * follow a saga's hop into a context is the wait's check (decision D138).
+ * follow a saga's hop into a context is the wait's check (decision D138), from [derivedContextsOf].
  */
 class ContractDirectory(
     val local: Manifest,
@@ -176,6 +176,23 @@ class ContractDirectory(
             (source.aggregates.isEmpty() || type.name in source.aggregates)
     }
 
+    /** Whether a Manifest, the service's own or a peer's, declares [context]. */
+    override fun hasContext(context: String): Boolean = contextOf(context) != null
+
+    /**
+     * The contexts of the commands the saga [subscription] of [context] derives, as its Manifest declares them
+     * ([SubscriptionManifest.derives], decision D138): each command's own context, a schema reference resolved
+     * through the Manifest of the context that decides it ([commandTypeOf]). Null when the subscription declares
+     * none, or when one of them cannot be resolved: a wait chain after its hop is then not checked.
+     */
+    override fun derivedContextsOf(context: String, subscription: String): Set<String>? {
+        val derives = subscriptionOf(context, subscription)?.takeIf { it.rejected == null }?.derives ?: return null
+        return derives.mapTo(LinkedHashSet()) { reference ->
+            val type = commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) } ?: return null
+            type.substringBefore('.')
+        }
+    }
+
     /** A Manifest says nothing of a subscription's progress (decision D63: a hop of another context is not checked). */
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
 
@@ -201,6 +218,12 @@ class ContractDirectory(
             } else {
                 this@ContractDirectory.covers(subscription, type)
             }
+
+        override fun hasContext(context: String): Boolean =
+            context == ownContext || this@ContractDirectory.hasContext(context)
+
+        override fun derivedContextsOf(context: String, subscription: String): Set<String>? =
+            this@ContractDirectory.derivedContextsOf(context, subscription)
 
         override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean =
             runtime.hasHandled(subscription, stream)

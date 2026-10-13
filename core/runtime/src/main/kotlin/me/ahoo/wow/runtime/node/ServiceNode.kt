@@ -468,6 +468,10 @@ class ServiceNode(
                     val published = requireNotNull(contracts.publishedOf(type)) {
                         "$name of ${context.context} reads $type, which no Manifest of the service or its peers publishes."
                     }
+                    require(sourced.subscription.context == context.context) {
+                        "$name reads $type for ${context.context}, but belongs to ${sourced.subscription.context}: " +
+                            "a sourced subscription belongs to the context that reads (Subscription.context)."
+                    }
                     val sources = requireNotNull(topics) {
                         "$name of ${context.context} reads the topic ${published.topic} of $type, but node $node reads " +
                             "no topics: give it their source (with Spring Boot, set wow.kafka.bootstrap-servers)."

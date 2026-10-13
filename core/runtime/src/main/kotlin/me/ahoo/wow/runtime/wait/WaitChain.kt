@@ -36,8 +36,11 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
          *
          * - at most [maxHops] hops;
          * - within one command the stages come in order, each at most once: ACCEPTED, COMMITTED, then HANDLED;
-         * - every HANDLED hop names a subscription [directory] knows, and only a saga's may be followed by more hops,
-         *   which apply to the commands it derived;
+         * - every HANDLED hop names a subscription [directory] knows, in any context, and only a saga's may be followed
+         *   by more hops, which apply to the commands it derived;
+         * - an ACCEPTED or COMMITTED hop is of the command's context, or, after a saga's hop, of a context [directory]
+         *   knows ([SubscriptionDirectory.hasContext]), one the saga derives commands of when it declares them
+         *   ([SubscriptionDirectory.derivedContextsOf], decision D138; undeclared, it is not checked);
          * - a snapshot hop of the command itself (its first HANDLED hop) is one [type] has: the snapshot subscription
          *   of [type]'s context covers [type] ([SubscriptionDirectory.covers]).
          *
@@ -60,6 +63,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
                 return Invalid("A wait chain has at most $maxHops hops, not ${hops.size}.")
             }
             var last: Stage? = null
+            var saga: Hop? = null
             hops.forEachIndexed { index, hop ->
                 val order = last?.let { hop.stage > it } ?: true
                 if (!order) {
@@ -74,10 +78,34 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
                             return Invalid("Only a saga's hop may be followed by more hops; $hop is a $kind.")
                         }
                         last = null
+                        saga = hop
                     }
+                } else {
+                    contextProblem(hop, saga, context, directory)?.let { return Invalid(it) }
                 }
             }
             return WaitChain(hops)
+        }
+
+        /**
+         * Why the ACCEPTED or COMMITTED [hop] cannot be reached, or null: the root command's hops are of its
+         * [context]; after the [saga] hop, the derived commands' are of a context the [directory] knows, and one the
+         * saga declares it derives commands of, if it declares any (decision D138).
+         */
+        private fun contextProblem(hop: Hop, saga: Hop?, context: String, directory: SubscriptionDirectory): String? {
+            val of = hop.context!!
+            if (saga == null) {
+                return "Hop $hop is not of the command's context $context.".takeIf { of != context }
+            }
+            if (!directory.hasContext(of)) {
+                return "Hop $hop names an unknown context."
+            }
+            val derived = directory.derivedContextsOf(saga.context!!, saga.subscription!!) ?: return null
+            if (of in derived) {
+                return null
+            }
+            return "Hop $hop follows ${saga.context}/${saga.subscription}, which derives commands of " +
+                "${derived.sorted()} only (decision D138)."
         }
     }
 }

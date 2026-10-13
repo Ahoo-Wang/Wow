@@ -74,7 +74,9 @@ import java.util.concurrent.Executors
  *   from their topics. It gets the record's facts and published events ([me.ahoo.wow.spi.state.StateEventPayload], each
  *   its name, revision and JSON payload), and the published state decoded into its state type, or null when the
  *   upstream publishes without it (decision D140), which only a handler of a nullable state takes. It reads no state
- *   view of its own context.
+ *   view of its own context. It belongs to its own context ([Subscription.context]): a wait the record carries names
+ *   its hop there, and it signals that hop to the wait's origin as a subscription of its own context would (design 04
+ *   §6.3); a saga's commands carry the rest of the chain on ([DerivedCommands.waitOf]).
  */
 class SubscriptionBindings(private val processors: Map<String, List<ProcessorBinding<*>>>) : SubscriptionFactory {
     init {
@@ -142,7 +144,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             }
             val filter = SubscriptionFilter(handler.sourceContext!!, types.mapTo(LinkedHashSet()) { it.name })
             val subscription = if (handler.kind == FunctionKind.SAGA) {
-                Subscription.saga(name, filter, handler.startFrom) { entry ->
+                Subscription.saga(name, filter, handler.startFrom, context = context.context) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
                     val execution = contextOf(handler.kind, name, event)
                     val commands = call(handler, event, execution)
@@ -152,7 +154,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, rejections)
                 }
             } else {
-                Subscription(name, filter, handler.startFrom, kind = handler.kind) { entry ->
+                Subscription(name, filter, handler.startFrom, kind = handler.kind, context = context.context) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
                     call(handler, event, contextOf(handler.kind, name, event))
                 }

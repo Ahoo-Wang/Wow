@@ -115,7 +115,8 @@ data class CommandResult(
 
 /**
  * A wait signal (design 08 §8): the [result] one hop reached for the wait [waitId], sent to the node that waits.
- * Signals are deduplicated by ([waitId], the result's hop, its command and its function).
+ * Signals are deduplicated by ([waitId], the result's hop and command, its source): the source is the result's
+ * [CommandResult.function], the context and function that signalled it.
  */
 data class WaitSignal(val format: Int = FORMAT, val waitId: String, val result: CommandResult) {
     init {

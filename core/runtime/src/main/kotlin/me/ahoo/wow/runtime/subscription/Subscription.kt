@@ -47,6 +47,10 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * the commands it derived, and the rejection that ended its hop), so it is made with [saga]; the constructor makes
  * every other kind.
  *
+ * [context] is the bounded context the subscription belongs to: its filter's, except for a subscription that reads
+ * another context's published stream (decision D138), which belongs to the context that declares it. A wait's hop
+ * names it in that context, and it signals as that context (design 04 §6.3).
+ *
  * A subscription that [coalesces] is handed only the latest of an aggregate's entries that wait together in its lane
  * (a batch): it keeps the latest of something per aggregate, so the earlier ones add nothing. Every entry of the
  * batch completes, and is signalled, only once the latest is handled, so a wait on an earlier version reaches its
@@ -70,6 +74,8 @@ class Subscription private constructor(
     private val takesAll: Boolean = false,
     /** Whether a stream with no event, one that only changes schedules, is the subscription's: a built-in one's. */
     private val takesEventless: Boolean = false,
+    /** The bounded context the subscription belongs to: its filter's, unless it reads another context's stream. */
+    val context: String = filter.context,
 ) {
     constructor(
         name: String,
@@ -78,6 +84,7 @@ class Subscription private constructor(
         decoder: EntryDecoder = EntryDecoder.RECORDS,
         models: Collection<AggregateModel<*>> = emptyList(),
         kind: FunctionKind = FunctionKind.PROJECT,
+        context: String = filter.context,
         handler: suspend (SubscribedEntry) -> Unit,
     ) : this(
         name,
@@ -90,15 +97,20 @@ class Subscription private constructor(
             handler(entry)
             HandledEntry.NOTHING
         },
+        context = context,
     )
 
     val filter: SubscriptionFilter = filter.resolve(models)
 
-    /** The function a result names when this subscription handled a commit. */
-    val function: FunctionInfo = subscriptionFunction(kind, filter.context, name)
+    /**
+     * The function a result names when this subscription handled a commit: of the subscription's own [context], which
+     * a wait's hop names and the signal's source is (design 08 §8), even when it reads another context's stream.
+     */
+    val function: FunctionInfo = subscriptionFunction(kind, context, name)
 
     init {
         require(name.isNotBlank()) { "A subscription needs a name." }
+        require(context.isNotBlank()) { "A subscription belongs to a context." }
         require(kind != FunctionKind.COMMAND) { "A subscription handles commits, not commands." }
     }
 
@@ -125,6 +137,7 @@ class Subscription private constructor(
             startFrom: StartFrom = StartFrom.BEGINNING,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             models: Collection<AggregateModel<*>> = emptyList(),
+            context: String = filter.context,
             handler: suspend (SubscribedEntry) -> HandledEntry,
         ): Subscription = Subscription(
             name,
@@ -134,6 +147,7 @@ class Subscription private constructor(
             models,
             FunctionKind.SAGA,
             EntryHandler { handler(it) },
+            context = context,
         )
 
         /** A subscription that [coalesces]: [handler] gets the latest entry of each aggregate's batch only. */
