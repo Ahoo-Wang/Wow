@@ -90,7 +90,7 @@ Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the h
 | `wow.subscription.retry.timeout` | None | How long one attempt of a handler may run; one that runs longer is cancelled and counts as a failed attempt |
 | `wow.subscription.read-retry.*` | `100ms` up to `5s`, `2.0` | The backoff of a failed log read or store write, retried until the node stops (`max-attempts` is not used) |
 | `wow.subscriptions.[<subscription>].start` | The kind's default | `beginning`, `end`, or an ISO-8601 instant: where the subscription starts in a partition it has no checkpoint in. A name the node has no subscription of is refused at startup |
-| `wow.subscriptions.[<subscription>].retry.*` | The handler's `@Retry`, else `wow.subscription.retry` | The subscription's own in-process budget before it parks: `max-attempts`, `initial-backoff`, `max-backoff`, `multiplier`, `timeout`. Each setting given replaces the handler's; each one not given is the handler's, else the global one. A name the node has no subscription of is refused at startup |
+| `wow.subscriptions.[<subscription>].retry.*` | `wow.subscription.retry` | The subscription's own in-process budget before it parks: `max-attempts`, `initial-backoff`, `max-backoff`, `multiplier`, `timeout`. A setting not given is the global one. A name the node has no subscription of is refused at startup |
 | `wow.timers.poll-interval` | `1s` | How often each owned partition reads the timers due soon |
 | `wow.timers.lookahead` | `30s` | How far ahead the timers are read |
 | `wow.timers.max-attempts` | `10` | The attempts a technical failure to send a scheduled command gets before it is parked under `wow.timers` |
