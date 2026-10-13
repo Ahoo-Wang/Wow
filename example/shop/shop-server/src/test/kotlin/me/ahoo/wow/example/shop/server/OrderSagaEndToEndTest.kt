@@ -34,8 +34,8 @@ import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The topics of the test, in memory: one partition each. A configuration only where a test passes it: no
- * `@Configuration`, so the server's component scan does not give every other test of this module these topics.
+ * The topics of the tests, in memory: one partition each. A configuration only where [startShop] passes it: no
+ * `@Configuration`, so the server's component scan does not give a test on Kafka these topics.
  */
 class InMemoryShopTopics {
     @Bean

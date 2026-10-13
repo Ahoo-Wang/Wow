@@ -100,6 +100,7 @@ fun threadDump(): String = Thread.getAllStackTraces().entries.sortedBy { it.key.
 }
 
 private const val DUMP_FRAMES = 30
+private const val KAFKA = "wow.kafka.bootstrap-servers"
 
 /**
  * A shop server started in this JVM: its public port at [publicPort], its internal one at [internalPort].
@@ -164,7 +165,8 @@ class ShopNode(val context: ConfigurableApplicationContext) : AutoCloseable {
  * internal port at [internalPort] (by default one the system chooses as it binds, so no other process can take it
  * between choosing and binding), with [properties] over its `application.yaml`, in [profiles] and with the further
  * configuration [sources]. The properties are passed as command-line arguments, which take precedence over the
- * application's own configuration.
+ * application's own configuration. Without `wow.kafka.bootstrap-servers`, its topics are in memory
+ * ([InMemoryShopTopics]): the shop does not start without a command transport for the order saga.
  */
 fun startShop(
     vararg properties: Pair<String, Any>,
@@ -182,7 +184,15 @@ fun startShop(
         "wow.subscription.stop-timeout" to "2s",
         "wow.wait.max-timeout" to "15s",
     ) + properties.toMap()
-    val context = SpringApplicationBuilder(ShopServer::class.java, HeaderCallers::class.java, *sources.toTypedArray())
+    // The order saga sends the inventory's commands, which needs a command transport (DX gap G9): Kafka when a test
+    // gives it, the topics in memory otherwise.
+    val topics = listOf(InMemoryShopTopics::class.java)
+        .filterNot { KAFKA in arguments || it in sources }
+    val context = SpringApplicationBuilder(
+        ShopServer::class.java,
+        HeaderCallers::class.java,
+        *(sources + topics).toTypedArray(),
+    )
         .profiles(*profiles.toTypedArray())
         .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
     return ShopNode(context)

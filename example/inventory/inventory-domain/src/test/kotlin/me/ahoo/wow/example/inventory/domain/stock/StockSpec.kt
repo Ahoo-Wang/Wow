@@ -88,7 +88,10 @@ class StockSpec {
     @Test
     fun `reserving again for an order already reserved should change nothing`() = stockSpec {
         given(StockReceived(10), StockReserved(ORDER, 3))
-        whenCommand(ReserveStock(ORDER, 3)) { expectUnchanged() }
+        whenCommand(ReserveStock(ORDER, 3)) {
+            expectUnchanged()
+            expectState { available.assert().isEqualTo(7) }
+        }
     }
 
     @Test

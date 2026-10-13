@@ -27,7 +27,7 @@ The rest of the classic eShop maps like this:
 - **Event bus.** The RabbitMQ event bus becomes Kafka.
 - **Sales data.** Sales data reaches ClickHouse through the ClickHouse Sink, as a dataset.
 - **Web front ends.** They come after the backend, written with the TypeScript client that work package 5a.3 generates (D160).
-- **End-to-end tests.** `:eshop-e2e` (`example/eshop/e2e`) holds them. Today it starts the catalog and basket services, each in its own JVM, and sends one command to each. Work package E.6 extends it to all five services on PostgreSQL, Kafka and ClickHouse, with the full order flow, failure scenarios and a load test.
+- **End-to-end tests.** `:eshop-e2e` (`example/eshop/e2e`) holds them. Today it starts the catalog and basket services, each in its own JVM, and sends one command to each; it also runs both in the test's JVM, each selecting its own context with `wow.contexts.include`. Work package E.6 extends it to all five services on PostgreSQL, Kafka and ClickHouse, with the full order flow, failure scenarios and a load test.
 
 ### Naming
 

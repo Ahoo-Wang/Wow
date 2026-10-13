@@ -47,6 +47,18 @@ class CartSpec {
     }
 
     @Test
+    fun `the state can be checked after a command that changed nothing`() = aggregateSpec(cartModel) {
+        given(CartCreated("ahoo"))
+        whenCommand(ClearCart("tidy")) {
+            expectUnchanged()
+            expectState {
+                owner.assert().isEqualTo("ahoo")
+                items.assert().isEmpty()
+            }
+        }
+    }
+
+    @Test
     fun `the cart keeps the scope it was created in`() = aggregateSpec(cartModel) {
         whenCommand(CreateCart("ahoo"), scope = Scope("ahoo", "home")) { expectScope(Scope("ahoo", "home")) }
         whenCommand(AddItem("apple", 1), scope = Scope("ahoo", null)) { expectScope(Scope("ahoo", "home")) }

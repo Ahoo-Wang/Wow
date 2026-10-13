@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -47,6 +48,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -224,6 +226,45 @@ class CrossContextWaitTest {
                 ),
             )
         }
+
+    @Test
+    fun `a node whose saga sends to another context should not be built without a command transport`() {
+        fun salesNodeWithout(contracts: ContractDirectory) = ServiceNode(
+            SALES_SERVICE,
+            "sales-1",
+            "sales-1.internal:9090",
+            listOf(orderModel(cancelled)),
+            salesManifest,
+            InMemoryBackends(PARTITIONS),
+            channel,
+            options = fastNodeOptions(),
+            contracts = contracts,
+        )
+        assertThrows<IllegalArgumentException> {
+            salesNodeWithout(ContractDirectory(salesManifest, listOf(peer(stockManifest))))
+        }.message.assert()
+            .contains("Node sales-1 has no command transport")
+            .contains("wow.kafka.bootstrap-servers")
+            .contains("$SALES/$SAGA sends commands to $STOCK")
+        // Without the stock's Manifest, the saga's command is still another context's, one no Manifest declares.
+        assertThrows<IllegalArgumentException> { salesNodeWithout(ContractDirectory(salesManifest)) }
+            .message.assert().contains("$SALES/$SAGA sends commands to ${ContractDirectory.UNKNOWN_CONTEXT}")
+    }
+
+    @Test
+    fun `the commands a saga sends within the contexts a node serves should need no transport`() {
+        val contracts = ContractDirectory(salesManifest, listOf(peer(stockManifest)))
+        contracts.commandsOutside(setOf(SALES, STOCK)).assert().isEmpty()
+        contracts.commandsOutside(setOf(SALES)).assert().isEqualTo(mapOf("$SALES/$SAGA" to sortedSetOf(STOCK)))
+        val lifecycle = salesManifest.copy(
+            contexts = salesManifest.contexts.map { context ->
+                context.copy(
+                    subscriptions = context.subscriptions.map { it.copy(derives = Lifecycle.COMMANDS.keys.toList()) }
+                )
+            },
+        )
+        ContractDirectory(lifecycle).commandsOutside(setOf(SALES)).assert().isEmpty()
+    }
 
     @Test
     fun `a chain should follow the saga's commands into the other context and end at their COMMITTED`(): Unit =

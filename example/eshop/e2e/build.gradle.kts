@@ -1,9 +1,10 @@
 description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 
-// Test-only and never published (decision D159), like :example-e2e. Each service runs in a JVM of its own, on the
-// runtime class path of its server project alone: the host serves every binding index on its class path, so two
-// services sharing one class path would each serve both contexts. The class paths reach the tests as system
-// properties (`eshop.<context>.classpath`). The suite on PostgreSQL, Kafka and ClickHouse comes with work package E.6;
+// Test-only and never published (decision D159), like :example-e2e. EshopE2eTest runs each service in a JVM of its
+// own, on the runtime class path of its server project alone; the class paths reach the tests as system properties
+// (`eshop.<context>.classpath`). EshopSharedJvmTest runs two services in the test's own JVM, on one class path that
+// holds both servers: each selects its own context with `wow.contexts.include` (decision D169), since the host
+// serves every binding index on its class path by default. The suite on PostgreSQL, Kafka and ClickHouse comes with work package E.6;
 // this is its skeleton (E.0).
 val servers = listOf("catalog", "basket").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
@@ -26,6 +27,9 @@ dependencies {
     "eshopCatalogServer"(project(":eshop-catalog-server"))
     "eshopBasketServer"(project(":eshop-basket-server"))
     integrationTestImplementation("tools.jackson.core:jackson-databind")
+    integrationTestImplementation(project(":eshop-catalog-server"))
+    integrationTestImplementation(project(":eshop-basket-server"))
+    integrationTestImplementation("org.springframework.boot:spring-boot")
 }
 
 tasks.named<Test>("integrationTest") {

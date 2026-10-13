@@ -48,7 +48,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: yes. The first server a user writes fails to start.
 - **Resolved**: by #4346. The host depends on `spring-boot-starter`, which brings SnakeYAML.
 
-### G3. The rules for a context name are not documented
+### G3. The rules for a context name are not documented (resolved)
 
 - **Work package**: E.0
 - **Area**: compiler, docs
@@ -59,8 +59,9 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   - Document the allowed characters of context and aggregate names.
   - Make the compiler reject an invalid name on `@BoundedContext` (and `@Name`) with a message that says why.
 - **Blocks M7**: no. It has a workaround, but every new user meets the question.
+- **Resolved**: by #4380 (decision D169). A context name is `[a-z][a-z0-9-]*`, without dots. The compiler fails on a `@BoundedContext` or a `wow.context` option that breaks the rule, with a message that says why, and reading a Manifest (a module's fragment or a peer's) refuses such a context. Documenting the rule in the guide is left to E.D.
 
-### G4. A host serves every domain module on its class path
+### G4. A host serves every domain module on its class path (resolved)
 
 - **Work package**: E.0
 - **Area**: host
@@ -69,6 +70,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `:eshop-e2e` starts each service in a JVM of its own. Each JVM gets the runtime class path of that service's server project, which the build passes to the test (`example/eshop/e2e/build.gradle.kts`).
 - **Proposed fix**: Add a host property that names the contexts a node serves, defaulting to all. At minimum, document that a service's class path defines its contexts.
 - **Blocks M7**: no, for the eShop. It is worth deciding before users build multi-service test harnesses.
+- **Resolved**: by #4380 (decision D169). `wow.contexts.include` and `wow.contexts.exclude` select the contexts a node serves, all of those on the class path by default; a name that is no context on the class path fails the startup. `:eshop-e2e` also runs the catalog and basket services in one JVM, on one class path, each including its own context (`EshopSharedJvmTest`).
 
 ### G5. Where the test DSL lives, and what the compiler generates, is not documented (resolved)
 
@@ -120,7 +122,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Word the decision and the guide as "a saga". State plainly in the programming model page that sending a command makes the processor a saga.
 - **Blocks M7**: no.
 
-### G9. A saga's command to another context fails only at run time without Kafka
+### G9. A saga's command to another context fails only at run time without Kafka (resolved)
 
 - **Work package**: 6.3e
 - **Area**: host
@@ -129,6 +131,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The shop's README says so. The `kafka` profile turns Kafka on.
 - **Proposed fix**: At startup, check sagas whose Manifest `derives` or `rejected` name a context the node does not host. When the node has no `SourceTopics` producer, fail, or at least warn, naming the saga and the context.
 - **Blocks M7**: yes. A misconfigured service otherwise looks healthy while it parks every saga execution.
+- **Resolved**: by #4380. A node without a command transport is not built when a saga of its Manifest derives, schedules or handles the rejections of commands of a context it does not serve; the message names each saga and context and says to set `wow.kafka.bootstrap-servers`. The shop now needs its `kafka` profile to start.
 
 ### G10. Where a subscription of another context's stream starts is host configuration only
 
@@ -150,7 +153,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: An opt-in `wow.kafka.create-topics` for development that creates the command topic with the right count. Document the topic DDL (decision D168).
 - **Blocks M7**: no, once the DDL is documented.
 
-### G12. The test DSL's `expectState` cannot follow `expectUnchanged`
+### G12. The test DSL's `expectState` cannot follow `expectUnchanged` (resolved)
 
 - **Work package**: 6.3e
 - **Area**: testing
@@ -159,6 +162,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: Assert `expectUnchanged()` only.
 - **Proposed fix**: Let `expectState` read the current state after an `Unchanged` outcome.
 - **Blocks M7**: no.
+- **Resolved**: by #4380. After a command that changed nothing, `expectState` checks the state the aggregate is in.
 
 ### G13. Tenants across services match only by convention
 
