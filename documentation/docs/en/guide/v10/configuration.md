@@ -31,6 +31,10 @@ wow:
 | `wow.internal.host` | Every interface | The address the internal port binds |
 | `wow.internal.connect-timeout` | `1s` | How long a peer has to accept a connection of the cluster channel or the signal sender |
 | `wow.internal.signal-queue-capacity` | `1024` | The wait signals queued per origin node before they are dropped |
+| `wow.contexts.include` | Empty: every context on the class path | The bounded contexts the node serves, by name |
+| `wow.contexts.exclude` | Empty | Contexts removed from what `include` (or the class path) gives |
+
+The host serves every context of the domain modules on its class path. `wow.contexts.*` selects some of them, for a class path that holds several contexts: a modular monolith that switches contexts by configuration, or end-to-end tests that start several services in one JVM, each including its own context (the eShop's `EshopSharedJvmTest`). The node is built for the selected contexts only: their models, their Manifest fragments, their routes and their processors; a context left out is another service's, reached through its peers. A name that is no context on the class path, a name both included and excluded, and a selection that leaves no context fail the startup, naming the contexts on the class path.
 
 ## Backend and log
 

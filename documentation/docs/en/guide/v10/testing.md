@@ -73,7 +73,7 @@ Time stands still at `start` until `advanceTime` moves it: commit times and the 
 | `expectScheduleCancelled(key)` | It cancelled the schedule `key` |
 | `outcome` | The raw `CommandOutcome` (`Committed`, `Unchanged`, `Rejected`, …), for what the expectations do not cover, such as `(outcome as CommandOutcome.Committed).results` |
 
-`expectState` needs committed events: after `expectUnchanged()` there is no committed state to read.
+After a command that changed nothing (`expectUnchanged()`), `expectState` checks the state the aggregate is in.
 
 The kernel checks that deciding never changes the state: a command function or after hook that assigns state fails the specification, even though the events are right.
 
@@ -136,5 +136,6 @@ val context = SpringApplicationBuilder(CatalogServer::class.java, TestCallers::c
 
 - Give the test a `CallerResolver` bean that reads a test header, so each request has an owner (the shop's `HeaderCallers` reads `X-User`).
 - On the memory backend no query backend serves the snapshots, so their query routes answer 404. A test that queries them puts the in-memory reference backend on its class path: `testImplementation(testFixtures("me.ahoo.wow:wow-query:$wowVersion"))`.
+- A service whose sagas send commands to another context does not start without a command transport: give the test Kafka in a container, or in-memory topics (see [Sending a command to another context](./programming-model.md#sending-a-command-to-another-context)).
 - Lower `wow.cluster.drain-timeout`, `wow.subscription.stop-timeout` and `wow.wait.max-timeout` to make the context close quickly.
 - Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers (Testcontainers), in the module's `integrationTest` source set.

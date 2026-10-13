@@ -73,7 +73,7 @@ JUnit 测试函数必须返回 `Unit`。`aggregateSpec` 返回 `Unit`，所以 `
 | `expectScheduleCancelled(key)` | 取消了定时 `key` |
 | `outcome` | 原始的 `CommandOutcome`（`Committed`、`Unchanged`、`Rejected` 等），用于断言覆盖不到的内容，例如 `(outcome as CommandOutcome.Committed).results` |
 
-`expectState` 需要已提交的事件：`expectUnchanged()` 之后没有可读的已提交状态。
+命令未改变任何东西（`expectUnchanged()`）之后，`expectState` 检查聚合当前所处的状态。
 
 内核检查决定过程从不修改状态：给状态赋值的命令函数或 after 钩子会让规格失败，即使事件是对的。
 
@@ -136,5 +136,6 @@ val context = SpringApplicationBuilder(CatalogServer::class.java, TestCallers::c
 
 - 给测试一个读取测试请求头的 `CallerResolver` Bean，让每个请求都有所有者（示例的 `HeaderCallers` 读取 `X-User`）。
 - 内存后端上没有查询后端提供快照查询，它们的路由返回 404。要查询快照的测试，把内存参考后端放到类路径上：`testImplementation(testFixtures("me.ahoo.wow:wow-query:$wowVersion"))`。
+- Saga 向其他上下文发送命令的服务，没有命令传输就无法启动：给测试提供容器中的 Kafka，或内存主题（见[向其他上下文发送命令](./programming-model.md#向其他上下文发送命令)）。
 - 调低 `wow.cluster.drain-timeout`、`wow.subscription.stop-timeout` 与 `wow.wait.max-timeout`，让上下文更快关闭。
 - 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器中运行（Testcontainers），放在模块的 `integrationTest` 源集里。

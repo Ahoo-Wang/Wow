@@ -219,7 +219,12 @@ object CatalogBoundedContext
 
 这个名字出现在每个类型名（`catalog.product.ChangePrice`）、每条路由（`/catalog/product/{id}/change-price`）、每个主题（`wow.catalog.product.state`）与每张表里。一次定好：
 
-- **上下文名**须匹配 `[a-z][a-z0-9-]*`：小写字母、数字与连字符，以字母开头（D169）。不允许 `.`：它是 `catalog.product.ChangePrice` 这类类型名的分隔符，`eshop.catalog` 会产生歧义，请用 `eshop-catalog`。目前编译器只拒绝空名字；仍请遵守这条规则，后续的 V10 构建会拒绝不合规的名字。
+- **上下文名**须匹配 `[a-z][a-z0-9-]*`：小写字母、数字与连字符，以字母开头（D169）。不允许 `.`：它是 `catalog.product.ChangePrice` 这类类型名的分隔符，`eshop.catalog` 会产生歧义，请用 `eshop-catalog`。违反规则的 `@BoundedContext`（或 `wow.context` 选项）会让编译失败，读取 Manifest（模块的片段或对端的 Manifest）时同样会被拒绝：
+
+  ```text
+  @BoundedContext: context name "eshop.catalog" is not valid: a context name is lower-case letters, digits and hyphens, starting with a letter ([a-z][a-z0-9-]*), such as eshop-catalog; a dot separates the context from the aggregate in type names such as context.aggregate.Command (decision D169)
+  ```
+
 - **聚合名**取聚合根的 `@Name`，否则取类的简单名的 `snake_case`（`Product` 为 `product`，`PriceList` 为 `price_list`）。
 - **命令与事件名**为 `<context>.<aggregate>.<Name>`，取类的简单名，除非 `@Name` 另行指定。
 - **处理器与订阅名**为 `<processor>.<function>`，如 `PriceSaga.onPriceChanged`，处理器取类的 `@Name` 或简单名。

@@ -68,7 +68,7 @@ public class ShopDomainModelProvider : me.ahoo.wow.kernel.ModelProvider {
 - **包**是模块所有模型与处理器共有的最深的包。
 - **依赖**按类型查找，带 `@Name` 的参数再按限定符查找。在宿主上，`Dependencies` 是应用的 Bean 工厂：带限定符的依赖是该名字的 Bean；不带的是该类型唯一的 Bean，或多个中的 primary Bean。缺少 Bean 时启动失败，并指出类型（`MissingDependencyException`）。
 
-宿主加载类路径上的每个 `ModelProvider`（`ModelProvider.load()`），并提供它们构建的每个模型。所以服务的类路径决定了它提供哪些上下文。
+宿主加载类路径上的每个 `ModelProvider`（`ModelProvider.load()`），并提供它们构建的每个模型：默认由服务的类路径决定它提供哪些上下文。`wow.contexts.include` 与 `wow.contexts.exclude` 可以只选其中一部分（见[配置项](./configuration.md#服务与节点)）。
 
 ## Manifest 片段
 

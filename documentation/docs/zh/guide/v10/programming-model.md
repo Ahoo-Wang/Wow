@@ -340,7 +340,23 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - 发送方从目标的 Manifest 中找到命令的类型名，该 Manifest 是发送服务的对端。
 - `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。
 
-没有 Kafka 时，发往其他上下文的命令在运行时失败：Saga 重试，然后停放。目前启动时不会给出警告。
+节点的某个 Saga 派生、定时或处理其他上下文命令的拒绝时，没有命令传输的节点无法启动。错误信息指出每个 Saga 与上下文：
+
+```text
+Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
+```
+
+生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。没有 Kafka 的测试给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
+
+```kotlin
+class InMemoryShopTopics {
+    @Bean
+    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
+
+    @Bean
+    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
+}
+```
 
 ### 对端
 

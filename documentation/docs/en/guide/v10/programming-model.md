@@ -340,7 +340,23 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - The sender finds the command's type name in the target's Manifest, a peer of the sending service.
 - The tenant of the `ref` crosses as it is: every context of a system shares one tenant space (see [Deployment](./deployment.md#one-tenant-space)).
 
-Without Kafka, a command to another context fails at run time: the saga retries, then parks. Nothing warns at startup yet.
+A node without a command transport does not start when one of its sagas derives, schedules or handles the rejections of another context's commands. The message names each saga and context:
+
+```text
+Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
+```
+
+In production the transport is Kafka (`wow.kafka.bootstrap-servers`). A test without Kafka gives the node in-memory topics: an `InMemoryTopics` bean (`me.ahoo.wow.kernel`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
+
+```kotlin
+class InMemoryShopTopics {
+    @Bean
+    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
+
+    @Bean
+    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
+}
+```
 
 ### Peers
 

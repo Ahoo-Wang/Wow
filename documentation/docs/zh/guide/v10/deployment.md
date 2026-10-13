@@ -69,7 +69,7 @@ wow:
 | `wow.<context>.commands` | 其他上下文的 Saga 与定时器 | 本上下文，需设置 `wow.kafka.command-intake: true` |
 | `wow.<context>.receipts` | 其他上下文，针对它们拒绝的本上下文命令 | 本上下文的 `@OnRejected` 处理函数 |
 
-节点不创建主题。首次启动之前创建它们；命令主题的分区数必须恰好等于 `wow.log.partitions`（默认 64），否则开启 `command-intake` 的节点无法启动：
+Saga 向其他上下文发送命令的节点，没有 Kafka（或其他命令传输）就无法启动。节点不创建主题。首次启动之前创建它们；命令主题的分区数必须恰好等于 `wow.log.partitions`（默认 64），否则开启 `command-intake` 的节点无法启动：
 
 ```bash
 kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.commands --partitions 64

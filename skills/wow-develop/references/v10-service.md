@@ -32,7 +32,7 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 
 ## Names
 
-- Context: `@BoundedContext(name, description)` on an object of the domain module; names match `[a-z][a-z0-9-]*` (decision D169: no dot, it separates type names). Verify whether the target's compiler enforces it; the current `v10` compiler refuses only blank names, so check names by hand.
+- Context: `@BoundedContext(name, description)` on an object of the domain module; names match `[a-z][a-z0-9-]*` (decision D169: no dot, it separates type names). The compiler fails on a `@BoundedContext` or `wow.context` that breaks it (`context name "…" is not valid: …`, `me.ahoo.wow.manifest.ContextName`), and reading a Manifest refuses one; a target older than that rule needs the names checked by hand.
 - Aggregate: `@Name` or the root's simple name in `snake_case`. Types: `<context>.<aggregate>.<Name>`. Subscriptions: `<processor>.<function>`.
 
 ## Aggregates
@@ -61,14 +61,14 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 ## Other contexts
 
 - Reading: `@OnEvent(aggregates = ["ctx.agg"])` with the handler's own view type; events arrive as `StateEventPayload` (`me.ahoo.wow.spi.state`: `name`, `revision`, JSON), matched by name (decision D178, typed decoding, is not implemented on the current `v10`; verify). Nullable state (`StateEvent<View?>`) when the upstream sets `publishState = false`. Needs `wow-kafka`, `wow.kafka.bootstrap-servers`, the upstream's Manifest as a peer, and usually `start: beginning`.
-- Sending: the target's `-api` module on the class path and its Manifest as a peer (`wowPeers(project(":x-server"))` or coordinates); the command goes to `wow.<target>.commands`; the target sets `wow.kafka.command-intake: true` and its command topic must exist with exactly `wow.log.partitions` partitions; rejections return on `wow.<sender>.receipts`. Without Kafka the saga fails at run time and parks; nothing warns at startup.
+- Sending: the target's `-api` module on the class path and its Manifest as a peer (`wowPeers(project(":x-server"))` or coordinates); the command goes to `wow.<target>.commands`; the target sets `wow.kafka.command-intake: true` and its command topic must exist with exactly `wow.log.partitions` partitions; rejections return on `wow.<sender>.receipts`. A node without a command transport refuses to start when a saga sends, schedules or handles rejections of another context's commands (`Node … has no command transport …`): production needs Kafka; tests give an `InMemoryTopics` bean and `SourceTopics(topics, producer = topics)`.
 - One tenant space across contexts (decision D180): tenant ids cross as they are.
 
 ## What the compiler generates
 
 - `<root>Model(context, services…, configure = {})` beside each root (`Order` gives `orderModel`); the context is always a parameter.
 - `<processor>Handlers(dependencies)` per processor in `<Processor>Subscriptions.kt`.
-- One `ModelProvider` per module, named after the module (`shop-domain` gives `ShopDomainModelProvider`), in the deepest common package, registered in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`; the host serves every provider on its class path.
+- One `ModelProvider` per module, named after the module (`shop-domain` gives `ShopDomainModelProvider`), in the deepest common package, registered in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`; the host serves every provider on its class path unless `wow.contexts.include` / `exclude` select some (several contexts on one class path, shared-JVM end-to-end tests); an unknown name fails the startup.
 - `META-INF/wow/manifest/<module>.json`: aggregates (commands with `creation`, `produces`, `routes`; events with `revision`; `lifecycle`; `queries`; `schedules`), `subscriptions`, `published`, `errors`; schemas completed into `$defs` by `generateWowManifestFragment`. Without completion, snapshot queries cannot filter `state.*`.
 - Routes, all from the Manifest:
   - commands: `POST /<ctx>/<agg>/{id}/<kebab-command>`, plus `POST /<ctx>/<agg>/<kebab-command>` for creating commands;
@@ -80,7 +80,7 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 ## Tests
 
 - `aggregateSpec(model, id, tenantId, start) { given(...); whenCommand(cmd, scope = …) { expectEvents / expectEventTypes / expectUnchanged / expectRejected / expectState / expectScope / expectScheduled / expectScheduleCancelled }; advanceTime(d) { … } }` from `me.ahoo.wow.kernel.test`, in the kernel's test fixtures. Build the model with the generated factory and stub services.
-- `expectState` needs committed events; it cannot follow `expectUnchanged`.
+- After `expectUnchanged()`, `expectState` checks the current state.
 - JUnit test functions must return `Unit`; one that returns a value is skipped silently. Count executed tests in `build/test-results` XML when it matters.
 - Processor tests call the handler with a `StateEvent` and `ExecutionSagaContext`/`ExecutionProjectContext`/`ExecutionReactContext` (`me.ahoo.wow.kernel`); `@OnRejected` through `ModelProvider.load().single().processors(...)`, `rejectionHandlerOf`, `rejectionContextOf`.
 - Server tests start the application with `server.port=0`, `wow.internal.port=0`, a test `CallerResolver`; the memory backend serves no snapshot queries unless `testFixtures("…:wow-query")` is on the test class path.
@@ -99,7 +99,7 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 - A command function returning `Decision` without `@OnCommand(produces)`; an event without a sourcing function; decide code assigning state.
 - An identity field in a command body; a 9.x annotation or type in a V10 module.
 - A reactor that tries to send commands; a saga whose expected rejections have no `@OnRejected` (aggregates park).
-- A cross-context saga on a node without Kafka, a target without `command-intake`, a command topic with the wrong partition count, or a missing peer Manifest.
+- A cross-context saga on a node without Kafka (it does not start), a target without `command-intake`, a command topic with the wrong partition count, or a missing peer Manifest.
 - A cross-context subscription that must not miss history but starts at `end`.
 - A context name with a dot or upper case; `wow.log.partitions` changed after the log holds entries.
 - A snapshot query on `state.*` failing because the fragment was not completed (no plugin, no `wow-manifest-fragment` step).

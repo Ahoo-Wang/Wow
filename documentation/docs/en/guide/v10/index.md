@@ -219,7 +219,12 @@ object CatalogBoundedContext
 
 The name is part of every type name (`catalog.product.ChangePrice`), every route (`/catalog/product/{id}/change-price`), every topic (`wow.catalog.product.state`) and every table. Choose it once:
 
-- **Context names** match `[a-z][a-z0-9-]*`: lower case, digits and hyphens, starting with a letter (decision D169). A dot is not allowed: it separates the parts of a type name such as `catalog.product.ChangePrice`, so `eshop.catalog` would be ambiguous. Use `eshop-catalog`. Today the compiler refuses only a blank name; keep to the rule anyway, since a later V10 build rejects other names.
+- **Context names** match `[a-z][a-z0-9-]*`: lower case, digits and hyphens, starting with a letter (decision D169). A dot is not allowed: it separates the parts of a type name such as `catalog.product.ChangePrice`, so `eshop.catalog` would be ambiguous. Use `eshop-catalog`. The compiler fails on a `@BoundedContext` (or a `wow.context` option) that breaks the rule, and so does reading a Manifest, a module's fragment or a peer's:
+
+  ```text
+  @BoundedContext: context name "eshop.catalog" is not valid: a context name is lower-case letters, digits and hyphens, starting with a letter ([a-z][a-z0-9-]*), such as eshop-catalog; a dot separates the context from the aggregate in type names such as context.aggregate.Command (decision D169)
+  ```
+
 - **Aggregate names** are the root's `@Name`, or its simple name in `snake_case` (`Product` is `product`, `PriceList` is `price_list`).
 - **Command and event names** are `<context>.<aggregate>.<Name>`, the class's simple name unless `@Name` gives another.
 - **Processor and subscription names** are `<processor>.<function>`, such as `PriceSaga.onPriceChanged`, the class's `@Name` or simple name.

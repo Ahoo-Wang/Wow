@@ -69,7 +69,7 @@ With `wow-kafka` and `wow.kafka.bootstrap-servers`, the node uses these topics (
 | `wow.<context>.commands` | Other contexts' sagas and timers | This context, with `wow.kafka.command-intake: true` |
 | `wow.<context>.receipts` | Other contexts, for the commands of this context they rejected | This context's `@OnRejected` handlers |
 
-The node does not create topics. Create them before the first start; the command topic must have exactly `wow.log.partitions` partitions (64 by default), or a node with `command-intake` does not start:
+A node whose sagas send commands to another context does not start without Kafka (or another command transport). The node does not create topics. Create them before the first start; the command topic must have exactly `wow.log.partitions` partitions (64 by default), or a node with `command-intake` does not start:
 
 ```bash
 kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.commands --partitions 64
