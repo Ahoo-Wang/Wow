@@ -35,7 +35,7 @@
 | 内核 | `wow-spi` | 全部端口（日志、快照、检查点、租约、失败台账、预留键、`Sink`、`TopicProducer`、`PartitionedSource`）与值类型（含 `StateEventRecord`、`StateView`、Kafka 信封与其编解码，D132），`@WowSpi` | wow-core 的 SPI |
 | 内核 | `wow-kernel` | `AggregateModel`、decide → evolve → append 循环、结局查明、事件编解码与 revision 升级、状态版本视图、内存日志 | wow-core 的内核 |
 | 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期 | wow-core 的其余部分 |
-| 内核 | `wow-reactor` | 用户编程模型的 Reactor 适配：返回 `Mono`/`Flux` 的处理函数、`ReactiveCommandGateway`、`ReactiveQueryGateway`（D9） | wow-core 的 Reactor 形态 |
+| 内核 | `wow-reactor` | 领域处理函数的 Reactor 适配：返回 `Mono`/`Flux` 的处理函数（`awaitResult`，D9）；只依赖 `wow-kernel`，领域模块用它不会带上运行时（D149，#4328）。调用方用的 `ReactiveCommandGateway`、`ReactiveQueryGateway` 需要运行时，不放这里：有需求时另设 `wow-runtime-reactor`（依赖 `wow-runtime` 与 `wow-reactor`） | wow-core 的 Reactor 形态 |
 | 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；数据集；`QueryJson`；后端合同测试 `QueryBackendSpec`。9.x 的协程移植（D126） | wow-query |
 | 后端 | `wow-postgres` | 日志、快照、查询、检查点、租约、台账、预留键（D10、D27） | （新增） |
 | 后端 | `wow-mongo` | 同上，MongoDB（D11） | wow-mongo |
@@ -94,7 +94,7 @@ flowchart BT
     SPI[wow-spi] --> API
     KER[wow-kernel] --> SPI & MAN
     RT[wow-runtime] --> KER
-    RX[wow-reactor] --> RT
+    RX[wow-reactor] --> KER
     Q[wow-query] --> QAPI & SPI & MAN
     BE[后端<br/>postgres · mongo · elasticsearch · clickhouse · kafka] --> SPI
     BE -. 实现查询后端时 .-> Q
