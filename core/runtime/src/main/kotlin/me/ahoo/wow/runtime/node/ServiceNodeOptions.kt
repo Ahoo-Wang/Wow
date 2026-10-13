@@ -17,7 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.runtime.admission.CommandRewriter
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
@@ -113,12 +113,12 @@ data class ServiceNodeOptions(
 }
 
 /**
- * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114), and the
+ * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114, D182), and the
  * [tenants] of its aggregate types (decision D116).
  */
 data class AdmissionPlugins(
     val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
-    val rewriters: List<CommandRewriter> = emptyList(),
+    val transformers: List<CommandTransformer> = emptyList(),
     val validators: List<CommandValidator> = emptyList(),
     val ids: IdGenerator = IdGenerator.UUID_V7,
     val tenants: TenantPolicy = TenantPolicy.CALLERS,

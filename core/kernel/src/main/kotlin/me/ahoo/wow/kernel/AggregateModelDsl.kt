@@ -49,6 +49,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val upgrades = HashMap<Class<*>, MutableMap<Int, (JsonNode) -> JsonNode>>()
     private val aliases = HashMap<Class<*>, MutableSet<String>>()
     private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
+    private val mounted = LinkedHashMap<Class<*>, String>()
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -77,6 +78,14 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
             name,
             DecideFunction.Suspending(creation, decide as suspend DecideScope.(S, Any) -> Decision)
         )
+    }
+
+    /**
+     * Mounts commands of type [C], named [name], under this aggregate's routes without deciding them (decision D182):
+     * a transformer of the service turns each into a command that is decided.
+     */
+    inline fun <reified C : Any> mount(name: String = defaultName(C::class.java)) {
+        addMounted(C::class.java, name)
     }
 
     /**
@@ -159,6 +168,10 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         commandNames[commandType] = name
     }
 
+    fun addMounted(commandType: Class<*>, name: String) {
+        require(mounted.putIfAbsent(commandType, name) == null) { "$type mounts ${commandType.name} twice." }
+    }
+
     fun addEvolver(eventClass: Class<*>, name: String, revision: Int, evolver: (S, Any) -> S) {
         require(evolvers.putIfAbsent(eventClass, evolver) == null) {
             "$type declares two evolve functions for ${eventClass.name}."
@@ -178,7 +191,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     fun build(): AggregateModel<S> {
-        val unknown = aliases.keys.filterNot { it in eventNames || it in commandNames }
+        val unknown = aliases.keys.filterNot { it in eventNames || it in commandNames || it in mounted }
         require(unknown.isEmpty()) {
             "$type gives aliases to ${unknown.map { it.name }}, which are none of its command or event types."
         }
@@ -205,6 +218,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         },
         afterFunctions = afterFunctions.toList(),
         lifecycle = lifecycle,
+        mountedCommandTypes = mounted.map { (commandClass, name) ->
+            CommandType(name, commandClass, aliases[commandClass].orEmpty().toSet())
+        },
     )
 
     private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =

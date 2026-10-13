@@ -16,6 +16,7 @@ package me.ahoo.wow.example.shop.domain
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.example.shop.domain.cart.CartRejections
+import me.ahoo.wow.example.shop.domain.customer.CustomerRejections
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.createOrder
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.orderCreated
@@ -65,9 +66,9 @@ class ShopDomainModelProviderTest {
     }
 
     @Test
-    fun `the binding index should build both models with the host's services`() {
+    fun `the binding index should build every model with the host's services`() {
         val models = provider.models(Dependencies.of(OrderFixtures.pricing))
-        models.map { it.type.toString() }.assert().containsExactly("example.cart", "example.order")
+        models.map { it.type.toString() }.assert().containsExactly("example.cart", "example.customer", "example.order")
 
         // The order model runs with the services it was given.
         @Suppress("UNCHECKED_CAST")
@@ -85,10 +86,10 @@ class ShopDomainModelProviderTest {
     }
 
     @Test
-    fun `the fragment should hold both aggregates of the context, with their snapshots and lifecycle`() {
+    fun `the fragment should hold every aggregate of the context, with their snapshots and lifecycle`() {
         val context = fragment().contexts.single()
         context.name.assert().isEqualTo("example")
-        context.aggregates.map { it.name }.assert().containsExactly("cart", "order")
+        context.aggregates.map { it.name }.assert().containsExactly("cart", "customer", "order")
         context.aggregates.forEach { aggregate ->
             aggregate.snapshot.enabled.assert().isTrue()
             aggregate.lifecycle.assert().containsExactly(
@@ -102,7 +103,7 @@ class ShopDomainModelProviderTest {
     }
 
     @Test
-    fun `the fragment should route every command, the creating ones without an id too`() {
+    fun `the fragment should route every command, the creating and the mounted ones without an id too`() {
         val aggregates = fragment().contexts.single().aggregates.associateBy { it.name }
         val routes = aggregates.mapValues { (_, aggregate) ->
             aggregate.commands.associate { it.name to it.routes.map(RouteManifest::path) }
@@ -120,10 +121,31 @@ class ShopDomainModelProviderTest {
                 "ChangeAddress" to listOf("/example/order/{id}/change-address"),
                 "CreateOrder" to listOf("/example/order/{id}/create-order", "/example/order/create-order"),
                 "PayOrder" to listOf("/example/order/{id}/pay-order"),
+                "PaymentNotified" to listOf("/example/order/{id}/payment-notified", "/example/order/payment-notified"),
                 "ReceiptOrder" to listOf("/example/order/{id}/receipt-order"),
                 "ShipOrder" to listOf("/example/order/{id}/ship-order"),
             ),
         )
+        // Decision D182: ChangePassword gets its route without an id from the server's transformer, not the fragment.
+        routes.getValue("customer").assert().isEqualTo(
+            mapOf(
+                "ChangePassword" to listOf("/example/customer/{id}/change-password"),
+                "ImportCustomer" to listOf(
+                    "/example/customer/{id}/import-customer",
+                    "/example/customer/import-customer",
+                ),
+                "RegisterCustomer" to listOf(
+                    "/example/customer/{id}/register-customer",
+                    "/example/customer/register-customer",
+                ),
+            ),
+        )
+        val customer = aggregates.getValue("customer").commands.associateBy { it.name }
+        customer.getValue("ImportCustomer").mounted.assert().isTrue()
+        customer.getValue("ImportCustomer").transformsTo.assert().containsExactly("example.customer.RegisterCustomer")
+        customer.getValue("RegisterCustomer").mounted.assert().isFalse()
+        aggregates.getValue("order").commands.single { it.name == "PaymentNotified" }.transformsTo
+            .assert().containsExactly("example.order.PayOrder")
         aggregates.getValue("cart").commands.single { it.name == "AddCartItem" }.creation
             .assert().isEqualTo(Creation.ALLOWED)
         aggregates.getValue("order").commands.single { it.name == "CreateOrder" }.creation
@@ -162,11 +184,18 @@ class ShopDomainModelProviderTest {
                     "ChangeQuantity" to listOf("CartQuantityChanged"),
                     "RemoveCartItem" to listOf("CartItemRemoved"),
                 ),
+                // A mounted command produces nothing itself: the command it becomes does.
+                "customer" to mapOf(
+                    "ChangePassword" to listOf("PasswordChanged"),
+                    "ImportCustomer" to null,
+                    "RegisterCustomer" to listOf("CustomerRegistered"),
+                ),
                 "order" to mapOf(
                     "CancelOrder" to listOf("OrderCancelled"),
                     "ChangeAddress" to listOf("AddressChanged"),
                     "CreateOrder" to listOf("OrderCreated"),
                     "PayOrder" to listOf("OrderOverPaid", "OrderPaid", "OrderPayDuplicated"),
+                    "PaymentNotified" to null,
                     "ReceiptOrder" to listOf("OrderReceived"),
                     "ShipOrder" to listOf("OrderShipped"),
                 ),
@@ -240,6 +269,7 @@ class ShopDomainModelProviderTest {
                 403,
                 "The caller is not the customer whose cart this is: a cart's id is its customer's user id.",
             ),
+            Triple(CustomerRejections.USERNAME_TAKEN, 409, "Another customer holds the user name."),
             Triple(OrderRejections.NO_ITEMS, 422, "The order has no item."),
             Triple(OrderRejections.PRICE_CHANGED, 422, "A product's price is no longer the one the customer saw."),
             Triple(

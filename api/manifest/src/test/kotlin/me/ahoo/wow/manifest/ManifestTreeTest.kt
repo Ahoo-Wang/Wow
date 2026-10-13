@@ -33,6 +33,39 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `a mounted command should come back through its JSON text, and a decided one leave mounted out`() {
+        val mounted = CommandManifest(
+            name = "ImportCustomer",
+            schema = Manifest.schemaRef("sample.ImportCustomer"),
+            routes = CommandRoutes.of("shop", "customer", "ImportCustomer", Creation.NONE, mounted = true),
+            mounted = true,
+            transformsTo = listOf("shop.customer.Register"),
+        )
+        val tree = ManifestTree.write(
+            Manifest(
+                contexts = listOf(
+                    ContextManifest(
+                        "shop",
+                        aggregates = listOf(
+                            AggregateManifest(
+                                "customer",
+                                state = StateManifest(Manifest.schemaRef("sample.Customer")),
+                                commands = listOf(mounted, CommandManifest("Register", schema = "#/\$defs/R")),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val json = mapper.writeValueAsString(tree)
+        json.assert().contains("\"mounted\":true").contains("\"transformsTo\":[\"shop.customer.Register\"]")
+        val commands = ManifestTree.read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single()
+            .commands
+        commands.assert().containsExactly(mounted, CommandManifest("Register", schema = "#/\$defs/R"))
+        json.indexOf("\"mounted\"").assert().isEqualTo(json.lastIndexOf("\"mounted\""))
+    }
+
+    @Test
     fun `the tree should name the fields as the design does and leave out absent values`() {
         val fragment = Manifests.fragment().copy(
             contexts = Manifests.fragment().contexts.map { it.copy(description = null) },

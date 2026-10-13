@@ -17,20 +17,20 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
 import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.runtime.admission.CommandRewriter
+import me.ahoo.wow.runtime.admission.CommandInput
+import me.ahoo.wow.runtime.admission.CommandTarget
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.IdGenerator
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /** The application's own beans and settings take the place of the host's defaults. */
@@ -66,7 +66,7 @@ class HostCustomizationTest {
 
     @Test
     fun `a command naming no timeout should wait the default timeout`() {
-        val customizations = host.context.getBean(Customizations::class.java)
+        val customizations = host.decided
         host.post("/bank/account/open-account", """{"owner":"erin"}""").status.assert().isEqualTo(200)
         customizations.timeouts.last().assert().isEqualTo(7.seconds)
         host.post("/bank/account/open-account", """{"owner":"erin"}""", headers = mapOf("Wow-Wait-Timeout" to "3s"))
@@ -77,6 +77,14 @@ class HostCustomizationTest {
         customizations.timeouts.last().assert().isEqualTo(7.seconds)
         host.node.gateway.defaultWaitTimeout(BANK).assert().isEqualTo(7.seconds)
         host.node.options.defaultWaitTimeout.assert().isEqualTo(7.seconds)
+    }
+
+    @Test
+    fun `the application's transformers should transform, and the result should name the input`() {
+        val answer = host.post("/bank/account/open-account", "{}")
+        answer.status.assert().isEqualTo(200)
+        answer.body!!["transformedFrom"]["command"].asString().assert().isEqualTo("bank.account.OpenAccount")
+        host.decided.headers.last()[CommandTransformer.TRANSFORMED_FROM].assert().isEqualTo("bank.account.OpenAccount")
     }
 
     @Test
@@ -104,13 +112,9 @@ class HostCustomizationTest {
 
     @Configuration(proxyBeanMethods = false)
     class Customizations {
-        val timeouts: MutableList<Duration> = CopyOnWriteArrayList()
-
+        /** Fills in the owner of an account opened without one: a transformer that changes only the body. */
         @Bean
-        fun recordingRewriter(): CommandRewriter = CommandRewriter { command: Command<*> ->
-            timeouts += command.wait.timeout
-            command
-        }
+        fun defaultOwner(): CommandTransformer = OwnerDefault()
 
         @Bean
         fun authorizer(): CommandAuthorizer = CommandAuthorizer { _, action: CommandAction ->
@@ -153,7 +157,37 @@ class HostRefusalTest {
     }
 
     @Test
+    fun `two transformers of one command type should be refused`() {
+        val failure = runCatching {
+            startHost(sources = listOf(HostTestApp::class.java, TwoTransformers::class.java)).close()
+        }.exceptionOrNull()
+        checkNotNull(failure) { "The host started." }
+        generateSequence(failure) { it.cause }.mapNotNull { it.message }.joinToString(" | ")
+            .assert().contains("More than one transformer takes bank.account.OpenAccount")
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class TwoTransformers {
+        @Bean
+        fun first(): CommandTransformer = OwnerDefault()
+
+        @Bean
+        fun second(): CommandTransformer = OwnerDefault()
+    }
+
+    @Test
     fun `a service without a name should be refused`() {
         refusal("spring.application.name" to "").assert().contains("Name the service")
+    }
+}
+
+/** Opens an account of the owner `anonymous` when its request names none. */
+class OwnerDefault : CommandTransformer {
+    override val input: CommandType = CommandType("bank.account.OpenAccount", OpenAccount::class.java)
+
+    override suspend fun transform(input: CommandInput): CommandTarget {
+        val body = input.body as OpenAccount
+        val owner = body.owner.ifEmpty { "anonymous" }
+        return CommandTarget(input.type, input.aggregateId, body.copy(owner = owner), input.headers)
     }
 }

@@ -17,7 +17,8 @@ package me.ahoo.wow.manifest
  * The REST routes of a command (design 05 §3, decision D104), and the names they reserve.
  *
  * Every command is `POST /{context}/{aggregate}/{id}/{segment}`; a creation command ([Creation.REQUIRED] or
- * [Creation.ALLOWED]) is also `POST /{context}/{aggregate}/{segment}`, where the server generates the id. The
+ * [Creation.ALLOWED]) is also `POST /{context}/{aggregate}/{segment}`, where the server generates the id, and so is a
+ * mounted command (decision D182), whose transformer finds the aggregate it acts on when the request names none. The
  * segment is the command's name in kebab case ([segment]); `{id}` is written literally, as a template variable.
  *
  * The lifecycle commands an aggregate lists ([AggregateManifest.lifecycle]) get no routes here: the edge derives
@@ -62,17 +63,32 @@ object CommandRoutes {
             .replace(SEPARATORS, "-")
             .lowercase()
 
-    /** The routes of the command [name] of [aggregate] in [context], which creates its aggregate as [creation] says. */
-    fun of(context: String, aggregate: String, name: String, creation: Creation): List<RouteManifest> {
-        val base = "/$context/$aggregate"
-        val segment = segment(name)
-        val byId = RouteManifest(POST, "$base/$ID/$segment")
-        return if (creation == Creation.NONE) {
+    /**
+     * The routes of the command [name] of [aggregate] in [context], which creates its aggregate as [creation] says, or
+     * is [mounted] under it.
+     */
+    fun of(
+        context: String,
+        aggregate: String,
+        name: String,
+        creation: Creation,
+        mounted: Boolean = false,
+    ): List<RouteManifest> {
+        val byId = RouteManifest(POST, byIdPath(context, aggregate, name))
+        return if (creation == Creation.NONE && !mounted) {
             listOf(byId)
         } else {
-            listOf(byId, RouteManifest(POST, "$base/$segment"))
+            listOf(byId, unaddressed(context, aggregate, name))
         }
     }
+
+    /** The path of the command [name] of [aggregate] in [context] to the aggregate of the path's id. */
+    fun byIdPath(context: String, aggregate: String, name: String): String =
+        "/$context/$aggregate/$ID/${segment(name)}"
+
+    /** The route of the command [name] of [aggregate] in [context] that names no aggregate id. */
+    fun unaddressed(context: String, aggregate: String, name: String): RouteManifest =
+        RouteManifest(POST, "/$context/$aggregate/${segment(name)}")
 
     /** Whether [segment], the last segment of a command route, is one the framework keeps for itself. */
     fun isReserved(segment: String): Boolean =

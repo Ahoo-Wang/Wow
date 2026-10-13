@@ -46,4 +46,45 @@ class AggregateModelTest {
         )
         model.commandTypes.forEach { model.decider(it.type).assert().isNotNull() }
     }
+
+    data class ImportCart(val legacy: String)
+
+    @Test
+    fun `a model finds the commands mounted under it apart from those it decides (D182)`() {
+        val model = aggregate<Cart>("shop", "cart") {
+            initial { Cart(it.id) }
+            decide<AddItem> { _, body -> Decision.events(ItemAdded(body.sku)) }
+            mount<ImportCart>()
+            mount<RemoveItem>(name = "shop.cart.Drop")
+            alias<ImportCart>("shop.cart.Load")
+            evolve<ItemAdded> { }
+        }
+        model.mountedCommandTypes.map { it.name }.assert().containsExactly("shop.cart.ImportCart", "shop.cart.Drop")
+        model.findMountedCommandType("shop.cart.Load")!!.type.assert().isEqualTo(ImportCart::class.java)
+        model.findMountedCommandType("shop.cart.AddItem").assert().isNull()
+        model.findCommandType("shop.cart.ImportCart").assert().isNull()
+        model.decider(ImportCart::class.java).assert().isNull()
+    }
+
+    @Test
+    fun `a mounted command is mounted once, is not decided, and takes no name of another command`() {
+        listOf<AggregateModelBuilder<Cart>.() -> Unit>(
+            {
+                mount<ImportCart>()
+                mount<ImportCart>(name = "shop.cart.Other")
+            },
+            { mount<AddItem>() },
+            { mount<ImportCart>(name = "shop.cart.AddItem") },
+            { mount<ImportCart>(name = "${Lifecycle.NAMESPACE}.Import") },
+        ).forEach { configure ->
+            runCatching {
+                aggregate<Cart>("shop", "cart") {
+                    initial { Cart(it.id) }
+                    decide<AddItem> { _, body -> Decision.events(ItemAdded(body.sku)) }
+                    evolve<ItemAdded> { }
+                    configure()
+                }
+            }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
+        }
+    }
 }

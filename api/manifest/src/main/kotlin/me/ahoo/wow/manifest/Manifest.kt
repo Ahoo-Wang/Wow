@@ -134,12 +134,17 @@ data class SnapshotManifest(val enabled: Boolean = true)
 data class QueryManifest(val model: String, val routes: List<RouteManifest> = emptyList())
 
 /**
- * A command the aggregate decides.
+ * A command the aggregate decides, or one [mounted] under its routes.
  *
  * [aliases] are former names, as `@Alias` declares them: one without a dot is within the aggregate, one with dots a
  * full type name. [produces] names the events of the aggregate the command's decide function and after hooks can
  * produce, as their signatures say or `@OnCommand(produces)` declares (decision D120); null when neither says (a
  * `Decision`, `Any`). [routes] are the command's REST routes ([CommandRoutes], decision D104).
+ *
+ * A [mounted] command (`@MountedCommand`, decision D182) is decided by no aggregate: a transformer of the service turns
+ * it into a command that is, at admission. It creates nothing itself ([creation] is [Creation.NONE]) and produces
+ * nothing ([produces] is null); [transformsTo] lists, by full type name, the commands it becomes, as
+ * `@MountedCommand(transformsTo)` declares them; null when it declares none.
  */
 data class CommandManifest(
     val name: String,
@@ -148,6 +153,8 @@ data class CommandManifest(
     val creation: Creation = Creation.NONE,
     val produces: List<String>? = null,
     val routes: List<RouteManifest> = emptyList(),
+    val mounted: Boolean = false,
+    val transformsTo: List<String>? = null,
 )
 
 /**

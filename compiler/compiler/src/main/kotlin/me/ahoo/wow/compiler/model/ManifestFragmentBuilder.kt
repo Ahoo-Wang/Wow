@@ -56,6 +56,9 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
  * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`.
+ *
+ * An aggregate's mounted commands (`@MountedCommand`, decision D182) are among its commands, marked `mounted`, with
+ * routes with and without an id and the `transformsTo` they declare.
  */
 internal object ManifestFragmentBuilder {
     fun build(
@@ -136,18 +139,29 @@ internal object ManifestFragmentBuilder {
             description = binding.description,
             state = StateManifest(Manifest.schemaRef(binding.stateType)),
             snapshot = snapshot,
-            commands = binding.commands.map { command ->
-                val name = command.commandName ?: simpleName(command.type)
-                val creation = Creation.valueOf(command.creation)
-                CommandManifest(
-                    name = name,
-                    aliases = command.aliases,
-                    schema = Manifest.schemaRef(command.type),
-                    creation = creation,
-                    produces = produces(command, binding.afters, eventNames),
-                    routes = CommandRoutes.of(context, binding.aggregateName, name, creation),
-                )
-            }.sortedBy { it.name },
+            commands = (
+                binding.commands.map { command ->
+                    val name = command.commandName ?: simpleName(command.type)
+                    val creation = Creation.valueOf(command.creation)
+                    CommandManifest(
+                        name = name,
+                        aliases = command.aliases,
+                        schema = Manifest.schemaRef(command.type),
+                        creation = creation,
+                        produces = produces(command, binding.afters, eventNames),
+                        routes = CommandRoutes.of(context, binding.aggregateName, name, creation),
+                    )
+                } + binding.mounted.map { mounted ->
+                    val name = mounted.commandName ?: simpleName(mounted.type)
+                    CommandManifest(
+                        name = name,
+                        schema = Manifest.schemaRef(mounted.type),
+                        routes = CommandRoutes.of(context, binding.aggregateName, name, Creation.NONE, mounted = true),
+                        mounted = true,
+                        transformsTo = mounted.transformsTo.distinct().sorted().ifEmpty { null },
+                    )
+                }
+                ).sortedBy { it.name },
             events = binding.sourcing.map { sourcing ->
                 EventManifest(
                     name = eventNames.getValue(sourcing.event),
