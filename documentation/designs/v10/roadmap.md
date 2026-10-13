@@ -141,6 +141,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 规模 | 出口 |
 |---|---|---|---|
 | 6.00 | `:query`（`query/query`）、`:kafka`、`:clickhouse`、`:example-e2e` 的骨架；settings；`V10Rules`（允许的依赖、`REPLACED_9X`）；`build.gradle.kts` 的 `v10Projects` 与 `v10IntegrationTestProjects`；`ci-scope.mjs`；三个空的自动配置类（Query、Kafka、ClickHouse），已列入 `AutoConfiguration.imports` | S | `v10Check` 与架构测试通过 |
+| 6.0e | 操作人（D163）：`wow-api` 的 `Operator`；`Command`、线上形式、`EventStreamRecord`、`StateEventRecord`、`SnapshotRecord`（`operator`、`firstOperator`）；准入由 `Caller` 转换，派生命令继承；三个后端的日志与快照列；查询系统字段；迁移映射 `command_operator` | M | 审计端到端：HTTP 命令 → 事件流 → 快照查询按操作人过滤；Saga 派生命令继承根操作人 |
 | 6.0d | 存储按（上下文，聚合）拆分：PostgreSQL 与 MongoDB 的日志表/集合（D162）；MongoDB 的快照集合（D161，PostgreSQL 的快照表在 6.2a） | M | `EventLogSpec` 与快照 TCK 全绿；分区尾部归并与去重测试 |
 | 6.0a | M6 的全部 Manifest 字段与编译器写入：`queries`（D128）、`published`、`derives`、跨上下文的 `SubscriptionSource`（D138）、`@OnRejected` 订阅（D136）；`FrameworkErrors` 的查询错误码（D130，含 D150 的 `wow.query.timeout`） | M | Manifest 快照测试；依赖 6.00 |
 
@@ -178,7 +179,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.1e | `manifest-tools` 写出查询的 `x-wow-*` 关键字（含 `x-wow-index`，D151） | M | 6.0a | schema 快照测试 |
 | 6.2b | MongoDB 快照查询（D131）；固定复合索引与 `x-wow-index` 索引（D151）；快照集合改为按上下文与聚合（D161） | L | 6.1b | `QueryBackendSpec` 全绿 |
 | 6.4a | ClickHouse 数据集后端（从 9.x 移植） | M | 6.1d | 数据集查询的集成测试 |
-| 6.4b | ClickHouse Sink：DDL 与展平视图（D142） | M | 6.0b、6.3a | Sink 的集成测试 |
+| 6.4b | ClickHouse Sink：基表 `_state_events` 加物化视图 `_state`、`_events` 与展平视图（D142、D164） | M | 6.0b、6.3a | Sink 的集成测试 |
 | 6.4c | 全 V10 的分析端到端（D145）：shop → Sink → 展平表 → 文件里声明的数据集 → V10 数据集查询路由；analytics 服务的端到端移到 7.2 | S | 6.4a、6.4b | `:example-e2e` 通过 |
 
 **之后**：6.7 Elasticsearch（快照存储、查询、事件检索 Sink；3.4 的 ES 快照存储并入），L，M6 之后、M8c 之前（D131）。

@@ -1,6 +1,6 @@
 # V10 数据协议
 
-日期：2026-10-12。基线：`v10` `4224` 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51、D132、D135、D136、D142。
+日期：2026-10-12。基线：`v10` `4224` 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51、D132、D135、D136、D142、D163、D164。
 
 本文定义 V10 中跨越进程、存储或版本边界的数据结构：命令、事件流、`StateEventRecord`、快照、命令结果、等待信号、Kafka 信封。这些结构一旦落盘或上线，就只能按 §9 的规则演进，所以在 M4（运行时）与 M6（Kafka）之前定下。
 
@@ -37,11 +37,12 @@ data class Command<C : Any>(
     val scope: Scope = Scope.NONE,    // 准入得到的调用方作用域（D49、D56）
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null, // 新增：因果链（§4）
+    val operator: Operator? = null,   // 操作人（D163）：准入由 Caller 转成；派生命令继承根命令的操作人
     val wait: WaitPlan = WaitPlan.SNAPSHOT, // 新增：等待计划（D61～D64、D69），默认等快照；只留在发起节点
 )
 ```
 
-- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation, replyTo }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。`replyTo: {context, subscription}` 可选，只在跨上下文命令上出现，告诉目标拒绝回执发往哪个上下文、交给哪个 Saga（D136，格式 1 内的加法）。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
+- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。`replyTo: {context, subscription, ref, version}` 可选，只在跨上下文命令上出现，告诉目标拒绝回执发往哪个上下文、交给哪个 Saga 的哪次提交（D136，格式 1 内的加法）。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
 - **请求 ID 复用的识别只比命令类型名**（D46，按性能取舍修正，D55）：事件流记下产生它的命令类型名（§4 的 `commandType`），同一请求 ID 再来时，类型名不同就拒绝（`wow.command.request-id-reused`），相同就当作重试。
   - 不再给命令体算哈希：命令体在写路径上本来不序列化，只为指纹序列化一次再哈希，是 H3 测出的主要成本之一；规范化 JSON 还有「跨部署加字段即误判」的问题。
   - 已知限制：同一类型、不同内容的命令复用请求 ID 时，后者被当作重试，得到前者的结果。请求 ID 由调用方按「一次业务请求一个」生成，这是调用方的契约（文档与 `wow-client` 默认每次生成新 ID）。
@@ -62,10 +63,12 @@ data class EventStreamRecord(
     val scope: Scope,                       // 新增：提交后聚合的作用域（D56）
     val causation: Causation? = null,       // 新增
     val headers: Map<String, String> = emptyMap(), // 新增：来自命令
+    val operator: Operator? = null,         // 操作人（D163），审计的主依据
 )
 
 data class Scope(val ownerId: String?, val spaceId: String?) // wow-api 的值类型：所有者与空间的组合
 data class Causation(val correlationId: String, val causationId: String)
+data class Operator(val id: String, val tenantId: String, val crossScope: Boolean = false) // wow-api（D163）
 ```
 
 - **`Scope` 是一个值类型**（所有者与空间的组合），命令、事件流、快照、查询授权都用它，不再散放两个字段（D56）。位置决定语义：命令上的是准入得到的调用方作用域，事件流与快照上的是聚合的归属。
@@ -74,6 +77,7 @@ data class Causation(val correlationId: String, val causationId: String)
   - 之后只由「转移所有者、转移空间」这两个生命周期命令改变（[01](01-programming-model.md) §6）。
   - 内核把它和状态一起维护：`CachedState` 增加 `scope`，快照加载时一并恢复。
   - 这样每条事实都自带作用域：投影、查询授权（ABAC）、快照订阅直接读取，不必回放历史。9.x 的 `DomainEventStream.ownerId` 也是这个语义。
+- **操作人**（D163）：`operator` 记这条事实在谁名下。`Caller` 是一次请求的调用方，只活在准入期间；`Operator` 是它写进事实的子集（`id = subject`、操作人自己的租户、是否代操作）。Saga 派生命令、补偿与台账操作继承根命令的操作人，「谁触发的」看 `causation`。角色、属性与可识别个人身份的信息不进事实。
 - **删除与标签**不放进每条事实。它们是生命周期事件本身，快照订阅按事件演化元数据（`deleted`、`tags`）。
 - **因果链**：
   - `correlationId` 是根命令 ID。用户直接发的命令不带 `causation`，它自己就是根，相当于 `correlationId = commandId`。
@@ -118,6 +122,7 @@ data class StateView(val version: Int, val schemaFingerprint: String, val state:
 `SnapshotRecord` 保持现状（[03](03-log-and-snapshot.md) §3）。有两点对齐：
 
 - `ownerId`、`spaceId` 合并为 `scope: Scope`，取自最后一条事件流的 `scope`（D56），不再需要另外的来源。
+- 带 `operator`（最后一条事件流的操作人）与 `firstOperator`（创建时的操作人），都是可查询的系统字段（D163）。
 - `schemaFingerprint` 与 `StateView.schemaFingerprint` 用同一种算法（由内核的 `EventCodec` 计算）。
 
 ## 7. 命令结果（对外，D60）
@@ -184,13 +189,16 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 - 下游按 `id` 去重。`transport` 只放传输段（D25）。
 - **主题**（D135）：`state-event` 发往 `wow.<ctx>.<agg>.state`（每个聚合类型一个，即 Manifest `published[].topic`，可覆盖）；`command` 发往 `wow.<ctx>.commands`，分区数等于该上下文日志的分区数 P，生产者用日志的 `Partitioner` 选分区；`command-receipt` 发往 `wow.<replyTo.context>.receipts`（D136）。
 
-**ClickHouse Sink 的表**（D142）：每个聚合类型两张表，加一个生成的视图：
+**ClickHouse Sink 的表**（D142，D164 修订）：Sink 每个聚合类型只写一张基表，另外两张表由 ClickHouse 物化视图生成：
 
-| 表 | 引擎与键 | 内容 |
-|---|---|---|
-| `<ctx>_<agg>_state` | ReplacingMergeTree(version)，ORDER BY (tenant_id, aggregate_id) | 系统列加 JSON 字符串的 `state` |
-| `<ctx>_<agg>_events` | MergeTree | 每个事件一行 |
-| `<ctx>_<agg>_state_flat` | 视图 | Manifest 状态 schema 的顶层标量展开为类型化列，作为数据集源表；嵌套展开推迟 |
+| 表 | 谁写 | 引擎与键 | 内容 |
+|---|---|---|---|
+| `<ctx>_<agg>_state_events` | Sink | MergeTree，按 `commit_time` 的月分区，`ORDER BY (tenant_id, aggregate_id, version)` | 每个 `StateEventRecord` 一行：系统列、`operator`、事件数组与状态的 JSON；即完整历史 |
+| `<ctx>_<agg>_state` | 物化视图 | ReplacingMergeTree(version)，ORDER BY (tenant_id, aggregate_id) | 当前状态 |
+| `<ctx>_<agg>_events` | 物化视图（`ARRAY JOIN events`） | MergeTree | 每个事件一行 |
+| `<ctx>_<agg>_state_flat` | 视图（建在 `_state` 上） | — | Manifest 状态 schema 的顶层标量展开为类型化列，作为数据集源表；嵌套展开推迟 |
+
+按聚合可配 `history.ttl`（历史保留期）或 `history=false`（只留当前状态）；物化视图链路开 `deduplicate_blocks_in_dependent_materialized_views`，重试插入不重复。
 
 插入以 `ref@version` 为去重令牌；`wow.clickhouse.sink.ddl`（`auto`、`validate`、`none`）决定建表还是校验。
 
