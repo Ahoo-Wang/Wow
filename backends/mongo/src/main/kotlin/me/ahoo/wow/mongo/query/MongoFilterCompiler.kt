@@ -61,6 +61,7 @@ import me.ahoo.wow.query.ignoreCase
 import me.ahoo.wow.query.operandValue
 import me.ahoo.wow.query.requiredOperandValue
 import me.ahoo.wow.query.schema.QueryViolation
+import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.math.BigDecimal
@@ -98,11 +99,10 @@ internal object MongoFilterCompiler {
      * filter also applies inside unwound element scopes.
      */
     fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>): Bson =
-        compile(filter.also(::validateNativeText), admitted, relative = false)
+        compile(filter.also(::validateNativeText), admitted, ROOT)
 
     /** Compiles an element-scope or metric filter of an aggregation, whose paths stay absolute after `$unwind`. */
-    fun compileScoped(filter: FilterExpression, admitted: AdmittedQuery<*>): Bson =
-        compile(filter, admitted, relative = false)
+    fun compileScoped(filter: FilterExpression, admitted: AdmittedQuery<*>): Bson = compile(filter, admitted, ROOT)
 
     /** MongoDB runs at most one `$text` per query, and none beneath `$nor`. */
     private fun validateNativeText(filter: FilterExpression) {
@@ -124,11 +124,12 @@ internal object MongoFilterCompiler {
     }
 
     /**
-     * [relative]: inside `$elemMatch`, where paths are relative to the matched element; the resolution's physical
-     * parent is that element's container.
+     * [scope] says where an element field's path starts: [ROOT] reads absolute paths; inside `$elemMatch` paths are
+     * relative to the matched element ([ELEMENT]); inside an element scope that holds one object rather than an
+     * array, they continue the object's path, [scope] itself.
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>, relative: Boolean): Bson = when (filter) {
+    private fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>, scope: String?): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
         MatchNoneFilter -> MATCH_NONE_FILTER
         is IdFilter -> Filters.eq(system(admitted, filter), filter.value)
@@ -138,53 +139,50 @@ internal object MongoFilterCompiler {
         is TenantIdFilter -> Filters.eq(system(admitted, filter), filter.value)
         is OwnerIdFilter -> Filters.eq(system(admitted, filter), filter.value)
         is SpaceIdFilter -> Filters.eq(system(admitted, filter), filter.value)
-        is AndFilter -> Filters.and(filter.operands.map { compile(it, admitted, relative) })
-        is OrFilter -> Filters.or(filter.operands.map { compile(it, admitted, relative) })
-        is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, relative) })
-        is EqualFilter -> Filters.eq(filter.field.resolve(admitted, relative), filter.value.operand())
-        is NotEqualFilter -> Filters.ne(filter.field.resolve(admitted, relative), filter.value.operand())
-        is GreaterThanFilter -> Filters.gt(filter.field.resolve(admitted, relative), filter.value.requiredOperand())
+        is AndFilter -> Filters.and(filter.operands.map { compile(it, admitted, scope) })
+        is OrFilter -> Filters.or(filter.operands.map { compile(it, admitted, scope) })
+        is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, scope) })
+        is EqualFilter -> Filters.eq(filter.field.resolve(admitted, scope), filter.value.operand())
+        is NotEqualFilter -> Filters.ne(filter.field.resolve(admitted, scope), filter.value.operand())
+        is GreaterThanFilter -> Filters.gt(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
         is GreaterThanOrEqualFilter ->
-            Filters.gte(filter.field.resolve(admitted, relative), filter.value.requiredOperand())
-        is LessThanFilter -> Filters.lt(filter.field.resolve(admitted, relative), filter.value.requiredOperand())
+            Filters.gte(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
+        is LessThanFilter -> Filters.lt(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
         is LessThanOrEqualFilter ->
-            Filters.lte(filter.field.resolve(admitted, relative), filter.value.requiredOperand())
+            Filters.lte(filter.field.resolve(admitted, scope), filter.value.requiredOperand())
         is ContainsFilter -> regex(
-            filter.field.resolve(admitted, relative),
+            filter.field.resolve(admitted, scope),
             filter.value.escapeRegex(),
             filter.stringComparison.ignoreCase,
         )
         is StartsWithFilter -> regex(
-            filter.field.resolve(admitted, relative),
+            filter.field.resolve(admitted, scope),
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase,
         )
         is EndsWithFilter -> regex(
-            filter.field.resolve(admitted, relative),
+            filter.field.resolve(admitted, scope),
             "${filter.value.escapeRegex()}$",
             filter.stringComparison.ignoreCase,
         )
-        is InFilter -> Filters.`in`(filter.field.resolve(admitted, relative), filter.values.map { it.operand() })
-        is NotInFilter -> Filters.nin(filter.field.resolve(admitted, relative), filter.values.map { it.operand() })
+        is InFilter -> Filters.`in`(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
+        is NotInFilter -> Filters.nin(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
         is BetweenFilter -> Filters.and(
-            Filters.gte(filter.field.resolve(admitted, relative), filter.lowerBound.requiredOperand()),
-            Filters.lte(filter.field.resolve(admitted, relative), filter.upperBound.requiredOperand()),
+            Filters.gte(filter.field.resolve(admitted, scope), filter.lowerBound.requiredOperand()),
+            Filters.lte(filter.field.resolve(admitted, scope), filter.upperBound.requiredOperand()),
         )
-        is ContainsAllFilter -> Filters.all(filter.field.resolve(admitted, relative), filter.values.map { it.operand() })
-        is IsEmptyFilter -> Filters.size(filter.field.resolve(admitted, relative), 0)
-        is IsNullFilter -> Filters.eq(filter.field.resolve(admitted, relative), null)
-        is IsNotNullFilter -> Filters.ne(filter.field.resolve(admitted, relative), null)
-        is ExistsFilter -> Filters.exists(filter.field.resolve(admitted, relative))
-        is NotExistsFilter -> Filters.exists(filter.field.resolve(admitted, relative), false)
+        is ContainsAllFilter -> Filters.all(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })
+        is IsEmptyFilter -> Filters.size(filter.field.resolve(admitted, scope), 0)
+        is IsNullFilter -> Filters.eq(filter.field.resolve(admitted, scope), null)
+        is IsNotNullFilter -> Filters.ne(filter.field.resolve(admitted, scope), null)
+        is ExistsFilter -> Filters.exists(filter.field.resolve(admitted, scope))
+        is NotExistsFilter -> Filters.exists(filter.field.resolve(admitted, scope), false)
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> Filters.eq(system(admitted, filter), false)
             DeletionState.DELETED -> Filters.eq(system(admitted, filter), true)
             DeletionState.ALL -> Filters.empty()
         }
-        is ElementMatchFilter -> Filters.elemMatch(
-            filter.field.resolve(admitted, relative),
-            compile(filter.predicate, admitted, relative = true),
-        )
+        is ElementMatchFilter -> elementMatch(filter, admitted, scope)
         is SearchFilter -> Filters.text(
             if (filter.mode == SearchMode.PHRASE) {
                 if ('"' in filter.query) {
@@ -217,10 +215,39 @@ internal object MongoFilterCompiler {
         ),
     )
 
-    private fun QueryField.resolve(admitted: AdmittedQuery<*>, relative: Boolean): String =
-        MongoSnapshotDocuments.checked(
-            admitted.field(this).let { if (relative) it.relativePhysicalField else it.physicalField }.path,
+    /**
+     * The records with one element matching every predicate: an element of the array, or, as the reference semantics
+     * read a single object where an array of objects is declared, that object itself. `$elemMatch` reads arrays only,
+     * and `$type: "object"` also matches an array holding an object, so the object branch also requires a value that
+     * is not an array.
+     */
+    private fun elementMatch(filter: ElementMatchFilter, admitted: AdmittedQuery<*>, scope: String?): Bson {
+        val container = filter.field.resolve(admitted, scope)
+        return Filters.or(
+            Filters.elemMatch(container, compile(filter.predicate, admitted, ELEMENT)),
+            Filters.and(
+                Filters.type(container, BsonType.DOCUMENT),
+                Filters.not(Filters.type(container, BsonType.ARRAY)),
+                compile(filter.predicate, admitted, container),
+            ),
         )
+    }
+
+    private fun QueryField.resolve(admitted: AdmittedQuery<*>, scope: String?): String {
+        val field = admitted.field(this)
+        val path = when (scope) {
+            null -> field.physicalField.path
+            ELEMENT -> field.relativePhysicalField.path
+            else -> scope + "." + field.relativePhysicalField.path
+        }
+        return MongoSnapshotDocuments.checked(path)
+    }
+
+    /** Absolute paths. */
+    private val ROOT: String? = null
+
+    /** Paths relative to the element `$elemMatch` matches. */
+    private const val ELEMENT = ""
 
     /** An operand as the BSON value it is stored as: a runtime value as the JSON it writes, a decimal exactly. */
     private fun Any?.operand(): Any? = stored(operandValue())

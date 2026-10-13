@@ -30,83 +30,97 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Date
 
+/**
+ * The `$match` a record must pass to join a group of this kind (`null`: every record joins), and the group's key
+ * expression. As the reference semantics say: a record without a value forms the `null` group of a terms or histogram
+ * key (or the terms' missing key), the first value of an array is its terms key, a value that is not a number forms
+ * the `null` histogram bucket, and a record without an instant joins no date group.
+ */
 internal fun AggregationGroup.compile(
     admitted: AdmittedQuery<*>,
     denseGrid: DenseDateGrid?,
-): Pair<Bson?, Any> {
-    val expressionKey = { expression: AggregationExpression ->
-        val input = numericParticipation(expression, nullGuarded = true, admitted).first
-        Filters.expr(Document("\$ne", listOf(input, null))) to input
-    }
-    return compileGroup(admitted, denseGrid, expressionKey)
-}
-
-@Suppress("CyclomaticComplexMethod") // One branch per group type and input.
-private fun AggregationGroup.compileGroup(
-    admitted: AdmittedQuery<*>,
-    denseGrid: DenseDateGrid?,
-    expressionKey: (AggregationExpression) -> Pair<Bson?, Any>,
 ): Pair<Bson?, Any> = when (this) {
-    is AggregationGroup.Terms -> expression?.let { expressionKey(it) } ?: run {
-        val path = admitted.path(checkNotNull(field))
-        if (missingKey == null) {
-            Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
-        } else {
-            null to Document("\$ifNull", listOf("\$$path", missingKey))
-        }
-    }
+    is AggregationGroup.Terms -> null to termsKey(admitted)
     is AggregationGroup.Histogram -> {
         val computed = expression?.let { numericParticipation(it, nullGuarded = true, admitted).first }
         val input = computed ?: scalarOrSingleton("\$${admitted.path(checkNotNull(field))}")
-        Filters.expr(Document("\$isNumber", input)) to Document(
-            "\$multiply",
-            listOf(
+        null to Document(
+            "\$let",
+            Document("vars", Document("value", input)).append(
+                "in",
                 Document(
-                    "\$floor",
-                    Document(
-                        "\$divide",
-                        listOf(input, interval),
+                    "\$cond",
+                    listOf(
+                        Document("\$isNumber", "\$\$value"),
+                        Document(
+                            "\$multiply",
+                            listOf(Document("\$floor", Document("\$divide", listOf("\$\$value", interval))), interval),
+                        ),
+                        null,
                     ),
                 ),
-                interval,
             ),
         )
     }
-
-    is AggregationGroup.DateHistogram -> {
-        val input = dateInput(admitted)
-        val zone = mongoTimeZone(timeZone)
-        val truncation = Document("date", input)
-            .append("unit", unit.name.lowercase())
-            .append("timezone", zone)
-            .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
-        if (denseGrid != null) {
-            // `$densify` has no timezone option, so dense histograms group by the integer
-            // bucket index from the [DenseDateGrid.anchor] and densify numerically; the index
-            // is inverted back into the display key by [denseKeyProjection].
-            Filters.expr(Document("\$ne", listOf(input, null))) to if (unit == AggregationDateUnit.HOUR) {
-                wallHourIndex(Date.from(denseGrid.anchor.toInstant()), wallHourTruncation(input, zone), zone)
-            } else {
-                Document(
-                    "\$dateDiff",
-                    Document("startDate", Date.from(denseGrid.anchor.toInstant()))
-                        .append("endDate", Document("\$dateTrunc", truncation))
-                        .append("unit", unit.name.lowercase())
-                        .append("timezone", zone)
-                        .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
-                )
-            }
-        } else {
-            val key = if (unit == AggregationDateUnit.HOUR) {
-                wallHourTruncation(input, zone)
-            } else {
-                Document("\$dateTrunc", truncation)
-            }
-            Filters.expr(Document("\$ne", listOf(input, null))) to Document("\$toLong", key)
-        }
-    }
-
+    is AggregationGroup.DateHistogram -> dateHistogramKey(admitted, denseGrid)
     is AggregationGroup.DatePart -> datePartKey(admitted)
+}
+
+/** A terms key: the expression's value, or the field's first value, `null` (or the missing key) without one. */
+private fun AggregationGroup.Terms.termsKey(admitted: AdmittedQuery<*>): Any {
+    expression?.let { return numericParticipation(it, nullGuarded = true, admitted).first }
+    val first = Document(
+        "\$let",
+        Document("vars", Document("value", "\$${admitted.path(checkNotNull(field))}")).append(
+            "in",
+            Document(
+                "\$cond",
+                listOf(
+                    Document("\$isArray", "\$\$value"),
+                    Document("\$arrayElemAt", listOf("\$\$value", 0)),
+                    "\$\$value",
+                ),
+            ),
+        ),
+    )
+    // A missing key is a value: `$literal` keeps one starting with `$` from reading a field.
+    return Document("\$ifNull", listOf(first, missingKey?.let { Document("\$literal", it) }))
+}
+
+private fun AggregationGroup.DateHistogram.dateHistogramKey(
+    admitted: AdmittedQuery<*>,
+    denseGrid: DenseDateGrid?,
+): Pair<Bson?, Any> {
+    val input = dateInput(admitted)
+    val zone = mongoTimeZone(timeZone)
+    val truncation = Document("date", input)
+        .append("unit", unit.name.lowercase())
+        .append("timezone", zone)
+        .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
+    val present = Filters.expr(Document("\$ne", listOf(input, null)))
+    if (denseGrid == null) {
+        val key = if (unit == AggregationDateUnit.HOUR) {
+            wallHourTruncation(input, zone)
+        } else {
+            Document("\$dateTrunc", truncation)
+        }
+        return present to Document("\$toLong", key)
+    }
+    // `$densify` has no timezone option, so dense histograms group by the integer bucket index from the
+    // [DenseDateGrid.anchor] and densify numerically; the index is inverted back into the display key by
+    // [denseKeyProjection].
+    return present to if (unit == AggregationDateUnit.HOUR) {
+        wallHourIndex(Date.from(denseGrid.anchor.toInstant()), wallHourTruncation(input, zone), zone)
+    } else {
+        Document(
+            "\$dateDiff",
+            Document("startDate", Date.from(denseGrid.anchor.toInstant()))
+                .append("endDate", Document("\$dateTrunc", truncation))
+                .append("unit", unit.name.lowercase())
+                .append("timezone", zone)
+                .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
+        )
+    }
 }
 
 /** The calendar part of the field's date in the group's time zone; records without a date form no group. */
