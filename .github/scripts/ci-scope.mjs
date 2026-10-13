@@ -218,7 +218,10 @@ const RULES = [
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below): no example server, client or site builds on
   // them yet.
-  [/^(?:api|compiler|core|query|backends|edge|host|extensions|migration)\//, []],
+  [
+    /^(?:api|compiler|core|query|backends|edge|host|extensions|migration)\//,
+    [],
+  ],
   // Other Gradle modules, the dashboard (dashboard-test.yml), the analytics
   // service and its console (analytics-console-test.yml) and prose.
   [

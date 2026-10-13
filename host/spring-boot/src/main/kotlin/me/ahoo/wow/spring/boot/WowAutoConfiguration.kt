@@ -539,5 +539,3 @@ class WowAutoConfiguration {
         }
     }
 }
-
-

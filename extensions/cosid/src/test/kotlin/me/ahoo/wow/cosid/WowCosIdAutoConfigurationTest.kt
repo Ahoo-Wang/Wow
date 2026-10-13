@@ -106,7 +106,8 @@ class WowCosIdAutoConfigurationTest {
         val metadata = loader.getResources("META-INF/spring-autoconfigure-metadata.properties").toList()
             .map { url -> Properties().apply { url.openStream().use(::load) } }
             .single { it.containsKey(name) }
-        metadata.getProperty("$name.AutoConfigureBefore").assert().isEqualTo("me.ahoo.wow.spring.boot.WowAutoConfiguration")
+        val host = "me.ahoo.wow.spring.boot.WowAutoConfiguration"
+        metadata.getProperty("$name.AutoConfigureBefore").assert().isEqualTo(host)
         metadata.getProperty("$name.AutoConfigureAfter").split(',').assert()
             .contains("me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration")
     }

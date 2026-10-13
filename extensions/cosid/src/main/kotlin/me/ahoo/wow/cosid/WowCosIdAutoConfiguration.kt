@@ -26,9 +26,10 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 
 /**
  * Gives the Wow host CosId's id generators (decision D171) when the application runs CosId (it has CosId's
- * [IdGeneratorProvider] bean). The host lists it in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`;
- * its ordering (after CosId's auto-configuration, before the host's `WowAutoConfiguration`) is in
- * `META-INF/spring-autoconfigure-metadata.properties`, so that this module imports no Spring Boot type.
+ * [IdGeneratorProvider] bean). This module lists it in
+ * `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`; its ordering (after CosId's
+ * auto-configuration, before the host's `WowAutoConfiguration`) is in
+ * `META-INF/spring-autoconfigure-metadata.properties`, so that it imports no Spring Boot type.
  *
  * - [CosIdGlobalIdGenerator] is the host's global generator, of CosId's generator named `wow.cosid.global-generator`
  *   (`cosid` by default), unless the application has a [GlobalIdGenerator] of its own.
@@ -46,7 +47,10 @@ class WowCosIdAutoConfiguration {
 
     @Bean(AGGREGATE_ID_GENERATOR)
     @Conditional(NoAggregateIdGenerator::class)
-    fun wowCosIdAggregateIdGenerator(provider: IdGeneratorProvider, environment: Environment): CosIdAggregateIdGenerator {
+    fun wowCosIdAggregateIdGenerator(
+        provider: IdGeneratorProvider,
+        environment: Environment,
+    ): CosIdAggregateIdGenerator {
         val global = CosIdGlobalIdGenerator(provider, globalName(environment))
         return CosIdAggregateIdGenerator(provider) { CosIdAggregateIdGenerator.machineIdOf(global.generator) }
     }
