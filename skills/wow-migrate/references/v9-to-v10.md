@@ -21,7 +21,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
-| `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` DSL; on the pinned target verify which artifact ships it (the shop uses the kernel's test fixtures) |
+| `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` DSL (`me.ahoo.wow.kernel.test`) in the kernel's test fixtures: `testImplementation(testFixtures("me.ahoo.wow:wow-kernel:<version>"))` |
 | Domain handlers returning `Mono`/`Flux` | `suspend`, or keep Reactor through `wow-reactor` (compile error without it) |
 
 Artifact ids keep the `wow-` prefix (`me.ahoo.wow:wow-kernel`); V10 Gradle project names in the Wow repository do not. No module may depend on both a 9.x and a V10 module.

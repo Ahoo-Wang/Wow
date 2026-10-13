@@ -1,6 +1,6 @@
 ---
 name: "wow-develop"
-description: "Build, review, debug or explain Wow behavior in downstream Kotlin/Java services with me.ahoo.wow imports, wow-* dependencies or explicit Wow requests: aggregates, commands, sagas, projections, queries, configuration; diff findings, merge readiness; failing-pipeline root cause, fixed when authorized. Includes first adoption, routine same-major upgrades. Not the Wow framework repository, generic DDD/CQRS, or breaking migrations and data cutovers, reviews and diagnosis included (wow-migrate)."
+description: "Build, review, debug or explain Wow behavior in downstream Kotlin/Java services with me.ahoo.wow imports, wow-* dependencies or Wow requests: aggregates, commands, sagas, projections, queries, configuration; findings, merge readiness; failing-pipeline root cause, fixed when authorized. Covers 9.x, V10, first adoption, routine same-major upgrades. Not the Wow framework repository, generic DDD/CQRS, or breaking migrations and data cutovers, reviews and diagnosis included (wow-migrate)."
 ---
 
 # Develop, Review and Debug Wow Services
@@ -14,7 +14,7 @@ Own the whole task, whichever mode it takes; do not hand it to another Wow Skill
 ## Contract
 
 - Treat the current checkout, its tests, generated contracts, and resolved dependencies as authoritative.
-- Resolve the actual Wow version from the downstream build and dependency graph before applying exact symbols, defaults, or V9 rules; label version-specific conclusions unverified when the version cannot be confirmed.
+- Resolve the actual Wow version from the downstream build and dependency graph before applying exact symbols, defaults, or version rules; label version-specific conclusions unverified when the version cannot be confirmed. The version selects the surface: see [Target version](#target-version).
 - Treat commands as intent, domain events as committed facts, and sourced state as reconstructed memory. Keep aggregate invariants inside the aggregate boundary and external side effects outside it.
 - Preserve reactive execution, serialization compatibility, module boundaries, and public contracts unless the user authorizes a breaking change.
 - Keep read-only requests (review, diagnosis, lookup) read-only: no edits, comments, approvals, merges, or remote changes without explicit authorization.
@@ -32,7 +32,15 @@ Own the whole task, whichever mode it takes; do not hand it to another Wow Skill
 
 **Diagnose-and-fix** (only when a fix is requested): keep the reproducer or add a failing regression test; make the smallest change that addresses the confirmed cause; run the reproducer and relevant regression checks; inspect the diff for altered contracts or adjacent pipeline risk. Do not combine independent hypotheses into one patch. Report pre-fix evidence alongside the fix.
 
-## Load one domain reference first
+## Target version
+
+V10 and 9.x are different programming models, modules and configuration, not one API at two versions. Decide which one the target builds against before loading anything else:
+
+- **V10** (`wow-kernel`, `wow-spring-boot`, the Gradle plugin `me.ahoo.wow`, imports of `me.ahoo.wow.api.decide` or `me.ahoo.wow.kernel`, `@Saga`, `@Reactor`, `@Projection`, `aggregateSpec`): load `references/v10-service.md` and only it as the domain reference; it holds the recognition markers, the surface and its V10-specific review checks. The 9.x references below do not apply, not even their symbol names. Load `references/review-rubric.md` or `references/pipeline-map.md` for their workflow only, and check each 9.x-specific item against the V10 reference before using it.
+- **9.x or 8.x**: use the domain references below. Nothing in `references/v10-service.md` applies.
+- **9.x moving to V10**: a cross-major migration; it belongs to `wow-migrate`.
+
+## Load one domain reference first (9.x and 8.x targets)
 
 | Primary scope | Load |
 |---|---|
@@ -52,4 +60,4 @@ Add `references/review-rubric.md` for a review and `references/pipeline-map.md` 
 - Do not introduce blocking or manual subscription into reactive runtime paths.
 - Verify event/schema/API compatibility when changing public messages or metadata.
 - Use the assertion style already established by the target module; Kotlin Wow tests normally use `me.ahoo.test.asserts.assert` and `.assert()`.
-- Guides: https://wow.ahoo.me/guide/ (testing: https://wow.ahoo.me/guide/test-suite.html, troubleshooting: https://wow.ahoo.me/guide/troubleshooting.html).
+- Guides: https://wow.ahoo.me/guide/ (testing: https://wow.ahoo.me/guide/test-suite.html, troubleshooting: https://wow.ahoo.me/guide/troubleshooting.html). V10: https://wow.ahoo.me/guide/v10/ once the site carries it; until then the Wow repository's `v10` branch (`documentation/docs/en/guide/v10/` and the examples `example/shop`, `example/inventory`).
