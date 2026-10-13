@@ -270,7 +270,10 @@ internal class ModelSymbolProcessor(
             declaration.getAnnotationsByType(BoundedContext::class).forEach {
                 boundedContexts[it.name] = it.description
                 if (mode == Mode.GENERATE) {
-                    ContextName.problem(it.name)?.let { problem -> logger.error("@BoundedContext: $problem", declaration) }
+                    val problem = ContextName.problem(it.name)
+                    if (problem != null) {
+                        logger.error("@BoundedContext: $problem", declaration)
+                    }
                 }
             }
         }

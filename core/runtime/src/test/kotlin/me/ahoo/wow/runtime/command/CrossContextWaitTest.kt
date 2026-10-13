@@ -258,7 +258,9 @@ class CrossContextWaitTest {
         contracts.commandsOutside(setOf(SALES)).assert().isEqualTo(mapOf("$SALES/$SAGA" to sortedSetOf(STOCK)))
         val lifecycle = salesManifest.copy(
             contexts = salesManifest.contexts.map { context ->
-                context.copy(subscriptions = context.subscriptions.map { it.copy(derives = Lifecycle.COMMANDS.keys.toList()) })
+                context.copy(
+                    subscriptions = context.subscriptions.map { it.copy(derives = Lifecycle.COMMANDS.keys.toList()) }
+                )
             },
         )
         ContractDirectory(lifecycle).commandsOutside(setOf(SALES)).assert().isEmpty()

@@ -17,8 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.MissingDependencyException
+import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
