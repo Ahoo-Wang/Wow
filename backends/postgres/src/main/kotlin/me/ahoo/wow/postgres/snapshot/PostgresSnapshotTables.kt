@@ -14,32 +14,50 @@
 package me.ahoo.wow.postgres.snapshot
 
 /**
- * The table and statements of one context's snapshots. The name derives from the context and is part of the format,
- * whose version is [FORMAT] (decision D59). The key leads with the tenant, so a query within one tenant and aggregate
- * scans one key range. The scope is two nullable columns, the owner and the space, which the query side filters on.
+ * The table and statements of one aggregate type's snapshots (decision D161): one table per bounded context and
+ * aggregate, `wow_snapshot__<context>__<aggregate>`, so a query service can read one aggregate's table directly. Each
+ * part is lower-cased with every character outside `[a-z0-9_]` as `_`, and the double underscore separates them; a
+ * name longer than PostgreSQL's 63 characters is cut by [PostgresIdentifiers.limited]. The name is part of the format,
+ * whose version is [FORMAT] and is recorded per table (decision D59). The key leads with the tenant, so a query within
+ * one tenant scans one key range. The scope is two nullable columns, the owner and the space, which the query side
+ * filters on.
+ *
+ * The text columns the query side compares and sorts by use the `C` collation: they order by code point, as the query
+ * backend orders the state's text values, and their indexes serve that order. Two partial indexes cover the predicates
+ * admission adds to every query (decision D151): the tenant and the caller's owner or space, over the snapshots that
+ * are not deleted.
  */
-internal class PostgresSnapshotTables(context: String) {
-    val base = "wow_snapshot_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
+internal class PostgresSnapshotTables(context: String, aggregate: String) {
+    val base: String = PostgresIdentifiers.limited(
+        "wow_snapshot__" + context.normalized() + "__" + aggregate.normalized()
+    )
     val snapshot = "\"$base\""
+
+    /** The partial index of the owner scope. */
+    val ownerIndex: String = PostgresIdentifiers.limited(base + "_owner_ix")
+
+    /** The partial index of the space scope. */
+    val spaceIndex: String = PostgresIdentifiers.limited(base + "_space_ix")
 
     fun ddl(): List<String> = listOf(
         """
         CREATE TABLE IF NOT EXISTS $snapshot (
-            tenant_id text NOT NULL,
-            aggregate_name text NOT NULL,
-            aggregate_id text NOT NULL,
+            tenant_id text COLLATE "C" NOT NULL,
+            aggregate_id text COLLATE "C" NOT NULL,
             version integer NOT NULL,
             schema_fingerprint text NOT NULL,
             state jsonb NOT NULL,
-            owner_id text,
-            space_id text,
+            owner_id text COLLATE "C",
+            space_id text COLLATE "C",
             deleted boolean NOT NULL,
             first_event_time bigint NOT NULL,
             last_event_time bigint NOT NULL,
             tags jsonb NOT NULL,
-            PRIMARY KEY (tenant_id, aggregate_name, aggregate_id)
+            PRIMARY KEY (tenant_id, aggregate_id)
         )
         """.trimIndent(),
+        "CREATE INDEX IF NOT EXISTS \"$ownerIndex\" ON $snapshot (tenant_id, owner_id) WHERE NOT deleted",
+        "CREATE INDEX IF NOT EXISTS \"$spaceIndex\" ON $snapshot (tenant_id, space_id) WHERE NOT deleted",
     )
 
     /**
@@ -50,10 +68,10 @@ internal class PostgresSnapshotTables(context: String) {
      * Returns the version when the row was inserted or replaced, no row when the guard refused it.
      */
     val save = """
-        INSERT INTO $snapshot AS stored (tenant_id, aggregate_name, aggregate_id, version, schema_fingerprint, state,
+        INSERT INTO $snapshot AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state,
             owner_id, space_id, deleted, first_event_time, last_event_time, tags)
-        VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb)
-        ON CONFLICT (tenant_id, aggregate_name, aggregate_id) DO UPDATE SET
+        VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb)
+        ON CONFLICT (tenant_id, aggregate_id) DO UPDATE SET
             version = excluded.version,
             schema_fingerprint = excluded.schema_fingerprint,
             state = excluded.state,
@@ -67,10 +85,14 @@ internal class PostgresSnapshotTables(context: String) {
         RETURNING version
     """.trimIndent()
 
-    val load = "SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_name = ? AND aggregate_id = ?"
+    val load = "SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_id = ?"
 
     companion object {
         /** The version of this layout. */
         const val FORMAT = 1
+
+        private val INVALID = Regex("[^a-z0-9_]")
+
+        private fun String.normalized(): String = lowercase().replace(INVALID, "_")
     }
 }
