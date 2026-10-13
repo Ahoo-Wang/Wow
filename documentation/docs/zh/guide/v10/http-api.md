@@ -128,7 +128,7 @@ Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inve
 | `snapshot` | `/<context>/<aggregate>/snapshot/query` | 聚合当前的快照 |
 | `events` | `/<context>/<aggregate>/events/query` | 一个聚合按版本的事件流 |
 
-`POST` 执行查询；`GET` 返回模型的能力描述（字段、操作符与限制），以其版本作为 `ETag`。请求体在 `kind` 中给出操作，与查询本身并列：
+`POST` 执行查询；`GET` 返回模型的能力描述（字段、操作符与限制），以其版本作为 `ETag`。请求体在 `kind` 中给出操作，与查询本身并列；[查询语言](./query.md)逐一说明筛选条件、查询种类与响应、Kotlin DSL 与查询注解：
 
 | `kind` | 返回 |
 | --- | --- |
@@ -148,7 +148,7 @@ curl -X POST localhost:8080/example/order/events/query \
 ```
 
 - 调用方只看到自己的聚合：自己的租户，以及它有值时的所有者与空间。除非查询指明删除状态，否则看不到已删除的聚合。
-- 快照查询可以筛选与排序系统字段（`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`）以及补全后的片段中状态 Schema 描述的 `state.*`。状态字段上的 `@QueryIndex`（`me.ahoo.wow.api.query.annotation`，在 `wow-query-api` 中）声明一个由后端创建的索引（`wow.query.index.ddl`）。
+- 快照查询可以筛选与排序系统字段（`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`）以及补全后的片段中状态 Schema 描述的 `state.*`。状态字段上的 `@QueryIndex`（`me.ahoo.wow.api.query.annotation`，在 `wow-query-api` 中）声明一个由后端创建的索引（`wow.query.index.ddl`）；见[查询注解](./query.md#查询注解)。
 - `events` 模型的筛选条件指定一个聚合的 ID，可以再限定 `version` 或 `commitTime`，不能有其他条件。
 - 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 `wow.query.timeout`。
 - 快照在 PostgreSQL 与 MongoDB 上可以查询。内存后端上没有查询后端提供快照，其路由返回 404。

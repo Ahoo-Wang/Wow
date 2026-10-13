@@ -128,7 +128,7 @@ Each aggregate has two query models:
 | `snapshot` | `/<context>/<aggregate>/snapshot/query` | The aggregates' current snapshots |
 | `events` | `/<context>/<aggregate>/events/query` | One aggregate's event streams, by version |
 
-`POST` runs a query; `GET` answers the model's capability descriptor (its fields, operators and limits), with its version as the `ETag`. The body names the operation in `kind`, beside the query:
+`POST` runs a query; `GET` answers the model's capability descriptor (its fields, operators and limits), with its version as the `ETag`. The body names the operation in `kind`, beside the query; [Query Language](./query.md) describes every filter, kind and answer, the Kotlin DSL and the query annotations:
 
 | `kind` | Answers |
 | --- | --- |
@@ -148,7 +148,7 @@ curl -X POST localhost:8080/example/order/events/query \
 ```
 
 - The caller sees only its own aggregates: its tenant, and its owner and space when it has them. A query does not see deleted aggregates unless it names their deletion state.
-- A snapshot query filters and sorts the system fields (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`) and `state.*`, as the state schema in the completed fragment describes it. `@QueryIndex` (`me.ahoo.wow.api.query.annotation`, in `wow-query-api`) on a state field declares an index the backend creates (`wow.query.index.ddl`).
+- A snapshot query filters and sorts the system fields (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`) and `state.*`, as the state schema in the completed fragment describes it. `@QueryIndex` (`me.ahoo.wow.api.query.annotation`, in `wow-query-api`) on a state field declares an index the backend creates (`wow.query.index.ddl`); see [Query annotations](./query.md#query-annotations).
 - The `events` model's filter names one aggregate's id and may bound `version` or `commitTime`, nothing else.
 - A query the model refuses is 400 `wow.query.invalid`, its violations naming each rule; one that does not read as a query is 400 `wow.query.malformed`; a timeout is `wow.query.timeout`.
 - The snapshots are queried on PostgreSQL and MongoDB. On the memory backend no query backend serves them, and their routes answer 404.

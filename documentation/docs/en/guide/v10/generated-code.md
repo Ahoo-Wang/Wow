@@ -16,6 +16,7 @@ build/generated/ksp/main/
 │   ├── ShopDomainModelProvider.kt          the binding index
 │   ├── cart/CartModel.kt                    fun cartModel(context, configure)
 │   ├── cart/CartSagaSubscriptions.kt        fun cartSagaHandlers(dependencies)
+│   ├── cart/CartStateProperties.kt          the state's query fields (with wow-query-api)
 │   ├── order/OrderModel.kt                  fun orderModel(context, pricingService, configure)
 │   └── order/OrderSagaSubscriptions.kt      fun orderSagaHandlers(dependencies)
 └── resources/META-INF/
@@ -44,6 +45,10 @@ The factory builds the model through the kernel's DSL (`aggregate<S>(context, na
 ## Processor bindings
 
 Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(dependencies)` in its package (`OrderSaga` gives `orderSagaHandlers`), in a file named `<Processor>Subscriptions.kt`. It builds the processor once, its constructor's parameters taken from `dependencies` by type (and qualifier), and returns one kernel `ProcessorBinding` per handler, named `<processor>.<function>`, with the saga's `@OnRejected` handlers bound to it. The generated code builds on `wow-kernel` only: the runtime turns the bindings into subscriptions.
+
+## Query fields: `<State>Properties`
+
+When the module has `wow-query-api` on its class path, each aggregate's state also gets `<State>Properties`, an object of the `QueryField`s a snapshot query names: the system fields and every `state.*` path, such as `OrderStateProperties.STATE__ITEMS__PRODUCT_ID` for `state.items.productId`. The query DSL takes them; [Query Language](./query.md#generated-field-constants) describes them.
 
 ## The binding index: `ModelProvider`
 
