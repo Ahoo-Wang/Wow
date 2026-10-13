@@ -13,16 +13,16 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
-import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
-import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.test.sagaSpec
+import me.ahoo.wow.kernel.test.stateEvent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
@@ -30,49 +30,39 @@ import java.math.BigDecimal
 /** The gateway saga over the simulated gateway, which approves up to its limit and declines above it. */
 class PaymentGatewaySagaTest {
     private val payment = AggregateType("eshop-payment", "payment").ref(TENANT, ORDER)
-    private val gateway = SimulatedPaymentGateway(BigDecimal("100.00"))
-    private val saga = PaymentGatewaySaga(gateway)
 
-    private fun requested(amount: String): StateEvent<PaymentState> {
-        val event = PaymentRequested(ORDER, BigDecimal(amount))
-        val state = PaymentState(ORDER).apply { onSourcing(event) }
-        return StateEvent(
-            payment,
-            1,
-            "command-1",
-            "request-1",
-            "eshop-payment.payment.RequestPayment",
-            1L,
-            listOf(event),
-            state
-        )
-    }
+    /** The saga under test, with the one service it takes. */
+    private val handlers = paymentGatewaySagaHandlers(Dependencies.of(SimulatedPaymentGateway(BigDecimal("100.00"))))
 
-    private fun context(event: StateEvent<PaymentState>) =
-        ExecutionSagaContext(ExecutionId(HANDLER, event.ref, event.version), event)
+    private fun requested(amount: String, vararg events: Any) = stateEvent(
+        payment,
+        PaymentState(ORDER).apply { onSourcing(PaymentRequested(ORDER, BigDecimal(amount))) },
+        *events.ifEmpty { arrayOf(PaymentRequested(ORDER, BigDecimal(amount))) },
+        commandType = "eshop-payment.payment.RequestPayment",
+    )
 
     @Test
-    fun `an amount within the limit should confirm the payment under the gateway's transaction`(): Unit = runTest {
-        val event = requested("100.00")
-        val command = saga.onPaymentRequested(event, context(event))!!
-        command.ref.assert().isEqualTo(payment)
-        command.body.assert().isEqualTo(ConfirmPayment("simulated-${ExecutionId(HANDLER, payment, 1)}"))
-        // Handling the commit again charges with the same key, and derives the same request.
-        saga.onPaymentRequested(event, context(event))!!.requestId.assert().isEqualTo(command.requestId)
+    fun `an amount within the limit should confirm the payment under the gateway's transaction`() = sagaSpec(handlers) {
+        whenEvent(requested("100.00")) {
+            expectCommand(ConfirmPayment("simulated-${ExecutionId(HANDLER, payment, 1)}"), to = payment)
+            // Handling the commit again charges with the same key, and derives the same request.
+            expectDeterministic()
+        }
     }
 
     @Test
-    fun `an amount over the limit should fail the payment`(): Unit = runTest {
-        val event = requested("100.01")
-        val command = saga.onPaymentRequested(event, context(event))!!
-        command.ref.assert().isEqualTo(payment)
-        (command.body as FailPayment).reason.assert().contains("declined 100.01").contains("limit of 100.00")
+    fun `an amount over the limit should fail the payment`() = sagaSpec(handlers) {
+        whenEvent(requested("100.01")) {
+            expectCommand<FailPayment> {
+                ref.assert().isEqualTo(payment)
+                body.reason.assert().contains("declined 100.01").contains("limit of 100.00")
+            }
+        }
     }
 
     @Test
-    fun `another event of the payment should charge nothing`(): Unit = runTest {
-        val event = requested("10.00").copy(events = listOf(PaymentSucceeded("transaction-1")))
-        saga.onPaymentRequested(event, context(event)).assert().isNull()
+    fun `another event of the payment should charge nothing`() = sagaSpec(handlers) {
+        whenEvent(requested("10.00", PaymentSucceeded("transaction-1"))) { expectNoCommand() }
     }
 
     @Test

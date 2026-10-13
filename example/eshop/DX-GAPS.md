@@ -231,7 +231,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Show an `integrationTest` suite in the guide, with Gradle's JVM Test Suite plugin and the Testcontainers dependency. Inside the repository, register the eShop servers in `v10IntegrationTestProjects`, so E.2 to E.5 can test their own servers on PostgreSQL.
 - **Blocks M7**: no.
 
-### G18. `expectEventTypes` takes Java classes
+### G18. `expectEventTypes` takes Java classes (resolved)
 
 - **Work package**: E.1
 - **Area**: testing, docs
@@ -240,6 +240,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `expectEventTypes(ProductUpdated::class.java)`.
 - **Proposed fix**: Add a `KClass` overload, or a reified `expectEventType<E>()`. At least, show the parameter type in the guide.
 - **Blocks M7**: no.
+- **Resolved**: by #4392. `expectEventTypes` takes `KClass` too (`expectEventTypes(ProductUpdated::class)`), `expectEvent<E> { … }` checks a single event, and the guide shows the parameter types.
 
 ### G19. A rename cannot give back the unique name it leaves
 
@@ -296,7 +297,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Document the pattern (accepted outcomes come back through the target's stream), or offer an `@OnAccepted` (or `@OnCommitted`) counterpart of `@OnRejected` for commands a saga derives.
 - **Blocks M7**: no.
 
-### G24. The testing guide's saga example derives other ids the second time
+### G24. The testing guide's saga example derives other ids the second time (resolved)
 
 - **Work package**: E.3
 - **Area**: docs, testing
@@ -305,8 +306,9 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The eShop's saga tests build a fresh context for each call.
 - **Proposed fix**: Build the context twice in the example, and say why.
 - **Blocks M7**: no, but the first saga test a user copies fails.
+- **Resolved**: by #4392. `sagaSpec` gives each call of a handler a fresh `ExecutionSagaContext`, and `expectDeterministic()` handles the commit again with a new one; the guide's example uses it and says why a hand-built context must be new for each call.
 
-### G25. Smaller gaps of the test DSL (besides G18)
+### G25. Smaller gaps of the test DSL (besides G18) (resolved)
 
 - **Work package**: E.2, E.3
 - **Area**: testing, docs
@@ -317,6 +319,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: No state check after a rejection; the cancelled schedule is checked with `expectScheduleCancelled`, and the late command is sent by hand to show the order rejects it.
 - **Proposed fix**: Let `expectState` read the current state after a rejection; let `advanceTime` take a block that expects nothing due (or document the failure).
 - **Blocks M7**: no.
+- **Resolved**: by #4392. `expectState` reads the current state after a rejection, and after an exception `expectError<T>()` checks; `advanceTime` without a block never fails, its block still fails when nothing was due (documented), and `expectNothingDue(within)` shows that a cancelled schedule does not fire.
 
 ### G26. An `@OnRejected` handler that only accepts a rejection must still name a command
 
@@ -338,7 +341,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: A host property for in-memory topics on the memory backend (`wow.kafka.in-memory`, say), or a note in the quick start.
 - **Blocks M7**: no.
 
-### G28. Testing an `@OnRejected` handler needs the services of every processor of the module
+### G28. Testing an `@OnRejected` handler needs the services of every processor of the module (resolved)
 
 - **Work package**: E.5
 - **Area**: testing, docs
@@ -347,6 +350,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `OrderPaymentSagaTest` passes `Dependencies.of(SimulatedPaymentGateway(…))`, a service the saga under test does not use.
 - **Proposed fix**: Build processors lazily or one at a time (`processor("OrderPaymentSaga", dependencies)`), or give the test fixtures a way to bind one `@OnRejected` handler of a processor instance; say in the guide that `Dependencies.NONE` works only for a module whose processors take no services. Name processors, not models, in the message.
 - **Blocks M7**: no.
+- **Resolved**: by #4392. A test takes one processor's handlers from its generated `<processor>Handlers(dependencies)` function, which constructs that processor only; `sagaSpec(...).whenRejected(command, code, message)` hands a rejection to its `@OnRejected` handler. The guide says that `ModelProvider.processors` needs the services of every processor. The `MissingDependencyException` message still speaks of aggregate models (it is the kernel's, shared with `models`).
 
 ### G29. A saga that derives one of several commands names them as strings
 
