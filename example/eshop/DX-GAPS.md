@@ -144,7 +144,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Let the annotation declare the start (`@OnEvent(start = ...)`), with host configuration overriding it. Or default subscriptions of another context's stream to `beginning`.
 - **Blocks M7**: yes. The default loses data silently for a new service.
 
-### G11. The command topic must be created by hand with exactly the log's partitions
+### G11. The command topic must be created by hand with exactly the log's partitions (resolved)
 
 - **Work package**: 6.3e
 - **Area**: host, backends, docs
@@ -153,6 +153,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The README gives the command; the tests create the topic with the Kafka admin client.
 - **Proposed fix**: An opt-in `wow.kafka.create-topics` for development that creates the command topic with the right count. Document the topic DDL (decision D168).
 - **Blocks M7**: no, once the DDL is documented.
+- **Resolved**: by 6.3g (decision D168). `wow.kafka.topics.ddl=auto` creates the topics a service owns at startup, the command topic with exactly `wow.log.partitions` partitions; the default, `validate`, refuses to start and names each topic that is missing or has the wrong count. The eShop's `kafka` profiles use `auto`; the deployment guide documents the topic DDL.
 
 ### G12. The test DSL's `expectState` cannot follow `expectUnchanged` (resolved)
 
