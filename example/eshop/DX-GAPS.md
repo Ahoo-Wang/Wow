@@ -357,3 +357,43 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The names as constants in the saga.
 - **Proposed fix**: Accept classes in `derives` (`derives = [ConfirmPayment::class]`), or infer the commands from a sealed type in `Command<…>`; document whether a name that decides no command fails the build.
 - **Blocks M7**: no.
+
+### G30. A wait chain names only contexts the origin node has Manifests of, in 4 hops
+
+- **Work package**: E.6
+- **Area**: runtime, host, docs
+- **What happened**: The checkout's `Wow-Wait` should follow the order to its payment. The basket refused the chain with `wow.wait.invalid`, "Hop committed(eshop-inventory) names an unknown context": the basket knows only its own Manifest and its peers', and its only peer was the ordering, the one context it sends to. With the inventory's and the payment's Manifests as peers too, the chain is accepted and followed: 15 hops, until the payment's `PayOrder` is committed. It also needs `wow.wait.max-hops` raised from its default of 4, since a saga adds two hops (its `handled` and the next `committed`) to every command it derives.
+- **Where they looked**: `guide/v10/http-api` (`Wow-Wait`: "a context the directory knows", `wow.wait.max-hops`); `guide/v10/configuration`.
+- **Workaround**: The basket server takes `:eshop-inventory-server` and `:eshop-payment-server` as `wowPeers`, though it sends them nothing, and the test runs it with `--wow.wait.max-hops=16`.
+- **Proposed fix**: Say in the guide that a chain may name only contexts whose Manifests the origin node has, and that peers are the way to add them; or let the origin accept a hop of a context it does not know and leave the check to the node that reaches it. Say how many hops a saga adds, and whether 4 is meant as the practical limit.
+- **Blocks M7**: no.
+
+### G31. A dataset query warns that the Manifest has no state schema of the dataset
+
+- **Work package**: E.6
+- **Area**: host
+- **What happened**: The first query of the sales dataset logs "The Manifest carries no state schema of eshop-ordering.sales: only its system fields are queried. Build its module with the Wow Gradle plugin, which writes the schemas." The dataset is not an aggregate and has no state schema; its fields come from its dataset file, and the query of `status` and `totalAmount` works.
+- **Where they looked**: `guide/v10/http-api` (Datasets).
+- **Workaround**: None; the warning is ignored.
+- **Proposed fix**: Do not ask the Manifest's state schemas about a dataset's name, or leave the warning out for one.
+- **Blocks M7**: no.
+
+### G32. With two nodes, a saga's command on another node can leave the owner deciding on a stale state
+
+- **Work package**: E.6
+- **Area**: runtime
+- **What happened**: With the ordering on two nodes on one database, the full chain's order was never paid: the payment saga's `PayOrder` was rejected, "The order alice-1 is AWAITING_VALIDATION: only a STOCK_CONFIRMED order can be paid", while the log held the order at version 4, `STOCK_CONFIRMED`; the payment was then refunded. `StockConfirmationSaga` reads the inventory's stock stream, whose partitions are not the order's, and the commands a saga derives in its own context run on the node that runs the subscription (`DerivedCommands` through `WaitCoordinator.forward`, not the `CommandRouter`). The node that does not own the order's partition committed its `ConfirmOrderStock` (versions 3 and 4); the owner's cached state stayed at version 2. A command that appends would conflict on the version and be decided again (D45, D71), but a rejection appends nothing, so the owner rejected `PayOrder` against version 2.
+- **Where they looked**: `guide/v10/deployment` (several nodes of a service); the test's traces of the order and the payment from both nodes.
+- **Workaround**: `EshopFullChainTest` runs the ordering on one node. `EshopStack(orderingNodes = 2)` reproduces it: the first test fails with the order `STOCK_CONFIRMED` and its payment `REFUNDED`.
+- **Proposed fix**: Route a saga's derived commands of its own context like any other (to the partition's owner, degrading to local as D71 says), and have a rejection or an unchanged outcome decided on a cached state confirm the state's version against the log before it answers.
+- **Blocks M7**: yes: a service with a saga on another context's stream cannot run on two nodes.
+
+### G33. A saga starting at the end loses the first entries of a partition when its node is killed before its first checkpoint
+
+- **Work package**: E.6
+- **Area**: runtime
+- **What happened**: The ordering node was killed right after a checkout committed the first order of a partition, and a node of another id took the partition over. The order stayed `SUBMITTED`: none of the order process's subscriptions handled it, and their checkpoints in that partition stood at 2, past the order (sequence 1) and the next one (sequence 2). A saga starts at the log's end by default (`StartFrom.END`), and a subscription saves its starting checkpoint at once only when it is not 0 (`SubscriptionRuntime.worker`: "Saved at once, so a restart before the first entry does not move the start to a later end", `if (it > 0)`). In an empty partition the start, 0, was not saved; the killed node had not saved a checkpoint since, so its successor started again at the end, by then 2.
+- **Where they looked**: `guide/v10/programming-model` (where a subscription starts); the ordering's `wow_checkpoint` and log tables.
+- **Workaround**: `EshopFullChainTest` first places and waits out an order of its own in the partition, so the order process's checkpoints exist there before the kill. Setting the sagas' `start` to `beginning` would avoid it too.
+- **Proposed fix**: Save the starting checkpoint at once whatever it is, 0 included.
+- **Blocks M7**: yes: a node killed in the first moments of a partition loses its saga effects.

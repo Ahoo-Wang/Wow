@@ -7,7 +7,7 @@ A multi-service shop on Wow V10, modelled on the classic eShop reference applica
 
 The eShop builds on the V10 modules only, and is never published. `example/shop` stays as the minimal example and as the reference for 9.x-to-V10 migration.
 
-> **Status: E.1 to E.5 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. The full suite of all five services comes with E.6.
+> **Status: E.1 to E.6 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. All five services run together on PostgreSQL, Kafka and ClickHouse, with the sales dataset, a node killed mid-flow, and a load script with its baseline ([e2e/README.md](e2e/README.md)). The ordering runs on one node in the suite: two framework issues stand in the way of more (DX gaps G32 and G33).
 
 ## Contexts
 
@@ -25,9 +25,9 @@ The rest of the classic eShop maps like this:
 
 - **Identity.** `Identity.API` becomes Wow's `:cosec`. It is not a context of its own.
 - **Event bus.** The RabbitMQ event bus becomes Kafka.
-- **Sales data.** Sales data reaches ClickHouse through the ClickHouse Sink, as a dataset.
+- **Sales data.** The ordering's order stream reaches ClickHouse through the ClickHouse Sink, and the ordering serves it as the `eshop-ordering.sales` dataset (see [Sales](#sales)).
 - **Web front ends.** They come after the backend, written with the TypeScript client that work package 5a.3 generates (D160).
-- **End-to-end tests.** `:eshop-e2e` (`example/eshop/e2e`) holds them (see [Tests](#tests)). Work package E.6 extends them to all five services on PostgreSQL, Kafka and ClickHouse, with failure scenarios and a load test.
+- **End-to-end tests.** `:eshop-e2e` (`example/eshop/e2e`) holds them (see [Tests](#tests)): all five services on PostgreSQL, Kafka and ClickHouse, with failure scenarios and a load script.
 
 ## The order flow
 
@@ -62,6 +62,19 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 - **Grace period.** `eshop.ordering.payment-grace-period` (30 minutes) is a durable scheduled command (decision D166), written with the commit that confirms the stock. Paying or cancelling the order cancels it. If it fires late on a paid order, the order rejects it, which is a normal guard.
 - **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
 - **Buyer.** A saga's command carries no caller scope, so `SubmitOrder` carries the buyer in its body (DX gap G22).
+- **Waiting for the order.** A checkout's `Wow-Wait` can follow the order the whole way to its payment, in 15 hops: every saga on the way, the ordering's `StockConfirmationSaga` on the inventory's stock stream included, until the payment's `PayOrder` is committed in the ordering context. Each hop names its saga and context:
+
+  ```text
+  committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)
+    > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)
+    > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)
+    > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)
+    > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)
+    > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)
+    > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)
+  ```
+
+  (written on one line in the header). Two settings make it work: the basket takes the inventory's and the payment's Manifests as peers, though it sends them nothing, because a chain names only contexts the node knows; and the basket allows 16 hops (`wow.wait.max-hops`, 4 by default). See DX gap G30. Shipping is the client's command, so the wait cannot go past the payment. A client's wait follows the inventory's accepted reservation back into the ordering, the round trip that a saga cannot follow by a receipt (G23).
 
 ### Naming
 
@@ -94,6 +107,26 @@ Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `
 - **Outcome.** A succeeded payment sends `PayOrder` (the payment's id and amount) to the ordering context; a failed one sends `CancelOrder`, and the cancelled order releases its stock as any cancelled order does.
 - **Refund.** An order that rejects its `PayOrder` (cancelled meanwhile, when its grace period passed, say) comes back as a receipt on `wow.eshop-payment.receipts`, and `OrderPaymentSaga.onPayRejected` refunds the payment.
 - **Peers.** The payment server takes the ordering's Manifest as its peer (`wowPeers`). The ordering knows nothing of the payment.
+
+## Sales
+
+Work package E.6. The ordering's `clickhouse` profile turns on the ClickHouse Sink: it writes the order stream to `eshop_ordering_order_state_events`, with the views `eshop_ordering_order_state` and `eshop_ordering_order_state_flat`. The dataset file `META-INF/wow/dataset/eshop-ordering.sales.json` of the ordering server declares the `eshop-ordering.sales` dataset over the flat view: one row per order in its current state, with its `buyerId`, `status` and `totalAmount` beside the system columns (`aggregate_id`, `commit_time`, ...). The items are a list, which the flat view leaves out, so the dataset has no revenue per product.
+
+The ordering serves it at `/wow/dataset/eshop-ordering/sales/query`. For example, the revenue by status, then the shipped revenue by day:
+
+```bash
+curl -s -X POST localhost:8083/wow/dataset/eshop-ordering/sales/query -H 'Content-Type: application/json' -d '{
+  "kind": "aggregate", "filter": {"op": "MATCH_ALL"},
+  "groupBy": [{"type": "TERMS", "field": "status", "alias": "status"}],
+  "metrics": [{"type": "COUNT", "alias": "orders"},
+              {"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "totalAmount"}, "alias": "revenue"}]}'
+curl -s -X POST localhost:8083/wow/dataset/eshop-ordering/sales/query -H 'Content-Type: application/json' -d '{
+  "kind": "aggregate", "filter": {"op": "EQ", "field": "status", "value": "SHIPPED"},
+  "groupBy": [{"type": "DATE_HISTOGRAM", "field": "commit_time", "alias": "day", "unit": "DAY"}],
+  "metrics": [{"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "totalAmount"}, "alias": "revenue"}]}'
+```
+
+The Sink writes behind the commits, so a query right after an order's change may still read its previous state.
 
 ## Catalog
 
@@ -152,6 +185,8 @@ The basket, ordering, inventory and payment services talk over Kafka. The basket
 - **`kafka`** sets Kafka on `localhost:9092`. On ordering and inventory it also turns on the command intake. On ordering it starts `StockConfirmationSaga.onStockReserved` at the beginning of the stock stream, and on payment `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
 - **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering`, `eshop_inventory` or `eshop_payment` on `localhost:5432`.
 
+The ordering has a third profile, **`clickhouse`**: the Sink writes its order stream to ClickHouse on `localhost:8123`, and it serves the sales dataset (see [Sales](#sales)).
+
 The nodes do not create topics. Create the command topics with exactly as many partitions as the log (`wow.log.partitions`, 64 by default) before the first start:
 
 ```bash
@@ -203,9 +238,21 @@ The basket, ordering and inventory tests:
   - `EshopSharedJvmTest`: services in the test's JVM, on one class path, each including its own context: the catalog and basket; and the inventory, ordering and payment, whose servers carry each other's Manifests as peers (DX gap G21). Services on one class path read one `application.yaml`, so the test passes each one's configuration as arguments.
   - `EshopOrderFlowTest`: the basket, ordering and inventory, each in a JVM of its own with its `postgres` and `kafka` profiles, on PostgreSQL and Kafka in containers. It covers the checkout end to end, the rejection's compensation and the grace period. No payment service runs, so the test pays the order itself.
   - `EshopPaymentFlowTest`: the ordering, inventory and payment the same way, with a gateway limit of 100.00. An order of 29.00 is paid and shipped; an order of 150.00 is declined, cancelled, and its stock released.
+  - `EshopFullChainTest`: all five services the same way (`EshopStack`), the ordering with its `clickhouse` profile, on PostgreSQL, Kafka and ClickHouse in containers. In order:
+    1. **Full chain.** Products created and published in the catalog, their stock received, a basket filled at the catalog's prices and checked out with the 15-hop wait of [Waiting for the order](#the-order-flow), which answers with the committed `PayOrder`; then the order shipped and its reservations committed, each order event once.
+    2. **Rejection.** A stock too short cancels the order, and no payment is requested.
+    3. **Sales.** The sales dataset sums the revenue of those two orders by status (29.00 shipped, 6.00 cancelled) and the shipped revenue by day.
+    4. **Node killed.** The ordering node is killed (`SIGKILL`) right after a checkout, before the payment is requested, and a node of another id is started in its place. The order is paid and shipped with every effect once: one order with each event once, the stock reserved and committed once, one payment requested and succeeded once. The test logs how long the order's partition was unavailable. On this machine the replacement served after about 1.7 s, the partition took a command and its lease after about 5 s (the lease's 5 s TTL), and the order was paid after about 5.3 s.
+
+    The ordering runs on one node: with two, a saga's command can be decided on a stale state (G32). Before the kill, the order's partition is warmed up with an order of its own, so the order process has saved its checkpoints there: a node killed before that first save makes its successor skip the partition's first orders (G33).
+- **Load.** `EshopLoad`, in the same source set, starts `EshopStack` and drives checkouts through the full chain, each with the 15-hop wait, and reports their throughput and latency. It is not part of any check; [e2e/README.md](e2e/README.md) has the baseline and how to run it.
 
 ```bash
 ./gradlew -Pwow.scope=v10 :eshop-catalog-domain:check :eshop-catalog-server:check   # one context
 ./gradlew -Pwow.scope=v10 :eshop-e2e:integrationTest                                # the services together
+./gradlew -Pwow.scope=v10 :eshop-e2e:integrationTest --tests '*EshopFullChainTest'  # all five services
+./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad                                      # the load script
 ./gradlew -Pwow.scope=v10 v10Check v10IntegrationTest                               # everything V10, the eShop included
 ```
+
+Each service's output of a run of `:eshop-e2e` is kept in `example/eshop/e2e/build/eshop-logs/`.
