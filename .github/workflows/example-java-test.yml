@@ -34,6 +34,7 @@ on:
       - '!example/shop/**'
       - '!example/inventory/**'
       - '!example/e2e/**'
+      - '!example/eshop/**'
   # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
   workflow_dispatch:
 concurrency:

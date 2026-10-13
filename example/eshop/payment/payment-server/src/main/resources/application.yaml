@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: eshop-payment-service
+server:
+  port: 8085
+wow:
+  service: eshop-payment-service
+  # One node, its data in memory: the skeleton's backend (work package E.0).
+  backend: memory
+  internal:
+    port: 9095

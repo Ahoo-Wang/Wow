@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: eshop-catalog-service
+server:
+  port: 8081
+wow:
+  service: eshop-catalog-service
+  # One node, its data in memory: the skeleton's backend (work package E.0).
+  backend: memory
+  internal:
+    port: 9091

@@ -1,0 +1,21 @@
+description = "Wow V10 eShop: the basket context's aggregates"
+
+// KSP with :compiler compiles the aggregates into kernel models, their binding index (D107) and the module's Manifest
+// fragment, as the Gradle plugin `me.ahoo.wow` does for an application. The plugin cannot be applied to a project of
+// the build that produces it, so this applies KSP and passes the plugin's options by hand, as the shop does.
+plugins {
+    alias(libs.plugins.ksp)
+}
+
+ksp {
+    arg("wow.model", "generate")
+    arg("wow.manifest.module", project.name)
+}
+
+dependencies {
+    api(project(":eshop-basket-api"))
+    // The generated models and the binding index build on the kernel only (decision D149).
+    api(project(":kernel"))
+    ksp(project(":compiler"))
+    testImplementation(testFixtures(project(":kernel")))
+}

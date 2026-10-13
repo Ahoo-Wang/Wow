@@ -52,23 +52,38 @@ object V10Rules {
     val SHOP_SERVER = V10Module("shop-server", "example/shop/shop-server")
     val EXAMPLE_E2E = V10Module("example-e2e", "example/e2e")
 
+    /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
+    val ESHOP_CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
+
+    /** The eShop (decision D159): `:eshop-<context>-{api,domain,server}` in example/eshop/<context>, and `:eshop-e2e`. */
+    val ESHOP = ESHOP_CONTEXTS.flatMap { context ->
+        listOf("api", "domain", "server").map { V10Module("eshop-$context-$it", "example/eshop/$context/$context-$it") }
+    } + V10Module("eshop-e2e", "example/eshop/e2e")
+
     /**
-     * The V10 example (decisions D111, D144): applications of the V10 modules, not ones of them, and the end-to-end
-     * tests across them.
+     * The V10 examples (decisions D111, D144, D159): applications of the V10 modules, not ones of them, and the
+     * end-to-end tests across them.
      */
-    val EXAMPLES = listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER, EXAMPLE_E2E)
+    val EXAMPLES = listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER, EXAMPLE_E2E) + ESHOP
 
-    /** Whether [project] belongs to the V10 example: the shop, the inventory context (decision D144) or its e2e tests. */
-    fun isExample(project: String): Boolean =
-        project.startsWith("shop-") || project.startsWith("inventory-") || project == EXAMPLE_E2E.name
+    /** Whether [project] belongs to the eShop (decision D159). */
+    fun isEshop(project: String): Boolean = project.startsWith("eshop-")
 
     /**
-     * Whether [project] is one of the example's domain or API modules: an example project that is neither a server
-     * (`*-server`) nor the end-to-end tests. Such a module is what an application's domain is, and builds on the kernel
-     * only (decision D149).
+     * Whether [project] belongs to a V10 example: the shop, the inventory context (decision D144), their e2e tests, or
+     * the eShop (decision D159).
+     */
+    fun isExample(project: String): Boolean =
+        project.startsWith("shop-") || project.startsWith("inventory-") || project == EXAMPLE_E2E.name ||
+            isEshop(project)
+
+    /**
+     * Whether [project] is one of the examples' domain or API modules: an example project that is neither a server
+     * (`*-server`) nor end-to-end tests (`*-e2e`). Such a module is what an application's domain is, and builds on the
+     * kernel only (decision D149).
      */
     fun isExampleDomain(project: String): Boolean =
-        isExample(project) && !project.endsWith("-server") && project != EXAMPLE_E2E.name
+        isExample(project) && !project.endsWith("-server") && !project.endsWith("-e2e")
 
     /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
@@ -316,15 +331,17 @@ object V10Rules {
     }
 
     /**
-     * The example builds on the V10 modules only (decisions D118, D144), directly or transitively: it shows V10 as an
-     * application uses it, with no 9.x module, spike or test project on its classpath. The example is every project
-     * [isExample] names (`:shop-*`, `:inventory-*` and `:example-e2e`), which may build on each other.
+     * The examples build on the V10 modules only (decisions D118, D144, D159), directly or transitively: they show V10
+     * as an application uses it, with no 9.x module, spike or test project on its classpath. The shop's example is
+     * `:shop-*`, `:inventory-*` and `:example-e2e`, the eShop is `:eshop-*` ([isExample]); the projects of one may
+     * build on each other, never on the other's.
      */
     fun exampleOutsideV10Violations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
         val examples = graph.keys.filter(::isExample).sorted()
-        val allowed = MODULES.map { it.name }.toSet() + examples
+        val modules = MODULES.map { it.name }.toSet()
         return examples.flatMap { example ->
+            val allowed = modules + examples.filter { isEshop(it) == isEshop(example) }
             reachable(graph, example).filterNot { it in allowed }.sorted().map { "$example reaches :$it" }
         }
     }

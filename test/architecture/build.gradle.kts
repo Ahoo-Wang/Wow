@@ -8,7 +8,9 @@ val v10ModuleDirs = listOf(
     "edge/http", "edge/cosec", "host/spring-boot", "migration/migrate-data", "compiler/compiler",
     "compiler/gradle-plugin", "compiler/manifest-tools",
     "example/shop/shop-api", "example/shop/shop-domain", "example/shop/shop-server", "example/e2e",
-)
+) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
+    listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
+} + "example/eshop/e2e"
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     inputs.files(

@@ -28,7 +28,7 @@ Wow keeps each kind of documentation in one place, chosen by who reads it. This 
 | Diagram sources Mermaid cannot express | Maintainers | `documentation/diagrams/` (created with its first file) |
 | Design records spanning JVM modules or the repository | Maintainers | `documentation/designs/` |
 | Design of one TypeScript package or application | Maintainers of that package | `<package>/docs/design/` |
-| Ledgers of decided work | Maintainers | `docs/compat-debt.md` (compatibility kept until v10), `docs/todo.md` (JVM), `typescript/TODO.md` (wow-client, wow-react, wow-generator), `typescript/wow-view-engine/docs/design/todo.md` (view engine and view store), `typescript/MIGRATION.md` (packages moved from fetcher) |
+| Ledgers of decided work | Maintainers | `docs/compat-debt.md` (compatibility kept until v10), `docs/todo.md` (JVM), `typescript/TODO.md` (wow-client, wow-react, wow-generator), `typescript/wow-view-engine/docs/design/todo.md` (view engine and view store), `typescript/MIGRATION.md` (packages moved from fetcher), `example/eshop/DX-GAPS.md` (V10 developer-experience gaps the eShop found, to close before M7) |
 | Release runbooks | Release maintainers | `AGENTS.md` (versioning, compatibility, CI), `typescript/RELEASING.md`, `typescript/RELEASE_NOTES_TEMPLATE.md`; a minor release's notes draft in `typescript/release-notes/v<version>.md`, deleted once the release is published |
 | Reproducible performance evidence | Maintainers | `wow-benchmarks/results/` |
 | Agent capabilities | Coding agents | `skills/`; vendored third-party skills in `.claude/skills/` |

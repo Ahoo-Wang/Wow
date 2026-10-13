@@ -22,6 +22,7 @@ const allowed = [
   'typescript/storybook/docs/scenarios.md',
   'docs/compat-debt.md',
   'docs/todo.md',
+  'example/eshop/DX-GAPS.md',
   'typescript/TODO.md',
   'typescript/RELEASING.md',
   'typescript/release-notes/v9.8.0.md',
