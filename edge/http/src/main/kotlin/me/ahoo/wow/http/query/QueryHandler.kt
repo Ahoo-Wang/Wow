@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
@@ -50,7 +51,6 @@ import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
@@ -355,8 +355,8 @@ internal class QueryHandler(
 
         /**
          * The query caller of [caller] querying [type], in the [named] scope of `Wow-Scope` when it names one (decision
-         * D129): the tenant [tenants] decides, the scope's owner and space as the principal, the caller's subject and
-         * attributes, on the HTTP entry. Null when [named] names another tenant than [type]'s fixed one.
+         * D129, D165): [caller] acting in the tenant [tenants] decides and in the named scope's owner and space, on the
+         * HTTP entry. Null when [named] names another tenant than [type]'s fixed one.
          */
         fun queryCaller(type: AggregateType, caller: Caller, named: TargetScope?, tenants: TenantPolicy): QueryCaller? {
             val tenant = try {
@@ -364,13 +364,7 @@ internal class QueryHandler(
             } catch (_: TenantConflictException) {
                 return null
             }
-            return QueryCaller(
-                entry = QueryEntry.HTTP,
-                subject = caller.subject,
-                attributes = caller.attributes,
-                tenantId = tenant,
-                principal = named?.scope ?: caller.scope,
-            )
+            return QueryCaller(caller.copy(tenantId = tenant, scope = named?.scope ?: caller.scope), QueryEntry.HTTP)
         }
     }
 }

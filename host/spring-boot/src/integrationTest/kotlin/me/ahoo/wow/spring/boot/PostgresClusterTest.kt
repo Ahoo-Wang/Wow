@@ -17,8 +17,8 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.internal.InternalHttp
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.AfterAll

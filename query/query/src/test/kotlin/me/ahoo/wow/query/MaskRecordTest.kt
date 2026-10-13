@@ -82,7 +82,7 @@ class MaskRecordTest {
         var admitted: ObjectNode? = null
         runTest {
             admitted = QueryAdmission(AggregateType("record", "mask"))
-                .admitRecord(IdFilter("a1"), record(), schema, QueryCaller(QueryEntry.HTTP, scope))
+                .admitRecord(IdFilter("a1"), record(), schema, QueryCaller(entry = QueryEntry.HTTP, scope = scope))
         }
         return admitted
     }

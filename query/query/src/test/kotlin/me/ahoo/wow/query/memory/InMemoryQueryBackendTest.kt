@@ -66,7 +66,7 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
                 FixedQueryModelSchemaProvider(fixture.schema),
                 entryPolicy = policy,
             )
-            gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP))
+            gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP))
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             (fixture.backend as InMemoryQueryBackend).timeouts.assert()
                 .containsExactly(timeout, QueryBudget.DEFAULT_TIMEOUT)

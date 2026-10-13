@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -92,7 +93,7 @@ class DatasetQueryGatewayTest {
     @Test
     fun `the caller's tenant pins the dataset's tenant column`() = runTest {
         val backend = RecordingBackend()
-        val caller = QueryCaller(QueryEntry.HTTP, tenantId = "t1")
+        val caller = QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)
         gateway(backend, policies = listOf(ScopeQueryPolicy()))
             .list(ListQuery(EqualFilter(QueryField("city"), "Hangzhou"), limit = 10), caller).toList()
             .assert().hasSize(1)
@@ -104,8 +105,8 @@ class DatasetQueryGatewayTest {
     @Test
     fun `the scope policy fails closed on a principal the dataset has no column for`() = runTest {
         val caller = QueryCaller(
-            QueryEntry.HTTP,
-            principal = me.ahoo.wow.api.aggregate.Scope(ownerId = null, spaceId = "s1")
+            Caller(scope = me.ahoo.wow.api.aggregate.Scope(ownerId = null, spaceId = "s1")),
+            entry = QueryEntry.HTTP,
         )
         assertThrows<QuerySchemaValidationException> {
             gateway(policies = listOf(ScopeQueryPolicy())).count(CountQuery(MatchAllFilter), caller)
@@ -359,7 +360,7 @@ class DatasetQueryGatewayTest {
             datasets = datasets,
         )
         val gateways = DatasetQueryGateways.of(datasets, catalog, factory, policies = listOf(ScopeQueryPolicy()))
-        gateways[orders.name]!!.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, tenantId = "t1"))
+        gateways[orders.name]!!.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP))
             .assert().isEqualTo(CountResult(1, exact = true))
         assertThrows<IllegalArgumentException> { datasets.add(orders.copy(name = OTHER, title = "unbound")) }
         gateways[OTHER].assert().isNull()
@@ -383,7 +384,7 @@ class DatasetQueryGatewayTest {
         val city = EqualFilter(QueryField("city"), "Hangzhou")
         suspend fun count(tenant: String) {
             gateway(backend, platform, listOf(ScopeQueryPolicy()))
-                .count(CountQuery(city), QueryCaller(QueryEntry.HTTP, tenantId = tenant))
+                .count(CountQuery(city), QueryCaller(Caller(tenantId = tenant), entry = QueryEntry.HTTP))
                 .assert().isEqualTo(CountResult(1, exact = true))
         }
         count(QueryDatasetScope.PLATFORM_TENANT)
@@ -397,9 +398,9 @@ class DatasetQueryGatewayTest {
                 backend,
                 platform,
                 entryPolicy = authenticated
-            ).count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP))
+            ).count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP))
         }
-        val pinned = QueryCaller(QueryEntry.HTTP).withScope(
+        val pinned = QueryCaller(entry = QueryEntry.HTTP).withScope(
             QueryScope(authenticated = TenantIdFilter(QueryDatasetScope.PLATFORM_TENANT)),
         )
         gateway(backend, platform, entryPolicy = authenticated).count(CountQuery(MatchAllFilter), pinned)
@@ -451,8 +452,8 @@ class DatasetQueryGatewayTest {
     }
 
     private fun caller(tags: Map<String, List<String>>) = QueryCaller(
-        QueryEntry.HTTP,
-        attributes = tags.mapKeys { (key, _) -> "abac.$key" },
+        Caller(attributes = tags.mapKeys { (key, _) -> "abac.$key" }),
+        entry = QueryEntry.HTTP,
     )
 
     private fun context(schema: QueryModelSchema) = QueryContext<FilterExpression>(

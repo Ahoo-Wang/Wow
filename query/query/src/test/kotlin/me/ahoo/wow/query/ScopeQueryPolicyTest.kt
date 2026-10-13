@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
@@ -58,7 +59,7 @@ class ScopeQueryPolicyTest {
     @Test
     fun `the caller's tenant, owner and space restrict the query, with the active default`() {
         runTest {
-            val caller = QueryCaller(QueryEntry.HTTP, tenantId = "t1", principal = Scope("o1", "s1"))
+            val caller = QueryCaller(Caller(tenantId = "t1", scope = Scope("o1", "s1")), entry = QueryEntry.HTTP)
             ScopeQueryPolicy().evaluate(caller, context()).assert().isEqualTo(
                 AndFilter(
                     listOf(
@@ -76,10 +77,12 @@ class ScopeQueryPolicyTest {
     fun `only the present parts of the caller's scope restrict`() {
         runTest {
             val policy = ScopeQueryPolicy()
-            policy.evaluate(QueryCaller(tenantId = "t1"), context()).assert()
+            policy.evaluate(QueryCaller(Caller(tenantId = "t1")), context()).assert()
                 .isEqualTo(AndFilter(listOf(TenantIdFilter("t1"), DeletionFilter(DeletionState.ACTIVE))))
-            policy.evaluate(QueryCaller(principal = Scope(spaceId = "s1")), context()).assert()
-                .isEqualTo(AndFilter(listOf(SpaceIdFilter("s1"), DeletionFilter(DeletionState.ACTIVE))))
+            policy.evaluate(QueryCaller(Caller(tenantId = "t1", scope = Scope(spaceId = "s1"))), context()).assert()
+                .isEqualTo(
+                    AndFilter(listOf(TenantIdFilter("t1"), SpaceIdFilter("s1"), DeletionFilter(DeletionState.ACTIVE))),
+                )
             // Trusted in-process code is restricted by nothing but the deletion default.
             policy.evaluate(QueryCaller.IN_PROCESS, context()).assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
         }
@@ -91,7 +94,7 @@ class ScopeQueryPolicyTest {
             val policy = ScopeQueryPolicy()
             policy.evaluate(QueryCaller.IN_PROCESS, context(DeletionFilter(DeletionState.DELETED))).assert()
                 .isEqualTo(MatchAllFilter)
-            policy.evaluate(QueryCaller(tenantId = "t1"), context(DeletionFilter(DeletionState.ALL))).assert()
+            policy.evaluate(QueryCaller(Caller(tenantId = "t1")), context(DeletionFilter(DeletionState.ALL))).assert()
                 .isEqualTo(TenantIdFilter("t1"))
         }
     }
@@ -103,7 +106,7 @@ class ScopeQueryPolicyTest {
                 objectFixture("tenantId" to scalarFixture()),
                 model = QueryModel("CUSTOM"),
             )
-            ScopeQueryPolicy().evaluate(QueryCaller(tenantId = "t1"), context(schema = schema))
+            ScopeQueryPolicy().evaluate(QueryCaller(Caller(tenantId = "t1")), context(schema = schema))
                 .assert().isEqualTo(TenantIdFilter("t1"))
         }
     }
@@ -115,9 +118,9 @@ class ScopeQueryPolicyTest {
                 QueryTenantPolicy { type, caller -> if (type == ManifestFixtures.ORDER) "fixed" else caller.tenantId }
             val policy = ScopeQueryPolicy(fixed)
             policy.order.assert().isEqualTo(ScopeQueryPolicy.ORDER)
-            policy.evaluate(QueryCaller(tenantId = "t1"), context(DeletionFilter(DeletionState.ALL))).assert()
+            policy.evaluate(QueryCaller(Caller(tenantId = "t1")), context(DeletionFilter(DeletionState.ALL))).assert()
                 .isEqualTo(TenantIdFilter("fixed"))
-            QueryTenantPolicy.CALLERS.tenantOf(AggregateType("a", "b"), QueryCaller(tenantId = "t2"))
+            QueryTenantPolicy.CALLERS.tenantOf(AggregateType("a", "b"), QueryCaller(Caller(tenantId = "t2")))
                 .assert().isEqualTo("t2")
             QueryTenantPolicy.CALLERS.tenantOf(AggregateType("a", "b"), QueryCaller.IN_PROCESS).assert().isNull()
         }
@@ -126,14 +129,14 @@ class ScopeQueryPolicyTest {
     @Test
     fun `a caller's tenant is not blank and an in-process copy drops the scope`() {
         runCatching {
-            QueryCaller(tenantId = " ")
+            QueryCaller(Caller(tenantId = " "))
         }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
-        val caller = QueryCaller(QueryEntry.HTTP, subject = "u", tenantId = "t", principal = Scope("o"))
+        val caller = QueryCaller(Caller(tenantId = "t", scope = Scope("o"), subject = "u"), entry = QueryEntry.HTTP)
         caller.inProcess().run {
             entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
             tenantId.assert().isNull()
             principal.assert().isEqualTo(Scope.NONE)
-            subject.assert().isEqualTo("u")
+            subject.assert().isNull()
         }
     }
 
@@ -160,24 +163,24 @@ class ScopeQueryPolicyTest {
                     caller,
                 )
                     .toList().map { it.path("aggregateId").stringValue() }
-            ids(QueryCaller(QueryEntry.HTTP, tenantId = "t1")).assert().containsExactly("a", "b", "d")
+            ids(QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)).assert().containsExactly("a", "b", "d")
             ids(
-                QueryCaller(QueryEntry.HTTP, tenantId = "t1", principal = Scope("o1"))
+                QueryCaller(Caller(tenantId = "t1", scope = Scope("o1")), entry = QueryEntry.HTTP)
             ).assert().containsExactly("a", "d")
             ids(
-                QueryCaller(QueryEntry.HTTP, tenantId = "t1", principal = Scope("o1", "s1"))
+                QueryCaller(Caller(tenantId = "t1", scope = Scope("o1", "s1")), entry = QueryEntry.HTTP)
             ).assert().containsExactly("a")
-            ids(QueryCaller(QueryEntry.HTTP, tenantId = "t2")).assert().containsExactly("c")
-            ids(QueryCaller(QueryEntry.HTTP, tenantId = "t1"), DeletionFilter(DeletionState.DELETED))
+            ids(QueryCaller(Caller(tenantId = "t2"), entry = QueryEntry.HTTP)).assert().containsExactly("c")
+            ids(QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP), DeletionFilter(DeletionState.DELETED))
                 .assert().containsExactly("e")
             ids(QueryCaller.IN_PROCESS).assert().containsExactly("a", "b", "c", "d")
             // A caller cannot widen its scope by naming another tenant in its own filter.
-            ids(QueryCaller(QueryEntry.HTTP, tenantId = "t1"), TenantIdFilter("t2")).assert().isEmpty()
-            gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, tenantId = "t2")).count
+            ids(QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP), TenantIdFilter("t2")).assert().isEmpty()
+            gateway.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "t2"), entry = QueryEntry.HTTP)).count
                 .assert().isEqualTo(1L)
             gateway.single(
                 SingleQuery(AggregateIdFilter("c")),
-                QueryCaller(QueryEntry.HTTP, tenantId = "t1")
+                QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)
             ).assert().isNull()
         }
     }

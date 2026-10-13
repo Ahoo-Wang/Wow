@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
@@ -76,7 +77,7 @@ class EventQueryGatewayTest {
 
     /** Unbudgeted and without a timeout: the in-process entry. */
     private val untimed = EventQueryGateway(type, log, entryPolicy = QueryEntryPolicy(inProcessTimeout = null))
-    private val inProcess = QueryCaller(QueryEntry.IN_PROCESS, tenantId = TENANT)
+    private val inProcess = QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.IN_PROCESS)
 
     private fun of(vararg conditions: FilterExpression): FilterExpression =
         AndFilter(listOf(AggregateIdFilter("c-1")) + conditions)
@@ -100,7 +101,7 @@ class EventQueryGatewayTest {
     @Test
     fun `the principal's space should restrict the streams`() {
         fun visible(space: String) = runBlocking {
-            untimed.list(ListQuery(of()), inProcess.copy(principal = Scope("alice", space))).toList()
+            untimed.list(ListQuery(of()), inProcess.copy(caller = inProcess.caller!!.copy(scope = Scope("alice", space)))).toList()
         }
         visible("s-1").assert().hasSize(3)
         visible("s-2").assert().isEmpty()
@@ -120,7 +121,7 @@ class EventQueryGatewayTest {
             log,
             entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 1)),
         )
-        val http = QueryCaller(QueryEntry.HTTP, tenantId = TENANT)
+        val http = QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)
         paged(TotalMode.BOUNDED, tight, http).let {
             it.total.assert().isEqualTo(1)
             it.exact.assert().isFalse()

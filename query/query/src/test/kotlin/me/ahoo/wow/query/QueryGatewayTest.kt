@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -95,7 +96,7 @@ class QueryGatewayTest {
             val backend = GatewayBackend()
             gateway(backend, filters = listOf(filter), policies = listOf(policy)).single(
                 SingleQuery(TenantIdFilter("user-input")),
-                QueryCaller(scope = QueryScope(authenticated = TenantIdFilter("tenant")), subject = "trusted"),
+                QueryCaller(Caller(subject = "trusted"), scope = QueryScope(authenticated = TenantIdFilter("tenant"))),
             )
             // Admission normalizes: the backend receives the conjunction flattened.
             backend.filters.single().assert().isEqualTo(
@@ -118,7 +119,7 @@ class QueryGatewayTest {
                 observer = auditObserver { audits += it },
             )
             val query = ListQuery(EqualFilter(QueryField("aggregateId"), "secret-value"), limit = 10)
-            val caller = QueryCaller(QueryEntry.HTTP, QueryScope(authenticated = TenantIdFilter("tenant")))
+            val caller = QueryCaller(entry = QueryEntry.HTTP, scope = QueryScope(authenticated = TenantIdFilter("tenant")))
             gateway.list(query, caller).toList().assert().hasSize(2)
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert()
                 .isEqualTo(CountResult(0, exact = true))
@@ -200,7 +201,7 @@ class QueryGatewayTest {
             backend.filters.assert().isEmpty()
 
             QueryEntry.entries.filter { it != QueryEntry.UNSPECIFIED }.forEach { entry ->
-                gateway.single(SingleQuery(MatchAllFilter), QueryCaller(entry)).assert().isNull()
+                gateway.single(SingleQuery(MatchAllFilter), QueryCaller(entry = entry)).assert().isNull()
             }
             backend.filters.assert().hasSize(2)
         }
@@ -223,7 +224,7 @@ class QueryGatewayTest {
                 QueryScope(authenticated = EqualFilter(QueryField("tenantId"), null)),
             ).forEach { scope ->
                 assertThrows<QueryScopeRequiredException> {
-                    gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, scope))
+                    gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP, scope = scope))
                 }.apply {
                     message.assert().isEqualTo("Query on [SNAPSHOT] requires an authenticated [tenantId] scope.")
                     errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
@@ -239,10 +240,10 @@ class QueryGatewayTest {
                 QueryScope(authenticated = AndFilter(listOf(OwnerIdFilter("owner"), tenant)), declared = tenant),
                 QueryScope(authenticated = EqualFilter(QueryField("tenantId"), "tenant")),
             ).forEach { scope ->
-                gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, scope)).count.assert().isZero()
+                gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP, scope = scope)).count.assert().isZero()
             }
             QueryEntry.entries.filter { it != QueryEntry.HTTP }.forEach { entry ->
-                gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry, QueryScope(declared = tenant)))
+                gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = entry, scope = QueryScope(declared = tenant)))
                     .count.assert().isZero()
             }
             received.assert().hasSize(5)
@@ -252,17 +253,15 @@ class QueryGatewayTest {
     @Test
     fun `an in-process caller drops the inherited scope, selection and entry`() {
         val http = QueryCaller(
-            QueryEntry.HTTP,
-            QueryScope(authenticated = TenantIdFilter("tenant")),
-            subject = "user",
-            attributes = mapOf("abac.region" to listOf("east")),
+            Caller(subject = "user", attributes = mapOf("abac.region" to listOf("east"))),
+            entry = QueryEntry.HTTP,
+            scope = QueryScope(authenticated = TenantIdFilter("tenant")),
         ).withSelection(AggregateIdFilter("aggregate"))
         val nested = http.inProcess()
         nested.entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         nested.scope.assert().isEqualTo(QueryScope.NONE)
         nested.selection.assert().isEqualTo(MatchAllFilter)
-        nested.subject.assert().isEqualTo("user")
-        nested.attributes.assert().isEqualTo(http.attributes)
+        nested.assert().isSameAs(QueryCaller.IN_PROCESS)
         http.withSelection(MatchAllFilter).assert().isSameAs(http)
         http.withScope(QueryScope(declared = OwnerIdFilter("owner"))).scope.declared.assert()
             .isEqualTo(OwnerIdFilter("owner"))
@@ -288,12 +287,12 @@ class QueryGatewayTest {
             )
             val scope = QueryScope(declared = IdsFilter(listOf("first", "second")))
             assertThrows<QueryRequestException> {
-                gateway.single(SingleQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, scope))
+                gateway.single(SingleQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP, scope = scope))
             }.message.assert().isEqualTo("HTTP query filter values[2] must not exceed 1.")
             schemaRequests.get().assert().isZero()
             backend.filters.assert().isEmpty()
 
-            gateway.single(SingleQuery(MatchAllFilter), QueryCaller(QueryEntry.IN_PROCESS, scope))
+            gateway.single(SingleQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.IN_PROCESS, scope = scope))
             backend.filters.assert().hasSize(1)
         }
     }
@@ -307,7 +306,7 @@ class QueryGatewayTest {
                 MatchAllFilter
             }
             val gateway = gateway(GatewayBackend(), policies = listOf(policy))
-            gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP))
+            gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP))
             gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
             contexts.map { it.queryType to it.entry }.assert().containsExactly(
                 QueryType.COUNT to QueryEntry.HTTP,
@@ -716,7 +715,7 @@ class QueryGatewayTest {
                 backend,
                 entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 5)),
             )
-            val http = QueryCaller(QueryEntry.HTTP)
+            val http = QueryCaller(entry = QueryEntry.HTTP)
             gateway.count(CountQuery(MatchAllFilter), http).assert().isEqualTo(CountResult(5, exact = false))
             gateway.count(CountQuery(MatchAllFilter, limit = 3), http).assert().isEqualTo(CountResult(3, exact = false))
             backend.admitted.map { (it.query as ICountQuery).limit }.assert().containsExactly(5, 3)
@@ -743,7 +742,7 @@ class QueryGatewayTest {
             val backend = GatewayBackend(row = ::snapshotNode, total = 7)
             val budget = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 5)
             val gateway = gateway(backend, entryPolicy = QueryEntryPolicy(http = budget))
-            val http = QueryCaller(QueryEntry.HTTP)
+            val http = QueryCaller(entry = QueryEntry.HTTP)
 
             gateway.paged(PagedQuery(MatchAllFilter), http).apply {
                 total.assert().isEqualTo(5)
@@ -781,7 +780,7 @@ class QueryGatewayTest {
             ).forEach { budget ->
                 val backend = GatewayBackend(row = ::snapshotNode, total = 7)
                 gateway(backend, entryPolicy = QueryEntryPolicy(http = budget))
-                    .paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT), QueryCaller(QueryEntry.HTTP))
+                    .paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT), QueryCaller(entry = QueryEntry.HTTP))
                     .apply {
                         total.assert().isEqualTo(7)
                         exact.assert().isTrue()
@@ -792,7 +791,7 @@ class QueryGatewayTest {
             gateway(
                 unbounded,
                 entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 0)),
-            ).paged(PagedQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP)).exact.assert().isTrue()
+            ).paged(PagedQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP)).exact.assert().isTrue()
             unbounded.windows.single().assert().isEqualTo(PageWindow.Offset(0, 10, withTotal = true))
         }
     }
@@ -818,7 +817,7 @@ class QueryGatewayTest {
             listOf(
                 QueryEntryPolicy(inProcessTimeout = Duration.ofMillis(100)) to QueryCaller.IN_PROCESS,
                 QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(100))) to
-                    QueryCaller(QueryEntry.HTTP),
+                    QueryCaller(entry = QueryEntry.HTTP),
             ).forEach { (entryPolicy, caller) ->
                 val gateway = gateway(slow, observer = observer, entryPolicy = entryPolicy)
                 val operations = listOf<suspend () -> Any?>(
@@ -853,7 +852,7 @@ class QueryGatewayTest {
                 slow,
                 entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ZERO))
             )
-                .count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP)).count.assert().isEqualTo(1)
+                .count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP)).count.assert().isEqualTo(1)
             slow.admitted.map { it.timeout }.assert().containsExactly(null, null)
             gateway(slow).count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             slow.admitted.last().timeout.assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)

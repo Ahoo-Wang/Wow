@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.query.DatasetVisibility
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -291,12 +292,11 @@ class DatasetRoutesTest {
         strict.get("/wow/dataset", "alice").body!!.values().assert().isEmpty()
         strict.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""").status.assert().isEqualTo(404)
         val tagged = QueryCaller(
-            QueryEntry.HTTP,
-            tenantId = TENANT,
-            attributes = mapOf("abac.region" to listOf("east"))
+            Caller(tenantId = TENANT, attributes = mapOf("abac.region" to listOf("east"))),
+            entry = QueryEntry.HTTP,
         )
         visibility.visible(salesDataset(), tagged).assert().isTrue()
-        visibility.visible(regionsDataset(), QueryCaller(QueryEntry.HTTP, tenantId = TENANT)).assert().isFalse()
+        visibility.visible(regionsDataset(), QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)).assert().isFalse()
         DatasetVisibility.of(AbacQueryOptions(enabled = true)).assert().isSameAs(DatasetVisibility.DEFAULT)
     }
 

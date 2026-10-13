@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType

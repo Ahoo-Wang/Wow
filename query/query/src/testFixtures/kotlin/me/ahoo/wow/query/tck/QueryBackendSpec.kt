@@ -815,7 +815,7 @@ abstract class QueryBackendSpec {
         val fixture = given(orders())
         val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 2, timeout = GENEROUS))
         val gateway = DefaultQueryGateway(type, fixture.backend, FixedQueryModelSchemaProvider(fixture.schema), entryPolicy = policy)
-        val http = QueryCaller(QueryEntry.HTTP)
+        val http = QueryCaller(entry = QueryEntry.HTTP)
         gateway.count(CountQuery(MatchAllFilter), http).assert().isEqualTo(CountResult(2, exact = false))
         gateway.paged(PagedQuery(MatchAllFilter, pagination = Pagination(1, 1)), http).let { page ->
             page.list.assert().hasSize(1)
