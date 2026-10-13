@@ -55,7 +55,8 @@ class CatalogEndToEndTest {
             state["categoryId"].asString().assert().isEqualTo("mugs")
         }
         catalog.post("/eshop-catalog/product/$id/delist-product", """{"reason":"Out of season"}""").assertOk()
-        catalog.post("/eshop-catalog/product/$id/delist-product").assertProblem(CONFLICT, "eshop-catalog.product.not-published")
+        catalog.post("/eshop-catalog/product/$id/delist-product")
+            .assertProblem(CONFLICT, "eshop-catalog.product.not-published")
         catalog.post("/eshop-catalog/product/$id/publish-product").assertOk()
             .json["version"].asInt().assert().isEqualTo(6)
     }

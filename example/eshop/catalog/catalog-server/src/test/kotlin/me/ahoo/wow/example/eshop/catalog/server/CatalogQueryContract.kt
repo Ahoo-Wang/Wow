@@ -64,12 +64,13 @@ abstract class CatalogQueryContract {
     fun `a category's products should be paged by price, with the total`() {
         val category = storefront.category()
         val brand = storefront.brand()
-        val byPrice = listOf("3.00", "1.00", "5.00", "2.00", "4.00").associateWith { storefront.product(category, brand, it) }
+        val prices = listOf("3.00", "1.00", "5.00", "2.00", "4.00")
+        val byPrice = prices.associateWith { storefront.product(category, brand, it) }
             .toSortedMap(compareBy { it.toBigDecimal() }).values.toList()
+        val filter = published(category)
         val pages = (1..3).map { index ->
-            storefront.query(
-                """{"kind":"paged","filter":${published(category)},"sort":[$BY_PRICE],"pagination":{"index":$index,"size":2}}""",
-            ).json
+            val page = """"pagination":{"index":$index,"size":2}"""
+            storefront.query("""{"kind":"paged","filter":$filter,"sort":[$BY_PRICE],$page}""").json
         }
         pages.map { it["total"].asLong() }.assert().containsOnly(5L)
         pages.map { ids(it["list"]) }.assert().containsExactly(byPrice.take(2), byPrice.subList(2, 4), byPrice.drop(4))

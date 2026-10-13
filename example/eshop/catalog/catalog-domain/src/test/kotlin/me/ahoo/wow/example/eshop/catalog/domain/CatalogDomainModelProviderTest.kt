@@ -39,7 +39,8 @@ class CatalogDomainModelProviderTest {
 
     @Test
     fun `the fragment should list the context's error codes with their status`() {
-        val errors = fragment.findValues("errors").first().values().associate { it["code"].asString() to it["status"].asInt() }
+        val errors = fragment.findValues("errors").first().values()
+            .associate { it["code"].asString() to it["status"].asInt() }
         errors.assert().containsEntry("eshop-catalog.product.invalid-price", 422)
             .containsEntry("eshop-catalog.product.incomplete", 409)
             .containsEntry("eshop-catalog.product.not-published", 409)
