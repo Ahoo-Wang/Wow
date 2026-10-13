@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter
  * | `deleted`, `tags` | as they are |
  * | `correlation_id`, `causation_id` | the causation, empty when none |
  * | `headers` | as they are |
+ * | `operator_id`, `operator_tenant_id`, `operator_cross_scope` | the operator (decision D163); empty and false when none |
  * | `events` | each event's `(name, revision, payload)`, the payload as JSON text |
  * | `state`, `state_fingerprint` | the state as JSON text and its schema's fingerprint; empty without the state |
  * | `state_numbers` | the exact text of each top-level number of the state, which `_state_flat` reads decimals from |
@@ -64,6 +65,9 @@ object ClickHouseRows {
         put("correlation_id", record.causation?.correlationId.orEmpty())
         put("causation_id", record.causation?.causationId.orEmpty())
         putObject("headers").apply { record.headers.forEach { (key, value) -> put(key, value) } }
+        put("operator_id", record.operator?.id.orEmpty())
+        put("operator_tenant_id", record.operator?.tenantId.orEmpty())
+        put("operator_cross_scope", record.operator?.crossScope ?: false)
         putArray("events").apply {
             record.events.forEach { event ->
                 addObject()

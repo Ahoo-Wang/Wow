@@ -71,7 +71,8 @@ class PostgresSnapshotSqlCompilerTest {
             listOf(Sort(AMOUNT, Sort.Direction.DESC)),
         )
         statement.sql.assert().isEqualTo(
-            "SELECT tenant_id, aggregate_id, version, owner_id, space_id, deleted, tags, first_event_time, last_event_time, state " +
+            "SELECT tenant_id, aggregate_id, version, owner_id, space_id, deleted, tags, first_event_time, last_event_time, operator, " +
+                "first_operator, state " +
                 "FROM \"wow_snapshot__shop__order\" WHERE (tenant_id = ? AND " +
                 "(((CASE WHEN jsonb_typeof((state #> '{name}')) = 'string' THEN state #>> '{name}' END) COLLATE \"C\") = ?)) " +
                 "ORDER BY (CASE WHEN jsonb_typeof((state #> '{amount}')) = 'number' THEN (state #>> '{amount}')::numeric END) " +

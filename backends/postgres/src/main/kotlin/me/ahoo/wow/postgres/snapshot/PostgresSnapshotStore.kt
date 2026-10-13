@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
@@ -94,6 +95,8 @@ class PostgresSnapshotStore(
                 save.setLong(9, snapshot.firstEventTime)
                 save.setLong(10, snapshot.lastEventTime)
                 save.setString(11, json.writeValueAsString(snapshot.tags))
+                save.setNullableString(12, snapshot.operator?.let(json::writeValueAsString))
+                save.setNullableString(13, snapshot.firstOperator?.let(json::writeValueAsString))
                 save.executeQuery().use { rows -> rows.next() }
             }
         }
@@ -120,6 +123,8 @@ class PostgresSnapshotStore(
         firstEventTime = row.getLong("first_event_time"),
         lastEventTime = row.getLong("last_event_time"),
         tags = decodeTags(row.getString("tags")),
+        operator = row.getString("operator")?.let(::decodeOperator),
+        firstOperator = row.getString("first_operator")?.let(::decodeOperator),
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {
@@ -128,6 +133,8 @@ class PostgresSnapshotStore(
 
     private companion object {
         val json: JsonMapper = WowJson.mapper
+
+        fun decodeOperator(text: String): Operator = json.readValue(text, Operator::class.java)
 
         fun decodeTags(text: String): Map<String, List<String>> = buildMap {
             for ((name, values) in json.readTree(text).properties()) {

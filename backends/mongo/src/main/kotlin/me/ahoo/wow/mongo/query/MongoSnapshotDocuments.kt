@@ -25,7 +25,8 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The snapshot document `MongoSnapshotStore` writes, as the query side reads it (decisions D128, D161): each system
  * field of a snapshot record is a top-level field under its stored name ([PHYSICAL]), the state is the document
- * `state` and the tags the document `tags` of string arrays. `_id` is the store's own and never part of a record.
+ * `state`, the tags the document `tags` of string arrays, and the operators the documents `{id, tenantId,
+ * crossScope}` or null (decision D163; a snapshot written before them has neither field). `_id` is the store's own and never part of a record.
  */
 internal object MongoSnapshotDocuments {
     /** The document's own key, which no query reads. */
@@ -42,6 +43,8 @@ internal object MongoSnapshotDocuments {
         SnapshotFields.TAGS to "tags",
         SnapshotFields.FIRST_EVENT_TIME to "first_event_time",
         SnapshotFields.LAST_EVENT_TIME to "last_event_time",
+        SnapshotFields.OPERATOR to "operator",
+        SnapshotFields.FIRST_OPERATOR to "first_operator",
         SnapshotFields.STATE to "state",
     )
 

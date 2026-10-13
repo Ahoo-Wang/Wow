@@ -241,6 +241,11 @@ class PostgresSnapshotQueryBackend internal constructor(
             set(SnapshotFields.TAGS, WowJson.mapper.readTree(row.getString("tags")))
             put(SnapshotFields.FIRST_EVENT_TIME, row.getLong("first_event_time"))
             put(SnapshotFields.LAST_EVENT_TIME, row.getLong("last_event_time"))
+            set(SnapshotFields.OPERATOR, row.getString("operator")?.let(WowJson.mapper::readTree) ?: nodes.nullNode())
+            set(
+                SnapshotFields.FIRST_OPERATOR,
+                row.getString("first_operator")?.let(WowJson.mapper::readTree) ?: nodes.nullNode(),
+            )
             if (state) set(SnapshotFields.STATE, WowJson.mapper.readTree(row.getString("state")))
         }
 

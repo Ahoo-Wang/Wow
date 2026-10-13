@@ -29,6 +29,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -98,6 +99,8 @@ class MongoSnapshotStore(
             Updates.set(FIRST_EVENT_TIME, snapshot.firstEventTime),
             Updates.set(LAST_EVENT_TIME, snapshot.lastEventTime),
             Updates.set(TAGS, Document(snapshot.tags)),
+            Updates.set(OPERATOR, MongoOperators.document(snapshot.operator)),
+            Updates.set(FIRST_OPERATOR, MongoOperators.document(snapshot.firstOperator)),
         )
         conditionalUpsert { upsert ->
             val result = snapshots.updateOne(guarded, update, UpdateOptions().upsert(upsert))
@@ -127,6 +130,8 @@ class MongoSnapshotStore(
             firstEventTime = document.getLong(FIRST_EVENT_TIME),
             lastEventTime = document.getLong(LAST_EVENT_TIME),
             tags = tags.keys.associateWith { tags.getList(it, String::class.java).toList() },
+            operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
+            firstOperator = MongoOperators.of(document.get(FIRST_OPERATOR, Document::class.java)),
         )
     }
 
@@ -188,5 +193,7 @@ class MongoSnapshotStore(
         const val FIRST_EVENT_TIME = "first_event_time"
         const val LAST_EVENT_TIME = "last_event_time"
         const val TAGS = "tags"
+        const val OPERATOR = "operator"
+        const val FIRST_OPERATOR = "first_operator"
     }
 }

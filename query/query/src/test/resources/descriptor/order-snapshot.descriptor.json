@@ -1,6 +1,6 @@
 {
   "model" : "SNAPSHOT",
-  "version" : "sha256:17ba554804b58acb9bd02cee159a5dfa5e820a2659af047266c802650f316fd4",
+  "version" : "sha256:b3c757813c0a764b40c0981f68738c9fa025b1a1c98335c763bb2c68336f2793",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",
@@ -128,6 +128,95 @@
     },
     "aliases" : [ ]
   }, {
+    "path" : "firstOperator",
+    "types" : [ "OBJECT" ],
+    "kind" : "OBJECT",
+    "nullable" : true,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "firstOperator.crossScope",
+    "types" : [ "BOOLEAN" ],
+    "kind" : "SCALAR",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "EQ", "NE", "IN", "NOT_IN", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "TERMS" ],
+      "missingKey" : false,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "firstOperator.id",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "TERMS" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "firstOperator.tenantId",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "TERMS" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
     "path" : "lastEventTime",
     "role" : "EVENT_TIME",
     "types" : [ "INTEGER" ],
@@ -154,6 +243,95 @@
       "any" : true,
       "firstLast" : true,
       "expressionInput" : true,
+      "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "operator",
+    "types" : [ "OBJECT" ],
+    "kind" : "OBJECT",
+    "nullable" : true,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "operator.crossScope",
+    "types" : [ "BOOLEAN" ],
+    "kind" : "SCALAR",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "EQ", "NE", "IN", "NOT_IN", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "TERMS" ],
+      "missingKey" : false,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "operator.id",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "TERMS" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
+      "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "operator.tenantId",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : true,
+      "cursor" : true
+    },
+    "aggregate" : {
+      "groups" : [ "TERMS" ],
+      "missingKey" : true,
+      "functions" : [ ],
+      "distinctCount" : true,
+      "percentile" : false,
+      "any" : true,
+      "firstLast" : true,
+      "expressionInput" : false,
       "inMetricFilter" : true
     },
     "aliases" : [ ]

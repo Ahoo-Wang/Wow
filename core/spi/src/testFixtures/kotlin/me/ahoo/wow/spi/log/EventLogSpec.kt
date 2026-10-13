@@ -24,6 +24,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.ExactJson
@@ -58,6 +59,7 @@ abstract class EventLogSpec {
         causation: Causation? = null,
         headers: Map<String, String> = emptyMap(),
         aggregate: AggregateType = type,
+        operator: Operator? = null,
     ) = EventStreamRecord(
         ref = aggregate.ref(tenant, id),
         version = version,
@@ -72,6 +74,7 @@ abstract class EventLogSpec {
         scope = scope,
         causation = causation,
         headers = headers,
+        operator = operator,
     )
 
     /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
@@ -116,7 +119,7 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `scope, causation and headers read back as appended, absent ones too`(): Unit = runBlocking {
+    fun `scope, causation, headers and operator read back as appended, absent ones too`(): Unit = runBlocking {
         val log = createLog()
         val full = stream(
             "a",
@@ -124,8 +127,9 @@ abstract class EventLogSpec {
             scope = Scope("owner ü", "space"),
             causation = Causation("root", "$context.aggregate/tenant/b@3"),
             headers = mapOf("app" to "console", "quote" to "\" é"),
+            operator = Operator("alice ü", "home", crossScope = true),
         )
-        val ownerOnly = stream("b", 1, scope = Scope(ownerId = "owner"))
+        val ownerOnly = stream("b", 1, scope = Scope(ownerId = "owner"), operator = Operator("bob", "tenant"))
         val spaceOnly = stream("c", 1, scope = Scope(spaceId = "space"))
         val none = stream("d", 1, scope = Scope.NONE)
         listOf(full, ownerOnly, spaceOnly, none).forEach { log.append(it) }

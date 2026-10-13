@@ -15,6 +15,7 @@ package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -69,6 +70,7 @@ object SinkFixtures {
         state: String? = stateOf(version),
         tenantId: String = "tenant-1",
         type: AggregateType = ORDER,
+        operator: Operator? = Operator("alice", "tenant-0", crossScope = true),
     ): StateEventRecord = StateEventRecord(
         ref = type.ref(tenantId, id),
         version = version,
@@ -90,6 +92,7 @@ object SinkFixtures {
         tags = mapOf("color" to listOf("red", "blue")),
         causation = Causation("correlation-1", "upstream@1"),
         headers = mapOf("app" to "web"),
+        operator = operator,
     )
 }
 

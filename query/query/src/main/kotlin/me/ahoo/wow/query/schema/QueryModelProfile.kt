@@ -139,8 +139,10 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
 /**
  * The names of a snapshot record's fields as the query side reads them (decision D128): one record per aggregate, the
  * columns of `me.ahoo.wow.spi.snapshot.SnapshotRecord` with the state under [STATE]. 9.x's `contextName`,
- * `aggregateName`, `eventId`, `operator`, `firstOperator` and `snapshotTime` are gone, and 9.x's `eventTime` is
- * [LAST_EVENT_TIME]: a snapshot query is always of one aggregate type, which the backend adds itself (decision D131).
+ * `aggregateName`, `eventId` and `snapshotTime` are gone, and 9.x's `eventTime` is [LAST_EVENT_TIME]: a snapshot query
+ * is always of one aggregate type, which the backend adds itself (decision D131). [OPERATOR] and [FIRST_OPERATOR] keep
+ * 9.x's names (decision D163) but are objects, `{id, tenantId, crossScope}` ([OperatorFields]), or null for an
+ * anonymous caller: filter on `operator.id`.
  */
 object SnapshotFields {
     const val TENANT_ID: String = "tenantId"
@@ -152,7 +154,16 @@ object SnapshotFields {
     const val TAGS: String = "tags"
     const val FIRST_EVENT_TIME: String = "firstEventTime"
     const val LAST_EVENT_TIME: String = "lastEventTime"
+    const val OPERATOR: String = "operator"
+    const val FIRST_OPERATOR: String = "firstOperator"
     const val STATE: String = "state"
+}
+
+/** The properties of an operator system field ([SnapshotFields.OPERATOR], [SnapshotFields.FIRST_OPERATOR]). */
+object OperatorFields {
+    const val ID: String = "id"
+    const val TENANT_ID: String = "tenantId"
+    const val CROSS_SCOPE: String = "crossScope"
 }
 
 /** Aggregate snapshots: one record per aggregate, the payload under `state` (decision D128). */
@@ -196,6 +207,9 @@ data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAP
                 },
                 SnapshotFields.FIRST_EVENT_TIME.epochField(),
                 SnapshotFields.LAST_EVENT_TIME.epochField(),
+                // The operators of the last and the first stream; null when that caller was anonymous (D163).
+                SnapshotFields.OPERATOR.operatorField(),
+                SnapshotFields.FIRST_OPERATOR.operatorField(),
                 SnapshotFields.STATE.payloadField(),
             ),
         ),
@@ -263,6 +277,25 @@ private fun String.objectField(dynamic: Boolean = false) = field(
         additionalProperties = if (dynamic) DeclarationValue.Set(QueryFieldDeclaration()) else DeclarationValue.Unset
     )
 }
+
+private fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
+    valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+    nullable = DeclarationValue.Set(true),
+    required = DeclarationValue.Set(true),
+    properties = DeclarationValue.Set(
+        linkedMapOf(
+            OperatorFields.ID to scalarProperty(QueryValueType.STRING),
+            OperatorFields.TENANT_ID to scalarProperty(QueryValueType.STRING),
+            OperatorFields.CROSS_SCOPE to scalarProperty(QueryValueType.BOOLEAN),
+        ),
+    ),
+)
+
+private fun scalarProperty(valueType: QueryValueType) = QueryFieldDeclaration(
+    valueTypes = DeclarationValue.Set(setOf(valueType)),
+    nullable = DeclarationValue.Set(false),
+    required = DeclarationValue.Set(true),
+)
 
 private fun String.epochField() = field(
     QueryValueType.INTEGER,
