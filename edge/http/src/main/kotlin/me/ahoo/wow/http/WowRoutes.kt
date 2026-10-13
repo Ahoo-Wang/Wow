@@ -68,6 +68,8 @@ import org.springframework.web.reactive.function.server.coRouter
  *   snapshot model is queried, and `GET /wow/dataset` lists those the caller sees; a dataset that joins or leaves
  *   while the node runs is served or not from then on;
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
+ * - `GET /wow/id/global` answers a new global id of the gateway's [generator][CommandGateway.ids] (decision D171) as
+ *   `text/plain`;
  * - any other request under a context of the Manifest is a 404 problem.
  *
  * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). Errors are
@@ -106,6 +108,12 @@ fun wowRoutes(
                     Negotiation.checkAcceptable(request, alsoEventStream = false)
                     ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(manifestBody)
                 }
+            }
+        }
+        GET(WowPaths.GLOBAL_ID) { request ->
+            answering {
+                authenticator.authenticate(request)
+                ServerResponse.ok().contentType(MediaType.TEXT_PLAIN).bodyValueAndAwait(gateway.ids.global.next())
             }
         }
         if (queries.datasets !== DatasetQueryGateways.NONE) {

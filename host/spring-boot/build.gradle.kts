@@ -21,14 +21,13 @@ dependencies {
     // with wow-http.
     compileOnly(project(":kafka"))
     compileOnly(project(":clickhouse"))
-    // Activated only when the application has them: a Bean Validation provider (D106) and CosId (D114).
+    // Activated only when the application has it: a Bean Validation provider (D106). CosId's ids come from wow-cosid,
+    // which wires itself (D171).
     compileOnly("jakarta.validation:jakarta.validation-api")
-    compileOnly("me.ahoo.cosid:cosid-core")
     testImplementation("org.springframework.boot:spring-boot-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-jackson")
     testImplementation("org.springframework:spring-test")
-    testImplementation("me.ahoo.cosid:cosid-core")
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
     // The in-memory reference query backend, for the snapshot queries of a node on the memory backend.
