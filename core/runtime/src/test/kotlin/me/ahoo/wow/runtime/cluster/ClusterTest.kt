@@ -125,7 +125,8 @@ class ClusterTest {
 
             val events = cluster.events.toList()
             val appended = events.indexOf("append $slowId")
-            val saved = events.indexOfFirst { it.startsWith("checkpoint $partition ") }
+            // The first save after the append: the subscriptions saved their starting checkpoints when they started.
+            val saved = (appended + 1 until events.size).firstOrNull { events[it].startsWith("checkpoint $partition ") } ?: -1
             val released = events.indexOf("release $partition node-3")
             (appended >= 0 && saved > appended && released > saved).assert().isTrue()
             three.ownership.owned.assert().isEmpty()
