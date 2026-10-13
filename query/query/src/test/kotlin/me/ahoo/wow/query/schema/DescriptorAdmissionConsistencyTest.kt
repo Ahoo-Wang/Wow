@@ -397,7 +397,11 @@ class DescriptorAdmissionConsistencyTest {
         listed: Boolean,
     ): FilterExpression? {
         val path = if (scope == null) absolute else absolute.removePrefix("$scope.")
-        val node = runCatching { construct(operator, path, types) }
+        // An operator whose node takes only JSON literals cannot carry an object operand: it gets a string instead.
+        val node = runCatching { construct(operator, path, types) }.recoverCatching {
+            if (types.firstOrNull() != QueryValueType.OBJECT) throw it
+            construct(operator, path, setOf(QueryValueType.STRING))
+        }
         if (node.isFailure) {
             if (listed) {
                 throw AssertionError("cannot build a listed ${operator.name} on $absolute", node.exceptionOrNull())
@@ -455,13 +459,14 @@ class DescriptorAdmissionConsistencyTest {
     }
 
     /**
-     * A JSON scalar of the field's first type. An object-valued field gets a string: a JSON request cannot carry an
-     * object operand (the filter nodes reject a map), so a scalar is what such a field is ever compared with.
+     * A value of the field's first type. An object-valued field gets an object, a runtime value an in-process caller
+     * may pass to EQ and NE: admission rejects every domain operator on it, as the descriptor lists none.
      */
     private fun valueOf(types: Set<QueryValueType>): Any = when (types.firstOrNull()) {
         QueryValueType.INTEGER -> 1
         QueryValueType.DECIMAL -> 1.5
         QueryValueType.BOOLEAN -> true
+        QueryValueType.OBJECT -> ObjectOperand("a")
         else -> "a"
     }
 
@@ -471,4 +476,7 @@ class DescriptorAdmissionConsistencyTest {
         nullable = false,
         maskRule = MaskRule(level),
     )
+
+    /** A runtime value that serializes as a JSON object. */
+    private data class ObjectOperand(val a: String)
 }

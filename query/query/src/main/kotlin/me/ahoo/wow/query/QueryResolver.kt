@@ -357,10 +357,10 @@ internal class QueryResolver(
         when (rule) {
             ValueRule.NONE -> Unit
             // Equality with null asks for presence instead and carries no domain value.
-            ValueRule.DOMAIN -> domainValues(expression)?.let { values(reference, it) }
+            ValueRule.DOMAIN -> domainValues(expression)?.let { values(reference, it, rule) }
             ValueRule.COLLECTION_DOMAIN -> {
                 requireValid(reference.effective.collection) { QueryViolation.NotCollection(reference.logical) }
-                values(reference, checkNotNull(domainValues(expression)))
+                values(reference, checkNotNull(domainValues(expression)), rule)
             }
             ValueRule.COLLECTION -> requireValid(reference.effective.satisfies(rule)) {
                 QueryViolation.NotCollection(reference.logical)
@@ -427,9 +427,15 @@ internal class QueryResolver(
         return if (canonical.isArray) canonical else listOf(canonical)
     }
 
-    /** The request's values must fall within the field's declared domain: checked per request, not compiled. */
-    private fun values(reference: Reference, values: Iterable<Any?>) {
-        requireValid(reference.definition.value.accepts(values)) { QueryViolation.ValueMismatch(reference.logical) }
+    /**
+     * The request's values must fall within the field's declared domain, checked per request, and the field must
+     * offer a scalar domain to compare them with ([rule], as the descriptor lists the operator): an object-valued
+     * field has none, whatever runtime value an in-process caller passes.
+     */
+    private fun values(reference: Reference, values: Iterable<Any?>, rule: ValueRule) {
+        requireValid(
+            reference.effective.satisfies(rule) && reference.definition.value.accepts(values)
+        ) { QueryViolation.ValueMismatch(reference.logical) }
     }
 
     private fun projection(projection: Projection): Projection {

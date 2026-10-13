@@ -148,7 +148,11 @@ class PostgresQueryPartsTest {
 
     @Test
     fun `nothing sorts after a null descending`() {
-        val sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.DESC))
+        // Every field of the effective sort, the snapshot's unique key (tenant, aggregate id) included, descends.
+        val sort = listOf(
+            Sort(QueryField("aggregateId"), Sort.Direction.DESC),
+            Sort(QueryField("tenantId"), Sort.Direction.DESC),
+        )
         val admitted = QueryAdmission.Trusted.cursor(
             CursorQuery(MatchAllFilter, sort = sort, size = 1),
             QueryTestSchemas.SCHEMA
@@ -156,7 +160,7 @@ class PostgresQueryPartsTest {
         PostgresSnapshotSqlCompiler(QueryTestSchemas.TABLE)
             .keyset(
                 admitted,
-                PageWindow.Keyset(CursorPosition(listOf(null)), 2)
+                PageWindow.Keyset(CursorPosition(listOf(null, null)), 2)
             ).sql.assert().contains("WHERE TRUE AND FALSE ORDER BY")
     }
 

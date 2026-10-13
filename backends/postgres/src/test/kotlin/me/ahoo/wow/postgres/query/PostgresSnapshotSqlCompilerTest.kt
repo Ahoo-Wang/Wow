@@ -221,27 +221,36 @@ class PostgresSnapshotSqlCompilerTest {
 
         compiler.keyset(
             admitted,
-            PageWindow.Keyset(CursorPosition(listOf("n", BigDecimal.TEN, "id")), 3)
+            // The snapshot's unique key ends the sort: the tenant, then the aggregate id.
+            PageWindow.Keyset(CursorPosition(listOf("n", BigDecimal.TEN, "t", "id")), 3)
         ).let { statement ->
             statement.sql.assert().contains(
                 "AND (($name > ?) OR ($name = ? AND ($amount < ? OR $amount IS NULL)) OR " +
-                    "($name = ? AND $amount = ? AND aggregate_id > ?)) ORDER BY",
+                    "($name = ? AND $amount = ? AND tenant_id > ?) OR " +
+                    "($name = ? AND $amount = ? AND tenant_id = ? AND aggregate_id > ?)) ORDER BY",
             )
-            statement.sql.assert().contains("$name AS k0, $amount AS k1, aggregate_id AS k2")
-                .endsWith("aggregate_id ASC NULLS FIRST LIMIT ?")
+            statement.sql.assert().contains("$name AS k0, $amount AS k1, tenant_id AS k2, aggregate_id AS k3")
+                .endsWith("tenant_id ASC NULLS FIRST, aggregate_id ASC NULLS FIRST LIMIT ?")
             statement.parameters.assert().containsExactly(
                 SqlParameter.Text("n"),
                 SqlParameter.Text("n"),
                 SqlParameter.Numeric(BigDecimal.TEN),
                 SqlParameter.Text("n"),
                 SqlParameter.Numeric(BigDecimal.TEN),
+                SqlParameter.Text("t"),
+                SqlParameter.Text("n"),
+                SqlParameter.Numeric(BigDecimal.TEN),
+                SqlParameter.Text("t"),
                 SqlParameter.Text("id"),
                 SqlParameter.Int8(3),
             )
         }
         // Nothing sorts after a NULL descending; after a NULL ascending, every value does.
-        compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(listOf(null, null, "id")), 3)).sql.assert()
-            .contains("AND (($name IS NOT NULL) OR ($name IS NULL AND $amount IS NULL AND aggregate_id > ?)) ORDER BY")
+        compiler.keyset(admitted, PageWindow.Keyset(CursorPosition(listOf(null, null, "t", "id")), 3)).sql.assert()
+            .contains(
+                "AND (($name IS NOT NULL) OR ($name IS NULL AND $amount IS NULL AND tenant_id > ?) OR " +
+                    "($name IS NULL AND $amount IS NULL AND tenant_id = ? AND aggregate_id > ?)) ORDER BY",
+            )
         compiler.keyset(admitted, PageWindow.Keyset(null, 3)).sql.assert().doesNotContain(" OR ")
     }
 
