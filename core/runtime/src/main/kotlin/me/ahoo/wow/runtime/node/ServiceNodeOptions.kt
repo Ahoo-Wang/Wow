@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -34,6 +35,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
 import kotlin.time.Duration
@@ -41,7 +43,8 @@ import kotlin.time.Duration
 /**
  * The stores of one bounded context on a node (decision D72: a log, its partitions and leases are per context). The
  * [log]'s partition count is the context's. Without [snapshots] the context has no snapshot subscription, and its
- * default wait is COMMITTED; without [reservations] its commands cannot reserve keys.
+ * default wait is COMMITTED; without [reservations] its commands cannot reserve keys; without [timers] its commands and
+ * sagas cannot schedule commands (decision D166): a schedule is committed but never sent.
  */
 data class ContextBackends(
     val log: EventLog,
@@ -50,6 +53,7 @@ data class ContextBackends(
     val ledger: FailureLedger,
     val snapshots: SnapshotStore? = null,
     val reservations: ReservationStore? = null,
+    val timers: TimerStore? = null,
 )
 
 /** Opens the [ContextBackends] of each bounded context the node hosts; the host closes what it opened. */
@@ -81,6 +85,7 @@ enum class Routing {
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
+ * - [timers]: the timer runner of each context that has a timer store (decision D166).
  */
 data class ServiceNodeOptions(
     val cluster: ClusterOptions = ClusterOptions(),
@@ -93,6 +98,7 @@ data class ServiceNodeOptions(
     val stateCacheCapacity: Int = DEFAULT_STATE_CACHE_CAPACITY,
     val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
     val stateViews: StateViewOptions = StateViewOptions(),
+    val timers: TimerOptions = TimerOptions(),
 ) {
     init {
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }

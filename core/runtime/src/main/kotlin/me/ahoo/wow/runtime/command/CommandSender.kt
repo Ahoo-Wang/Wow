@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.command
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -44,13 +45,16 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
     private val partitions = ConcurrentHashMap<String, Int>()
 
     /** Sends [command] to its context's command topic, with [wait] and the [replyTo] of a rejection. */
-    suspend fun send(command: Command<*>, wait: WaitContext? = null, replyTo: ReplyTo? = null) {
-        val topic = topics.commandsOf(command.ref.type.context)
-        val wire = ClusterCodec.wire(typeOf(command), command, replyTo)
-        producer.send(
-            topic,
-            CommandMessages.command(wire, Partitioner.partitionOf(command.ref, partitionsOf(topic)), wait)
-        )
+    suspend fun send(command: Command<*>, wait: WaitContext? = null, replyTo: ReplyTo? = null) =
+        send(ClusterCodec.wire(typeOf(command), command, replyTo), wait)
+
+    /**
+     * Sends [wire], a command already in its wire form and named (a timer's, decision D166), to its context's command
+     * topic, with [wait].
+     */
+    suspend fun send(wire: CommandWire, wait: WaitContext? = null) {
+        val topic = topics.commandsOf(wire.ref.type.context)
+        producer.send(topic, CommandMessages.command(wire, Partitioner.partitionOf(wire.ref, partitionsOf(topic)), wait))
     }
 
     /** The full type name of [command], as the contracts give its class. */

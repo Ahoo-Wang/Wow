@@ -44,11 +44,11 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  */
 class ReservationSubscription(context: String, private val store: ReservationStore) {
     /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
-    val subscription: Subscription = Subscription(
-        name = Hop.RESERVATION_SUBSCRIPTION,
-        filter = SubscriptionFilter(context),
-        kind = FunctionKind.RESERVATION,
-        handler = ::confirm,
+    val subscription: Subscription = Subscription.builtIn(
+        Hop.RESERVATION_SUBSCRIPTION,
+        SubscriptionFilter(context),
+        FunctionKind.RESERVATION,
+        ::confirm,
     )
 
     private suspend fun confirm(entry: SubscribedEntry) {

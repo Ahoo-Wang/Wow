@@ -51,6 +51,11 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * (a batch): it keeps the latest of something per aggregate, so the earlier ones add nothing. Every entry of the
  * batch completes, and is signalled, only once the latest is handled, so a wait on an earlier version reaches its
  * hop when what holds the later one is written (design 03 §3: the snapshot subscription's merged writes).
+ *
+ * A stream with no event, one that only changes schedules (decision D166), is the application's to see only as a
+ * position: its subscriptions pass it over like an entry outside their filter. The built-in subscriptions ([builtIn],
+ * and the snapshot's [coalescing] one) take it, so the timers are written, the snapshot keeps the aggregate's version
+ * and the reservations it made are confirmed.
  */
 class Subscription private constructor(
     val name: String,
@@ -63,6 +68,8 @@ class Subscription private constructor(
     internal val coalesces: Boolean = false,
     /** Whether every entry is the subscription's, whatever its filter: one of a topic of commands or receipts. */
     private val takesAll: Boolean = false,
+    /** Whether a stream with no event, one that only changes schedules, is the subscription's: a built-in one's. */
+    private val takesEventless: Boolean = false,
 ) {
     constructor(
         name: String,
@@ -99,7 +106,8 @@ class Subscription private constructor(
     internal suspend fun handle(entry: SubscribedEntry): HandledEntry = handler.handle(entry)
 
     /** Whether [stream] is this subscription's to handle: its [filter] matches it, or it takes every entry. */
-    internal fun takes(stream: EventStreamRecord): Boolean = takesAll || filter.matches(stream)
+    internal fun takes(stream: EventStreamRecord): Boolean =
+        takesAll || (takesEventless || stream.events.isNotEmpty()) && filter.matches(stream)
 
     override fun toString(): String = "Subscription($name)"
 
@@ -147,6 +155,30 @@ class Subscription private constructor(
                 HandledEntry.NOTHING
             },
             coalesces = true,
+            takesEventless = true,
+        )
+
+        /**
+         * A built-in subscription of the log (the `reservation` and `timers` ones): it takes the streams that change
+         * only schedules too, from the beginning of the log.
+         */
+        internal fun builtIn(
+            name: String,
+            filter: SubscriptionFilter,
+            kind: FunctionKind,
+            handler: suspend (SubscribedEntry) -> Unit,
+        ): Subscription = Subscription(
+            name,
+            filter,
+            StartFrom.BEGINNING,
+            EntryDecoder.RECORDS,
+            emptyList(),
+            kind,
+            EntryHandler { entry ->
+                handler(entry)
+                HandledEntry.NOTHING
+            },
+            takesEventless = true,
         )
 
         /**
