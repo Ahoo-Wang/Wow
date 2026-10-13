@@ -113,8 +113,8 @@ object V10Rules {
         KAFKA to setOf("spi"),
         // query for the dataset backend (decision D142).
         CLICKHOUSE to setOf("spi", "query"),
-        // runtime only until the V10 query module exists (decision D118).
-        HTTP to setOf("runtime"),
+        // query for the query routes (06 §3, decisions D118, D127).
+        HTTP to setOf("runtime", "query"),
         COSEC to setOf("http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
         // query, kafka and clickhouse compileOnly too: each is wired when the application has it.
