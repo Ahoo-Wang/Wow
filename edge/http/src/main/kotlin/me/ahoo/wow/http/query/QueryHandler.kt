@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -207,9 +208,8 @@ internal class QueryHandler(
             if (first == null) return@flow
             var index = 0L
             emit(row(first, index++))
-            for (row in rows) {
-                emit(row(row, index++))
-            }
+            // A client that goes away cancels the producer too, so the backend's cursor is closed.
+            rows.consumeEach { emit(row(it, index++)) }
         }.catch { failure ->
             if (failure is CancellationException) throw failure
             emit(
