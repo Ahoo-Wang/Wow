@@ -75,7 +75,7 @@ class QueryGatewayContractTest {
             val first = gateway.cursor(CursorQuery(MatchAllFilter, size = 1), QueryCaller.IN_PROCESS)
             gateway.cursor(CursorQuery(MatchAllFilter, size = 1, cursor = first.nextCursor), QueryCaller.IN_PROCESS)
                 .list.single().assert().isEqualTo(snapshotNode())
-            SnapshotBackend.after.assert().isEqualTo(CursorPosition(listOf("first")))
+            SnapshotBackend.after.assert().isEqualTo(CursorPosition(listOf("tenant", "first")))
         }
     }
 
@@ -119,11 +119,14 @@ class QueryGatewayContractTest {
     private companion object {
         val AGGREGATE = AggregateType("context", "aggregate")
 
-        /** Two rows with positions: one page of one row plus the look-ahead, so a next cursor exists. */
+        /**
+         * Two rows with positions (the tenant and the aggregate id, the snapshot's cursor key): one page of one row
+         * plus the look-ahead, so a next cursor exists.
+         */
         fun twoRows(): BackendPage = BackendPage(
             listOf(snapshotNode(), snapshotNode()),
             2,
-            listOf(CursorPosition(listOf("first")), CursorPosition(listOf("second"))),
+            listOf(CursorPosition(listOf("tenant", "first")), CursorPosition(listOf("tenant", "second"))),
         )
 
         fun snapshotNode(): ObjectNode = WowJson.mapper.readTree(

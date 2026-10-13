@@ -75,6 +75,14 @@ class ResolvedField internal constructor(
     val storageTypes: Set<QueryStorageType>?
         get() = capability?.let(definition::binding)?.storageTypes
 
+    /**
+     * Whether an index backs [physicalField] in the binding admitted for [capability]
+     * ([me.ahoo.wow.query.schema.QueryFieldBinding.indexed]); `null` when the storage did not say or the field is
+     * projected.
+     */
+    val indexed: Boolean?
+        get() = capability?.let(definition::binding)?.indexed
+
     /** [physicalField] relative to [physicalParent]; the physical field itself at the root. */
     val relativePhysicalField: QueryField
         get() = physicalParent?.let(physicalField::relativeTo) ?: physicalField

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Declares a model's fields in code, in the vocabulary of the capability descriptor: the programmatic source of
- * declarations ([BeanQuerySchemaSource]) beside the Manifest's (6.1c), and how tests describe a model.
+ * declarations ([BeanQuerySchemaSource]) beside the Manifest's ([ManifestQuerySchemaSource]), and how tests describe a model.
  */
 class QuerySchemaDeclarationBuilder {
     private val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()

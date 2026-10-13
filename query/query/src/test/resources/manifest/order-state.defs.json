@@ -1,0 +1,180 @@
+{
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Address" : {
+    "type" : "object",
+    "properties" : {
+      "city" : {
+        "type" : "string"
+      },
+      "street" : {
+        "type" : "string",
+        "x-wow-sensitive" : {
+          "level" : "CONFIDENTIAL"
+        },
+        "x-wow-mask" : {
+          "keepPrefix" : 0,
+          "keepSuffix" : 0
+        }
+      }
+    },
+    "required" : [ "city", "street" ]
+  },
+  "me.ahoo.wow.manifest.tools.QueryKeywordsTest$OrderState" : {
+    "type" : "object",
+    "properties" : {
+      "address" : {
+        "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Address"
+      },
+      "backupPhone" : {
+        "type" : "string",
+        "x-wow-sensitive" : {
+          "level" : "CONFIDENTIAL"
+        },
+        "x-wow-mask" : {
+          "keepPrefix" : 0,
+          "keepSuffix" : 0
+        }
+      },
+      "buyer" : {
+        "type" : "string",
+        "x-wow-alias" : [ "state.customer", "state.client" ]
+      },
+      "buyerId" : {
+        "type" : "string",
+        "x-wow-reference" : {
+          "aggregateName" : "member"
+        }
+      },
+      "createdAt" : {
+        "type" : "integer",
+        "x-wow-temporal" : {
+          "unit" : "SECONDS"
+        }
+      },
+      "currency" : {
+        "type" : "string"
+      },
+      "email" : {
+        "type" : [ "string", "null" ],
+        "x-wow-sensitive" : {
+          "level" : "DISPLAY"
+        },
+        "x-wow-mask" : {
+          "strategy" : "me.ahoo.wow.manifest.tools.QueryKeywordsTest$Redact"
+        }
+      },
+      "lines" : {
+        "type" : "array",
+        "items" : {
+          "type" : "object",
+          "properties" : {
+            "quantity" : {
+              "type" : "number",
+              "x-wow-decimal" : {
+                "scale" : 3
+              }
+            },
+            "sku" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "quantity", "sku" ]
+        }
+      },
+      "note" : {
+        "type" : "string",
+        "x-wow-alias" : [ "state.remark" ]
+      },
+      "paid" : {
+        "type" : "number",
+        "x-wow-money" : {
+          "currencyField" : "currency",
+          "scale" : 2
+        }
+      },
+      "password" : {
+        "type" : "string",
+        "x-wow-sensitive" : {
+          "level" : "CONFIDENTIAL"
+        },
+        "x-wow-mask" : {
+          "keepPrefix" : 0,
+          "keepSuffix" : 0
+        }
+      },
+      "phone" : {
+        "type" : "string",
+        "x-wow-sensitive" : {
+          "level" : "DISPLAY"
+        },
+        "x-wow-mask" : {
+          "keepPrefix" : 3,
+          "keepSuffix" : 4
+        }
+      },
+      "placedAt" : {
+        "type" : "string",
+        "format" : "date-time"
+      },
+      "productIds" : {
+        "x-wow-reference" : {
+          "aggregateName" : "product",
+          "contextName" : "catalog"
+        },
+        "type" : "array",
+        "items" : {
+          "type" : "string"
+        }
+      },
+      "rate" : {
+        "type" : "number",
+        "x-wow-decimal" : {
+          "scale" : 4
+        }
+      },
+      "shippedAt" : {
+        "type" : [ "string", "null" ],
+        "x-wow-temporal" : {
+          "pattern" : "yyyy-MM-dd HH:mm:ss"
+        }
+      },
+      "shipping" : {
+        "anyOf" : [ {
+          "type" : "null"
+        }, {
+          "$ref" : "#/$defs/me.ahoo.wow.manifest.tools.QueryKeywordsTest$Address"
+        } ],
+        "x-wow-alias" : [ "state.deliverTo" ]
+      },
+      "timeout" : {
+        "type" : "integer",
+        "x-wow-duration" : {
+          "unit" : "SECONDS"
+        }
+      },
+      "tip" : {
+        "type" : "number",
+        "x-wow-money" : {
+          "currency" : "JPY",
+          "scale" : 1
+        }
+      },
+      "token" : {
+        "type" : "string",
+        "x-wow-sensitive" : {
+          "level" : "CONFIDENTIAL"
+        },
+        "x-wow-mask" : {
+          "keepPrefix" : 0,
+          "keepSuffix" : 0
+        }
+      },
+      "total" : {
+        "type" : "number",
+        "x-wow-money" : {
+          "currency" : "CNY"
+        }
+      }
+    },
+    "required" : [ "address", "backupPhone", "buyer", "buyerId", "createdAt", "currency", "lines", "note", "paid", "password", "phone", "placedAt", "productIds", "rate", "timeout", "tip", "token", "total" ]
+  }
+}

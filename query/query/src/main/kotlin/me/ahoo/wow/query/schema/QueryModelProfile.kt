@@ -46,6 +46,13 @@ sealed class QueryModelProfile(val model: QueryModel) {
      */
     abstract val payloadField: QueryField?
 
+    /**
+     * The fields that identify one record across the whole model, in the order a cursor appends them as its
+     * tie-breakers: the [identityField] alone by default, or nothing when the model has none.
+     */
+    open val cursorUniqueKey: List<QueryField>
+        get() = listOfNotNull(identityField)
+
     /** When the record last changed: the default `orderBy` of FIRST and LAST metrics; `null` when there is none. */
     abstract val eventTimeField: QueryField?
 
@@ -152,6 +159,14 @@ data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAP
     override val payloadField: QueryField = QueryField(SnapshotFields.STATE)
     override val eventTimeField: QueryField = QueryField(SnapshotFields.LAST_EVENT_TIME)
     override val firstEventTimeField: QueryField = QueryField(SnapshotFields.FIRST_EVENT_TIME)
+
+    /**
+     * An aggregate id is unique only within its tenant (the snapshot's key is `(tenantId, aggregateId)`), so a cursor
+     * orders by the tenant before the id: a cross-tenant cursor (in-process or trusted) cannot skip a record that
+     * shares an id with one in another tenant.
+     */
+    override val cursorUniqueKey: List<QueryField> =
+        listOf(QueryField(SnapshotFields.TENANT_ID), QueryField(SnapshotFields.AGGREGATE_ID))
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
@@ -210,6 +225,18 @@ fun QueryModelSchema.systemField(field: SystemField): QueryField {
     val profile = profile ?: return QueryModelProfile.metadataField(field)
     return profile.systemField(field)
         ?: throw QueryViolation.UnknownField(QueryModelProfile.metadataField(field)).rejection()
+}
+
+/**
+ * The fields a cursor of this schema's model appends as its tie-breakers ([QueryModelProfile.cursorUniqueKey]): those
+ * of the profile's key the schema carries, the identity always, rejecting custom models that define no identity. Every
+ * snapshot schema the Catalog compiles carries the tenant (a system field); a schema built without it, as tests and
+ * tools may build one, orders by the identity alone.
+ */
+fun QueryModelSchema.cursorUniqueKey(): List<QueryField> {
+    val identity = requireIdentityField()
+    val key = profile?.cursorUniqueKey ?: return listOf(identity)
+    return key.filter { it == identity || field(it) != null }
 }
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */

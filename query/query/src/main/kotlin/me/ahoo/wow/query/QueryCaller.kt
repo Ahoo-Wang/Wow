@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 
@@ -65,7 +66,9 @@ enum class QueryEntry {
 /**
  * Who runs a query (decision D126): the explicit argument of every gateway operation and of [QueryPolicy], in place
  * of 9.x's Reactor `ContextView`. The HTTP edge maps its `Caller` (and `Wow-Scope` for a cross-scope caller) to one
- * (decision D129, work packages 6.1c and 6.2c); in-process code passes [IN_PROCESS].
+ * (decision D129, work package 6.2c): [tenantId] is the caller's tenant (or the one `Wow-Scope` names), [principal] its
+ * scope (or the target's), [subject] and [attributes] unchanged, and the entry [QueryEntry.HTTP]. In-process code
+ * passes [IN_PROCESS].
  *
  * - [entry]: where the query came from, which picks its budget.
  * - [scope]: the caller's scope as filters (tenant, owner, space), which admission step 2 appends to the query.
@@ -75,7 +78,11 @@ enum class QueryEntry {
  *   budgeted as scope nor reported among the audit's scope fields.
  * - [subject] names the principal, for policies and audit; `null` for an anonymous or in-process caller.
  * - [attributes] are further facts about the principal a policy may read, such as the `abac.` attributes the ABAC
- *   policy matches against snapshot tags (6.1c).
+ *   policy matches against snapshot tags ([AbacQueryPolicy]).
+ * - [tenantId] is the tenant the caller acts in, which [ScopeQueryPolicy] restricts its queries to (through the host's
+ *   [QueryTenantPolicy]); `null` for a caller bound to no tenant, such as trusted in-process code.
+ * - [principal] is the owner and space the caller acts in: [ScopeQueryPolicy] restricts its queries to each part that
+ *   is present.
  */
 data class QueryCaller(
     val entry: QueryEntry = QueryEntry.UNSPECIFIED,
@@ -83,7 +90,13 @@ data class QueryCaller(
     val selection: FilterExpression = MatchAllFilter,
     val subject: String? = null,
     val attributes: Map<String, List<String>> = emptyMap(),
+    val tenantId: String? = null,
+    val principal: Scope = Scope.NONE,
 ) {
+    init {
+        require(tenantId == null || tenantId.isNotBlank()) { "A query caller's tenant, when present, is not blank." }
+    }
+
     /** This caller with [scope] appended to its scope. */
     fun withScope(scope: QueryScope): QueryCaller = copy(scope = this.scope.append(scope))
 
@@ -93,8 +106,8 @@ data class QueryCaller(
 
     /**
      * The caller of a query issued from inside a query extension, a policy or a cache loader: the scope, route
-     * selection and entry are dropped and the entry is [QueryEntry.IN_PROCESS], so an HTTP caller's budgets and scope
-     * do not leak into a nested lookup. The subject and attributes stay, for audit.
+     * selection, tenant, principal scope and entry are dropped and the entry is [QueryEntry.IN_PROCESS], so an HTTP
+     * caller's budgets and scope do not leak into a nested lookup. The subject and attributes stay, for audit.
      */
     fun inProcess(): QueryCaller = QueryCaller(QueryEntry.IN_PROCESS, subject = subject, attributes = attributes)
 

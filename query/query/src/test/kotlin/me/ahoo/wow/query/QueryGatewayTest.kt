@@ -513,8 +513,12 @@ class QueryGatewayTest {
             gateway.cursor(CursorQuery(MatchAllFilter, sort = listOf(explicit)), QueryCaller.UNSPECIFIED)
             original.sort.assert().isEmpty()
             val received = backend.admitted.map { it.query as ICursorQuery }
-            received[0].sort.assert().containsExactly(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
-            received[1].sort.assert().containsExactly(explicit)
+            received[0].sort.assert().containsExactly(
+                Sort(QueryField("tenantId"), Sort.Direction.ASC),
+                Sort(QueryField("aggregateId"), Sort.Direction.ASC),
+            )
+            // The aggregate id is unique only within a tenant, so the tenant still breaks its ties.
+            received[1].sort.assert().containsExactly(explicit, Sort(QueryField("tenantId"), Sort.Direction.ASC))
         }
     }
 

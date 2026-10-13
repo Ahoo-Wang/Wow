@@ -518,6 +518,33 @@ abstract class QueryBackendSpec {
     }
 
     @Test
+    fun `cursor breaks ties by tenant before aggregate id`() = blocking {
+        // The same aggregate id in two tenants: a cross-tenant cursor (trusted, unscoped) must return both.
+        val shared = """{"name":"Shared","status":"PAID","amount":1,"quantity":1,"createdAt":$T0}"""
+        val fixture = given(
+            listOf(
+                snapshot("dup", shared),
+                snapshot("dup", shared, tenantId = OTHER_TENANT),
+                snapshot("solo", shared),
+            ),
+        )
+        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.ASC))
+        val seen = mutableListOf<Pair<String, String>>()
+        var cursor: String? = null
+        do {
+            val query = CursorQuery(MatchAllFilter, sort = sort, size = 1, cursor = cursor)
+            val admitted = QueryAdmission.Trusted.cursor(query, fixture.schema)
+            admitted.query.sort.map { it.field.path }.assert().containsExactly("state.status", "tenantId", "aggregateId")
+            val page = fixture.backend.cursor(admitted)
+            seen += page.list.map { it.path("tenantId").stringValue() to it.id() }
+            cursor = page.nextCursor
+        } while (cursor != null && seen.size < MAX_LIST)
+        seen.assert().containsExactly(OTHER_TENANT to "dup", TENANT to "dup", TENANT to "solo")
+        Unit
+    }
+
+    @Test
     fun `cursor returns an empty terminal page`() = blocking {
         val fixture = given(orders())
         Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
@@ -625,6 +652,23 @@ abstract class QueryBackendSpec {
             ),
         )
         rows.map { it.path("status").stringValue() }.assert().containsExactly("NEW", "PAID")
+        Unit
+    }
+
+    @Test
+    fun `aggregation HAVING that matches no group returns no row`() = blocking {
+        val fixture = given(orders())
+        Assumptions.assumeTrue(fixture.schema.storage.aggregation.having != SupportMode.NONE)
+        val byStatus = AggregationQuery(
+            filter = MatchAllFilter,
+            groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
+            metrics = listOf(AggregationMetric.Count("count")),
+            having = HavingExpression.Condition("count", ComparisonOperator.GTE, 10.0),
+        )
+        // Groups exist, but HAVING removes all of them: no row, and no empty summary in their place.
+        fixture.aggregate(byStatus).assert().isEmpty()
+        // No record matches: no group, so no row either.
+        fixture.aggregate(byStatus.copy(filter = AggregateIdFilter("none"))).assert().isEmpty()
         Unit
     }
 
@@ -807,7 +851,7 @@ abstract class QueryBackendSpec {
 
         fun probeId(probe: SemanticProbe): String = "semantic-${probe.shape.name.lowercase()}-${probe.name}"
 
-        /** The fields of the order state the TCK queries, as the Manifest would declare them (6.1c). */
+        /** The fields of the order state the TCK queries, as the Manifest would declare them. */
         val DECLARATION = querySchema {
             field("state.name") { types(QueryValueType.STRING) }
             field("state.status") { types(QueryValueType.STRING) }

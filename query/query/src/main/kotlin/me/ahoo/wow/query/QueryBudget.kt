@@ -58,6 +58,12 @@ import java.time.Duration
  * paged query's [BOUNDED][TotalMode.BOUNDED] total; [allowExactCount] lets the entry ask for an
  * [EXACT][TotalMode.EXACT] total. [timeout] is the execution timeout of every query of the entry, which the backend
  * receives and the core enforces; [Duration.ZERO] runs without one.
+ *
+ * [unindexedSortExpensive] treats a sort the storage runs without an index
+ * ([QueryFieldBinding.indexed][me.ahoo.wow.query.schema.QueryFieldBinding.indexed] `false`) as an expensive operator,
+ * so an entry that refuses expensive operators refuses it too. It is checked once the schema is known, after the
+ * query is resolved; the tie-breakers a cursor appends never count. Off by default: a storage grants a sort it can run
+ * correctly, indexed or not.
  */
 class QueryBudget(
     val label: String,
@@ -71,6 +77,7 @@ class QueryBudget(
     val countLimit: Int = DEFAULT_COUNT_LIMIT,
     val allowExactCount: Boolean = false,
     val timeout: Duration = DEFAULT_TIMEOUT,
+    val unindexedSortExpensive: Boolean = false,
 ) {
     init {
         require(countLimit >= 0) { "countLimit must be greater than or equal to 0." }

@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -34,11 +35,17 @@ data class QueryStorageType(val value: String) {
  * Where a logical field is stored for one capability. [physicalScope] is the physical container [physicalField] lies
  * in whose elements storage indexes as separate documents, such as an Elasticsearch `nested` mapping, so a backend
  * addresses the field through it; `null` when there is none.
+ *
+ * [indexed] is the storage's fact that an index backs the field for this capability (a sort or a cursor read in index
+ * order): `true` when one does, `false` when the storage runs it without one, `null` when the storage does not say.
+ * It never gates a capability: a storage grants what it can run correctly, indexed or not. The descriptor publishes
+ * it, and a budget may treat an unindexed sort as expensive ([me.ahoo.wow.query.QueryBudget.unindexedSortExpensive]).
  */
 class QueryFieldBinding(
     val physicalField: QueryField,
     storageTypes: Set<QueryStorageType>?,
     val physicalScope: QueryField? = null,
+    val indexed: Boolean? = null,
 ) {
     val storageTypes: Set<QueryStorageType>? = storageTypes?.let { Collections.unmodifiableSet(LinkedHashSet(it)) }
 
@@ -48,20 +55,25 @@ class QueryFieldBinding(
 
     override fun equals(other: Any?): Boolean = other is QueryFieldBinding &&
         physicalField == other.physicalField && storageTypes == other.storageTypes &&
-        physicalScope == other.physicalScope
+        physicalScope == other.physicalScope && indexed == other.indexed
 
     override fun hashCode(): Int =
-        31 * (31 * physicalField.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)
+        31 * (31 * (31 * physicalField.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)) +
+            (indexed?.hashCode() ?: 0)
 }
 
 /**
  * The logical definition of a model (design §5.2): the merged value tree of every source, shared unchanged with every
- * native binding snapshot. Sensitivity (which fields are masked or protected) joins it in 6.1c.
+ * native binding snapshot, with the [sensitivity] policy its masked values are protected under.
  */
 class LogicalQuerySchema(
     val root: QueryValueSchema,
+    val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) {
     val values: Map<QueryPathTemplate, QueryValueSchema>
+
+    /** Every masked value, by its logical path template. */
+    internal val maskedValues: List<Pair<QueryPathTemplate, QueryValueSchema>>
     internal val staticMatches: Map<QueryField, List<QueryValueMatch>>
 
     /** Each alias and the canonical logical field it names. */
@@ -74,6 +86,7 @@ class LogicalQuerySchema(
         root.requireSemanticTypes()
         val paths = root.valuePaths()
         val hasUnions = paths.any { it.second.kind == QueryValueKind.UNION }
+        maskedValues = paths.filter { it.second.maskRule != null }
         values = Collections.unmodifiableMap(
             linkedMapOf<QueryPathTemplate, QueryValueSchema>().apply {
                 paths.forEach { (path, value) -> putIfAbsent(path, value) }
@@ -173,16 +186,30 @@ class QueryModelSchema(
     )
     private val bindingIndex = QueryBindingIndex(this.bindings)
     private val dynamicFields = ConcurrentHashMap<QueryField, QueryFieldSchema>()
+    private val descriptors = ConcurrentHashMap<DescriptorKey, QueryModelDescriptor>()
     private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
         resolveField(field, matches)
     }
 
+    internal val maskedValues = definition.maskedValues
+    internal val hasMaskedFields: Boolean = maskedValues.isNotEmpty()
+
     /**
      * Whether some field's raw value must not be compared. Model-wide search then cannot be admitted: it matches
-     * every searchable field, and storage decides which fields those are. Always `false` until sensitivity joins the
-     * logical definition (6.1c).
+     * every searchable field, and storage decides which fields those are.
      */
-    val hasIncomparableFields: Boolean = false
+    val hasIncomparableFields: Boolean = maskedValues.any {
+        !definition.sensitivity.comparable(it.second.maskRule?.level)
+    }
+
+    /** Where each protected value is stored, projected and returned; read by every field's [QueryFieldSchema.protection]. */
+    internal val protectedSources = QueryProtectedSources(this)
+
+    /** How responses are masked, or `null` when the model masks nothing. */
+    internal val maskDefinition = QueryMaskDefinition.create(this)
+
+    /** The logical paths of the masked fields (`{key}` for a map key), in declaration order. */
+    val maskedFields: List<String> by lazy { maskedValues.map { it.first.logicalPath() }.distinct() }
 
     init {
         require(APPROXIMABLE_METRICS.containsAll(approximateMetrics)) {
@@ -205,10 +232,14 @@ class QueryModelSchema(
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
 
+    /** The descriptor for [key], described once: a few keys per schema (one per entry budget and zone), bounded. */
+    internal fun describedOnce(key: DescriptorKey, describe: () -> QueryModelDescriptor): QueryModelDescriptor =
+        descriptors[key] ?: describe().also { if (descriptors.size < MAX_CACHED_DESCRIPTORS) descriptors[key] = it }
+
     /**
      * The content hash of what this schema states: its model, capabilities, storage support and every logical value
-     * with its native bindings. 9.x hashed its capability descriptor; the descriptor joins in 6.1c, which may make it
-     * the descriptor's version again.
+     * with its native bindings and sensitivity. It is budget-free; the capability descriptor of an entry
+     * ([describe]) carries its own content hash, the `ETag` of the descriptor route.
      */
     val version: String by lazy { queryModelSchemaVersion(this) }
 
@@ -218,6 +249,7 @@ class QueryModelSchema(
      */
     internal fun compilesSameAs(other: QueryModelSchema): Boolean =
         model == other.model && profile == other.profile && provisional == other.provisional &&
+            definition.sensitivity == other.definition.sensitivity &&
             fullProjectionAvailable == other.fullProjectionAvailable && storage == other.storage &&
             capabilities == other.capabilities && approximateMetrics == other.approximateMetrics &&
             definition.root.sameDefinitionAs(other.definition.root) &&
@@ -261,7 +293,12 @@ class QueryModelSchema(
         val fields = locations.map { located ->
             located?.let { (native, keys) ->
                 native.bindings.mapValues { (_, binding) ->
-                    QueryFieldBinding(binding.physicalPath.field(keys), binding.storageTypes, binding.physicalScope)
+                    QueryFieldBinding(
+                        binding.physicalPath.field(keys),
+                        binding.storageTypes,
+                        binding.physicalScope,
+                        binding.indexed,
+                    )
                 }
             }.orEmpty()
         }
@@ -275,7 +312,8 @@ class QueryModelSchema(
             } else {
                 alternatives.flatMapTo(linkedSetOf()) { checkNotNull(it.storageTypes) }
             }
-            capability to QueryFieldBinding(first.physicalField, types, first.physicalScope)
+            val indexed = alternatives.map { it.indexed }.distinct().singleOrNull()
+            capability to QueryFieldBinding(first.physicalField, types, first.physicalScope, indexed)
         }.toMap()
         val scopes = matches.map { it.elementAncestors.map { ancestor -> ancestor.field(emptyList()) } }.distinct()
         return QueryFieldSchema(
@@ -299,7 +337,12 @@ class QueryModelSchema(
         val shared = HashMap<QueryFieldBindingTemplate, QueryFieldBinding>()
         val bindings = native?.bindings?.mapValues { (_, template) ->
             shared.getOrPut(template) {
-                QueryFieldBinding(template.physicalPath.field(keys), template.storageTypes, template.physicalScope)
+                QueryFieldBinding(
+                    template.physicalPath.field(keys),
+                    template.storageTypes,
+                    template.physicalScope,
+                    template.indexed,
+                )
             }
         }.orEmpty()
         return QueryFieldSchema(
@@ -336,12 +379,19 @@ class QueryFieldSchema internal constructor(
     fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
 
     /**
-     * The strongest sensitivity level protecting any source of this field, or `null` when none does. Protected fields
-     * cannot be aggregated or cursor-sorted. Always `null` until sensitivity joins the logical definition (6.1c), whose
-     * policy then decides [comparable] too; admission already applies both.
+     * The strongest sensitivity level protecting any source of this field (its logical path, or any physical,
+     * projection or response location it shares with a protected value), or `null` when none does. Protected fields
+     * cannot be aggregated or cursor-sorted; the schema's [QuerySensitivityPolicy] decides whether they compare.
      */
-    val protection: SensitivityLevel?
-        get() = null
+    val protection: SensitivityLevel? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        fieldProtection(schema, logicalField, this)
+    }
+
+    /**
+     * Whether an index backs this field's sort ([QueryFieldBinding.indexed] of its `SORT` binding): `null` when the
+     * storage does not say or the field does not sort.
+     */
+    fun sortIndexed(): Boolean? = binding(QueryCapability.SORT)?.indexed
 
     /** Whether a sensitivity level protects any source of this field. */
     val protected: Boolean
@@ -349,7 +399,7 @@ class QueryFieldSchema internal constructor(
 
     /** Whether filters and paged sorts may compare this field's raw value. */
     val comparable: Boolean
-        get() = !protected
+        get() = schema.definition.sensitivity.comparable(protection)
 
     /**
      * The field's effective capabilities, the one record admission and entry gates read. A static field's record is
@@ -381,6 +431,7 @@ internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema?
 /** The metric types whose results a backend may estimate. */
 private val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
 private const val MAX_CACHED_DYNAMIC_FIELDS = 1024
+private const val MAX_CACHED_DESCRIPTORS = 16
 
 private fun QueryValueBindings.sameAs(other: QueryValueBindings): Boolean =
     bindings == other.bindings && projectionPath == other.projectionPath && responsePath == other.responsePath

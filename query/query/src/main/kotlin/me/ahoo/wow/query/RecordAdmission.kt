@@ -38,12 +38,21 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.query.mask.SchemaMasker
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.query.spec.spec
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
+
+/**
+ * Masks [record], a record of this schema's model, by the schema's response masks, in place: every sensitive value,
+ * whatever its level, is replaced by its mask in every response, whoever the caller is (9.x semantics; the level only
+ * decides what a query may do with the raw value).
+ */
+fun QueryModelSchema.maskRecord(record: ObjectNode): ObjectNode = SchemaMasker.create(this)?.mask(record) ?: record
 
 /**
  * The in-memory evaluation of a point read's restriction on one snapshot-shaped record ([QueryAdmission.admitRecord]).

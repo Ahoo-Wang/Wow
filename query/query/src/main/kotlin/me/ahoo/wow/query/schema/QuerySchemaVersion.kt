@@ -29,6 +29,7 @@ internal fun queryModelSchemaVersion(schema: QueryModelSchema): String {
         append("fullProjection=").append(schema.fullProjectionAvailable).append('\n')
         append("approximate=").append(schema.approximateMetrics).append('\n')
         append("provisional=").append(schema.provisional).append('\n')
+        append("sensitivity=").append(schema.definition.sensitivity).append('\n')
         append("root=")
         render(schema.root)
         append('\n')
@@ -36,7 +37,8 @@ internal fun queryModelSchemaVersion(schema: QueryModelSchema): String {
             append(path.segments).append(':')
             native.bindings.forEach { (capability, binding) ->
                 append(capability).append('=').append(binding.physicalPath.segments)
-                    .append('/').append(binding.storageTypes).append('/').append(binding.physicalScope).append(';')
+                    .append('/').append(binding.storageTypes).append('/').append(binding.physicalScope)
+                    .append('/').append(binding.indexed).append(';')
             }
             append("projection=").append(native.projectionPath?.segments)
             append(";response=").append(native.responsePath?.segments).append('\n')
@@ -49,6 +51,7 @@ internal fun queryModelSchemaVersion(schema: QueryModelSchema): String {
 private fun StringBuilder.render(value: QueryValueSchema) {
     append('{').append(value.kind).append(",n=").append(value.nullable).append(",r=").append(value.required)
     append(",t=").append(value.valueTypes).append(",s=").append(value.semanticType)
+    append(",m=").append(value.maskRule)
     append(",e=").append(value.enumValues).append(",ed=").append(value.enumDescriptions)
     append(",title=").append(value.title).append(",d=").append(value.description)
     append(",v=").append(value.variant).append(",a=").append(value.aliases).append(",dep=").append(value.deprecated)

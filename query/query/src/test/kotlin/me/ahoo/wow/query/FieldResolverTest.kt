@@ -175,8 +175,9 @@ class FieldResolverTest {
     @Test
     fun `cursor resolves the appended tie-breaker and rejects shared physical fields`() {
         val admitted = QueryAdmission.Trusted.cursor(CursorQuery(filter = MatchAllFilter), schema)
-        val tieBreaker = admitted.query.sort.single()
-        tieBreaker.field.assert().isEqualTo(QueryField("aggregateId"))
+        // The snapshot's unique key: the tenant, then the aggregate id.
+        admitted.query.sort.map { it.field }.assert().containsExactly(QueryField("tenantId"), QueryField("aggregateId"))
+        val tieBreaker = admitted.query.sort.last()
         admitted.field(tieBreaker.field).run {
             capability.assert().isEqualTo(QueryCapability.CURSOR_SORT)
             physicalField.assert().isEqualTo(QueryField("native.aggregateId"))

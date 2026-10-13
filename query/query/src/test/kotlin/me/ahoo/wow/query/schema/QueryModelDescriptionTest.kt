@@ -1,0 +1,423 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.schema
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDatePart
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.descriptor.ConstraintDescriptor
+import me.ahoo.wow.query.descriptor.EnumValueDescriptor
+import me.ahoo.wow.query.descriptor.FieldDescriptor
+import me.ahoo.wow.query.descriptor.PagingMode
+import me.ahoo.wow.query.descriptor.SearchDescriptor
+import me.ahoo.wow.query.descriptor.SensitivityDescriptor
+import me.ahoo.wow.query.json.QueryJson
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.JsonNodeFactory
+import java.time.ZoneId
+import java.util.concurrent.TimeUnit
+
+class QueryModelDescriptionTest {
+    private val schema = boundSchemaFixture(
+        objectFixture(
+            "aggregateId" to scalarFixture(),
+            "tenantId" to scalarFixture(),
+            "deleted" to scalarFixture(QueryValueType.BOOLEAN),
+            "lastEventTime" to scalarFixture(QueryValueType.INTEGER, Temporal.Epoch(TimeUnit.MILLISECONDS)),
+            "state" to objectFixture(
+                "name" to scalarFixture(),
+                "amount" to scalarFixture(QueryValueType.DECIMAL),
+                "createdAt" to scalarFixture(QueryValueType.INTEGER, Temporal.Epoch(TimeUnit.MILLISECONDS)),
+                "tags" to arrayFixture(scalarFixture()),
+                "items" to arrayFixture(objectFixture("sku" to scalarFixture())),
+                "attributes" to QueryValueSchema(
+                    QueryValueKind.OBJECT,
+                    properties = mapOf("color" to scalarFixture()),
+                    additionalProperties = scalarFixture(),
+                ),
+                "labels" to mapFixture(arrayFixture(scalarFixture())),
+            ),
+        ),
+    )
+
+    @Test
+    fun `fields are listed flat by logical path with what each can do`() {
+        val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100, timeZone = ZoneId.of("UTC"))
+        val fields = descriptor.fields.associateBy { it.path }
+        descriptor.fields.map { it.path }.assert().isEqualTo(descriptor.fields.map { it.path }.sorted())
+
+        val name = fields.getValue("state.name")
+        name.filter.operators.assert().contains(FilterOperator.EQ, FilterOperator.IN, FilterOperator.STARTS_WITH)
+            .doesNotContain(FilterOperator.CONTAINS_ALL, FilterOperator.TODAY, FilterOperator.BEFORE_NOW)
+        name.sort.paged.assert().isTrue()
+        name.aggregate!!.groups.assert().contains("TERMS")
+        name.aggregate!!.missingKey.assert().isTrue()
+
+        fields.getValue("state.createdAt").filter.operators.assert()
+            .contains(FilterOperator.TODAY, FilterOperator.BEFORE_NOW)
+        fields.getValue("state.createdAt").aggregate!!.groups.assert().contains("DATE_HISTOGRAM", "DATE_PART")
+        fields.getValue("state.tags").filter.operators.assert()
+            .contains(FilterOperator.CONTAINS_ALL, FilterOperator.IS_EMPTY)
+        fields.getValue("state.tags").aggregate!!.inMetricFilter.assert().isFalse()
+        fields.getValue("state.items.sku").scope.assert().isEqualTo("state.items")
+        fields.getValue("tenantId").role.assert().isEqualTo("TENANT_ID")
+        fields.getValue("aggregateId").role.assert().isEqualTo("AGGREGATE_ID")
+        fields.getValue("lastEventTime").role.assert().isEqualTo(FieldDescriptor.EVENT_TIME)
+        fields.getValue("state.name").role.assert().isNull()
+        descriptor.analysis.firstLastOrderBy.assert().isEqualTo("lastEventTime")
+        descriptor.elements.map { it.path }.assert().contains("state.items")
+        val attributes = descriptor.dynamic.single { it.pattern == "state.attributes.{key}" }
+        // A named property is its own field, so the key pattern does not match it.
+        attributes.excludedKeys.assert().containsExactly("color")
+        fields.keys.assert().contains("state.attributes.color")
+        // An array-valued pattern is one entry, as admission resolves it: collection operators on the array.
+        val labels = descriptor.dynamic.filter { it.pattern == "state.labels.{key}" }
+        labels.assert().hasSize(1)
+        labels.single().kind.assert().isEqualTo(QueryValueKind.ARRAY)
+        labels.single().filter.operators.assert().contains(FilterOperator.CONTAINS_ALL, FilterOperator.EQ)
+        descriptor.dynamic.map { it.pattern }.assert().doesNotHaveDuplicates()
+        descriptor.timeZone.assert().isEqualTo("UTC")
+    }
+
+    @Test
+    fun `analysis names the approximate metrics and the date histogram units`() {
+        schema.describe(null, null).analysis.approximate.assert().isEmpty()
+        val estimated = QueryModelSchema(
+            schema.model,
+            schema.capabilities,
+            schema.definition,
+            schema.bindings,
+            approximateMetrics = setOf("PERCENTILE"),
+        )
+        val analysis = estimated.describe(null, null).analysis
+        analysis.approximate.assert().containsExactly("PERCENTILE")
+        analysis.dateUnits.assert().isEqualTo(AggregationDateUnit.entries)
+        analysis.dateParts.assert().isEqualTo(AggregationDatePart.entries)
+        assertThrows<IllegalArgumentException> {
+            QueryModelSchema(
+                schema.model,
+                schema.capabilities,
+                schema.definition,
+                schema.bindings,
+                approximateMetrics = setOf("COUNT"),
+            )
+        }
+    }
+
+    @Test
+    fun `declared enum values carry their descriptions`() {
+        val paid = JsonNodeFactory.instance.stringNode("PAID")
+        val shipped = JsonNodeFactory.instance.stringNode("SHIPPED")
+        val status = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            enumValues = listOf(paid, shipped),
+            enumDescriptions = mapOf(paid to "Paid"),
+        )
+        val descriptor = boundSchemaFixture(objectFixture("state" to objectFixture("status" to status)))
+            .describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        descriptor.fields.single { it.path == "state.status" }.enum.assert().containsExactly(
+            EnumValueDescriptor(paid, "Paid"),
+            EnumValueDescriptor(shipped),
+        )
+    }
+
+    @Test
+    fun `element fields are searchable inside their element only`() {
+        val definition = LogicalQuerySchema(
+            objectFixture(
+                "state" to objectFixture(
+                    "title" to scalarFixture(),
+                    "items" to arrayFixture(objectFixture("name" to scalarFixture(), "note" to scalarFixture())),
+                    "tags" to arrayFixture(objectFixture("code" to scalarFixture())),
+                ),
+            ),
+        )
+        val fullText = setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        val grants = mapOf(
+            "state.title" to fullText,
+            "state.items" to setOf(QueryCapability.ELEMENT_SCOPE),
+            "state.items[].name" to fullText,
+            "state.items[].note" to setOf(QueryCapability.FULL_TEXT_TERMS),
+            "state.tags" to setOf(QueryCapability.ELEMENT_SCOPE),
+            "state.tags[].code" to setOf(QueryCapability.EXACT_MATCH),
+        )
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            fullText,
+            definition,
+            definition.values.keys.associateWith { path ->
+                val name = path.segments.joinToString(".") {
+                    when (it) {
+                        is QueryPathSegment.Property -> it.name
+                        is QueryPathSegment.Key -> "{}"
+                        QueryPathSegment.Item -> "[]"
+                    }
+                }.replace(".[]", "[]")
+                val native = QueryFieldBindingTemplate(path, null)
+                QueryValueBindings(grants[name].orEmpty().associateWith { native }, path, path)
+            },
+        )
+
+        val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        descriptor.record.search!!.fields.assert().containsExactly("state.title")
+        val elements = descriptor.elements.associateBy { it.path }
+        elements.getValue("state.items").search.assert().isEqualTo(
+            SearchDescriptor(listOf(SearchMode.TERMS), listOf("state.items.name", "state.items.note")),
+        )
+        elements.getValue("state.tags").search.assert().isNull()
+    }
+
+    @Test
+    fun `the record, limits and constraints are those of the entry`() {
+        val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100)
+        descriptor.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+        descriptor.record.identity.assert().isEqualTo("aggregateId")
+        descriptor.record.paging.assert().containsExactly(PagingMode.LIST, PagingMode.PAGED, PagingMode.CURSOR)
+        descriptor.record.defaultScope.assert().isEqualTo(DeletionState.ACTIVE)
+        descriptor.record.rootOperators.assert().contains(
+            FilterOperator.ID,
+            FilterOperator.TENANT_ID,
+            FilterOperator.DELETION,
+        )
+        descriptor.limits.maxListSize.assert().isEqualTo(1000)
+        descriptor.limits.defaultListSize.assert().isEqualTo(100)
+        descriptor.limits.aggregation.maxLimit.assert().isEqualTo(1000)
+        descriptor.limits.aggregation.maxResidualGroups.assert().isEqualTo(QueryBudget.DEFAULT_MAX_RESIDUAL_GROUPS)
+        // A snapshot cursor breaks ties by the tenant before the aggregate id.
+        descriptor.constraints.assert().contains(
+            ConstraintDescriptor(
+                ConstraintDescriptor.CURSOR_UNIQUE_SORT,
+                appended = "aggregateId",
+                fields = listOf("tenantId", "aggregateId"),
+            ),
+        )
+
+        val unbudgeted = schema.describe(budget = null, defaultListSize = null)
+        unbudgeted.limits.maxListSize.assert().isNull()
+        unbudgeted.limits.aggregation.maxLimit.assert().isEqualTo(10_000)
+        unbudgeted.limits.aggregation.maxResidualGroups.assert().isNull()
+    }
+
+    @Test
+    fun `a snapshot schema without a tenant orders its cursor by the identity alone`() {
+        val untenanted = boundSchemaFixture(objectFixture("aggregateId" to scalarFixture(), "state" to objectFixture()))
+        untenanted.describe(QueryBudget.HTTP_DEFAULT, 100).constraints.assert().contains(
+            ConstraintDescriptor(
+                ConstraintDescriptor.CURSOR_UNIQUE_SORT,
+                appended = "aggregateId",
+                fields = listOf("aggregateId"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a cursor is not offered when a field of the unique key cannot order it`() {
+        val root = objectFixture("aggregateId" to scalarFixture(), "tenantId" to scalarFixture())
+        val definition = LogicalQuerySchema(root)
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            definition,
+            definition.values.keys.filter { it.segments.isNotEmpty() }.associateWith { path ->
+                val capabilities = if (path.segments == listOf(QueryPathSegment.Property("tenantId"))) {
+                    setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT)
+                } else {
+                    setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT, QueryCapability.CURSOR_SORT)
+                }
+                QueryValueBindings(capabilities.associateWith { QueryFieldBindingTemplate(path, null) }, path, path)
+            },
+        )
+
+        val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        descriptor.record.paging.assert().containsExactly(PagingMode.LIST, PagingMode.PAGED)
+        descriptor.constraints.map { it.type }.assert().doesNotContain(ConstraintDescriptor.CURSOR_UNIQUE_SORT)
+    }
+
+    /**
+     * The page window is the smaller of the budget's and the storage's (Elasticsearch's `max_result_window`): admission
+     * enforces both, so a pager offered more would offer pages it cannot reach. A budget of 0 sets no window of its
+     * own, and the storage's still holds.
+     */
+    @Test
+    fun `the page window is the smaller of the budget and the storage window`() {
+        fun windowed(maxOffsetWindow: Int?) = QueryModelSchema(
+            schema.model,
+            schema.capabilities,
+            schema.definition,
+            schema.bindings,
+            storage = StorageSupport(paging = PagingSupport(maxOffsetWindow = maxOffsetWindow)),
+        )
+        val budget = QueryBudget(QueryBudget.HTTP_LABEL, maxPageWindow = 10_000)
+        windowed(5_000).describe(budget, 100).limits.maxPageWindow.assert().isEqualTo(5_000L)
+        windowed(50_000).describe(budget, 100).limits.maxPageWindow.assert().isEqualTo(10_000L)
+        windowed(null).describe(budget, 100).limits.maxPageWindow.assert().isEqualTo(10_000L)
+
+        val unwindowed = QueryBudget(QueryBudget.HTTP_LABEL, maxPageWindow = 0)
+        windowed(5_000).describe(unwindowed, 100).limits.maxPageWindow.assert().isEqualTo(5_000L)
+        windowed(5_000).describe(null, null).limits.maxPageWindow.assert().isEqualTo(5_000L)
+        windowed(null).describe(unwindowed, 100).limits.maxPageWindow.assert().isNull()
+    }
+
+    @Test
+    fun `a gated entry lists no expensive operators and states the gates as constraints`() {
+        val strict = schema.describe(QueryBudget(QueryBudget.HTTP_LABEL, allowExpensiveOperators = false), 100)
+        val name = strict.fields.single { it.path == "state.name" }
+        name.filter.operators.assert()
+            .doesNotContain(FilterOperator.NE, FilterOperator.CONTAINS, FilterOperator.IS_NULL)
+            .contains(FilterOperator.EQ, FilterOperator.STARTS_WITH)
+        strict.analysis.expressions.assert().isFalse()
+        strict.analysis.sort.metrics.assert().isFalse()
+        strict.analysis.dense.assert().isFalse()
+        strict.analysis.metrics.assert().doesNotContain("FIRST", "LAST")
+        strict.analysis.firstLastOrderBy.assert().isNull()
+        strict.analysis.dateDiffUnits.assert().isEmpty()
+        strict.analysis.windows.assert().isEmpty()
+        strict.analysis.rootGroups.assert().isFalse()
+        strict.fields.mapNotNull { it.aggregate }.forEach { aggregate ->
+            aggregate.groups.assert().doesNotContain("DATE_PART")
+            aggregate.firstLast.assert().isFalse()
+        }
+        strict.elements.single { it.path == "state.items" }.aggregate.assert().isFalse()
+        strict.constraints.map { it.type }.assert().contains(
+            ConstraintDescriptor.COUNT_REQUIRES_FILTER,
+            ConstraintDescriptor.STARTS_WITH_REQUIRES_PREFIX,
+        )
+    }
+
+    @Test
+    fun `the version is a content hash`() {
+        val first = schema.describe(QueryBudget.HTTP_DEFAULT, 100)
+        first.version.assert().startsWith("sha256:")
+        schema.describe(QueryBudget.HTTP_DEFAULT, 100).version.assert().isEqualTo(first.version)
+        schema.describe(QueryBudget(QueryBudget.HTTP_LABEL, maxListSize = 500), 100).version
+            .assert().isNotEqualTo(first.version)
+    }
+
+    @Test
+    fun `a sortable field states whether the storage sorts it by an index`() {
+        val root = objectFixture(
+            "aggregateId" to scalarFixture(),
+            "state" to objectFixture("name" to scalarFixture(), "note" to scalarFixture(), "code" to scalarFixture()),
+        )
+        val indexed = mapOf("state.name" to true, "state.note" to false)
+        val definition = LogicalQuerySchema(root)
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            definition,
+            definition.values.keys.filter { it.segments.isNotEmpty() }.associateWith { path ->
+                val name = path.logicalPath()
+                val capabilities = if (name == "state.code") {
+                    setOf(QueryCapability.EXACT_MATCH)
+                } else {
+                    setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT)
+                }
+                QueryValueBindings(
+                    capabilities.associateWith { QueryFieldBindingTemplate(path, null, indexed = indexed[name]) },
+                    path,
+                    path,
+                )
+            },
+        )
+
+        val fields = schema.describe(QueryBudget.HTTP_DEFAULT, 100).fields.associateBy { it.path }
+
+        fields.getValue("state.name").sort.indexed.assert().isEqualTo(true)
+        fields.getValue("state.note").sort.indexed.assert().isEqualTo(false)
+        // The storage did not say, or the field cannot be sorted at all.
+        fields.getValue("aggregateId").sort.indexed.assert().isNull()
+        fields.getValue("state.code").sort.paged.assert().isFalse()
+        fields.getValue("state.code").sort.indexed.assert().isNull()
+    }
+
+    @Test
+    fun `protected fields are described without values, aggregation or cursors and no physical facts leak`() {
+        val masked = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            enumValues = listOf(JsonNodeFactory.instance.stringNode("A")),
+            maskRule = MaskRule(SensitivityLevel.DISPLAY),
+        )
+        val protected = boundSchemaFixture(objectFixture("state" to objectFixture("secret" to masked)))
+        val descriptor = protected.describe(QueryBudget.HTTP_DEFAULT, 100)
+        val secret = descriptor.fields.single { it.path == "state.secret" }
+        secret.sensitivity.assert().isEqualTo(SensitivityDescriptor(SensitivityLevel.DISPLAY, comparable = true))
+        secret.filter.operators.assert().contains(FilterOperator.EQ, FilterOperator.GT)
+        secret.sort.paged.assert().isTrue()
+        secret.enum.assert().isNull()
+        secret.aggregate.assert().isNull()
+        secret.sort.cursor.assert().isFalse()
+        val json = QueryJson.mapper.writeValueAsString(descriptor)
+        json.assert().doesNotContain("native", "KeepMaskStrategy", "maskRule", "physical")
+        QueryCapability.entries.forEach {
+            json.assert().doesNotContain("\"${it.name}\"")
+        }
+    }
+
+    @Test
+    fun `confidential fields and incomparable display fields are described without comparisons`() {
+        fun describe(level: SensitivityLevel, sensitivity: QuerySensitivityPolicy) = boundSchemaFixture(
+            objectFixture(
+                "state" to objectFixture(
+                    "secret" to maskedFixture(level),
+                    "name" to scalarFixture(),
+                ),
+            ),
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+        ).withSensitivity(sensitivity).describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        listOf(
+            describe(SensitivityLevel.CONFIDENTIAL, QuerySensitivityPolicy.DEFAULT) to SensitivityLevel.CONFIDENTIAL,
+            describe(SensitivityLevel.DISPLAY, QuerySensitivityPolicy(displayComparable = false)) to
+                SensitivityLevel.DISPLAY,
+        ).forEach { (descriptor, level) ->
+            val secret = descriptor.fields.single { it.path == "state.secret" }
+            secret.sensitivity.assert().isEqualTo(SensitivityDescriptor(level, comparable = false))
+            secret.filter.operators.assert().isEmpty()
+            secret.sort.paged.assert().isFalse()
+            secret.sort.cursor.assert().isFalse()
+            secret.aggregate.assert().isNull()
+            secret.project.assert().isTrue()
+            descriptor.record.search!!.modes.assert().isEmpty()
+            descriptor.record.search!!.fields.assert().doesNotContain("state.secret").contains("state.name")
+        }
+        describe(SensitivityLevel.DISPLAY, QuerySensitivityPolicy.DEFAULT).record.search!!.modes.assert()
+            .containsExactly(SearchMode.TERMS)
+    }
+
+    private fun maskedFixture(level: SensitivityLevel) = QueryValueSchema(
+        QueryValueKind.SCALAR,
+        valueTypes = setOf(QueryValueType.STRING),
+        nullable = false,
+        maskRule = MaskRule(level),
+    )
+
+    /** This schema with its logical definition read under [sensitivity]; the bindings are kept. */
+    private fun QueryModelSchema.withSensitivity(sensitivity: QuerySensitivityPolicy) = QueryModelSchema(
+        model,
+        capabilities,
+        LogicalQuerySchema(definition.root, sensitivity),
+        bindings,
+    )
+}

@@ -185,13 +185,24 @@ fun interface QueryModelCompiler {
     fun compile(context: QuerySchemaContext, storage: QueryStorageAdapter): QueryModelSchemaProvider
 
     companion object {
-        /** Merges the declarations of [sources] into the logical model and compiles the storage's facts about it. */
+        /**
+         * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
+         * facts about it.
+         */
         @JvmStatic
         @JvmOverloads
-        fun of(sources: List<QuerySchemaSource> = emptyList()): QueryModelCompiler {
+        fun of(
+            sources: List<QuerySchemaSource> = emptyList(),
+            sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+        ): QueryModelCompiler {
             val declared = sources.toList()
             return QueryModelCompiler { context, storage ->
-                DefaultQueryModelSchemaProvider(context = context, sources = declared, adapter = storage)
+                DefaultQueryModelSchemaProvider(
+                    context = context,
+                    sources = declared,
+                    adapter = storage,
+                    sensitivity = sensitivity,
+                )
             }
         }
     }

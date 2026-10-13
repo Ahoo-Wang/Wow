@@ -16,6 +16,8 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.query.filter.QueryType
@@ -29,7 +31,7 @@ import java.time.Duration
 /**
  * One query as an audit trail sees it: who asked ([caller]; Wow does not own identity), what shape of query on which
  * model version, under which restrictions, and what came back. It never carries a filter value, so no personal data
- * from the query reaches the audit log. 9.x's `maskedFields` returns with masking (6.1c).
+ * from the query reaches the audit log.
  *
  * @property aggregateType the aggregate type queried.
  * @property queryType the gateway operation.
@@ -40,6 +42,8 @@ import java.time.Duration
  * @property scopeFields the fields the caller's scope restricts (`tenantId`, `ownerId`, ...), not their values.
  * @property policies the [QueryPolicy] classes that restricted the query (those that returned anything but match-all).
  * @property rows the records or aggregation rows delivered; a count delivers one.
+ * @property maskedFields the masked fields of the model the response carries, read from the admitted (canonical)
+ * projection so an alias cannot hide one; empty for a count, an aggregation or a query rejected before admission.
  * @property outcome how the query ended.
  * @property errorCode the error code of a failed query ([QueryError.errorCode] and, when it states one, the rule code
  * of its first binding error).
@@ -56,6 +60,7 @@ class QueryAudit internal constructor(
     val scopeFields: List<String>,
     val policies: List<String>,
     val rows: Long,
+    val maskedFields: List<String>,
     val outcome: Outcome,
     val errorCode: String?,
     val caller: QueryCaller,
@@ -75,7 +80,7 @@ class QueryAudit internal constructor(
     override fun toString(): String =
         "QueryAudit(aggregateType=$aggregateType, queryType=$queryType, entry=$entry, model=$model, " +
             "modelVersion=$modelVersion, fingerprint=$fingerprint, scopeFields=$scopeFields, policies=$policies, " +
-            "rows=$rows, outcome=$outcome, errorCode=$errorCode, elapsed=$elapsed)"
+            "rows=$rows, maskedFields=$maskedFields, outcome=$outcome, errorCode=$errorCode, elapsed=$elapsed)"
 }
 
 /** Collects one query's [QueryAudit]. */
@@ -95,6 +100,9 @@ internal class QueryAuditTrail(
     private var rows = 0L
 
     @Volatile
+    private var projection: Projection? = null
+
+    @Volatile
     private var error: Throwable? = null
 
     fun schema(schema: QueryModelSchema) {
@@ -103,6 +111,11 @@ internal class QueryAuditTrail(
 
     fun policy(policy: QueryPolicy) {
         synchronized(policies) { policies += policy::class.java.name }
+    }
+
+    /** Records the query admission produced, whose projection names canonical fields only. */
+    fun admitted(query: Any) {
+        projection = (query as? ProjectionCapable<*>)?.projection
     }
 
     fun rows(count: Long) {
@@ -125,11 +138,41 @@ internal class QueryAuditTrail(
             scopeFields = scopeFieldsOf(caller.scope.filter, schema?.profile),
             policies = synchronized(policies) { policies.toList() },
             rows = rows,
+            maskedFields = schema?.let(::maskedFieldsOf).orEmpty(),
             outcome = outcome,
             errorCode = error?.let(::errorCodeOf),
             caller = caller,
             elapsed = Duration.ofNanos(System.nanoTime() - startedAt),
         )
+    }
+
+    private fun maskedFieldsOf(schema: QueryModelSchema): List<String> {
+        if (queryType == QueryType.COUNT || queryType == QueryType.AGGREGATION) return emptyList()
+        val projection = projection ?: return emptyList()
+        return schema.maskedFields.filter { path ->
+            val masked = path.split('.')
+            (projection.include.isEmpty() || projection.include.any { it.reads(masked) }) &&
+                projection.exclude.none { it.removes(masked) }
+        }
+    }
+
+    /**
+     * Whether including this field reads some of [masked], a masked path whose `{key}` segments stand for any map
+     * key: the field is an ancestor of it, or a path inside it.
+     */
+    private fun QueryField.reads(masked: List<String>): Boolean {
+        val segments = path.split('.')
+        return segments.zip(masked).all { (field, template) -> template == KEY_SEGMENT || field == template }
+    }
+
+    /** Whether excluding this field removes all of [masked]: it is [masked] or an ancestor, a `{key}` matched literally. */
+    private fun QueryField.removes(masked: List<String>): Boolean {
+        val segments = path.split('.')
+        return segments.size <= masked.size && segments.indices.all { segments[it] == masked[it] }
+    }
+
+    private companion object {
+        const val KEY_SEGMENT = "{key}"
     }
 }
 
