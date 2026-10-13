@@ -297,7 +297,9 @@ class CommandGateway(
                     rewritten.causation == command.causation &&
                     rewritten.operator == command.operator &&
                     rewritten.wait == command.wait,
-            ) { "A rewriter changed the identity, the ids, the operator or the wait of ${command.id}; it may change only its body and headers." }
+            ) {
+                "A rewriter changed the identity, the ids, the operator or the wait of ${command.id}; it may change only its body and headers."
+            }
             check(rewritten.body.javaClass == command.body.javaClass) {
                 "A rewriter changed the body of ${command.id} from ${command.body.javaClass.name} to ${rewritten.body.javaClass.name}."
             }

@@ -71,7 +71,10 @@ class SensitivityGatewayTest {
     fun `responses mask every sensitive value whatever its level and whoever asks`() {
         runTest {
             val (gateway, _) = gateway()
-            listOf(QueryCaller.IN_PROCESS, QueryCaller(Caller(tenantId = "t"), entry = QueryEntry.HTTP)).forEach { caller ->
+            listOf(
+                QueryCaller.IN_PROCESS,
+                QueryCaller(Caller(tenantId = "t"), entry = QueryEntry.HTTP)
+            ).forEach { caller ->
                 val rows = gateway.list(
                     ListQuery(MatchAllFilter, sort = listOf(Sort(ID, Sort.Direction.ASC)), limit = 10),
                     caller

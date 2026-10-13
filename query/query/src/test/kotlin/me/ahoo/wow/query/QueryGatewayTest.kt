@@ -119,7 +119,10 @@ class QueryGatewayTest {
                 observer = auditObserver { audits += it },
             )
             val query = ListQuery(EqualFilter(QueryField("aggregateId"), "secret-value"), limit = 10)
-            val caller = QueryCaller(entry = QueryEntry.HTTP, scope = QueryScope(authenticated = TenantIdFilter("tenant")))
+            val caller = QueryCaller(
+                entry = QueryEntry.HTTP,
+                scope = QueryScope(authenticated = TenantIdFilter("tenant"))
+            )
             gateway.list(query, caller).toList().assert().hasSize(2)
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert()
                 .isEqualTo(CountResult(0, exact = true))
@@ -240,10 +243,16 @@ class QueryGatewayTest {
                 QueryScope(authenticated = AndFilter(listOf(OwnerIdFilter("owner"), tenant)), declared = tenant),
                 QueryScope(authenticated = EqualFilter(QueryField("tenantId"), "tenant")),
             ).forEach { scope ->
-                gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP, scope = scope)).count.assert().isZero()
+                gateway.count(
+                    CountQuery(MatchAllFilter),
+                    QueryCaller(entry = QueryEntry.HTTP, scope = scope)
+                ).count.assert().isZero()
             }
             QueryEntry.entries.filter { it != QueryEntry.HTTP }.forEach { entry ->
-                gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = entry, scope = QueryScope(declared = tenant)))
+                gateway.count(
+                    CountQuery(MatchAllFilter),
+                    QueryCaller(entry = entry, scope = QueryScope(declared = tenant))
+                )
                     .count.assert().isZero()
             }
             received.assert().hasSize(5)

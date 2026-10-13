@@ -22,9 +22,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import tools.jackson.databind.JsonNode
 import java.time.Duration
 import java.util.UUID
-import tools.jackson.databind.JsonNode
 
 /**
  * The shop's orders and carts queried over HTTP (decisions D127, D129–D131, D150), the same contract on every backend

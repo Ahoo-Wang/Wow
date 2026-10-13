@@ -101,7 +101,10 @@ class EventQueryGatewayTest {
     @Test
     fun `the principal's space should restrict the streams`() {
         fun visible(space: String) = runBlocking {
-            untimed.list(ListQuery(of()), inProcess.copy(caller = inProcess.caller!!.copy(scope = Scope("alice", space)))).toList()
+            untimed.list(
+                ListQuery(of()),
+                inProcess.copy(caller = inProcess.caller!!.copy(scope = Scope("alice", space)))
+            ).toList()
         }
         visible("s-1").assert().hasSize(3)
         visible("s-2").assert().isEmpty()

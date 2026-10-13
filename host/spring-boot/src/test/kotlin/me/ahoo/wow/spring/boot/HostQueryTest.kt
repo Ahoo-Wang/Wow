@@ -170,7 +170,10 @@ class HostQueryTest {
         startHost("wow.aggregates.[bank.account].tenant" to "platform").use { host ->
             val tenants = host.context.getBean(QueryTenantPolicy::class.java)
             tenants.tenantOf(ACCOUNT, QueryCaller(Caller(tenantId = "acme"))).assert().isEqualTo("platform")
-            tenants.tenantOf(AggregateType(BANK, "other"), QueryCaller(Caller(tenantId = "acme"))).assert().isEqualTo("acme")
+            tenants.tenantOf(
+                AggregateType(BANK, "other"),
+                QueryCaller(Caller(tenantId = "acme"))
+            ).assert().isEqualTo("acme")
         }
     }
 
@@ -178,7 +181,10 @@ class HostQueryTest {
     fun `the host tenant policy should fix a tenant or keep the caller's`() {
         val tenants = HostQueryTenants(TenantPolicy.fixed(mapOf(ACCOUNT to "platform")))
         tenants.tenantOf(ACCOUNT, QueryCaller()).assert().isEqualTo("platform")
-        tenants.tenantOf(AggregateType(BANK, "other"), QueryCaller(Caller(tenantId = "acme"))).assert().isEqualTo("acme")
+        tenants.tenantOf(
+            AggregateType(BANK, "other"),
+            QueryCaller(Caller(tenantId = "acme"))
+        ).assert().isEqualTo("acme")
         tenants.tenantOf(AggregateType(BANK, "other"), QueryCaller()).assert().isNull()
     }
 

@@ -296,7 +296,10 @@ class DatasetRoutesTest {
             entry = QueryEntry.HTTP,
         )
         visibility.visible(salesDataset(), tagged).assert().isTrue()
-        visibility.visible(regionsDataset(), QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)).assert().isFalse()
+        visibility.visible(
+            regionsDataset(),
+            QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)
+        ).assert().isFalse()
         DatasetVisibility.of(AbacQueryOptions(enabled = true)).assert().isSameAs(DatasetVisibility.DEFAULT)
     }
 

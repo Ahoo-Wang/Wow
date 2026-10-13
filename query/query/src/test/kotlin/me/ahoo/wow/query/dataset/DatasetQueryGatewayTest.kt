@@ -360,7 +360,10 @@ class DatasetQueryGatewayTest {
             datasets = datasets,
         )
         val gateways = DatasetQueryGateways.of(datasets, catalog, factory, policies = listOf(ScopeQueryPolicy()))
-        gateways[orders.name]!!.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP))
+        gateways[orders.name]!!.count(
+            CountQuery(MatchAllFilter),
+            QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)
+        )
             .assert().isEqualTo(CountResult(1, exact = true))
         assertThrows<IllegalArgumentException> { datasets.add(orders.copy(name = OTHER, title = "unbound")) }
         gateways[OTHER].assert().isNull()

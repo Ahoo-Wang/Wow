@@ -176,7 +176,10 @@ class ScopeQueryPolicyTest {
             ids(QueryCaller.IN_PROCESS).assert().containsExactly("a", "b", "c", "d")
             // A caller cannot widen its scope by naming another tenant in its own filter.
             ids(QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP), TenantIdFilter("t2")).assert().isEmpty()
-            gateway.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "t2"), entry = QueryEntry.HTTP)).count
+            gateway.count(
+                CountQuery(MatchAllFilter),
+                QueryCaller(Caller(tenantId = "t2"), entry = QueryEntry.HTTP)
+            ).count
                 .assert().isEqualTo(1L)
             gateway.single(
                 SingleQuery(AggregateIdFilter("c")),
