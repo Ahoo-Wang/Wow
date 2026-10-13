@@ -36,15 +36,16 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   Then teach `wow-develop` (or a V10 Skill) the V10 surface.
 - **Blocks M7**: yes. M7 puts V10 in front of users, and a new user cannot start without this page.
 
-### G2. `application.yaml` fails on the host alone: SnakeYAML is missing
+### G2. `application.yaml` fails on the host alone: SnakeYAML is missing (resolved)
 
 - **Work package**: E.0
 - **Area**: host
 - **What happened**: A server that depends only on the host (`wow-spring-boot`) and has an `application.yaml`, as the shop does, fails at startup with "Attempted to load Config resource 'class path resource [application.yaml]' … but snakeyaml was not found on the classpath". The shop starts only because one of its other dependencies, `spring-boot-starter-validation`, brings SnakeYAML along. Nothing documents that the host needs a Spring Boot starter or SnakeYAML beside it.
 - **Where they looked**: `v9-to-v10.md` (Build and dependencies), which says the host is "wiring only" plus one module per technology.
-- **Workaround**: Each eShop server declares `runtimeOnly("org.yaml:snakeyaml")`.
+- **Workaround**: Each eShop server declared `runtimeOnly("org.yaml:snakeyaml")`; #4346 removed it.
 - **Proposed fix**: Make the host depend on `spring-boot-starter`, as every Spring Boot starter does, or state the requirement where the host's dependencies are documented.
 - **Blocks M7**: yes. The first server a user writes fails to start.
+- **Resolved**: by #4346. The host depends on `spring-boot-starter`, which brings SnakeYAML.
 
 ### G3. The rules for a context name are not documented
 

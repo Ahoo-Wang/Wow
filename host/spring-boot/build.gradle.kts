@@ -3,7 +3,9 @@ description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 dependencies {
     api(project(":runtime"))
     api(project(":http"))
-    api("org.springframework.boot:spring-boot-autoconfigure")
+    // The starter, as every Spring Boot starter has: auto-configuration, logging and SnakeYAML, so an application that
+    // depends on the host alone reads its `application.yaml` (eShop DX gap G2).
+    api("org.springframework.boot:spring-boot-starter")
     // The public routes are served by the application's WebFlux server (decision D30), the internal port by a Reactor
     // Netty server of the host's own (D89).
     api("org.springframework.boot:spring-boot-webflux")

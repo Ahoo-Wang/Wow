@@ -27,8 +27,8 @@ import reactor.netty.http.server.HttpServer
  * The internal port of the node (decisions D89, D109): a Reactor Netty server of its own, apart from the public
  * WebFlux server, serving [routes] (the cluster channel and the wait signals) over HTTP/1.1 and h2c. The JDK client
  * reaches HTTP/2 by upgrading the first request of a connection, a `POST` with its body, so the server takes an
- * upgrade request of up to [InternalHttp.MAX_UPGRADE_BODY] bytes. It is not authenticated (D35): bind it to [host]
- * where only the cluster reaches it.
+ * upgrade request of up to [InternalHttp.MAX_UPGRADE_BODY] bytes, and keeps reading its HTTP/1.1 connections
+ * ([KeepAliveReads]). It is not authenticated (D35): bind it to [host] where only the cluster reaches it.
  */
 class InternalServer(
     private val port: Int,
@@ -56,6 +56,7 @@ class InternalServer(
             .port(port)
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
             .httpRequestDecoder { it.h2cMaxContentLength(InternalHttp.MAX_UPGRADE_BODY) }
+            .doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
             .handle(adapter)
         host?.let { configured = configured.host(it) }
         server = configured.bindNow().also { logger.info { "Wow internal port bound at ${it.address()}." } }
