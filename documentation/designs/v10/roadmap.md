@@ -144,6 +144,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.0e | 调用方与操作人（D163、D165）：`Caller` 移到 `:api` 并由命令与查询共用，`QueryCaller(caller, entry, selection)`，查询策略读 `caller`；`wow-api` 的 `Operator`；`Command`、线上形式、`EventStreamRecord`、`StateEventRecord`、`SnapshotRecord`（`operator`、`firstOperator`）；准入由 `Caller` 转换，派生命令继承；三个后端的日志与快照列；查询系统字段；迁移映射 `command_operator` | M | 审计端到端：HTTP 命令 → 事件流 → 快照查询按操作人过滤；Saga 派生命令继承根操作人 |
 | 6.0g | 按聚合配置存储（D177）：命名存储实例 `wow.stores`；日志分组（每组分区序号、组内尾部合并）；检查点按组；定时器、台账随组；查询按聚合路由；启动校验 | M | 6.8 | 两个存储（PostgreSQL 与 MongoDB）混合的上下文端到端：分区、订阅、定时器、交接都正确 |
 | 6.0f | ID 生成器（D171）：`:spi` 的 `GlobalIdGenerator`、`AggregateIdGenerator`，准入改用两者，`DecideScope`/`SagaContext` 的 `ids`；可选模块 `:cosid`（`extensions/cosid`）；宿主配置 `wow.aggregates."ctx.agg".id-generator`；架构规则 | S～M | 默认实现、按聚合配置、CosId 适配、领域内取 ID 的测试；依赖 6.0e |
+| 6.0h | 命令转换（D182）：`CommandTransformer` 与 `@MountedCommand`、准入顺序调整与再授权、`transformedFrom`、预留键目标解析器；删除 `CommandRewriter` | M | M7 之前 | 按用户名改密码、挂载命令导入、外部回调三个场景的端到端测试 |
+| 6.0i | v9 → V10 能力核对（D183）：只读审计，产出 `09-capability-parity.md` 与缺失项清单 | S～M | M7 之前 | 能力对照表入库；缺失项逐条有决定 |
 | 6.0d | 存储按（上下文，聚合）拆分：PostgreSQL 与 MongoDB 的日志表/集合（D162）；MongoDB 的快照集合（D161，PostgreSQL 的快照表在 6.2a） | M | `EventLogSpec` 与快照 TCK 全绿；分区尾部归并与去重测试 |
 | 6.0a | M6 的全部 Manifest 字段与编译器写入：`queries`（D128）、`published`、`derives`、跨上下文的 `SubscriptionSource`（D138）、`@OnRejected` 订阅（D136）；`FrameworkErrors` 的查询错误码（D130，含 D150 的 `wow.query.timeout`） | M | Manifest 快照测试；依赖 6.00 |
 
